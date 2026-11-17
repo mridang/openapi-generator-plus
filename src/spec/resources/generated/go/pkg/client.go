@@ -125,8 +125,8 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 
 	client := &Client{
 		apiClient: apiClient,
-		Pet:       NewPetApi(apiClient, config, authenticator),
-		Store:     NewStoreApi(apiClient, config, authenticator),
+		Pet:       NewPetApi(apiClient, config, authenticator, Credentials{}),
+		Store:     NewStoreApi(apiClient, config, authenticator, Credentials{}),
 	}
 	client.Pet.credentials = credentials
 	client.Store.credentials = credentials

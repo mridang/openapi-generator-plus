@@ -25,11 +25,17 @@ type StoreApi struct {
 	*baseApi
 }
 
-// NewStoreApi creates a new StoreApi instance.
-func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *StoreApi {
-	return &StoreApi{
+// NewStoreApi creates a new StoreApi instance. The authenticator is
+// applied to every operation that is not declared without security; the
+// schemeAuthenticators give each security scheme its own credential (see
+// Credentials) and an operation uses the one its spec names. Pass nil and the
+// zero Credentials for the ones you do not use.
+func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authenticator, schemeAuthenticators Credentials) *StoreApi {
+	api := &StoreApi{
 		baseApi: newBaseApi(apiClient, config, authenticator),
 	}
+	api.credentials = schemeAuthenticators.bySchemeId()
+	return api
 }
 
 // StoreApiInterface is the set of operations StoreApi provides. Depend

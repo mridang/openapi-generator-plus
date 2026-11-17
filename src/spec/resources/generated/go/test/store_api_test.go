@@ -42,14 +42,14 @@ func newStoreApiForIntegration(t *testing.T) *petstore.StoreApi {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	client := petstore.NewDefaultApiClient(transport)
-	return petstore.NewStoreApi(client, config, nil)
+	return petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
 }
 
 func newStoreApiForMock(t *testing.T, server *httptest.Server) *petstore.StoreApi {
 	t.Helper()
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := petstore.NewDefaultApiClient(noRetryTransport(t))
-	return petstore.NewStoreApi(client, config, nil)
+	return petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
 }
 
 // F1128: createAccount sends the write-only password, keeps the read-only id
@@ -106,7 +106,7 @@ func TestStoreApi_GetOrderByIdPicksTheStatusSpecificErrorClass(t *testing.T) {
 		config := petstore.NewConfigurationBuilder().
 			BaseURL(fmt.Sprintf("%s/test/status/%d", chasmURL, tc.status)).
 			Build()
-		api := petstore.NewStoreApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil)
+		api := petstore.NewStoreApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil, petstore.Credentials{})
 		_, err := api.GetOrderById(context.Background(), int64(1))
 		if err == nil {
 			t.Fatalf("status %d: expected an error", tc.status)

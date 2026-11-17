@@ -189,11 +189,17 @@ type PetApi struct {
 	*baseApi
 }
 
-// NewPetApi creates a new PetApi instance.
-func NewPetApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *PetApi {
-	return &PetApi{
+// NewPetApi creates a new PetApi instance. The authenticator is
+// applied to every operation that is not declared without security; the
+// schemeAuthenticators give each security scheme its own credential (see
+// Credentials) and an operation uses the one its spec names. Pass nil and the
+// zero Credentials for the ones you do not use.
+func NewPetApi(apiClient ApiClient, config *Configuration, authenticator Authenticator, schemeAuthenticators Credentials) *PetApi {
+	api := &PetApi{
 		baseApi: newBaseApi(apiClient, config, authenticator),
 	}
+	api.credentials = schemeAuthenticators.bySchemeId()
+	return api
 }
 
 // PetApiInterface is the set of operations PetApi provides. Depend
