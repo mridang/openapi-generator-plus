@@ -24,10 +24,10 @@ class BasicAuthenticator extends BaseAuthenticator
 
     /**
      * @param string      $host     the API base URL
-     * @param string|null $username the user name; when null, the PETSTORE_CLIENT_USERNAME environment
-     *                              variable is used (an empty value counts as unset)
-     * @param string|null $password the password; when null, the PETSTORE_CLIENT_PASSWORD environment
-     *                              variable is used (an empty value counts as unset)
+     * @param string|null $username the user name; when null, the environment variable of the generated
+     *                              authenticator is used (an empty value counts as unset)
+     * @param string|null $password the password; when null, the environment variable of the generated
+     *                              authenticator is used (an empty value counts as unset)
      * @throws \InvalidArgumentException when a credential is neither passed nor in the environment
      */
     public function __construct(
@@ -35,12 +35,12 @@ class BasicAuthenticator extends BaseAuthenticator
         ?string $username = null,
         #[\SensitiveParameter] ?string $password = null
     ) {
-        $username ??= self::environmentCredential('USERNAME');
-        $password ??= self::environmentCredential('PASSWORD');
+        $username ??= static::environmentCredential('username');
+        $password ??= static::environmentCredential('password');
         if ($username === null || $password === null) {
             throw new \InvalidArgumentException(
-                'Basic auth credentials are required: pass a username and a password, '
-                . 'or set the PETSTORE_CLIENT_USERNAME and PETSTORE_CLIENT_PASSWORD environment variables'
+                'Basic auth credentials are required: pass a username and a password'
+                . static::environmentHint('username', 'password')
             );
         }
         /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field

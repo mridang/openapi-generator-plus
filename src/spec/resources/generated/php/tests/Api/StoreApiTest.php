@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test\Api;
 
+use PetstoreClient\Api\Options\GetInventoryOptions;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
@@ -55,6 +56,68 @@ test('data methods declare a native return type', function (string $method, stri
     ['getInventory', \Ds\Map::class],
     ['deleteOrder', 'void'],
 ]);
+
+/**
+ * Builds a StoreApi backed by a capturing fake client plus the captured header bag, so a test can
+ * assert what reached the wire for an operation that has no parameters and no security.
+ *
+ * @return array{0: StoreApi, 1: \stdClass}
+ */
+function newHeaderCapturingStoreApi(): array
+{
+    $captured = new \stdClass();
+    /** @var array<string, string> $headers */
+    $headers = [];
+    $captured->headers = $headers;
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
+        {
+            $this->captured->headers = $headers;
+            return new \PetstoreClient\ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $config = Configuration::builder()->baseUrl('http://localhost:9999')->build();
+
+    return [new StoreApi(apiClient: $client, config: $config), $captured];
+}
+
+test('an operation without parameters or security takes per call headers', function (): void {
+    [$api, $captured] = newHeaderCapturingStoreApi();
+
+    $api->getInventory(new GetInventoryOptions(headers: ['X-Tenant' => 't1']));
+
+    expect($captured->headers['X-Tenant'] ?? null)->toBe('t1');
+});
+
+test('an operation without parameters or security still runs with no options', function (): void {
+    [$api, $captured] = newHeaderCapturingStoreApi();
+
+    $api->getInventory();
+
+    expect($captured->headers)->not->toHaveKey('X-Tenant');
+});
+
+test('the options of an operation without parameters hold no auth field', function (): void {
+    expect(property_exists(GetInventoryOptions::class, 'auth'))->toBeFalse();
+    expect(property_exists(GetInventoryOptions::class, 'timeout'))->toBeTrue();
+    expect(property_exists(GetInventoryOptions::class, 'headers'))->toBeTrue();
+    expect(property_exists(GetInventoryOptions::class, 'maxRetries'))->toBeTrue();
+});
+
+test('a per call timeout and retry count of an operation without parameters must be valid', function (): void {
+    expect(fn () => new GetInventoryOptions(timeout: 0))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
+    expect(fn () => new GetInventoryOptions(maxRetries: -1))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
+});
 
 // -- Integration tests via Chasm --
 

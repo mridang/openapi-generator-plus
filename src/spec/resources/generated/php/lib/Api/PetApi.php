@@ -23,11 +23,24 @@ use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\AddPetTreatmentOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
+use PetstoreClient\Api\Options\DownloadPetDocumentOptions;
+use PetstoreClient\Api\Options\FindPetsBornOnOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\Options\GetExternalPetInfoOptions;
+use PetstoreClient\Api\Options\GetMultiServerPetInfoOptions;
+use PetstoreClient\Api\Options\GetPetAvatarOptions;
+use PetstoreClient\Api\Options\GetPetAvatarThumbnailOptions;
+use PetstoreClient\Api\Options\GetPetByIdOptions;
 use PetstoreClient\Api\Options\GetPetByNameOptions;
+use PetstoreClient\Api\Options\GetPetPassportOptions;
+use PetstoreClient\Api\Options\GetPetPhotoOptions;
 use PetstoreClient\Api\Options\GetPetSummaryOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
+use PetstoreClient\Api\Options\GetStagingPetInfoOptions;
+use PetstoreClient\Api\Options\SetPetAvatarOptions;
+use PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
+use PetstoreClient\Api\Options\UpdatePetOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
 
@@ -43,7 +56,7 @@ class PetApi extends BaseApi
     /**
      * Add a new pet to the store
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
-     * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator
+     * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): \PetstoreClient\Models\Pet
@@ -69,7 +82,7 @@ class PetApi extends BaseApi
 
     /**
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
-     * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator
+     * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -201,7 +214,7 @@ class PetApi extends BaseApi
 
     /**
      * Record a treatment for a pet
-     * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator
+     * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): \PetstoreClient\Models\PetTreatment
@@ -226,7 +239,7 @@ class PetApi extends BaseApi
     }
 
     /**
-     * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator
+     * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\PetTreatment>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -379,11 +392,12 @@ class PetApi extends BaseApi
     /**
      * Download a vet document
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
+     * @param DownloadPetDocumentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function downloadPetDocument(int $petId, int $documentId): string
+    public function downloadPetDocument(int $petId, int $documentId, ?DownloadPetDocumentOptions $options = null): string
     {
-        $apiResult = $this->downloadPetDocumentWithHttpInfo($petId, $documentId);
+        $apiResult = $this->downloadPetDocumentWithHttpInfo($petId, $documentId, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -403,10 +417,11 @@ class PetApi extends BaseApi
     }
 
     /**
+     * @param DownloadPetDocumentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function downloadPetDocumentWithHttpInfo(int $petId, int $documentId): ApiResult
+    public function downloadPetDocumentWithHttpInfo(int $petId, int $documentId, ?DownloadPetDocumentOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/documents/{documentId}';
         /** @var string $pathValue */
@@ -472,6 +487,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -479,12 +497,13 @@ class PetApi extends BaseApi
     /**
      * List pets born on a given date
      * @param \DateTime $bornOn Date of birth to match
+     * @param FindPetsBornOnOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function findPetsBornOn(\DateTime $bornOn): \Ds\Vector
+    public function findPetsBornOn(\DateTime $bornOn, ?FindPetsBornOnOptions $options = null): \Ds\Vector
     {
-        $apiResult = $this->findPetsBornOnWithHttpInfo($bornOn);
+        $apiResult = $this->findPetsBornOnWithHttpInfo($bornOn, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -505,10 +524,11 @@ class PetApi extends BaseApi
 
     /**
      * @param \DateTime $bornOn Date of birth to match
+     * @param FindPetsBornOnOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function findPetsBornOnWithHttpInfo(\DateTime $bornOn): ApiResult
+    public function findPetsBornOnWithHttpInfo(\DateTime $bornOn, ?FindPetsBornOnOptions $options = null): ApiResult
     {
         $path = '/pet/born-on/{bornOn}';
         /** @var string $pathValue */
@@ -555,6 +575,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -676,11 +699,12 @@ class PetApi extends BaseApi
 
     /**
      * Get external pet info
+     * @param GetExternalPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null): \PetstoreClient\Models\Pet
+    public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null, ?GetExternalPetInfoOptions $options = null): \PetstoreClient\Models\Pet
     {
-        $apiResult = $this->getExternalPetInfoWithHttpInfo($petId, $server);
+        $apiResult = $this->getExternalPetInfoWithHttpInfo($petId, $server, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -700,10 +724,11 @@ class PetApi extends BaseApi
     }
 
     /**
+     * @param GetExternalPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getExternalPetInfoWithHttpInfo(int $petId, ?GetExternalPetInfoServer $server = null): ApiResult
+    public function getExternalPetInfoWithHttpInfo(int $petId, ?GetExternalPetInfoServer $server = null, ?GetExternalPetInfoOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/external';
         /** @var string $pathValue */
@@ -756,17 +781,21 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Get multi-server pet info
+     * @param GetMultiServerPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null): \PetstoreClient\Models\Pet
+    public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null, ?GetMultiServerPetInfoOptions $options = null): \PetstoreClient\Models\Pet
     {
-        $apiResult = $this->getMultiServerPetInfoWithHttpInfo($petId, $server);
+        $apiResult = $this->getMultiServerPetInfoWithHttpInfo($petId, $server, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -786,10 +815,11 @@ class PetApi extends BaseApi
     }
 
     /**
+     * @param GetMultiServerPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getMultiServerPetInfoWithHttpInfo(int $petId, ?GetMultiServerPetInfoServer $server = null): ApiResult
+    public function getMultiServerPetInfoWithHttpInfo(int $petId, ?GetMultiServerPetInfoServer $server = null, ?GetMultiServerPetInfoOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/multi';
         /** @var string $pathValue */
@@ -842,6 +872,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -849,11 +882,12 @@ class PetApi extends BaseApi
     /**
      * Get the pet's profile photo
      * Returns the raw image bytes of the pet's current avatar.
+     * @param GetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetAvatar(int $petId): string
+    public function getPetAvatar(int $petId, ?GetPetAvatarOptions $options = null): string
     {
-        $apiResult = $this->getPetAvatarWithHttpInfo($petId);
+        $apiResult = $this->getPetAvatarWithHttpInfo($petId, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -873,10 +907,11 @@ class PetApi extends BaseApi
     }
 
     /**
+     * @param GetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetAvatarWithHttpInfo(int $petId): ApiResult
+    public function getPetAvatarWithHttpInfo(int $petId, ?GetPetAvatarOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
@@ -923,6 +958,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -930,11 +968,12 @@ class PetApi extends BaseApi
     /**
      * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
+     * @param GetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetAvatarThumbnail(int $petId): string
+    public function getPetAvatarThumbnail(int $petId, ?GetPetAvatarThumbnailOptions $options = null): string
     {
-        $apiResult = $this->getPetAvatarThumbnailWithHttpInfo($petId);
+        $apiResult = $this->getPetAvatarThumbnailWithHttpInfo($petId, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -954,10 +993,11 @@ class PetApi extends BaseApi
     }
 
     /**
+     * @param GetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetAvatarThumbnailWithHttpInfo(int $petId): ApiResult
+    public function getPetAvatarThumbnailWithHttpInfo(int $petId, ?GetPetAvatarThumbnailOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
@@ -1004,6 +1044,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -1014,12 +1057,13 @@ class PetApi extends BaseApi
      * @param int $petId ID of pet to return
      * @example 1 Small breed ID
      * @example 42 Large breed ID
+     * @param GetPetByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      * @deprecated This operation is deprecated.
      */
-    public function getPetById(int $petId, ?GetPetByIdServer $server = null): \PetstoreClient\Models\Pet
+    public function getPetById(int $petId, ?GetPetByIdServer $server = null, ?GetPetByIdOptions $options = null): \PetstoreClient\Models\Pet
     {
-        $apiResult = $this->getPetByIdWithHttpInfo($petId, $server);
+        $apiResult = $this->getPetByIdWithHttpInfo($petId, $server, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -1040,11 +1084,12 @@ class PetApi extends BaseApi
 
     /**
      * @param int $petId ID of pet to return
+     * @param GetPetByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      * @deprecated This operation is deprecated.
      */
-    public function getPetByIdWithHttpInfo(int $petId, ?GetPetByIdServer $server = null): ApiResult
+    public function getPetByIdWithHttpInfo(int $petId, ?GetPetByIdServer $server = null, ?GetPetByIdOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
@@ -1097,6 +1142,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -1213,11 +1261,12 @@ class PetApi extends BaseApi
     /**
      * Get the pet's passport
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+     * @param GetPetPassportOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetPassport(int $petId): \PetstoreClient\Models\PetPassport
+    public function getPetPassport(int $petId, ?GetPetPassportOptions $options = null): \PetstoreClient\Models\PetPassport
     {
-        $apiResult = $this->getPetPassportWithHttpInfo($petId);
+        $apiResult = $this->getPetPassportWithHttpInfo($petId, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -1237,10 +1286,11 @@ class PetApi extends BaseApi
     }
 
     /**
+     * @param GetPetPassportOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\PetPassport>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetPassportWithHttpInfo(int $petId): ApiResult
+    public function getPetPassportWithHttpInfo(int $petId, ?GetPetPassportOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/passport';
         /** @var string $pathValue */
@@ -1287,6 +1337,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -1294,11 +1347,12 @@ class PetApi extends BaseApi
     /**
      * Get a photo or its metadata
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
+     * @param GetPetPhotoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetPhoto(int $petId, int $photoId): string
+    public function getPetPhoto(int $petId, int $photoId, ?GetPetPhotoOptions $options = null): string
     {
-        $apiResult = $this->getPetPhotoWithHttpInfo($petId, $photoId);
+        $apiResult = $this->getPetPhotoWithHttpInfo($petId, $photoId, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -1318,10 +1372,11 @@ class PetApi extends BaseApi
     }
 
     /**
+     * @param GetPetPhotoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetPhotoWithHttpInfo(int $petId, int $photoId): ApiResult
+    public function getPetPhotoWithHttpInfo(int $petId, int $photoId, ?GetPetPhotoOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/photos/{photoId}';
         /** @var string $pathValue */
@@ -1387,6 +1442,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -1739,11 +1797,12 @@ class PetApi extends BaseApi
 
     /**
      * Get staging pet info
+     * @param GetStagingPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null): \PetstoreClient\Models\Pet
+    public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null, ?GetStagingPetInfoOptions $options = null): \PetstoreClient\Models\Pet
     {
-        $apiResult = $this->getStagingPetInfoWithHttpInfo($petId, $server);
+        $apiResult = $this->getStagingPetInfoWithHttpInfo($petId, $server, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -1763,10 +1822,11 @@ class PetApi extends BaseApi
     }
 
     /**
+     * @param GetStagingPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getStagingPetInfoWithHttpInfo(int $petId, ?GetStagingPetInfoServer $server = null): ApiResult
+    public function getStagingPetInfoWithHttpInfo(int $petId, ?GetStagingPetInfoServer $server = null, ?GetStagingPetInfoOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/staging';
         /** @var string $pathValue */
@@ -1819,6 +1879,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -1826,20 +1889,22 @@ class PetApi extends BaseApi
     /**
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+     * @param SetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetAvatar(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?string $requestContentType = null): void
+    public function setPetAvatar(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): void
     {
-        $this->setPetAvatarWithHttpInfo($petId, $body, $requestContentType);
+        $this->setPetAvatarWithHttpInfo($petId, $body, $options, $requestContentType);
     }
 
     /**
+     * @param SetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?string $requestContentType = null): ApiResult
+    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): ApiResult
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
@@ -1897,6 +1962,9 @@ class PetApi extends BaseApi
             null,
             $allowReservedKeys,
             rawBody: true,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -1904,18 +1972,20 @@ class PetApi extends BaseApi
     /**
      * Set the pet's avatar thumbnail as base64
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+     * @param SetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetAvatarThumbnail(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): void
+    public function setPetAvatarThumbnail(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest, ?SetPetAvatarThumbnailOptions $options = null): void
     {
-        $this->setPetAvatarThumbnailWithHttpInfo($petId, $setPetAvatarThumbnailRequest);
+        $this->setPetAvatarThumbnailWithHttpInfo($petId, $setPetAvatarThumbnailRequest, $options);
     }
 
     /**
+     * @param SetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetAvatarThumbnailWithHttpInfo(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): ApiResult
+    public function setPetAvatarThumbnailWithHttpInfo(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest, ?SetPetAvatarThumbnailOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
@@ -1962,6 +2032,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -2072,11 +2145,12 @@ class PetApi extends BaseApi
      * Update an existing pet
      * @param int $petId ID of pet to update
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
+     * @param UpdatePetOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function updatePet(int $petId, \PetstoreClient\Models\Pet $pet): \PetstoreClient\Models\Pet
+    public function updatePet(int $petId, \PetstoreClient\Models\Pet $pet, ?UpdatePetOptions $options = null): \PetstoreClient\Models\Pet
     {
-        $apiResult = $this->updatePetWithHttpInfo($petId, $pet);
+        $apiResult = $this->updatePetWithHttpInfo($petId, $pet, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -2098,10 +2172,11 @@ class PetApi extends BaseApi
     /**
      * @param int $petId ID of pet to update
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
+     * @param UpdatePetOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function updatePetWithHttpInfo(int $petId, \PetstoreClient\Models\Pet $pet): ApiResult
+    public function updatePetWithHttpInfo(int $petId, \PetstoreClient\Models\Pet $pet, ?UpdatePetOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
@@ -2148,6 +2223,9 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }

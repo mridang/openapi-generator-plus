@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Auth\PetStoreBearerAuthenticator;
 
 test('raw token is prefixed with bearer', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', 'xyz');
@@ -159,11 +160,11 @@ test('every generated bearer wrapper sends the bearer header and masks the token
 });
 
 /**
- * Runs $body with the token environment variable set to $value (null unsets it), then restores it.
+ * Runs $body with the token environment variable of PetStoreBearerAuthenticator set to $value (null unsets it), then restores it.
  */
 function withBearerTokenEnvironment(?string $value, callable $body): void
 {
-    $name = 'PETSTORE_CLIENT_TOKEN';
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
     $previous = getenv($name);
     putenv($value === null ? $name : $name . '=' . $value);
     try {
@@ -175,35 +176,54 @@ function withBearerTokenEnvironment(?string $value, callable $body): void
 
 test('an explicit token wins over the environment', function (): void {
     withBearerTokenEnvironment('from-environment', function (): void {
-        $auth = new BearerAuthenticator('https://api.example.com', 'explicit');
+        $auth = new PetStoreBearerAuthenticator('https://api.example.com', 'explicit');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer explicit');
     });
 });
 
 test('the token is read from the environment when none is passed', function (): void {
     withBearerTokenEnvironment('from-environment', function (): void {
-        $auth = new BearerAuthenticator('https://api.example.com');
+        $auth = new PetStoreBearerAuthenticator('https://api.example.com');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
     });
 });
 
 test('the environment is read once, when the authenticator is built', function (): void {
     withBearerTokenEnvironment('first', function (): void {
-        $auth = new BearerAuthenticator('https://api.example.com');
-        putenv('PETSTORE_CLIENT_TOKEN=second');
+        $auth = new PetStoreBearerAuthenticator('https://api.example.com');
+        putenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN=second');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer first');
     });
 });
 
 test('a missing or empty environment token fails when the authenticator is built', function (?string $value): void {
     withBearerTokenEnvironment($value, function (): void {
-        expect(fn () => new BearerAuthenticator('https://api.example.com'))
-            ->toThrow(\InvalidArgumentException::class, 'PETSTORE_CLIENT_TOKEN');
+        expect(fn () => new PetStoreBearerAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN');
     });
 })->with([
     'unset' => [null],
     'empty' => [''],
 ]);
+
+test('a token provider wins over the environment', function (): void {
+    withBearerTokenEnvironment('from-environment', function (): void {
+        $auth = new PetStoreBearerAuthenticator('https://api.example.com', null, fn (): string => 'from-provider');
+        expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer from-provider');
+    });
+});
+
+test('the base class reads no environment variable', function (): void {
+    withBearerTokenEnvironment('from-environment', function (): void {
+        $message = '';
+        try {
+            new BearerAuthenticator('https://api.example.com');
+        } catch (\InvalidArgumentException $e) {
+            $message = $e->getMessage();
+        }
+        expect($message)->toBe('Bearer token is required: pass a token or a token provider');
+    });
+});
 
 test('a token provider is asked for the token on every request', function (): void {
     $calls = 0;

@@ -29,7 +29,16 @@ $authenticator = new BearerAuthenticator('https://api.example.com', 'your-token'
 $client = new {{clientClassName}}($authenticator);
 ```
 
-Pass `null` as the token to read `{{envPrefix}}_TOKEN` from the environment (read once, an empty value counts as unset; a missing credential throws when the authenticator is built). Pass a `\Closure` as the third argument to supply a rotating token on every request. `BasicAuthenticator` reads `{{envPrefix}}_USERNAME` and `{{envPrefix}}_PASSWORD`, `ApiKeyAuthenticator` reads `{{envPrefix}}_API_KEY`; an argument always wins.
+A generated authenticator of a basic, bearer or API key scheme reads its credential from an environment variable when you pass `null` (read once when the authenticator is built, an empty value counts as unset, a missing credential throws `InvalidArgumentException`; an argument always wins):
+
+{{#credentialSchemeEnvVars}}
+- `{{className}}` reads `{{envName}}` for `{{field}}`.
+{{/credentialSchemeEnvVars}}
+{{^credentialSchemeEnvVars}}
+- This API declares no basic, bearer or API key scheme, so no variable is read.
+{{/credentialSchemeEnvVars}}
+
+The prefix `{{envVarPrefix}}` comes from the `envVarPrefix` generator option. Pass a `\Closure` as the third argument of `BearerAuthenticator` to supply a rotating token on every request. The base classes read no variable; the OAuth 2 and OpenID Connect authenticators take their credentials as arguments.
 
 {{#hasBasicAuth}}
 ### Basic Auth
@@ -281,7 +290,7 @@ The SDK sends every request through your client and never closes it. Combining a
 
 ### Per-call options
 
-An operation's options object takes `timeout` (ms), `headers` and `maxRetries` for that call only, replacing the transport settings.
+Every operation takes an options object as its last argument, including one with no parameters and no security scheme, and it carries `timeout` (ms), `headers` and `maxRetries` for that call only, replacing the transport settings.
 
 ```php
 $api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));

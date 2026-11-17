@@ -15,6 +15,7 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
+use PetstoreClient\Auth\ApiKeyHeaderAuthenticator;
 
 test('valid header key passes', function (): void {
     $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
@@ -175,11 +176,11 @@ test('every generated api key wrapper emits its key at exactly one location and 
 });
 
 /**
- * Runs $body with the API key environment variable set to $value (null unsets it), then restores it.
+ * Runs $body with the API key environment variable of ApiKeyHeaderAuthenticator set to $value (null unsets it), then restores it.
  */
 function withApiKeyEnvironment(?string $value, callable $body): void
 {
-    $name = 'PETSTORE_CLIENT_API_KEY';
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY';
     $previous = getenv($name);
     putenv($value === null ? $name : $name . '=' . $value);
     try {
@@ -189,29 +190,59 @@ function withApiKeyEnvironment(?string $value, callable $body): void
     }
 }
 
+/**
+ * The key an authenticator sends, wherever its scheme puts it (header, query or cookie).
+ *
+ * @return list<string>
+ */
+function sentApiKeys(\PetstoreClient\Auth\Authenticator $auth): array
+{
+    return array_values(array_merge($auth->getAuthHeaders(), $auth->getQueryParams(), $auth->getCookieParams()));
+}
+
 test('an explicit api key wins over the environment', function (): void {
     withApiKeyEnvironment('from-environment', function (): void {
-        $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'explicit', ApiKeyLocation::HEADER);
-        expect($auth->getAuthHeaders())->toBe(['X-API-Key' => 'explicit']);
+        $auth = new ApiKeyHeaderAuthenticator('https://api.example.com', 'explicit');
+        expect(sentApiKeys($auth))->toBe(['explicit']);
     });
 });
 
 test('the api key is read from the environment when none is passed', function (): void {
     withApiKeyEnvironment('from-environment', function (): void {
-        $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER);
-        expect($auth->getAuthHeaders())->toBe(['X-API-Key' => 'from-environment']);
+        $auth = new ApiKeyHeaderAuthenticator('https://api.example.com');
+        expect(sentApiKeys($auth))->toBe(['from-environment']);
+    });
+});
+
+test('the api key environment variable is read once, when the authenticator is built', function (): void {
+    withApiKeyEnvironment('first', function (): void {
+        $auth = new ApiKeyHeaderAuthenticator('https://api.example.com');
+        putenv('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY=second');
+        expect(sentApiKeys($auth))->toBe(['first']);
     });
 });
 
 test('a missing or empty environment api key fails when the authenticator is built', function (?string $value): void {
     withApiKeyEnvironment($value, function (): void {
-        expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER))
-            ->toThrow(\InvalidArgumentException::class, 'PETSTORE_CLIENT_API_KEY');
+        expect(fn () => new ApiKeyHeaderAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY');
     });
 })->with([
     'unset' => [null],
     'empty' => [''],
 ]);
+
+test('the base class reads no environment variable', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        $message = '';
+        try {
+            new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER);
+        } catch (\InvalidArgumentException $e) {
+            $message = $e->getMessage();
+        }
+        expect($message)->toBe("API key for 'X-API-Key' is required: pass a key or a key provider");
+    });
+});
 
 test('an api key provider is asked for the key on every request', function (): void {
     $calls = 0;

@@ -80,7 +80,7 @@ When an OAuth2 or OpenID Connect call is answered with 401, the cached access to
 
 ### Per-call options
 
-An operation that takes an options object accepts three more fields for that one call: `timeout` (milliseconds, positive), `headers` (a name to value map that wins over a configured header of the same name) and `maxRetries` (0 or more). They replace the transport settings for that call only.
+Every operation takes an options object as its last argument, even one with no query, header, form or cookie parameter and no security scheme (`$api->operation()` with no argument still works). It accepts three fields for that one call: `timeout` (milliseconds, positive), `headers` (a name to value map that wins over a configured header of the same name) and `maxRetries` (0 or more). They replace the transport settings for that call only.
 
 ```php
 $api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
@@ -90,7 +90,20 @@ $api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tena
 
 ### Credentials
 
-An authenticator takes its credential as an argument, or reads it from the environment when you pass `null`: `BearerAuthenticator` reads `PETSTORE_CLIENT_TOKEN`, `BasicAuthenticator` reads `PETSTORE_CLIENT_USERNAME` and `PETSTORE_CLIENT_PASSWORD`, `ApiKeyAuthenticator` reads `PETSTORE_CLIENT_API_KEY`. An argument always wins over the environment, an empty variable counts as unset, and the variable is read once, when the authenticator is built. A credential that is neither passed nor in the environment throws `InvalidArgumentException` at that point, so a missing credential never waits for the first request. Pass a `\Closure` token provider (`new BearerAuthenticator($host, null, fn (): string => $vault->token())`) to supply a rotating credential; it is called for every request.
+The authenticator of a basic, bearer or API key security scheme takes its credential as an argument, or reads it from an environment variable when you pass `null`. Every variable is named `SWAGGER_PETSTORE_OPEN_API_3_0_` followed by the field (`TOKEN`, `USERNAME`, `PASSWORD`, `API_KEY`); when two schemes have a field of the same name, the scheme id sits between the two so that no scheme reads another's secret. Set the prefix with the `envVarPrefix` generator option.
+
+- `PetStoreBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` for `username`.
+- `PetStoreBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` for `password`.
+- `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` for `username`.
+- `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` for `password`.
+- `PetStoreBearerAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` for `token`.
+- `ServiceTokenAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` for `token`.
+- `ApiKeyHeaderAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` for `apiKey`.
+- `InternalApiKeyAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` for `apiKey`.
+- `ApiKeyQueryAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` for `apiKey`.
+- `SessionCookieAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` for `apiKey`.
+
+An argument always wins over the environment, an empty variable counts as unset, and the variable is read once, when the authenticator is built. A credential that is neither passed nor in the environment throws `InvalidArgumentException` at that point, so a missing credential never waits for the first request. Pass a `\Closure` token provider (`new BearerAuthenticator($host, null, fn (): string => $vault->token())`) to supply a rotating credential; it is called for every request. The base classes `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` read no variable: only the generated authenticator of a scheme knows its name. The OAuth 2 and OpenID Connect authenticators take their credentials as arguments.
 
 ### Request id
 

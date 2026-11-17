@@ -1226,7 +1226,7 @@ test('unsecured operation options has no auth field', function (): void {
     // is no GetPetByIdOptions class minted for it — confirming unsecured
     // operations never gain an auth field.
     expect(class_exists('\\' . PetApi::class))->toBeTrue();
-    expect(class_exists('PetstoreClient\\Api\\Options\\GetPetByIdOptions'))->toBeFalse();
+    expect(class_exists(\PetstoreClient\Api\Options\GetPetByIdOptions::class))->toBeFalse();
 
     // The authed addPet operation, by contrast, mints an all-optional Options
     // class that DOES expose a nullable auth property.

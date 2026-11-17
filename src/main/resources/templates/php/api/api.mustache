@@ -68,7 +68,12 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.hasOptionsParam}}
 {{^vendorExtensions.op.hasOptionsParam}}
 {{#hasAuthMethods}}
-     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
 {{/hasAuthMethods}}
 {{/vendorExtensions.op.hasOptionsParam}}
 {{#vendorExtensions.op.hasMultipleConsumes}}
@@ -133,7 +138,12 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.hasOptionsParam}}
 {{^vendorExtensions.op.hasOptionsParam}}
 {{#hasAuthMethods}}
-     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
 {{/hasAuthMethods}}
 {{/vendorExtensions.op.hasOptionsParam}}
 {{#vendorExtensions.op.hasMultipleConsumes}}
@@ -504,7 +514,12 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.hasOptionsParam}}
 {{^vendorExtensions.op.hasOptionsParam}}
 {{#hasAuthMethods}}
-     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
 {{/hasAuthMethods}}
 {{/vendorExtensions.op.hasOptionsParam}}
 {{#vendorExtensions.op.hasMultipleConsumes}}

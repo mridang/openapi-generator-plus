@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\Auth\BasicAuthenticator;
+use PetstoreClient\Auth\PetStoreBasicAuthenticator;
 
 test('valid credentials produce basic header', function (): void {
     $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
@@ -117,11 +118,11 @@ test('every generated basic wrapper sends the basic header and masks the passwor
 });
 
 /**
- * Runs $body with the user name and password environment variables set (null unsets one), then restores them.
+ * Runs $body with the user name and password environment variables of PetStoreBasicAuthenticator set (null unsets one), then restores them.
  */
 function withBasicEnvironment(?string $user, ?string $secret, callable $body): void
 {
-    $names = ['PETSTORE_CLIENT_USERNAME' => $user, 'PETSTORE_CLIENT_PASSWORD' => $secret];
+    $names = ['SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME' => $user, 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD' => $secret];
     $previous = [];
     foreach ($names as $name => $value) {
         $previous[$name] = getenv($name);
@@ -138,15 +139,22 @@ function withBasicEnvironment(?string $user, ?string $secret, callable $body): v
 
 test('basic credentials are read from the environment when none are passed', function (): void {
     withBasicEnvironment('alice', 'env-secret', function (): void {
-        $auth = new BasicAuthenticator('https://api.example.com');
+        $auth = new PetStoreBasicAuthenticator('https://api.example.com');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic ' . base64_encode('alice:env-secret'));
     });
 });
 
 test('an explicit basic credential wins over the environment', function (): void {
     withBasicEnvironment('env-user', 'env-secret', function (): void {
-        $auth = new BasicAuthenticator('https://api.example.com', 'alice', 'explicit-secret');
+        $auth = new PetStoreBasicAuthenticator('https://api.example.com', 'alice', 'explicit-secret');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic ' . base64_encode('alice:explicit-secret'));
+    });
+});
+
+test('an explicit user name is used with the password from the environment', function (): void {
+    withBasicEnvironment('env-user', 'env-secret', function (): void {
+        $auth = new PetStoreBasicAuthenticator('https://api.example.com', 'alice');
+        expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic ' . base64_encode('alice:env-secret'));
     });
 });
 
@@ -155,8 +163,8 @@ test('a missing or empty basic credential fails when the authenticator is built'
     ?string $secret
 ): void {
     withBasicEnvironment($user, $secret, function (): void {
-        expect(fn () => new BasicAuthenticator('https://api.example.com'))
-            ->toThrow(\InvalidArgumentException::class, 'PETSTORE_CLIENT_USERNAME');
+        expect(fn () => new PetStoreBasicAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME');
     });
 })->with([
     'no user' => [null, 'x'],
@@ -164,3 +172,15 @@ test('a missing or empty basic credential fails when the authenticator is built'
     'empty user' => ['', 'x'],
     'empty password' => ['alice', ''],
 ]);
+
+test('the base class reads no environment variable', function (): void {
+    withBasicEnvironment('alice', 'env-secret', function (): void {
+        $message = '';
+        try {
+            new BasicAuthenticator('https://api.example.com');
+        } catch (\InvalidArgumentException $e) {
+            $message = $e->getMessage();
+        }
+        expect($message)->toBe('Basic auth credentials are required: pass a username and a password');
+    });
+});

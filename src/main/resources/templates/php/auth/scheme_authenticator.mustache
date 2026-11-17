@@ -10,6 +10,16 @@ use {{.}};
  */
 final class {{className}} extends {{baseClass}}
 {
+{{#hasCredentialEnvVars}}
+    protected const array ENV_VARS = [
+{{#credentialEnvVars}}
+        '{{field}}' => '{{envName}}',
+{{/credentialEnvVars}}
+    ];
+{{#hasCustomConstructor}}
+
+{{/hasCustomConstructor}}
+{{/hasCredentialEnvVars}}
 {{#hasCustomConstructor}}
     public function __construct(
         {{#constructorParams}}

@@ -1263,6 +1263,32 @@ test('integer-backed enum deserializes from a JSON number', function (): void {
     expect($item->priority)->toBe(Priority::NUMBER_2);
 });
 
+test('a property with a default beside its reference starts at that default', function (): void {
+    $item = new StockItem(Priority::NUMBER_2);
+
+    expect($item->availability)->toBe(Availability::ON_HOLD);
+});
+
+test('a decoded model without the property takes the default beside its reference', function (): void {
+    /** @var StockItem $item */
+    $item = ObjectSerializer::deserialize('{"priority":2}', StockItem::class);
+
+    expect($item->availability)->toBe(Availability::ON_HOLD);
+});
+
+test('a decoded model with the property keeps the value on the wire over the default', function (): void {
+    /** @var StockItem $item */
+    $item = ObjectSerializer::deserialize('{"priority":2,"availability":"Sold"}', StockItem::class);
+
+    expect($item->availability)->toBe(Availability::SOLD);
+});
+
+test('an explicit null for the property is kept and not replaced by the default', function (): void {
+    $item = (new StockItem(Priority::NUMBER_2))->withAvailability(null);
+
+    expect($item->availability)->toBeNull();
+});
+
 // -- Canonical #2: non-lowercase string enum preserves wire casing --
 //
 // Availability is an `enum Availability: string` whose cases keep their
