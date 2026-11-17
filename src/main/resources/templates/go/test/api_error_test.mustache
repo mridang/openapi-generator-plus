@@ -496,6 +496,44 @@ func TestBhvErrors025_ApiError_SerializationError_Satisfies{{errorPrefix}}ErrorA
 	}
 }
 
+// Every status-specific error keeps an optional cause. The cause lives in the shared
+// ApiError base that each typed error embeds, so every typed error reports the same
+// cause through Cause and errors.Is, and a response built without one has none.
+func TestBhvErrors003_ApiError_EveryStatusSpecificErrorKeepsAnOptionalCause(t *testing.T) {
+	t.Parallel()
+	type causer interface{ Cause() error }
+	cause := errors.New("connection reset by peer")
+	base := *apierrors.NewApiError(500, "boom", "", nil, nil, cause)
+	typed := map[string]error{
+		"ClientError":              &apierrors.ClientError{ApiError: base},
+		"BadRequestError":          &apierrors.BadRequestError{ClientError: apierrors.ClientError{ApiError: base}},
+		"UnauthorizedError":        &apierrors.UnauthorizedError{ClientError: apierrors.ClientError{ApiError: base}},
+		"ForbiddenError":           &apierrors.ForbiddenError{ClientError: apierrors.ClientError{ApiError: base}},
+		"NotFoundError":            &apierrors.NotFoundError{ClientError: apierrors.ClientError{ApiError: base}},
+		"ConflictError":            &apierrors.ConflictError{ClientError: apierrors.ClientError{ApiError: base}},
+		"UnprocessableEntityError": &apierrors.UnprocessableEntityError{ClientError: apierrors.ClientError{ApiError: base}},
+		"TooManyRequestsError":     &apierrors.TooManyRequestsError{ClientError: apierrors.ClientError{ApiError: base}},
+		"ServerError":              &apierrors.ServerError{ApiError: base},
+		"InternalServerError":      &apierrors.InternalServerError{ServerError: apierrors.ServerError{ApiError: base}},
+	}
+	for name, err := range typed {
+		c, ok := err.(causer)
+		if !ok {
+			t.Errorf("%s does not expose Cause()", name)
+			continue
+		}
+		if c.Cause() != cause {
+			t.Errorf("%s: expected the cause it was built with, got %v", name, c.Cause())
+		}
+		if !errors.Is(err, cause) {
+			t.Errorf("%s: expected errors.Is to reach the cause", name)
+		}
+	}
+	if c, ok := apierrors.FromResponse(404, nil, "").(causer); !ok || c.Cause() != nil {
+		t.Errorf("expected a response error built without a cause to have none, got %v", c)
+	}
+}
+
 // Error() renders the message first and then each part that is present on its
 // own line; an absent part leaves no empty line behind, and an empty message
 // falls back to the generic sentence.

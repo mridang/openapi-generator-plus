@@ -60,3 +60,11 @@ go | *unnumbered | tests beyond the shared catalogue: language-specific behaviou
 rust | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 swift | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 elixir | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
+go | authintegration013 | Go per-call request options (WithTimeout, WithHeaders, WithMaxRetries, WithRequestContentType) carry no authenticator, so there is no per-call :auth to override; a scheme credential replacing the client-level authenticator is bhv authintegration 003
+go | headers002 | HeaderSelector.selectHeaders takes a string content type, so a nil value cannot be passed; the empty-string default is bhv headers 001
+go | headers015 | HeaderSelector.isJSONMIME takes a string, so a nil value cannot be passed; the empty string is bhv headers 014
+go | models002 | A Go module manifest (go.mod) has no description field, so there is no manifest description to declare
+go | options027 | Go builds TransportOptions only through NewTransportOptionsBuilder and has no constructor taking max retries; the builder setter and the 0 that disables retries are bhv options 026
+go | operations111 | The trackingId parameter is typed uuid.UUID, so a malformed value cannot be passed to GetOrderByTrackingId; a malformed wire value is refused by the decoder
+go | transport031 | net/http has one client Timeout covering connect, headers and body and no connect-only deadline, so the one deadline is the one bhv transport 058 tests
+go | serializationobject164 | Go maps format time to string (typeMapping time to string), so there is no time-of-day type or HH:mm:ss formatter to test
