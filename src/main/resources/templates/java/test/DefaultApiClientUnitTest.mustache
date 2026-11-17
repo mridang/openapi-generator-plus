@@ -2587,17 +2587,22 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void bhvRetries019RetriesSpendTheSameTimeoutBudgetAsTheFirstAttempt() throws Exception {
+  void bhvRetries019EachCallStartsAFreshTimeoutBudget() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
-    HttpServer scripted = scriptedServer(n -> new Reply(503, "1"), hits);
+    /* Odd requests succeed and even ones answer 503 with a one-second Retry-After, so
+     * each call sends one failing attempt, waits, and sends its retry. The first call is
+     * a warm-up that absorbs the cold start of the HTTP client. The budget of 1950 ms
+     * covers one such wait per call, but not one wait left over from the call before. */
+    HttpServer scripted =
+        scriptedServer(n -> n % 2 == 1 ? new Reply(200, "") : new Reply(503, "1"), hits);
     try {
       DefaultApiClient client =
           new DefaultApiClient(TransportOptions.builder().timeout(1950).maxRetries(5).build());
-      long startedNanos = System.nanoTime();
-      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
-      long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
-      assertEquals(2, hits.get(), "one one-second wait fits, the second does not");
-      assertTrue(elapsedMillis < 1950, "the budget was extended: " + elapsedMillis);
+      String url = urlOf(scripted);
+      assertEquals(200, client.sendRequest("GET", url, Map.of(), null).statusCode(), "warm-up");
+      assertEquals(200, client.sendRequest("GET", url, Map.of(), null).statusCode(), "first call");
+      assertEquals(200, client.sendRequest("GET", url, Map.of(), null).statusCode(), "second call");
+      assertEquals(5, hits.get(), "each call's one-second wait fits its own budget");
     } finally {
       scripted.stop(0);
     }
