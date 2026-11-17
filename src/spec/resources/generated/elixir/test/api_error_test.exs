@@ -282,6 +282,14 @@ defmodule PetstoreClient.ApiErrorTest do
     end
   end
 
+  test "bhv errors 044 typed_error_body deserializes the body of a specialised error" do
+    err = PetstoreClient.Errors.ApiError.from_response(404, %{}, ~s({"id":42,"name":"Dogs"}))
+
+    body = PetstoreClient.Errors.ApiError.typed_error_body(err, "Category")
+    assert %PetstoreClient.Models.Category{} = body
+    assert body.id == 42
+  end
+
   describe "OAuth2ServerError message" do
     test "names the raw body when the response is not an OAuth2 error object" do
       err =
