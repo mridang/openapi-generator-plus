@@ -669,7 +669,7 @@ test('bhv operations 016 sends no body when null', function (): void {
     expect(true)->toBeTrue();
 });
 
-test('bhv serializationwire 010 bhv operations 041 bhv serializationwire 001 findPetsByStatus omitting status sends no status= in query', function (): void {
+test('bhv operations 041 findPetsByStatus omitting status sends no status key in query', function (): void {
     // findPetsByStatus has an optional `status` query param declared
     // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
     // value IF the client chooses to send the key — it does NOT mean the SDK
@@ -698,6 +698,19 @@ test('bhv options 002 null options omits allow empty value param from the query'
     expect($client->capturedUrl)->not->toContain('status=');
 });
 
+test('bhv serializationwire 001 allowEmptyValue param omitted when value is null in options', function (): void {
+    // Same wire contract as the serializationwire 010 test below: a null value in the options object
+    // is omitted from the query, and the allowEmptyValue flag does not force an empty key.
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
 test('bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query', function (): void {
     // findPetsByStatus has an optional `status` query param declared
     // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
@@ -716,7 +729,21 @@ test('bhv serializationwire 010 findPetsByStatus omitting status sends no status
     expect($client->capturedUrl)->not->toContain('status=');
 });
 
-test('bhv operations 040 bhv operations 003 findPetsByStatus with explicit empty status sends status= in query', function (): void {
+test('bhv operations 003 allowEmptyValue param included when value is empty string', function (): void {
+    // When the caller explicitly supplies an empty value for the
+    // allowEmptyValue param, the key IS present with an empty value: `status=`.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(''));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->toContain('status=');
+});
+
+test('bhv operations 040 findPetsByStatus with explicit empty status sends status= in query', function (): void {
     // When the caller explicitly supplies an empty value for the
     // allowEmptyValue param, the key IS present with an empty value: `status=`.
     $client = new CapturingApiClient();
