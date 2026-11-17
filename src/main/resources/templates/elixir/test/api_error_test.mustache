@@ -264,6 +264,14 @@ defmodule {{moduleName}}.ApiErrorTest do
     end
   end
 
+  test "bhv errors 044 typed_error_body deserializes the body of a specialised error" do
+    err = {{moduleName}}.Errors.ApiError.from_response(404, %{}, ~s({"id":42,"name":"Dogs"}))
+
+    body = {{moduleName}}.Errors.ApiError.typed_error_body(err, "Category")
+    assert %{{moduleName}}.Models.Category{} = body
+    assert body.id == 42
+  end
+
   describe "OAuth2ServerError message" do
     test "names the raw body when the response is not an OAuth2 error object" do
       err = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 502, raw_body: "Bad Gateway")

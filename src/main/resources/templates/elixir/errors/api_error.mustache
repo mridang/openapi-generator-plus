@@ -244,30 +244,9 @@ defmodule {{moduleName}}.Errors.ApiError do
 
   defp parse_error_body(_body), do: nil
 
-  @doc """
-  Deserialize the raw response body into a typed error object.
-
-  Useful when the API returns a structured error body that you want to access
-  in a strongly-typed way. This is the one accessor for spec-declared error
-  schemas.
-
-  ## Parameters
-
-    * `error` - The ApiError instance.
-    * `type_name` - The target type name to deserialize the error body into.
-
-  ## Returns
-
-    The deserialized error body, or `nil` if the body is empty.
-  """
-  @spec typed_error_body(t(), String.t()) :: term()
-  def typed_error_body(%__MODULE__{response_body: body}, _type_name) when body in [nil, ""],
-    do: nil
-
-  def typed_error_body(%__MODULE__{} = error, type_name) do
-    {{moduleName}}.ObjectSerializer.deserialize(error.response_body, type_name)
-  end
-
+  # The ApiError family: ApiError and the errors that specialise it. Exceptions
+  # are flat structs, so the typed accessor below checks membership in this list
+  # instead of matching one struct.
   @family [
     {{moduleName}}.Errors.ApiError,
     {{moduleName}}.Errors.ClientError,
@@ -283,6 +262,32 @@ defmodule {{moduleName}}.Errors.ApiError do
     {{moduleName}}.Errors.NetworkError,
     {{moduleName}}.Errors.NetworkTimeoutError
   ]
+
+  @doc """
+  Deserialize the raw response body into a typed error object.
+
+  Useful when the API returns a structured error body that you want to access
+  in a strongly-typed way. This is the one accessor for spec-declared error
+  schemas. It accepts an `ApiError` and every error that specialises it, such as
+  the one `from_response/3` returns for a 404 or a 500 (see `api_error?/1`).
+
+  ## Parameters
+
+    * `error` - The ApiError, or an error in its family (see `api_error?/1`).
+    * `type_name` - The target type name to deserialize the error body into.
+
+  ## Returns
+
+    The deserialized error body, or `nil` if the body is empty.
+  """
+  @spec typed_error_body(struct(), String.t()) :: term()
+  def typed_error_body(%module{response_body: body}, _type_name)
+      when module in @family and body in [nil, ""],
+      do: nil
+
+  def typed_error_body(%module{} = error, type_name) when module in @family do
+    {{moduleName}}.ObjectSerializer.deserialize(error.response_body, type_name)
+  end
 
   @doc """
   Returns `true` if `term` is an `ApiError` or one of the errors that
