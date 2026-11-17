@@ -432,4 +432,18 @@ class ApiExceptionTest {
         assertSame(cause, ServerException(503, "down", cause = cause).cause)
         assertNull(NotFoundException("gone").cause)
     }
+
+    @Test
+    @DisplayName("bhvErrors016 GetTypedErrorBody returns null for an empty response body")
+    fun errorBodyIsNullForAnEmptyResponseBody() {
+        assertNull(ApiException.fromResponse(400, emptyMap(), "").errorBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors040 From response leaves the error body null when the body is not json")
+    fun errorBodyIsNullForANonJsonBody() {
+        val ex = ApiException.fromResponse(500, emptyMap(), "<html>oops</html>")
+        assertNull(ex.errorBody)
+        assertEquals("<html>oops</html>", ex.responseBody)
+    }
 }

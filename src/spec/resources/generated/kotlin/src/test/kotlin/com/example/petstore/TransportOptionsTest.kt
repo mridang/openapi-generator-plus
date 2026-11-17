@@ -49,6 +49,27 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("bhvOptions027 maxRetries set by the builder is kept and 0 disables retries")
+        fun maxRetriesSetByBuilderIsKept() {
+            assertEquals(
+                0,
+                TransportOptions
+                    .builder()
+                    .maxRetries(0)
+                    .build()
+                    .maxRetries,
+            )
+            assertEquals(
+                3,
+                TransportOptions
+                    .builder()
+                    .maxRetries(3)
+                    .build()
+                    .maxRetries,
+            )
+        }
+
+        @Test
         @DisplayName("bhvOptions026 maxRetries defaults to 2")
         fun maxRetriesDefaultsToTwo() {
             assertEquals(2, TransportOptions.builder().build().maxRetries)

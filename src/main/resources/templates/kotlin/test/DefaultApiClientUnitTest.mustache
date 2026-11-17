@@ -150,6 +150,28 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvTransport007 generates unique request ids for each call")
+        fun generatesUniqueRequestIdsForEachCall() {
+            val ids = mutableListOf<String?>()
+            val client =
+                mockClient(requestCapture = { req ->
+                    ids.add(req.headers["X-Request-ID"])
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals(2, ids.size)
+            assertNotEquals(ids[0], ids[1])
+        }
+
+        @Test
         @DisplayName("bhvTransport038 generates unique X-Request-ID per request")
         fun generatesUniqueRequestIds() {
             val ids = mutableListOf<String?>()
@@ -423,6 +445,26 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("default headers")
     inner class DefaultHeaders {
+
+        @Test
+        @DisplayName("bhvTransport010 includes transport default headers")
+        fun includesTransportDefaultHeadersOnEveryCall() {
+            var capturedCustomHeader: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedCustomHeader = req.headers["X-Custom"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("X-Custom", "custom-value")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals("custom-value", capturedCustomHeader)
+        }
 
         @Test
         @DisplayName("bhvTransport039 includes transport-level default headers")

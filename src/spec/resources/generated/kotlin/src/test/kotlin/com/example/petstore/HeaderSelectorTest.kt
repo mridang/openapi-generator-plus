@@ -188,6 +188,30 @@ class HeaderSelectorTest {
         }
 
         @Test
+        @DisplayName("bhvHeaders010 drops empty entries and keeps the others in order")
+        fun dropsEmptyEntriesKeepingTheRest() {
+            val headers =
+                selector.selectHeaders(
+                    arrayOf("", "image/jpeg", "application/json"),
+                    "application/json",
+                    false,
+                )
+            assertEquals("image/jpeg, application/json", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("bhvHeaders024 sets Accept header when accepts provided")
+        fun setsAcceptHeaderWhenAcceptsProvided() {
+            val headers =
+                selector.selectHeaders(
+                    arrayOf("application/json", "text/plain"),
+                    "application/json",
+                    false,
+                )
+            assertEquals("application/json, text/plain", headers["Accept"])
+        }
+
+        @Test
         @DisplayName("bhvHeaders006 returns null Accept when only blank entries")
         fun returnsNullAcceptWhenOnlyBlank() {
             val headers =

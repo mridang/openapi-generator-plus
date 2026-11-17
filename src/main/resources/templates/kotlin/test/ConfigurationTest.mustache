@@ -26,6 +26,26 @@ class ConfigurationTest {
             val config = Configuration.builder().build()
             assertTrue(config.defaultHeaders.isEmpty())
         }
+
+        @Test
+        @DisplayName("bhvConfig005 builder produces correct defaults")
+        fun builderProducesCorrectDefaults() {
+            val config = Configuration.builder().build()
+            assertEquals("{{{basePath}}}", config.baseUrl)
+            assertEquals(emptyMap<String, String>(), config.defaultHeaders)
+        }
+
+        @Test
+        @DisplayName("bhvConfig010 builder sets every field")
+        fun builderSetsEveryField() {
+            val config = Configuration.builder()
+                .baseUrl("https://api.example.com")
+                .defaultHeader("X-Trace", "trace-1")
+                .defaultHeaders(mapOf("X-Tenant" to "tenant-1"))
+                .build()
+            assertEquals("https://api.example.com", config.baseUrl)
+            assertEquals(mapOf("X-Trace" to "trace-1", "X-Tenant" to "tenant-1"), config.defaultHeaders)
+        }
     }
 
     @Nested

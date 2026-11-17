@@ -152,7 +152,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("a default outside the enum is rejected when no override is given")
+    @DisplayName("bhvServers004 a default outside the enum is rejected when no override is given")
     fun getUrlRejectsADefaultOutsideTheEnum() {
         val server =
             ServerConfiguration(

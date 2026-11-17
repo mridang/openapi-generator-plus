@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 class ApiKeyAuthenticatorTest {
 
     @Test
-    @DisplayName("valid header key is exposed via getAuthHeaders")
+    @DisplayName("bhvAuthapikey014 valid header key is exposed via getAuthHeaders")
     fun validHeaderKeyPasses() = runBlocking {
         val auth = ApiKeyAuthenticator(
             "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER
@@ -154,6 +154,36 @@ class ApiKeyAuthenticatorTest {
                 "https://api.example.com", "api_key", "kéy", ApiKeyLocation.QUERY
             ).getQueryParams()
         )
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey016 valid query key passes")
+    fun validQueryKeyPassesAndIsExposed() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "api_key", "abc123", ApiKeyLocation.QUERY
+        )
+        assertEquals(mapOf("api_key" to "abc123"), auth.getQueryParams())
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey001 a Unicode space is not blank and is a valid query key")
+    fun unicodeSpaceIsAValidQueryKey() {
+        assertEquals(
+            mapOf("api_key" to " "),
+            ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", " ", ApiKeyLocation.QUERY
+            ).getQueryParams()
+        )
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey008 HEADER location rejects a non-ASCII key")
+    fun headerLocationRejectsNonAsciiKey() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "kéy", ApiKeyLocation.HEADER
+            )
+        }
     }
 
     /**
