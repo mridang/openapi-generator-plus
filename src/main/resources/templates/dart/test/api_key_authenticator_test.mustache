@@ -83,7 +83,7 @@ void main() {
       expect(headers['X-Api-Key'], equals('abc123'));
     });
 
-    test('valid query key is exposed in query params', () {
+    test('bhv authapikey 015 valid query key is exposed in query params', () {
       final auth = ApiKeyAuthenticator(
         host: '{{{basePath}}}',
         keyParamName: 'api_key',
@@ -117,7 +117,7 @@ void main() {
       );
     });
 
-    test('the query location accepts a non-ASCII key', () {
+    test('bhv authapikey 009 the query location accepts a non-ASCII key', () {
       final queryAuth = ApiKeyAuthenticator(
         host: '{{{basePath}}}',
         keyParamName: 'api_key',
@@ -127,7 +127,7 @@ void main() {
       expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
     });
 
-    test('redacts the API key in toString', () {
+    test('bhv authapikey 010 redacts the API key in toString', () {
       // authenticator-secret-in-default-string-repr: the default toString()
       // must never expose the stored API key.
       final auth = ApiKeyAuthenticator(
@@ -166,7 +166,7 @@ void main() {
         });
       }
       for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
-        test('${location.name} rejects CR, LF and NUL in ${key.codeUnits}', () {
+        test('bhv authapikey 002 ${location.name} rejects CR, LF and NUL in ${key.codeUnits}', () {
           expect(
             () => build(key, location),
             throwsA(
@@ -183,14 +183,14 @@ void main() {
       }
     }
 
-    test('a Unicode space is not blank for the query and cookie locations', () {
+    test('bhv authapikey 001 a Unicode space is not blank for the query and cookie locations', () {
       for (final location in [ApiKeyLocation.query, ApiKeyLocation.cookie]) {
         expect(() => build('\u00A0', location), returnsNormally);
         expect(() => build('\u2003', location), returnsNormally);
       }
     });
 
-    test('a header key rejects non-ASCII with the RFC 7230 message', () {
+    test('bhv authapikey 008 a header key rejects non-ASCII with the RFC 7230 message', () {
       expect(
         () => build('kéy', ApiKeyLocation.header),
         throwsA(
@@ -213,7 +213,34 @@ void main() {
       expect(auth.queryParams(), isEmpty);
     });
 
-    test('a header key is emitted only as a header', () {
+    test('bhv authapikey 003 a CR, LF or NUL in a query key throws at construction', () {
+      for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
+        expect(() => build(key, ApiKeyLocation.query), throwsA(isA<ArgumentError>()));
+      }
+    });
+
+    test('bhv authapikey 004 an empty cookie key throws at construction', () {
+      expect(() => build('', ApiKeyLocation.cookie), throwsA(isA<ArgumentError>()));
+    });
+
+    test('bhv authapikey 011 a key made only of ASCII whitespace such as a vertical tab is blank', () {
+      expect(() => build('\v', ApiKeyLocation.query), throwsA(isA<ArgumentError>()));
+      expect(() => build('\v', ApiKeyLocation.cookie), throwsA(isA<ArgumentError>()));
+    });
+
+    test('bhv authapikey 013 a valid cookie key passes and is emitted as a cookie', () {
+      expect(build('abc', ApiKeyLocation.cookie).cookieParams(), equals({'k': 'abc'}));
+    });
+
+    test('bhv authapikey 016 a valid query key passes and is emitted as a query parameter', () {
+      expect(build('abc', ApiKeyLocation.query).queryParams(), equals({'k': 'abc'}));
+    });
+
+    test('bhv authapikey 017 a whitespace-only key throws at construction', () {
+      expect(() => build('   ', ApiKeyLocation.header), throwsA(isA<ArgumentError>()));
+    });
+
+    test('bhv authapikey 014 a header key is emitted only as a header', () {
       final auth = build('abc', ApiKeyLocation.header);
 
       expect(auth.authHeaders(), equals({'k': 'abc'}));
@@ -221,7 +248,7 @@ void main() {
       expect(auth.cookieParams(), isEmpty);
     });
 
-    test('the redacted repr shows the non-secret fields and masks the key', () {
+    test('bhv authapikey 012 the redacted repr shows the non-secret fields and masks the key', () {
       expect(
         build('abc', ApiKeyLocation.cookie).toString(),
         equals(
@@ -243,6 +270,19 @@ void main() {
           SessionCookieAuthenticator(host: '{{{basePath}}}', apiKey: key),
     };
 
+    test('bhv authapikey 007 every scheme wrapper emits its key at exactly one location', () {
+      for (final build in builders.values) {
+        final auth = build('k1');
+        final placed = [
+          auth.authHeaders(),
+          auth.queryParams(),
+          auth.cookieParams(),
+        ].where((m) => m.isNotEmpty).length;
+
+        expect(placed, equals(1));
+      }
+    });
+
     test('ApiKeyHeaderAuthenticator sends X-API-Key as a header', () {
       final auth = builders['ApiKeyHeaderAuthenticator']!('k1');
 
@@ -259,7 +299,7 @@ void main() {
       expect(auth.cookieParams(), isEmpty);
     });
 
-    test('ApiKeyQueryAuthenticator sends api_key as a query parameter', () {
+    test('bhv authapikey 006 ApiKeyQueryAuthenticator sends api_key as a query parameter', () {
       final auth = builders['ApiKeyQueryAuthenticator']!('k1');
 
       expect(auth.queryParams(), equals({'api_key': 'k1'}));
@@ -276,7 +316,7 @@ void main() {
     });
 
     builders.forEach((name, build) {
-      test('$name rejects an empty key at construction', () {
+      test('bhv authapikey 005 $name rejects an empty key at construction', () {
         expect(() => build(''), throwsArgumentError);
       });
 

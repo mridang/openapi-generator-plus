@@ -76,7 +76,7 @@ void main() {
       },
     );
 
-    test('sends password grant type', () async {
+    test('bhv authoauthtwopassword 014 sends password grant type', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -89,7 +89,7 @@ void main() {
       expect(client.lastBody!, contains('grant_type=password'));
     });
 
-    test('sends username and password', () async {
+    test('bhv authoauthtwopassword 016 sends username and password', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -102,7 +102,7 @@ void main() {
       expect(client.lastBody!, contains('password=testpass'));
     });
 
-    test('sends client id and secret', () async {
+    test('bhv authoauthtwopassword 013 sends client id and secret', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -115,73 +115,82 @@ void main() {
       expect(client.lastBody!, contains('client_secret=my-client-secret'));
     });
 
-    test('returns authorization bearer header', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok-pwd","expires_in":3600}');
+    test(
+      'bhv authoauthtwopassword 011 returns authorization bearer header',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok-pwd","expires_in":3600}');
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      final headers = await auth.authHeadersAsync();
+        final headers = await auth.authHeadersAsync();
 
-      expect(headers['Authorization'], equals('Bearer tok-pwd'));
-    });
+        expect(headers['Authorization'], equals('Bearer tok-pwd'));
+      },
+    );
 
-    test('uses refresh token on subsequent calls', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
-      );
-      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+    test(
+      'bhv authoauthtwopassword 019 uses refresh token on subsequent calls',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
-      await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
 
-      expect(client.lastBody!, contains('grant_type=refresh_token'));
-      expect(client.lastBody!, contains('refresh_token=ref1'));
-    });
+        expect(client.lastBody!, contains('grant_type=refresh_token'));
+        expect(client.lastBody!, contains('refresh_token=ref1'));
+      },
+    );
 
-    test('getHost returns configured host', () {
+    test('bhv authoauthtwopassword 003 getHost returns configured host', () {
       final auth = _createAuthenticator();
 
       expect(auth.host(), equals('https://api.example.com'));
     });
 
-    test('basic auth url-encodes client id and secret', () async {
-      // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
-      // client_id and client_secret MUST be application/x-www-form-
-      // urlencoded BEFORE being joined with ':' and base64-encoded.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"at","expires_in":3600}');
+    test(
+      'bhv authoauthtwopassword 002 basic auth url-encodes client id and secret',
+      () async {
+        // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+        // client_id and client_secret MUST be application/x-www-form-
+        // urlencoded BEFORE being joined with ':' and base64-encoded.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"at","expires_in":3600}');
 
-      final auth = OAuth2PasswordAuthenticator(
-        host: 'https://api.example.com',
-        clientId: 'id+with/special',
-        clientSecret: 'secret&with=stuff',
-        tokenUrl: 'https://auth.example.com/token',
-        username: 'testuser',
-        password: 'testpass',
-        scopes: ['read'],
-        clientAuthMethod: ClientAuthMethod.basic,
-      );
-      auth.setApiClient(client);
+        final auth = OAuth2PasswordAuthenticator(
+          host: 'https://api.example.com',
+          clientId: 'id+with/special',
+          clientSecret: 'secret&with=stuff',
+          tokenUrl: 'https://auth.example.com/token',
+          username: 'testuser',
+          password: 'testpass',
+          scopes: ['read'],
+          clientAuthMethod: ClientAuthMethod.basic,
+        );
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
 
-      final authHeader = client.lastHeaders['Authorization'];
-      expect(authHeader, isNotNull);
-      expect(authHeader!, startsWith('Basic '));
-      final b64 = authHeader.substring('Basic '.length);
-      final decoded = utf8.decode(base64.decode(b64));
-      // Expected: form-urlencoded id ':' form-urlencoded secret
-      expect(decoded, equals('id%2Bwith%2Fspecial:secret%26with%3Dstuff'));
-    });
+        final authHeader = client.lastHeaders['Authorization'];
+        expect(authHeader, isNotNull);
+        expect(authHeader!, startsWith('Basic '));
+        final b64 = authHeader.substring('Basic '.length);
+        final decoded = utf8.decode(base64.decode(b64));
+        // Expected: form-urlencoded id ':' form-urlencoded secret
+        expect(decoded, equals('id%2Bwith%2Fspecial:secret%26with%3Dstuff'));
+      },
+    );
 
     test(
-      'invalidateAccessToken keeps the refresh token and refreshes with it',
+      'bhv authoauthtwopassword 004 invalidateAccessToken keeps the refresh token and refreshes with it',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -201,7 +210,7 @@ void main() {
       },
     );
 
-    test('redacts secret', () {
+    test('bhv authoauthtwopassword 007 redacts secret', () {
       final auth = OAuth2PasswordAuthenticator(
         host: 'https://api.example.com',
         clientId: 'my-client-id',
@@ -231,7 +240,7 @@ void main() {
         );
 
     test(
-      'the first grant goes to tokenUrl and the refresh grant to refreshUrl',
+      'bhv authoauthtwopassword 017 the first grant goes to tokenUrl and the refresh grant to refreshUrl',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -258,30 +267,38 @@ void main() {
       },
     );
 
-    test('a BODY mode refresh carries client_id and client_secret', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
-      );
-      client.enqueue('{"access_token":"tok2","expires_in":3600}');
-      final auth = build(refreshUrl: 'https://auth.example.com/oauth/refresh');
-      auth.setApiClient(client);
+    test(
+      'bhv authoauthtwopassword 009 a BODY mode refresh carries client_id and client_secret',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = build(
+          refreshUrl: 'https://auth.example.com/oauth/refresh',
+        );
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
-      await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
 
-      expect(client.urls[1], equals('https://auth.example.com/oauth/refresh'));
-      expect(
-        client.bodies[1],
-        equals(
-          'grant_type=refresh_token&refresh_token=ref1'
-          '&client_id=my-client-id&client_secret=my-client-secret',
-        ),
-      );
-    });
+        expect(
+          client.urls[1],
+          equals('https://auth.example.com/oauth/refresh'),
+        );
+        expect(
+          client.bodies[1],
+          equals(
+            'grant_type=refresh_token&refresh_token=ref1'
+            '&client_id=my-client-id&client_secret=my-client-secret',
+          ),
+        );
+      },
+    );
 
     test(
-      'a BASIC mode refresh carries the Basic header and no client_id',
+      'bhv authoauthtwopassword 008 a BASIC mode refresh carries the Basic header and no client_id',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -310,26 +327,29 @@ void main() {
       },
     );
 
-    test('a rejected refresh re-runs the password grant', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
-      );
-      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
-      client.enqueue('{"access_token":"tok3","expires_in":3600}');
-      final auth = build();
-      auth.setApiClient(client);
+    test(
+      'bhv authoauthtwopassword 010 a rejected refresh re-runs the password grant',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+        client.enqueue('{"access_token":"tok3","expires_in":3600}');
+        final auth = build();
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
-      final headers = await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
+        final headers = await auth.authHeadersAsync();
 
-      expect(headers['Authorization'], equals('Bearer tok3'));
-      expect(client.urls[2], equals('https://auth.example.com/token'));
-      expect(client.bodies[2], startsWith('grant_type=password&'));
-    });
+        expect(headers['Authorization'], equals('Bearer tok3'));
+        expect(client.urls[2], equals('https://auth.example.com/token'));
+        expect(client.bodies[2], startsWith('grant_type=password&'));
+      },
+    );
 
     test(
-      'without a refreshUrl the refresh grant also goes to tokenUrl',
+      'bhv authoauthtwopassword 006 without a refreshUrl the refresh grant also goes to tokenUrl',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -352,24 +372,27 @@ void main() {
       },
     );
 
-    test('the token body carries the scopes joined with a plus', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1","expires_in":3600}');
-      final auth = build();
-      auth.setApiClient(client);
+    test(
+      'bhv authoauthtwopassword 015 the token body carries the scopes joined with a plus',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final auth = build();
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
 
-      expect(
-        client.lastBody,
-        equals(
-          'grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write',
-        ),
-      );
-    });
+        expect(
+          client.lastBody,
+          equals(
+            'grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write',
+          ),
+        );
+      },
+    );
 
     test(
-      'the token body keeps ~ literal and percent-encodes * ! \' ( )',
+      'bhv authoauthtwopassword 005 the token body keeps ~ literal and percent-encodes * ! \' ( )',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -395,7 +418,7 @@ void main() {
     );
 
     test(
-      'the Basic header keeps ~ literal and percent-encodes * ! \' ( )',
+      'bhv authoauthtwopassword 001 the Basic header keeps ~ literal and percent-encodes * ! \' ( )',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -420,14 +443,17 @@ void main() {
       },
     );
 
-    test('the redacted repr shows the non-secret fields', () {
-      expect(
-        build().toString(),
-        equals(
-          'OAuth2PasswordAuthenticator(host: https://api.example.com, clientId: my-client-id, clientSecret: ***, tokenUrl: https://auth.example.com/token, refreshUrl: https://auth.example.com/token, username: testuser, password: ***, scopes: [read, write], clientAuthMethod: body)',
-        ),
-      );
-    });
+    test(
+      'bhv authoauthtwopassword 018 the redacted repr shows the non-secret fields',
+      () {
+        expect(
+          build().toString(),
+          equals(
+            'OAuth2PasswordAuthenticator(host: https://api.example.com, clientId: my-client-id, clientSecret: ***, tokenUrl: https://auth.example.com/token, refreshUrl: https://auth.example.com/token, username: testuser, password: ***, scopes: [read, write], clientAuthMethod: body)',
+          ),
+        );
+      },
+    );
   });
 
   group('OAuth2PasswordAuthenticator scheme wrapper', () {

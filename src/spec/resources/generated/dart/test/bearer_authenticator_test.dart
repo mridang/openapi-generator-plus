@@ -80,7 +80,7 @@ void main() {
       );
     });
 
-    test('the provider is asked on every request', () async {
+    test('bhv authbearer 014 the provider is asked on every request', () async {
       var calls = 0;
       final auth = BearerAuthenticator(
         host: '/api/v3',
@@ -110,34 +110,42 @@ void main() {
       },
     );
 
-    test('a provider result is validated like a fixed token', () async {
-      final auth = BearerAuthenticator(
-        host: '/api/v3',
-        tokenProvider: () => '',
-      );
+    test(
+      'bhv authbearer 002 a provider result is validated like a fixed token',
+      () async {
+        final auth = BearerAuthenticator(
+          host: '/api/v3',
+          tokenProvider: () => '',
+        );
 
-      await expectLater(auth.authHeadersAsync(), throwsArgumentError);
-    });
+        await expectLater(auth.authHeadersAsync(), throwsArgumentError);
+      },
+    );
 
-    test('raw token is prefixed with Bearer', () {
+    test('bhv authbearer 009 raw token is prefixed with Bearer', () {
       final auth = BearerAuthenticator(host: '/api/v3', token: 'xyz');
       final headers = auth.authHeaders();
       expect(headers['Authorization'], equals('Bearer xyz'));
     });
 
-    test('rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
-      expect(
-        () =>
-            BearerAuthenticator(host: '/api/v3', token: 'tok\r\nInjected: yes'),
-        throwsArgumentError,
-      );
-      expect(
-        () => BearerAuthenticator(host: '/api/v3', token: 'ñoño'),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'bhv authbearer 012 rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: '/api/v3',
+            token: 'tok\r\nInjected: yes',
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', token: 'ñoño'),
+          throwsArgumentError,
+        );
+      },
+    );
 
-    test('rejects an empty or whitespace token', () {
+    test('bhv authbearer 017 rejects an empty or whitespace token', () {
       // bearer-no-empty-token-guard: an empty / whitespace-only token would
       // emit a bare "Authorization: Bearer " header and send the request
       // unauthenticated, so the constructor must reject it.
@@ -168,7 +176,7 @@ void main() {
     });
 
     test(
-      'a Unicode space is not blank, so the printable ASCII check rejects it',
+      'bhv authbearer 016 a Unicode space is not blank, so the printable ASCII check rejects it',
       () {
         expect(
           () => BearerAuthenticator(host: '/api/v3', token: '\u00A0'),
@@ -183,7 +191,7 @@ void main() {
       },
     );
 
-    test('redacts the token in toString', () {
+    test('bhv authbearer 011 redacts the token in toString', () {
       // authenticator-secret-in-default-string-repr: the default toString()
       // must never expose the stored token.
       final auth = BearerAuthenticator(host: '/api/v3', token: 'xyz');
@@ -207,18 +215,27 @@ void main() {
       });
     });
 
-    test('a token that merely begins with the word bearer is kept whole', () {
-      final auth = BearerAuthenticator(host: '/api/v3', token: 'bearerxyz');
+    test(
+      'bhv authbearer 015 a token that merely begins with the word bearer is kept whole',
+      () {
+        final auth = BearerAuthenticator(host: '/api/v3', token: 'bearerxyz');
 
-      expect(auth.authHeaders(), equals({'Authorization': 'Bearer bearerxyz'}));
-    });
+        expect(
+          auth.authHeaders(),
+          equals({'Authorization': 'Bearer bearerxyz'}),
+        );
+      },
+    );
 
-    test('the redacted repr shows the host and masks the token', () {
-      expect(
-        BearerAuthenticator(host: '/api/v3', token: 'xyz').toString(),
-        equals('BearerAuthenticator(host: /api/v3, token: ***)'),
-      );
-    });
+    test(
+      'bhv authbearer 013 the redacted repr shows the host and masks the token',
+      () {
+        expect(
+          BearerAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+          equals('BearerAuthenticator(host: /api/v3, token: ***)'),
+        );
+      },
+    );
   });
 
   group('BearerAuthenticator scheme wrappers', () {
@@ -230,40 +247,49 @@ void main() {
     };
 
     builders.forEach((name, build) {
-      test('$name sends the token as a Bearer header', () {
+      test('bhv authbearer 006 $name sends the token as a Bearer header', () {
         expect(
           build('xyz').authHeaders(),
           equals({'Authorization': 'Bearer xyz'}),
         );
       });
 
-      test('$name rejects an empty token at construction', () {
-        expect(() => build(''), throwsArgumentError);
-      });
+      test(
+        'bhv authbearer 005 $name rejects an empty token at construction',
+        () {
+          expect(() => build(''), throwsArgumentError);
+        },
+      );
 
-      test('$name prints its own name with the token masked', () {
-        expect(
-          build('xyz').toString(),
-          equals('$name(host: /api/v3, token: ***)'),
-        );
-      });
+      test(
+        'bhv authbearer 001 $name prints its own name with the token masked',
+        () {
+          expect(
+            build('xyz').toString(),
+            equals('$name(host: /api/v3, token: ***)'),
+          );
+        },
+      );
     });
   });
 
   group('per-scheme authenticators', () {
     group('AdminBasicAuthenticator', () {
-      test('reads its own variables from the environment', () {
-        expect(
-          () => AdminBasicAuthenticator(
-            host: '/api/v3',
-            environment: {
-              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': 'value',
-              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD': 'value',
-            },
-          ),
-          returnsNormally,
-        );
-      });
+      test(
+        'bhv authbearer 010 reads its own variables from the environment',
+        () {
+          expect(
+            () => AdminBasicAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': 'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD': 'value',
+              },
+            ),
+            returnsNormally,
+          );
+        },
+      );
 
       test('fails to build naming the variable when none is set', () {
         expect(
@@ -297,17 +323,20 @@ void main() {
       });
     });
     group('ApiKeyHeaderAuthenticator', () {
-      test('reads its own variables from the environment', () {
-        expect(
-          () => ApiKeyHeaderAuthenticator(
-            host: '/api/v3',
-            environment: {
-              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': 'value',
-            },
-          ),
-          returnsNormally,
-        );
-      });
+      test(
+        'bhv authbearer 010 reads its own variables from the environment',
+        () {
+          expect(
+            () => ApiKeyHeaderAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': 'value',
+              },
+            ),
+            returnsNormally,
+          );
+        },
+      );
 
       test('fails to build naming the variable when none is set', () {
         expect(
@@ -342,17 +371,20 @@ void main() {
       });
     });
     group('ApiKeyQueryAuthenticator', () {
-      test('reads its own variables from the environment', () {
-        expect(
-          () => ApiKeyQueryAuthenticator(
-            host: '/api/v3',
-            environment: {
-              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': 'value',
-            },
-          ),
-          returnsNormally,
-        );
-      });
+      test(
+        'bhv authbearer 010 reads its own variables from the environment',
+        () {
+          expect(
+            () => ApiKeyQueryAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': 'value',
+              },
+            ),
+            returnsNormally,
+          );
+        },
+      );
 
       test('fails to build naming the variable when none is set', () {
         expect(
@@ -387,17 +419,21 @@ void main() {
       });
     });
     group('InternalApiKeyAuthenticator', () {
-      test('reads its own variables from the environment', () {
-        expect(
-          () => InternalApiKeyAuthenticator(
-            host: '/api/v3',
-            environment: {
-              'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': 'value',
-            },
-          ),
-          returnsNormally,
-        );
-      });
+      test(
+        'bhv authbearer 010 reads its own variables from the environment',
+        () {
+          expect(
+            () => InternalApiKeyAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY':
+                    'value',
+              },
+            ),
+            returnsNormally,
+          );
+        },
+      );
 
       test('fails to build naming the variable when none is set', () {
         expect(
@@ -438,18 +474,23 @@ void main() {
       });
     });
     group('PetStoreBasicAuthenticator', () {
-      test('reads its own variables from the environment', () {
-        expect(
-          () => PetStoreBasicAuthenticator(
-            host: '/api/v3',
-            environment: {
-              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME': 'value',
-              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD': 'value',
-            },
-          ),
-          returnsNormally,
-        );
-      });
+      test(
+        'bhv authbearer 010 reads its own variables from the environment',
+        () {
+          expect(
+            () => PetStoreBasicAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME':
+                    'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD':
+                    'value',
+              },
+            ),
+            returnsNormally,
+          );
+        },
+      );
 
       test('fails to build naming the variable when none is set', () {
         expect(
@@ -490,17 +531,20 @@ void main() {
       });
     });
     group('PetStoreBearerAuthenticator', () {
-      test('reads its own variables from the environment', () {
-        expect(
-          () => PetStoreBearerAuthenticator(
-            host: '/api/v3',
-            environment: {
-              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': 'value',
-            },
-          ),
-          returnsNormally,
-        );
-      });
+      test(
+        'bhv authbearer 010 reads its own variables from the environment',
+        () {
+          expect(
+            () => PetStoreBearerAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': 'value',
+              },
+            ),
+            returnsNormally,
+          );
+        },
+      );
 
       test('fails to build naming the variable when none is set', () {
         expect(
@@ -537,17 +581,20 @@ void main() {
       });
     });
     group('ServiceTokenAuthenticator', () {
-      test('reads its own variables from the environment', () {
-        expect(
-          () => ServiceTokenAuthenticator(
-            host: '/api/v3',
-            environment: {
-              'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': 'value',
-            },
-          ),
-          returnsNormally,
-        );
-      });
+      test(
+        'bhv authbearer 010 reads its own variables from the environment',
+        () {
+          expect(
+            () => ServiceTokenAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': 'value',
+              },
+            ),
+            returnsNormally,
+          );
+        },
+      );
 
       test('fails to build naming the variable when none is set', () {
         expect(
@@ -582,17 +629,20 @@ void main() {
       });
     });
     group('SessionCookieAuthenticator', () {
-      test('reads its own variables from the environment', () {
-        expect(
-          () => SessionCookieAuthenticator(
-            host: '/api/v3',
-            environment: {
-              'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': 'value',
-            },
-          ),
-          returnsNormally,
-        );
-      });
+      test(
+        'bhv authbearer 010 reads its own variables from the environment',
+        () {
+          expect(
+            () => SessionCookieAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': 'value',
+              },
+            ),
+            returnsNormally,
+          );
+        },
+      );
 
       test('fails to build naming the variable when none is set', () {
         expect(

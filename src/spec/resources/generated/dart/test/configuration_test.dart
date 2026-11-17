@@ -10,14 +10,14 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('Configuration', () {
-    test('default values', () {
+    test('bhv config 014 default values', () {
       final config = Configuration.defaultConfiguration();
 
       expect(config.baseUrl, equals('/api/v3'));
       expect(config.defaultHeaders, isEmpty);
     });
 
-    test('builder returns builder instance', () {
+    test('bhv config 007 builder returns builder instance', () {
       final builder = Configuration.builder();
       expect(builder, isA<ConfigurationBuilder>());
     });
@@ -30,7 +30,7 @@ void main() {
       expect(config.baseUrl, equals('https://static.example.com'));
     });
 
-    test('builder sets baseUrl', () {
+    test('bhv config 011 builder sets baseUrl', () {
       final config = ConfigurationBuilder()
           .baseUrl('https://custom.example.com')
           .build();
@@ -38,7 +38,7 @@ void main() {
       expect(config.baseUrl, equals('https://custom.example.com'));
     });
 
-    test('builder sets default header', () {
+    test('bhv config 013 builder sets default header', () {
       final config = ConfigurationBuilder()
           .defaultHeader('X-Custom', 'value')
           .build();
@@ -47,7 +47,7 @@ void main() {
       expect(headers['X-Custom'], equals('value'));
     });
 
-    test('builder sets multiple default headers', () {
+    test('bhv config 012 builder sets multiple default headers', () {
       final config = ConfigurationBuilder().defaultHeaders({
         'X-First': 'one',
         'X-Second': 'two',
@@ -68,7 +68,7 @@ void main() {
       expect(config.defaultHeaders['Authorization'], equals('Bearer token'));
     });
 
-    test('server URL resolution', () {
+    test('bhv config 008 server URL resolution', () {
       final server = ServerConfiguration(
         urlTemplate: 'https://{env}.example.com/api/{version}',
         description: 'Test server',
@@ -112,7 +112,7 @@ void main() {
       expect(config.baseUrl, equals('https://api.example.com/api/v3'));
     });
 
-    test('baseUrl override', () {
+    test('bhv config 001 baseUrl override', () {
       final config = ConfigurationBuilder()
           .baseUrl('https://original.example.com')
           .baseUrl('https://override.example.com')
@@ -133,7 +133,7 @@ void main() {
       expect(original.containsKey('X-Mutated'), isFalse);
     });
 
-    test('builder accumulates multiple headers', () {
+    test('bhv config 002 builder accumulates multiple headers', () {
       final config = ConfigurationBuilder()
           .defaultHeader('X-First', 'one')
           .defaultHeader('X-Second', 'two')
@@ -145,7 +145,7 @@ void main() {
       expect(headers['X-Second'], equals('two'));
     });
 
-    test('builder merges single and bulk headers', () {
+    test('bhv config 004 builder merges single and bulk headers', () {
       final config = ConfigurationBuilder()
           .defaultHeader('X-First', 'one')
           .defaultHeaders({'X-Second': 'two'})
@@ -159,7 +159,7 @@ void main() {
       expect(headers['X-Third'], equals('three'));
     });
 
-    test('invalid server variable enum value throws', () {
+    test('bhv config 016 invalid server variable enum value throws', () {
       const server = ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
         variables: {
@@ -176,7 +176,7 @@ void main() {
       );
     });
 
-    test('builder methods return the builder for chaining', () {
+    test('bhv config 003 builder methods return the builder for chaining', () {
       final builder = ConfigurationBuilder();
       final server = ServerConfiguration(urlTemplate: 'https://example.com');
 
@@ -195,7 +195,7 @@ void main() {
       expect(identical(builder.server(server), builder), isTrue);
     });
 
-    test('builder produces independent instances', () {
+    test('bhv config 006 builder produces independent instances', () {
       final builder = ConfigurationBuilder().baseUrl('https://example.com');
       final first = builder.build();
       final second = builder.build();

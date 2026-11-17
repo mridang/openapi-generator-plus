@@ -19,49 +19,64 @@ OAuth2ImplicitAuthenticator _createAuthenticator() {
 
 void main() {
   group('OAuth2ImplicitAuthenticator', () {
-    test('builds authorization URL with response type token', () {
-      final auth = _createAuthenticator();
+    test(
+      'bhv authoauthtwoimplicit 003 builds authorization URL with response type token',
+      () {
+        final auth = _createAuthenticator();
 
-      final url = auth.buildAuthorizationUrl();
+        final url = auth.buildAuthorizationUrl();
 
-      expect(url, contains('response_type=token'));
-      expect(url, startsWith('https://auth.example.com/authorize?'));
-    });
+        expect(url, contains('response_type=token'));
+        expect(url, startsWith('https://auth.example.com/authorize?'));
+      },
+    );
 
-    test('builds authorization URL with client id', () {
-      final auth = _createAuthenticator();
+    test(
+      'bhv authoauthtwoimplicit 002 builds authorization URL with client id',
+      () {
+        final auth = _createAuthenticator();
 
-      final url = auth.buildAuthorizationUrl();
+        final url = auth.buildAuthorizationUrl();
 
-      expect(url, contains('client_id=my-client-id'));
-    });
+        expect(url, contains('client_id=my-client-id'));
+      },
+    );
 
-    test('builds authorization URL with scopes', () {
-      final auth = _createAuthenticator();
+    test(
+      'bhv authoauthtwoimplicit 004 builds authorization URL with scopes',
+      () {
+        final auth = _createAuthenticator();
 
-      final url = auth.buildAuthorizationUrl();
+        final url = auth.buildAuthorizationUrl();
 
-      expect(url, contains('scope=read%20write'));
-    });
+        expect(url, contains('scope=read%20write'));
+      },
+    );
 
-    test('builds authorization URL with state', () {
-      final auth = _createAuthenticator();
+    test(
+      'bhv authoauthtwoimplicit 005 builds authorization URL with state',
+      () {
+        final auth = _createAuthenticator();
 
-      final url = auth.buildAuthorizationUrl('my-state');
+        final url = auth.buildAuthorizationUrl('my-state');
 
-      expect(url, contains('state=my-state'));
-    });
+        expect(url, contains('state=my-state'));
+      },
+    );
 
-    test('getAuthHeaders returns Bearer after setAccessToken', () {
-      final auth = _createAuthenticator();
-      auth.setAccessToken('implicit-tok');
+    test(
+      'bhv authoauthtwoimplicit 007 getAuthHeaders returns Bearer after setAccessToken',
+      () {
+        final auth = _createAuthenticator();
+        auth.setAccessToken('implicit-tok');
 
-      final headers = auth.authHeaders();
+        final headers = auth.authHeaders();
 
-      expect(headers['Authorization'], equals('Bearer implicit-tok'));
-    });
+        expect(headers['Authorization'], equals('Bearer implicit-tok'));
+      },
+    );
 
-    test('throws when access token not set', () {
+    test('bhv authoauthtwoimplicit 012 throws when access token not set', () {
       final auth = _createAuthenticator();
 
       expect(
@@ -96,13 +111,13 @@ void main() {
       expect(error.toString(), isNot(contains('tok-')));
     });
 
-    test('getHost returns configured host', () {
+    test('bhv authoauthtwoimplicit 008 getHost returns configured host', () {
       final auth = _createAuthenticator();
 
       expect(auth.host(), equals('https://api.example.com'));
     });
 
-    test('redacts secret', () {
+    test('bhv authoauthtwoimplicit 010 redacts secret', () {
       final auth = _createAuthenticator();
       auth.setAccessToken('implicit-tok');
 
@@ -148,7 +163,7 @@ void main() {
     });
 
     test(
-      'the authorize URL keeps ~ literal and percent-encodes * ! \' ( )',
+      'bhv authoauthtwoimplicit 001 the authorize URL keeps ~ literal and percent-encodes * ! \' ( )',
       () {
         final url = _createAuthenticator().buildAuthorizationUrl(
           "a~b*c!d'e(f)",
@@ -158,20 +173,23 @@ void main() {
       },
     );
 
-    test('the redacted repr shows the non-secret fields', () {
-      final auth = _createAuthenticator();
-      auth.setAccessToken('implicit-tok');
+    test(
+      'bhv authoauthtwoimplicit 011 the redacted repr shows the non-secret fields',
+      () {
+        final auth = _createAuthenticator();
+        auth.setAccessToken('implicit-tok');
 
-      expect(
-        auth.toString(),
-        equals(
-          'OAuth2ImplicitAuthenticator(host: https://api.example.com, clientId: my-client-id, authorizationUrl: https://auth.example.com/authorize, scopes: [read, write], accessToken: ***)',
-        ),
-      );
-    });
+        expect(
+          auth.toString(),
+          equals(
+            'OAuth2ImplicitAuthenticator(host: https://api.example.com, clientId: my-client-id, authorizationUrl: https://auth.example.com/authorize, scopes: [read, write], accessToken: ***)',
+          ),
+        );
+      },
+    );
 
     test(
-      'BrowserAuthImplicitAuthenticator uses the declared authorize URL and scopes',
+      'bhv authoauthtwoimplicit 006 BrowserAuthImplicitAuthenticator uses the declared authorize URL and scopes',
       () {
         final auth = BrowserAuthImplicitAuthenticator(
           host: 'https://api.example.com',

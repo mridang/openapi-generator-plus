@@ -10,21 +10,24 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('ServerConfiguration', () {
-    test('resolves URL template using default variable values', () {
-      const config = ServerConfiguration(
-        urlTemplate: 'https://{env}.api.example.com/v{version}',
-        description: 'primary server',
-        variables: {
-          'env': ServerVariable(
-            defaultValue: 'prod',
-            enumValues: ['prod', 'staging'],
-          ),
-          'version': ServerVariable(defaultValue: '1'),
-        },
-      );
+    test(
+      'bhv servers 009 resolves URL template using default variable values',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{env}.api.example.com/v{version}',
+          description: 'primary server',
+          variables: {
+            'env': ServerVariable(
+              defaultValue: 'prod',
+              enumValues: ['prod', 'staging'],
+            ),
+            'version': ServerVariable(defaultValue: '1'),
+          },
+        );
 
-      expect(config.url(), equals('https://prod.api.example.com/v1'));
-    });
+        expect(config.url(), equals('https://prod.api.example.com/v1'));
+      },
+    );
 
     test(
       'applies overrides and falls back to defaults for unset variables',
@@ -49,7 +52,7 @@ void main() {
       },
     );
 
-    test('exposes raw URL template and description', () {
+    test('bhv servers 006 exposes raw URL template and description', () {
       const config = ServerConfiguration(
         urlTemplate: 'https://{env}.api.example.com',
         description: 'primary server',
@@ -60,35 +63,38 @@ void main() {
       expect(config.description, equals('primary server'));
     });
 
-    test('rejects override value outside the variable enum', () {
-      // server-variable-enum-validation: an override that is not in the
-      // variable's enum is rejected at resolution time.
-      const config = ServerConfiguration(
-        urlTemplate: 'https://{env}.api.example.com',
-        variables: {
-          'env': ServerVariable(
-            defaultValue: 'prod',
-            enumValues: ['prod', 'staging'],
-          ),
-        },
-      );
+    test(
+      'bhv servers 008 rejects override value outside the variable enum',
+      () {
+        // server-variable-enum-validation: an override that is not in the
+        // variable's enum is rejected at resolution time.
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{env}.api.example.com',
+          variables: {
+            'env': ServerVariable(
+              defaultValue: 'prod',
+              enumValues: ['prod', 'staging'],
+            ),
+          },
+        );
 
-      expect(
-        () => config.url({'env': 'dev'}),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e,
-            'not an SDK exception',
-            isNot(isA<OpenAPIException>()),
+        expect(
+          () => config.url({'env': 'dev'}),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e,
+              'not an SDK exception',
+              isNot(isA<OpenAPIException>()),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   });
 
   group('ServerConfiguration variable validation', () {
     test(
-      'the rejection names the value, the variable and the allowed values',
+      'bhv servers 012 the rejection names the value, the variable and the allowed values',
       () {
         const config = ServerConfiguration(
           urlTemplate: 'https://{env}.api.example.com',
@@ -115,7 +121,7 @@ void main() {
       },
     );
 
-    test('a default outside the enum is rejected as well', () {
+    test('bhv servers 004 a default outside the enum is rejected as well', () {
       const config = ServerConfiguration(
         urlTemplate: 'https://{env}.api.example.com',
         variables: {
@@ -138,7 +144,7 @@ void main() {
       );
     });
 
-    test('a variable without an enum accepts any override', () {
+    test('bhv servers 014 a variable without an enum accepts any override', () {
       const config = ServerConfiguration(
         urlTemplate: 'https://{env}.api.example.com',
         variables: {'env': ServerVariable(defaultValue: 'prod')},
@@ -150,37 +156,49 @@ void main() {
       );
     });
 
-    test('a template without variables is returned unchanged', () {
-      const config = ServerConfiguration(
-        urlTemplate: 'https://api.example.com/v1',
-      );
+    test(
+      'bhv servers 011 a template without variables is returned unchanged',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://api.example.com/v1',
+        );
 
-      expect(config.url(), equals('https://api.example.com/v1'));
-    });
+        expect(config.url(), equals('https://api.example.com/v1'));
+      },
+    );
 
-    test('a variable that appears twice is substituted everywhere', () {
-      const config = ServerConfiguration(
-        urlTemplate: 'https://{region}.example.com/{region}',
-        variables: {'region': ServerVariable(defaultValue: 'eu')},
-      );
+    test(
+      'bhv servers 002 a variable that appears twice is substituted everywhere',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{region}.example.com/{region}',
+          variables: {'region': ServerVariable(defaultValue: 'eu')},
+        );
 
-      expect(config.url(), equals('https://eu.example.com/eu'));
-      expect(config.url({'region': 'us'}), equals('https://us.example.com/us'));
-    });
+        expect(config.url(), equals('https://eu.example.com/eu'));
+        expect(
+          config.url({'region': 'us'}),
+          equals('https://us.example.com/us'),
+        );
+      },
+    );
 
-    test('the third global server round-trips every text field unchanged', () {
-      final server = allServers[2];
+    test(
+      'bhv servers 013 the third global server round-trips every text field unchanged',
+      () {
+        final server = allServers[2];
 
-      expect(server.urlTemplate, equals('https://{tenant}.example.com/api'));
-      expect(
-        server.description,
-        equals('Bob\'s "sandbox" & co: \$5 #{x} a*/b'),
-      );
-      final tenant = server.variables['tenant']!;
-      expect(tenant.defaultValue, equals('o\'neil'));
-      expect(tenant.description, equals('Tenant\'s "id"'));
-      expect(tenant.enumValues, equals(['o\'neil', 'a&b']));
-    });
+        expect(server.urlTemplate, equals('https://{tenant}.example.com/api'));
+        expect(
+          server.description,
+          equals('Bob\'s "sandbox" & co: \$5 #{x} a*/b'),
+        );
+        final tenant = server.variables['tenant']!;
+        expect(tenant.defaultValue, equals('o\'neil'));
+        expect(tenant.description, equals('Tenant\'s "id"'));
+        expect(tenant.enumValues, equals(['o\'neil', 'a&b']));
+      },
+    );
 
     test('the third global server resolves to the raw characters', () {
       final server = allServers[2];
@@ -193,7 +211,7 @@ void main() {
     });
 
     test(
-      'does not expand a placeholder that a substituted value introduces',
+      'bhv servers 005 does not expand a placeholder that a substituted value introduces',
       () {
         const config = ServerConfiguration(
           urlTemplate: 'https://{env}.api.example.com/{version}',

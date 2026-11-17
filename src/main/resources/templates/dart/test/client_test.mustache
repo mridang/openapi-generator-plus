@@ -26,7 +26,7 @@ class _CloseTrackingClient extends http.BaseClient {
 
 void main() {
   group('{{clientClassName}}', () {
-    test('withToken takes a token provider instead of a token', () {
+    test('bhv lifecycle 017 withToken takes a token provider instead of a token', () {
       final client = {{clientClassName}}.withToken(
         host: '{{{basePath}}}',
         tokenProvider: () => 'rotating-token',
@@ -35,7 +35,7 @@ void main() {
       expect(client, isNotNull);
     });
 
-    test('withToken fails to build when no token is given or in the environment', () {
+    test('bhv lifecycle 016 withToken fails to build when no token is given or in the environment', () {
       if (Platform.environment[BearerAuthenticator.defaultEnvironmentVariable] != null) {
         return;
       }
@@ -46,7 +46,7 @@ void main() {
       );
     });
 
-    test('construct with authenticator only', () {
+    test('bhv lifecycle 012 construct with authenticator only', () {
       final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
 
       final client = {{clientClassName}}(authenticator: authenticator);
@@ -54,7 +54,7 @@ void main() {
       expect(client, isNotNull);
     });
 
-    test('construct with authenticator and null transport options', () {
+    test('bhv lifecycle 010 construct with authenticator and null transport options', () {
       final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
 
       final client = {{clientClassName}}(authenticator: authenticator, transportOptions: null);
@@ -62,7 +62,7 @@ void main() {
       expect(client, isNotNull);
     });
 
-    test('construct with authenticator and transport options', () {
+    test('bhv lifecycle 011 construct with authenticator and transport options', () {
       final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
       final transport = TransportOptionsBuilder().build();
 
@@ -71,7 +71,7 @@ void main() {
       expect(client, isNotNull);
     });
 
-    test('construct with a caller-supplied http client in the transport options', () {
+    test('bhv lifecycle 007 construct with a caller-supplied http client in the transport options', () {
       final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
       final transport = TransportOptionsBuilder()
           .httpClient(MockClient((_) async => http.Response('', 200)))
@@ -82,7 +82,7 @@ void main() {
       expect(client, isNotNull);
     });
 
-    test('close never closes a caller-supplied http client', () {
+    test('bhv lifecycle 009 close never closes a caller-supplied http client', () {
       final supplied = _CloseTrackingClient(
         MockClient((_) async => http.Response('', 200)),
       );
@@ -97,7 +97,7 @@ void main() {
       expect(supplied.closed, isFalse);
     });
 
-    test('close on a client that built its own transport is idempotent', () {
+    test('bhv lifecycle 013 close on a client that built its own transport is idempotent', () {
       final client = {{clientClassName}}(
         authenticator: BearerAuthenticator(host: 'http://localhost:1', token: 'test-token'),
       );
@@ -107,7 +107,7 @@ void main() {
       expect(client.close, returnsNormally);
     });
 
-    test('BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+    test('bhv lifecycle 006 BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
       expect(
         () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
         throwsArgumentError,
@@ -118,7 +118,7 @@ void main() {
       );
     });
 
-    test('BearerAuthenticator rejects an empty or whitespace token', () {
+    test('bhv lifecycle 005 BearerAuthenticator rejects an empty or whitespace token', () {
       // bearer-no-empty-token-guard: an empty / whitespace-only token would
       // emit a bare "Authorization: Bearer " header and send the request
       // unauthenticated, so the constructor must reject it.
@@ -132,7 +132,7 @@ void main() {
       );
     });
 
-    test('ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+    test('bhv lifecycle 004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
       // HEADER location must reject anything outside printable ASCII +
       // TAB to prevent header injection (\r\n) and silent UTF-8
       // mangling that varies per HTTP lib.
@@ -165,7 +165,7 @@ void main() {
       expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
     });
 
-    test('API groups are accessible', () {
+    test('bhv lifecycle 001 API groups are accessible', () {
       final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
 
       final client = {{clientClassName}}(authenticator: authenticator);

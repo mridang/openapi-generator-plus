@@ -16,7 +16,7 @@ void main() {
       TraceContextUtil.propagator = null;
     });
 
-    test('is a no-op without tracer', () {
+    test('bhv tracing 007 is a no-op without tracer', () {
       final headers = {'X-Existing': 'value'};
 
       // InjectTraceContext should be a no-op when no tracing is configured.
@@ -26,14 +26,14 @@ void main() {
       expect(headers['X-Existing'], equals('value'));
     });
 
-    test('empty headers do not cause exception', () {
+    test('bhv tracing 003 empty headers do not cause exception', () {
       final headers = <String, String>{};
 
       // Should not throw with empty headers map
       TraceContextUtil.injectTraceContext(headers);
     });
 
-    test('does not inject traceparent without OTel', () {
+    test('bhv tracing 001 does not inject traceparent without OTel', () {
       final headers = <String, String>{};
 
       TraceContextUtil.injectTraceContext(headers);
@@ -41,7 +41,7 @@ void main() {
       expect(headers.containsKey('traceparent'), isFalse);
     });
 
-    test('does not inject tracestate without OTel', () {
+    test('bhv tracing 002 does not inject tracestate without OTel', () {
       final headers = <String, String>{};
 
       TraceContextUtil.injectTraceContext(headers);
@@ -49,7 +49,7 @@ void main() {
       expect(headers.containsKey('tracestate'), isFalse);
     });
 
-    test('preserves Authorization header', () {
+    test('bhv tracing 010 preserves Authorization header', () {
       final headers = {'Authorization': 'Bearer token123'};
 
       TraceContextUtil.injectTraceContext(headers);
@@ -57,7 +57,7 @@ void main() {
       expect(headers['Authorization'], equals('Bearer token123'));
     });
 
-    test('preserves Content-Type header', () {
+    test('bhv tracing 011 preserves Content-Type header', () {
       final headers = {'Content-Type': 'application/json'};
 
       TraceContextUtil.injectTraceContext(headers);
@@ -65,7 +65,7 @@ void main() {
       expect(headers['Content-Type'], equals('application/json'));
     });
 
-    test('preserves X-Request-ID header', () {
+    test('bhv tracing 012 preserves X-Request-ID header', () {
       final headers = {'X-Request-ID': 'req-12345'};
 
       TraceContextUtil.injectTraceContext(headers);
@@ -73,7 +73,7 @@ void main() {
       expect(headers['X-Request-ID'], equals('req-12345'));
     });
 
-    test('preserves all existing headers', () {
+    test('bhv tracing 009 preserves all existing headers', () {
       final headers = {
         'Authorization': 'Bearer token',
         'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ void main() {
       expect(headers['X-Request-ID'], equals('abc-123'));
     });
 
-    test('injects traceparent when a span is active', () {
+    test('bhv tracing 006 injects traceparent when a span is active', () {
       final exporter = _InMemorySpanExporter();
       final tracer = _sdkTracer(exporter);
       final headers = <String, String>{};
@@ -106,22 +106,25 @@ void main() {
       expect(exporter.spans.map((s) => s.name), equals(['request']));
     });
 
-    test('includes tracestate when present on the active span', () {
-      final tracer = _sdkTracer(_InMemorySpanExporter());
-      final headers = <String, String>{};
+    test(
+      'bhv tracing 005 includes tracestate when present on the active span',
+      () {
+        final tracer = _sdkTracer(_InMemorySpanExporter());
+        final headers = <String, String>{};
 
-      final span = tracer.startSpan(
-        'request',
-        context: _remoteParent('vendor=value'),
-      );
-      _propagateFrom(otel.contextWithSpan(otel.Context.root, span));
-      TraceContextUtil.injectTraceContext(headers);
-      span.end();
+        final span = tracer.startSpan(
+          'request',
+          context: _remoteParent('vendor=value'),
+        );
+        _propagateFrom(otel.contextWithSpan(otel.Context.root, span));
+        TraceContextUtil.injectTraceContext(headers);
+        span.end();
 
-      expect(headers['tracestate'], equals('vendor=value'));
-    });
+        expect(headers['tracestate'], equals('vendor=value'));
+      },
+    );
 
-    test('omits tracestate when empty on the active span', () {
+    test('bhv tracing 008 omits tracestate when empty on the active span', () {
       final tracer = _sdkTracer(_InMemorySpanExporter());
       final headers = <String, String>{};
 
@@ -134,39 +137,42 @@ void main() {
       expect(headers.containsKey('tracestate'), isFalse);
     });
 
-    test('formats trace flags correctly on the active span', () {
-      final sampled = _sdkTracer(_InMemorySpanExporter());
-      final unsampled = _sdkTracer(
-        _InMemorySpanExporter(),
-        sampler: const otel_sdk.AlwaysOffSampler(),
-      );
-      final sampledHeaders = <String, String>{};
-      final unsampledHeaders = <String, String>{};
+    test(
+      'bhv tracing 004 formats trace flags correctly on the active span',
+      () {
+        final sampled = _sdkTracer(_InMemorySpanExporter());
+        final unsampled = _sdkTracer(
+          _InMemorySpanExporter(),
+          sampler: const otel_sdk.AlwaysOffSampler(),
+        );
+        final sampledHeaders = <String, String>{};
+        final unsampledHeaders = <String, String>{};
 
-      final sampledSpan = sampled.startSpan('sampled');
-      _propagateFrom(otel.contextWithSpan(otel.Context.root, sampledSpan));
-      TraceContextUtil.injectTraceContext(sampledHeaders);
-      sampledSpan.end();
+        final sampledSpan = sampled.startSpan('sampled');
+        _propagateFrom(otel.contextWithSpan(otel.Context.root, sampledSpan));
+        TraceContextUtil.injectTraceContext(sampledHeaders);
+        sampledSpan.end();
 
-      final unsampledSpan = unsampled.startSpan('unsampled');
-      _propagateFrom(otel.contextWithSpan(otel.Context.root, unsampledSpan));
-      TraceContextUtil.injectTraceContext(unsampledHeaders);
-      unsampledSpan.end();
+        final unsampledSpan = unsampled.startSpan('unsampled');
+        _propagateFrom(otel.contextWithSpan(otel.Context.root, unsampledSpan));
+        TraceContextUtil.injectTraceContext(unsampledHeaders);
+        unsampledSpan.end();
 
-      final sampledFlags = sampledHeaders['traceparent']!.split('-')[3];
-      final unsampledFlags = unsampledHeaders['traceparent']!.split('-')[3];
-      /* Two lowercase hex digits; the low bit is the sampled flag. */
-      expect(sampledFlags, matches(r'^[0-9a-f]{2}$'));
-      expect(unsampledFlags, matches(r'^[0-9a-f]{2}$'));
-      expect(
-        int.parse(sampledFlags, radix: 16) & otel.TraceFlags.sampled,
-        equals(otel.TraceFlags.sampled),
-      );
-      expect(
-        int.parse(unsampledFlags, radix: 16) & otel.TraceFlags.sampled,
-        equals(0),
-      );
-    });
+        final sampledFlags = sampledHeaders['traceparent']!.split('-')[3];
+        final unsampledFlags = unsampledHeaders['traceparent']!.split('-')[3];
+        /* Two lowercase hex digits; the low bit is the sampled flag. */
+        expect(sampledFlags, matches(r'^[0-9a-f]{2}$'));
+        expect(unsampledFlags, matches(r'^[0-9a-f]{2}$'));
+        expect(
+          int.parse(sampledFlags, radix: 16) & otel.TraceFlags.sampled,
+          equals(otel.TraceFlags.sampled),
+        );
+        expect(
+          int.parse(unsampledFlags, radix: 16) & otel.TraceFlags.sampled,
+          equals(0),
+        );
+      },
+    );
   });
 }
 

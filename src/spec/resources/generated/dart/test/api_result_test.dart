@@ -10,21 +10,24 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('ApiResult', () {
-    test('exposes data, status code, raw body, and headers', () {
-      final result = ApiResult<String>(
-        statusCode: 200,
-        data: 'payload',
-        rawBody: '{"value":"payload"}',
-        headers: {'content-type': 'application/json'},
-      );
+    test(
+      'bhv results 003 exposes data, status code, raw body, and headers',
+      () {
+        final result = ApiResult<String>(
+          statusCode: 200,
+          data: 'payload',
+          rawBody: '{"value":"payload"}',
+          headers: {'content-type': 'application/json'},
+        );
 
-      expect(result.statusCode, equals(200));
-      expect(result.data, equals('payload'));
-      expect(result.rawBody, equals('{"value":"payload"}'));
-      expect(result.headers, equals({'content-type': 'application/json'}));
-    });
+        expect(result.statusCode, equals(200));
+        expect(result.data, equals('payload'));
+        expect(result.rawBody, equals('{"value":"payload"}'));
+        expect(result.headers, equals({'content-type': 'application/json'}));
+      },
+    );
 
-    test('data is null when the response body was empty', () {
+    test('bhv results 001 data is null when the response body was empty', () {
       final result = ApiResult<String>(
         statusCode: 204,
         data: null,
@@ -50,19 +53,22 @@ void main() {
       expect(() => response.headers['z'] = '1', throwsUnsupportedError);
     });
 
-    test('headers are an unmodifiable copy of the supplied map', () {
-      final source = {'content-type': 'application/json'};
-      final result = ApiResult<String>(
-        statusCode: 200,
-        data: 'payload',
-        rawBody: '',
-        headers: source,
-      );
+    test(
+      'bhv results 002 headers are an unmodifiable copy of the supplied map',
+      () {
+        final source = {'content-type': 'application/json'};
+        final result = ApiResult<String>(
+          statusCode: 200,
+          data: 'payload',
+          rawBody: '',
+          headers: source,
+        );
 
-      source['x-added'] = 'late';
+        source['x-added'] = 'late';
 
-      expect(result.headers, equals({'content-type': 'application/json'}));
-      expect(() => result.headers['x-other'] = 'v', throwsUnsupportedError);
-    });
+        expect(result.headers, equals({'content-type': 'application/json'}));
+        expect(() => result.headers['x-other'] = 'v', throwsUnsupportedError);
+      },
+    );
   });
 }

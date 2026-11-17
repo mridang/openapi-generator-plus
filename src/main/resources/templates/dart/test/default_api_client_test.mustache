@@ -20,7 +20,7 @@ void main() {
   });
 
   group('DefaultApiClient', () {
-    test('makes HTTPS request with verifySsl=false', () async {
+    test('bhv transport 018 makes HTTPS request with verifySsl=false', () async {
       final transport = TransportOptionsBuilder()
           .verifySsl(false)
           .build();
@@ -36,7 +36,7 @@ void main() {
       expect(parsed['method'], equals('GET'));
     });
 
-    test('makes HTTPS request with custom CA cert', () async {
+    test('bhv transport 017 makes HTTPS request with custom CA cert', () async {
       final transport = TransportOptionsBuilder()
           .verifySsl(true)
           .caCertPath(caCertPath)
@@ -53,7 +53,7 @@ void main() {
       expect(parsed['method'], equals('GET'));
     });
 
-    test('makes HTTP request through proxy', () async {
+    test('bhv transport 015 makes HTTP request through proxy', () async {
       final transport = TransportOptionsBuilder()
           .proxy(proxyUrl)
           .build();
@@ -105,7 +105,7 @@ void main() {
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
     // and surfaced as Proxy-Authorization so the proxy can authenticate
     // the tunnel — otherwise the proxy 407s.
-    test('proxy_with_credentials_injects_basic_authorization', () async {
+    test('bhv transport 021 proxy_with_credentials_injects_basic_authorization', () async {
       final transport = TransportOptionsBuilder()
           .proxy('http://alice:s3cret@127.0.0.1:3128')
           .build();
@@ -118,7 +118,7 @@ void main() {
     // (userinfo honoured, surfaced as a Basic Proxy-Authorization value),
     // not drop them. Dart already extracts userinfo at construction, so
     // this is GREEN; the assertion locks the behaviour fleet-wide.
-    test('proxy URL with user:pass userinfo carries proxy credentials', () async {
+    test('bhv transport 020 proxy URL with user:pass userinfo carries proxy credentials', () async {
       final transport = TransportOptionsBuilder()
           .proxy('http://user:pass@127.0.0.1:3128')
           .build();
@@ -126,7 +126,7 @@ void main() {
       expect(client.proxyAuthHeader, equals('Basic dXNlcjpwYXNz'));
     });
 
-    test('makes HTTPS request through proxy with verifySsl=false', () async {
+    test('bhv transport 016 makes HTTPS request through proxy with verifySsl=false', () async {
       final transport = TransportOptionsBuilder()
           .proxy(proxyUrl)
           .verifySsl(false)
@@ -143,7 +143,7 @@ void main() {
       expect(parsed['method'], equals('GET'));
     });
 
-    test('times out on slow endpoint', () async {
+    test('bhv transport 024 times out on slow endpoint', () async {
       final transport = TransportOptionsBuilder()
           .timeout(1000)
           .build();
@@ -165,7 +165,7 @@ void main() {
       );
     });
 
-    test('repeated response headers are joined in order', () async {
+    test('bhv transport 022 repeated response headers are joined in order', () async {
       final resp = await DefaultApiClient().sendRequest(
         'GET',
         '$chasmHttpUrl/test/response-headers',
@@ -181,7 +181,7 @@ void main() {
       expect(cookies.indexOf('a=1'), lessThan(cookies.indexOf('b=2')));
     });
 
-    test('injects custom User-Agent header', () async {
+    test('bhv transport 012 injects custom User-Agent header', () async {
       final transport = TransportOptionsBuilder()
           .userAgent('MyApp/1.0')
           .build();
@@ -198,7 +198,7 @@ void main() {
       expect(headers['user-agent'], equals('MyApp/1.0'));
     });
 
-    test('injects X-Request-ID header with UUID format', () async {
+    test('bhv transport 014 injects X-Request-ID header with UUID format', () async {
       final transport = TransportOptionsBuilder()
           .injectRequestId(true)
           .build();
@@ -218,7 +218,7 @@ void main() {
       expect(uuidPattern.hasMatch(requestId!), isTrue);
     });
 
-    test('generates unique X-Request-ID per request', () async {
+    test('bhv transport 008 generates unique X-Request-ID per request', () async {
       final transport = TransportOptionsBuilder()
           .injectRequestId(true)
           .build();
@@ -245,7 +245,7 @@ void main() {
       expect(headers1['x-request-id'], isNot(equals(headers2['x-request-id'])));
     });
 
-    test('includes transport-level default headers', () async {
+    test('bhv transport 011 includes transport-level default headers', () async {
       final transport = TransportOptionsBuilder()
           .defaultHeader('X-Custom', 'custom-value')
           .build();
@@ -261,7 +261,7 @@ void main() {
       expect(headers['x-custom'], equals('custom-value'));
     });
 
-    test('caller headers override transport default headers', () async {
+    test('bhv options 004 caller headers override transport default headers', () async {
       final transport = TransportOptionsBuilder()
           .defaultHeader('Accept', 'text/plain')
           .build();
@@ -278,7 +278,7 @@ void main() {
       expect(headers['accept'], equals('application/json'));
     });
 
-    test('follows redirects when enabled', () async {
+    test('bhv redirects 004 follows redirects when enabled', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .build();
@@ -292,7 +292,7 @@ void main() {
       expect(resp.statusCode, equals(200));
     });
 
-    test('returns redirect response when disabled', () async {
+    test('bhv redirects 007 returns redirect response when disabled', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(false)
           .build();
@@ -332,7 +332,7 @@ void main() {
      * default options ignores an ambient proxy pointing at a dead address.
      * A running Dart process cannot change its own environment, so the
      * client runs in a child process started with that environment. */
-    test('ignores ambient proxy environment variables', () async {
+    test('bhv transport 009 ignores ambient proxy environment variables', () async {
       final dir = await Directory.systemTemp.createTemp('ambient-proxy');
       try {
         final script = File('${dir.path}/probe.dart');
@@ -370,7 +370,7 @@ Future<void> main(List<String> args) async {
       }
     });
 
-    test('redirect 303 switches to GET and drops body', () async {
+    test('bhv redirects 005 redirect 303 switches to GET and drops body', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .maxRedirects(5)
@@ -399,7 +399,7 @@ Future<void> main(List<String> args) async {
     // the 307 case is GREEN (already guarded). Local TLS source + plain
     // HTTP target give precise control over scheme/status/body that the
     // chasm same-scheme redirect endpoints cannot express.
-    test('302 https->http with a body proceeds (body dropped, becomes GET)',
+    test('bhv redirects 001 302 https->http with a body proceeds (body dropped, becomes GET)',
         () async {
       final certDir = 'test/fixtures/certs';
       final tlsContext = SecurityContext()
@@ -459,7 +459,7 @@ Future<void> main(List<String> args) async {
       }
     });
 
-    test('307 https->http with a body throws (no body replay)', () async {
+    test('bhv retries 010 307 https->http with a body throws (no body replay)', () async {
       final certDir = 'test/fixtures/certs';
       final tlsContext = SecurityContext()
         ..useCertificateChain('$certDir/server.pem')
@@ -513,7 +513,7 @@ Future<void> main(List<String> args) async {
       }
     });
 
-    test('308 https->http with a body throws (no body replay)', () async {
+    test('bhv retries 011 308 https->http with a body throws (no body replay)', () async {
       final certDir = 'test/fixtures/certs';
       final tlsContext = SecurityContext()
         ..useCertificateChain('$certDir/server.pem')
@@ -570,7 +570,7 @@ Future<void> main(List<String> args) async {
     // T-new-3: multipart bodies must be replayed across 307 redirects per
     // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
     // request after a 307 still carries the multipart form parts.
-    test('replays multipart body across 307 redirects (T-new-3)', () async {
+    test('bhv retries 012 replays multipart body across 307 redirects (T-new-3)', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .maxRedirects(5)
@@ -602,7 +602,7 @@ Future<void> main(List<String> args) async {
           reason: 'multipart body must be replayed intact across the 307 redirect');
     });
 
-    test('respects maxRedirects limit', () async {
+    test('bhv redirects 006 respects maxRedirects limit', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .maxRedirects(2)
@@ -623,7 +623,7 @@ Future<void> main(List<String> args) async {
     // in-flight redirects would inflate it past 1 and trip the limit on
     // some requests; with per-request scoping every request gets 200,
     // and a non-redirecting request mixed in is unaffected.
-    test('concurrent redirects do not share a hop counter (Wave E)',
+    test('bhv redirects 003 concurrent redirects do not share a hop counter (Wave E)',
         () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
@@ -694,7 +694,7 @@ Future<void> main(List<String> args) async {
       }
     });
 
-    test('sends multipart form data', () async {
+    test('bhv serializationwire 027 sends multipart form data', () async {
       final client = DefaultApiClient();
       final headers = {
         'Content-Type': 'multipart/form-data; boundary=test-boundary',
@@ -715,7 +715,7 @@ Future<void> main(List<String> args) async {
     // branches injected the raw field name into Content-Disposition, opening
     // a header-smuggling hole. This test uses a String value so it exercises
     // the non-binary branch.
-    test('multipart_field_name_with_crlf_rejected_on_string_value', () async {
+    test('bhv serializationwire 026 multipart_field_name_with_crlf_rejected_on_string_value', () async {
       final client = DefaultApiClient();
       final badField = <String, Object?>{
         'name\r\nInjected: yes': 'value',
@@ -731,7 +731,7 @@ Future<void> main(List<String> args) async {
       );
     });
 
-    test('decompresses gzip response', () async {
+    test('bhv transport 005 decompresses gzip response', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
@@ -766,7 +766,7 @@ Future<void> main(List<String> args) async {
       });
     }
 
-    test('verifySsl=true rejects a certificate the system does not trust', () async {
+    test('bhv transport 025 verifySsl=true rejects a certificate the system does not trust', () async {
       final transport = TransportOptionsBuilder().verifySsl(true).build();
       final client = DefaultApiClient(transportOptions: transport);
       await expectLater(
@@ -808,7 +808,7 @@ Future<void> main(List<String> args) async {
     // bearing verbs with no Content-Length (411 Length Required). The
     // client attaches an empty Uint8List on body-bearing verbs so
     // dart:http emits the header.
-    test('post_with_null_body_sends_content_length_zero', () async {
+    test('bhv transport 019 post_with_null_body_sends_content_length_zero', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'POST',
@@ -826,7 +826,7 @@ Future<void> main(List<String> args) async {
     // idempotent. A request issued on a closed client must surface a
     // uniform SDK error (ApiException) rather than the dart:http package's
     // "Client is already closed" exception.
-    test('close releases underlying client', () async {
+    test('bhv lifecycle 018 close releases underlying client', () async {
       final client = DefaultApiClient();
       client.close();
       // close() is idempotent.

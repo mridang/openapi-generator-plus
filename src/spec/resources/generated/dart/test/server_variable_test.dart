@@ -10,24 +10,30 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('ServerVariable', () {
-    test('exposes default value when no override is applied', () {
-      // The default value is what ServerConfiguration falls back to when a
-      // variable is left unset, so it must be carried through verbatim.
-      const variable = ServerVariable(
-        defaultValue: 'v1',
-        description: 'API version',
-      );
+    test(
+      'bhv servers 017 exposes default value when no override is applied',
+      () {
+        // The default value is what ServerConfiguration falls back to when a
+        // variable is left unset, so it must be carried through verbatim.
+        const variable = ServerVariable(
+          defaultValue: 'v1',
+          description: 'API version',
+        );
 
-      expect(variable.defaultValue, equals('v1'));
-      expect(variable.description, equals('API version'));
-    });
+        expect(variable.defaultValue, equals('v1'));
+        expect(variable.description, equals('API version'));
+      },
+    );
 
-    test('omitted enumValues defaults to empty meaning any value allowed', () {
-      const variable = ServerVariable(defaultValue: 'prod');
+    test(
+      'bhv servers 016 omitted enumValues defaults to empty meaning any value allowed',
+      () {
+        const variable = ServerVariable(defaultValue: 'prod');
 
-      expect(variable.enumValues, isEmpty);
-      expect(variable.description, isEmpty);
-    });
+        expect(variable.enumValues, isEmpty);
+        expect(variable.description, isEmpty);
+      },
+    );
 
     test('enumValues are exposed for validation', () {
       // ServerConfiguration validates overrides against this set, so the

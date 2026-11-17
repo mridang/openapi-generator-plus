@@ -25,21 +25,24 @@ void main() {
   });
 
   group('DefaultApiClient', () {
-    test('makes HTTPS request with verifySsl=false', () async {
-      final transport = TransportOptionsBuilder().verifySsl(false).build();
-      final client = DefaultApiClient(transportOptions: transport);
-      final resp = await client.sendRequest(
-        'GET',
-        '$chasmHttpsUrl/test/echo',
-        {},
-        null,
-      );
-      expect(resp.statusCode, equals(200));
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['method'], equals('GET'));
-    });
+    test(
+      'bhv transport 018 makes HTTPS request with verifySsl=false',
+      () async {
+        final transport = TransportOptionsBuilder().verifySsl(false).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpsUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(parsed['method'], equals('GET'));
+      },
+    );
 
-    test('makes HTTPS request with custom CA cert', () async {
+    test('bhv transport 017 makes HTTPS request with custom CA cert', () async {
       final transport = TransportOptionsBuilder()
           .verifySsl(true)
           .caCertPath(caCertPath)
@@ -56,7 +59,7 @@ void main() {
       expect(parsed['method'], equals('GET'));
     });
 
-    test('makes HTTP request through proxy', () async {
+    test('bhv transport 015 makes HTTP request through proxy', () async {
       final transport = TransportOptionsBuilder().proxy(proxyUrl).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
@@ -112,13 +115,16 @@ void main() {
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
     // and surfaced as Proxy-Authorization so the proxy can authenticate
     // the tunnel — otherwise the proxy 407s.
-    test('proxy_with_credentials_injects_basic_authorization', () async {
-      final transport = TransportOptionsBuilder()
-          .proxy('http://alice:s3cret@127.0.0.1:3128')
-          .build();
-      final client = DefaultApiClient(transportOptions: transport);
-      expect(client.proxyAuthHeader, equals('Basic YWxpY2U6czNjcmV0'));
-    });
+    test(
+      'bhv transport 021 proxy_with_credentials_injects_basic_authorization',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .proxy('http://alice:s3cret@127.0.0.1:3128')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        expect(client.proxyAuthHeader, equals('Basic YWxpY2U6czNjcmV0'));
+      },
+    );
 
     // Gap AK (canonical): a proxy URL of the form
     // http://user:pass@127.0.0.1:3128 must carry the proxy credentials
@@ -126,7 +132,7 @@ void main() {
     // not drop them. Dart already extracts userinfo at construction, so
     // this is GREEN; the assertion locks the behaviour fleet-wide.
     test(
-      'proxy URL with user:pass userinfo carries proxy credentials',
+      'bhv transport 020 proxy URL with user:pass userinfo carries proxy credentials',
       () async {
         final transport = TransportOptionsBuilder()
             .proxy('http://user:pass@127.0.0.1:3128')
@@ -136,24 +142,27 @@ void main() {
       },
     );
 
-    test('makes HTTPS request through proxy with verifySsl=false', () async {
-      final transport = TransportOptionsBuilder()
-          .proxy(proxyUrl)
-          .verifySsl(false)
-          .build();
-      final client = DefaultApiClient(transportOptions: transport);
-      final resp = await client.sendRequest(
-        'GET',
-        '$chasmInternalHttpsUrl/test/echo',
-        {},
-        null,
-      );
-      expect(resp.statusCode, equals(200));
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['method'], equals('GET'));
-    });
+    test(
+      'bhv transport 016 makes HTTPS request through proxy with verifySsl=false',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .proxy(proxyUrl)
+            .verifySsl(false)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmInternalHttpsUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(parsed['method'], equals('GET'));
+      },
+    );
 
-    test('times out on slow endpoint', () async {
+    test('bhv transport 024 times out on slow endpoint', () async {
       final transport = TransportOptionsBuilder().timeout(1000).build();
       final client = DefaultApiClient(transportOptions: transport);
       await expectLater(
@@ -171,23 +180,29 @@ void main() {
       );
     });
 
-    test('repeated response headers are joined in order', () async {
-      final resp = await DefaultApiClient().sendRequest(
-        'GET',
-        '$chasmHttpUrl/test/response-headers',
-        {},
-        null,
-      );
-      expect(resp.headers['x-custom-header'], equals('foo'));
-      final link = resp.headers['link']!;
-      expect(link.indexOf('rel="next"'), greaterThanOrEqualTo(0));
-      expect(link.indexOf('rel="next"'), lessThan(link.indexOf('rel="prev"')));
-      final cookies = resp.headers['set-cookie']!;
-      expect(cookies.indexOf('a=1'), greaterThanOrEqualTo(0));
-      expect(cookies.indexOf('a=1'), lessThan(cookies.indexOf('b=2')));
-    });
+    test(
+      'bhv transport 022 repeated response headers are joined in order',
+      () async {
+        final resp = await DefaultApiClient().sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/response-headers',
+          {},
+          null,
+        );
+        expect(resp.headers['x-custom-header'], equals('foo'));
+        final link = resp.headers['link']!;
+        expect(link.indexOf('rel="next"'), greaterThanOrEqualTo(0));
+        expect(
+          link.indexOf('rel="next"'),
+          lessThan(link.indexOf('rel="prev"')),
+        );
+        final cookies = resp.headers['set-cookie']!;
+        expect(cookies.indexOf('a=1'), greaterThanOrEqualTo(0));
+        expect(cookies.indexOf('a=1'), lessThan(cookies.indexOf('b=2')));
+      },
+    );
 
-    test('injects custom User-Agent header', () async {
+    test('bhv transport 012 injects custom User-Agent header', () async {
       final transport = TransportOptionsBuilder()
           .userAgent('MyApp/1.0')
           .build();
@@ -204,85 +219,104 @@ void main() {
       expect(headers['user-agent'], equals('MyApp/1.0'));
     });
 
-    test('injects X-Request-ID header with UUID format', () async {
-      final transport = TransportOptionsBuilder().injectRequestId(true).build();
-      final client = DefaultApiClient(transportOptions: transport);
-      final resp = await client.sendRequest(
-        'GET',
-        '$chasmHttpUrl/test/echo',
-        {},
-        null,
-      );
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      final headers = parsed['headers'] as Map<String, dynamic>;
-      final requestId = headers['x-request-id'] as String?;
-      expect(requestId, isNotNull);
-      expect(requestId, isNotEmpty);
-      final uuidPattern = RegExp(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-      );
-      expect(uuidPattern.hasMatch(requestId!), isTrue);
-    });
+    test(
+      'bhv transport 014 injects X-Request-ID header with UUID format',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        final headers = parsed['headers'] as Map<String, dynamic>;
+        final requestId = headers['x-request-id'] as String?;
+        expect(requestId, isNotNull);
+        expect(requestId, isNotEmpty);
+        final uuidPattern = RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        );
+        expect(uuidPattern.hasMatch(requestId!), isTrue);
+      },
+    );
 
-    test('generates unique X-Request-ID per request', () async {
-      final transport = TransportOptionsBuilder().injectRequestId(true).build();
-      final client = DefaultApiClient(transportOptions: transport);
+    test(
+      'bhv transport 008 generates unique X-Request-ID per request',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
 
-      final resp1 = await client.sendRequest(
-        'GET',
-        '$chasmHttpUrl/test/echo',
-        {},
-        null,
-      );
-      final parsed1 = jsonDecode(resp1.body) as Map<String, dynamic>;
-      final headers1 = parsed1['headers'] as Map<String, dynamic>;
+        final resp1 = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+        final parsed1 = jsonDecode(resp1.body) as Map<String, dynamic>;
+        final headers1 = parsed1['headers'] as Map<String, dynamic>;
 
-      final resp2 = await client.sendRequest(
-        'GET',
-        '$chasmHttpUrl/test/echo',
-        {},
-        null,
-      );
-      final parsed2 = jsonDecode(resp2.body) as Map<String, dynamic>;
-      final headers2 = parsed2['headers'] as Map<String, dynamic>;
+        final resp2 = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+        final parsed2 = jsonDecode(resp2.body) as Map<String, dynamic>;
+        final headers2 = parsed2['headers'] as Map<String, dynamic>;
 
-      expect(headers1['x-request-id'], isNot(equals(headers2['x-request-id'])));
-    });
+        expect(
+          headers1['x-request-id'],
+          isNot(equals(headers2['x-request-id'])),
+        );
+      },
+    );
 
-    test('includes transport-level default headers', () async {
-      final transport = TransportOptionsBuilder()
-          .defaultHeader('X-Custom', 'custom-value')
-          .build();
-      final client = DefaultApiClient(transportOptions: transport);
-      final resp = await client.sendRequest(
-        'GET',
-        '$chasmHttpUrl/test/echo',
-        {},
-        null,
-      );
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      final headers = parsed['headers'] as Map<String, dynamic>;
-      expect(headers['x-custom'], equals('custom-value'));
-    });
+    test(
+      'bhv transport 011 includes transport-level default headers',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .defaultHeader('X-Custom', 'custom-value')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        final headers = parsed['headers'] as Map<String, dynamic>;
+        expect(headers['x-custom'], equals('custom-value'));
+      },
+    );
 
-    test('caller headers override transport default headers', () async {
-      final transport = TransportOptionsBuilder()
-          .defaultHeader('Accept', 'text/plain')
-          .build();
-      final client = DefaultApiClient(transportOptions: transport);
-      final callerHeaders = {'Accept': 'application/json'};
-      final resp = await client.sendRequest(
-        'GET',
-        '$chasmHttpUrl/test/echo',
-        callerHeaders,
-        null,
-      );
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      final headers = parsed['headers'] as Map<String, dynamic>;
-      expect(headers['accept'], equals('application/json'));
-    });
+    test(
+      'bhv options 004 caller headers override transport default headers',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .defaultHeader('Accept', 'text/plain')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final callerHeaders = {'Accept': 'application/json'};
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          callerHeaders,
+          null,
+        );
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        final headers = parsed['headers'] as Map<String, dynamic>;
+        expect(headers['accept'], equals('application/json'));
+      },
+    );
 
-    test('follows redirects when enabled', () async {
+    test('bhv redirects 004 follows redirects when enabled', () async {
       final transport = TransportOptionsBuilder().followRedirects(true).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
@@ -294,7 +328,7 @@ void main() {
       expect(resp.statusCode, equals(200));
     });
 
-    test('returns redirect response when disabled', () async {
+    test('bhv redirects 007 returns redirect response when disabled', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(false)
           .build();
@@ -334,11 +368,13 @@ void main() {
      * default options ignores an ambient proxy pointing at a dead address.
      * A running Dart process cannot change its own environment, so the
      * client runs in a child process started with that environment. */
-    test('ignores ambient proxy environment variables', () async {
-      final dir = await Directory.systemTemp.createTemp('ambient-proxy');
-      try {
-        final script = File('${dir.path}/probe.dart');
-        await script.writeAsString('''
+    test(
+      'bhv transport 009 ignores ambient proxy environment variables',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('ambient-proxy');
+        try {
+          final script = File('${dir.path}/probe.dart');
+          await script.writeAsString('''
 import 'package:petstore_client/petstore_client.dart';
 
 Future<void> main(List<String> args) async {
@@ -347,49 +383,53 @@ Future<void> main(List<String> args) async {
   print(resp.statusCode);
 }
 ''');
-        final packages = File(
-          '${Directory.current.path}/.dart_tool/package_config.json',
-        );
-        const deadProxy = 'http://127.0.0.1:1';
-        final result = await Process.run(
-          Platform.resolvedExecutable,
-          [
-            '--packages=${packages.path}',
-            script.path,
-            '$chasmHttpUrl/test/echo',
-          ],
-          environment: {
-            'http_proxy': deadProxy,
-            'https_proxy': deadProxy,
-            'HTTP_PROXY': deadProxy,
-            'HTTPS_PROXY': deadProxy,
-            'ALL_PROXY': deadProxy,
-          },
-        );
-        expect(result.exitCode, equals(0), reason: '${result.stderr}');
-        expect((result.stdout as String).trim(), equals('200'));
-      } finally {
-        await dir.delete(recursive: true);
-      }
-    });
+          final packages = File(
+            '${Directory.current.path}/.dart_tool/package_config.json',
+          );
+          const deadProxy = 'http://127.0.0.1:1';
+          final result = await Process.run(
+            Platform.resolvedExecutable,
+            [
+              '--packages=${packages.path}',
+              script.path,
+              '$chasmHttpUrl/test/echo',
+            ],
+            environment: {
+              'http_proxy': deadProxy,
+              'https_proxy': deadProxy,
+              'HTTP_PROXY': deadProxy,
+              'HTTPS_PROXY': deadProxy,
+              'ALL_PROXY': deadProxy,
+            },
+          );
+          expect(result.exitCode, equals(0), reason: '${result.stderr}');
+          expect((result.stdout as String).trim(), equals('200'));
+        } finally {
+          await dir.delete(recursive: true);
+        }
+      },
+    );
 
-    test('redirect 303 switches to GET and drops body', () async {
-      final transport = TransportOptionsBuilder()
-          .followRedirects(true)
-          .maxRedirects(5)
-          .build();
-      final client = DefaultApiClient(transportOptions: transport);
-      final resp = await client.sendRequest(
-        'POST',
-        '$chasmHttpUrl/test/redirect/303',
-        {'Content-Type': 'application/json'},
-        Uint8List.fromList(utf8.encode('hello-body')),
-      );
-      expect(resp.statusCode, equals(200));
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['method'], equals('GET'));
-      expect(parsed['body'], equals(''));
-    });
+    test(
+      'bhv redirects 005 redirect 303 switches to GET and drops body',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .maxRedirects(5)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'POST',
+          '$chasmHttpUrl/test/redirect/303',
+          {'Content-Type': 'application/json'},
+          Uint8List.fromList(utf8.encode('hello-body')),
+        );
+        expect(resp.statusCode, equals(200));
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(parsed['method'], equals('GET'));
+        expect(parsed['body'], equals(''));
+      },
+    );
 
     // -- Gap N1: HTTPS->HTTP redirect with a body --
     //
@@ -403,7 +443,7 @@ Future<void> main(List<String> args) async {
     // HTTP target give precise control over scheme/status/body that the
     // chasm same-scheme redirect endpoints cannot express.
     test(
-      '302 https->http with a body proceeds (body dropped, becomes GET)',
+      'bhv redirects 001 302 https->http with a body proceeds (body dropped, becomes GET)',
       () async {
         final certDir = 'test/fixtures/certs';
         final tlsContext = SecurityContext()
@@ -473,178 +513,187 @@ Future<void> main(List<String> args) async {
       },
     );
 
-    test('307 https->http with a body throws (no body replay)', () async {
-      final certDir = 'test/fixtures/certs';
-      final tlsContext = SecurityContext()
-        ..useCertificateChain('$certDir/server.pem')
-        ..usePrivateKey('$certDir/server-key.pem');
+    test(
+      'bhv retries 010 307 https->http with a body throws (no body replay)',
+      () async {
+        final certDir = 'test/fixtures/certs';
+        final tlsContext = SecurityContext()
+          ..useCertificateChain('$certDir/server.pem')
+          ..usePrivateKey('$certDir/server-key.pem');
 
-      var targetHits = 0;
-      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      target.listen((request) {
-        targetHits++;
-        request.response
-          ..statusCode = 200
-          ..close();
-      });
+        var targetHits = 0;
+        final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        target.listen((request) {
+          targetHits++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
 
-      final source = await HttpServer.bindSecure(
-        InternetAddress.loopbackIPv4,
-        0,
-        tlsContext,
-      );
-      source.listen((request) async {
-        await utf8.decoder.bind(request).join();
-        request.response
-          ..statusCode = 307
-          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
-          ..close();
-      });
-
-      try {
-        final transport = TransportOptionsBuilder().verifySsl(false).build();
-        final client = DefaultApiClient(transportOptions: transport);
-        await expectLater(
-          client.sendRequest(
-            'POST',
-            'https://127.0.0.1:${source.port}/secret',
-            {'Content-Type': 'application/x-www-form-urlencoded'},
-            Uint8List.fromList(utf8.encode('client_secret=hunter2')),
-          ),
-          throwsA(
-            isA<ApiException>()
-                .having((e) => e.runtimeType, 'runtimeType', ApiException)
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  inInclusiveRange(307, 308),
-                )
-                .having(
-                  (e) => e.message,
-                  'message',
-                  contains('HTTPS->HTTP redirect'),
-                ),
-          ),
+        final source = await HttpServer.bindSecure(
+          InternetAddress.loopbackIPv4,
+          0,
+          tlsContext,
         );
-        expect(
-          targetHits,
-          equals(0),
-          reason:
-              '307 downgrade with a body must not contact the '
-              'plain-HTTP target',
+        source.listen((request) async {
+          await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 307
+            ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder().verifySsl(false).build();
+          final client = DefaultApiClient(transportOptions: transport);
+          await expectLater(
+            client.sendRequest(
+              'POST',
+              'https://127.0.0.1:${source.port}/secret',
+              {'Content-Type': 'application/x-www-form-urlencoded'},
+              Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+            ),
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                  .having(
+                    (e) => e.statusCode,
+                    'statusCode',
+                    inInclusiveRange(307, 308),
+                  )
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    contains('HTTPS->HTTP redirect'),
+                  ),
+            ),
+          );
+          expect(
+            targetHits,
+            equals(0),
+            reason:
+                '307 downgrade with a body must not contact the '
+                'plain-HTTP target',
+          );
+        } finally {
+          await source.close();
+          await target.close();
+        }
+      },
+    );
+
+    test(
+      'bhv retries 011 308 https->http with a body throws (no body replay)',
+      () async {
+        final certDir = 'test/fixtures/certs';
+        final tlsContext = SecurityContext()
+          ..useCertificateChain('$certDir/server.pem')
+          ..usePrivateKey('$certDir/server-key.pem');
+
+        var targetHits = 0;
+        final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        target.listen((request) {
+          targetHits++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        final source = await HttpServer.bindSecure(
+          InternetAddress.loopbackIPv4,
+          0,
+          tlsContext,
         );
-      } finally {
-        await source.close();
-        await target.close();
-      }
-    });
+        source.listen((request) async {
+          await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 308
+            ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+            ..close();
+        });
 
-    test('308 https->http with a body throws (no body replay)', () async {
-      final certDir = 'test/fixtures/certs';
-      final tlsContext = SecurityContext()
-        ..useCertificateChain('$certDir/server.pem')
-        ..usePrivateKey('$certDir/server-key.pem');
-
-      var targetHits = 0;
-      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      target.listen((request) {
-        targetHits++;
-        request.response
-          ..statusCode = 200
-          ..close();
-      });
-
-      final source = await HttpServer.bindSecure(
-        InternetAddress.loopbackIPv4,
-        0,
-        tlsContext,
-      );
-      source.listen((request) async {
-        await utf8.decoder.bind(request).join();
-        request.response
-          ..statusCode = 308
-          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
-          ..close();
-      });
-
-      try {
-        final transport = TransportOptionsBuilder().verifySsl(false).build();
-        final client = DefaultApiClient(transportOptions: transport);
-        await expectLater(
-          client.sendRequest(
-            'POST',
-            'https://127.0.0.1:${source.port}/secret',
-            {'Content-Type': 'application/x-www-form-urlencoded'},
-            Uint8List.fromList(utf8.encode('client_secret=hunter2')),
-          ),
-          throwsA(
-            isA<ApiException>()
-                .having((e) => e.runtimeType, 'runtimeType', ApiException)
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  inInclusiveRange(307, 308),
-                )
-                .having(
-                  (e) => e.message,
-                  'message',
-                  contains('HTTPS->HTTP redirect'),
-                ),
-          ),
-        );
-        expect(
-          targetHits,
-          equals(0),
-          reason:
-              '308 downgrade with a body must not contact the '
-              'plain-HTTP target',
-        );
-      } finally {
-        await source.close();
-        await target.close();
-      }
-    });
+        try {
+          final transport = TransportOptionsBuilder().verifySsl(false).build();
+          final client = DefaultApiClient(transportOptions: transport);
+          await expectLater(
+            client.sendRequest(
+              'POST',
+              'https://127.0.0.1:${source.port}/secret',
+              {'Content-Type': 'application/x-www-form-urlencoded'},
+              Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+            ),
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                  .having(
+                    (e) => e.statusCode,
+                    'statusCode',
+                    inInclusiveRange(307, 308),
+                  )
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    contains('HTTPS->HTTP redirect'),
+                  ),
+            ),
+          );
+          expect(
+            targetHits,
+            equals(0),
+            reason:
+                '308 downgrade with a body must not contact the '
+                'plain-HTTP target',
+          );
+        } finally {
+          await source.close();
+          await target.close();
+        }
+      },
+    );
 
     // T-new-3: multipart bodies must be replayed across 307 redirects per
     // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
     // request after a 307 still carries the multipart form parts.
-    test('replays multipart body across 307 redirects (T-new-3)', () async {
-      final transport = TransportOptionsBuilder()
-          .followRedirects(true)
-          .maxRedirects(5)
-          .build();
-      final client = DefaultApiClient(transportOptions: transport);
-      const boundary = 'test-boundary';
-      final body =
-          '--$boundary\r\n'
-          'Content-Disposition: form-data; name="description"\r\n\r\n'
-          'hello\r\n'
-          '--$boundary\r\n'
-          'Content-Disposition: form-data; name="file"; filename="file"\r\n'
-          'Content-Type: application/octet-stream\r\n\r\n'
-          'file-content-bytes\r\n'
-          '--$boundary--\r\n';
-      /* chasm replays the 307 redirect to its echo endpoint; the echo
+    test(
+      'bhv retries 012 replays multipart body across 307 redirects (T-new-3)',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .maxRedirects(5)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        const boundary = 'test-boundary';
+        final body =
+            '--$boundary\r\n'
+            'Content-Disposition: form-data; name="description"\r\n\r\n'
+            'hello\r\n'
+            '--$boundary\r\n'
+            'Content-Disposition: form-data; name="file"; filename="file"\r\n'
+            'Content-Type: application/octet-stream\r\n\r\n'
+            'file-content-bytes\r\n'
+            '--$boundary--\r\n';
+        /* chasm replays the 307 redirect to its echo endpoint; the echo
        envelope's method+body confirm the multipart body arrived intact
        at the redirect target. */
-      final resp = await client.sendRequest(
-        'POST',
-        '$chasmHttpUrl/test/redirect/307-multipart',
-        {'Content-Type': 'multipart/form-data; boundary=$boundary'},
-        body,
-      );
-      expect(resp.statusCode, equals(200));
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['method'], equals('POST'));
-      expect(
-        parsed['body'],
-        isNotEmpty,
-        reason:
-            'multipart body must be replayed intact across the 307 redirect',
-      );
-    });
+        final resp = await client.sendRequest(
+          'POST',
+          '$chasmHttpUrl/test/redirect/307-multipart',
+          {'Content-Type': 'multipart/form-data; boundary=$boundary'},
+          body,
+        );
+        expect(resp.statusCode, equals(200));
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(parsed['method'], equals('POST'));
+        expect(
+          parsed['body'],
+          isNotEmpty,
+          reason:
+              'multipart body must be replayed intact across the 307 redirect',
+        );
+      },
+    );
 
-    test('respects maxRedirects limit', () async {
+    test('bhv redirects 006 respects maxRedirects limit', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .maxRedirects(2)
@@ -665,39 +714,47 @@ Future<void> main(List<String> args) async {
     // in-flight redirects would inflate it past 1 and trip the limit on
     // some requests; with per-request scoping every request gets 200,
     // and a non-redirecting request mixed in is unaffected.
-    test('concurrent redirects do not share a hop counter (Wave E)', () async {
-      final transport = TransportOptionsBuilder()
-          .followRedirects(true)
-          .maxRedirects(1)
-          .build();
-      final client = DefaultApiClient(transportOptions: transport);
-      try {
-        final futures = <Future<int>>[
-          // A non-redirecting request sharing the same client. Its outcome
-          // must not be disturbed by the concurrent redirect traffic.
-          client
-              .sendRequest('GET', '$chasmHttpUrl/test/echo', {}, null)
-              .then((r) => r.statusCode),
-          // Several single-hop redirects fired together. Each consumes one
-          // hop; none should see another request's hop charged against it.
-          for (var i = 0; i < 8; i++)
+    test(
+      'bhv redirects 003 concurrent redirects do not share a hop counter (Wave E)',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .maxRedirects(1)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        try {
+          final futures = <Future<int>>[
+            // A non-redirecting request sharing the same client. Its outcome
+            // must not be disturbed by the concurrent redirect traffic.
             client
-                .sendRequest('GET', '$chasmHttpUrl/test/redirect/302', {}, null)
+                .sendRequest('GET', '$chasmHttpUrl/test/echo', {}, null)
                 .then((r) => r.statusCode),
-        ];
-        final codes = await Future.wait(futures);
-        expect(
-          codes,
-          everyElement(equals(200)),
-          reason:
-              'each concurrent request must follow its own redirect '
-              'chain within the per-request hop budget; a shared counter '
-              'would trip the maxRedirects(1) limit on some of them',
-        );
-      } finally {
-        client.close();
-      }
-    });
+            // Several single-hop redirects fired together. Each consumes one
+            // hop; none should see another request's hop charged against it.
+            for (var i = 0; i < 8; i++)
+              client
+                  .sendRequest(
+                    'GET',
+                    '$chasmHttpUrl/test/redirect/302',
+                    {},
+                    null,
+                  )
+                  .then((r) => r.statusCode),
+          ];
+          final codes = await Future.wait(futures);
+          expect(
+            codes,
+            everyElement(equals(200)),
+            reason:
+                'each concurrent request must follow its own redirect '
+                'chain within the per-request hop budget; a shared counter '
+                'would trip the maxRedirects(1) limit on some of them',
+          );
+        } finally {
+          client.close();
+        }
+      },
+    );
 
     // Wave E: a too-many-redirects refusal raised by ONE request must not
     // surface on an unrelated CONCURRENT request through the same client.
@@ -753,7 +810,7 @@ Future<void> main(List<String> args) async {
       },
     );
 
-    test('sends multipart form data', () async {
+    test('bhv serializationwire 027 sends multipart form data', () async {
       final client = DefaultApiClient();
       final headers = {
         'Content-Type': 'multipart/form-data; boundary=test-boundary',
@@ -774,17 +831,24 @@ Future<void> main(List<String> args) async {
     // branches injected the raw field name into Content-Disposition, opening
     // a header-smuggling hole. This test uses a String value so it exercises
     // the non-binary branch.
-    test('multipart_field_name_with_crlf_rejected_on_string_value', () async {
-      final client = DefaultApiClient();
-      final badField = <String, Object?>{'name\r\nInjected: yes': 'value'};
-      expect(
-        () =>
-            client.sendRequest('POST', '$chasmHttpUrl/test/echo', {}, badField),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'bhv serializationwire 026 multipart_field_name_with_crlf_rejected_on_string_value',
+      () async {
+        final client = DefaultApiClient();
+        final badField = <String, Object?>{'name\r\nInjected: yes': 'value'};
+        expect(
+          () => client.sendRequest(
+            'POST',
+            '$chasmHttpUrl/test/echo',
+            {},
+            badField,
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
 
-    test('decompresses gzip response', () async {
+    test('bhv transport 005 decompresses gzip response', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
@@ -817,7 +881,7 @@ Future<void> main(List<String> args) async {
     }
 
     test(
-      'verifySsl=true rejects a certificate the system does not trust',
+      'bhv transport 025 verifySsl=true rejects a certificate the system does not trust',
       () async {
         final transport = TransportOptionsBuilder().verifySsl(true).build();
         final client = DefaultApiClient(transportOptions: transport);
@@ -868,28 +932,31 @@ Future<void> main(List<String> args) async {
     // bearing verbs with no Content-Length (411 Length Required). The
     // client attaches an empty Uint8List on body-bearing verbs so
     // dart:http emits the header.
-    test('post_with_null_body_sends_content_length_zero', () async {
-      final client = DefaultApiClient();
-      final resp = await client.sendRequest(
-        'POST',
-        '$chasmHttpUrl/test/echo',
-        {},
-        null,
-      );
-      expect(resp.statusCode, equals(200));
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(
-        parsed['contentLength'],
-        equals(0),
-        reason: 'POST with null body must emit Content-Length: 0',
-      );
-    });
+    test(
+      'bhv transport 019 post_with_null_body_sends_content_length_zero',
+      () async {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'POST',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(
+          parsed['contentLength'],
+          equals(0),
+          reason: 'POST with null body must emit Content-Length: 0',
+        );
+      },
+    );
 
     // Gap T6: close() releases the underlying HTTP client and is
     // idempotent. A request issued on a closed client must surface a
     // uniform SDK error (ApiException) rather than the dart:http package's
     // "Client is already closed" exception.
-    test('close releases underlying client', () async {
+    test('bhv lifecycle 018 close releases underlying client', () async {
       final client = DefaultApiClient();
       client.close();
       // close() is idempotent.
