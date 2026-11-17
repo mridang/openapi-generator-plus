@@ -60,7 +60,7 @@ describe 'Client' do
       _(Petstore::Client::Petstore.with_token('/api/v3')).wont_be_nil
       ENV.delete(variable)
       error = _(-> { Petstore::Client::Petstore.with_token('/api/v3') }).must_raise ArgumentError
-      _(error.message).must_equal 'Bearer token must not be empty'
+      _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{variable}"
     ensure
       if saved.nil?
         ENV.delete(variable)
@@ -82,7 +82,7 @@ describe 'Client' do
 
     error = _(-> { Petstore::Client::Petstore.with_token('/api/v3') }).must_raise ArgumentError
 
-    _(error.message).must_equal 'Bearer token must not be empty'
+    _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{prefix}_TOKEN"
   end
 
   it 'bhv_lifecycle_006 BearerAuthenticator rejects CR/LF and non-ASCII' do

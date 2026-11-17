@@ -155,11 +155,20 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     end
   end
 
-  it 'a cookie key accepts a non-ASCII value' do
+  it 'bhv_authapikey_023 a cookie key accepts a non-ASCII value' do
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'session', 'kéy', Petstore::Client::Auth::ApiKeyLocation::COOKIE
     )
     _(auth.cookie_params).must_equal({ 'session' => 'kéy' })
+  end
+
+  it 'bhv_authapikey_022 emits a key only at its own location' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::HEADER
+    )
+    _(auth.auth_headers).must_equal({ 'X-Api-Key' => 'abc123' })
+    _(auth.query_params).must_be_empty
+    _(auth.cookie_params).must_be_empty
   end
 
   it 'bhv_authapikey_012 shows the host, key name and location but not the key in inspect' do
@@ -173,7 +182,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     )
   end
 
-  it 'reads the key from the environment variable when none is given' do
+  it 'bhv_authapikey_021 reads the key from the environment variable when none is given' do
     prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
@@ -202,7 +211,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
       )
     }).must_raise ArgumentError
 
-    _(error.message).must_equal "API key value for 'X-Api-Key' must not be empty"
+    _(error.message).must_equal "Missing API key for 'X-Api-Key': pass it or set the environment variable #{prefix}_API_KEY"
   end
 
   it 'reads the variable it is told to read, and no other' do

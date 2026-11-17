@@ -25,8 +25,12 @@ module Petstore::Client
       # @param token_env [String] the name of the environment variable of the token
       def initialize(host, token = nil, token_provider: nil, env: ENV, token_env: "#{ENV_PREFIX}_TOKEN")
         super()
+        raise ArgumentError, 'Pass a Bearer token or a token provider, not both' if token && token_provider
+
         @token_provider = token_provider
         token = credential_from(token, token_env, env)
+        raise ArgumentError, "Missing Bearer token: pass it or set the environment variable #{token_env}" if token.nil? && token_provider.nil?
+
         validate_token!(token) unless token.nil? && token_provider
         @host = host
         @token = token

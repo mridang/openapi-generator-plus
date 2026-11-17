@@ -30,8 +30,8 @@ module Petstore::Client
         super()
         username = credential_from(username, username_env, env)
         password = credential_from(password, password_env, env)
-        raise ArgumentError, 'Basic auth username must not be empty' if username.nil?
-        raise ArgumentError, 'Basic auth password must not be empty' if password.nil?
+        raise ArgumentError, "Missing Basic auth username: pass it or set the environment variable #{username_env}" if username.nil?
+        raise ArgumentError, "Missing Basic auth password: pass it or set the environment variable #{password_env}" if password.nil?
 
         # Validate eagerly at construction so a malformed credential surfaces
         # where it is supplied rather than lazily at first request.
