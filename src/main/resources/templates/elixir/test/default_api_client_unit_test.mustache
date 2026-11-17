@@ -145,6 +145,51 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert request.options.redirect == false
   end
 
+  # F1078: close is graceful. A request admitted before close finishes (and the
+  # follow-up requests it makes, a token fetch or a retry, still go out); one
+  # that starts after close raises the canonical error; the release of what the
+  # SDK started is claimed by exactly one caller, once nothing is in flight.
+  test "close lets an admitted request finish, refuses a new one and lets one caller claim the release" do
+    adapter = fn request -> {request, Req.Response.new(status: 200, body: "")} end
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter])
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    refute {{moduleName}}.DefaultApiClient.claim_release(client)
+
+    assert {{moduleName}}.DefaultApiClient.begin_request(client) == :ok
+    assert {{moduleName}}.DefaultApiClient.close(client) == :ok
+    assert {{moduleName}}.DefaultApiClient.close(client) == :ok
+    refute {{moduleName}}.DefaultApiClient.claim_release(client)
+
+    assert %{status_code: 200} =
+             {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://custom.invalid/follow-up", %{}, nil)
+
+    error = assert_raise RuntimeError, fn -> {{moduleName}}.DefaultApiClient.begin_request(client) end
+    assert error.message == "ApiClient has been closed and can no longer send requests"
+
+    assert {{moduleName}}.DefaultApiClient.finish_request(client) == :ok
+    assert {{moduleName}}.DefaultApiClient.claim_release(client)
+    refute {{moduleName}}.DefaultApiClient.claim_release(client)
+
+    assert_raise RuntimeError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://custom.invalid/after", %{}, nil)
+    end
+  end
+
+  test "the release is not claimable while any of several admitted requests is in flight" do
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    assert {{moduleName}}.DefaultApiClient.begin_request(client) == :ok
+    assert {{moduleName}}.DefaultApiClient.begin_request(client) == :ok
+    assert {{moduleName}}.DefaultApiClient.close(client) == :ok
+
+    assert {{moduleName}}.DefaultApiClient.finish_request(client) == :ok
+    refute {{moduleName}}.DefaultApiClient.claim_release(client)
+
+    assert {{moduleName}}.DefaultApiClient.finish_request(client) == :ok
+    assert {{moduleName}}.DefaultApiClient.claim_release(client)
+  end
+
   test "a deadline handed to send_request replaces the transport timeout for that call" do
     adapter = fn request ->
       Process.sleep(500)

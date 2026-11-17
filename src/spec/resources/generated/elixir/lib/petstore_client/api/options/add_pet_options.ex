@@ -9,13 +9,15 @@
 defmodule PetstoreClient.Api.Options.AddPetOptions do
   @moduledoc """
   Options for the `add_pet` operation.
+
+  This operation has no query, header, form or cookie parameter, so the options carry
+  only the per-call settings `timeout`, `headers` and `max_retries`.
   """
 
   @type t :: %__MODULE__{
           timeout: pos_integer() | nil,
           headers: %{optional(String.t()) => String.t()} | nil,
-          max_retries: non_neg_integer() | nil,
-          auth: term() | nil
+          max_retries: non_neg_integer() | nil
         }
 
   defstruct [
@@ -26,9 +28,6 @@ defmodule PetstoreClient.Api.Options.AddPetOptions do
     # same three keys and wins over these.
     timeout: nil,
     headers: nil,
-    max_retries: nil,
-    # Overrides the client's configured credentials for this call only.
-    # Falls back to the API instance's configured authenticator when nil.
-    auth: nil
+    max_retries: nil
   ]
 end

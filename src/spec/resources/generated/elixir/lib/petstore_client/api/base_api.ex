@@ -22,9 +22,10 @@ defmodule PetstoreClient.Api.BaseApi do
   #
   #   * `@no_auth` - the operation is unauthenticated; the client-level
   #     authenticator must NOT be applied (no credential leak);
-  #   * `nil` - a secured operation with no per-call override; fall back to the
-  #     client-level authenticator (unchanged behaviour);
-  #   * any other value - a per-call override; use it (unchanged behaviour).
+  #   * `nil` - a secured operation for which the client holds no credential of
+  #     the scheme it names; fall back to the client-level authenticator;
+  #   * any other value - the credential of the first scheme in the operation's
+  #     own order that the client holds, found by `scheme_auth/2`.
   #
   # An atom is interned and identity-comparable, distinct from nil and from
   # every authenticator (which is a struct or a plain map), so it can never
@@ -39,6 +40,36 @@ defmodule PetstoreClient.Api.BaseApi do
   # API modules can pass it for `security: []` operations.
   @spec no_auth() :: :"$openapi_generator_plus_no_auth$"
   def no_auth, do: @no_auth
+
+  @doc false
+  # The credential an operation uses: the authenticator of the first of
+  # `scheme_ids` (the schemes the operation's security requirement names, in
+  # the order the spec lists them) that the client holds a credential for, or
+  # nil when it holds none of them, which leaves the call to the client-level
+  # authenticator (and sends no credential when there is none).
+  @spec scheme_auth(map(), [String.t()]) :: term() | nil
+  def scheme_auth(state, scheme_ids) do
+    held = Map.get(state, :scheme_authenticators) || %{}
+    Enum.find_value(scheme_ids, fn scheme_id -> Map.get(held, scheme_id) end)
+  end
+
+  @doc false
+  # Stops the processes the given authenticators started (the OAuth2 token
+  # managers and the OpenID Connect discovery cache). An authenticator that
+  # starts nothing is left alone; stopping is idempotent.
+  @spec release_authenticators([term()]) :: :ok
+  def release_authenticators(authenticators) do
+    authenticators
+    |> Enum.uniq()
+    |> Enum.each(fn
+      %{__struct__: mod} = authenticator ->
+        if Code.ensure_loaded?(mod) and function_exported?(mod, :close, 1),
+          do: mod.close(authenticator)
+
+      _other ->
+        :ok
+    end)
+  end
 
   @call_keys [:timeout, :headers, :max_retries]
 
@@ -107,7 +138,8 @@ defmodule PetstoreClient.Api.BaseApi do
 
   ## Parameters
 
-    * `state` - The API state holding the `api_client`, `config` and `authenticator`.
+    * `state` - The API state holding the `api_client`, `config`, `authenticator` and
+      `scheme_authenticators`.
     * `method` - HTTP method (`:get`, `:post`, `:put`, `:delete`, etc.).
     * `path` - URL path (with path params already substituted).
     * `query_params` - Query parameters.
@@ -120,7 +152,9 @@ defmodule PetstoreClient.Api.BaseApi do
       `{union_type, [{status, type}, ...]}`: the body is decoded as the type of the
       status that arrived (`"2XX"` matches a whole range), and as the union when
       that status names none.
-    * `auth` - Optional authenticator for operation-specific auth.
+    * `auth` - The authenticator found by `scheme_auth/2` for the operation's
+      security schemes, the no-auth sentinel for `security: []`, or `nil` to use
+      the client-level authenticator.
     * `call` - Per-call settings (`:timeout`, `:headers`, `:max_retries`), as
       built by `call_settings/2`. Defaults to none.
 
@@ -209,6 +243,57 @@ defmodule PetstoreClient.Api.BaseApi do
         auth \\ nil,
         call \\ []
       ) do
+    # A call that starts after `close/1` fails with the one canonical error. A
+    # call admitted before it runs to the end: the processes its authenticators
+    # started are stopped when the last such call is over. A transport that is
+    # not a `DefaultApiClient` is not counted.
+    api_client = Map.get(state, :api_client)
+    :ok = PetstoreClient.DefaultApiClient.begin_request(api_client)
+
+    try do
+      run_api_call(
+        state,
+        method,
+        path,
+        query_params,
+        header_params,
+        body,
+        accepts,
+        content_type,
+        return_type,
+        auth,
+        call
+      )
+    after
+      leave(state, api_client)
+    end
+  end
+
+  defp leave(state, api_client) do
+    :ok = PetstoreClient.DefaultApiClient.finish_request(api_client)
+
+    if PetstoreClient.DefaultApiClient.claim_release(api_client) do
+      release_authenticators([
+        Map.get(state, :authenticator) | Map.values(Map.get(state, :scheme_authenticators) || %{})
+      ])
+    end
+
+    :ok
+  end
+
+  defp run_api_call(
+         state,
+         method,
+         path,
+         query_params,
+         header_params,
+         body,
+         accepts,
+         content_type,
+         return_type,
+         auth,
+         call
+       ) do
     method =
       if is_atom(method),
         do: method |> Atom.to_string() |> String.downcase() |> String.to_atom(),
@@ -232,8 +317,9 @@ defmodule PetstoreClient.Api.BaseApi do
       end
 
     # Three-state auth resolution (see @no_auth). The sentinel suppresses the
-    # client authenticator; a nil auth falls back to it (secured op, no per-call
-    # override); any other value is an explicit per-call override.
+    # client authenticator; a nil auth falls back to it (the client holds no
+    # credential of the scheme the operation names); any other value is the
+    # credential of that scheme.
     effective_auth =
       case auth do
         @no_auth -> nil

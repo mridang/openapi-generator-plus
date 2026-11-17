@@ -703,11 +703,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
         context.put("params", params);
-        context.put("callSettingsOnly", params.isEmpty() && !op.hasAuthMethods);
-        // Per-operation auth folded into the Options struct: authed operations
-        // gain an optional `auth` field (guarded by {{#hasAuthField}}) that
-        // overrides the API instance's configured authenticator for one call.
-        injectAuthFieldContext(op, context);
+        context.put("callSettingsOnly", params.isEmpty());
+        /* F857: an operation uses the credential of the scheme its spec names, which the
+         * client holds per scheme; there is no per-call authenticator, so no `auth` field. */
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

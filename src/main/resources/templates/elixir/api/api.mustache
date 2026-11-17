@@ -90,12 +90,14 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @type t :: %__MODULE__{
           api_client: term(),
           config: {{moduleName}}.Configuration.t(),
-          authenticator: term()
+          authenticator: term(),
+          scheme_authenticators: %{optional(String.t()) => term()}
         }
 
   defstruct api_client: nil,
             config: nil,
-            authenticator: nil
+            authenticator: nil,
+            scheme_authenticators: %{}
 
   @doc """
   Create a new {{classname}} instance.
@@ -104,14 +106,19 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
     * `api_client` - The HTTP transport client (optional, defaults to DefaultApiClient).
     * `config` - API-level configuration (optional, defaults to Configuration.default()).
+    * `authenticator` - The default credential (optional): used by an operation
+      when none of `scheme_authenticators` matches the schemes it names.
+    * `scheme_authenticators` - The credential of each security scheme, by the
+      scheme's name in the spec (optional).
 
   """
-  @spec new(term(), {{moduleName}}.Configuration.t(), term()) :: t()
-  def new(api_client \\ nil, config \\ {{moduleName}}.Configuration.default(), authenticator \\ nil) do
+  @spec new(term(), {{moduleName}}.Configuration.t(), term(), %{optional(String.t()) => term()}) :: t()
+  def new(api_client \\ nil, config \\ {{moduleName}}.Configuration.default(), authenticator \\ nil, scheme_authenticators \\ %{}) do
     %__MODULE__{
       api_client: api_client || {{moduleName}}.DefaultApiClient.new(),
       config: config,
-      authenticator: authenticator
+      authenticator: authenticator,
+      scheme_authenticators: scheme_authenticators
     }
   end
 {{#operation}}
@@ -147,9 +154,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{/vendorExtensions.pluralExamples}}
   {{/bodyParam}}
   {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
-    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`){{#vendorExtensions.op.hasOptionsParam}}, the optional parameters (query, header, form, cookie){{/vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}} and an optional per-operation authenticator in `auth`{{/hasAuthMethods}}.
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`){{#vendorExtensions.op.hasOptionsParam}}, the optional parameters (query, header, form, cookie){{/vendorExtensions.op.hasOptionsParam}}.
   {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
-    * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}}{{#hasAuthMethods}} Per-operation auth is supplied via the Options struct's `auth` field, not here.{{/hasAuthMethods}}
+    * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}}
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
@@ -231,17 +238,14 @@ defmodule {{moduleName}}.Api.{{classname}} do
     # `max_retries`, overridden by the same keys of `opts`.
     call = {{moduleName}}.Api.BaseApi.call_settings({{#vendorExtensions.op.optionsArgOptional}}options{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}options{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}nil{{/vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsArgOptional}}, opts)
 
-{{#hasAuthMethods}}
-    # Per-operation auth is sourced solely from the Options struct's optional
-    # `auth` field (the uniform "auth folded into Options" model shared by every
-    # SDK). When the Options auth is absent it falls back to the API instance's
-    # configured authenticator so auth-omitted calls use the Configuration
-    # credentials. There is deliberately no separate `opts[:auth]` channel: a
-    # per-call keyword override would silently win over an explicit
-    # `options.auth`, which no other SDK permits.
-    auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
-{{/hasAuthMethods}}
-{{^hasAuthMethods}}
+{{#vendorExtensions.op.hasSecuritySchemes}}
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = {{moduleName}}.Api.BaseApi.scheme_auth(api, [{{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}])
+{{/vendorExtensions.op.hasSecuritySchemes}}
+{{^vendorExtensions.op.hasSecuritySchemes}}
 {{#vendorExtensions.op.securityNone}}
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -252,11 +256,11 @@ defmodule {{moduleName}}.Api.{{classname}} do
     auth = {{moduleName}}.Api.BaseApi.no_auth()
 {{/vendorExtensions.op.securityNone}}
 {{^vendorExtensions.op.securityNone}}
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
+    # The operation names no scheme the client can hold a credential for; pass
+    # nil so BaseApi falls back to the client-level authenticator.
     auth = nil
 {{/vendorExtensions.op.securityNone}}
-{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasSecuritySchemes}}
 {{#pathParams}}
 {{#required}}
     if is_nil({{paramName}}){{#isString}} or {{paramName}} == ""{{/isString}} do

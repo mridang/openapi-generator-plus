@@ -10,8 +10,8 @@ defmodule PetstoreClient.Api.Options.CreateAccountOptions do
   @moduledoc """
   Options for the `create_account` operation.
 
-  This operation has no query, header, form or cookie parameter and no security, so the
-  options carry only the per-call settings `timeout`, `headers` and `max_retries`.
+  This operation has no query, header, form or cookie parameter, so the options carry
+  only the per-call settings `timeout`, `headers` and `max_retries`.
   """
 
   @type t :: %__MODULE__{

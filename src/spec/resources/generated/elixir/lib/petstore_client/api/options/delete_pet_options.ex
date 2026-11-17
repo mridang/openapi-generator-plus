@@ -15,8 +15,7 @@ defmodule PetstoreClient.Api.Options.DeletePetOptions do
           api_key: String.t() | nil,
           timeout: pos_integer() | nil,
           headers: %{optional(String.t()) => String.t()} | nil,
-          max_retries: non_neg_integer() | nil,
-          auth: term() | nil
+          max_retries: non_neg_integer() | nil
         }
 
   defstruct api_key: nil,
@@ -27,8 +26,5 @@ defmodule PetstoreClient.Api.Options.DeletePetOptions do
             # same three keys and wins over these.
             timeout: nil,
             headers: nil,
-            max_retries: nil,
-            # Overrides the client's configured credentials for this call only.
-            # Falls back to the API instance's configured authenticator when nil.
-            auth: nil
+            max_retries: nil
 end

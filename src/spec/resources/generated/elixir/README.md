@@ -79,7 +79,7 @@ transport = PetstoreClient.TransportOptions.new(max_retries: 0)
 
 ### Per-call options
 
-Every operation takes an optional options struct, even one with no query, header, form or cookie parameter and no security. It carries the per-call settings `timeout` (milliseconds), `headers` (a map) and `max_retries`, and an `auth` field only when the operation has security. The same three settings can also be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list. A setting replaces the client's own for that call only; the `opts` key wins over the options struct. `headers` are merged after the default headers and before the authentication headers, and replace a header of the same name in any casing.
+Every operation takes an optional options struct, even one with no query, header, form or cookie parameter. It carries the per-call settings `timeout` (milliseconds), `headers` (a map) and `max_retries`; there is no per-call credential (see Credentials). The same three settings can also be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list. A setting replaces the client's own for that call only; the `opts` key wins over the options struct. `headers` are merged after the default headers and before the authentication headers, and replace a header of the same name in any casing.
 
 ```elixir
 options = %PetstoreClient.Api.Options.GetItemOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
@@ -88,6 +88,12 @@ PetstoreClient.Api.ItemsApi.get_item(api, 7, nil, timeout: 5_000)
 ```
 
 ### Credentials
+
+`PetstoreClient.Client.new/3` takes one optional credential for each security scheme of the API, named after the scheme in a keyword list: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. Each is an authenticator. An operation uses the credential of the first scheme its own security requirement lists that the client holds, and there is no per-call override. The optional first argument, the authenticator, serves an operation that none of the scheme credentials matches. An operation whose spec says `security: []` sends no credential. The base URL comes from the first credential given, the authenticator first. The client is refused (`ArgumentError`) when it gets no credential at all, or a key that names no scheme of this API.
+
+```elixir
+client = PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+```
 
 An authenticator takes its credentials as arguments. A credential you do not pass (a `nil`) is read, once, when the authenticator is built, from an environment variable; an argument you pass always wins, and an empty variable counts as unset. A required credential found in neither place raises `ArgumentError` when the authenticator, and so the client, is built. A bearer token or an API key may also be a zero-argument function, called for every request, so a token that rotates is read fresh each time.
 
@@ -127,7 +133,11 @@ There is no cancellation argument. A caller stops a call by terminating the proc
 
 ### Closing the client
 
-`PetstoreClient.Client.close/1` releases the transport the client created and the processes its authenticator started. It is idempotent.
+`PetstoreClient.Client.close/1` closes the client and is idempotent. A call already in flight finishes; a call that starts after it raises `RuntimeError` with the message "ApiClient has been closed and can no longer send requests". The processes the SDK started for the client (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. Req and Finch own the HTTP pool, and a transport you supply through `req_options` is never closed by the SDK.
+
+### Cookie parameters
+
+A cookie parameter goes into the `Cookie` header exactly as given when every character is a legal RFC 6265 cookie-octet: printable ASCII except space, double quote, comma, semicolon and backslash. A value with any other character fails with `ArgumentError` before the request is sent, so percent-encode such a value yourself first. The SDK never encodes it for you, because a cookie parser does not decode it.
 
 ### Raw responses, request id and logging
 
@@ -195,8 +205,10 @@ Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`,
 `maximum`, `multipleOf`, `minItems`, `maxItems`) are validated by the server
 and by the generated models only where the language's model layer does it
 natively. Elixir structs and typespecs carry no constraint checking, so this
-SDK enforces none of them: the model layer only checks that required
-properties are present and that values have the declared type. The server is
+SDK enforces none of them: the model layer only checks, when a response is decoded,
+that required properties are present and that values have the declared type.
+Building a struct never validates: a wrong-typed value or an unknown enum
+atom builds fine, and the unknown enum string fails loudly only when it is decoded. The server is
 the authoritative validator. If you want fast-fail validation before the
 network round trip, plug in a JSON Schema validator library.
 

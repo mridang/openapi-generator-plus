@@ -153,6 +153,65 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert request.options.redirect == false
   end
 
+  # F1078: close is graceful. A request admitted before close finishes (and the
+  # follow-up requests it makes, a token fetch or a retry, still go out); one
+  # that starts after close raises the canonical error; the release of what the
+  # SDK started is claimed by exactly one caller, once nothing is in flight.
+  test "close lets an admitted request finish, refuses a new one and lets one caller claim the release" do
+    adapter = fn request -> {request, Req.Response.new(status: 200, body: "")} end
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    refute PetstoreClient.DefaultApiClient.claim_release(client)
+
+    assert PetstoreClient.DefaultApiClient.begin_request(client) == :ok
+    assert PetstoreClient.DefaultApiClient.close(client) == :ok
+    assert PetstoreClient.DefaultApiClient.close(client) == :ok
+    refute PetstoreClient.DefaultApiClient.claim_release(client)
+
+    assert %{status_code: 200} =
+             PetstoreClient.DefaultApiClient.send_request(
+               client,
+               :get,
+               "http://custom.invalid/follow-up",
+               %{},
+               nil
+             )
+
+    error =
+      assert_raise RuntimeError, fn -> PetstoreClient.DefaultApiClient.begin_request(client) end
+
+    assert error.message == "ApiClient has been closed and can no longer send requests"
+
+    assert PetstoreClient.DefaultApiClient.finish_request(client) == :ok
+    assert PetstoreClient.DefaultApiClient.claim_release(client)
+    refute PetstoreClient.DefaultApiClient.claim_release(client)
+
+    assert_raise RuntimeError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://custom.invalid/after",
+        %{},
+        nil
+      )
+    end
+  end
+
+  test "the release is not claimable while any of several admitted requests is in flight" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    assert PetstoreClient.DefaultApiClient.begin_request(client) == :ok
+    assert PetstoreClient.DefaultApiClient.begin_request(client) == :ok
+    assert PetstoreClient.DefaultApiClient.close(client) == :ok
+
+    assert PetstoreClient.DefaultApiClient.finish_request(client) == :ok
+    refute PetstoreClient.DefaultApiClient.claim_release(client)
+
+    assert PetstoreClient.DefaultApiClient.finish_request(client) == :ok
+    assert PetstoreClient.DefaultApiClient.claim_release(client)
+  end
+
   test "a deadline handed to send_request replaces the transport timeout for that call" do
     adapter = fn request ->
       Process.sleep(500)

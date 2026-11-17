@@ -184,9 +184,37 @@ class GenerateElixirClientTest {
             .as(file.getFileName().toString())
             .contains("timeout: pos_integer() | nil")
             .contains("headers: %{optional(String.t()) => String.t()} | nil")
-            .contains("max_retries: non_neg_integer() | nil");
+            .contains("max_retries: non_neg_integer() | nil")
+            .doesNotContainPattern("(?m)^\\s*auth:");
       }
     }
+  }
+
+  /**
+   * F857: the client takes one optional credential per security scheme, named after the scheme,
+   * and an operation resolves the credential of the first scheme its own security lists that
+   * the client holds; an operation declared {@code security: []} sends none.
+   */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void anOperationUsesTheCredentialOfTheFirstSchemeItListsThatTheClientHolds() throws IOException {
+    final String client =
+        Files.readString(OUTPUT_DIR.resolve("lib/petstore_client/client.ex"));
+    assertThat(client)
+        .contains("{:pet_store_basic, \"petStoreBasic\"}")
+        .contains("{:machine_auth, \"machineAuth\"}")
+        .contains("def new(authenticator, transport_options \\\\ nil, schemes \\\\ [])")
+        .contains("Keyword.validate!(schemes, Keyword.keys(@schemes))");
+    final String petApi =
+        Files.readString(OUTPUT_DIR.resolve("lib/petstore_client/api/pet_api.ex"));
+    assertThat(petApi)
+        .contains(
+            "PetstoreClient.Api.BaseApi.scheme_auth(api, [\"adminBasic\", \"machineAuth\"])")
+        .contains(
+            "PetstoreClient.Api.BaseApi.scheme_auth(api, [\"apiKeyHeader\", \"petStoreBearer\"])");
+    final String storeApi =
+        Files.readString(OUTPUT_DIR.resolve("lib/petstore_client/api/store_api.ex"));
+    assertThat(storeApi).contains("auth = PetstoreClient.Api.BaseApi.no_auth()");
   }
 
   /**

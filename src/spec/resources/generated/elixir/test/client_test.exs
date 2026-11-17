@@ -75,6 +75,203 @@ defmodule PetstoreClient.ClientTest do
     assert PetstoreClient.Client.close(client) == :ok
   end
 
+  # An authenticator that tells the test process each time the client releases it.
+  defmodule ClosingAuthenticator do
+    use PetstoreClient.Auth.BaseAuthenticator
+
+    defstruct [:notify, :label]
+
+    @impl true
+    def host(%__MODULE__{}), do: "http://closing.invalid"
+
+    @impl true
+    def auth_headers(%__MODULE__{}), do: %{}
+
+    def close(%__MODULE__{notify: notify, label: label}), do: send(notify, {:released, label})
+  end
+
+  # Answers every request with an empty 200 once the test sends it `:proceed`,
+  # and tells the test process when a request is waiting.
+  defp blocked_transport do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:waiting, self()})
+
+      receive do
+        :proceed -> :ok
+      end
+
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    {adapter,
+     PetstoreClient.TransportOptions.new(req_options: [adapter: adapter], max_retries: 0)}
+  end
+
+  defp call_through(client) do
+    state = %{
+      api_client: client.api_client,
+      authenticator: client.authenticator,
+      scheme_authenticators: client.schemes,
+      config: PetstoreClient.Configuration.new(base_url: "http://closing.invalid")
+    }
+
+    fn ->
+      PetstoreClient.Api.BaseApi.invoke_api_for_result(
+        state,
+        :get,
+        "/slow",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil,
+        PetstoreClient.Api.BaseApi.no_auth()
+      )
+    end
+  end
+
+  test "close lets an in-flight request finish and releases the authenticator after it" do
+    {_adapter, transport} = blocked_transport()
+    authenticator = %ClosingAuthenticator{notify: self()}
+    client = PetstoreClient.Client.new(authenticator, transport)
+    call = call_through(client)
+
+    task = Task.async(call)
+    assert_receive {:waiting, in_flight}, 5_000
+
+    assert PetstoreClient.Client.close(client) == :ok
+    refute_received {:released, _label}
+
+    send(in_flight, :proceed)
+    assert {:ok, %{status_code: 200}} = Task.await(task)
+    assert_received {:released, nil}
+  end
+
+  test "a request that starts after close fails with the one canonical client closed error" do
+    authenticator = %ClosingAuthenticator{notify: self()}
+    {_adapter, transport} = blocked_transport()
+    client = PetstoreClient.Client.new(authenticator, transport)
+    call = call_through(client)
+
+    assert PetstoreClient.Client.close(client) == :ok
+
+    error = assert_raise RuntimeError, call
+    assert error.message == "ApiClient has been closed and can no longer send requests"
+    refute_received {:waiting, _pid}
+  end
+
+  test "a request that starts while another is in flight after close still fails" do
+    {_adapter, transport} = blocked_transport()
+    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+    call = call_through(client)
+
+    task = Task.async(call)
+    assert_receive {:waiting, in_flight}, 5_000
+    assert PetstoreClient.Client.close(client) == :ok
+
+    error = assert_raise RuntimeError, call
+    assert error.message == "ApiClient has been closed and can no longer send requests"
+
+    send(in_flight, :proceed)
+    assert {:ok, _result} = Task.await(task)
+  end
+
+  test "close twice releases the authenticator once" do
+    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()})
+
+    assert PetstoreClient.Client.close(client) == :ok
+    assert_received {:released, nil}
+    assert PetstoreClient.Client.close(client) == :ok
+    refute_received {:released, _label}
+  end
+
+  test "closing after the last in-flight request does not release the authenticator a second time" do
+    {_adapter, transport} = blocked_transport()
+    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+    call = call_through(client)
+
+    task = Task.async(call)
+    assert_receive {:waiting, in_flight}, 5_000
+    assert PetstoreClient.Client.close(client) == :ok
+    send(in_flight, :proceed)
+    assert {:ok, _result} = Task.await(task)
+    assert_received {:released, nil}
+
+    assert PetstoreClient.Client.close(client) == :ok
+    refute_received {:released, _label}
+  end
+
+  test "close never touches a transport the caller supplied" do
+    {adapter, transport} = blocked_transport()
+    first = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+    second = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+
+    assert PetstoreClient.Client.close(first) == :ok
+    refute_received {:waiting, _pid}
+    assert first.api_client.transport_options.req_options[:adapter] == adapter
+
+    task = Task.async(call_through(second))
+    assert_receive {:waiting, in_flight}, 5_000
+    send(in_flight, :proceed)
+    assert {:ok, %{status_code: 200}} = Task.await(task)
+  end
+
+  test "construct with one credential per security scheme and no authenticator" do
+    credential = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "scheme-token")
+
+    client = PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+
+    assert client.authenticator == nil
+    assert client.schemes == %{"petStoreBasic" => credential}
+    assert client.pet.scheme_authenticators == client.schemes
+    assert client.pet.authenticator == nil
+  end
+
+  test "the base URL comes from the authenticator first, then the first scheme credential" do
+    default = PetstoreClient.Auth.BearerAuthenticator.new("https://default.example.com", "t")
+    credential = PetstoreClient.Auth.BearerAuthenticator.new("https://scheme.example.com", "t")
+
+    with_default = PetstoreClient.Client.new(default, nil, pet_store_basic: credential)
+    assert with_default.pet.config.base_url == "https://default.example.com"
+
+    schemes_only = PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+    assert schemes_only.pet.config.base_url == "https://scheme.example.com"
+  end
+
+  test "a key that names no security scheme of the API raises ArgumentError" do
+    credential = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "scheme-token")
+
+    assert_raise ArgumentError, ~r/unknown keys \[:no_such_scheme\]/, fn ->
+      PetstoreClient.Client.new(credential, nil, no_such_scheme: credential)
+    end
+  end
+
+  test "a client without an authenticator and without any scheme credential raises ArgumentError" do
+    assert_raise ArgumentError, ~r/At least one credential is required/, fn ->
+      PetstoreClient.Client.new(nil)
+    end
+
+    assert_raise ArgumentError, ~r/At least one credential is required/, fn ->
+      PetstoreClient.Client.new(nil, nil, pet_store_basic: nil)
+    end
+  end
+
+  test "close releases the authenticator and every scheme credential once" do
+    default = %ClosingAuthenticator{notify: self(), label: :default}
+    credential = %ClosingAuthenticator{notify: self(), label: :scheme}
+    client = PetstoreClient.Client.new(default, nil, pet_store_basic: credential)
+
+    assert PetstoreClient.Client.close(client) == :ok
+    assert PetstoreClient.Client.close(client) == :ok
+
+    assert_received {:released, :default}
+    assert_received {:released, :scheme}
+    refute_received {:released, _label}
+  end
+
   test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     assert_raise ArgumentError, fn ->
       PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "tok\r\nInjected: yes")

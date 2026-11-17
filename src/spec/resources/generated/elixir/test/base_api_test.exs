@@ -994,6 +994,148 @@ defmodule PetstoreClient.Api.BaseApiTest do
     refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
   end
 
+  # F840: RFC 6265 cookie values go out raw when every character is a legal
+  # cookie-octet; anything else fails on the client, before a request is sent.
+  test "an auth cookie made only of legal cookie-octets is sent exactly as given", %{state: state} do
+    for good <- ["a=b==", "%41%2F", "x/y+z", "A.B-C_D"] do
+      auth = %TestAuthenticator{
+        host_url: "",
+        headers: %{},
+        query: %{},
+        cookies: %{"session" => good}
+      }
+
+      assert {:ok, result} =
+               PetstoreClient.Api.BaseApi.invoke_api(
+                 state,
+                 :get,
+                 "/test/echo",
+                 %{},
+                 %{},
+                 nil,
+                 ["application/json"],
+                 "application/json",
+                 "Object",
+                 auth
+               )
+
+      assert result["headers"]["cookie"] == "session=" <> good
+    end
+  end
+
+  test "an auth cookie holding a space, quote, comma, semicolon, backslash, control or non-ASCII character raises ArgumentError",
+       %{state: state} do
+    for bad <- ["a b", ~S(a"b), "a,b", "a;b", ~S(a\b), "a\tb", "a\r\nb", "caf\u00E9"] do
+      auth = %TestAuthenticator{
+        host_url: "",
+        headers: %{},
+        query: %{},
+        cookies: %{"session" => bad}
+      }
+
+      error =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.Api.BaseApi.invoke_api(
+            state,
+            :get,
+            "/test/echo",
+            %{},
+            %{},
+            nil,
+            ["application/json"],
+            "application/json",
+            nil,
+            auth
+          )
+        end
+
+      assert Exception.message(error) =~ "RFC 6265"
+    end
+  end
+
+  # F857: scheme_auth/2 picks the credential of the first scheme, in the order
+  # the operation lists them, that the client holds.
+  test "scheme_auth returns the credential of the first listed scheme the client holds" do
+    first = %TestAuthenticator{host_url: "https://one.invalid"}
+    second = %TestAuthenticator{host_url: "https://two.invalid"}
+    api = %{scheme_authenticators: %{"first" => first, "second" => second}}
+
+    assert PetstoreClient.Api.BaseApi.scheme_auth(api, ["missing", "second", "first"]) == second
+    assert PetstoreClient.Api.BaseApi.scheme_auth(api, ["first", "second"]) == first
+  end
+
+  test "scheme_auth returns nil when the client holds none of the listed schemes" do
+    held = %{
+      scheme_authenticators: %{"first" => %TestAuthenticator{host_url: "https://one.invalid"}}
+    }
+
+    assert PetstoreClient.Api.BaseApi.scheme_auth(held, ["other"]) == nil
+    assert PetstoreClient.Api.BaseApi.scheme_auth(held, []) == nil
+    assert PetstoreClient.Api.BaseApi.scheme_auth(%{}, ["first"]) == nil
+    assert PetstoreClient.Api.BaseApi.scheme_auth(%{scheme_authenticators: nil}, ["first"]) == nil
+  end
+
+  # An operation that names a scheme the client holds uses that credential, and
+  # the client-level authenticator only when it holds none of them.
+  test "a scheme credential wins over the client-level authenticator and the fallback is used when none matches",
+       %{state: state} do
+    default = %TestAuthenticator{host_url: "", headers: %{"X-Who" => "default"}}
+    scheme = %TestAuthenticator{host_url: "", headers: %{"X-Who" => "scheme"}}
+    api = Map.merge(state, %{authenticator: default, scheme_authenticators: %{"held" => scheme}})
+
+    held_auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["other", "held"])
+
+    assert {:ok, held} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               api,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object",
+               held_auth
+             )
+
+    assert held["headers"]["x-who"] == "scheme"
+
+    none_auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["other"])
+
+    assert {:ok, fallback} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               api,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object",
+               none_auth
+             )
+
+    assert fallback["headers"]["x-who"] == "default"
+
+    assert {:ok, unauthenticated} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               api,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object",
+               PetstoreClient.Api.BaseApi.no_auth()
+             )
+
+    refute Map.has_key?(unauthenticated["headers"], "x-who")
+  end
+
   # Nil body handling
 
   test "handles nil body", %{state: state} do

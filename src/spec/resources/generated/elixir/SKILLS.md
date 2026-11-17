@@ -257,7 +257,7 @@ client = PetstoreClient.Client.new(authenticator, transport)
 
 ### Per-call options
 
-Every operation takes an optional options struct, even one with no query, header, form or cookie parameter and no security. It carries `timeout` (milliseconds), `headers` (a map) and `max_retries`, and an `auth` field only when the operation has security. The same three settings can be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list, which wins over the struct. Each replaces the client's own setting for that one call.
+Every operation takes an optional options struct, even one with no query, header, form or cookie parameter. It carries `timeout` (milliseconds), `headers` (a map) and `max_retries`; there is no per-call credential. The same three settings can be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list, which wins over the struct. Each replaces the client's own setting for that one call.
 
 ```elixir
 options = %PetstoreClient.Api.Options.GetItemOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
@@ -266,6 +266,12 @@ PetstoreClient.Api.ItemsApi.get_item(client.items, 7, nil, timeout: 5_000)
 ```
 
 ### Credentials
+
+The client takes one optional credential for each security scheme, named after the scheme, in the keyword list that is its third argument: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. An operation uses the credential of the first scheme its own security requirement lists that the client holds; the authenticator in the first argument serves an operation that none of them matches, and an operation declared `security: []` sends no credential. There is no per-call override, and the client is refused when it gets no credential at all.
+
+```elixir
+client = PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+```
 
 Pass `nil` for a credential (or leave it out of a security scheme's authenticator) and the authenticator reads it once, when it is built, from an environment variable. A value you pass wins, an empty variable counts as unset, and a missing required credential raises `ArgumentError` when the client is built. A bearer token or an API key may be a zero-argument function that returns it, called for every request.
 
@@ -309,11 +315,15 @@ There is no cancellation argument. The SDK uses the platform's own mechanism: st
 
 ### Closing the client
 
-`PetstoreClient.Client.close/1` releases the transport the client created and stops the processes its authenticator started (OAuth2 token managers, OpenID Connect discovery). It is idempotent, and a call through a closed client raises. A transport you supply through `req_options` is never closed by the SDK.
+`PetstoreClient.Client.close/1` closes the client and is idempotent. A call already in flight finishes, and a call that starts after it raises `RuntimeError` ("ApiClient has been closed and can no longer send requests"). The processes the SDK started (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. A transport you supply through `req_options` is never closed by the SDK.
 
 ```elixir
 :ok = PetstoreClient.Client.close(client)
 ```
+
+### Cookie parameters
+
+A cookie parameter is sent raw when every character is a legal RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash). Any other character raises `ArgumentError` before the request is sent: percent-encode the value yourself first.
 
 ### Raw responses, timeouts and the request id
 
