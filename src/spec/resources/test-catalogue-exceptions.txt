@@ -60,3 +60,4 @@ go | *unnumbered | tests beyond the shared catalogue: language-specific behaviou
 rust | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 swift | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 elixir | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
+java | lifecycle014 | The Java client takes built authenticator objects and never reads the environment itself; the per-scheme authenticator reads it when built with no credential, and that behaviour is pinned by bhv authbearer 010 (same promise)
