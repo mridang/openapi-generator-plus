@@ -975,6 +975,49 @@ describe("ValueSerializer", () => {
     expect(ValueSerializer.serialize(null, "path", "string")).toBe("");
   });
 
+  test("bhv serializationparam 004 an already percent-encoded value is encoded again", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "id",
+        "a%20b",
+        "path",
+        "string",
+        null,
+        "simple",
+        false,
+      ),
+    ).toBe("a%2520b");
+  });
+
+  test("bhv serializationparam 071 path is segment-encoded once", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "id",
+        "a?b#c",
+        "path",
+        "string",
+        null,
+        "simple",
+        false,
+      ),
+    ).toBe("a%3Fb%23c");
+  });
+
+  test("bhv serializationparam 082 simple style writes an object as a header list", () => {
+    const criteria = { color: "red", min_count: 3 };
+    expect(
+      ValueSerializer.serializeStyled(
+        "criteria",
+        criteria,
+        "header",
+        "Criteria",
+        null,
+        "simple",
+        false,
+      ),
+    ).toBe("color,red,min_count,3");
+  });
+
   test("bhv serializationparam 089 simple style encodes value", () => {
     expect(
       ValueSerializer.serializeStyled(

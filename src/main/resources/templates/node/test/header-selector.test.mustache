@@ -68,6 +68,20 @@ describe('HeaderSelector', () => {
       expect(headers['Accept']).toBe('application/json');
     });
 
+    test('bhv headers 005 does not set Accept header for null accepts', () => {
+      const headers = headerSelector.selectHeaders(null as unknown as string[], 'application/json', false);
+      expect(headers['Accept']).toBeUndefined();
+    });
+
+    test('bhv headers 009 filters out empty and blank entries', () => {
+      const headers = headerSelector.selectHeaders(
+        ['', '   ', 'application/json'],
+        'application/json',
+        false,
+      );
+      expect(headers['Accept']).toBe('application/json');
+    });
+
     test('bhv headers 004 does not set Accept header when accepts empty', () => {
       const headers = headerSelector.selectHeaders([], 'application/json', false);
       expect(headers['Accept']).toBeUndefined();

@@ -1,1 +1,2 @@
 # language | behaviour id | specific reason
+node | transport049 | Node fetch (undici) decodes a headerless raw DEFLATE body under Content-Encoding: deflate without error, so the SDK never receives a decode failure to wrap as ApiError

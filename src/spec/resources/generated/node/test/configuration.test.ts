@@ -56,6 +56,18 @@ describe("Configuration", () => {
     });
   });
 
+  test("bhv config 004 builder merges single and bulk headers", () => {
+    const config = Configuration.builder()
+      .defaultHeader("X-Single", "one")
+      .defaultHeaders({ "X-Bulk": "two" })
+      .build();
+
+    expect(config.defaultHeaders).toEqual({
+      "X-Single": "one",
+      "X-Bulk": "two",
+    });
+  });
+
   test("bhv config 002 builder accumulates headers", () => {
     const config = Configuration.builder()
       .defaultHeader("X-First", "one")

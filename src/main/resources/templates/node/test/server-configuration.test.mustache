@@ -69,6 +69,15 @@ describe('ServerConfiguration', () => {
     expect(config.getUrl({ env: 'staging' })).toBe('https://staging.api.example.com');
   });
 
+  it('bhv servers 016 an empty enum list accepts any override value', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('prod', null, []) }
+    );
+    expect(config.getUrl({ env: 'anything-at-all' })).toBe('https://anything-at-all.api.example.com');
+  });
+
   it('bhv servers 008 rejects an override that is not one of the enum values', () => {
     const config = new ServerConfiguration(
       'https://{env}.api.example.com',

@@ -1006,6 +1006,11 @@ describe('SendRequestOptions.noRedirect', () => {
         res.end();
         return;
       }
+      if (req.url === '/permanent') {
+        res.writeHead(308, { Location: '/final' });
+        res.end();
+        return;
+      }
       if (req.url === '/final') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end('{"final":true}');
@@ -1029,6 +1034,20 @@ describe('SendRequestOptions.noRedirect', () => {
     const response = await client.sendRequest('POST', `${baseUrlLocal}/redirect`, {}, 'body');
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain('final');
+  });
+
+  it('bhv redirects 022 returns the 308 verbatim when noRedirect is true', async () => {
+    const transport = TransportOptions.builder().followRedirects(true).build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      'POST',
+      `${baseUrlLocal}/permanent`,
+      {},
+      'body',
+      { noRedirect: true },
+    );
+    expect(response.statusCode).toBe(308);
+    expect(response.headers['location']).toBe('/final');
   });
 
   it('bhv redirects 021 surfaces the 307 untouched when noRedirect=true', async () => {
@@ -1773,6 +1792,23 @@ describe('Content-Encoding lie surfaces ApiError (canonical AL)', () => {
     await expect(
       DefaultApiClient.ensureDecoded(lyingBody, 'gzip')
     ).rejects.toThrow(ApiError);
+  });
+
+  it('bhv transport 035 decompresses a zlib-wrapped deflate response', async () => {
+    const body = zlib.deflateSync(Buffer.from('{"userId":1}', 'utf-8'));
+    const srv = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Encoding': 'deflate' });
+      res.end(body);
+    });
+    await new Promise<void>(resolve => srv.listen(0, '127.0.0.1', resolve));
+    try {
+      const port = (srv.address() as { port: number }).port;
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest('GET', `http://127.0.0.1:${port}/deflate`, {}, null);
+      expect(response.body).toBe('{"userId":1}');
+    } finally {
+      await new Promise<void>(resolve => srv.close(() => resolve()));
+    }
   });
 
   it('bhv transport 037 passes an empty body declared gzip through as empty, not an error', async () => {

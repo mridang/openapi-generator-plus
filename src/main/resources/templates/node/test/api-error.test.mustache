@@ -117,6 +117,26 @@ describe('ApiError', () => {
       expect(new ServerError(503, 'down').responseHeaders).toBeNull();
     });
 
+    test('bhv errors 025 a SerializationError is a {{errorPrefix}}Error', () => {
+      expect(new SerializationError('bad input')).toBeInstanceOf({{errorPrefix}}Error);
+    });
+
+    test.each([
+      [400, BadRequestError],
+      [401, UnauthorizedError],
+      [403, ForbiddenError],
+      [404, NotFoundError],
+      [409, ConflictError],
+      [422, UnprocessableEntityError],
+      [429, TooManyRequestsError],
+      [500, InternalServerError],
+      [503, ServerError],
+      [418, ClientError],
+      [302, ApiError],
+    ])('bhv errors 006 fromResponse maps status %i to its exception class', (status, expected) => {
+      expect(ApiError.fromResponse(status, null, null).constructor).toBe(expected);
+    });
+
     test('bhv errors 020 a NetworkTimeoutError is a NetworkError and ApiError with status 0', () => {
       const cause = new Error('socket hang up');
       const err = new NetworkTimeoutError('timed out', { cause });
@@ -159,6 +179,10 @@ describe('ApiError', () => {
       expect(typed).toBeInstanceOf(Category);
       expect(typed!.id).toBe(42);
       expect(typed!.name).toBe('Dogs');
+    });
+
+    test('bhv errors 010 fromResponse keeps a scalar json body as the error body', () => {
+      expect(ApiError.fromResponse(400, null, '42').errorBody).toBe(42);
     });
 
     test('bhv errors 008 parses an error body that starts with a BOM', () => {
