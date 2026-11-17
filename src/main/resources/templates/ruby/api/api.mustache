@@ -113,7 +113,7 @@ module {{moduleName}}
 {{/vendorExtensions.hasMultipleConsumes}}
       # @return [{{#isResponseFile}}StringIO{{/isResponseFile}}{{^isResponseFile}}{{{returnType}}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}]
       # @raise [ApiError] if fails to make API call
-{{#isDeprecated}}
+{{>api/operation_doc_throws}}{{#isDeprecated}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
@@ -144,7 +144,7 @@ module {{moduleName}}
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-{{#isDeprecated}}
+{{>api/operation_doc_throws}}{{#isDeprecated}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
       def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
@@ -383,6 +383,13 @@ module {{moduleName}}
 {{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
 {{/vendorExtensions.op.hasMultiple2xx}}          {{#vendorExtensions.op.hasSecuritySchemes}}scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
           raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+          error_schemas: {
+{{#vendorExtensions.op.errorSchemaResponses}}
+            '{{{status}}}' => ::{{{moduleName}}}::Errors::{{{schemaClassName}}}{{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+          },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
           operation_id: '{{classname}}.{{operationId}}',
           request_options: options
         )

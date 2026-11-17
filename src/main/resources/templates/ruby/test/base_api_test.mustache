@@ -1189,6 +1189,24 @@ describe {{moduleName}}::Api::BaseApi do
     _(err.message).wont_include('secret')
   end
 
+  it 'bhv_errors_205 a decode failure of a response carries the status, the headers and the raw body' do
+    response = {{moduleName}}::ApiHttpResponse.new(
+      status_code: 200, body: 'not json', headers: { 'Content-Type' => 'text/plain', 'X-Trace' => 'abc' }
+    )
+    config = {{moduleName}}::Configuration.builder.base_url('https://example.test/v1').build
+    test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+
+    err = assert_raises({{moduleName}}::Errors::SerializationError) do
+      test_api.call(:get, '/items/7?token=secret', {}, {}, nil, ['application/json'], 'application/json', 'Object')
+    end
+
+    _(err.status_code).must_equal 200
+    _(err.response_headers['X-Trace']).must_equal 'abc'
+    _(err.response_body).must_equal 'not json'
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/v1/items/7'
+  end
+
   it 'names the request on a failure that never reached the server' do
     config = {{moduleName}}::Configuration.builder.base_url('https://example.test').build
     test_api = TestableApi.new(RaisingApiClient.new, config)
