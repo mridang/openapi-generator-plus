@@ -6,7 +6,7 @@ namespace {
 
 use {{invokerPackage}}\ObjectSerializer;
 
-use {{modelPackage}}\SerializerProbe;
+use {{invokerPackage}}\Test\SerializerProbe;
 use {{invokerPackage}}\ValueSerializer;
 
 // -- path location --
@@ -611,24 +611,4 @@ test('styled form exploded set expands to repeated values', function (): void {
 test('bhv serializationparam 066 a null value is an empty string in the path location', function (): void {
     expect(ObjectSerializer::toPathValue(null))->toBe('');
 });
-}
-
-namespace {{modelPackage}} {
-    /*
-     * A stand-in model for the parameter-style tests: declared here rather than taken from the
-     * generated models so the tests hold for every spec this SDK is generated from.
-     */
-    final class SerializerProbe
-    {
-        public readonly string $breed;
-
-        #[\Symfony\Component\Serializer\Attribute\SerializedName('min_age')]
-        public readonly int $minAge;
-
-        public function __construct(string $breed, int $minAge)
-        {
-            $this->breed = $breed;
-            $this->minAge = $minAge;
-        }
-    }
 }

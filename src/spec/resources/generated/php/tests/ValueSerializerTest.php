@@ -6,7 +6,7 @@ namespace {
 
     use PetstoreClient\ObjectSerializer;
 
-    use PetstoreClient\Models\SerializerProbe;
+    use PetstoreClient\Test\SerializerProbe;
     use PetstoreClient\ValueSerializer;
 
 // -- path location --
@@ -611,24 +611,4 @@ namespace {
     test('bhv serializationparam 066 a null value is an empty string in the path location', function (): void {
         expect(ObjectSerializer::toPathValue(null))->toBe('');
     });
-}
-
-namespace PetstoreClient\Models {
-    /*
-     * A stand-in model for the parameter-style tests: declared here rather than taken from the
-     * generated models so the tests hold for every spec this SDK is generated from.
-     */
-    final class SerializerProbe
-    {
-        public readonly string $breed;
-
-        #[\Symfony\Component\Serializer\Attribute\SerializedName('min_age')]
-        public readonly int $minAge;
-
-        public function __construct(string $breed, int $minAge)
-        {
-            $this->breed = $breed;
-            $this->minAge = $minAge;
-        }
-    }
 }
