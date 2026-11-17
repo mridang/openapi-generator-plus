@@ -1980,8 +1980,21 @@ class ObjectSerializer
          * google.protobuf.Duration allows (e.g. "3600.000000001s"). Build a
          * PreciseDuration instead — a \DateInterval subclass that bypasses the
          * lossy native initialiser and keeps ->f as a full-precision float. */
+        /* A seconds count beyond the integer range would saturate in (int) and
+         * be read as PHP_INT_MAX without an error, so check it survives the
+         * cast unchanged before it is used. */
+        $digits = ltrim($m[2], '0');
+        if ($digits === '') {
+            $digits = '0';
+        }
+        if ((string) (int) $digits !== $digits) {
+            throw new SerializationException(
+                "Invalid protobuf-JSON duration '$value': seconds overflow the integer range"
+            );
+        }
+
         $interval = new PreciseDuration();
-        $interval->s = (int) $m[2];
+        $interval->s = (int) $digits;
 
         if (isset($m[3])) {
             /* Right-pad the captured fraction to 9 digits (nanoseconds) so the

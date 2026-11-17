@@ -28,6 +28,8 @@ import {
   SsoAuthAuthenticator,
   OpenIdConnectAuthenticator,
 } from "../src/index.js";
+import type { ApiClient } from "../src/api-client.js";
+import type { ApiHttpResponse } from "../src/api-http-response.js";
 
 describe("SchemeAuthenticators", () => {
   it.each([
@@ -221,6 +223,195 @@ describe("SchemeAuthenticators", () => {
               ),
           ).not.toThrow();
         },
+      );
+    });
+
+    it(`bhv authscheme 002 ${name} needs no environment when every credential is passed explicitly`, () => {
+      withVariables(
+        variables,
+        variables.map(() => undefined),
+        () => {
+          expect(
+            () =>
+              new cls(
+                "https://api.example.com",
+                ...variables.map(() => "explicit"),
+              ),
+          ).not.toThrow();
+        },
+      );
+    });
+  }
+
+  type SchemeWrapper = new (host: string, ...credentials: string[]) => unknown;
+  const schemeWrappers: Array<[string, SchemeWrapper, { name: string }]> = [
+    [
+      "PetStoreBasicAuthenticator",
+      PetStoreBasicAuthenticator,
+      BasicAuthenticator,
+    ],
+    ["AdminBasicAuthenticator", AdminBasicAuthenticator, BasicAuthenticator],
+    [
+      "PetStoreBearerAuthenticator",
+      PetStoreBearerAuthenticator,
+      BearerAuthenticator,
+    ],
+    [
+      "ServiceTokenAuthenticator",
+      ServiceTokenAuthenticator,
+      BearerAuthenticator,
+    ],
+    [
+      "ApiKeyHeaderAuthenticator",
+      ApiKeyHeaderAuthenticator,
+      ApiKeyAuthenticator,
+    ],
+    [
+      "InternalApiKeyAuthenticator",
+      InternalApiKeyAuthenticator,
+      ApiKeyAuthenticator,
+    ],
+    ["ApiKeyQueryAuthenticator", ApiKeyQueryAuthenticator, ApiKeyAuthenticator],
+    [
+      "SessionCookieAuthenticator",
+      SessionCookieAuthenticator,
+      ApiKeyAuthenticator,
+    ],
+    [
+      "MachineAuthClientCredentialsAuthenticator",
+      MachineAuthClientCredentialsAuthenticator,
+      OAuth2ClientCredentialsAuthenticator,
+    ],
+    [
+      "LegacyAuthPasswordAuthenticator",
+      LegacyAuthPasswordAuthenticator,
+      OAuth2PasswordAuthenticator,
+    ],
+    [
+      "UserAuthAuthorizationCodeAuthenticator",
+      UserAuthAuthorizationCodeAuthenticator,
+      OAuth2AuthorizationCodeAuthenticator,
+    ],
+    [
+      "BrowserAuthImplicitAuthenticator",
+      BrowserAuthImplicitAuthenticator,
+      OAuth2ImplicitAuthenticator,
+    ],
+    ["SsoAuthAuthenticator", SsoAuthAuthenticator, OpenIdConnectAuthenticator],
+  ];
+
+  const placeholders = (cls: { length: number }): string[] =>
+    Array.from(
+      { length: Math.max(cls.length - 1, 0) },
+      (_unused, index) => `value-${index}`,
+    );
+
+  type Recorded = Array<{ url: string; body: string | Buffer | null }>;
+  const recordingClient = (sent: Recorded): ApiClient => ({
+    async sendRequest(
+      _method: string,
+      url: string,
+      _headers: Record<string, string>,
+      body: string | Buffer | null,
+    ): Promise<ApiHttpResponse> {
+      sent.push({ url, body });
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          access_token: "access-token",
+          refresh_token: "refresh-token",
+          expires_in: 0,
+        }),
+        headers: { "content-type": "application/json" },
+      };
+    },
+  });
+
+  for (const [name, cls] of schemeWrappers.filter(
+    ([, , base]) => base.name === "BasicAuthenticator",
+  )) {
+    it(`bhv authbasic 002 ${name} emits a basic header and masks the password`, () => {
+      const auth = new cls("https://api.example.com", "alice", "s3cret") as {
+        getAuthHeaders(): Record<string, string>;
+      };
+      expect(auth.getAuthHeaders()).toEqual({
+        Authorization: `Basic ${Buffer.from("alice:s3cret").toString("base64")}`,
+      });
+      expect(JSON.stringify(auth)).not.toContain("s3cret");
+    });
+  }
+
+  for (const [name, cls] of schemeWrappers.filter(
+    ([, , base]) => base.name === "BearerAuthenticator",
+  )) {
+    it(`bhv authbearer 006 ${name} emits a bearer header and masks the token`, () => {
+      const auth = new cls("https://api.example.com", "abc-123") as {
+        getAuthHeaders(): Record<string, string>;
+      };
+      expect(auth.getAuthHeaders()).toEqual({
+        Authorization: "Bearer abc-123",
+      });
+      expect(JSON.stringify(auth)).not.toContain("abc-123");
+    });
+  }
+
+  for (const [name, cls] of schemeWrappers.filter(
+    ([, , base]) => base.name === "OAuth2ClientCredentialsAuthenticator",
+  )) {
+    it(`bhv authoauthtwoclientcred 009 ${name} sends the spec scopes to the spec token URL`, async () => {
+      const sent: Recorded = [];
+      const auth = new cls(
+        "https://api.example.com",
+        ...placeholders(cls),
+      ) as unknown as {
+        setApiClient(client: ApiClient): void;
+        getAuthHeadersAsync(): Promise<Record<string, string>>;
+        tokenUrl: string;
+        scopes: readonly string[];
+      };
+      auth.setApiClient(recordingClient(sent));
+
+      await auth.getAuthHeadersAsync();
+
+      expect(sent.map((call) => call.url)).toEqual([auth.tokenUrl]);
+      expect(new URLSearchParams(String(sent[0]!.body)).get("scope")).toBe(
+        auth.scopes.join(" "),
+      );
+    });
+  }
+
+  for (const [name, cls] of schemeWrappers.filter(
+    ([, , base]) => base.name === "OAuth2PasswordAuthenticator",
+  )) {
+    it(`bhv authoauthtwopassword 012 ${name} sends the spec scopes and urls`, async () => {
+      const sent: Recorded = [];
+      const auth = new cls(
+        "https://api.example.com",
+        ...placeholders(cls),
+      ) as unknown as {
+        setApiClient(client: ApiClient): void;
+        getAuthHeadersAsync(): Promise<Record<string, string>>;
+        tokenUrl: string;
+        refreshUrl: string;
+        scopes: readonly string[];
+      };
+      auth.setApiClient(recordingClient(sent));
+
+      await auth.getAuthHeadersAsync();
+      const originalNow = Date.now;
+      Date.now = () => originalNow() + 120_000;
+      try {
+        await auth.getAuthHeadersAsync();
+      } finally {
+        Date.now = originalNow;
+      }
+
+      expect(sent.map((call) => call.url)).toEqual([
+        auth.tokenUrl,
+        auth.refreshUrl,
+      ]);
+      expect(new URLSearchParams(String(sent[0]!.body)).get("scope")).toBe(
+        auth.scopes.join(" "),
       );
     });
   }

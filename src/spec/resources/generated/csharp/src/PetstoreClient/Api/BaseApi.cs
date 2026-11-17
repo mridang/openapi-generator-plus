@@ -451,20 +451,33 @@ public abstract class BaseApi
         )
         {
             invalidatable.InvalidateAccessToken();
-            headers = await BuildHeadersAsync().ConfigureAwait(false);
-            response = await ApiClient
-                .SendRequestAsync(
-                    method,
-                    requestUri,
-                    headers,
-                    requestBody,
-                    false,
-                    BuildHeadersAsync,
-                    timeout,
-                    maxRetries,
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
+            Dictionary<string, string>? replayHeaders = null;
+            try
+            {
+                replayHeaders = await BuildHeadersAsync().ConfigureAwait(false);
+            }
+            catch (OpenAPIException)
+            {
+                /* A failed re-authentication leaves the 401 as it is: the
+                   replay is not sent and the first response is reported below. */
+            }
+            if (replayHeaders is not null)
+            {
+                headers = replayHeaders;
+                response = await ApiClient
+                    .SendRequestAsync(
+                        method,
+                        requestUri,
+                        headers,
+                        requestBody,
+                        false,
+                        BuildHeadersAsync,
+                        timeout,
+                        maxRetries,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+            }
         }
 
         if (response.StatusCode is < 200 or >= 300)

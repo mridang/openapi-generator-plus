@@ -196,6 +196,78 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun bhvAuthoauthtwotokenmgr003RefreshResponseWithoutExpiresInClearsTheStaleExpiry() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2"}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params = mapOf("grant_type" to "client_credentials", "client_id" to "cid")
+        val tokenUrl = "https://auth.example.com/token"
+        val refreshUrl = "https://auth.example.com/refresh"
+
+        runBlocking { manager.getAccessToken(tokenUrl, params) }
+        assertEquals("tok2", runBlocking { manager.getAccessToken(tokenUrl, params, emptyMap(), refreshUrl) })
+        assertEquals("tok2", runBlocking { manager.getAccessToken(tokenUrl, params, emptyMap(), refreshUrl) })
+        assertEquals(2, client.bodies.size, "a token without expires_in must be cached, not refreshed again")
+    }
+
+    @Test
+    fun bhvAuthoauthtwotokenmgr015FailedExchangeRestoresThePreviousSession() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val url = "https://auth.example.com/token"
+
+        runBlocking { manager.exchange(url, mapOf("grant_type" to "authorization_code", "code" to "a")) }
+        assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking { manager.exchange(url, mapOf("grant_type" to "authorization_code", "code" to "bad")) }
+        }
+        assertEquals("ref1", manager.getRefreshToken())
+        assertEquals("tok1", runBlocking { manager.getAccessToken(url, mapOf("grant_type" to "authorization_code")) })
+        assertEquals(2, client.bodies.size)
+    }
+
+    @Test
+    fun bhvAuthoauthtwotokenmgr022RefreshGrantCarriesTheRefreshTokenAndTheClientCredentialsOnly() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params =
+            mapOf(
+                "grant_type" to "client_credentials",
+                "client_id" to "cid",
+                "client_secret" to "sec",
+                "scope" to "read",
+            )
+        val tokenUrl = "https://auth.example.com/token"
+
+        runBlocking { manager.getAccessToken(tokenUrl, params) }
+        runBlocking { manager.getAccessToken(tokenUrl, params, emptyMap(), "https://auth.example.com/refresh") }
+        assertEquals("grant_type=refresh_token&refresh_token=ref1&client_id=cid&client_secret=sec", client.lastBody)
+    }
+
+    @Test
+    fun bhvAuthoauthtwotokenmgr029TheRefreshGrantGoesToTheRefreshUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params = mapOf("grant_type" to "client_credentials", "client_id" to "cid")
+        val refreshUrl = "https://auth.example.com/refresh"
+
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params, emptyMap(), refreshUrl) }
+        assertEquals(refreshUrl, client.lastUrl)
+        assertEquals(2, client.bodies.size)
+    }
+
+    @Test
     fun bhvAuthoauthtwotokenmgr006ExchangeBypassesTheCacheAndRestoresTheSessionOnFailure() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
@@ -450,7 +522,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun hugeExpiresInIsClampedAndTheTokenStaysCached() {
+    fun bhvAuthoauthtwotokenmgr005HugeExpiresInIsClampedAndTheTokenStaysCached() {
         for (expiresIn in listOf("1e20", "9223372036854775807", "\"99999999999999999999\"")) {
             val client = FakeApiClient()
             client.enqueue("""{"access_token":"big1","expires_in":$expiresIn}""")

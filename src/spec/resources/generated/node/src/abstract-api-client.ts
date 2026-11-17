@@ -292,6 +292,14 @@ export abstract class AbstractApiClient implements ApiClient {
     const started = performance.now();
     const callerSignal = options?.signal;
     const maxRetries = options?.maxRetries ?? this.transportOptions.maxRetries;
+    /* A multipart body (an object of fields, not raw bytes) is never retried:
+     * a repeated upload can write twice, as in the other eleven SDKs. */
+    const multipart =
+      body != null &&
+      typeof body === "object" &&
+      !ArrayBuffer.isView(body) &&
+      !(body instanceof ArrayBuffer) &&
+      !(body instanceof Blob);
     for (let attempt = 0; ; attempt++) {
       /* Every retry is a fresh request: the headers are rebuilt from the
        * caller's, with the authentication headers asked for again. */
@@ -326,7 +334,7 @@ export abstract class AbstractApiClient implements ApiClient {
         response != null
           ? AbstractApiClient.isRetryableStatus(response.statusCode)
           : AbstractApiClient.isRetryableFailure(failure);
-      if (!retryable || attempt >= maxRetries) {
+      if (!retryable || multipart || attempt >= maxRetries) {
         return finish();
       }
       const delay = AbstractApiClient.retryDelayMs(attempt, response?.headers);

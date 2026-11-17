@@ -134,11 +134,50 @@ describe Petstore::Client::Api::PetApi do
   # A digit-leading parameter gets a legal identifier (n2nd_page) while the
   # wire name stays 2ndPage.
   describe '#find_pets_by_status digit-leading parameter' do
-    it 'sends 2ndPage under its original name' do
+    it 'bhv_operations_021 sends 2ndPage under its original name' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(n2nd_page: 2))
         _(captured.pop[:request_line]).must_include '2ndPage=2'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#find_pets_by_status explicit empty status' do
+    it 'bhv_operations_040 sends an explicit empty status as a status key in the query' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: ''))
+        _(captured.pop[:request_line]).must_match(/[?&]status=(?:[& ]|\z)/)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_avatar_thumbnail malformed base64' do
+    it 'bhv_operations_063 rejects malformed base64 with a SerializationError' do
+      api, server, thread, captured = capture_wire_request('"not*base64*!"')
+      begin
+        _(-> { api.get_pet_avatar_thumbnail(1) }).must_raise Petstore::Client::Errors::SerializationError
+        captured.pop
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_by_name required query on the wire' do
+    it 'bhv_operations_065 sends the required query param on the wire' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
+        _(captured.pop[:request_line]).must_include 'category=dogs'
       ensure
         server.close
         thread.join(2)
@@ -393,6 +432,19 @@ describe Petstore::Client::Api::PetApi do
     end
   end
 
+  describe '#set_pet_avatar_thumbnail on the wire' do
+    it 'bhv_operations_077 sends a byte body as a base64 json string' do
+      api, server, thread, captured = capture_wire_request('{}')
+      begin
+        api.set_pet_avatar_thumbnail(1, [0x89, 0x50, 0x4E, 0x47].pack('C*'))
+        _(captured.pop[:body]).must_equal '"iVBORw=="'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe '#upload_pet_certificate' do
     it 'bhv_operations_090 upload_pet_certificate' do
       options = Petstore::Client::Api::Options::UploadPetCertificateOptions.new(
@@ -401,6 +453,23 @@ describe Petstore::Client::Api::PetApi do
       result = @api.upload_pet_certificate(1, options)
 
       _(result).wont_be_nil
+    end
+  end
+
+  describe '#upload_pet_document undeclared request content type' do
+    it 'bhv_operations_093 rejects an undeclared request content type' do
+      error = assert_raises(ArgumentError) do
+        @api.upload_pet_document(
+          1,
+          Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
+            file: StringIO.new('doc-data'),
+            document_type: 'vaccination_record',
+            notes: 'Annual checkup'
+          ),
+          request_content_type: 'application/unknown-type'
+        )
+      end
+      _(error.message).must_include "Unsupported request content-type 'application/unknown-type' for "
     end
   end
 
@@ -1252,6 +1321,87 @@ describe Petstore::Client::Api::PetApi do
 
         header_line = captured.pop
         _(header_line).must_include 'Bearer config-default-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_020 never sends a credential held for a scheme the operation does not name' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+        admin_auth = Petstore::Client::Auth::BasicAuthenticator.new("http://127.0.0.1:#{port}", 'admin', 's3cret')
+        api = Petstore::Client::Api::PetApi.new(nil, config, nil, { 'adminBasic' => admin_auth })
+
+        pet = Petstore::Client::Models::Pet.new(id: 1, name: 'UnnamedDog', photo_urls: Set['http://example.com/p.jpg'])
+        api.add_pet(pet)
+
+        _(captured.pop).must_equal :none
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_026 uses the client-level authenticator when no scheme credential matches' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+        client_auth = Petstore::Client::Auth::BearerAuthenticator.new("http://127.0.0.1:#{port}", 'client-token')
+        admin_auth = Petstore::Client::Auth::BasicAuthenticator.new("http://127.0.0.1:#{port}", 'admin', 's3cret')
+        api = Petstore::Client::Api::PetApi.new(nil, config, client_auth, { 'adminBasic' => admin_auth })
+
+        pet = Petstore::Client::Models::Pet.new(id: 1, name: 'ClientAuthDog', photo_urls: Set['http://example.com/p.jpg'])
+        api.add_pet(pet)
+
+        _(captured.pop).must_include 'Bearer client-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_078 add pet without Options uses the configured credentials when no scheme credential is held' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = Petstore::Client::Configuration.new(
+          base_url: "http://127.0.0.1:#{port}",
+          default_headers: { 'Authorization' => 'Bearer config-no-options-token' }
+        )
+        api = Petstore::Client::Api::PetApi.new(nil, config)
+
+        pet = Petstore::Client::Models::Pet.new(id: 1, name: 'NoOptionsDog', photo_urls: Set['http://example.com/p.jpg'])
+        api.add_pet(pet)
+
+        _(captured.pop).must_include 'Bearer config-no-options-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_080 uses the first declared scheme the client holds a credential for' do
+      _api, server, thread, captured = capture_wire_request('{"id":1,"name":"x","photoUrls":[]}')
+
+      begin
+        base = "http://127.0.0.1:#{server.addr[1]}"
+        config = Petstore::Client::Configuration.new(base_url: base, default_headers: {})
+        schemes = {
+          'petStoreBearer' => Petstore::Client::Auth::BearerAuthenticator.new(base, 'bearer-second'),
+          'apiKeyHeader' => Petstore::Client::Auth::ApiKeyAuthenticator.new(base, 'X-API-Key', 'key-first', Petstore::Client::Auth::ApiKeyLocation::HEADER)
+        }
+        api = Petstore::Client::Api::PetApi.new(nil, config, nil, schemes)
+
+        pet = Petstore::Client::Models::Pet.new(id: 1, name: 'FirstSchemeDog', photo_urls: Set['http://example.com/p.jpg'])
+        api.add_pet(pet)
+
+        headers = captured.pop[:headers]
+        _(headers['x-api-key']).must_equal 'key-first'
+        _(headers).wont_include 'authorization'
       ensure
         server.close
         thread.join(2)

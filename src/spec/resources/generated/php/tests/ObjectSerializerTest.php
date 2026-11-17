@@ -139,6 +139,15 @@ test('bhv serializationobject 148 serialize uuid value roundtrips', function ():
     expect($serialized)->toBe('"550e8400-e29b-41d4-a716-446655440000"');
 });
 
+test('bhv serializationobject 176 a uuid round trip preserves its identity', function (): void {
+    $uuid = \Symfony\Component\Uid\Uuid::fromString('550e8400-e29b-41d4-a716-446655440000');
+
+    $back = ObjectSerializer::deserialize(ObjectSerializer::serialize($uuid), \Symfony\Component\Uid\Uuid::class);
+    expect($back)->toBeInstanceOf(\Symfony\Component\Uid\Uuid::class);
+    assert($back instanceof \Symfony\Component\Uid\Uuid);
+    expect($back->equals($uuid))->toBeTrue();
+});
+
 test('bhv serializationobject 016 a uuid model property is decoded from uppercase and written lowercase', function (): void {
     /** @var Order $order */
     $order = ObjectSerializer::deserialize('{"trackingId":"123E4567-E89B-12D3-A456-426614174000"}', Order::class);
@@ -182,6 +191,23 @@ test('bhv serializationobject 024 an inline enum keeps its mixed-case wire value
     'hyphenated lower case' => [\PetstoreClient\Models\EdgeCasesPhaseEnum::ON_HOLD, 'on-hold'],
     'upper snake case' => [\PetstoreClient\Models\EdgeCasesPhaseEnum::OUT_OF_STOCK, 'OUT_OF_STOCK'],
 ]);
+
+test('bhv serializationobject 022 every member of the inline enum round trips its wire value', function (): void {
+    foreach (\PetstoreClient\Models\EdgeCasesPhaseEnum::cases() as $case) {
+        $json = ObjectSerializer::serialize(new EdgeCases(phase: $case));
+
+        /** @var EdgeCases $back */
+        $back = ObjectSerializer::deserialize($json, EdgeCases::class);
+        expect($back->phase)->toBe($case);
+    }
+});
+
+test('bhv serializationobject 069 an inline enum deserializes a known wire value to its member', function (): void {
+    /** @var EdgeCases $model */
+    $model = ObjectSerializer::deserialize('{"phase":"on-hold"}', EdgeCases::class);
+
+    expect($model->phase)->toBe(\PetstoreClient\Models\EdgeCasesPhaseEnum::ON_HOLD);
+});
 
 test('bhv serializationobject 076 availability members with quotes, backslashes and template syntax round trip', function (
     Availability $case,
@@ -556,6 +582,14 @@ test('bhv serializationobject 171 type number field serializes as unquoted json 
     expect($back->weightKg)->toBe(1.5);
 });
 
+test('bhv serializationobject 177 a weight of type number survives a serialize and deserialize round trip', function (): void {
+    $pet = (new Pet(name: 'Rex', photoUrls: new \Ds\Set()))->withWeightKg(2.25);
+
+    /** @var Pet $back */
+    $back = ObjectSerializer::deserialize(ObjectSerializer::serialize($pet), Pet::class);
+    expect($back->weightKg)->toBe(2.25);
+});
+
 test('bhv serializationobject 087 serialize handles null', function (): void {
     $json = ObjectSerializer::serialize(null);
     expect($json)->toBe('null');
@@ -776,6 +810,11 @@ test('bhv serializationobject 166 a null numeric or boolean element in a contain
     'bool vector' => ['[null]', 'Ds\Vector<bool>'],
 ]);
 
+test('bhv serializationobject 123 a null value in a map of models is rejected', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"a":null}', 'Ds\Map<Pet>'))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'Null is not a valid');
+});
+
 test('bhv serializationobject 118 a null scalar element in a container is kept', function (): void {
     expect(ObjectSerializer::deserialize('["a",null]', 'string[]'))->toBe(['a', null]);
 });
@@ -949,7 +988,7 @@ test('bhv serializationobject 179 serialize DateInterval trims fraction to three
     expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('0.500s');
 });
 
-test('serialize negative DateInterval prefixes minus', function (): void {
+test('bhv serializationobject 105 serialize negative DateInterval prefixes minus', function (): void {
     $interval = new \DateInterval('PT1H');
     $interval->invert = 1;
     expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('-3600s');
@@ -1013,7 +1052,7 @@ test('bhv serializationobject 073 DateInterval round trips through stringify as 
     expect(ObjectSerializer::stringify($deserialized))->toBe('2700s');
 });
 
-test('DateInterval fractional value round trips', function (): void {
+test('bhv serializationobject 145 DateInterval fractional value round trips', function (): void {
     /* PreciseDuration carries the nanosecond fraction that a stock
      * \DateInterval would truncate to 0.0 on assignment. */
     $interval = new \PetstoreClient\PreciseDuration();
@@ -1033,6 +1072,32 @@ test('DateInterval invalid string surfaces exception', function (): void {
             expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
             expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
+});
+
+test('bhv serializationobject 013 a negative protobuf duration decodes, encodes back and keeps its sign', function (): void {
+    /** @var \DateInterval|null $result */
+    $result = ObjectSerializer::deserialize('"-3600s"', 'DateInterval');
+    expect($result)->toBeInstanceOf(\DateInterval::class);
+    /** @var \DateInterval $result */
+    expect($result->invert)->toBe(1);
+    expect(ObjectSerializer::stringify($result))->toBe('-3600s');
+});
+
+test('bhv serializationobject 106 a negative fractional duration carries the sign on the whole value', function (): void {
+    $interval = new \DateInterval('PT1S');
+    $interval->f = 0.5;
+    $interval->invert = 1;
+
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('-1.500s');
+});
+
+test('bhv serializationobject 158 stringify emits the canonical protobuf duration for a DateInterval', function (): void {
+    expect(ObjectSerializer::stringify(new \DateInterval('PT1H30M')))->toBe('5400s');
+});
+
+test('bhv serializationobject 080 a duration whose seconds overflow the integer range raises SerializationException', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('"99999999999999999999s"', 'DateInterval'))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
 test('bhv serializationobject 002 DateInterval bare number without suffix is rejected', function (): void {
@@ -1367,7 +1432,7 @@ test('bhv serializationobject 163 a format time model field is a partial-time on
 // the DECODED binary strings; ObjectSerializer base64-encodes them when it
 // builds the wire value and base64-decodes them when it reads it.
 
-test('byte fields hold raw bytes and are base64 only on the wire', function (): void {
+test('bhv serializationobject 079 byte fields hold raw bytes and are base64 only on the wire', function (): void {
     $scanA = "scan-A\x00\xff";
 
     /** @var \Ds\Vector<string> $scans */
@@ -1406,6 +1471,14 @@ test('bhv serializationobject 115 a contentEncoding base64 property holds raw by
     expect($back->biometricChip)->toBe("chip\x00\xff");
 });
 
+test('bhv serializationobject 015 a uniqueItems array of strings keeps the Set insertion order', function (): void {
+    /** @var Pet $pet */
+    $pet = ObjectSerializer::deserialize('{"name":"n","photoUrls":["b","a","c"]}', Pet::class);
+
+    expect($pet->photoUrls->toArray())->toBe(['b', 'a', 'c']);
+    expect(ObjectSerializer::serialize($pet))->toContain('"photoUrls":["b","a","c"]');
+});
+
 test('bhv serializationobject 012 a prefixItems array of mixed element types round trips in order', function (): void {
     /** @var Pet $pet */
     $pet = ObjectSerializer::deserialize(
@@ -1429,6 +1502,20 @@ test('bhv serializationobject 161 every separator enum value decodes to its own 
     }
 
     expect(array_unique($cases))->toHaveCount(4);
+});
+
+test('bhv serializationobject 032 constraint keywords are not enforced: slug, nickname and quantity decode as given', function (): void {
+    /** @var Pet $pet */
+    $pet = ObjectSerializer::deserialize('{"name":"n","photoUrls":[],"nickname":"x"}', Pet::class);
+    expect($pet->nickname)->toBe('x');
+
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"quantity":500}', Order::class);
+    expect($order->quantity)->toBe(500);
+
+    /** @var EdgeCases $model */
+    $model = ObjectSerializer::deserialize('{"slug":"abc"}', EdgeCases::class);
+    expect($model->slug)->toBe('abc');
 });
 
 test('bhv serializationobject 010 values beyond the schema constraints are accepted and round trip', function (): void {
@@ -1509,7 +1596,16 @@ test('bhv serializationobject 075 byte array fields of two vaults built apart co
     expect(ObjectSerializer::serialize($left))->toBe(ObjectSerializer::serialize($right));
 });
 
-test('vaults differing in one byte array are told apart on every shape', function (): void {
+test('bhv serializationobject 090 pets holding equal content are equal though their sets are distinct', function (): void {
+    $left = new Pet(name: 'Rex', photoUrls: new \Ds\Set(['a.png']));
+    $right = new Pet(name: 'Rex', photoUrls: new \Ds\Set(['a.png']));
+
+    expect($left->photoUrls)->not->toBe($right->photoUrls);
+    expect($left->photoUrls->toArray())->toBe($right->photoUrls->toArray());
+    expect(ObjectSerializer::serialize($left))->toBe(ObjectSerializer::serialize($right));
+});
+
+test('bhv serializationobject 005 vaults differing in one byte array are told apart on every shape', function (): void {
     $base = ObjectSerializer::serialize(
         new BinaryVault(seal: "\x01", shards: new \Ds\Vector(["\x02"]), labels: new \Ds\Map(['a' => "\x03"]))
     );
@@ -1551,6 +1647,43 @@ test('byte property with bad base64 on the wire is rejected', function (): void 
 });
 
 // -- unevaluatedProperties:false is enforced inside deserialize --
+
+test('bhv serializationobject 047 declared keys of a strict model decode', function (): void {
+    /** @var StrictTag $tag */
+    $tag = ObjectSerializer::deserialize('{"id":1,"name":"x"}', StrictTag::class);
+
+    expect($tag->id)->toBe(1);
+    expect($tag->name)->toBe('x');
+});
+
+test('bhv serializationobject 052 a strict model accepts its own serialized form when every key is declared', function (): void {
+    $json = ObjectSerializer::serialize(new StrictTag(id: 7, name: 'x'));
+
+    /** @var StrictTag $back */
+    $back = ObjectSerializer::deserialize($json, StrictTag::class);
+    expect($back->id)->toBe(7);
+    expect($back->name)->toBe('x');
+});
+
+test('bhv serializationobject 120 a fractional number for an int32 field is rejected', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"quantity":1.5}', Order::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 077 every wire-shape failure raises the SDK SerializationException', function (string $json, string $class): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, $class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+})->with([
+    'truncated json' => ['{"id":', Category::class],
+    'string for int' => ['{"id":"x","name":"Dogs"}', Category::class],
+    'malformed date-time' => ['{"shipDate":"not-a-date"}', Order::class],
+    'malformed uuid' => ['{"trackingId":"not-a-uuid"}', Order::class],
+    'malformed duration' => ['"PT1H"', 'DateInterval'],
+    'int overflow' => ['9223372036854775808', 'int'],
+    'null in a map of models' => ['{"a":null}', 'Ds\Map<Pet>'],
+    'undeclared key on a strict model' => ['{"id":1,"extra":1}', StrictTag::class],
+    'missing required field' => ['{"id":1,"petId":1,"quantity":1,"complete":false}', Order::class],
+]);
 
 test('bhv serializationobject 154 strict model rejects an undeclared key through deserialize', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{"name":"x","extra":1}', StrictTag::class))

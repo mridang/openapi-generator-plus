@@ -22,7 +22,7 @@ class TestServerConfiguration:
 
         assert config.get_url() == "https://prod.api.example.com/v1"
 
-    def test_applies_overrides_and_falls_back_to_defaults_for_unset_variables(
+    def test_bhv_servers_001_applies_overrides_and_falls_back_to_defaults_for_unset_variables(
         self,
     ) -> None:
         # "env" is overridden, "version" is left to its default — the resolved
@@ -40,6 +40,14 @@ class TestServerConfiguration:
         assert (
             config.get_url({"env": "staging"}) == "https://staging.api.example.com/v1"
         )
+
+    def test_bhv_servers_015_allows_a_null_description(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://api.example.com", description=None
+        )
+
+        assert config.description is None
+        assert config.get_url() == "https://api.example.com"
 
     def test_bhv_servers_006_exposes_raw_url_template_and_description(self) -> None:
         config = ServerConfiguration(
@@ -103,6 +111,17 @@ class TestGeneratedServers:
     def test_all_is_an_immutable_tuple(self) -> None:
         assert isinstance(ALL, tuple)
 
+    def test_bhv_servers_010_generated_servers_substitute_their_default_values(
+        self,
+    ) -> None:
+        for server in ALL:
+            defaults = {
+                name: variable.default_value
+                for name, variable in server.variables.items()
+            }
+
+            assert server.get_url() == server.url_template.format(**defaults)
+
     def test_generated_server_variables_are_read_only_and_their_enums_immutable(
         self,
     ) -> None:
@@ -114,6 +133,30 @@ class TestGeneratedServers:
 
 
 class TestServerVariableResolution:
+    def test_bhv_servers_003_accepts_an_override_value_that_is_in_the_variable_enum(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com",
+            variables={
+                "env": ServerVariable(
+                    default_value="prod", enum_values=["prod", "staging"]
+                )
+            },
+        )
+
+        assert config.get_url({"env": "staging"}) == "https://staging.api.example.com"
+
+    def test_bhv_servers_007_leaves_an_unknown_placeholder_in_the_template_untouched(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/{unknown}",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        assert config.get_url() == "https://prod.api.example.com/{unknown}"
+
     def test_bhv_servers_014_variable_without_an_enum_accepts_any_override(
         self,
     ) -> None:

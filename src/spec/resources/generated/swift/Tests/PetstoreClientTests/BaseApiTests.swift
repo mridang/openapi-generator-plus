@@ -66,6 +66,22 @@ import Testing
     }
   }
 
+  /// An authenticator whose token cannot be renewed: once invalidated it hands
+  /// out no Authorization header.
+  private final class FailingReauthAuth: BaseAuthenticator, AccessTokenInvalidating,
+    @unchecked Sendable
+  {
+    var renewalFailed = false
+
+    func invalidateAccessToken() {
+      renewalFailed = true
+    }
+    override func host() -> String { return "" }
+    override func authHeaders() async -> [String: String] {
+      return renewalFailed ? [:] : ["Authorization": "Bearer t1"]
+    }
+  }
+
   /// Answers each request with the next status, recording every request.
   private final class ScriptedApiClient: ApiClient, @unchecked Sendable {
     var statuses: [Int]
@@ -562,6 +578,33 @@ import Testing
     #expect(client.seenAuthorization == ["Bearer t1", "Bearer t2"])
   }
 
+  @Test func testBhvRetries008ASecond401IsSurfacedWithoutAThirdAttempt() async throws {
+    let client = ScriptedApiClient(statuses: [401, 401, 200])
+    let auth = RotatingAuth()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+    await #expect(throws: UnauthorizedError.self) {
+      _ = try await api.getPetById(petId: 1)
+    }
+    #expect(client.seenAuthorization.count == 2)
+  }
+
+  /* When the token cannot be renewed after a 401, the second 401 is the
+   * answer and the request is not replayed a third time. */
+  @Test func testBhvAuthintegration001AFailedReauthenticationLeavesThe401() async throws {
+    let client = ScriptedApiClient(statuses: [401, 401, 200])
+    let auth = FailingReauthAuth()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+    await #expect(throws: UnauthorizedError.self) {
+      _ = try await api.getPetById(petId: 1)
+    }
+    #expect(auth.renewalFailed)
+    #expect(client.seenAuthorization == ["Bearer t1", ""])
+  }
+
   @Test func testASecond401IsSurfacedWithoutAThirdAttempt() async throws {
     let client = ScriptedApiClient(statuses: [401, 401, 200])
     let auth = RotatingAuth()
@@ -572,6 +615,37 @@ import Testing
       _ = try await api.getPetById(petId: 1)
     }
     #expect(client.seenAuthorization.count == 2)
+  }
+
+  /* A bearer token is not one this SDK fetched, so a 401 is never replayed. */
+  @Test func testBhvRetries002ABearerAuthenticatorNeverReplays() async throws {
+    let client = ScriptedApiClient(statuses: [401, 200])
+    let auth = try BearerAuthenticator(host: "https://example.com", token: "static-token")
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+    await #expect(throws: UnauthorizedError.self) {
+      _ = try await api.getPetById(petId: 1)
+    }
+    #expect(client.seenAuthorization.count == 1)
+  }
+
+  /* A multipart body is held in memory but is never sent twice: after a 401 the
+   * token is dropped, and the 401 is surfaced without a replay. */
+  @Test func testBhvRetries006MultipartBodyIsNotReplayedAfter401() async throws {
+    let client = ScriptedApiClient(statuses: [401, 200])
+    let auth = RotatingAuth()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+    await #expect(throws: UnauthorizedError.self) {
+      _ = try await api.addPetPhotos(
+        petId: 1,
+        options: AddPetPhotosOptions(
+          files: [Data("photo".utf8)], metadata: PhotoMetadata(caption: "test")))
+    }
+    #expect(auth.invalidations == 1)
+    #expect(client.seenAuthorization.count == 1)
   }
 
   // MARK: - Nil body
@@ -774,7 +848,7 @@ import Testing
 
   // MARK: - Query parameter serialization
 
-  @Test func testQueryParamSerialization() async throws {
+  @Test func testBhvSerializationwire002QueryParamSerialization() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "[]"
 
@@ -786,6 +860,22 @@ import Testing
     #expect(
       mockClient.lastURL.contains("status=available"),
       "expected URL to contain status=available, got: \(mockClient.lastURL)")
+  }
+
+  /* An omitted optional query parameter is left out of the query string. */
+  @Test func testBhvSerializationwire010FindPetsByStatusOmittingStatusSendsNoStatusParam()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "[]"
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.findPetsByStatus(options: FindPetsByStatusOptions())
+    #expect(
+      !mockClient.lastURL.contains("status="),
+      "expected no status= in URL, got: \(mockClient.lastURL)")
   }
 
   @Test func testBhvSerializationwire015QueryParamEmptyWhenNoOptions() async throws {
@@ -846,6 +936,38 @@ import Testing
     )
   }
 
+  @Test func testBhvOperations003AllowEmptyValueParamIncludedWhenValueIsEmptyString() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "[]"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try? await api.findPetsByStatus(options: FindPetsByStatusOptions(status: ""))
+    #expect(
+      mockClient.lastURL.contains("status="),
+      "an empty-string allowEmptyValue param must be sent, got: \(mockClient.lastURL)")
+  }
+
+  @Test func testBhvOperations004ExplicitAcceptHeaderParameterBeatsDefaultAndNegotiated()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder()
+      .baseURL("https://example.com")
+      .defaultHeader(name: "Accept", value: "text/plain")
+      .build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let params = BaseApi.InvokeAPIParams(
+      method: "GET", path: "/items", queryParams: [:],
+      headerParams: ["Accept": "application/xml"], body: nil,
+      accepts: ["application/json"], contentType: "application/json",
+      returnType: "String", auth: BaseApi.noAuthSentinel)
+
+    _ = try await api.invokeAPI(params)
+
+    #expect(mockClient.lastHeaders["Accept"] == "application/xml")
+  }
+
   // MARK: - Server variable overrides
 
   @Test func testBhvOptions003ServerVariableOverridesResolve() throws {
@@ -860,6 +982,22 @@ import Testing
       .server(Servers.server1)
       .build()
     #expect(config.baseURL == "https://api.example.com/api/v3")
+  }
+
+  /* An operation whose path is already an absolute URL (a per-operation
+     server) is sent to that URL, and the client base URL is not prepended. */
+  @Test func testBhvErrors027AbsoluteUrlInPathBypassesTheClientBaseURL() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let params = BaseApi.InvokeAPIParams(
+      method: "GET", path: "https://other.example.org/v2/items", queryParams: [:],
+      headerParams: [:], body: nil, accepts: ["application/json"],
+      contentType: "application/json", returnType: "String", auth: BaseApi.noAuthSentinel)
+
+    _ = try await api.invokeAPI(params)
+
+    #expect(mockClient.lastURL == "https://other.example.org/v2/items")
   }
 
   @Test func testBhvOperations005ApiRequestUsesResolvedServerUrl() throws {
@@ -881,7 +1019,7 @@ import Testing
 
   /* The third global server carries quotes, an ampersand, a dollar sign and
      an interpolation opener in its text; all of it round-trips unchanged. */
-  @Test func testHostileGlobalServerTextRoundTripsUnchanged() throws {
+  @Test func testBhvServers013HostileGlobalServerTextRoundTripsUnchanged() throws {
     let server = Servers.server2
     #expect(server.urlTemplate == "https://{tenant}.example.com/api")
     #expect(server.description == "Bob's \"sandbox\" & co: $5 #{x} a*/b")
@@ -949,7 +1087,7 @@ import Testing
   // A value wrapped in AllowReservedValue (OAS allowReserved: true) keeps RFC
   // 3986 reserved characters literal, but a space is illegal in a URL and is
   // still percent-encoded to %20.
-  @Test func testAllowReservedKeepsReservedButEncodesSpace() {
+  @Test func testBhvSerializationparam002AllowReservedKeepsReservedButEncodesSpace() {
     let reserved = BaseApi.buildQueryString(
       ["revision": ValueSerializer.AllowReservedValue(value: "v1.0/beta:rc1")])
     #expect(
@@ -969,6 +1107,14 @@ import Testing
     let encoded = BaseApi.buildQueryString(
       ["revision": ValueSerializer.AllowReservedValue(value: "a'b[c]#d")])
     #expect(encoded == "revision=a'b%5Bc%5D%23d", "got: \(encoded)")
+  }
+
+  // Non-ASCII characters are percent-encoded even when the parameter allows
+  // reserved characters; only the reserved set stays literal.
+  @Test func testBhvSerializationparam003AllowReservedStillPercentEncodesNonAscii() {
+    let encoded = BaseApi.buildQueryString(
+      ["q": ValueSerializer.AllowReservedValue(value: "café/ü")])
+    #expect(encoded == "q=caf%C3%A9/%C3%BC", "got: \(encoded)")
   }
 
   // Without the marker (allowReserved: false / absent) reserved characters
@@ -1059,6 +1205,49 @@ import Testing
     #expect([UInt8](decoded) == original, "binary roundtrip must preserve bytes exactly")
   }
 
+  /* Every byte value survives the base64 round trip unchanged. */
+  @Test func testBhvSerializationwire017OctetStreamRoundTripsAllBytesExactly() async throws {
+    let original: [UInt8] = (0...255).map { UInt8($0) }
+    let mockClient = MockApiClient()
+    mockClient.responseBody = Data(original).base64EncodedString()
+    mockClient.responseHeaders = ["Content-Type": "application/octet-stream"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
+    guard let decoded = Data(base64Encoded: result.rawBody) else {
+      Issue.record("rawBody was not valid base64: \(result.rawBody)")
+      return
+    }
+    #expect([UInt8](decoded) == original, "every byte must round-trip exactly")
+  }
+
+  /* A text/plain answer is returned as the raw string, not parsed. */
+  @Test func testBhvSerializationwire019NonJsonResponseIsReturnedAsRawString() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "all quiet"
+    mockClient.responseHeaders = ["Content-Type": "text/plain"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let summary = try await api.getPetSummary(
+      petId: 5, asOf: "2024-01-15", options: GetPetSummaryOptions(session: "abc"))
+    #expect(summary == "all quiet")
+  }
+
+  /* A text/plain body that looks like JSON is not deserialized: it stays text. */
+  @Test func testBhvSerializationwire025NonJsonContentTypeSkipsDeserialization() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"ok\":true}"
+    mockClient.responseHeaders = ["Content-Type": "text/plain"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let summary = try await api.getPetSummary(
+      petId: 5, asOf: "2024-01-15", options: GetPetSummaryOptions(session: "abc"))
+    #expect(summary == "{\"ok\":true}")
+  }
+
   @Test func testBhvOperations012ImagePngResponseDecodedAsBytes() async throws {
     let original: [UInt8] = [
       0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
@@ -1099,6 +1288,18 @@ import Testing
     let api = PetApi(apiClient: mockClient, config: config)
     let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
     #expect(result.rawBody.isEmpty, "rawBody should be empty when response body is empty")
+  }
+
+  @Test func testBhvOperations006RawBodyIsANonNilStringForAnEmptyBody() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = ""
+    mockClient.responseHeaders = ["Content-Type": "application/octet-stream"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+    let raw: String = result.rawBody
+    #expect(raw == "", "rawBody must be an empty String, not nil, for an empty body")
   }
 
   // MARK: - NullBodyContentTypeTests
@@ -1193,6 +1394,25 @@ import Testing
     #expect(headers["Authorization"] == "Bearer scheme-level")
   }
 
+  /* An authenticator passed for one call overrides the client-level one. */
+  @Test func testBhvAuthintegration013PerCallAuthOverridesClientLevelAuthenticator() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(
+      apiClient: mockClient, config: config,
+      authenticator: MockAuth(headers: ["Authorization": "Bearer client-level"]))
+    let params = BaseApi.InvokeAPIParams(
+      method: "GET", path: "/items", queryParams: [:],
+      headerParams: [:], body: nil,
+      accepts: ["application/json"], contentType: "application/json",
+      returnType: "String",
+      auth: MockAuth(headers: ["Authorization": "Bearer per-call"]))
+
+    _ = try await api.invokeAPI(params)
+
+    #expect(mockClient.lastHeaders["Authorization"] == "Bearer per-call")
+  }
+
   @Test func testBhvAuthintegration014TheFirstListedSchemeTheClientHoldsWins() async throws {
     let headers = try await addPetHeaders(schemes: [
       "petStoreBearer": MockAuth(headers: ["Authorization": "Bearer second"]),
@@ -1202,7 +1422,7 @@ import Testing
     #expect(headers["Authorization"] == nil)
   }
 
-  @Test func testACredentialHeldForAnotherSchemeIsNeverSent() async throws {
+  @Test func testBhvOperations020ACredentialHeldForAnotherSchemeIsNeverSent() async throws {
     let headers = try await addPetHeaders(schemes: [
       "adminBasic": MockAuth(headers: ["Authorization": "Basic other"])
     ])
@@ -1223,6 +1443,14 @@ import Testing
   {
     let headers = try await addPetHeaders(
       schemes: ["adminBasic": MockAuth(headers: ["Authorization": "Basic other"])],
+      client: MockAuth(headers: ["Authorization": "Bearer client-level"]))
+    #expect(headers["Authorization"] == "Bearer client-level")
+  }
+
+  @Test func testBhvOperations026OperationWithNoMatchingSchemeUsesClientAuthenticator() async throws
+  {
+    let headers = try await addPetHeaders(
+      schemes: ["otherScheme": MockAuth(headers: ["Authorization": "Basic other"])],
       client: MockAuth(headers: ["Authorization": "Bearer client-level"]))
     #expect(headers["Authorization"] == "Bearer client-level")
   }
@@ -1297,7 +1525,7 @@ import Testing
       "Configured Bearer authenticator must reach the outbound request")
   }
 
-  @Test func testConfiguredApiKeyAuthenticatorIsAppliedToSecuredRequest() async throws {
+  @Test func testBhvOperations081TestAddPetUsingConfiguredCredentials() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -1494,7 +1722,9 @@ import Testing
   // raises — and the transport must never be reached. Mirrors how
   // BaseApi.isValidCookieValue guards the auth-provided cookies.
   @Test(arguments: ["abc\r\nInjected: yes", "abc\u{0000}def"])
-  func testOperationCookieParamWithControlCharFailsClosed(value: String) async throws {
+  func testBhvOperations029OperationCookieParamWithControlCharFailsClosed(value: String)
+    async throws
+  {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
@@ -1686,7 +1916,7 @@ import Testing
 
   /* An operation with no query, header, form or cookie parameter and no security
    * still takes an options struct, so it has a slot for per-call settings. */
-  @Test func testAnOperationWithoutParametersTakesPerCallHeaders() async throws {
+  @Test func testBhvOperations096AnOperationWithoutParametersTakesPerCallHeaders() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
@@ -1714,7 +1944,7 @@ import Testing
   // MARK: - Several success responses
 
   /* The body is decoded as the schema of the status that arrived. */
-  @Test func testSeveralSuccessResponsesDecodeByTheStatusThatArrived() async throws {
+  @Test func testBhvOperations120ReserveStockDecodesA201BodyAsTheNewReceipt() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = StoreApi(apiClient: mockClient, config: config)

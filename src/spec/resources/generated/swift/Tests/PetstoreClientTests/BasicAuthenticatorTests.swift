@@ -200,6 +200,26 @@ import Testing
     #expect(try await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
   }
 
+  /* A credential passed by neither route, or an empty variable (unset), fails when the
+   * authenticator is built, before any request. */
+  @Test
+  func testBhvAuthbasic003PetStoreBasicAuthenticatorMissingOrEmptyCredentialsFailAtConstruction()
+    throws
+  {
+    #expect(throws: ConfigurationError.self) {
+      _ = try PetStoreBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil, environment: [:])
+    }
+    #expect(throws: ConfigurationError.self) {
+      _ = try PetStoreBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "",
+        ])
+    }
+  }
+
   @Test
   func
     testBhvAuthbasic001AdminBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
@@ -221,6 +241,25 @@ import Testing
       ])
     let explicitEncoded = Data("alice:explicit-value".utf8).base64EncodedString()
     #expect(try await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
+  }
+
+  /* A credential passed by neither route, or an empty variable (unset), fails when the
+   * authenticator is built, before any request. */
+  @Test func testBhvAuthbasic003AdminBasicAuthenticatorMissingOrEmptyCredentialsFailAtConstruction()
+    throws
+  {
+    #expect(throws: ConfigurationError.self) {
+      _ = try AdminBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil, environment: [:])
+    }
+    #expect(throws: ConfigurationError.self) {
+      _ = try AdminBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "",
+        ])
+    }
   }
 
   private static func schemeWrapper(_ scheme: String, username: String, password: String) throws

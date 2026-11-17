@@ -112,6 +112,14 @@ class ObjectSerializerTest {
       LocalDate date = LocalDate.of(2024, 1, 15);
       assertEquals("2024-01-15", ObjectSerializer.stringify(date));
     }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject159 stringify returns a string unchanged, quotes and backslashes"
+            + " included")
+    void bhvSerializationObject159StringifyReturnsAStringUnchanged() {
+      assertEquals("say \"hi\" \\ now", ObjectSerializer.stringify("say \"hi\" \\ now"));
+    }
   }
 
   @Nested
@@ -227,6 +235,33 @@ class ObjectSerializerTest {
   }
 
   @Nested
+  @DisplayName("toQueryValueFixtureForms")
+  class ToQueryValueFormTests {
+
+    @Test
+    @DisplayName("bhvSerializationObject167 toQueryValue of a string returns it unencoded")
+    void bhvSerializationObject167QueryValueOfStringIsUnencoded() {
+      assertEquals("a b/c", ObjectSerializer.toQueryValue("a b/c", null));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject168 a string slice in CSV form keeps an empty slot for a null"
+            + " element")
+    void bhvSerializationObject168StringSliceCsvKeepsNullSlot() {
+      assertEquals("a,,b", ObjectSerializer.toQueryValue(Arrays.asList("a", null, "b"), "csv"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject169 a string slice in SSV form keeps an empty slot for a null"
+            + " element")
+    void bhvSerializationObject169StringSliceSsvKeepsNullSlot() {
+      assertEquals("a  b", ObjectSerializer.toQueryValue(Arrays.asList("a", null, "b"), "ssv"));
+    }
+  }
+
+  @Nested
   @DisplayName("toHeaderValue")
   class ToHeaderValueTests {
 
@@ -288,6 +323,12 @@ class ObjectSerializerTest {
     @DisplayName("bhvSerializationObject035 converts false to \"false\"")
     void bhvSerializationObject035ConvertsFalseToString() {
       assertEquals("false", ObjectSerializer.toFormValue(false));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject165 toFormValue of null is the empty string")
+    void bhvSerializationObject165FormValueOfNullIsEmpty() {
+      assertEquals("", ObjectSerializer.toFormValue(null));
     }
   }
 
@@ -544,6 +585,16 @@ class ObjectSerializerTest {
       assertEquals(
           original.toInstant(), parsed.toInstant(), "instant should match after round-trip");
     }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject179 a whole-second datetime serializes with a fixed three-digit"
+            + " fraction")
+    void bhvSerializationObject179WholeSecondDateTimeHasFixedFraction() {
+      OffsetDateTime whole = OffsetDateTime.parse("2024-01-02T03:04:05+00:00");
+      assertEquals("2024-01-02T03:04:05.000+00:00", ObjectSerializer.stringify(whole));
+      assertEquals("\"2024-01-02T03:04:05.000+00:00\"", serializer.serialize(whole));
+    }
   }
 
   @Nested
@@ -728,6 +779,30 @@ class ObjectSerializerTest {
       assertEquals(Arrays.asList(null, "a"), values);
     }
 
+    @Test
+    @DisplayName("bhvSerializationObject066 deserialize of invalid JSON reports the parser detail")
+    void bhvSerializationObject066InvalidJsonReportsTheParserDetail() {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "not json at all", com.example.petstore.models.Category.class));
+      String message = java.util.Objects.requireNonNull(ex.getMessage());
+      assertTrue(message.startsWith("Failed to deserialize JSON: "), message);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(
+        strings = {"{", "[1,2]", "\"plain\"", "true", "{\"id\":\"x\"}"})
+    @DisplayName("bhvSerializationObject077 every wire-shape failure is a SerializationException")
+    void bhvSerializationObject077WireShapeFailureIsSerializationException(String body) {
+      assertThrowsExactly(
+          SerializationException.class,
+          () -> serializer.deserialize(body, com.example.petstore.models.Category.class),
+          body);
+    }
+
     private void assertNullElementCause(SerializationException ex) {
       com.fasterxml.jackson.databind.exc.MismatchedInputException cause =
           assertInstanceOf(
@@ -840,8 +915,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("an enum's decode factory is where an unknown string is refused")
-    void unknownEnumStringIsRefusedByTheEnumDecodeFactory() {
+    @DisplayName("bhvSerializationObject024 an unknown inline enum value is rejected")
+    void bhvSerializationObject024UnknownInlineEnumValueIsRejected() {
       assertThrows(
           IllegalArgumentException.class,
           () -> com.example.petstore.models.Order.StatusEnum.fromValue("banana"));
@@ -1196,8 +1271,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("omits fields that are null from JSON output")
-    void omitsNullFieldsFromJson() {
+    @DisplayName(
+        "bhvSerializationObject023 an optional nullable field still drops its null from JSON"
+            + " output")
+    void bhvSerializationObject023OmitsNullFieldsFromJson() {
       // Gap #13: nulls must be discarded on serialize (Jackson NON_NULL inclusion).
       com.example.petstore.models.Category category =
           com.example.petstore.models.Category.builder().id(1L).name(null).build();
@@ -2379,6 +2456,259 @@ class ObjectSerializerTest {
               serializer.deserialize(
                   "{\"quantity\":500}", com.example.petstore.models.Order.class));
       assertEquals(Integer.valueOf(500), order.quantity);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject010 a nickname longer than its declared maximum still decodes and"
+            + " round-trips")
+    void bhvSerializationObject010NicknameBeyondItsMaxLengthRoundTrips() {
+      String json = "{\"name\":\"Rex\",\"photoUrls\":[\"u\"],\"nickname\":\"abcdefghijklmnop\"}";
+      com.example.petstore.models.Pet pet =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(json, com.example.petstore.models.Pet.class));
+      assertEquals("abcdefghijklmnop", pet.nickname);
+      assertTrue(serializer.serialize(pet).contains("\"nickname\":\"abcdefghijklmnop\""));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject017 a writeOnly property is decoded")
+    void bhvSerializationObject017WriteOnlyPropertyIsDecoded() {
+      com.example.petstore.models.Account decoded =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}",
+                  com.example.petstore.models.Account.class));
+      assertEquals("p", decoded.password);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject020 an additional property re-serializes at the top level, not"
+            + " nested")
+    void bhvSerializationObject020AdditionalPropertyReserializesAtTopLevel() {
+      com.example.petstore.models.Metadata decoded =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"extra\":\"x\"}", com.example.petstore.models.Metadata.class));
+      assertEquals("x", decoded.getAdditionalProperties().get("extra"));
+      String json = serializer.serialize(decoded);
+      assertTrue(json.contains("\"extra\":\"x\""), json);
+      assertFalse(json.contains("additionalProperties"), json);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject030 an out-of-range integer builds and is rejected when decoded")
+    void bhvSerializationObject030OutOfRangeIntegerRejectedOnDecode() {
+      com.example.petstore.models.Order built =
+          com.example.petstore.models.Order.builder().quantity(Integer.MAX_VALUE).build();
+      assertEquals(Integer.valueOf(Integer.MAX_VALUE), built.quantity);
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"quantity\":2147483648}", com.example.petstore.models.Order.class));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject047 a strict model decodes its declared keys")
+    void bhvSerializationObject047DeclaredKeysDecode() {
+      com.example.petstore.models.StrictTag tag =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize("{\"id\":5}", com.example.petstore.models.StrictTag.class));
+      assertEquals(Long.valueOf(5L), tag.id);
+      assertNull(tag.name);
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject048 decode rejects a malformed uuid")
+    void bhvSerializationObject048MalformedUuidIsRejectedOnDecode() {
+      for (String bad : new String[] {"not-a-uuid", "zzzzzzzz-c36c-495a-93fc-0c247a3e6e5f"}) {
+        assertThrowsExactly(
+            SerializationException.class,
+            () ->
+                serializer.deserialize(
+                    "{\"trackingId\":\"" + bad + "\"}", com.example.petstore.models.Order.class),
+            bad);
+      }
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject049 decodes an explicit null to null")
+    void bhvSerializationObject049ExplicitNullDecodesToNull() {
+      com.example.petstore.models.Order order =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"id\":3,\"shipDate\":null}", com.example.petstore.models.Order.class));
+      assertEquals(Long.valueOf(3L), order.id);
+      assertNull(order.shipDate);
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject050 a decoded payload without a property gets the default")
+    void bhvSerializationObject050AbsentPropertyGetsTheDefault() {
+      com.example.petstore.models.Defaults decoded =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"retries\":7}", com.example.petstore.models.Defaults.class));
+      assertEquals(Integer.valueOf(7), decoded.retries);
+      assertEquals(com.example.petstore.models.Defaults.ModeEnum.MEDIUM, decoded.mode);
+      assertEquals("untitled", decoded.label);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject056 an explicit null is kept over the default on deserialize")
+    void bhvSerializationObject056ExplicitNullOverridesTheDefault() {
+      com.example.petstore.models.Defaults decoded =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"label\":null}", com.example.petstore.models.Defaults.class));
+      assertNull(decoded.label);
+      assertEquals(Integer.valueOf(3), decoded.retries);
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject059 deserialize rejects an unknown availability wire value")
+    void bhvSerializationObject059UnknownAvailabilityWireValueIsRejected() {
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize("\"banana\"", com.example.petstore.models.Availability.class));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject061 deserialize succeeds when all required fields are present")
+    void bhvSerializationObject061CompleteRequiredFieldsDeserialize() {
+      com.example.petstore.models.Pet pet =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"name\":\"Rex\",\"photoUrls\":[\"u\"]}",
+                  com.example.petstore.models.Pet.class));
+      assertEquals("Rex", pet.name);
+      assertEquals(java.util.Set.of("u"), pet.photoUrls);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject062 deserialize throws when a required container field is explicitly"
+            + " null")
+    void bhvSerializationObject062NullRequiredContainerThrows() {
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"name\":\"Rex\",\"photoUrls\":null}", com.example.petstore.models.Pet.class));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject069 an inline model enum decodes a known wire value to its member")
+    void bhvSerializationObject069InlineEnumKnownValueDecodes() {
+      com.example.petstore.models.Order order =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"status\":\"delivered\"}", com.example.petstore.models.Order.class));
+      assertEquals(com.example.petstore.models.Order.StatusEnum.DELIVERED, order.status);
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject074 EdgeCases.slug accepts a value matching its pattern")
+    void bhvSerializationObject074SlugMatchingItsPatternIsAccepted() {
+      com.example.petstore.models.EdgeCases edge =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"slug\":\"7/xyz\"}", com.example.petstore.models.EdgeCases.class));
+      assertEquals("7/xyz", edge.slug);
+      assertEquals("{\"slug\":\"7/xyz\"}", serializer.serialize(edge));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject079 format:byte scalar and array fields round-trip through base64")
+    void bhvSerializationObject079ByteScalarAndArrayRoundTripThroughBase64() {
+      com.example.petstore.models.PetPassport passport =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"thumbnail\":\"dGVzdA==\",\"scans\":[\"aGk=\"]}",
+                  com.example.petstore.models.PetPassport.class));
+      assertEquals(
+          "test",
+          new String(
+              java.util.Objects.requireNonNull(passport.thumbnail),
+              java.nio.charset.StandardCharsets.UTF_8));
+      assertTrue(
+          Arrays.equals(
+              new byte[] {0x68, 0x69}, java.util.Objects.requireNonNull(passport.scans).get(0)));
+      String written = serializer.serialize(passport);
+      assertTrue(written.contains("\"thumbnail\":\"dGVzdA==\""), written);
+      assertTrue(written.contains("\"scans\":[\"aGk=\"]"), written);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject083 a required field absent from the payload throws on fromJson")
+    void bhvSerializationObject083AbsentRequiredFieldThrows() {
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"expiresAt\":\"2030-01-01T00:00:00Z\"}",
+                  com.example.petstore.models.ReservationReceipt.class));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject084 a required field explicitly null throws on fromJson")
+    void bhvSerializationObject084ExplicitNullRequiredFieldThrows() {
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"receiptCode\":null,\"expiresAt\":\"2030-01-01T00:00:00Z\"}",
+                  com.example.petstore.models.ReservationReceipt.class));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject108 a nested array of arrays deep-round-trips to typed integer"
+            + " leaves")
+    void bhvSerializationObject108NestedArrayOfArrayDeepRoundTrips() {
+      com.example.petstore.models.StockItem item =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"priority\":1,\"matrix\":[[1,2],[3]]}",
+                  com.example.petstore.models.StockItem.class));
+      Integer leaf = java.util.Objects.requireNonNull(item.matrix).get(0).get(1);
+      assertEquals(Integer.valueOf(2), leaf);
+      assertTrue(serializer.serialize(item).contains("\"matrix\":[[1,2],[3]]"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject118 a scalar where a nested model is expected raises"
+            + " SerializationException")
+    void bhvSerializationObject118ScalarWhereModelExpectedThrows() {
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"name\":\"Rex\",\"photoUrls\":[\"u\"],\"category\":5}",
+                  com.example.petstore.models.Pet.class));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject154 an undeclared key on a strict model inside a list is rejected")
+    void bhvSerializationObject154UndeclaredKeyInsideListIsRejected() {
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "[{\"id\":1,\"name\":\"x\",\"extra\":true}]",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      List<com.example.petstore.models.StrictTag>>() {}.getType()));
     }
   }
 

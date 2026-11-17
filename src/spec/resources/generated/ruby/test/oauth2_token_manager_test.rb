@@ -322,7 +322,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(err).must_be_instance_of Petstore::Client::Errors::OAuth2TokenError
   end
 
-  it 'a non-JSON 2xx token response does not echo the body in the message or cause' do
+  it 'bhv_authoauthtwotokenmgr_040 a non-JSON 2xx token response has the canonical message and no echo or cause' do
     client = FakeTokenClient.new([{ status: 200, body: 'access_token=gho_SECRET123&token_type=bearer' }])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
@@ -376,6 +376,18 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(error.code).must_equal 'invalid_grant'
     _(error.description).must_equal 'refresh token expired'
     _(error.uri).must_equal 'https://docs.example.com/errors/invalid_grant'
+  end
+
+  it 'bhv_authoauthtwotokenmgr_007 applies one margin capped at half the lifetime' do
+    short = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    short.api_client = FakeTokenClient.new([{ status: 200, body: { 'access_token' => 'short', 'expires_in' => 40 } }])
+    short.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(short.instance_variable_get(:@token_margin)).must_equal 20.0
+
+    long = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    long.api_client = FakeTokenClient.new([{ status: 200, body: { 'access_token' => 'long', 'expires_in' => 3600 } }])
+    long.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(long.instance_variable_get(:@token_margin)).must_equal 60
   end
 
   it 'bhv_authoauthtwotokenmgr_013 expires_in short-lived token does not storm' do
@@ -716,7 +728,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 2
   end
 
-  it 'bhv_authoauthtwotokenmgr_017 ignores a non-string refresh_token' do
+  it 'bhv_authoauthtwotokenmgr_017 bhv_authoauthtwotokenmgr_020 ignores a non-string refresh_token' do
     client = FakeTokenClient.new([
                                    { status: 200, body: { 'access_token' => 'tok', 'refresh_token' => 12_345, 'expires_in' => 3600 } }
                                  ])

@@ -108,10 +108,13 @@ void main() {
       expect(result, equals('false'));
     });
 
-    test('serializeValue query array', () {
-      final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'csv');
-      expect(result, equals('a,b,c'));
-    });
+    test(
+      'bhv serializationparam 006 serializeValue query array joins with comma by default',
+      () {
+        final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'csv');
+        expect(result, equals('a,b,c'));
+      },
+    );
 
     test('bhv serializationparam 009 serializeValue query array ssv', () {
       final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'ssv');
@@ -135,10 +138,13 @@ void main() {
       expect(items, equals(['a', 'b']));
     });
 
-    test('bhv serializationparam 007 serializeValue query array empty csv', () {
-      final result = serializeValue([], 'query', 'array', 'csv');
-      expect(result, equals(''));
-    });
+    test(
+      'bhv serializationparam 007 bhv serializationparam 032 serializeValue query array empty csv',
+      () {
+        final result = serializeValue([], 'query', 'array', 'csv');
+        expect(result, equals(''));
+      },
+    );
 
     test(
       'bhv serializationparam 031 serializeValue query array empty multi',
@@ -581,15 +587,18 @@ void main() {
 
     // SerializeDeepObject
 
-    test('serializeDeepObject', () {
-      final result = serializeDeepObject('filter', {
-        'status': 'active',
-        'type': 'dog',
-      });
+    test(
+      'bhv serializationparam 017 serializeDeepObject basic map returns bracketed keys',
+      () {
+        final result = serializeDeepObject('filter', {
+          'status': 'active',
+          'type': 'dog',
+        });
 
-      expect(result['filter[status]'], equals('active'));
-      expect(result['filter[type]'], equals('dog'));
-    });
+        expect(result['filter[status]'], equals('active'));
+        expect(result['filter[type]'], equals('dog'));
+      },
+    );
 
     test('bhv serializationparam 061 serializeDeepObject null', () {
       final result = serializeDeepObject('filter', null);
@@ -862,7 +871,7 @@ void main() {
       });
 
       test(
-        'bhv serializationparam 066 null returns empty string in path location',
+        'bhv serializationparam 066 bhv serializationparam 070 null returns empty string in path location',
         () {
           final result = serializeValue(null, 'path', 'string', '');
           expect(result, equals(''));
@@ -1048,7 +1057,7 @@ void main() {
     // `DateTime`, so the codegen routes such params through
     // `stringifyDate` to strip the time component before path-encoding.
     group('format:date stringifyDate helper', () {
-      test('UTC DateTime returns YYYY-MM-DD', () {
+      test('bhv serializationobject 044 UTC DateTime returns YYYY-MM-DD', () {
         final date = DateTime.utc(2024, 1, 15, 14, 30, 45);
         expect(stringifyDate(date), equals('2024-01-15'));
       });
@@ -1057,6 +1066,17 @@ void main() {
         final date = DateTime.utc(2024, 1, 15);
         expect(stringifyDate(date), equals('2024-01-15'));
       });
+
+      test(
+        'bhv serializationparam 027 a date at a day and year boundary still emits date-only',
+        () {
+          expect(
+            stringifyDate(DateTime.utc(2025, 12, 31, 23, 59, 59)),
+            equals('2025-12-31'),
+          );
+          expect(stringifyDate(DateTime.utc(2026, 1, 1)), equals('2026-01-01'));
+        },
+      );
     });
 
     // OAS `allowReserved: true` — reserved query encoding parity. Reserved
@@ -1065,7 +1085,7 @@ void main() {
     // yield `%20`, never `+`.
     group('allowReserved query encoding', () {
       test(
-        'bhv serializationparam 080 reserved characters left literal, other characters still encoded',
+        'bhv serializationparam 080 bhv serializationparam 002 reserved characters left literal, other characters still encoded',
         () {
           expect(
             encodeQueryAllowingReserved('v1.0/beta:rc1'),
@@ -1085,6 +1105,16 @@ void main() {
               "a:b/c?d[e]f@g!h\$i&j'k(l)m*n+o,p;q=r~s#t u",
             ),
             equals("a:b/c?d%5Be%5Df@g!h\$i&j'k(l)m*n+o,p;q=r~s%23t%20u"),
+          );
+        },
+      );
+
+      test(
+        'bhv serializationparam 003 non-ASCII characters are still percent-encoded as UTF-8',
+        () {
+          expect(
+            encodeQueryAllowingReserved('é/日'),
+            equals('%C3%A9/%E6%97%A5'),
           );
         },
       );
@@ -1159,7 +1189,7 @@ void main() {
     final withNull = <Object?>['1', null, '3'];
 
     test(
-      'bhv serializationparam 001 a null array element becomes an empty slot in every collection format',
+      'bhv serializationparam 001 bhv serializationparam 011 a null array element becomes an empty slot in every collection format',
       () {
         expect(
           serializeValue(withNull, 'query', 'array', 'csv'),
@@ -1206,7 +1236,7 @@ void main() {
     };
     preserved.forEach((char, name) {
       test(
-        'bhv serializationparam 071 the $name is kept literal in a path segment',
+        'bhv serializationparam 071 bhv serializationparam 081 the $name is kept literal in a path segment',
         () {
           expect(
             serializeValue('a${char}b', 'path', 'string', ''),
@@ -1217,7 +1247,7 @@ void main() {
     });
 
     test(
-      'bhv serializationparam 004 an already percent-encoded value is encoded again',
+      'bhv serializationparam 004 bhv serializationparam 073 an already percent-encoded value is encoded exactly once',
       () {
         expect(
           serializeValue('a%20b', 'path', 'string', ''),

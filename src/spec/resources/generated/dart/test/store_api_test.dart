@@ -117,6 +117,72 @@ void main() {
     );
 
     test(
+      'bhv operations 097 searchStore sends the content query parameter as the object serializer output',
+      () async {
+        String? query;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          query = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.searchStore(
+            SearchStoreOptions(q: PhotoMetadata(caption: 'x')),
+          );
+
+          expect(
+            Uri.decodeQueryComponent(query ?? ''),
+            contains('"caption":"x"'),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 107 getBySwatch omits the optional query parameter and header when they are not set',
+      () async {
+        String? query;
+        String? header;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          query = request.uri.query;
+          header = request.headers.value('preferred-swatch');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"sample"}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getBySwatch(Swatch.red, null);
+
+          expect(query, equals(''));
+          expect(header, isNull);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv operations 098 createAccount sends the writeOnly password and decodes the readOnly id',
       () async {
         String? requestBody;

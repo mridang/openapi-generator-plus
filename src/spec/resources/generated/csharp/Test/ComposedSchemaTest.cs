@@ -225,6 +225,35 @@ public class ComposedSchemaTest
     }
 
     [Fact]
+    public void BhvUnions003ASingleVariantAnyOfIsItsOwnActualAndMatchedInstance()
+    {
+        // Only Medication is satisfied by this payload, so the one matched
+        // variant is both the actual instance and the only matched instance.
+        var result = _serializer.Deserialize<PetTreatment>("{\"drugName\":\"Amoxicillin\"}")!;
+
+        var medication = Assert.IsType<Medication>(result.ActualInstance);
+        Assert.Equal("Amoxicillin", medication.DrugName);
+        var matched = Assert.Single(result.MatchedInstances);
+        Assert.Same(medication, matched);
+    }
+
+    [Fact]
+    public void BhvUnions005AnyOfKeepsItsVariantsInDeclarationOrderNotAlphabeticalOrder()
+    {
+        // TreatmentRecord declares Surgery before Medication. Alphabetically
+        // Medication would come first, so the order proves declaration order.
+        var record = _serializer.Deserialize<TreatmentRecord>(
+            "{\"drugName\":\"a\",\"procedureName\":\"b\"}"
+        )!;
+
+        Assert.Collection(
+            record.MatchedInstances,
+            first => Assert.IsType<Surgery>(first),
+            second => Assert.IsType<Medication>(second)
+        );
+    }
+
+    [Fact]
     public void BhvUnions002AnyOfSharedPropertyCollisionTheLaterDeclaredVariantWinsInTheOtherOrder()
     {
         // In TreatmentRecord Medication is declared last, so its `notes` wins.
@@ -360,6 +389,45 @@ public class ComposedSchemaTest
         Assert.Equal(2, decodedPayloads.Count);
         Assert.Equal(payloads[0], decodedPayloads[0]);
         Assert.Equal(payloads[1], decodedPayloads[1]);
+    }
+
+    [Fact]
+    public void BhvUnions018ScalarBase64StringResolvesToTheScalarVariantNotAList()
+    {
+        var result = _serializer.Deserialize<SetPetAvatarThumbnailRequest>("\"AQIDBA==\"");
+
+        Assert.NotNull(result);
+        Assert.IsType<byte[]>(result!.ActualInstance);
+        Assert.Equal(new byte[] { 0x01, 0x02, 0x03, 0x04 }, (byte[])result.ActualInstance!);
+    }
+
+    [Fact]
+    public void BhvUnions019ScalarByteVariantSerializesToABase64StringNotAnIntArray()
+    {
+        var request = new SetPetAvatarThumbnailRequest(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+
+        string json = _serializer.Serialize(request);
+
+        Assert.Equal("\"AQIDBA==\"", json);
+        Assert.DoesNotContain("[", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvUnions022SetPetAvatarThumbnailArrayByteOneOfRoundTripsThroughBase64()
+    {
+        var payloads = new List<byte[]>
+        {
+            new byte[] { 0x01, 0x02, 0x03, 0x04 },
+            new byte[] { 0x05, 0x06, 0x07, 0x08 },
+        };
+        var request = new SetPetAvatarThumbnailRequest(payloads);
+
+        string json = _serializer.Serialize(request);
+        var decoded = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json);
+
+        Assert.Equal("[\"AQIDBA==\",\"BQYHCA==\"]", json);
+        Assert.NotNull(decoded);
+        Assert.Equal(payloads, Assert.IsType<List<byte[]>>(decoded!.ActualInstance));
     }
 
     [Fact]

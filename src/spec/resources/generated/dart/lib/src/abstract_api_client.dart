@@ -212,7 +212,7 @@ abstract class AbstractApiClient implements RetryingApiClient {
       merged['X-Request-ID'] = _generateUuid();
     }
 
-    if (!merged.containsKey('Accept-Encoding')) {
+    if (!_hasHeader(merged, 'Accept-Encoding')) {
       merged['Accept-Encoding'] = _supportedEncodings();
     }
 

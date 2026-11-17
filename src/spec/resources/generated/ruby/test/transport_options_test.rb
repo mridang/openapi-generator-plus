@@ -112,7 +112,16 @@ describe Petstore::Client::TransportOptions do
     _(opts.max_redirects).must_be_nil
   end
 
+  it 'bhv_transport_057 sensitive header names include the static triple' do
+    _(Petstore::Client::TransportOptions.sensitive_header?('Authorization')).must_equal true
+    _(Petstore::Client::TransportOptions.sensitive_header?('Proxy-Authorization')).must_equal true
+    _(Petstore::Client::TransportOptions.sensitive_header?('Cookie')).must_equal true
+    _(Petstore::Client::TransportOptions.sensitive_header?('Accept')).must_equal false
+  end
+
   it 'a negative timeout raises ArgumentError' do
+
+  it 'bhv_options_033 rejects a non-positive timeout with the canonical message' do
     assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.timeout(-1) }
     err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.timeout(-5) }
     _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got -5)'
@@ -145,7 +154,7 @@ describe Petstore::Client::TransportOptions do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[::1:3128').build
     end
-    _(error.message).must_match(%r{\AInvalid proxy URL \(.*\): http://\[::1:3128\z}m)
+    _(error.message).must_match(/\AInvalid proxy URL \(.*\): http:\/\/\[::1:3128\z/m)
   end
 
   it 'constructing directly with a non-http proxy scheme raises ArgumentError' do
@@ -284,7 +293,7 @@ describe Petstore::Client::TransportOptions do
     '' => 'Invalid proxy URL (must use http or https scheme): ',
     'http://' => 'Invalid proxy URL (missing host): http://'
   }.each do |proxy, message|
-    it "rejects the proxy #{proxy.inspect} through the builder" do
+    it "bhv_options_031 rejects the proxy #{proxy.inspect} with its canonical message" do
       error = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.proxy(proxy) }
       _(error.message).must_equal message
     end
@@ -294,7 +303,7 @@ describe Petstore::Client::TransportOptions do
     'socks5://user:secret@proxy.example.com:1080' =>
       'Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080'
   }.each do |proxy, message|
-    it "masks the userinfo of the proxy #{proxy.inspect} in the error" do
+    it "bhv_options_008 masks the userinfo of the proxy #{proxy.inspect} in the error" do
       error = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.proxy(proxy) }
       _(error.message).must_equal message
       _(error.message).wont_include 'secret'

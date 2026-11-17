@@ -225,4 +225,11 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
 
     _(auth.auth_headers).must_equal('X-Api-Key' => 'first')
   end
+
+  it 'bhv_authapikey_016 passes a valid query key at construction' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'api_key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::QUERY
+    )
+    _(auth.query_params).must_equal({ 'api_key' => 'abc123' })
+  end
 end

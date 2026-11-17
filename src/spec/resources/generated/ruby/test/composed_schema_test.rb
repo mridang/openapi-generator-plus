@@ -70,6 +70,17 @@ describe 'Composed Schema' do
       _(err.message).must_include('raw')
     end
 
+    it 'bhv_serializationobject_128 returns the variant the discriminator selects' do
+      result = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+
+      _(result).must_be_kind_of(Petstore::Client::Models::DryFood)
+    end
+
+    it 'bhv_serializationobject_129 raises SerializationError when no oneOf variant matches' do
+      _ { Petstore::Client::ObjectSerializer.deserialize('{"foodType":"raw","calories":300}', 'PetFood') }
+        .must_raise Petstore::Client::Errors::SerializationError
+    end
+
     it 'bhv_unions_020 serializes DryFood back to JSON' do
       json = '{"foodType":"dry","weightKg":2.5}'
       result = Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood')
@@ -181,6 +192,11 @@ describe 'Composed Schema' do
 
       _(serialized).wont_be_empty
       _(serialized).must_include('Amoxicillin')
+    end
+
+    it 'bhv_serializationobject_127 raises SerializationError when no anyOf variant matches' do
+      _ { Petstore::Client::ObjectSerializer.deserialize('{}', 'PetTreatment') }
+        .must_raise Petstore::Client::Errors::SerializationError
     end
 
     it 'bhv_unions_007 raises for anyOf payload matching no variant' do
@@ -315,5 +331,15 @@ describe 'Composed Schema' do
       _(restored.name).must_equal(original.name)
       _(restored.owner_name).must_equal(original.owner_name)
     end
+  end
+
+  it 'bhv_unions_022 round-trips an array of byte values through base64 strings' do
+    raws = [[0x01, 0x02].pack('C*'), [0x03, 0x04].pack('C*')]
+    encoded = Petstore::Client::ObjectSerializer.encode_oneof_body(raws, 'SetPetAvatarThumbnailRequest')
+    json = Petstore::Client::ObjectSerializer.serialize(encoded)
+
+    _(json).must_equal('["AQI=","AwQ="]')
+    result = Petstore::Client::ObjectSerializer.deserialize(json, 'SetPetAvatarThumbnailRequest')
+    _(result.map(&:bytes)).must_equal([[0x01, 0x02], [0x03, 0x04]])
   end
 end

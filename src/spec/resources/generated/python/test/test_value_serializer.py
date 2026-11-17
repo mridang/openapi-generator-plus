@@ -30,6 +30,16 @@ class TestValueSerializerPath:
     def test_bhv_serializationparam_018_boolean_false_returns_false(self) -> None:
         assert ValueSerializer.serialize(False, "path", "boolean") == "false"
 
+    def test_bhv_serializationparam_066_null_returns_empty_string_in_path_location(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize_styled(
+                "id", None, "path", "string", None, "matrix", False
+            )
+            == ""
+        )
+
 
 class TestValueSerializerQuery:
     def test_bhv_serializationparam_067_null_returns_none(self) -> None:
@@ -143,6 +153,11 @@ class TestValueSerializerHeader:
 
     def test_bhv_serializationparam_030_empty_array_joins_to_empty_string(self) -> None:
         assert ValueSerializer.serialize([], "header", "array") == ""
+
+    def test_bhv_serializationparam_001_a_null_array_element_keeps_its_empty_slot(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize(["a", None, "b"], "header", "array") == "a,,b"
 
     def test_bhv_serializationparam_013_array_of_integers_stringifies_and_joins(
         self,
@@ -687,6 +702,17 @@ class TestValueSerializerFormatDatePath:
 
 
 class TestPathSegmentCharacterSet:
+    def test_bhv_serializationparam_071_path_is_segment_encoded_once(self) -> None:
+        assert ValueSerializer.encode_path_segment("a/b%20c") == "a%2Fb%2520c"
+
+    def test_bhv_serializationparam_080_reserved_characters_left_literal_other_characters_still_encoded(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.encode_path_segment("a;=,:@!$&'()*+ b/c?d#e")
+            == "a;=,:@!$&'()*+%20b%2Fc%3Fd%23e"
+        )
+
     @pytest.mark.parametrize("char", list(";=,:@!$&'()*+~"))
     def test_bhv_serializationparam_081_sub_delimiters_and_tilde_stay_literal(
         self, char: str

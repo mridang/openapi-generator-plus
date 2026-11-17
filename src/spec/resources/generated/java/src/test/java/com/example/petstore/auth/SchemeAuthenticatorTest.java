@@ -195,7 +195,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void itBuildsFromItsEnvironmentVariablesAlone() {
+    void bhvAuthBearer010ItBuildsFromItsEnvironmentVariablesAlone() {
       PetStoreBearerAuthenticator auth =
           new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "env-token"));
       assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));

@@ -41,6 +41,18 @@ describe("OAuth2ImplicitAuthenticator", () => {
     expect(url).toContain("state=my-state");
   });
 
+  test("bhv authoauthtwoimplicit 009 omits an empty state from the authorization url", () => {
+    expect(authenticator.buildAuthorizationUrl("")).not.toContain("state=");
+  });
+
+  test("bhv authoauthtwoimplicit 013 throws when access token set to empty", () => {
+    authenticator.setAccessToken("");
+
+    expect(() => authenticator.getAuthHeaders()).toThrow(
+      "Must set the access token before making API requests",
+    );
+  });
+
   test("bhv authoauthtwoimplicit 007 getAuthHeaders returns Bearer after setAccessToken", () => {
     authenticator.setAccessToken("implicit-tok");
 

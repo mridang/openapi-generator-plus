@@ -303,7 +303,9 @@ public class BaseApi: @unchecked Sendable {
      * A failed re-authentication leaves the 401 as it is. */
     if response.statusCode == 401, let invalidating = effectiveAuth as? AccessTokenInvalidating {
       invalidating.invalidateAccessToken()
-      if let fresh = try? await invalidating.authHeaders() {
+      /* A multipart body is never sent twice: the token is still dropped,
+       * so the next call fetches a new one, but the 401 is surfaced. */
+      if !isMultipart, let fresh = try? await invalidating.authHeaders() {
         headers = Self.mergeHeaders(headers, overriding: fresh)
         response = try await send(
           method: params.method, url: requestURL, headers: headers, body: serializedBody,

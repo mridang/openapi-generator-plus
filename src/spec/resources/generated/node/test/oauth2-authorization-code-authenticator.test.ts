@@ -107,6 +107,33 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(url).toContain("state=csrf-state-123");
   });
 
+  test("bhv authoauthtwoauthcode 018 omits an empty state from the authorization url", () => {
+    expect(authenticator.buildAuthorizationUrl("")).not.toContain("state=");
+  });
+
+  test("bhv authoauthtwoauthcode 017 the code exchange body keeps the tilde literal and percent-encodes * ! ' ( )", async () => {
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      "https://api.example.com",
+      "a~b*c!d'e(f)",
+      "my-client-secret",
+      "https://auth.example.com/authorize",
+      "https://auth.example.com/token",
+      "https://myapp.example.com/callback",
+      [],
+    );
+    mockClient.responseBody = JSON.stringify({
+      access_token: "access-token-123",
+      expires_in: 3600,
+    });
+    auth.setApiClient(mockClient);
+
+    await auth.exchangeCode("my-auth-code");
+
+    expect(String(mockClient.lastBody)).toContain(
+      "client_id=a~b%2Ac%21d%27e%28f%29",
+    );
+  });
+
   describe("PKCE (RFC 7636)", () => {
     const s256 = (verifier: string): string =>
       createHash("sha256").update(verifier).digest("base64url");

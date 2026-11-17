@@ -375,7 +375,7 @@ void main() {
 
   group('OAuth2ClientCredentialsAuthenticator scheme wrapper', () {
     test(
-      'MachineAuthClientCredentialsAuthenticator posts the declared token URL and scopes',
+      'bhv authoauthtwoclientcred 009 MachineAuthClientCredentialsAuthenticator posts the declared token URL and scopes',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');

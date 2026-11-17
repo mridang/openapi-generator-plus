@@ -73,6 +73,15 @@ public sealed class Configuration
     {
         return Builder().Build();
     }
+
+    /// <summary>
+    /// Returns a string representation with the value of every credential-bearing default
+    /// header replaced by <c>***</c>, so no secret reaches logs or debugger output.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(BaseUrl={BaseUrl}, DefaultHeaders={TransportOptions.RedactHeaders(DefaultHeaders)})";
+    }
 }
 
 /// <summary>

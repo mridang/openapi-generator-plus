@@ -268,7 +268,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetBySwatchWithoutOptionsSendsOnlyThePathValue() throws Exception {
+  void bhvOperations107GetBySwatchWithoutOptionsSendsOnlyThePathValue() throws Exception {
     String[] capturedUrl = new String[1];
     Map<String, String> capturedHeaders = new java.util.HashMap<>();
     ApiClient recording =
@@ -407,6 +407,25 @@ class StoreApiTest {
     assertThat(url).contains("\"takenAt\":\"2024-01-02T03:04:05.000+00:00\"");
     assertThat(url).contains("labels=one").contains("at=10:30:00.123");
     assertThat(capturedHeaders).containsEntry("X-Filter", "{\"k\":\"v\"}");
+  }
+
+  @Test
+  void bhvOperations097SearchStoreContentQueryIsTheObjectSerializerOutput() throws Exception {
+    String[] capturedUrl = new String[1];
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    com.example.petstore.models.PhotoMetadata metadata =
+        com.example.petstore.models.PhotoMetadata.builder().caption("a<b").build();
+
+    mockedApi.searchStore(new com.example.petstore.api.options.SearchStoreOptions().q(metadata));
+
+    String url = java.net.URLDecoder.decode(capturedUrl[0], StandardCharsets.UTF_8);
+    assertThat(url).contains("q=").contains("\"caption\":\"a<b\"");
   }
 
   @Test

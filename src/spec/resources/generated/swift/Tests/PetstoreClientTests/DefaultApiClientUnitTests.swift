@@ -128,6 +128,23 @@ import Testing
     #expect(capturedId?.range(of: uuidPattern, options: .regularExpression) != nil)
   }
 
+  /* A caller header replaces a transport default whose name differs only in letter case,
+     so the request carries one value for that header, the caller's. */
+  @Test func testBhvTransport047CallerHeaderReplacesADefaultOfAnotherCase() async throws {
+    var capturedFields: [String: String] = [:]
+    let transport = try TransportOptionsBuilder()
+      .defaultHeader(name: "accept", value: "text/plain").build()
+    let client = makeClient(transport: transport) { req in
+      capturedFields = req.allHTTPHeaderFields ?? [:]
+      return (self.body(), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/test",
+      headers: ["Accept": "application/json"], body: nil)
+    let accepts = capturedFields.filter { $0.key.caseInsensitiveCompare("Accept") == .orderedSame }
+    #expect(Array(accepts.values) == ["application/json"])
+  }
+
   @Test func testBhvTransport036DoesNotInjectRequestIdWhenDisabled() async throws {
     var capturedId: String?
     let transport = try TransportOptionsBuilder().injectRequestID(false).build()
@@ -261,6 +278,15 @@ import Testing
     #expect(resp.body.contains("vendor"))
   }
 
+  /* A repeated response header keeps its values in the order they arrived, joined with ", ". */
+  @Test func testBhvTransport022RepeatedResponseHeadersAreJoinedInOrder() async throws {
+    let client = makeClient { _ in (self.body("ok"), 200, ["X-Ordered": "first, second, third"]) }
+    let resp = try await client.sendRequest(
+      method: "GET", url: "http://localhost/ordered", headers: [:], body: nil)
+    let value = resp.headers.first(where: { $0.key.lowercased() == "x-ordered" })?.value
+    #expect(value == "first, second, third")
+  }
+
   @Test func testBhvTransport044JoinsMultiValueResponseHeaders() async throws {
     let client = makeClient { _ in (self.body("ok"), 200, ["X-Custom-Value": "val1, val2"]) }
     let resp = try await client.sendRequest(
@@ -287,7 +313,7 @@ import Testing
     }
   }
 
-  @Test func testMultipartFilenameWithNullThrows() {
+  @Test func testBhvSerializationwire050MultipartFilenameWithNullThrows() {
     let formParts: [String: Any] = ["foo\u{0000}bar": Data([0x01])]
     #expect(throws: ConfigurationError.self) {
       _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
@@ -313,7 +339,7 @@ import Testing
       "expected backslash-escaped backslash in body, got: \(bodyStr)")
   }
 
-  @Test func testBhvSerializationwire041MultipartNonAsciiFilenameUsesRFC5987() throws {
+  @Test func testBhvSerializationwire044MultipartNonAsciiFilenameUsesRFC5987() throws {
     let formParts: [String: Any] = ["日本.pdf": Data([0x01])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -733,6 +759,21 @@ import Testing
   /// through the regular session and a 200 response is surfaced
   /// untouched -- the OAuth2 path opts in, but BaseApi requests
   /// must not regress.
+  /// noRedirect=true sends the request exactly once: the 307 is not followed,
+  /// so the Location target is never requested.
+  @Test func testBhvRedirects021NoRedirectSendsOnceAndReturnsTheRedirectUnfollowed() async throws {
+    var calls = 0
+    let client = makeClient { _ in
+      calls += 1
+      return (self.body("moved"), 307, ["Location": "https://other.example/x"])
+    }
+    let resp = try await client.sendRequest(
+      method: "POST", url: "https://auth.example.com/token",
+      headers: [:], body: Data("grant_type=client_credentials".utf8), noRedirect: true)
+    #expect(resp.statusCode == 307)
+    #expect(calls == 1)
+  }
+
   @Test func testBhvRedirects014NoRedirectFalseAllowsNormalRequest() async throws {
     let client = makeClient { _ in (self.body("ok"), 200, [:]) }
     let resp = try await client.sendRequest(
@@ -777,7 +818,9 @@ import Testing
   // A body URLSession itself cannot decode (it reports
   // URLError.cannotDecodeContentData after the response arrived) is likewise
   // an ApiError with the real status, never a NetworkError.
-  @Test func testUndecodableBodyReportedByURLSessionThrowsApiErrorWithStatus() async throws {
+  @Test func testBhvTransport049UndecodableBodyReportedByURLSessionThrowsApiErrorWithStatus()
+    async throws
+  {
     let client = makeClient { _ in
       (
         Data("ignored".utf8), 502,
@@ -815,6 +858,55 @@ import Testing
     #expect(error?.statusCode == 0)
     #expect(!(error is NetworkTimeoutError))
     #expect((error?.underlyingError as? URLError)?.code == .networkConnectionLost)
+  }
+
+  /* A connect deadline that expires before any response arrives is a NetworkTimeoutError,
+     never a NetworkError, and the timeout is not retried. */
+  @Test func testBhvTransport031ConnectDeadlineRaisesNetworkTimeoutException() async throws {
+    var calls = 0
+    let client = makeClient(transport: try TransportOptionsBuilder().maxRetries(0).build()) { _ in
+      calls += 1
+      return (Data(), 200, [UnitStubURLProtocol.failBeforeResponseHeader: "timedOut"])
+    }
+    let error = await #expect(throws: NetworkTimeoutError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://localhost/connect", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+    #expect((error?.underlyingError as? URLError)?.code == .timedOut)
+    #expect(calls == 1)
+  }
+
+  /* The one timeout budget expires before any response arrives: NetworkTimeoutError, status 0. */
+  @Test func testBhvTransport058TimeoutRaisesNetworkTimeoutError() async throws {
+    let client = makeClient(
+      transport: try TransportOptionsBuilder().timeout(1000).maxRetries(0).build()
+    ) { _ in
+      return (Data(), 200, [UnitStubURLProtocol.failBeforeResponseHeader: "timedOut"])
+    }
+    let error = await #expect(throws: NetworkTimeoutError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://localhost/timeout", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+    #expect(error is NetworkTimeoutError)
+  }
+
+  // A body read that fails after the headers arrived is a NetworkError with
+  // status 0 and the URLError kept as the cause, never an ApiError for the 200.
+  @Test func testBhvErrors043BodyReadFailureIsWrappedInNetworkError() async throws {
+    let client = makeClient(transport: try TransportOptionsBuilder().maxRetries(0).build()) { _ in
+      (
+        Data("partial body".utf8), 200,
+        ["Content-Type": "application/json", UnitStubURLProtocol.failWithHeader: "timedOut"]
+      )
+    }
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://localhost/body-read", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+    #expect((error?.underlyingError as? URLError)?.code == .timedOut)
   }
 
   @Test func testBhvTransport029BodyStalledPastTheDeadlineAfterHeadersIsNetworkTimeoutError()
@@ -896,6 +988,24 @@ import Testing
     #expect(calls == 3)
   }
 
+  /* The per-call limit applies to that call only: the next call without one
+   * gets the transport's limit back. */
+  @Test func testBhvRetries004PerCallMaxRetriesDoesNotChangeTheNextCall() async throws {
+    var calls = 0
+    let client = try retryClient(maxRetries: 0) { _ in
+      calls += 1
+      return (Data(), 503, ["Retry-After": "0"])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/per-call", headers: [:], body: nil,
+      noRedirect: false, refreshHeaders: nil, maxRetries: 2)
+    #expect(calls == 3)
+
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/transport", headers: [:], body: nil)
+    #expect(calls == 4)
+  }
+
   @Test func testBhvRetries014PerCallMaxRetriesZeroTurnsRetriesOff() async throws {
     var calls = 0
     let client = try retryClient(maxRetries: 3) { _ in
@@ -926,6 +1036,25 @@ import Testing
       method: "GET", url: "http://localhost/per-call", headers: [:], body: nil)
     #expect(seen.count == 2)
     #expect(abs(seen[0] - 2.5) < 0.001)
+    #expect(abs(seen[1] - 10.0) < 0.001)
+  }
+
+  /* The per-call timeout ends with its call: the next call without one takes the transport's. */
+  @Test func testBhvTransport002TimeoutReachesTheTransportForThisCallOnly() async throws {
+    var seen: [TimeInterval] = []
+    let session = UnitStubURLProtocol.session { request in
+      seen.append(request.timeoutInterval)
+      return (Data(), 200, [:])
+    }
+    let client = try DefaultApiClient(
+      transportOptions: try TransportOptionsBuilder()
+        .session(session).timeout(10000).maxRetries(0).build())
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/one-call", headers: [:], body: nil,
+      noRedirect: false, refreshHeaders: nil, timeout: 2500)
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/next-call", headers: [:], body: nil)
+    #expect(seen.count == 2)
     #expect(abs(seen[1] - 10.0) < 0.001)
   }
 
@@ -1018,7 +1147,7 @@ import Testing
   }
 
   @Test(arguments: [400, 401, 403, 404, 422, 501])
-  func testStatusesThatAreNotTransientAreNotRetried(status: Int) async throws {
+  func testBhvRetries007StatusesThatAreNotTransientAreNotRetried(status: Int) async throws {
     var calls = 0
     let client = try retryClient { _ in
       calls += 1
@@ -1111,7 +1240,7 @@ import Testing
     #expect(calls == 1)
   }
 
-  @Test func testEachRetryAppliesTheAuthenticationHeadersAgain() async throws {
+  @Test func testBhvRetries005EachRetryAppliesTheAuthenticationHeadersAgain() async throws {
     final class Counter: @unchecked Sendable { var value = 0 }
     let issued = Counter()
     var seen: [String?] = []
@@ -1316,7 +1445,24 @@ import Testing
   /* The production session keeps no cookies and no response cache, so two
      identical calls behave identically and one client never sees another's
      Set-Cookie. URLSessionConfiguration.default would do both. */
+  /* One timeout arms the session's resource budget, which spans every redirect hop of a task. */
+  @Test func testBhvRedirects009TheResourceBudgetCoversEveryRedirectHop() throws {
+    let (session, _) = try DefaultApiClient.buildSession(
+      try TransportOptionsBuilder().timeout(2000).build())
+    #expect(session.configuration.timeoutIntervalForResource == 2)
+    #expect(session.configuration.timeoutIntervalForRequest == 2)
+  }
+
   @Test func testSessionIsStatelessWithoutCookiesOrCache() throws {
+    let (session, _) = try DefaultApiClient.buildSession(TransportOptionsBuilder().build())
+    let config = session.configuration
+    #expect(config.httpCookieStorage == nil)
+    #expect(config.httpShouldSetCookies == false)
+    #expect(config.urlCache == nil)
+    #expect(config.requestCachePolicy == .reloadIgnoringLocalCacheData)
+  }
+
+  @Test func testBhvRetries015SessionIsStatelessSoASetCookieIsNeverReplayed() throws {
     let (session, _) = try DefaultApiClient.buildSession(TransportOptionsBuilder().build())
     let config = session.configuration
     #expect(config.httpCookieStorage == nil)
@@ -1337,7 +1483,7 @@ import Testing
   /* The proxy credential answers the proxy's own challenge once and nothing
      else: an origin challenge keeps the default handling, so the credential
      never reaches the API host, and a repeated challenge cancels. */
-  @Test func testProxyCredentialAnswersOnlyTheProxyChallenge() {
+  @Test func testBhvTransport021ProxyCredentialAnswersOnlyTheProxyChallenge() {
     let credential = URLCredential(user: "u", password: "p", persistence: .forSession)
 
     let proxy = DefaultApiClient.proxyChallengeDisposition(
@@ -1434,6 +1580,27 @@ import Testing
 
   /* URLSession may hand the redirect a body STREAM; an original empty body
      still means there is nothing to replay. */
+  /* A 307 keeps the method and the body, so a streamed body that would be
+     replayed across an HTTPS -> HTTP hop is refused. */
+  @Test func testBhvRetries017StreamedBodyIsRefusedAcrossHttpsToHttpOn307() throws {
+    var streamed = URLRequest(url: try #require(URL(string: "http://other.example/x")))
+    streamed.httpBodyStream = InputStream(data: Data("payload".utf8))
+    #expect(
+      DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: streamed,
+        originalBody: Data("payload".utf8)))
+  }
+
+  /* A POST body is refused when the redirect downgrades HTTPS to HTTP. */
+  @Test func testBhvRetries020PostBodyIsRefusedAcrossHttpsToHttp() throws {
+    var post = URLRequest(url: try #require(URL(string: "http://other.example/x")))
+    post.httpMethod = "POST"
+    post.httpBody = Data("{}".utf8)
+    #expect(
+      DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: post, originalBody: nil))
+  }
+
   @Test func testBodyReplayGuardTreatsStreamOfEmptyOriginalAsEmpty() throws {
     var streamed = URLRequest(url: try #require(URL(string: "http://other.example/x")))
     streamed.httpBodyStream = InputStream(data: Data())
@@ -1744,6 +1911,21 @@ import Testing
 
   // MARK: - CA certificate fail-fast
 
+  /* A nonexistent CA path is refused even with verification switched off: the path is read
+     when the client is built, before any TLS option is applied. */
+  @Test func testBhvTransport048NonexistentCaCertPathFailsEvenWhenVerifySslIsFalse() throws {
+    let transport = try TransportOptionsBuilder()
+      .verifySsl(false).caCertPath("/nonexistent/ca.pem").build()
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try DefaultApiClient(transportOptions: transport)
+    }
+    guard case .invalidCACertificate(let message)? = error else {
+      Issue.record("expected invalidCACertificate, got \(String(describing: error))")
+      return
+    }
+    #expect(message.hasPrefix("failed to read CA certificate from \"/nonexistent/ca.pem\": "))
+  }
+
   @Test func testBhvErrors041NonexistentCaCertPathFailsFast() throws {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction with
@@ -1868,6 +2050,9 @@ private final class UnitStubURLProtocol: URLProtocol {
   /// A response header naming a URLError code makes the stub fail the load
   /// with that error after the response is delivered.
   static let failWithHeader = "X-Stub-Fail-With"
+  /// A response header naming a URLError code makes the stub fail the load
+  /// before any response arrives (a connect deadline or a refused connection).
+  static let failBeforeResponseHeader = "X-Stub-Fail-Before-Response"
 
   static func session(handler: @escaping (URLRequest) -> (Data, Int, [String: String]))
     -> URLSession
@@ -1907,6 +2092,11 @@ private final class UnitStubURLProtocol: URLProtocol {
       return
     }
     var (data, statusCode, headers) = handler(UnitStubURLProtocol.withBody(request))
+    if let failBefore = headers.removeValue(forKey: UnitStubURLProtocol.failBeforeResponseHeader) {
+      let code: URLError.Code = failBefore == "timedOut" ? .timedOut : .cannotConnectToHost
+      client?.urlProtocol(self, didFailWithError: URLError(code))
+      return
+    }
     let failWith = headers.removeValue(forKey: UnitStubURLProtocol.failWithHeader)
     guard let requestURL = request.url,
       let response = HTTPURLResponse(

@@ -167,6 +167,23 @@ describe("OpenIdConnectAuthenticator", () => {
     expect((error as Error).constructor).toBe(InternalServerError);
   });
 
+  test("bhv authoidc 018 omits an empty state from the authorization url", async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: "https://auth.example.com/authorize",
+          token_endpoint: "https://auth.example.com/token",
+        }),
+        headers: { "content-type": "application/json" },
+      },
+    ];
+
+    const url = await authenticator.buildAuthorizationUrl("");
+
+    expect(new URL(url).searchParams.has("state")).toBe(false);
+  });
+
   test("bhv authoidc 022 the authorization url always requests the openid scope once", async () => {
     mockClient.responses = [
       {
@@ -717,7 +734,7 @@ describe("OpenIdConnectAuthenticator", () => {
     ],
     ["token_endpoint", "https://auth.example.com/authorize", "not a url"],
   ])(
-    "discovery refuses a clear-text or unparseable %s",
+    "bhv authoidc 005 discovery rejects a clear text %s unless it is loopback",
     async (field, authorizationEndpoint, tokenEndpoint) => {
       mockClient.responses = discoveryDocument({
         authorization_endpoint: authorizationEndpoint,

@@ -21,6 +21,7 @@ import {
   NetworkTimeoutError,
 } from "../src/errors/index.js";
 import { TransportOptions } from "../src/transport-options.js";
+import { EdgeCases, Order } from "../src/models/index.js";
 
 let server: http.Server;
 let baseUrl: string;
@@ -674,6 +675,15 @@ describe("DefaultApiClient.decodeBody charset handling", () => {
     ).toBe("é");
   });
 
+  it("bhv serializationwire 033 decodes a windows-1252 body, mapping 0x80 to the euro sign", () => {
+    expect(
+      DefaultApiClient.decodeBody(
+        Buffer.from([0x80]),
+        "text/plain; charset=windows-1252",
+      ),
+    ).toBe("€");
+  });
+
   it("bhv serializationwire 031 decodes a BOM-less utf-16 body as big-endian (RFC 2781)", () => {
     // "Log" encoded UTF-16 big-endian, no BOM: 00 4c 00 6f 00 67.
     // Node's TextDecoder maps the bare 'utf-16' label to little-endian,
@@ -723,6 +733,15 @@ describe("DefaultApiClient.buildContentDisposition multipart filename safety", (
   it("bhv serializationwire 042 backslash-escapes quotes and backslashes in filename", () => {
     const header = DefaultApiClient.buildContentDisposition("file", 'a"b.txt');
     expect(header).toContain('filename="a\\"b.txt"');
+  });
+
+  it("bhv serializationwire 028 a non-BMP character in a multipart filename becomes one underscore", () => {
+    const header = DefaultApiClient.buildContentDisposition(
+      "file",
+      "\u{1F600}.png",
+    );
+    expect(header).toContain('filename="_.png"');
+    expect(header).toContain("filename*=UTF-8''%F0%9F%98%80.png");
   });
 
   it("bhv serializationwire 044 emits RFC 5987 filename* for non-ASCII filenames alongside ASCII fallback", () => {
@@ -943,6 +962,31 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     }
   });
 
+  it("bhv serializationwire 045 a model part is written with wire property names and the date-time format", async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest(
+        "POST",
+        url,
+        {},
+        {
+          edge: new EdgeCases({ n2fa: true }),
+          order: new Order({
+            quantity: 3,
+            shipDate: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+          }),
+        },
+      );
+      const body = getBody().toString("utf-8");
+      expect(body).toContain('"2fa":true');
+      expect(body).not.toContain("n2fa");
+      expect(body).toContain('"shipDate":"2024-01-15T10:30:00.000+00:00"');
+    } finally {
+      close();
+    }
+  });
+
   it("bhv serializationwire 046 #5 non-ASCII field name is preserved as UTF-8 in the part header", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
@@ -1090,6 +1134,25 @@ describe("cross-origin redirect strips API-key headers", () => {
     await new Promise<void>((resolve) => dstServer.close(() => resolve()));
   });
 
+  it("bhv redirects 012 cross-origin redirect strips Authorization and Cookie", async () => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest(
+      "GET",
+      `${srcUrl}/start`,
+      {
+        Authorization: "Bearer secret",
+        Cookie: "session=xyz",
+        Accept: "application/json",
+      },
+      null,
+    );
+    expect(lastReceivedHeaders["authorization"]).toBeUndefined();
+    expect(lastReceivedHeaders["cookie"]).toBeUndefined();
+    expect(lastReceivedHeaders["accept"]).toBe("application/json");
+  });
+
   it("bhv redirects 011 strips Authorization, the spec-declared apiKey headers, and Cookie on cross-origin 302", async () => {
     const transport = TransportOptions.builder().followRedirects(true).build();
     const client = new DefaultApiClient(transport);
@@ -1135,6 +1198,37 @@ describe("cross-origin redirect strips API-key headers", () => {
     expect(lastReceivedHeaders["x-tenant-token"]).toBeUndefined();
     expect(lastReceivedHeaders["x-custom-auth"]).toBeUndefined();
     expect(lastReceivedHeaders["x-correlation-id"]).toBe("corr-1");
+  });
+
+  it("bhv redirects 024 same-origin redirect keeps Authorization and Cookie", async () => {
+    let landed: Record<string, string | string[] | undefined> = {};
+    const same = http.createServer((req, res) => {
+      if (req.url === "/start") {
+        res.writeHead(302, { Location: "/landing" });
+        res.end();
+        return;
+      }
+      landed = req.headers;
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"ok":true}');
+    });
+    await new Promise<void>((resolve) => same.listen(0, "127.0.0.1", resolve));
+    try {
+      const sameUrl = `http://127.0.0.1:${(same.address() as { port: number }).port}`;
+      const client = new DefaultApiClient(
+        TransportOptions.builder().followRedirects(true).build(),
+      );
+      await client.sendRequest(
+        "GET",
+        `${sameUrl}/start`,
+        { Authorization: "Bearer secret", Cookie: "session=xyz" },
+        null,
+      );
+      expect(landed["authorization"]).toBe("Bearer secret");
+      expect(landed["cookie"]).toBe("session=xyz");
+    } finally {
+      await new Promise<void>((resolve) => same.close(() => resolve()));
+    }
   });
 
   it("bhv redirects 013 keeps Authorization and Cookie on a same-origin redirect", async () => {
@@ -1270,6 +1364,34 @@ describe("SendRequestOptions.noRedirect", () => {
     expect(response.headers["location"]).toBe("/final");
   });
 
+  it("bhv redirects 008 a redirect is returned, not followed, when redirects are disabled", async () => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(false).build(),
+    );
+    const response = await client.sendRequest(
+      "GET",
+      `${baseUrlLocal}/redirect`,
+      {},
+      null,
+    );
+    expect(response.statusCode).toBe(307);
+    expect(response.headers["location"]).toBe("/final");
+  });
+
+  it("bhv redirects 015 a per-call noRedirect returns the 307 and does not follow it", async () => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    const response = await client.sendRequest(
+      "GET",
+      `${baseUrlLocal}/redirect`,
+      {},
+      null,
+      { noRedirect: true },
+    );
+    expect(response.statusCode).toBe(307);
+  });
+
   it("bhv redirects 021 surfaces the 307 untouched when noRedirect=true", async () => {
     const transport = TransportOptions.builder().followRedirects(true).build();
     const client = new DefaultApiClient(transport);
@@ -1338,7 +1460,7 @@ describe("HTTPS -> HTTP body replay guard", () => {
     expect(call).toBe(1);
   });
 
-  it("refuses with the canonical message and masks query values in it", async () => {
+  it("bhv redirects 019 refuses with the canonical message and masks query values in it", async () => {
     global.fetch = (async (): Promise<Response> =>
       new Response(null, {
         status: 307,
@@ -2476,7 +2598,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
   });
 
   it.each([408, 409, 429, 500, 502, 503, 504, 599])(
-    "retries a %i and returns the success that follows",
+    "bhv retries 021 retries a %i and returns the success that follows",
     async (status) => {
       const response = await send(clientPlaying([reply(status), reply(200)]));
 
@@ -2485,11 +2607,32 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     },
   );
 
-  it.each([400, 401, 404, 422, 501])("does not retry a %i", async (status) => {
-    const response = await send(clientPlaying([reply(status)]));
+  it.each([400, 401, 404, 422, 501])(
+    "bhv retries 007 does not retry a %i",
+    async (status) => {
+      const response = await send(clientPlaying([reply(status)]));
 
-    expect(response.statusCode).toBe(status);
+      expect(response.statusCode).toBe(status);
+      expect(calls).toHaveLength(1);
+    },
+  );
+
+  it("bhv retries 003 a multipart body is not retried after a 503", async () => {
+    const response = await clientPlaying([reply(503), reply(200)]).sendRequest(
+      "POST",
+      "http://api.example/items",
+      {},
+      { "avatar.png": Buffer.from([0x89]) },
+    );
+    expect(response.statusCode).toBe(503);
     expect(calls).toHaveLength(1);
+  });
+
+  it("bhv retries 019 every call gets its own retry count and budget", async () => {
+    const client = clientPlaying([reply(503)]);
+    await send(client);
+    await send(client);
+    expect(calls).toHaveLength(6);
   });
 
   it("bhv retries 018 maxRetries(0) disables retries", async () => {
@@ -2508,7 +2651,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("a per-call maxRetries replaces the transport count in both directions", async () => {
+  it("bhv retries 004 a per-call maxRetries replaces the transport count in both directions", async () => {
     await send(
       clientPlaying([reply(503)], (builder) => builder.maxRetries(0)),
       { maxRetries: 3 },

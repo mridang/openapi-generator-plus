@@ -78,7 +78,9 @@ class TestDateTimeSubSecondPrecision:
     cross-SDK common denominator every native date-time type supports.
     """
 
-    def test_model_datetime_preserves_milliseconds_and_round_trips(self) -> None:
+    def test_bhv_serializationobject_046_model_datetime_preserves_milliseconds_and_round_trips(
+        self,
+    ) -> None:
         from petstore_client.models.photo_metadata import PhotoMetadata
 
         instant = datetime.datetime(
@@ -137,7 +139,7 @@ class TestContainerDatetimeAwareDecodeRule:
         result = ObjectSerializer()._deserialize("2024-01-01T12:30:45Z", "datetime")
         assert result.tzinfo is not None
 
-    def test_container_datetime_rejects_naive(self) -> None:
+    def test_bhv_serializationobject_003_container_datetime_rejects_naive(self) -> None:
         # The bug: a naive (offset-less) instant used to be accepted on this
         # path while AwareDatetime model fields reject it. It must now raise.
         with pytest.raises(ValueError):
@@ -244,7 +246,7 @@ class TestDeserializationErrorWrapping:
         assert type(exc_info.value) is SerializationException
         assert isinstance(exc_info.value, OpenAPIException)
 
-    def test_bhv_serializationobject_170_truncated_json_raises_serialization_error(
+    def test_bhv_serializationobject_170_bhv_serializationobject_066_truncated_json_raises_serialization_error(
         self,
     ) -> None:
         with pytest.raises(SerializationException):
@@ -348,6 +350,14 @@ class TestUriRoundTripsByteIdentical:
         restored = ObjectSerializer().deserialize(wire, "Pet")
         assert restored is not None
         assert restored.homepage_url == uri
+
+    def test_bhv_serializationobject_173_uri_reference_field_still_accepts_a_relative_reference(
+        self,
+    ) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "thumbnailRef": "/assets/thumb-fido.png"}'
+        restored = ObjectSerializer().deserialize(wire, "Pet")
+        assert restored is not None
+        assert restored.thumbnail_ref == "/assets/thumb-fido.png"
 
     def test_bhv_serializationobject_008_relative_reference_rejected(self) -> None:
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "/relative"}'
@@ -542,7 +552,7 @@ class TestStringify:
     ) -> None:
         assert ObjectSerializer.stringify(42) == "42"
 
-    def test_datetime_returns_iso8601_string(self) -> None:
+    def test_bhv_serializationobject_157_datetime_returns_iso8601_string(self) -> None:
         dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.timezone.utc)
         result = ObjectSerializer.stringify(dt)
         assert "2024-01-15" in result
@@ -736,7 +746,9 @@ class TestSerialize:
 
 
 class TestUuidRoundtrip:
-    def test_bhv_serializationobject_148_serializes_uuid_to_string(self) -> None:
+    def test_bhv_serializationobject_148_bhv_serializationobject_175_serializes_uuid_to_string(
+        self,
+    ) -> None:
         import uuid
 
         u = uuid.UUID("12345678-1234-5678-1234-567812345678")
@@ -1002,6 +1014,16 @@ class TestExcludeNoneOnSerialize:
         assert "id" not in data
         assert data["name"] == "Dogs"
 
+    def test_bhv_serializationobject_023_an_optional_nullable_field_still_drops_its_null(
+        self,
+    ) -> None:
+        import json
+        from petstore_client.models.defaults import Defaults
+
+        data = json.loads(ObjectSerializer().serialize(Defaults(label=None)))
+
+        assert "label" not in data
+
 
 class TestDeserialize:
     def test_bhv_serializationobject_070_deserializes_json_to_typed_model(self) -> None:
@@ -1091,12 +1113,16 @@ class TestRequiredFieldNullRejection:
     Pydantic 2 already rejects None for non-Optional typed fields; this test
     locks in that behaviour as a regression guard."""
 
-    def test_bhv_serializationobject_062_null_on_required_field_raises(self) -> None:
+    def test_bhv_serializationobject_062_bhv_serializationobject_084_bhv_serializationobject_086_null_on_required_field_raises(
+        self,
+    ) -> None:
         json_str = '{"name": null, "photoUrls": ["x"]}'
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "Pet")
 
-    def test_bhv_serializationobject_063_missing_required_field_raises(self) -> None:
+    def test_bhv_serializationobject_063_bhv_serializationobject_083_missing_required_field_raises(
+        self,
+    ) -> None:
         json_str = '{"photoUrls": ["x"]}'
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "Pet")
@@ -1293,7 +1319,7 @@ class TestDecodeValidates:
         with pytest.raises(ValidationError):
             Pet.model_validate({"name": 123, "photoUrls": []})
 
-    def test_a_valid_document_decodes(self) -> None:
+    def test_bhv_serializationobject_061_a_valid_document_decodes(self) -> None:
         pet = ObjectSerializer().deserialize(
             '{"name":"Fido","photoUrls":["a"],"status":"available"}', "Pet"
         )
@@ -1458,6 +1484,10 @@ class TestDurationFormat:
         )
         # Nanosecond precision below 1µs is truncated by timedelta resolution.
         assert result == datetime.timedelta(seconds=3600)
+
+    def test_bhv_serializationobject_113_parses_negative_durations(self) -> None:
+        result = ObjectSerializer()._deserialize("-5400.5s", "datetime.timedelta")
+        assert result == datetime.timedelta(seconds=-5400.5)
 
     def test_bhv_serializationobject_145_round_trip_duration_yields_same_value(
         self,
@@ -1908,7 +1938,9 @@ class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
 
         return SetPetAvatarThumbnailRequest
 
-    def test_scalar_variant_serializes_to_base64_string(self) -> None:
+    def test_bhv_unions_019_scalar_byte_variant_serializes_to_a_base64_string(
+        self,
+    ) -> None:
         model = self._model()
         req = model(bytes([0x01, 0x02, 0x03, 0x04]))
         wire = ObjectSerializer().serialize(req)
@@ -1935,7 +1967,7 @@ class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
         wire = ObjectSerializer().serialize(model(payloads))
         assert json.loads(wire) == ["AQIDBA==", "BQYHCA=="]
 
-    def test_array_variant_round_trips_to_original_payloads(self) -> None:
+    def test_bhv_unions_022_array_byte_oneof_round_trips_through_base64(self) -> None:
         model = self._model()
         payloads = [bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x05, 0x06, 0x07, 0x08])]
         wire = ObjectSerializer().serialize(model(payloads))
@@ -2140,7 +2172,9 @@ class TestReferencedEnumDefault:
     default. StockItem.availability is a `$ref` to the Availability enum with the
     sibling default `on-hold`."""
 
-    def test_a_constructed_model_starts_with_the_default(self) -> None:
+    def test_bhv_serializationobject_001_a_constructed_model_starts_with_the_default(
+        self,
+    ) -> None:
         from petstore_client.models.availability import Availability
         from petstore_client.models.priority import Priority
         from petstore_client.models.stock_item import StockItem
@@ -2392,7 +2426,7 @@ class TestNicknameConstraints:
 
 
 class TestPasswordFormatSendsTheRealValue:
-    def test_bhv_serializationobject_007_serialize_writes_the_password_not_the_mask(
+    def test_bhv_serializationobject_007_bhv_serializationobject_018_serialize_writes_the_password_not_the_mask(
         self,
     ) -> None:
         from petstore_client.models.account import Account
@@ -2408,7 +2442,7 @@ class TestPasswordFormatSendsTheRealValue:
 
         assert "'p'" not in repr(Account(username="u", password=SecretStr("p")))
 
-    def test_decode_keeps_the_password(self) -> None:
+    def test_bhv_serializationobject_017_decode_keeps_the_password(self) -> None:
         from petstore_client.models.account import Account
 
         account = ObjectSerializer().deserialize(

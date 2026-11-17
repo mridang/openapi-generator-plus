@@ -276,7 +276,7 @@ class TestMultiValueResponseHeaders:
 
 
 class TestResponseCookiesAreNotReplayed:
-    def test_a_set_cookie_is_never_sent_back_by_the_same_client(
+    def test_bhv_retries_015_a_set_cookie_is_never_sent_back_by_the_same_client(
         self, chasm_http_url: Any
     ) -> None:
         client = DefaultApiClient()
@@ -746,7 +746,9 @@ class TestN1RedirectBodyReplayMatrix:
         client.send_request("HEAD", "http://example.com/start", {}, None)
         assert pool.calls[1][0] == "HEAD"
 
-    def test_bhv_retries_010_307_https_to_http_with_body_raises(self) -> None:
+    def test_bhv_retries_010_bhv_retries_017_307_https_to_http_with_body_raises(
+        self,
+    ) -> None:
         from petstore_client.errors import ApiException
 
         transport = TransportOptions.builder().follow_redirects(True).build()

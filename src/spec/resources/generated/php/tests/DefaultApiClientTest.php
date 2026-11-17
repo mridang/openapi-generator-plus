@@ -678,7 +678,7 @@ test('bhv lifecycle 018 close releases underlying client', function (): void {
         ->toThrow(\LogicException::class, 'closed');
 });
 
-test('proxy auth squid end to end', function (): void {
+test('bhv transport 001 proxy auth squid end to end', function (): void {
     // The Squid fixture's second port answers 407 unless the request carries
     // Basic proxy credentials, so a success through it proves the credentials
     // embedded in the proxy URL reached the proxy.
@@ -753,4 +753,12 @@ test('a configured ca cert is the only trust anchor so an unrelated ca rejects t
     } finally {
         unlink($path);
     }
+});
+
+test('bhv transport 023 the default transport rejects a certificate from an untrusted ca', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->build());
+
+    expect(fn (): mixed => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
 });

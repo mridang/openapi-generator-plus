@@ -293,6 +293,22 @@ void main() {
     });
 
     test(
+      'bhv unions 002 a shared property keeps the later declared variant value whatever the list order',
+      () {
+        final treatment = PetTreatment.ofValues(<Object?>[
+          Surgery(procedureName: 'Spay', notes: 'from-surgery'),
+          Medication(drugName: 'Amoxicillin', notes: 'from-medication'),
+        ]);
+
+        final serialized = jsonEncode(treatment.toJson());
+        final restored = jsonDecode(serialized) as Map<String, dynamic>;
+
+        expect(restored['notes'], equals('from-surgery'));
+        expect('"notes"'.allMatches(serialized).length, equals(1));
+      },
+    );
+
+    test(
       'bhv unions 025 TreatmentRecord tries variants in declaration order',
       () {
         final record = TreatmentRecord.fromJson(<String, dynamic>{
@@ -304,24 +320,27 @@ void main() {
       },
     );
 
-    test('anyOf unions decoded from identical JSON are equal', () {
-      final json = <String, dynamic>{
-        'drugName': 'Amoxicillin',
-        'procedureName': 'Spay',
-      };
+    test(
+      'bhv unions 011 anyOf unions decoded from identical JSON are equal',
+      () {
+        final json = <String, dynamic>{
+          'drugName': 'Amoxicillin',
+          'procedureName': 'Spay',
+        };
 
-      final a = PetTreatment.fromJson(json);
-      final b = PetTreatment.fromJson(json);
+        final a = PetTreatment.fromJson(json);
+        final b = PetTreatment.fromJson(json);
 
-      expect(a, equals(b));
-      expect(a.hashCode, equals(b.hashCode));
-      expect(
-        a,
-        isNot(
-          equals(PetTreatment.fromJson(<String, dynamic>{'drugName': 'X'})),
-        ),
-      );
-    });
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        expect(
+          a,
+          isNot(
+            equals(PetTreatment.fromJson(<String, dynamic>{'drugName': 'X'})),
+          ),
+        );
+      },
+    );
 
     test('oneOf unions decoded from identical JSON are equal', () {
       final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};

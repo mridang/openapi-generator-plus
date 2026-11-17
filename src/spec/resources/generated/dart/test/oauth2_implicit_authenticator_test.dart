@@ -54,6 +54,17 @@ void main() {
     );
 
     test(
+      'bhv authoauthtwoimplicit 009 omits an empty state from the authorization url',
+      () {
+        final auth = _createAuthenticator();
+
+        final url = auth.buildAuthorizationUrl('');
+
+        expect(url, isNot(contains('state=')));
+      },
+    );
+
+    test(
       'bhv authoauthtwoimplicit 005 builds authorization URL with state',
       () {
         final auth = _createAuthenticator();
@@ -73,6 +84,25 @@ void main() {
         final headers = auth.authHeaders();
 
         expect(headers['Authorization'], equals('Bearer implicit-tok'));
+      },
+    );
+
+    test(
+      'bhv authoauthtwoimplicit 013 throws when access token set to empty',
+      () {
+        final auth = _createAuthenticator();
+        auth.setAccessToken('');
+
+        expect(
+          () => auth.authHeaders(),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Must set the access token before making API requests'),
+            ),
+          ),
+        );
       },
     );
 

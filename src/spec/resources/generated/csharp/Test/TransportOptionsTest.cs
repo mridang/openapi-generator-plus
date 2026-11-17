@@ -78,6 +78,56 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void BhvOptions042UserAgentDefaultsToThePublishedNameVersionAndLanguage()
+    {
+        var opts = TransportOptions.Builder().Build();
+        Assert.Equal("PetstoreClient/1.0.0 (csharp)", opts.UserAgent);
+    }
+
+    [Fact]
+    public void BhvOptions027MaxRetriesIsSetByTheBuilderAndByTheConstructorZeroDisablesRetrying()
+    {
+        var fromBuilder = TransportOptions.Builder().MaxRetries(0).Build();
+        var fromConstructor = new TransportOptions(
+            true,
+            null,
+            null,
+            10000,
+            true,
+            null,
+            null,
+            new Dictionary<string, string>(),
+            false,
+            null,
+            null,
+            3,
+            CancellationToken.None
+        );
+
+        Assert.Equal(0, fromBuilder.MaxRetries);
+        Assert.Equal(3, fromConstructor.MaxRetries);
+    }
+
+    [Fact]
+    public void BhvOptions023InspectMasksTheProxyPasswordAndSensitiveDefaultHeaders()
+    {
+        string password = "pw-" + "marker";
+        string bearer = "tok-" + "marker";
+        var opts = TransportOptions
+            .Builder()
+            .Proxy("http://user:" + password + "@proxy.example.com:8080")
+            .DefaultHeader("Authorization", "Bearer " + bearer)
+            .DefaultHeader("X-Custom", "value")
+            .Build();
+
+        string text = opts.ToString();
+
+        Assert.DoesNotContain(password, text, StringComparison.Ordinal);
+        Assert.DoesNotContain(bearer, text, StringComparison.Ordinal);
+        Assert.Contains("X-Custom=value", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BhvOptions019DefaultHeadersDefaultsToEmpty()
     {
         var opts = TransportOptions.Builder().Build();

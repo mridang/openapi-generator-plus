@@ -401,9 +401,11 @@ module Petstore::Client
 
     # Convert one element of an array, set or map. A null element of a
     # container of models is rejected: JSON Schema null is not an object,
-    # and Ruby cannot see whether the items schema was nullable.
+    # and Ruby cannot see whether the items schema was nullable. A null
+    # element of a container of numbers or booleans is rejected the same way:
+    # the leaf is a typed primitive, and null would reach it unchecked.
     def self.convert_element(item, sub_type)
-      raise Errors::SerializationError, "Null element in a container of #{sub_type}" if item.nil? && model_type?(sub_type)
+      raise Errors::SerializationError, "Null element in a container of #{sub_type}" if item.nil? && (model_type?(sub_type) || %w[Integer Float Boolean].include?(sub_type))
 
       convert_to_type(item, sub_type)
     end

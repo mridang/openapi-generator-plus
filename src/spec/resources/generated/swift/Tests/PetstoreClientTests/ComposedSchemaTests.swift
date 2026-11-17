@@ -354,6 +354,66 @@ import Testing
     #expect(encoded.components(separatedBy: "\"notes\"").count == 2)
   }
 
+  // MARK: - Shared properties, variant order and primitive unions
+
+  /* A property two variants share is written once, and its value is the one
+     the later declared variant holds. */
+  @Test func testBhvUnions002SharedPropertyKeepsTheLaterDeclaredVariantsValue() throws {
+    let collision = try #require(
+      TreatmentRecord([
+        Surgery(procedureName: "Spay", notes: "from-surgery"),
+        Medication(drugName: "Amoxicillin", notes: "from-medication"),
+      ]))
+    let encoded = String(decoding: try JSONEncoder().encode(collision), as: UTF8.self)
+    #expect(encoded.contains("from-medication"))
+    #expect(!encoded.contains("from-surgery"))
+    #expect(encoded.components(separatedBy: "\"notes\"").count == 2)
+  }
+
+  /* A single matching variant of an anyOf is both the actual instance and the
+     only matched instance. */
+  @Test func testBhvUnions003SingleMatchingVariantIsTheActualAndOnlyMatchedInstance() throws {
+    let jsonData = Data("{\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8)
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+    #expect(treatment.matchedInstances().count == 1)
+    #expect(treatment.actualInstance() is Surgery)
+    #expect(treatment.matchedInstances()[0] is Surgery)
+  }
+
+  /* An anyOf keeps its matched variants in the order the spec declares them,
+     whatever order the JSON keys arrive in. */
+  @Test func testBhvUnions005VariantsKeepDeclarationOrderWhateverTheKeyOrder() throws {
+    let jsonData = Data("{\"procedureName\":\"Spay\",\"drugName\":\"Amoxicillin\"}".utf8)
+    let record = try JSONDecoder().decode(TreatmentRecord.self, from: jsonData)
+    #expect(record.matchedInstances().count == 2)
+    #expect(record.matchedInstances()[0] is Surgery)
+    #expect(record.matchedInstances()[1] is Medication)
+  }
+
+  /* A base64 string that decodes to bytes resolves to the scalar variant, not a list. */
+  @Test func testBhvUnions018ScalarBase64StringResolvesToTheScalarVariant() throws {
+    let scalar = try JSONDecoder().decode(
+      SetPetAvatarThumbnailRequest.self, from: Data("\"//4=\"".utf8))
+    #expect(scalar.actualInstance(as: Data.self) == Data([0xFF, 0xFE]))
+    #expect(scalar.actualInstance(as: [Data].self) == nil)
+  }
+
+  /* An array of base64 strings round-trips through the array variant. */
+  @Test func testBhvUnions022SetPetAvatarThumbnailArrayRoundTripsThroughBase64() throws {
+    let json = "[\"//4=\",\"AQ==\"]"
+    let list = try JSONDecoder().decode(SetPetAvatarThumbnailRequest.self, from: Data(json.utf8))
+    #expect(list.actualInstance(as: [Data].self)?.count == 2)
+    #expect(try ObjectSerializer.serialize(list) == json)
+  }
+
+  /* A single base64 string round-trips through the scalar byte variant. */
+  @Test func testBhvUnions023SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64() throws {
+    let json = "\"//4=\""
+    let scalar = try JSONDecoder().decode(SetPetAvatarThumbnailRequest.self, from: Data(json.utf8))
+    #expect(scalar.actualInstance(as: Data.self) == Data([0xFF, 0xFE]))
+    #expect(try ObjectSerializer.serialize(scalar) == json)
+  }
+
   // MARK: - allOf: PetWithOwner extends Pet fields
 
   @Test func testBhvUnions004PetWithOwnerDeserialize() throws {

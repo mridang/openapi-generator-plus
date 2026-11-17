@@ -740,6 +740,40 @@ class PetApiTest {
   }
 
   @Test
+  void bhvOperations052GetPetByNameThrowsWhenTheRequiredPathParamIsEmpty() {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(() -> petApi.getPetByName("", new GetPetByNameOptions("cats", "corr-1")))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Path parameter 'name' must not be empty");
+    assertThat(capturing.capturedUrl).isNull();
+  }
+
+  @Test
+  void bhvOperations064GetPetByNameKeepsANameThatOnlyContainsDots() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetByName("...", new GetPetByNameOptions("cats", "corr-1"));
+
+    assertThat(capturing.capturedUrl).startsWith("http://localhost/pet/byName/...?");
+  }
+
+  @Test
+  void bhvOperations065GetPetByNameSendsTheRequiredQueryParamOnTheWire() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetByName("rex", new GetPetByNameOptions("cats", "corr-1"));
+
+    assertThat(capturing.capturedUrl).contains("category=cats");
+  }
+
+  @Test
   void bhvOperations059GetPetTagSendsByteParametersAsStandardPaddedBase64() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
@@ -778,6 +812,32 @@ class PetApiTest {
     String url = java.util.Objects.requireNonNull(capturing.capturedUrl);
     assertThat(url.substring(url.indexOf('?') + 1))
         .isEqualTo("colors=a%7Cb&sizes=x%20y&filter=f&revision=v1.0/beta:rc1");
+  }
+
+  @Test
+  void bhvOperations060GetPetTagUsesTheMatrixAndLabelPathStyles() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetTag(5L, "x", new GetPetTagOptions());
+
+    assertThat(capturing.capturedUrl).startsWith("http://localhost/pet/;petId=5/tag/.x");
+  }
+
+  @Test
+  void bhvOperations068GetPetTagSerializesOptionalArrayQueryParamsAsStyledValues()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetTag(
+        5L,
+        "cute",
+        new GetPetTagOptions().colors(List.of("blue", "black")).sizes(List.of("S", "M")));
+
+    assertThat(capturing.capturedUrl).contains("colors=blue%7Cblack").contains("sizes=S%20M");
   }
 
   @Test
@@ -892,6 +952,23 @@ class PetApiTest {
     } catch (Exception ignored) {
       // The capturing client returns no body, so deserialization of the
       // List<Pet> result may fail; we only care about the captured URL.
+    }
+
+    assertNotNull(capturing.capturedUrl);
+    assertThat(capturing.capturedUrl).doesNotContain("status=");
+  }
+
+  @Test
+  void bhvSerializationWire010FindPetsByStatusOmittingStatusSendsNoStatusInQuery()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    try {
+      petApi.findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (Exception ignored) {
+      // The capturing client returns no body; only the captured URL matters.
     }
 
     assertNotNull(capturing.capturedUrl);
@@ -1313,7 +1390,8 @@ class PetApiTest {
   }
 
   @Test
-  void testSetPetPreferencesSerialisesRenewalDateWithoutTimeComponent() throws Exception {
+  void bhvOperations019SetPetPreferencesSerialisesRenewalDateWithoutTimeComponent()
+      throws Exception {
     // The format:date form field renewalDate must be sent as YYYY-MM-DD in
     // the x-www-form-urlencoded body, with no time component.
     Object[] capturedBody = new Object[1];
@@ -1379,6 +1457,23 @@ class PetApiTest {
   }
 
   @Test
+  void bhvOperations084TheMirrorOperationServerResolvesReservedCharactersRaw() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getMultiServerPetInfo(
+        3L,
+        new PetApi.GetMultiServerPetInfoServer.Mirror(
+            PetApi.GetMultiServerPetInfoServer.MirrorRegion.EU,
+            PetApi.GetMultiServerPetInfoServer.Channel.IT_S),
+        null);
+
+    assertThat(capturing.capturedUrl)
+        .isEqualTo("https://eu.mirror.example.com/it's/v1/pet/3/multi");
+  }
+
+  @Test
   void bhvOperations085GetMultiServerPetInfoPicksAmongItsDeclaredServers() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
@@ -1434,7 +1529,7 @@ class PetApiTest {
         "a\\b",
         "café"
       })
-  void deletePetRefusesACookieValueWithAnIllegalCookieOctet(String value) {
+  void bhvOperations028DeletePetRefusesACookieValueWithAnIllegalCookieOctet(String value) {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
@@ -1459,6 +1554,33 @@ class PetApiTest {
 
     assertNotNull(capturing.capturedHeaders);
     assertThat(capturing.capturedHeaders).containsEntry("Cookie", "api_key=" + value);
+  }
+
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(
+      strings = {"abc\r\nInjected: yes", "abc\rdef", "abc\ndef"})
+  void bhvOperations029DeletePetRefusesACookieValueWithCrlfFailingClosed(String value) {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey(value)))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage(
+            "Cookie value for 'api_key' contains characters outside the RFC 6265"
+                + " cookie-octet set; percent-encode the value before passing it");
+    assertThat(capturing.capturedUrl).isNull();
+  }
+
+  @Test
+  void bhvOperations077SetPetAvatarThumbnailStillSendsABase64JsonString() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.setPetAvatarThumbnail(1L, new SetPetAvatarThumbnailRequest(new byte[] {1, 2, 3, 4}));
+
+    assertThat(capturing.capturedBody).isEqualTo("\"AQIDBA==\"");
   }
 
   @Test
@@ -1594,6 +1716,17 @@ class PetApiTest {
   }
 
   @Test
+  void bhvOperations021DigitLeadingQueryParameterKeepsItsWireName() throws Exception {
+    UrlRecording recording = new UrlRecording("[]");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.findPetsByStatus(new FindPetsByStatusOptions().n2ndPage(2));
+
+    assertThat(recording.capturedUrl).contains("2ndPage=2").doesNotContain("n2ndPage=");
+  }
+
+  @Test
   void bhvOperations044TestFindPetsByStatusSendsTheDigitLeadingQueryNameAndTheDeepObjectFilter()
       throws Exception {
     UrlRecording recording = new UrlRecording("[]");
@@ -1667,6 +1800,16 @@ class PetApiTest {
                 .getMethod("getPetByName", String.class, GetPetByNameOptions.class)
                 .isAnnotationPresent(Deprecated.class))
         .isFalse();
+  }
+
+  @Test
+  void bhvOperations033DeprecationMarkersSitOnEveryVariantOfADeprecatedOperation() {
+    var variants =
+        java.util.Arrays.stream(PetApi.class.getMethods())
+            .filter(m -> m.getName().startsWith("findPetsByStatus"))
+            .toList();
+    assertThat(variants).isNotEmpty();
+    assertThat(variants).allMatch(m -> m.isAnnotationPresent(Deprecated.class));
   }
 
   @Test

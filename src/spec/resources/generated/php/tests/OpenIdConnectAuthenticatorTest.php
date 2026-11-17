@@ -13,9 +13,11 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
+use PetstoreClient\Auth\OAuth\SsoAuthAuthenticator;
 
 function makeOpenIdConnectMockClientWithDiscovery(): MockTokenApiClient
 {
@@ -28,7 +30,7 @@ function makeOpenIdConnectMockClientWithDiscovery(): MockTokenApiClient
     return $client;
 }
 
-test('bhv authoidc 002 builds authorization url from discovery', function (): void {
+test('bhv authoidc 002 bhv authoidc 008 builds authorization url from discovery without default headers', function (): void {
     $client = makeOpenIdConnectMockClientWithDiscovery();
 
     $authenticator = new OpenIdConnectAuthenticator(
@@ -524,6 +526,118 @@ test('bhv authoidc 020 oidc rediscovery after expiry keeps the exchanged session
     // The cached document has expired, so this call rediscovers; the exchange made
     // before it must still count.
     expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer at-1']);
+});
+
+/** Endpoints of a discovery document whose host is the given label. */
+function oidcDiscoveryFor(string $host): string
+{
+    return (string) json_encode([
+        'authorization_endpoint' => "https://$host.example.com/authorize",
+        'token_endpoint' => "https://$host.example.com/token",
+    ]);
+}
+
+test('bhv authoidc 009 failed rediscovery keeps the old delegate', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), ['Cache-Control' => 'max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, '{"access_token":"oidc-tok","expires_in":3600}', []));
+    $client->enqueueResponse(new ApiHttpResponse(500, '{}', []));
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), []));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('oidc-code');
+
+    try {
+        $authenticator->getAuthHeaders();
+        test()->fail('Expected the failed rediscovery to throw');
+    } catch (ApiException $e) {
+        expect($e->getCode())->toBe(500);
+    }
+
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer oidc-tok']);
+    expect($client->capturedRequests)->toHaveCount(4);
+});
+
+test('bhv authoidc 015 invalidating the token keeps the session and the refresh token', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), []));
+    $client->enqueueResponse(new ApiHttpResponse(200, '{"access_token":"at1","refresh_token":"rt","expires_in":3600}', []));
+    $client->enqueueResponse(new ApiHttpResponse(200, '{"access_token":"at2","refresh_token":"rt","expires_in":3600}', []));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->invalidateAccessToken();
+    expect($client->capturedRequests)->toHaveCount(0);
+
+    $authenticator->exchangeCode('oidc-code');
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer at1']);
+
+    $authenticator->invalidateAccessToken();
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer at2']);
+    expect((string) $client->capturedRequests[2]['body'])->toContain('grant_type=refresh_token');
+    expect((string) $client->capturedRequests[2]['body'])->toContain('refresh_token=rt');
+});
+
+test('bhv authoidc 021 rediscovery keeps the pkce verifier of the authorization url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), ['Cache-Control' => 'max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('login'), ['Cache-Control' => 'max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, '{"access_token":"oidc-tok","expires_in":3600}', []));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl('s');
+    $authenticator->exchangeCode('oidc-code');
+
+    expect($client->capturedRequests)->toHaveCount(3);
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+    parse_str((string) $client->capturedRequests[2]['body'], $form);
+    $verifier = is_string($form['code_verifier'] ?? null) ? $form['code_verifier'] : '';
+    expect($verifier)->not->toBe('');
+    expect(rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='))
+        ->toBe($query['code_challenge']);
+});
+
+test('bhv authoidc 012 scheme wrapper discovers from its spec url and sends the openid scope', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), []));
+
+    $authenticator = new SsoAuthAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback'
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/.well-known/openid-configuration');
+    expect($url)->toContain('scope=openid');
 });
 
 test('bhv authoidc 003 oidc keeps discovery cached while its Cache-Control max-age holds', function (): void {

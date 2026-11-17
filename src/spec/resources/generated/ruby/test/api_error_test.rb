@@ -304,6 +304,60 @@ describe Petstore::Client::Errors::ApiError do
     _(err.error_body).must_equal('upstream unavailable')
   end
 
+  # Raises a status-specific error from inside a rescue, so Ruby records the
+  # rescued exception as its cause.
+  def status_error_with_cause(klass, cause)
+    raise cause
+  rescue StandardError
+    begin
+      raise klass.new(message: 'failed')
+    rescue klass => e
+      e
+    end
+  end
+
+  it 'bhv_errors_003 takes a cause for every status-specific error through Exception#cause' do
+    inner = StandardError.new('transport')
+    [
+      Petstore::Client::Errors::BadRequestError, Petstore::Client::Errors::UnauthorizedError,
+      Petstore::Client::Errors::NotFoundError, Petstore::Client::Errors::InternalServerError
+    ].each do |klass|
+      _(status_error_with_cause(klass, inner).cause).must_be_same_as inner
+      _(klass.new(message: 'failed').cause).must_be_nil
+    end
+  end
+
+  it 'bhv_errors_007 records the request method and path without the query string' do
+    err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
+                                                           request_method: 'get', request_path: '/items/1?token=abc')
+
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/items/1'
+  end
+
+  it 'bhv_errors_011 names the request in the message and in the request fields' do
+    err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
+                                                           request_method: 'delete', request_path: '/items/1')
+
+    _(err.request_method).must_equal 'DELETE'
+    _(err.request_path).must_equal '/items/1'
+    _(err.message).must_equal "API returned status code 404\nHTTP status code: 404\nRequest: DELETE /items/1"
+  end
+
+  it 'bhv_errors_026 renders the request on its own line and never carries the query string' do
+    err = Petstore::Client::Errors::ApiError.from_response(500, {}, nil,
+                                                           request_method: 'get', request_path: '/items?api_key=secret')
+
+    _(err.message.split("\n")).must_include 'Request: GET /items'
+    _(err.message).wont_include 'secret'
+  end
+
+  it 'bhv_errors_030 typed_error_body returns nil when the response has no body at all' do
+    err = Petstore::Client::Errors::ApiError.from_response(500, {}, nil)
+
+    assert_nil(err.typed_error_body('Category'))
+  end
+
   it 'bhv_errors_017 typed_error_body raises SerializationError for a body that is not the model' do
     err = Petstore::Client::Errors::ApiError.from_response(400, {}, '<html>oops</html>')
 

@@ -29,20 +29,23 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
     });
 
-    test('the credentials fall back to the environment, read once', () {
-      final environment = {
-        BasicAuthenticator.defaultUsernameVariable: 'alice',
-        BasicAuthenticator.defaultPasswordVariable: 'pw1',
-      };
-      final auth = BasicAuthenticator(
-        host: 'https://api.example.com',
-        environment: environment,
-      );
+    test(
+      'bhv authbasic 001 the credentials fall back to the environment, read once',
+      () {
+        final environment = {
+          BasicAuthenticator.defaultUsernameVariable: 'alice',
+          BasicAuthenticator.defaultPasswordVariable: 'pw1',
+        };
+        final auth = BasicAuthenticator(
+          host: 'https://api.example.com',
+          environment: environment,
+        );
 
-      environment[BasicAuthenticator.defaultUsernameVariable] = 'bob';
+        environment[BasicAuthenticator.defaultUsernameVariable] = 'bob';
 
-      expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
-    });
+        expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
+      },
+    );
 
     test(
       'bhv authbasic 003 missing or empty credentials fail at construction',

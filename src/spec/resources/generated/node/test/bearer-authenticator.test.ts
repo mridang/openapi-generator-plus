@@ -95,6 +95,15 @@ describe("BearerAuthenticator", () => {
     ).toThrow("Bearer token must not be empty");
   });
 
+  it("bhv authbearer 005 an empty token is rejected at construction", () => {
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", ""),
+    ).toThrow(TypeError);
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", ""),
+    ).toThrow("Bearer token must not be empty");
+  });
+
   it("bhv authbearer 016 a Unicode space is not blank, it fails the printable ASCII check instead", () => {
     expect(
       () => new BearerAuthenticator("https://api.example.com", "\u00a0"),

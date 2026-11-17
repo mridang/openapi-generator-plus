@@ -53,6 +53,14 @@ class TestOneOfPetFood:
             ObjectSerializer().deserialize(json_str, "PetFood")
         assert "Unknown discriminator" in str(exc_info.value)
 
+    def test_bhv_unions_026_unknown_discriminator_error_names_the_offending_value(
+        self,
+    ) -> None:
+        json_str = '{"foodType":"raw","calories":300}'
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().deserialize(json_str, "PetFood")
+        assert "'raw'" in str(exc_info.value)
+
     def test_bhv_unions_020_serializes_dry_food(self) -> None:
         json_str = '{"foodType":"dry","weightKg":2.5}'
         result = ObjectSerializer().deserialize(json_str, "PetFood")
@@ -84,6 +92,26 @@ class TestAnyOfPetTreatment:
         serialized = ObjectSerializer().serialize(result)
         assert serialized is not None
         assert len(serialized) > 0
+
+    def test_bhv_unions_001_a_factory_wraps_its_variant_and_only_that_variant_matches(
+        self,
+    ) -> None:
+        medication = Medication(drugName="Amoxicillin", dosage="500mg")
+        wrapped = PetTreatment(medication)
+        assert wrapped.actual_instance == medication
+        assert isinstance(wrapped.actual_instance, Medication)
+        assert not isinstance(wrapped.actual_instance, Surgery)
+        assert wrapped.matched_instances == [medication]
+
+    def test_bhv_unions_011_anyof_wrappers_have_value_equality_and_a_matching_hash(
+        self,
+    ) -> None:
+        first = PetTreatment(Medication(drugName="Amoxicillin", dosage="500mg"))
+        second = PetTreatment(Medication(drugName="Amoxicillin", dosage="500mg"))
+        other = PetTreatment(Surgery(procedureName="Spay", durationMinutes=45))
+        assert first == second
+        assert hash(first) == hash(second)
+        assert first != other
 
     def test_bhv_unions_007_no_matching_variant_raises(self) -> None:
         """oneof-nondiscriminator-no-match-silent: a payload matching neither
@@ -195,6 +223,23 @@ class TestAnyOfTreatmentRecord:
 
         assert TreatmentRecord.any_of_schemas == ("Surgery", "Medication")
 
+    def test_bhv_unions_002_a_shared_property_keeps_the_later_declared_variant_value_once(
+        self,
+    ) -> None:
+        from petstore_client.models.treatment_record import TreatmentRecord
+
+        # Medication is declared after Surgery here, so its `notes` wins.
+        record = TreatmentRecord(
+            [
+                Surgery(procedureName="Spay", notes="from-surgery"),
+                Medication(drugName="Amoxicillin", notes="from-medication"),
+            ]
+        )
+        serialized = ObjectSerializer().serialize(record)
+        assert "from-medication" in serialized
+        assert "from-surgery" not in serialized
+        assert serialized.count('"notes"') == 1
+
     def test_bhv_unions_025_the_opposite_declaration_order_keeps_its_own_order(
         self,
     ) -> None:
@@ -212,6 +257,29 @@ class TestOneOfNonDiscriminatorValidator:
     no-match-still-raises branches of the rewritten validator.
     """
 
+    def test_bhv_serializationobject_128_first_variant_match_returns_value(
+        self,
+    ) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=b"avatar-bytes")
+        assert req.actual_instance == b"avatar-bytes"
+
+    def test_bhv_unions_018_scalar_base64_string_resolves_to_the_scalar_variant(
+        self,
+    ) -> None:
+        restored = ObjectSerializer().deserialize(
+            '"AQIDBA=="', SetPetAvatarThumbnailRequest
+        )
+        assert restored is not None
+        assert restored.actual_instance == b"\x01\x02\x03\x04"
+        assert not isinstance(restored.actual_instance, list)
+
+    def test_bhv_unions_023_byte_oneof_scalar_round_trips_through_base64(self) -> None:
+        raw = b"\x01\x02\x03\x04"
+        wire = ObjectSerializer().serialize(SetPetAvatarThumbnailRequest(raw))
+        restored = ObjectSerializer().deserialize(wire, SetPetAvatarThumbnailRequest)
+        assert restored is not None
+        assert restored.actual_instance == raw
+
     def test_first_variant_match_returns_value(self) -> None:
         req = SetPetAvatarThumbnailRequest(actual_instance=b"avatar-bytes")
         assert req.actual_instance == b"avatar-bytes"
@@ -220,7 +288,9 @@ class TestOneOfNonDiscriminatorValidator:
         req = SetPetAvatarThumbnailRequest(actual_instance=[b"a", b"b"])
         assert req.actual_instance == [b"a", b"b"]
 
-    def test_no_matching_variant_still_raises_on_decode(self) -> None:
+    def test_bhv_serializationobject_129_no_matching_variant_still_raises_on_decode(
+        self,
+    ) -> None:
         """The no-match error path is preserved by the first-match rewrite."""
         with pytest.raises(ValidationError):
             SetPetAvatarThumbnailRequest.model_validate({"actual_instance": object()})

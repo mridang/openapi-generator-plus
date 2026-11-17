@@ -3,7 +3,19 @@
 declare(strict_types=1);
 
 use PetstoreClient\ServerConfiguration;
+use PetstoreClient\Servers;
 use PetstoreClient\ServerVariable;
+
+test('bhv servers 013 the third global server keeps its hostile text unchanged', function (): void {
+    $server = Servers::all()[2];
+
+    expect($server->urlTemplate)->toBe('https://{tenant}.example.com/api');
+    expect($server->description)->toBe('Bob\'s "sandbox" & co: $5 #{x} a*/b');
+    $tenant = $server->variables['tenant'];
+    expect($tenant->defaultValue)->toBe('o\'neil');
+    expect($tenant->description)->toBe('Tenant\'s "id"');
+    expect($tenant->enumValues)->toBe(['o\'neil', 'a&b']);
+});
 
 test('bhv servers 011 plain url template resolves unchanged', function (): void {
     $server = new ServerConfiguration(urlTemplate: 'https://api.example.com');

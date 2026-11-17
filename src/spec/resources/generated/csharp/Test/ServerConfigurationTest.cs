@@ -53,7 +53,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlOverridesFallBackToDefaultForUnspecifiedVariables()
+    public void BhvServers001GetUrlOverridesFallBackToDefaultForUnspecifiedVariables()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com/api/{version}",
@@ -131,6 +131,24 @@ public class ServerConfigurationTest
             "Invalid value 'prod' for server variable 'env'",
             ex.Message,
             StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void BhvServers003GetUrlAcceptsAnOverrideThatIsInTheVariableEnum()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        Assert.Equal(
+            "https://staging.example.com",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "staging" })
         );
     }
 

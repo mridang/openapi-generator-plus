@@ -130,7 +130,7 @@ import Testing
     #expect(try server.url() == "https://{version}.api.example.com/v2")
   }
 
-  @Test func testUrlSubstitutesEveryOccurrenceAndKeepsUnknownBraces() throws {
+  @Test func testBhvServers002UrlSubstitutesEveryOccurrenceAndKeepsUnknownBraces() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.api.example.com/{env}/{other}/{",
       variables: ["env": ServerVariable(defaultValue: "prod")]

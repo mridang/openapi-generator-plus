@@ -281,6 +281,28 @@ class ConfigurationTest {
     }
 
     @Nested
+    @DisplayName("string forms")
+    inner class StringForms {
+        @Test
+        @DisplayName("bhvConfig015 inspect masks sensitive default headers")
+        fun toStringMasksSensitiveDefaultHeaders() {
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("https://example.com")
+                    .defaultHeader("Authorization", "Bearer s3cret")
+                    .defaultHeader("X-Trace", "visible")
+                    .build()
+
+            val text = config.toString()
+
+            assertFalse(text.contains("s3cret"), text)
+            assertTrue(text.contains("Authorization=***"), text)
+            assertTrue(text.contains("X-Trace=visible"), text)
+        }
+    }
+
+    @Nested
     @DisplayName("builder chaining")
     inner class BuilderChaining {
         @Test

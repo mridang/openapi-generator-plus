@@ -207,6 +207,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
                 $this->scopes
             );
         } elseif ($endpoints !== $this->discoveredEndpoints) {
+            $previous = $this->delegate;
             $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
                 $this->host,
                 $this->clientId,
@@ -216,8 +217,9 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
                 $this->redirectUri,
                 $this->scopes,
                 null,
-                $this->delegate->getTokenManager()
+                $previous->getTokenManager()
             );
+            $this->delegate->adoptPkceVerifier($previous);
         }
         $this->discoveredEndpoints = $endpoints;
         $this->delegate->setApiClient($apiClient);

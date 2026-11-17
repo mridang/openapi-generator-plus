@@ -90,6 +90,19 @@ final class PetApiTests {
     #expect(block.last == "@available(*, deprecated, message: \"This operation is deprecated.\")")
   }
 
+  @Test func testBhvOperations032DeprecatedOperationAndModelsCarryTheDeprecationMarker() throws {
+    let block = try leadingDocBlock(before: "public func getPetById(", in: "PetApi.swift")
+    #expect(block.last == "@available(*, deprecated, message: \"This operation is deprecated.\")")
+    let modelDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      .appendingPathComponent("Sources/PetstoreClient/Models")
+    let pet = try String(
+      contentsOf: modelDirectory.appendingPathComponent("Pet.swift"), encoding: .utf8)
+    #expect(pet.contains("@available(*, deprecated, message: \"This property is deprecated.\")"))
+    let tag = try String(
+      contentsOf: modelDirectory.appendingPathComponent("Tag.swift"), encoding: .utf8)
+    #expect(tag.contains("@available(*, deprecated, message: \"This schema is deprecated.\")"))
+  }
+
   @Test(arguments: ["addPet", "getPetById"])
   func testBhvOperations082OperationDocumentsItsOptionsParameter(operation: String) throws {
     let block = try leadingDocBlock(before: "public func \(operation)(", in: "PetApi.swift")
@@ -553,6 +566,48 @@ final class PetApiTests {
     _ = try await api.getPetTag(petId: 5, tagName: "cute", options: options)
   }
 
+  @Test func testBhvOperations059GetPetTagSendsByteParametersAsPaddedBase64() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetTag(
+      petId: 5, tagName: "cute",
+      options: GetPetTagOptions(fingerprint: Data([0xFB, 0xFF]), xFingerprint: Data([0xFB, 0xFF])))
+
+    let queryValue =
+      mockClient.lastURL.components(separatedBy: "fingerprint=").last?
+      .components(separatedBy: "&").first ?? ""
+    #expect(queryValue.removingPercentEncoding == "+/8=")
+    #expect(mockClient.lastHeaders["X-Fingerprint"] == "+/8=")
+  }
+
+  @Test func testBhvOperations060GetPetTagUsesTheMatrixAndLabelPathStyles() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetTag(petId: 5, tagName: "cute")
+
+    #expect(mockClient.lastURL == "https://example.com/pet/;petId=5/tag/.cute")
+  }
+
+  @Test func testBhvOperations066GetPetTagPercentEncodesHashInAnAllowReservedValue() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetTag(
+      petId: 5, tagName: "cute", options: GetPetTagOptions(revision: "a#b"))
+
+    #expect(
+      mockClient.lastURL.hasSuffix("?revision=a%23b"),
+      "the # of an allowReserved value must be percent-encoded, got: \(mockClient.lastURL)")
+  }
+
   /* The operation's own server points at an external host, so the test
      supplies a server of its own that points at the mock server, which
      serves every path in the spec. */
@@ -629,6 +684,14 @@ final class PetApiTests {
       } == "https://us.mirror.example.com/it's/v1/pet/3/multi")
   }
 
+  @Test func testBhvOperations084MirrorOperationServerResolvesReservedCharactersRaw() async throws {
+    #expect(
+      try await operationServerUrl {
+        try await $0.getMultiServerPetInfo(
+          petId: 3, server: GetMultiServerPetInfoServerMirror(region: .EU, channel: .A_B))
+      } == "https://eu.mirror.example.com/a&b/v1/pet/3/multi")
+  }
+
   /* Without a server of its own the call uses the configured base URL. */
   @Test func testOperationWithoutServerUsesTheBaseUrl() async throws {
     #expect(
@@ -678,6 +741,36 @@ final class PetApiTests {
     let result = try await mockApi.uploadPetCertificate(
       petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
     _ = result
+  }
+
+  @Test func testBhvOperations017TextPlainResponseReturnsString() async throws {
+    let mockApi = petApiForMock(statusCode: 200, body: "all quiet", contentType: "text/plain")
+    let summary = try await mockApi.getPetSummary(
+      petId: 5, asOf: "2024-01-15",
+      options: GetPetSummaryOptions(session: "abc", days: ["2024-01-16"]))
+    #expect(summary == "all quiet")
+  }
+
+  @Test func testBhvOperations063GetPetAvatarThumbnailRejectsMalformedBase64() async throws {
+    let mockApi = petApiForMock(
+      statusCode: 200, body: "\"!!not-base64!!\"", contentType: "application/json")
+    await #expect(throws: SerializationError.self) {
+      _ = try await mockApi.getPetAvatarThumbnail(petId: 1)
+    }
+  }
+
+  @Test func testBhvOperations094UploadPetDocumentDefaultSelectionSendsMultipart() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.uploadPetDocument(
+      petId: 1,
+      options: UploadPetDocumentOptions(
+        file: Data("doc".utf8), documentType: "vaccination_record", notes: "Annual checkup"))
+
+    #expect(mockClient.lastHeaders["Content-Type"]?.hasPrefix("multipart/form-data") == true)
   }
 
   @Test func testBhvOperations037ErrorHandlingNotFound() async throws {
@@ -957,7 +1050,7 @@ final class PetApiTests {
 
   // required-nested-param-validation (happy path): a present required query
   // param passes the guard and the request is dispatched normally.
-  @Test func testRequiredQueryParamPresentSucceeds() async throws {
+  @Test func testBhvOperations065RequiredQueryParamPresentSucceeds() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
@@ -1210,9 +1303,9 @@ final class PetApiTests {
     ("store/order/1", 404, "NotFoundError"), ("store/order/1", 422, "UnprocessableEntityError"),
     ("store/order/1", 500, "InternalServerError"), ("store/order/1", 502, "ServerError"),
   ])
-  func testTypedStatusRoutesMapToTheirErrorType(route: String, status: Int, typeName: String)
-    async throws
-  {
+  func testBhvOperations110TypedStatusRoutesMapToTheirErrorType(
+    route: String, status: Int, typeName: String
+  ) async throws {
     let client = DefaultApiClient()
     let response = try await client.sendRequest(
       method: "GET", url: "\(chasmHttpUrl)/test/status/\(status)/\(route)", headers: [:], body: nil)

@@ -147,6 +147,13 @@ class BearerAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuthbearer001 the scheme wrapper prints its own class name with the token masked")
+    fun schemeWrapperPrintsItsOwnNameWithTheTokenMasked() {
+        val auth = PetStoreBearerAuthenticator("https://api.example.com", "xyz")
+        assertEquals("PetStoreBearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
+    }
+
+    @Test
     fun bhvAuthbearer013RedactedReprShowsExactlyTheNonSecretFields() {
         val auth = BearerAuthenticator("https://api.example.com", "xyz")
         assertEquals("BearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
@@ -174,7 +181,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: with no token passed, SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is read once at construction")
+    @DisplayName("bhvAuthbearer010 F862: with no token passed, SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is read once at construction")
     fun tokenComesFromTheEnvironment() {
         val auth =
             withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")) {

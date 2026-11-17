@@ -15,7 +15,7 @@ namespace Test;
 public class TraceContextUtilTest
 {
     [Fact]
-    public void ShouldNotModifyHeadersWhenNoActiveActivity()
+    public void BhvTracing007ShouldNotModifyHeadersWhenNoActiveActivity()
     {
         Activity.Current = null;
 

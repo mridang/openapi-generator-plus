@@ -61,6 +61,19 @@ import Testing
     #expect(metadata != nil)
   }
 
+  /* A key the schema does not declare is captured into additionalProperties. */
+  @Test func testBhvModels001UndeclaredKeysAreCapturedIntoAdditionalProperties() throws {
+    let jsonData = Data("{\"customField\":\"customValue\"}".utf8)
+    let metadata = try #require(try ObjectSerializer.deserialize(jsonData, as: Metadata.self))
+    #expect(metadata.additionalProperties["customField"]?.value as? String == "customValue")
+  }
+
+  /* additionalProperties holds AnyCodable values, and a string value reads back as a String. */
+  @Test func testBhvModels009AdditionalPropertiesHoldStringValues() {
+    let metadata = Metadata(additionalProperties: ["extra": AnyCodable("x")])
+    #expect(metadata.additionalProperties["extra"]?.value as? String == "x")
+  }
+
   /* Two instances that differ only in the additionalProperties bucket are
    * not equal, and equal ones hash alike. */
   @Test func testBhvModels005EqualityIncludesAdditionalProperties() {

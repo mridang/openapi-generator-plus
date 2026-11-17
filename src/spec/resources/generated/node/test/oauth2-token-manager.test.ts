@@ -206,6 +206,45 @@ describe("OAuth2TokenManager", () => {
     expect(n).toBe(2);
   });
 
+  test("bhv authoauthtwotokenmgr 017 a non-string refresh_token keeps the cached one on a refresh", async () => {
+    let n = 0;
+    const stepClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        n++;
+        const body =
+          n === 1
+            ? {
+                access_token: "old_access",
+                refresh_token: "old_refresh",
+                expires_in: 0,
+              }
+            : {
+                access_token: "new_access",
+                refresh_token: 12345,
+                expires_in: 3600,
+              };
+        return {
+          statusCode: 200,
+          body: JSON.stringify(body),
+          headers: { "content-type": "application/json" },
+        };
+      },
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+
+    await manager.getAccessToken("https://auth.example.com/token", {
+      grant_type: "client_credentials",
+    });
+    const token = await manager.getAccessToken(
+      "https://auth.example.com/token",
+      { grant_type: "client_credentials" },
+    );
+
+    expect(token).toBe("new_access");
+    expect(manager.getRefreshToken()).toBe("old_refresh");
+  });
+
   test("bhv authoauthtwotokenmgr 024 refresh_token empty string preserves existing", async () => {
     // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
     // MUST NOT clobber the cached refresh_token.
@@ -410,7 +449,7 @@ describe("OAuth2TokenManager", () => {
       "Token response missing or empty access_token field",
     ],
   ])(
-    "a 2xx token response that %s says exactly that",
+    "bhv authoauthtwotokenmgr 040 a 2xx token response that %s says exactly that, with no cause",
     async (_label, body, message) => {
       mockClient.responseStatus = 200;
       mockClient.responseBody = body;
@@ -422,8 +461,42 @@ describe("OAuth2TokenManager", () => {
         .catch((e: unknown) => e);
       expect((error as Error).constructor).toBe(OAuth2TokenError);
       expect((error as Error).message).toBe(message);
+      expect((error as Error).cause).toBeUndefined();
     },
   );
+
+  test("bhv authoauthtwotokenmgr 012 an expires_in of zero is stale at once and refetched on the next call", async () => {
+    let n = 0;
+    const stepClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        n++;
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ access_token: `zero${n}`, expires_in: 0 }),
+          headers: { "content-type": "application/json" },
+        };
+      },
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+
+    const first = await manager.getAccessToken(
+      "https://auth.example.com/token",
+      {
+        grant_type: "client_credentials",
+      },
+    );
+    const second = await manager.getAccessToken(
+      "https://auth.example.com/token",
+      {
+        grant_type: "client_credentials",
+      },
+    );
+
+    expect(first).toBe("zero1");
+    expect(second).toBe("zero2");
+    expect(n).toBe(2);
+  });
 
   test.each(["0x10", "1e3", "3600d", "Infinity", "+3600"])(
     "expires_in %p is not a decimal number and marks the token stale",
@@ -934,7 +1007,7 @@ describe("OAuth2TokenManager", () => {
   });
 
   test.each([[30], [60], [90]])(
-    "expires_in %p is reused, not re-fetched on every call",
+    "bhv authoauthtwotokenmgr 004 expires_in %p is reused, not re-fetched on every call",
     async (expiresIn) => {
       // One safety margin applies, capped at half the lifetime, so a short-lived
       // token is reused for the first half of its life instead of never.
@@ -1044,7 +1117,7 @@ describe("OAuth2TokenManager", () => {
   });
 
   test.each([["DPoP"], ["MAC"], [42]])(
-    "token_type %p is refused without echoing it",
+    "bhv authoauthtwotokenmgr 038 token_type %p is refused without echoing it",
     async (tokenType) => {
       mockClient.responseBody = JSON.stringify({
         access_token: "tok",
@@ -1063,6 +1136,16 @@ describe("OAuth2TokenManager", () => {
       );
     },
   );
+
+  test("bhv authoauthtwotokenmgr 002 a token response with no token_type is accepted", async () => {
+    mockClient.responseBody = JSON.stringify({ access_token: "no-type" });
+
+    expect(
+      await tokenManager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      }),
+    ).toBe("no-type");
+  });
 
   test.each([["bearer"], ["Bearer"], ["BEARER"]])(
     "token_type %p is accepted",
@@ -1173,7 +1256,7 @@ describe("OAuth2TokenManager", () => {
     /* A 3xx is a non-2xx answer, so the refusal is an OAuth2ServerError
      * carrying the status. */
     test.each([301, 302, 303, 307, 308])(
-      "refuses %i redirect on token endpoint with OAuth2ServerError",
+      "bhv authoauthtwotokenmgr 033 refuses %i redirect on token endpoint with OAuth2ServerError",
       async (status) => {
         mockClient.responseStatus = status;
         mockClient.responseBody = "";

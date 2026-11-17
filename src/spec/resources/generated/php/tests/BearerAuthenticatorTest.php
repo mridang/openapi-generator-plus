@@ -188,6 +188,13 @@ test('bhv authbearer 010 the token is read from the environment when none is pas
     });
 });
 
+test('bhv lifecycle 014 reads the token from the environment when none is passed', function (): void {
+    withBearerTokenEnvironment('from-environment', function (): void {
+        $auth = new PetStoreBearerAuthenticator('https://api.example.com');
+        expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
+    });
+});
+
 test('the environment is read once, when the authenticator is built', function (): void {
     withBearerTokenEnvironment('first', function (): void {
         $auth = new PetStoreBearerAuthenticator('https://api.example.com');

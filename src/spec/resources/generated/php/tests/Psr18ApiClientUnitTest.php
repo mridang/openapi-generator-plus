@@ -142,7 +142,7 @@ test('psr18 does not override caller request id', function (): void {
     expect($stub->requests[0]->getHeaderLine('X-Request-ID'))->toBe('caller-id');
 });
 
-test('psr18 includes transport default headers', function (): void {
+test('bhv transport 040 psr18 includes transport default headers', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $transport = (new TransportOptionsBuilder())->defaultHeader('X-Custom', 'custom-value')->build();
     $client = newPsr18Client($stub, $transport);

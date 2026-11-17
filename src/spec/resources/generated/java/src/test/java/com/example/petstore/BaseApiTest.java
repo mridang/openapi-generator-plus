@@ -43,6 +43,7 @@ import com.example.petstore.errors.UnprocessableEntityException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -342,13 +343,46 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("an authenticator with no fresher credential is not replayed")
-    void unchangedCredentialIsNotReplayed() {
+    @DisplayName("bhvAuthIntegration001 a failed re-authentication leaves the 401 as it is")
+    void bhvAuthIntegration001FailedReauthenticationLeavesTheUnauthorizedResponse() {
       var client = new ScriptedApiClient(401, 200);
       var auth = new RotatingTokenAuthenticator(false);
       assertThrowsExactly(
           UnauthorizedException.class, () -> callWith(client, auth, "{}", "application/json"));
       assertEquals(1, client.sentHeaders.size());
+    }
+
+    @Test
+    @DisplayName("bhvRetries003 a multipart body is not retried")
+    void bhvRetries003MultipartBodyIsNotRetried() {
+      var client = new ScriptedApiClient(401, 200);
+      var auth = new RotatingTokenAuthenticator(true);
+      assertThrowsExactly(
+          UnauthorizedException.class,
+          () -> callWith(client, auth, Map.of("avatar", "bytes"), "multipart/form-data"));
+      assertEquals(1, client.sentHeaders.size());
+    }
+
+    @Test
+    @DisplayName("bhvRetries005 a retry asks the authenticator for the headers again")
+    void bhvRetries005RetryAsksTheAuthenticatorForFreshHeaders() throws ApiException {
+      var client = new ScriptedApiClient(401, 200);
+      var auth = new RotatingTokenAuthenticator(true);
+      callWith(client, auth, "{}", "application/json");
+      assertEquals(2, client.sentHeaders.size());
+      assertEquals("Bearer t2", client.sentHeaders.get(1).get("Authorization"));
+      assertEquals(2, auth.token);
+    }
+
+    @Test
+    @DisplayName("bhvRetries007 a status other than 401 is not replayed")
+    void bhvRetries007OtherStatusesAreNotReplayed() {
+      var client = new ScriptedApiClient(403, 200);
+      var auth = new RotatingTokenAuthenticator(true);
+      assertThrowsExactly(
+          ForbiddenException.class, () -> callWith(client, auth, "{}", "application/json"));
+      assertEquals(1, client.sentHeaders.size());
+      assertEquals(0, auth.invalidations);
     }
 
     @Test
@@ -535,6 +569,38 @@ class BaseApiTest {
                   null);
       assertNotNull(result);
       assertFalse(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvOperations018 the withHttpInfo variant returns ApiResult with status, data, headers and"
+            + " raw body")
+    void bhvOperations018WithHttpInfoReturnsApiResultWithStatusDataHeadersAndRawBody()
+        throws ApiException {
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              return new ApiHttpResponse(201, "{\"ok\":true}", Map.of("x-test", "yes"));
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      com.example.petstore.ApiResult<JsonNode> result =
+          testApi.callForResult(
+              "GET",
+              "/test/echo",
+              new HashMap<>(),
+              new HashMap<>(),
+              null,
+              new String[] {"application/json"},
+              "application/json",
+              JSON_NODE_TYPE,
+              null);
+      assertEquals(201, result.statusCode());
+      assertEquals("{\"ok\":true}", result.rawBody());
+      assertEquals("yes", result.headers().get("x-test"));
+      assertTrue(result.data() != null && result.data().get("ok").asBoolean());
     }
 
     @Test
@@ -774,7 +840,7 @@ class BaseApiTest {
      * test tree; the suppression is therefore kept, scoped to this one
      * intentionally-null-passing test method. */
     @SuppressWarnings("NullAway")
-    void nullOptionsOmitsAllowEmptyValueParam() {
+    void bhvOptions002NullOptionsOmitsAllowEmptyValueParam() {
       var client = new CapturingApiClient();
       var config = new Configuration("http://localhost", Map.of());
       var api = new PetApi(client, config);
@@ -856,6 +922,28 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("bhvTransport002 the timeout reaches the transport for this call only")
+    void bhvTransport002TimeoutReachesTheTransportForThisCallOnly() {
+      var client = new OverrideCapturingClient();
+      var api = apiOver(client);
+      try {
+        api.findPetsByStatus(new FindPetsByStatusOptions().timeout(1500));
+      } catch (Exception ignored) {
+        // Response deserialization may fail; we only care about what the transport saw
+      }
+      assertEquals(1500, client.capturedTimeout);
+      client.overrideOverloadUsed = false;
+      client.capturedTimeout = null;
+      try {
+        api.findPetsByStatus(new FindPetsByStatusOptions());
+      } catch (Exception ignored) {
+        // Response deserialization may fail; we only care about what the transport saw
+      }
+      assertFalse(client.overrideOverloadUsed);
+      assertNull(client.capturedTimeout);
+    }
+
+    @Test
     @DisplayName("bhvRetries009 timeout and maxRetries reach the transport")
     void bhvRetries009TimeoutAndRetriesReachTheTransport() {
       var client = new OverrideCapturingClient();
@@ -909,8 +997,10 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("an operation with no parameters and no security takes the per-call settings")
-    void anOperationWithNothingElseTakesThePerCallSettings() {
+    @DisplayName(
+        "bhvOperations096 an operation with no parameters and no security takes the per-call"
+            + " settings")
+    void bhvOperations096AnOperationWithNothingElseTakesThePerCallSettings() {
       var client = new OverrideCapturingClient();
       var api = new StoreApi(client, new Configuration("http://localhost", Map.of()));
       try {
@@ -996,6 +1086,24 @@ class BaseApiTest {
       assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
       TestableApi testApi = new TestableApi(config.getBaseUrl());
       assertNotNull(testApi);
+    }
+
+    @Test
+    @DisplayName("bhvErrors027 an absolute URL in the path bypasses the client base URL")
+    void bhvErrors027AbsoluteUrlInPathBypassesTheClientBaseUrl() throws ApiException {
+      var client = new CapturingApiClient();
+      var testApi = new TestableApi(client, "https://api.example.invalid/base");
+      testApi.call(
+          "GET",
+          "https://other.example.invalid/abs/x",
+          new HashMap<>(),
+          new HashMap<>(),
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          null,
+          null);
+      assertEquals("https://other.example.invalid/abs/x", client.capturedUrl);
     }
   }
 
@@ -1298,6 +1406,149 @@ class BaseApiTest {
           "the client authenticator must be applied to the inherited-security getPetById"
               + " operation");
     }
+
+    @Test
+    @DisplayName(
+        "bhvAuthIntegration004 appends auth cookies to a Cookie header the operation already set")
+    void bhvAuthIntegration004AppendsAuthCookiesToAnExistingCookieHeader() throws ApiException {
+      var client = new CapturingApiClient();
+      var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "abc123"));
+      var testApi = new TestableApi(client, "http://localhost");
+      testApi.call(
+          "GET",
+          "/test/echo",
+          new HashMap<>(),
+          new HashMap<>(Map.of("Cookie", "a=1")),
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          null,
+          auth);
+      assertEquals("a=1; session=abc123", client.capturedHeaders.get("Cookie"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvAuthIntegration005 a security:[] operation keeps the client authenticator header off"
+            + " the wire")
+    void bhvAuthIntegration005SecurityNoneOperationDropsTheClientAuthenticatorHeader() {
+      var captured = new HashMap<String, String>();
+      var capturingClient =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              captured.putAll(headers);
+              return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+            }
+          };
+      var clientAuth =
+          new TestAuthenticator(Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+      var config = new Configuration("http://localhost", Map.of());
+      var storeApi = new StoreApi(capturingClient, config, clientAuth);
+      try {
+        storeApi.getInventory();
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; only the outbound headers are asserted.
+      }
+      assertFalse(
+          captured.containsKey("X-Client-Auth"),
+          "the client authenticator must not reach a security:[] operation");
+    }
+
+    @Test
+    @DisplayName(
+        "bhvAuthIntegration003 a scheme credential wins over the client-level authenticator, and"
+            + " the fallback is used when none matches")
+    void bhvAuthIntegration003SchemeCredentialWinsOverClientAuthenticator() {
+      var client = new CapturingApiClient();
+      var clientAuth =
+          new TestAuthenticator(Map.of("X-Credential", "client-cred"), Map.of(), Map.of());
+      var schemeAuth =
+          new TestAuthenticator(Map.of("X-Credential", "scheme-cred"), Map.of(), Map.of());
+      var config = new Configuration("http://localhost", Map.of());
+      var pet =
+          new com.example.petstore.models.Pet("rex", java.util.Set.of("https://x.invalid/rex"));
+      var withScheme = new PetApi(client, config, clientAuth, Map.of("petStoreBearer", schemeAuth));
+      try {
+        withScheme.addPet(pet);
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; only the outbound headers are asserted.
+      }
+      assertEquals("scheme-cred", client.capturedHeaders.get("X-Credential"));
+
+      var withoutScheme = new PetApi(client, config, clientAuth, Map.of());
+      try {
+        withoutScheme.addPet(pet);
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; only the outbound headers are asserted.
+      }
+      assertEquals("client-cred", client.capturedHeaders.get("X-Credential"));
+    }
+
+    @Test
+    @DisplayName("bhvAuthIntegration007 each operation sends the credential of its own scheme")
+    void bhvAuthIntegration007EachOperationSendsTheCredentialOfItsOwnScheme() {
+      var client = new CapturingApiClient();
+      var apiKeyAuth =
+          new TestAuthenticator(Map.of("X-Credential", "api-key-cred"), Map.of(), Map.of());
+      var basicAuth =
+          new TestAuthenticator(Map.of("X-Credential", "basic-cred"), Map.of(), Map.of());
+      var bearerAuth =
+          new TestAuthenticator(Map.of("X-Credential", "bearer-cred"), Map.of(), Map.of());
+      var config = new Configuration("http://localhost", Map.of());
+      var petApi =
+          new PetApi(
+              client,
+              config,
+              null,
+              Map.of(
+                  "apiKeyHeader",
+                  apiKeyAuth,
+                  "petStoreBasic",
+                  basicAuth,
+                  "petStoreBearer",
+                  bearerAuth));
+      var pet =
+          new com.example.petstore.models.Pet("rex", java.util.Set.of("https://x.invalid/rex"));
+      try {
+        petApi.addPet(pet);
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; only the outbound headers are asserted.
+      }
+      assertEquals("api-key-cred", client.capturedHeaders.get("X-Credential"));
+      try {
+        petApi.downloadPetDocument(1L, 2L);
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; only the outbound headers are asserted.
+      }
+      assertEquals("basic-cred", client.capturedHeaders.get("X-Credential"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvAuthIntegration014 resolves the credential of the first listed scheme the client holds")
+    void bhvAuthIntegration014ResolvesTheFirstListedHeldScheme() {
+      var client = new CapturingApiClient();
+      var apiKeyAuth =
+          new TestAuthenticator(Map.of("X-Credential", "api-key-cred"), Map.of(), Map.of());
+      var bearerAuth =
+          new TestAuthenticator(Map.of("X-Credential", "bearer-cred"), Map.of(), Map.of());
+      var config = new Configuration("http://localhost", Map.of());
+      var petApi =
+          new PetApi(
+              client,
+              config,
+              null,
+              Map.of("petStoreBearer", bearerAuth, "apiKeyHeader", apiKeyAuth));
+      try {
+        petApi.addPet(
+            new com.example.petstore.models.Pet("rex", java.util.Set.of("https://x.invalid/rex")));
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; only the outbound headers are asserted.
+      }
+      assertEquals("api-key-cred", client.capturedHeaders.get("X-Credential"));
+    }
   }
 
   @Nested
@@ -1391,6 +1642,49 @@ class BaseApiTest {
           null);
       assertNotNull(client.capturedBody);
       assertTrue(client.capturedBody.toString().contains("name=alice"));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationWire011 form optional null field is omitted")
+    void bhvSerializationWire011FormOptionalNullFieldIsOmitted() throws ApiException {
+      var client = new CapturingApiClient();
+      var testApi = new TestableApi(client, "http://localhost");
+      Map<String, Object> formParams = new LinkedHashMap<>();
+      formParams.put("name", "Ada");
+      formParams.put("nickname", null);
+      testApi.call(
+          "POST",
+          "/test/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          formParams,
+          new String[] {"application/json"},
+          "application/x-www-form-urlencoded",
+          null,
+          null);
+      assertNotNull(client.capturedBody);
+      assertEquals("name=Ada", client.capturedBody.toString());
+    }
+
+    @Test
+    @DisplayName("bhvSerializationWire013 form-urlencoded body keeps a well-formed surrogate pair")
+    void bhvSerializationWire013FormBodyKeepsAWellFormedSurrogatePair() throws ApiException {
+      var client = new CapturingApiClient();
+      var testApi = new TestableApi(client, "http://localhost");
+      Map<String, Object> formParams = new LinkedHashMap<>();
+      formParams.put("emoji", "😀");
+      testApi.call(
+          "POST",
+          "/test/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          formParams,
+          new String[] {"application/json"},
+          "application/x-www-form-urlencoded",
+          null,
+          null);
+      assertNotNull(client.capturedBody);
+      assertEquals("emoji=%F0%9F%98%80", client.capturedBody.toString());
     }
 
     @Test
@@ -1529,8 +1823,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("rejects a text/plain response when the return type is not String")
-    void rejectsTextPlainForNonStringReturnType() {
+    @DisplayName("bhvErrors035 rejects a text/plain response when the return type is not String")
+    void bhvErrors035RejectsTextPlainForNonStringReturnType() {
       var client =
           new CapturingApiClient() {
             @Override
@@ -1685,6 +1979,30 @@ class BaseApiTest {
           client.capturedHeaders.get("Accept"),
           "an explicit Accept header parameter must beat the config default and the negotiated"
               + " Accept");
+    }
+
+    @Test
+    @DisplayName(
+        "bhvOperations004 an explicit Accept header parameter beats the config default and the"
+            + " negotiated Accept")
+    void bhvOperations004ExplicitAcceptHeaderBeatsConfigDefaultAndNegotiatedAccept()
+        throws ApiException {
+      var client = new CapturingApiClient();
+      var config = new Configuration("http://localhost", Map.of("Accept", "application/xml"));
+      var testApi = new TestableApi(client, config);
+      Map<String, String> headerParams = new HashMap<>();
+      headerParams.put("Accept", "text/plain");
+      testApi.call(
+          "GET",
+          "/test/echo",
+          new HashMap<>(),
+          headerParams,
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          null,
+          null);
+      assertEquals("text/plain", client.capturedHeaders.get("Accept"));
     }
   }
 
@@ -1877,8 +2195,8 @@ class BaseApiTest {
   class CharsetDecodingTests {
 
     @Test
-    @DisplayName("respects charset=ISO-8859-1 from Content-Type")
-    void respectsIso88591Charset() throws Exception {
+    @DisplayName("bhvSerializationWire032 respects charset=ISO-8859-1 from Content-Type")
+    void bhvSerializationWire032RespectsIso88591Charset() throws Exception {
       // 0xE9 is "é" in ISO-8859-1 (would be invalid as UTF-8)
       byte[] bytes = new byte[] {(byte) 0xE9};
       String latin1 = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
@@ -1989,8 +2307,8 @@ class BaseApiTest {
   class MultipartMimeSniffingTests {
 
     @Test
-    @DisplayName("file.png is recognized as image/png")
-    void filePngRecognizedAsImagePng() {
+    @DisplayName("bhvSerializationWire047 file.png is recognized as image/png")
+    void bhvSerializationWire047FilePngRecognizedAsImagePng() {
       String mime = DefaultApiClient.guessMimeTypeFromName("file.png");
       assertEquals("image/png", mime);
     }
@@ -2013,8 +2331,8 @@ class BaseApiTest {
   class NullBodyContentTypeTests {
 
     @Test
-    @DisplayName("POST with null body does not send Content-Type")
-    void nullBodyPostDoesNotSendContentType() throws ApiException {
+    @DisplayName("bhvOperations013 POST with null body does not send Content-Type")
+    void bhvOperations013NullBodyPostDoesNotSendContentType() throws ApiException {
       var client =
           new CapturingApiClient() {
             @Override

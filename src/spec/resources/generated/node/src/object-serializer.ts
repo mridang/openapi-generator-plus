@@ -122,10 +122,19 @@ export function durationFromProtoJson(value: string): Temporal.Duration {
   const [secPart, fracPart = ""] = body.split(".");
   const seconds = Number(secPart);
   const nanoseconds = Number(fracPart.padEnd(9, "0").slice(0, 9));
-  return Temporal.Duration.from({
-    seconds: negative ? -seconds : seconds,
-    nanoseconds: negative ? -nanoseconds : nanoseconds,
-  });
+  try {
+    return Temporal.Duration.from({
+      seconds: negative ? -seconds : seconds,
+      nanoseconds: negative ? -nanoseconds : nanoseconds,
+    });
+  } catch (cause) {
+    // Temporal rejects seconds beyond its safe-integer range with a RangeError;
+    // the wire contract is a SerializationError for every malformed or overflowing duration.
+    throw new SerializationError(
+      `Invalid protobuf-JSON duration ${JSON.stringify(value)}: value is out of range.`,
+      cause as Error,
+    );
+  }
 }
 
 /** Canonical base64: RFC 4648 standard alphabet with `=` padding, no whitespace. */

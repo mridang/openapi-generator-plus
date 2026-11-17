@@ -337,6 +337,16 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
+    it 'bhv_operations_110 picks BadRequestError for the 400 route of get_order_by_id' do
+      api, server, thread = new_store_api_for_mock(400, 'application/json', '{"message":"Bad request"}')
+      begin
+        _(-> { api.get_order_by_id(1) }).must_raise Petstore::Client::Errors::BadRequestError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     it 'bhv_operations_118 place_order_server_error' do
       api, server, thread = new_store_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
       begin

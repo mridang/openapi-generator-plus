@@ -189,6 +189,29 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
+  void bhvAuthOauthTwoClientCred006KeepsTildeLiteralAndEncodesSubDelimitersInTheBody() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2ClientCredentialsAuthenticator auth =
+        new OAuth2ClientCredentialsAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "secret",
+            "https://auth.example.com/token",
+            List.of("read"));
+    auth.setApiClient(client);
+    auth.getAuthHeaders();
+
+    String body = java.util.Objects.requireNonNull(capturedBody.get());
+    assertTrue(body.contains("client_id=id~%2A%21%27%28%29"), body);
+  }
+
+  @Test
   void bhvAuthOauthTwoClientCred008ReturnsAuthorizationBearerHeader() {
     ApiClient client =
         (method, url, headers, body) ->
@@ -313,6 +336,17 @@ class OAuth2ClientCredentialsAuthenticatorTest {
    * The default {@code toString()} must mask the stored client secret: the secret value must be
    * absent and a {@code ***} redaction marker present.
    */
+  @Test
+  @DisplayName("bhvAuthOauthTwoClientCred014 toString() shows the non-secret fields")
+  void bhvAuthOauthTwoClientCred014ReprShowsTheNonSecretFields() {
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    String repr = auth.toString();
+    assertTrue(repr.contains("clientId=my-client-id"), repr);
+    assertTrue(repr.contains("tokenUrl=https://auth.example.com/token"), repr);
+    assertTrue(repr.contains("scopes=[read, write]"), repr);
+    assertTrue(repr.contains("clientAuthMethod=BODY"), repr);
+  }
+
   @Test
   @DisplayName("bhvAuthOauthTwoClientCred007 toString() redacts the client secret and shows ***")
   void bhvAuthOauthTwoClientCred007RedactsSecret() {

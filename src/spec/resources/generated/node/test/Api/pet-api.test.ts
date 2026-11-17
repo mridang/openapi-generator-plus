@@ -643,13 +643,13 @@ describe("PetApi", () => {
     ).rejects.toThrow(/RFC 6265/);
   });
 
-  test("deletePet api_key cookie with a bare control char fails closed", async () => {
+  test("bhv operations 028 deletePet api_key cookie with a bare control char is refused before sending", async () => {
     await expect(api.deletePet(1, { apiKey: "abc\x00def" })).rejects.toThrow(
       /RFC 6265/,
     );
   });
 
-  test("deletePet api_key cookie with a clean value is accepted", async () => {
+  test("bhv operations 030 deletePet sends a legal cookie value raw", async () => {
     // Control: a value with no forbidden characters must pass validation and
     // reach the wire as a Cookie header (proves the guard is value-specific,
     // not a blanket rejection of the cookie path).
@@ -835,7 +835,7 @@ describe("PetApi form-urlencoded body serialization", () => {
     }
   });
 
-  test("#5 date-time form field serializes in the canonical stringify form", async () => {
+  test("bhv operations 075 set_pet_preferences serialises the date-time form field in the canonical form", async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = {
@@ -1165,6 +1165,28 @@ describe("PetApi doc comments", () => {
 
     expect(doc).toContain(line);
   });
+
+  test("bhv operations 032 a deprecated operation carries the deprecated doc tag", () => {
+    const start = source.lastIndexOf(
+      "/**",
+      source.indexOf("  async findPetsByStatus("),
+    );
+    expect(
+      source.slice(start, source.indexOf("  async findPetsByStatus(")),
+    ).toContain("@deprecated");
+  });
+
+  test("bhv operations 033 every variant of a deprecated operation carries the deprecated doc tag", () => {
+    for (const name of ["findPetsByStatus", "findPetsByStatusWithHttpInfo"]) {
+      const start = source.lastIndexOf(
+        "/**",
+        source.indexOf(`  async ${name}(`),
+      );
+      expect(source.slice(start, source.indexOf(`  async ${name}(`))).toContain(
+        "@deprecated",
+      );
+    }
+  });
 });
 
 describe("PetApi against a recording client", () => {
@@ -1291,9 +1313,8 @@ describe("PetApi against a recording client", () => {
     },
   );
 
-  test.each([".", ".."])(
-    "getPetByName rejects the dot segment %p before sending",
-    async (name) => {
+  test("bhv operations 051 getPetByName rejects a dot segment before dispatch", async () => {
+    for (const name of [".", ".."]) {
       const error = await recordingApi
         .getPetByName(name, {
           category: "sample",
@@ -1305,9 +1326,9 @@ describe("PetApi against a recording client", () => {
       expect((error as Error).message).toBe(
         `Path parameter 'name' must not be '.' or '..'`,
       );
-      expect(recorded).toHaveLength(0);
-    },
-  );
+    }
+    expect(recorded).toHaveLength(0);
+  });
 
   test("bhv operations 064 getPetByName keeps a name that only contains dots", async () => {
     await recordingApi.getPetByName("a..b", {
@@ -1340,12 +1361,13 @@ describe("PetApi against a recording client", () => {
     expect(recorded[0]!.url).toContain("revision=v1.0/beta:rc1%23frag");
   });
 
-  test.each([
-    [Buffer.from("hi", "utf-8"), "fingerprint=aGk%3D", "aGk="],
-    [Buffer.from([0xfb, 0xff]), "fingerprint=%2B%2F8%3D", "+/8="],
-  ])(
-    "getPetTag sends format:byte parameters as standard base64",
-    async (bytes, query, header) => {
+  test("bhv operations 059 getPetTag sends format:byte parameters as standard padded base64", async () => {
+    const cases: Array<[Buffer, string, string]> = [
+      [Buffer.from("hi", "utf-8"), "fingerprint=aGk%3D", "aGk="],
+      [Buffer.from([0xfb, 0xff]), "fingerprint=%2B%2F8%3D", "+/8="],
+    ];
+    for (const [bytes, query, header] of cases) {
+      recorded.length = 0;
       await recordingApi.getPetTag(5, "sample", {
         fingerprint: bytes,
         xFingerprint: bytes,
@@ -1353,8 +1375,8 @@ describe("PetApi against a recording client", () => {
 
       expect(recorded[0]!.url).toContain(query);
       expect(recorded[0]!.headers["X-Fingerprint"]).toBe(header);
-    },
-  );
+    }
+  });
 
   test("bhv operations 067 getPetTag expands the object-valued criteria parameters per their styles", async () => {
     const criteria = new PetCriteria({ breed: "lab", min_age: 3 });
@@ -1376,6 +1398,23 @@ describe("PetApi against a recording client", () => {
     await recordingApi.getPetTag(5, "cute");
 
     expect(new URL(recorded[0]!.url).pathname).toBe("/pet/;petId=5/tag/.cute");
+  });
+
+  test("bhv operations 058 getPetTag returns the decoded pet", async () => {
+    const pet = await recordingApi.getPetTag(5, "cute");
+
+    expect(pet.id).toBe(7);
+  });
+
+  test("bhv operations 065 getPetByName sends the required category query param on the wire", async () => {
+    await recordingApi.getPetByName("x", {
+      category: "sample",
+      xCorrelationId: "sample-correlation",
+    });
+
+    expect(new URL(recorded[0]!.url).searchParams.get("category")).toBe(
+      "sample",
+    );
   });
 
   test("bhv operations 044 findPetsByStatus writes the deepObject filter as bracketed keys", async () => {
@@ -1505,7 +1544,7 @@ describe("PetApi against a recording client", () => {
     }
   });
 
-  test("the third global server keeps its hostile text unchanged", () => {
+  test("bhv servers 013 the third global server keeps its hostile text unchanged", () => {
     const server = Servers.SERVER_2;
 
     expect(server.urlTemplate).toBe("https://{tenant}.example.com/api");
@@ -1570,42 +1609,38 @@ describe("PetApi against a recording client", () => {
     expect(recorded[0]!.headers["Cookie"]).toBe("session=abc");
   });
 
-  test.each([
-    [
-      "setPetAvatar",
-      (requestContentType: string) =>
-        recordingApi.setPetAvatar(
-          1,
-          Buffer.from([1]),
-          requestContentType as "image/png",
-        ),
-      "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [image/jpeg, image/png, application/json]",
-    ],
-    [
-      "uploadPetDocument",
-      (requestContentType: string) =>
-        recordingApi.uploadPetDocument(
-          1,
-          {
-            file: Buffer.from([1]),
-            documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
-          },
-          requestContentType as "multipart/form-data",
-        ),
-      "Unsupported request content-type 'application/unknown-type' for uploadPetDocument; declared types are [multipart/form-data, application/octet-stream]",
-    ],
-  ])(
-    "%s rejects an undeclared request content type before sending",
-    async (_name, call, message) => {
-      const error = await call("application/unknown-type").catch(
-        (e: unknown) => e,
-      );
+  test("bhv operations 076 setPetAvatar rejects an undeclared request content type before sending", async () => {
+    const undeclared: string = "application/unknown-type";
+    const error = await recordingApi
+      .setPetAvatar(1, Buffer.from([1]), undeclared as "image/png")
+      .catch((e: unknown) => e);
 
-      expect((error as Error).constructor).toBe(TypeError);
-      expect((error as Error).message).toBe(message);
-      expect(recorded).toHaveLength(0);
-    },
-  );
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [image/jpeg, image/png, application/json]",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test("bhv operations 093 uploadPetDocument rejects an undeclared request content type before sending", async () => {
+    const undeclared: string = "application/unknown-type";
+    const error = await recordingApi
+      .uploadPetDocument(
+        1,
+        {
+          file: Buffer.from([1]),
+          documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
+        },
+        undeclared as "multipart/form-data",
+      )
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Unsupported request content-type 'application/unknown-type' for uploadPetDocument; declared types are [multipart/form-data, application/octet-stream]",
+    );
+    expect(recorded).toHaveLength(0);
+  });
   test.each(["abc123", "a%20b%3Bc", "a=b", "x/y:z"])(
     "deletePet sends the cookie value %p exactly as given",
     async (value) => {

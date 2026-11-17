@@ -10,9 +10,14 @@ package com.example.petstore
 import com.example.petstore.auth.ApiKeyAuthenticator
 import com.example.petstore.auth.ApiKeyLocation
 import com.example.petstore.auth.BearerAuthenticator
+import com.example.petstore.auth.CredentialEnvironment
+import com.example.petstore.errors.ApiException
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.get
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
@@ -248,6 +253,117 @@ class ClientTest {
         transport.close()
 
         assertEquals(200, runBlocking { transport.sendRequest("GET", "http://localhost/", emptyMap(), null).statusCode })
+    }
+
+    private fun <T> withEnvironment(
+        values: Map<String, String>,
+        body: () -> T,
+    ): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle002 ApiKey header rejects a DEL or NUL character and accepts a tab")
+    fun apiKeyHeaderRejectsDelAndNulAndAcceptsATab() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("/api/v3", "X-Api-Key", "a\u007Fb", ApiKeyLocation.HEADER)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("/api/v3", "X-Api-Key", "a\u0000b", ApiKeyLocation.HEADER)
+        }
+        assertNotNull(ApiKeyAuthenticator("/api/v3", "X-Api-Key", "a\tb", ApiKeyLocation.HEADER))
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle007 close leaves a supplied transport usable for a request of its own")
+    fun closeLeavesASuppliedTransportUsable() {
+        val custom = HttpClient(MockEngine { respond("{}") })
+        val client = Client(authenticator, TransportOptions.builder().httpClient(custom).build())
+
+        client.close()
+
+        assertEquals(HttpStatusCode.OK, runBlocking { custom.get("http://localhost/ping").status })
+        custom.close()
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle010 construct with authenticator and nil transport options")
+    fun constructWithAuthenticatorAndNilTransportOptions() {
+        val client = Client.withAuthenticator(authenticator, null)
+
+        assertNotNull(client)
+        client.close()
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle013 withToken fails when no token is passed and the environment variable is unset")
+    fun withTokenFailsWithoutATokenOrVariable() {
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                withEnvironment(emptyMap()) { Client.withToken("https://api.example.com") }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle014 withToken reads the token from the environment when none is passed")
+    fun withTokenReadsTheTokenFromTheEnvironment() {
+        var authorization: String? = null
+        val engine =
+            MockEngine { request ->
+                authorization = request.headers[HttpHeaders.Authorization]
+                respond("", HttpStatusCode.BadRequest)
+            }
+        val client =
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "env-token")) {
+                Client.withToken(
+                    "https://api.example.com",
+                    null,
+                    TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                )
+            }
+
+        assertThrows(ApiException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+        assertEquals("Bearer env-token", authorization)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle017 withAuthenticator takes a token provider and asks it on every request")
+    fun providerIsAskedForATokenOnEveryRequest() {
+        var calls = 0
+        val seen = mutableListOf<String?>()
+        val engine =
+            MockEngine { request ->
+                seen.add(request.headers[HttpHeaders.Authorization])
+                respond("", HttpStatusCode.BadRequest)
+            }
+        val auth =
+            withEnvironment(emptyMap()) {
+                BearerAuthenticator("https://api.example.com", tokenProvider = {
+                    calls += 1
+                    "tok-$calls"
+                })
+            }
+        val client =
+            Client.withAuthenticator(
+                auth,
+                TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+            )
+
+        repeat(2) {
+            assertThrows(ApiException::class.java) {
+                runBlocking { client.pet.getPetById(1L) }
+            }
+        }
+        assertEquals(listOf("Bearer tok-1", "Bearer tok-2"), seen)
     }
 
     @Test

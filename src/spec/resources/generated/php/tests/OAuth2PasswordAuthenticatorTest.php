@@ -456,3 +456,92 @@ test('bhv authoauthtwopassword 010 password rejected refresh re-runs the passwor
     expect($client->capturedRequests[2]['body'] ?? '')->toContain('grant_type=password');
     expect($client->capturedRequests[2]['body'] ?? '')->toContain('username=testuser');
 });
+
+test('bhv authoauthtwopassword 004 invalidate access token keeps the refresh token and refreshes with it', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-1',
+        'refresh_token' => 'refresh-1',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+    $authenticator->invalidateAccessToken();
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer pw-token-2');
+    $request = $client->capturedRequests[1];
+    expect($request['body'] ?? '')->toContain('grant_type=refresh_token');
+    expect($request['body'] ?? '')->toContain('refresh_token=refresh-1');
+});
+
+test('bhv authoauthtwopassword 015 sends scopes with spaces as plus in the token body', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        ['read', 'write']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests[0]['body'] ?? '')->toContain('scope=read+write');
+});
+
+test('bhv authoauthtwopassword 017 the first grant goes to the token url and the refresh grant to the refresh url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-1',
+        'refresh_token' => 'refresh-1',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        [],
+        'https://auth.example.com/refresh'
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/token');
+    expect($client->capturedRequests[0]['body'] ?? '')->toContain('grant_type=password');
+    expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
+    expect($client->capturedRequests[1]['body'] ?? '')->toContain('grant_type=refresh_token');
+});

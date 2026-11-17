@@ -51,6 +51,25 @@ describe 'Client' do
     _(client).wont_be_nil
   end
 
+  it 'bhv_lifecycle_014 reads the token from the environment when none is passed' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = 'env-token'
+      _(Petstore::Client::Petstore.with_token('/api/v3')).wont_be_nil
+      ENV.delete(variable)
+      error = _(-> { Petstore::Client::Petstore.with_token('/api/v3') }).must_raise ArgumentError
+      _(error.message).must_equal 'Bearer token must not be empty'
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
+  end
+
   it 'bhv_lifecycle_017 with_token takes the token provider as the credential' do
     client = Petstore::Client::Petstore.with_token('/api/v3', token_provider: -> { 'fresh-token' })
 
@@ -92,7 +111,7 @@ describe 'Client' do
     }).must_raise ArgumentError
   end
 
-  it 'bhv_lifecycle_004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
+  it 'bhv_lifecycle_002 bhv_lifecycle_004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
     # RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     # The HEADER location must reject anything outside printable ASCII
     # + TAB to prevent header injection (CR/LF) and silent UTF-8
@@ -106,8 +125,9 @@ describe 'Client' do
       Petstore::Client::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', 'kéy',
                                                       Petstore::Client::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
+  end
 
-    # Non-header locations accept arbitrary chars.
+  it 'bhv_lifecycle_003 api key query accepts non-ASCII' do
     query_auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       '/api/v3', 'api_key', 'kéy', Petstore::Client::Auth::ApiKeyLocation::QUERY
     )

@@ -198,8 +198,83 @@ void main() {
           ),
         ),
       );
-      expect(TransportOptionsBuilder().timeout(0).build().timeout, 0);
     });
+
+    test(
+      'bhv options 033 rejects a non-positive timeout with the canonical message',
+      () {
+        for (final value in [-1, 0]) {
+          expect(
+            () => TransportOptionsBuilder().timeout(value),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                'Invalid timeout: must be a positive number of milliseconds (got $value)',
+              ),
+            ),
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv options 010 a proxy URL with an unterminated IPv6 literal is rejected',
+      () {
+        expect(
+          () => TransportOptionsBuilder().proxy('http://[::1:3128').build(),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              equals('Invalid proxy URL'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('bhv options 011 a proxy URL with no host is rejected', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('http://:3128').build(),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            equals('Invalid proxy URL (missing host)'),
+          ),
+        ),
+      );
+    });
+
+    test(
+      'bhv options 023 toString never reveals the proxy password or a sensitive default header',
+      () {
+        final opts = TransportOptionsBuilder()
+            .proxy('http://user:secret-pw@proxy.test:3128')
+            .defaultHeader('Authorization', 'Bearer secret-token')
+            .build();
+
+        final text = opts.toString();
+
+        expect(text, isNot(contains('secret-pw')));
+        expect(text, isNot(contains('secret-token')));
+      },
+    );
+
+    test(
+      'bhv options 027 maxRetries set through the builder is kept, and 0 disables retries',
+      () {
+        expect(
+          TransportOptionsBuilder().maxRetries(5).build().maxRetries,
+          equals(5),
+        );
+        expect(
+          TransportOptionsBuilder().maxRetries(0).build().maxRetries,
+          equals(0),
+        );
+      },
+    );
 
     test('bhv options 024 invalid proxy URL throws exception', () {
       expect(

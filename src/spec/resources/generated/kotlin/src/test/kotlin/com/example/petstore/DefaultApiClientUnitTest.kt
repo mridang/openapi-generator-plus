@@ -16,6 +16,7 @@ import io.ktor.client.engine.mock.toByteArray
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -80,6 +81,22 @@ class DefaultApiClientUnitTest {
             assertNotNull(capturedUserAgent)
             assertTrue(capturedUserAgent!!.isNotEmpty())
         }
+
+        @Test
+        @DisplayName("bhvTransport052 sends an empty User-Agent header when the option is the empty string")
+        fun sendsEmptyUserAgentWhenOptionIsEmpty() {
+            var capturedUserAgent: String? = "unset"
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedUserAgent = req.headers["User-Agent"]
+                })
+            val transport = TransportOptions.builder().userAgent("").build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals("", capturedUserAgent)
+        }
     }
 
     @Nested
@@ -108,6 +125,23 @@ class DefaultApiClientUnitTest {
                     Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
                 ),
             )
+        }
+
+        @Test
+        @DisplayName("bhvTransport013 injects request id header")
+        fun injectsRequestIdHeader() {
+            var capturedRequestId: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedRequestId = req.headers["X-Request-ID"]
+                })
+            val transport = TransportOptions.builder().injectRequestId(true).build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertNotNull(capturedRequestId)
+            assertTrue(capturedRequestId!!.isNotBlank())
         }
 
         @Test
@@ -245,9 +279,19 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationwire050 CRLF/NUL in filename throws IllegalArgumentException")
+        @DisplayName("bhvSerializationwire043 CRLF in filename throws IllegalArgumentException")
         fun multipartFilenameCRLFRejected() {
-            for (bad in listOf("a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\u0000b.pdf")) {
+            for (bad in listOf("a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf")) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    validateMultipartFilename(bad)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire050 NUL in filename throws IllegalArgumentException")
+        fun multipartFilenameNulRejected() {
+            for (bad in listOf("a\u0000b.pdf")) {
                 assertThrows(IllegalArgumentException::class.java) {
                     validateMultipartFilename(bad)
                 }
@@ -260,6 +304,14 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("per-part MIME sniffing")
     inner class MultipartMimeSniffing {
+        @Test
+        @DisplayName("bhvSerializationwire037 the per-part Content-Type follows the filename extension, ignoring case")
+        fun partContentTypeFollowsTheExtensionIgnoringCase() {
+            assertEquals("image/jpeg", contentTypeForFilename("photo.JPG").toString())
+            assertEquals("image/gif", contentTypeForFilename("anim.gif").toString())
+            assertEquals("application/json", contentTypeForFilename("data.json").toString())
+        }
+
         @Test
         @DisplayName("bhvSerializationwire039 .png filename sets image/png")
         fun pngFilenameSetsImagePng() {
@@ -453,8 +505,69 @@ class DefaultApiClientUnitTest {
     }
 
     @Nested
+    @DisplayName("model parts")
+    inner class ModelParts {
+        @Test
+        @DisplayName("bhvSerializationwire045 multipart model part uses wire property names and date time format")
+        fun modelPartUsesWireNamesAndDateTimeFormat() {
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+            val order =
+                com.example.petstore.models.Order(
+                    petId = 198772L,
+                    quantity = 7,
+                    shipDate = java.time.OffsetDateTime.parse("2024-01-15T10:30:00Z"),
+                )
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    mapOf("order" to order),
+                )
+            }
+
+            val wire = String(bodyBytes!!, Charsets.UTF_8)
+            val start = wire.indexOf("name=\"order\"")
+            assertTrue(start >= 0, "missing order part in: $wire")
+            val part = wire.substring(start, wire.indexOf("\r\n--", start))
+            assertTrue(part.contains("Content-Type: application/json"), part)
+            assertTrue(part.contains("\"petId\":198772"), part)
+            assertTrue(part.contains("\"shipDate\":\"2024-01-15T10:30"), part)
+        }
+    }
+
+    @Nested
     @DisplayName("default headers")
     inner class DefaultHeaders {
+        @Test
+        @DisplayName("bhvTransport040 injected http client receives the request with sdk defaults applied")
+        fun injectedHttpClientReceivesSdkDefaults() {
+            var capturedHeaders: io.ktor.http.Headers? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedHeaders = req.headers
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .userAgent("MyApp/1.0")
+                    .injectRequestId(true)
+                    .defaultHeader("X-Custom", "custom-value")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals("MyApp/1.0", capturedHeaders?.get("User-Agent"))
+            assertNotNull(capturedHeaders?.get("X-Request-ID"))
+            assertEquals("custom-value", capturedHeaders?.get("X-Custom"))
+        }
+
         @Test
         @DisplayName("bhvTransport010 includes transport default headers")
         fun includesTransportDefaultHeadersOnEveryCall() {
@@ -537,7 +650,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a no-redirect (token) request does not carry the transport default headers")
+        @DisplayName("bhvRedirects016 a no-redirect (token) request does not carry the transport default headers")
         fun noRedirectRequestSkipsDefaultHeaders() {
             val seen = mutableListOf<String?>()
             val client =
@@ -693,6 +806,26 @@ class DefaultApiClientUnitTest {
                     apiClient.sendRequest("GET", "http://localhost/latin1", emptyMap(), null)
                 }
             assertEquals("é", response.body, "ISO-8859-1 body must decode using the declared charset")
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire030 decodes a big-endian BOM utf-16 body as big-endian")
+        fun decodesBigEndianBomUtf16AsBigEndian() {
+            val bigEndianWithBom = byteArrayOf(0xFE.toByte(), 0xFF.toByte(), 0x00, 0x44, 0x00, 0x6F, 0x00, 0x63)
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = bigEndianWithBom,
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=utf-16"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/utf16-bom", emptyMap(), null)
+                }
+            assertEquals("Doc", response.body)
         }
 
         @Test
@@ -1143,6 +1276,40 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvRedirects013 keeps Authorization and Cookie on a same-origin redirect")
+        fun keepsAuthorizationAndCookieOnSameOriginRedirect() {
+            var hopHeaders: io.ktor.http.Headers? = null
+            var hopCount = 0
+            val engine =
+                MockEngine { req ->
+                    hopCount++
+                    if (hopCount == 1) {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "http://first.example.com/dest"),
+                        )
+                    } else {
+                        hopHeaders = req.headers
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "http://first.example.com/start",
+                    mapOf("Authorization" to "Bearer secret", "Cookie" to "session=abc"),
+                    null,
+                )
+            }
+            assertEquals(2, hopCount)
+            assertEquals("Bearer secret", hopHeaders?.get("Authorization"))
+            assertEquals("session=abc", hopHeaders?.get("Cookie"))
+        }
+
+        @Test
         @DisplayName("bhvRedirects024 same-origin redirect keeps the sensitive headers")
         fun sameOriginRedirectKeepsSensitiveHeaders() {
             var hopHeaders: io.ktor.http.Headers? = null
@@ -1174,6 +1341,56 @@ class DefaultApiClientUnitTest {
             assertEquals(2, hopCount)
             assertEquals("Bearer secret", hopHeaders?.get("Authorization"))
             assertEquals("session=abc", hopHeaders?.get("Cookie"))
+        }
+
+        @Test
+        @DisplayName("bhvRedirects008 returns redirect when disabled")
+        fun returnsRedirectWhenFollowingIsDisabled() {
+            var hopCount = 0
+            val engine =
+                MockEngine { _ ->
+                    hopCount++
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.MovedPermanently,
+                        headers = headersOf("Location", "http://first.example.com/dest"),
+                    )
+                }
+            val transport = TransportOptions.builder().followRedirects(false).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://first.example.com/start", emptyMap(), null)
+                }
+            assertEquals(301, response.statusCode)
+            assertEquals(1, hopCount)
+        }
+
+        @Test
+        @DisplayName("bhvRedirects017 Psr18 follows redirect when not suppressed")
+        fun defaultSendRequestOverloadFollowsRedirects() {
+            var hopCount = 0
+            val engine =
+                MockEngine { _ ->
+                    hopCount++
+                    if (hopCount == 1) {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.TemporaryRedirect,
+                            headers = headersOf("Location", "http://first.example.com/dest"),
+                        )
+                    } else {
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://first.example.com/start", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+            assertEquals(2, hopCount)
         }
 
         @Test
@@ -1404,6 +1621,31 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvRedirects026 throws ApiException when maxRedirects is exceeded")
+        fun throwsApiExceptionWhenMaxRedirectsIsExceeded() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location", "http://localhost/loop"),
+                    )
+                }
+            val transport =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .maxRedirects(1)
+                    .build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            assertThrowsExactly(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/loop", emptyMap(), null)
+                }
+            }
+        }
+
+        @Test
         @DisplayName("bhvRedirects018 redirect-exhaustion-silent: throws when maxRedirects is exhausted")
         fun throwsWhenRedirectBudgetExhausted() {
             // Server returns a 302 to itself on every hop. With maxRedirects=2
@@ -1474,6 +1716,33 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("response body read error")
     inner class ResponseBodyReadError {
+        @Test
+        @DisplayName("bhvErrors038 a body truncated after the headers throws NetworkException with status 0")
+        fun truncatedBodyAfterHeadersThrowsNetworkExceptionWithStatusZero() {
+            val engine =
+                MockEngine { _ ->
+                    val channel =
+                        io.ktor.utils.io
+                            .ByteChannel(autoFlush = true)
+                    // Part of the body arrives, then the connection is reset before the rest.
+                    channel.writeStringUtf8("{\"id\":")
+                    channel.cancel(java.io.IOException("connection reset mid-body"))
+                    respond(
+                        content = channel,
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest("GET", "http://localhost/truncated", emptyMap(), null)
+                    }
+                }
+            assertEquals(0, ex.statusCode)
+        }
+
         @Test
         @DisplayName("bhvErrors043 response-body-read-error-not-wrapped: body-read failure is a NetworkException")
         fun bodyReadFailureWrappedInNetworkException() {
@@ -1927,6 +2196,74 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvTransport002 the timeout reaches the transport for this call only")
+        fun perCallTimeoutDoesNotPersistToTheNextCall() {
+            var requests = 0
+            withServer({ exchange ->
+                requests++
+                if (requests == 1) Thread.sleep(1500)
+                val bytes = "ok".toByteArray()
+                exchange.sendResponseHeaders(200, bytes.size.toLong())
+                exchange.responseBody.write(bytes)
+            }) { port ->
+                val apiClient =
+                    DefaultApiClient(
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(0)
+                            .build(),
+                    )
+                assertThrows(
+                    com.example.petstore.errors.NetworkTimeoutException::class.java,
+                    {
+                        runBlocking {
+                            kotlinx.coroutines.withContext(CallSettings(200L, null)) {
+                                apiClient.sendRequest("GET", "http://127.0.0.1:$port/slow", emptyMap(), null)
+                            }
+                        }
+                    },
+                )
+                val response =
+                    runBlocking {
+                        apiClient.sendRequest("GET", "http://127.0.0.1:$port/next", emptyMap(), null)
+                    }
+                assertEquals(200, response.statusCode)
+                apiClient.close()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTransport029 a response body that stalls after the headers throws NetworkTimeoutException")
+        fun stalledResponseBodyRaisesNetworkTimeoutException() {
+            withServer({ exchange ->
+                exchange.sendResponseHeaders(200, 0)
+                exchange.responseBody.flush()
+                Thread.sleep(1500)
+            }) { port ->
+                val apiClient =
+                    DefaultApiClient(
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(0)
+                            .build(),
+                    )
+                assertThrows(
+                    com.example.petstore.errors.NetworkTimeoutException::class.java,
+                    {
+                        runBlocking {
+                            kotlinx.coroutines.withContext(CallSettings(300L, null)) {
+                                apiClient.sendRequest("GET", "http://127.0.0.1:$port/stall", emptyMap(), null)
+                            }
+                        }
+                    },
+                )
+                apiClient.close()
+            }
+        }
+
+        @Test
         @DisplayName("bhvTransport028 F827: a per-call timeout applies even when the client has no timeout of its own")
         fun perCallTimeoutAppliesWithoutAClientTimeout() {
             withServer({ _ -> Thread.sleep(1500) }) { port ->
@@ -1958,6 +2295,47 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("close lifecycle")
     inner class CloseLifecycle {
+        @Test
+        @DisplayName("bhvLifecycle019 close lets an in-flight request finish with its body and refuses a new one")
+        fun closeLetsAnInFlightRequestFinishWithItsBody() {
+            val engine =
+                MockEngine { _ ->
+                    kotlinx.coroutines.delay(300)
+                    respond(
+                        content = "{\"ok\":true}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val apiClient = DefaultApiClient(io.ktor.client.HttpClient(engine))
+            val body =
+                runBlocking {
+                    val pending =
+                        async(kotlinx.coroutines.Dispatchers.Default) {
+                            apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                        }
+                    kotlinx.coroutines.delay(100)
+                    apiClient.close()
+                    assertThrowsExactly(IllegalStateException::class.java) {
+                        runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+                    }
+                    pending.await().body
+                }
+            assertEquals("{\"ok\":true}", body)
+        }
+
+        @Test
+        @DisplayName("bhvLifecycle020 close never closes a transport the caller supplied")
+        fun closeNeverClosesACallerSuppliedTransport() {
+            val custom = io.ktor.client.HttpClient(MockEngine { respond("{}") })
+            val apiClient = DefaultApiClient(TransportOptions.builder().httpClient(custom).build())
+
+            apiClient.close()
+
+            assertTrue(custom.coroutineContext[kotlinx.coroutines.Job]!!.isActive, "a caller-supplied transport was closed")
+            custom.close()
+        }
+
         @Test
         @DisplayName("bhvLifecycle023 close-lifecycle-three-way: send after close throws IllegalStateException")
         fun sendAfterCloseThrowsIllegalStateException() {
@@ -2010,7 +2388,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("F1078: closing with nothing in flight releases the transport and a second close does nothing")
+        @DisplayName("bhvLifecycle022 F1078: closing with nothing in flight releases the transport and a second close does nothing")
         fun closeIsIdempotent() {
             val transport = io.ktor.client.HttpClient(MockEngine { respond("{}") })
             val apiClient = DefaultApiClient(transport)
@@ -2043,6 +2421,22 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvTransport048 nonexistent ca cert path fails even when verify ssl is false")
+        fun nonexistentCaCertPathFailsEvenWhenVerifySslIsFalse() {
+            val transport =
+                TransportOptions
+                    .builder()
+                    .verifySsl(false)
+                    .caCertPath("/nonexistent/ca.pem")
+                    .build()
+            val ex =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    DefaultApiClient(transport)
+                }
+            assertNotNull(ex.cause, "the read failure must be kept as the cause")
+        }
+
+        @Test
         @DisplayName("an unreadable caCertPath is reported as a read failure naming the quoted path")
         fun unreadableCaCertPathNamesTheReadFailure() {
             val path = "/nonexistent/ca.pem"
@@ -2058,7 +2452,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a file without PEM blocks is reported as a parse failure naming the quoted path")
+        @DisplayName("bhvErrors039 a file without PEM blocks is reported as a parse failure naming the quoted path")
         fun nonPemCaCertFileNamesTheParseFailure(
             @org.junit.jupiter.api.io.TempDir dir: java.nio.file.Path,
         ) {
@@ -2304,7 +2698,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("the last answer is returned once the retries are spent")
+        @DisplayName("bhvRetries024 the last answer is returned once the retries are spent")
         fun theLastAnswerIsReturnedWhenRetriesAreSpent() {
             val apiClient = retrying(listOf(500))
 
@@ -2338,7 +2732,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("408, 409, 429 and every 5xx but 501 are retried")
+        @DisplayName("bhvRetries021 408, 409, 429 and every 5xx but 501 are retried")
         fun retryableStatusesAreRetried() {
             for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {
                 requestCount = 0
@@ -2348,7 +2742,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("200, 201, 301, 400, 401, 403, 404, 422 and 501 are not retried")
+        @DisplayName("bhvRetries021 200, 201, 301, 400, 401, 403, 404, 422 and 501 are not retried")
         fun otherStatusesAreNotRetried() {
             for (status in listOf(200, 201, 301, 400, 401, 403, 404, 422, 501)) {
                 requestCount = 0
@@ -2461,6 +2855,19 @@ class DefaultApiClientUnitTest {
             assertEquals(503, response.statusCode, "a 5 s wait cannot fit in a 1 s budget")
             assertEquals(1, requestCount)
             assertTrue(sleeps.isEmpty())
+        }
+
+        @Test
+        @DisplayName("bhvRetries019 each call starts a fresh timeout budget, so a retry that fits one call fits the next")
+        fun timeoutBudgetStartsAfreshForEveryCall() {
+            // Each call's 1 s budget is spent to 600 ms by its own wait. A budget shared across
+            // calls would have 400 ms left for the second call and stop its retry.
+            val apiClient = retrying(listOf(503, 200, 503, 200), timeout = 1000L, retryAfter = "0.6")
+            apiClient.sleeper = { kotlinx.coroutines.delay(it) }
+
+            assertEquals(200, get(apiClient).statusCode)
+            assertEquals(200, get(apiClient).statusCode)
+            assertEquals(4, requestCount)
         }
 
         @Test

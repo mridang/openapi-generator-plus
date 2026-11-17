@@ -47,13 +47,16 @@ void main() {
       expect(err.responseBody, isNull);
     });
 
-    test('implements Exception', () {
-      const err = ApiException(statusCode: 500, message: 'boom');
+    test(
+      'bhv errors 019 is an Exception subclass with status in its string form',
+      () {
+        const err = ApiException(statusCode: 500, message: 'boom');
 
-      expect(err, isA<Exception>());
-      expect(err, isA<OpenAPIException>());
-      expect(err.toString(), isNotEmpty);
-    });
+        expect(err, isA<Exception>());
+        expect(err, isA<OpenAPIException>());
+        expect(err.toString(), contains('500'));
+      },
+    );
 
     test('bhv errors 018 is a OpenAPIException (branded root)', () {
       const err = ApiException(statusCode: 500, message: 'boom');
@@ -421,6 +424,48 @@ void main() {
     });
 
     test(
+      'bhv errors 026 the request method and path are rendered on their own line and never carry the query string',
+      () {
+        final err = ApiException.fromResponse(
+          404,
+          const {},
+          null,
+          requestMethod: 'GET',
+          requestPath: '/items/7?token=secret',
+        );
+
+        expect(
+          err.toString().split('\n').first,
+          equals('GET /items/7 returned status code 404'),
+        );
+        expect(err.toString(), isNot(contains('token=secret')));
+      },
+    );
+
+    test(
+      'bhv errors 030 getTypedErrorBody returns null for a response that carried no body',
+      () {
+        final err = ApiException.fromResponse(500, const {}, null);
+
+        expect(err.getTypedErrorBody(Category.fromJson), isNull);
+      },
+    );
+
+    test(
+      'bhv errors 037 throws the exception that matches the status code',
+      () {
+        expect(
+          ApiException.fromResponse(404, const {}, null),
+          isA<NotFoundException>(),
+        );
+        expect(
+          ApiException.fromResponse(500, const {}, null),
+          isA<InternalServerErrorException>(),
+        );
+      },
+    );
+
+    test(
       'bhv errors 007 withRequest keeps the type and never overwrites a recorded request',
       () {
         const timeout = NetworkTimeoutException(message: 'slow');
@@ -556,6 +601,51 @@ void main() {
         expect(err.responseHeaders!['Authorization'], equals('Bearer s1'));
       },
     );
+
+    test(
+      'bhv transport 057 masks the static Authorization, Cookie and Proxy-Authorization headers',
+      () {
+        const err = ApiException(
+          statusCode: 401,
+          message: 'denied',
+          responseHeaders: {
+            'Authorization': 'Bearer t1',
+            'Cookie': 't2',
+            'Proxy-Authorization': 'Basic t3',
+            'X-Trace': 'visible',
+          },
+        );
+
+        final text = err.toString();
+        expect(text, contains('"Authorization":"***"'));
+        expect(text, contains('"Cookie":"***"'));
+        expect(text, contains('"Proxy-Authorization":"***"'));
+        expect(text, contains('"X-Trace":"visible"'));
+        for (final leaked in ['t1', 't2', 't3']) {
+          expect(text, isNot(contains(leaked)));
+        }
+      },
+    );
+
+    test('bhv transport 056 masks API key header names', () {
+      const err = ApiException(
+        statusCode: 401,
+        message: 'denied',
+        responseHeaders: {
+          'X-Api-Key': 'k1',
+          'api_key': 'k2',
+          'X-Trace': 'visible',
+        },
+      );
+
+      final text = err.toString();
+      expect(text, contains('"X-Api-Key":"***"'));
+      expect(text, contains('"api_key":"***"'));
+      expect(text, contains('"X-Trace":"visible"'));
+      for (final leaked in ['k1', 'k2']) {
+        expect(text, isNot(contains(leaked)));
+      }
+    });
 
     test('omits the status for a transport failure', () {
       const err = NetworkException(message: 'connection refused');

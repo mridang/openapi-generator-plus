@@ -74,6 +74,17 @@ void main() {
     );
 
     test(
+      'bhv authoauthtwoauthcode 018 omits an empty state from the authorization url',
+      () {
+        final auth = _createAuthenticator();
+
+        final url = auth.buildAuthorizationUrl('');
+
+        expect(url, isNot(contains('state=')));
+      },
+    );
+
+    test(
       'bhv authoauthtwoauthcode 007 builds authorization URL with state',
       () {
         final auth = _createAuthenticator();
@@ -429,6 +440,20 @@ void main() {
     );
 
     test(
+      'bhv authoauthtwoauthcode 001 a code exchange without a built authorization url sends no code verifier',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.exchangeCode('one');
+
+        expect(client.bodies.single, isNot(contains('code_verifier')));
+      },
+    );
+
+    test(
       'bhv authoauthtwoauthcode 008 each authorize URL gets its own verifier and a second exchange sends none',
       () async {
         final client = _FakeApiClient();
@@ -600,7 +625,7 @@ void main() {
 
   group('OAuth2AuthorizationCodeAuthenticator scheme wrapper', () {
     test(
-      'UserAuthAuthorizationCodeAuthenticator uses the declared URLs and scopes',
+      'bhv authoauthtwoauthcode 020 UserAuthAuthorizationCodeAuthenticator uses the declared URLs and scopes',
       () async {
         final client = _FakeApiClient();
         client.enqueue(

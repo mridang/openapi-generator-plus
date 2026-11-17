@@ -77,7 +77,7 @@ void main() {
     // Proxy-Authorization, so these two prove the credentials in the proxy URL
     // reach the proxy on the wire.
     test(
-      'authenticating proxy accepts the credentials from the proxy URL',
+      'bhv transport 001 proxy URL with embedded basic-auth credentials routes through proxy',
       () async {
         final transport = TransportOptionsBuilder()
             .proxy('http://user:pass@$proxyAuthHostPort')
@@ -348,26 +348,43 @@ void main() {
       ('no-location', 'no-location'),
       ('malformed-location', 'malformed'),
     ]) {
-      test('a 302 with a ${row.$1} Location is returned as the 3xx', () async {
-        final transport = TransportOptionsBuilder()
-            .followRedirects(true)
-            .build();
-        final client = DefaultApiClient(transportOptions: transport);
-        final resp = await client.sendRequest(
-          'GET',
-          '$chasmHttpUrl/test/redirect/${row.$1}',
-          {},
-          null,
-        );
-        expect(resp.statusCode, equals(302));
-        expect(jsonDecode(resp.body), equals({'redirect': row.$2}));
-      });
+      test(
+        'bhv redirects 010 a 302 with a ${row.$1} Location is returned as the 3xx',
+        () async {
+          final transport = TransportOptionsBuilder()
+              .followRedirects(true)
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+          final resp = await client.sendRequest(
+            'GET',
+            '$chasmHttpUrl/test/redirect/${row.$1}',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(302));
+          expect(jsonDecode(resp.body), equals({'redirect': row.$2}));
+        },
+      );
     }
 
     /* TransportOptions.proxy is the only proxy source: a client built with
      * default options ignores an ambient proxy pointing at a dead address.
      * A running Dart process cannot change its own environment, so the
      * client runs in a child process started with that environment. */
+    test(
+      'bhv redirects 017 follows a redirect when nothing suppresses it',
+      () async {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/redirect/302',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+      },
+    );
+
     test(
       'bhv transport 009 ignores ambient proxy environment variables',
       () async {
@@ -514,7 +531,58 @@ Future<void> main(List<String> args) async {
     );
 
     test(
-      'bhv retries 010 307 https->http with a body throws (no body replay)',
+      'bhv retries 016 HTTPS->HTTPS body replay is allowed (no downgrade)',
+      () async {
+        final certDir = 'test/fixtures/certs';
+        final tlsContext = SecurityContext()
+          ..useCertificateChain('$certDir/server.pem')
+          ..usePrivateKey('$certDir/server-key.pem');
+
+        String landedBody = '';
+        final target = await HttpServer.bindSecure(
+          InternetAddress.loopbackIPv4,
+          0,
+          tlsContext,
+        );
+        target.listen((request) async {
+          landedBody = await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+        final source = await HttpServer.bindSecure(
+          InternetAddress.loopbackIPv4,
+          0,
+          tlsContext,
+        );
+        source.listen((request) async {
+          await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 307
+            ..headers.set('Location', 'https://127.0.0.1:${target.port}/landed')
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder().verifySsl(false).build();
+          final client = DefaultApiClient(transportOptions: transport);
+          final response = await client.sendRequest(
+            'POST',
+            'https://127.0.0.1:${source.port}/start',
+            {'Content-Type': 'application/x-www-form-urlencoded'},
+            Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+          );
+          expect(response.statusCode, equals(200));
+          expect(landedBody, equals('client_secret=hunter2'));
+        } finally {
+          await source.close();
+          await target.close();
+        }
+      },
+    );
+
+    test(
+      'bhv retries 010 bhv retries 020 307 https->http with a body throws (no body replay)',
       () async {
         final certDir = 'test/fixtures/certs';
         final tlsContext = SecurityContext()
@@ -879,6 +947,87 @@ Future<void> main(List<String> args) async {
         );
       });
     }
+
+    test(
+      'bhv transport 010 includes transport default headers from a map',
+      () async {
+        final transport = TransportOptionsBuilder().defaultHeaders({
+          'X-Map-Header': 'map-value',
+        }).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        final headers = parsed['headers'] as Map<String, dynamic>;
+        expect(headers['x-map-header'], equals('map-value'));
+      },
+    );
+
+    test('bhv transport 013 injects request id header', () async {
+      final transport = TransportOptionsBuilder().injectRequestId(true).build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers.containsKey('x-request-id'), isTrue);
+    });
+
+    test(
+      'bhv transport 007 generates unique request ids across three requests',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final ids = <Object?>{};
+
+        for (var i = 0; i < 3; i++) {
+          final resp = await client.sendRequest(
+            'GET',
+            '$chasmHttpUrl/test/echo',
+            {},
+            null,
+          );
+          final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+          final headers = parsed['headers'] as Map<String, dynamic>;
+          ids.add(headers['x-request-id']);
+        }
+
+        expect(ids.length, equals(3));
+      },
+    );
+
+    test(
+      'bhv transport 046 leaves the proxy auth header null when no proxy is configured',
+      () {
+        final client = DefaultApiClient();
+        expect(client.proxyAuthHeader, isNull);
+      },
+    );
+
+    test(
+      'bhv transport 023 the default transport rejects a certificate from an untrusted CA',
+      () async {
+        final client = DefaultApiClient();
+        await expectLater(
+          client.sendRequest('GET', '$chasmHttpsUrl/test/echo', {}, null),
+          throwsA(
+            isA<NetworkException>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having((e) => e.cause, 'cause', isA<TlsException>()),
+          ),
+        );
+      },
+    );
 
     test(
       'bhv transport 025 verifySsl=true rejects a certificate the system does not trust',

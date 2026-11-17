@@ -616,7 +616,7 @@ public final class DefaultApiClient implements ApiClient {
               && !"https".equalsIgnoreCase(redirectScheme)) {
             throw new ApiException(
                 response.statusCode(),
-                "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri,
+                "Refusing to follow redirect to non-HTTP(S) URL: " + withoutQuery(redirectUri),
                 copyResponseHeaders(response.headers()),
                 null);
           }
@@ -635,9 +635,9 @@ public final class DefaultApiClient implements ApiClient {
             throw new ApiException(
                 response.statusCode(),
                 "Refusing to replay request body across HTTPS->HTTP redirect: "
-                    + originalUri
+                    + withoutQuery(originalUri)
                     + " -> "
-                    + redirectUri,
+                    + withoutQuery(redirectUri),
                 copyResponseHeaders(response.headers()),
                 null);
           }
@@ -1067,6 +1067,16 @@ public final class DefaultApiClient implements ApiClient {
         || statusCode == 303
         || statusCode == 307
         || statusCode == 308;
+  }
+
+  /**
+   * The URL as it may appear in an error message: everything from the query on is dropped, so a
+   * credential sent as a query parameter never reaches a refusal message.
+   */
+  private static String withoutQuery(URI uri) {
+    String text = uri.toString();
+    int query = text.indexOf('?');
+    return query < 0 ? text : text.substring(0, query);
   }
 
   /**

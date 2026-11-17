@@ -440,7 +440,7 @@ class ComposedSchemaTest {
         // on BOTH encode and decode -- this test pins that wire form.
 
         @Test
-        @DisplayName("bhvUnions023 setPetAvatarThumbnail byte oneOf round-trips through base64")
+        @DisplayName("bhvUnions019 bhvUnions023 setPetAvatarThumbnail byte oneOf round-trips through base64")
         fun testScalarByteVariantRoundTripsThroughBase64() {
             val raw = byteArrayOf(0x01, 0x02, 0x03, 0x04)
             val request = SetPetAvatarThumbnailRequest(actualInstance = raw)

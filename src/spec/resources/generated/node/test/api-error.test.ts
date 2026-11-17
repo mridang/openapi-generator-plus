@@ -111,10 +111,34 @@ describe("ApiError", () => {
         "NetworkTimeoutError",
         (o: object) => new NetworkTimeoutError("boom", o),
       ],
-    ])("%s carries requestMethod and requestPath", (_name, build) => {
-      const err = build({ requestMethod: "GET", requestPath: "/items/7" });
-      expect(err.requestMethod).toBe("GET");
-      expect(err.requestPath).toBe("/items/7");
+    ])(
+      "bhv errors 002 %s carries requestMethod and requestPath",
+      (_name, build) => {
+        const err = build({ requestMethod: "GET", requestPath: "/items/7" });
+        expect(err.requestMethod).toBe("GET");
+        expect(err.requestPath).toBe("/items/7");
+      },
+    );
+
+    test("bhv errors 003 every status-specific error keeps an optional cause", () => {
+      const inner = new Error("inner");
+      expect(
+        new BadRequestError("boom", null, null, null, { cause: inner }).cause,
+      ).toBe(inner);
+      expect(
+        new NotFoundError("boom", null, null, null, { cause: inner }).cause,
+      ).toBe(inner);
+      expect(
+        new TooManyRequestsError("boom", null, null, null, { cause: inner })
+          .cause,
+      ).toBe(inner);
+      expect(new BadRequestError("boom").cause).toBeUndefined();
+    });
+
+    test("bhv errors 019 is an Error subclass with the status in its string form", () => {
+      const err = new ApiError(500, "boom");
+      expect(err).toBeInstanceOf(Error);
+      expect(err.toString()).toContain("HTTP status code: 500");
     });
 
     test("name is ApiError", () => {
@@ -480,6 +504,13 @@ describe("ApiError", () => {
       expect(err.constructor).toBe(BadRequestError);
       expect(err.responseBody).toBe(body);
       expect(err.errorBody).toBe(expected);
+    });
+
+    test("bhv errors 012 fromResponse without a request keeps the plain message", () => {
+      const err = ApiError.fromResponse(404, {}, null);
+      expect(err.message).toBe("API returned status code 404");
+      expect(err.requestMethod).toBeNull();
+      expect(err.toString()).not.toContain("Request:");
     });
 
     test("bhv errors 007 fromResponse records the request method and path on the error it builds", () => {

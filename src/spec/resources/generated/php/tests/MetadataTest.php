@@ -88,6 +88,25 @@ test('composer manifest has a valid name', function (): void {
     );
 });
 
+test('bhv models 006 file header prints the info description without backslash escapes', function (): void {
+    /* The generated file header is the docblock above the declare statement.
+     * A description with quotes must reach it verbatim, never backslash-escaped. */
+    $files = glob(__DIR__ . '/../lib/*.php') ?: [];
+    expect($files)->not->toBeEmpty();
+
+    $checked = 0;
+    foreach ($files as $file) {
+        $source = (string) file_get_contents($file);
+        $end = strpos($source, 'declare(');
+        if ($end === false) {
+            continue;
+        }
+        $checked++;
+        expect(substr($source, 0, $end))->not->toContain('\\"');
+    }
+    expect($checked)->toBeGreaterThan(0);
+});
+
 test('bhv models 002 composer manifest has a description', function (): void {
     /* D2-docs: the app description must be wired into composer.json so the
      * package does not publish with an empty description. */

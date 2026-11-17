@@ -42,6 +42,14 @@ class ApiResultTest {
   }
 
   @Test
+  void bhvResults002ExposesHeaders() {
+    ApiResult<String> result =
+        new ApiResult<>(200, "payload", "payload", Map.of("x-request-id", "abc"));
+
+    assertEquals("abc", result.headers().get("x-request-id"));
+  }
+
+  @Test
   void headersAreDefensivelyCopiedAndUnmodifiable() {
     // The compact constructor wraps the headers in an unmodifiable copy, so
     // mutation attempts on the exposed map throw.

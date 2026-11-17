@@ -379,6 +379,17 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
    * absent and a {@code ***} redaction marker present.
    */
   @Test
+  @DisplayName("bhvAuthOauthTwoAuthCode025 toString() shows the non-secret fields")
+  void bhvAuthOauthTwoAuthCode025ReprShowsTheNonSecretFields() {
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    String repr = auth.toString();
+    assertTrue(repr.contains("clientId=my-client-id"), repr);
+    assertTrue(repr.contains("authorizationUrl=https://auth.example.com/authorize"), repr);
+    assertTrue(repr.contains("redirectUri=https://app.example.com/callback"), repr);
+    assertTrue(repr.contains("scopes=[read, write]"), repr);
+  }
+
+  @Test
   @DisplayName("bhvAuthOauthTwoAuthCode019 toString() redacts the client secret and shows ***")
   void bhvAuthOauthTwoAuthCode019RedactsSecret() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();

@@ -1112,6 +1112,92 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void BhvSerializationparam004AnAlreadyPercentEncodedValueIsEncodedAgain()
+    {
+        Assert.Equal("a%2520b", ValueSerializer.Serialize("a%20b", "path", "string"));
+    }
+
+    [Fact]
+    public void BhvSerializationparam036ExplodedFormQueryObjectExpandsToOneEntryPerProperty()
+    {
+        var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" });
+        var result = ValueSerializer.SerializeStyled(
+            "pet",
+            pet,
+            "query",
+            "object",
+            null,
+            "form",
+            true
+        );
+        var fields = Assert.IsType<ValueSerializer.ExplodedFields>(result);
+        Assert.Contains(fields.Fields, f => f.Key == "name" && f.Value == "Rex");
+        Assert.Contains(fields.Fields, f => f.Key == "photoUrls");
+        Assert.DoesNotContain(fields.Fields, f => f.Key == "pet");
+    }
+
+    [Fact]
+    public void BhvSerializationparam039FormNotExplodedObjectIsOneCommaSeparatedList()
+    {
+        var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" });
+        string flat = Assert.IsType<string>(
+            ValueSerializer.SerializeStyled("pet", pet, "query", "object", null, "form", false)
+        );
+        Assert.Contains("name,Rex", flat, StringComparison.Ordinal);
+        Assert.DoesNotContain("=", flat, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvSerializationparam048DateTimeParameterKeepsItsTime()
+    {
+        var at = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
+        Assert.Equal(
+            "2024-01-15T10:30:00.000+00:00",
+            ValueSerializer.Serialize(at, "query", "string")
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam066NullInAPathIntegerParameterIsEmptyString()
+    {
+        Assert.Equal("", ValueSerializer.Serialize(null, "path", "integer"));
+    }
+
+    [Fact]
+    public void BhvSerializationparam068OnlyTheQueryLegalReservedSetStaysLiteral()
+    {
+        Assert.Equal(
+            ":/?@!$&'()*+,;=%20%23%5B%5D",
+            ValueSerializer.EncodeQueryAllowingReserved(":/?@!$&'()*+,;= #[]")
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam080ReservedCharactersStayLiteralAndOthersAreEncoded()
+    {
+        Assert.Equal(
+            "a/b?c=d&e%20f%22g",
+            ValueSerializer.EncodeQueryAllowingReserved("a/b?c=d&e f\"g")
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam081SemicolonIsPreservedInAPathSegment()
+    {
+        Assert.Equal("a;b", ValueSerializer.Serialize("a;b", "path", "string"));
+    }
+
+    [Fact]
+    public void BhvSerializationparam082SimpleStyleObjectInAHeaderIsACommaList()
+    {
+        var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" });
+        string flat = Assert.IsType<string>(
+            ValueSerializer.SerializeStyled("pet", pet, "header", "object", null, "simple", false)
+        );
+        Assert.Contains("name,Rex", flat, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SerializeEncodesByteArrayAsBase64NotAList()
     {
         Assert.Equal(

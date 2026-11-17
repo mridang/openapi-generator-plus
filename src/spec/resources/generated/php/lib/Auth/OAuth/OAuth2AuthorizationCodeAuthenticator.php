@@ -206,6 +206,16 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
     }
 
     /**
+     * Takes over the PKCE verifier of an authorization URL that the previous delegate built
+     * but that has not been exchanged yet, so a rediscovery between the URL and the exchange
+     * keeps the verifier that the challenge in the URL was made from.
+     */
+    public function adoptPkceVerifier(self $previous): void
+    {
+        $this->pkceVerifier = $previous->pkceVerifier;
+    }
+
+    /**
      * Returns the base URL of the API.
      *
      * @return string the API base URL

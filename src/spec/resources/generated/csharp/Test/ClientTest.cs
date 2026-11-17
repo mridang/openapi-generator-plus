@@ -53,7 +53,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task InjectedHandlerReceivesTheRequestAndSurvivesClientDispose()
+    public async Task BhvLifecycle007CloseOnAClientWithASuppliedTransportLeavesThatTransportUsable()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -63,7 +63,16 @@ public sealed class ClientTest : IDisposable
             _ = await client.Store.GetInventoryAsync();
         }
 
-        Assert.Equal(1, handler.Requests);
+        using (var direct = new HttpClient(handler, disposeHandler: false))
+        {
+            using var response = await direct.GetAsync(
+                new Uri("http://localhost/still-usable"),
+                TestContext.Current.CancellationToken
+            );
+            Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        }
+
+        Assert.Equal(2, handler.Requests);
         Assert.False(handler.Disposed);
     }
 
@@ -300,7 +309,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void BearerRejectsCrlfAndNonAscii()
+    public void BhvLifecycle006BearerRejectsCrlfAndNonAscii()
     {
         // auth-validation-timing: the token is validated eagerly at
         // construction (matching the 10-SDK majority), so a malformed token
@@ -592,7 +601,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task OpenIdConnectWrapperDiscoversFromItsConfigurationUrlWithoutScopes()
+    public async Task BhvAuthoidc012SchemeWrapperDiscoversFromItsSpecUrlAndSendsTheOpenIdScope()
     {
         var transport = new ScriptedApiClient();
         transport.Enqueue(

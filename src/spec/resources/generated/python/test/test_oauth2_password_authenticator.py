@@ -459,6 +459,16 @@ class TestLegacyAuthWrapper:
 
 
 class TestPasswordRedactedRepr:
+    def test_bhv_authoauthtwopassword_015_sends_scopes_with_spaces_as_plus_in_the_token_body(
+        self,
+    ) -> None:
+        auth, mock_client = _create_authenticator_with_mock()
+
+        auth.get_auth_headers()
+
+        body = mock_client.send_request.call_args[0][3]
+        assert "scope=read+write" in body.split("&")
+
     def test_bhv_authoauthtwopassword_018_repr_lists_the_non_secret_fields_and_masks_both_secrets(
         self,
     ) -> None:
@@ -472,7 +482,7 @@ class TestPasswordRedactedRepr:
 
 
 class TestInvalidateAccessToken:
-    def test_a_dropped_token_is_replaced_by_a_refresh_and_the_refresh_token_is_kept(
+    def test_bhv_authoauthtwopassword_004_a_dropped_token_is_replaced_by_a_refresh_and_the_refresh_token_is_kept(
         self,
     ) -> None:
         auth = _create_authenticator()

@@ -265,6 +265,21 @@ describe("Composed Schema", () => {
     expect(serialized.split('"notes"').length).toBe(2);
   });
 
+  test("bhv unions 002 anyOf: TreatmentRecord keeps the later declared variant on a shared property, emitted once", () => {
+    // Surgery is declared first and Medication last, so the Medication `notes`
+    // must win the collision and appear exactly once in the encoding.
+    const record = new TreatmentRecord([
+      new Surgery({ procedureName: "Spay", notes: "from-surgery" }),
+      new Medication({ drugName: "Amoxicillin", notes: "from-medication" }),
+    ]);
+
+    const serialized = ObjectSerializer.serialize(record);
+    const reparsed = JSON.parse(serialized) as Record<string, unknown>;
+
+    expect(reparsed.notes).toBe("from-medication");
+    expect(serialized.split('"notes"').length).toBe(2);
+  });
+
   test("bhv unions 003 anyOf single-variant payloads still decode correctly", () => {
     // The both-variants retention must not break the single-variant case: a
     // medication-only and a surgery-only payload each still decode, exposing
@@ -388,7 +403,7 @@ describe("Composed Schema", () => {
     expect(food.asWetFood()).toBeNull();
   });
 
-  test("oneOf: a wrapper built in code answers the same way", () => {
+  test("bhv unions 001 oneOf: a wrapper built in code answers only for its own variant", () => {
     const food = new PetFood(new WetFood({ volumeMl: 400 }));
 
     expect(food.isWetFood()).toBe(true);

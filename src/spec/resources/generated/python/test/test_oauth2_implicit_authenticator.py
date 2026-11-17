@@ -128,6 +128,31 @@ class TestImplicitAuthorizationUrl:
             "&client_id=my_implicit_client_id&scope=read%20write&state=a%20b"
         )
 
+    def test_bhv_authoauthtwoimplicit_001_authorization_url_percent_encodes_sub_delimiters_and_keeps_tilde(
+        self,
+    ) -> None:
+        auth = OAuth2ImplicitAuthenticator(
+            host="https://api.example.com",
+            client_id="id~*!'()",
+            authorization_url="https://auth.example.com/authorize",
+            scopes=["a*b", "c!d"],
+        )
+
+        url = auth.build_authorization_url(state="s t~(1)")
+
+        assert url == (
+            "https://auth.example.com/authorize?response_type=token"
+            "&client_id=id~%2A%21%27%28%29"
+            "&scope=a%2Ab%20c%21d&state=s%20t~%281%29"
+        )
+
+    def test_bhv_authoauthtwoimplicit_009_an_empty_state_is_omitted_from_the_authorization_url(
+        self,
+    ) -> None:
+        url = _create_authenticator().build_authorization_url(state="")
+
+        assert "state" not in parse_qs(urlparse(url).query)
+
 
 class TestSetAccessTokenValidation:
     @pytest.mark.parametrize(

@@ -202,11 +202,7 @@ describe("Configuration", () => {
     expect(builder.server(server)).toBe(builder);
   });
 
-  test.each([
-    ["toString", (c: Configuration) => c.toString()],
-    ["JSON", (c: Configuration) => JSON.stringify(c)],
-    ["inspect", (c: Configuration) => util.inspect(c)],
-  ])("%s hides secret default header values", (_name, render) => {
+  test("bhv config 015 toString, JSON and inspect hide secret default header values", () => {
     const config = Configuration.builder()
       .baseUrl("https://example.com")
       .defaultHeaders({
@@ -219,12 +215,19 @@ describe("Configuration", () => {
         "X-Trace": "visible",
       })
       .build();
-    const text = render(config);
-    expect(text).not.toContain("top-secret");
-    expect(text).not.toContain("Basic abc");
-    expect(text).toContain("https://example.com");
-    expect(text).toContain("visible");
-    expect(text).toContain("***");
+    const renderers: Array<(c: Configuration) => string> = [
+      (c) => c.toString(),
+      (c) => JSON.stringify(c),
+      (c) => util.inspect(c),
+    ];
+    for (const render of renderers) {
+      const text = render(config);
+      expect(text).not.toContain("top-secret");
+      expect(text).not.toContain("Basic abc");
+      expect(text).toContain("https://example.com");
+      expect(text).toContain("visible");
+      expect(text).toContain("***");
+    }
   });
 
   test("signal is undefined by default", () => {

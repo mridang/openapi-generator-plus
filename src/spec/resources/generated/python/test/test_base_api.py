@@ -411,7 +411,7 @@ class TestPerCallOptions:
         assert "X-Tenant" not in client.sent[0]
         assert client.sent[0]["X-Keep"] == "yes"
 
-    async def test_bhv_retries_004_per_call_max_retries_overrides_the_transport_budget(
+    async def test_bhv_retries_004_bhv_retries_009_per_call_max_retries_overrides_the_transport_budget(
         self,
     ) -> None:
         client = _ScriptedApiClient(
@@ -1138,7 +1138,9 @@ class TestSecurityNoneAuthSuppression:
             f"inherited-security op must apply the client credential, got: {client.captured_headers}"
         )
 
-    async def test_secured_op_still_sends_credential(self) -> None:
+    async def test_bhv_authintegration_006_secured_op_still_sends_credential(
+        self,
+    ) -> None:
         # add_pet IS secured; with the same client-level authenticator and no
         # per-call override the credential must STILL reach the wire (do not
         # over-suppress). Guards against a Wave A1 regression.
@@ -1553,6 +1555,26 @@ class TestBodySerialization:
         assert "note" not in wire
         assert wire == "nickname=rex&tags=a&tags=b"
 
+    async def test_bhv_serializationwire_013_form_urlencoded_body_keeps_a_well_formed_surrogate_pair(
+        self,
+    ) -> None:
+        # An astral code point is one character in Python; it must be encoded
+        # as its complete UTF-8 sequence, never as two lone surrogates.
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"emoji": "\U0001f600"},
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+        assert str(client.captured_body) == "emoji=%F0%9F%98%80"
+
     async def test_form_bool_field_serializes_lowercase(self) -> None:
         # Form scalars route through ObjectSerializer.stringify so a bool
         # renders as `true`/`false` (the JSON/wire form), not Python's `True`.
@@ -1927,6 +1949,29 @@ class TestHeaderFlowThrough:
         client = CapturingApiClient()
         config = Configuration(
             base_url="http://localhost", default_headers={"Accept": "application/xml"}
+        )
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_headers["Accept"] == "application/xml"
+
+    async def test_bhv_options_001_config_default_header_overrides_operation_negotiated_accept(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        config = (
+            Configuration.builder()
+            .base_url("http://localhost")
+            .default_header("Accept", "application/xml")
+            .build()
         )
         stub = StubApi(api_client=client, config=config)
         await stub.call(
@@ -2325,6 +2370,14 @@ class TestTypedErrorBody:
         err = BadRequestException(message="boom", response_headers={}, response_body="")
         assert err.get_typed_error_body(Category) is None
 
+    def test_bhv_errors_030_get_typed_error_body_returns_none_when_there_is_no_response_body(
+        self,
+    ) -> None:
+        err = BadRequestException(
+            message="boom", response_headers={}, response_body=None
+        )
+        assert err.get_typed_error_body(Category) is None
+
 
 class JsonReplyApiClient(CapturingApiClient):
     """Capturing client that answers 200 with a fixed JSON body."""
@@ -2537,7 +2590,9 @@ class TestOperationServerVariants:
             == "https://eu.example.com/v1"
         )
 
-    async def test_request_goes_to_the_selected_variant(self) -> None:
+    async def test_bhv_errors_027_per_operation_server_overrides_the_client_base_url(
+        self,
+    ) -> None:
         from petstore_client.api.pet_api import (
             GetStagingPetInfoServerEnvironment,
             GetStagingPetInfoServerStagingServer,
@@ -2722,12 +2777,15 @@ class TestAutomaticRetries:
         assert excinfo.value.status_code == status
         assert len(server.requests) == 1
 
-    async def test_two_retries_are_made_by_default(self, scripted: Any) -> None:
+    async def test_bhv_retries_024_stops_after_max_retries_and_raises_the_last_status(
+        self, scripted: Any
+    ) -> None:
         server = scripted((503, _SOON, "{}"))
 
-        with pytest.raises(ServerException):
+        with pytest.raises(ServerException) as excinfo:
             await _get(_retry_api(server))
 
+        assert excinfo.value.status_code == 503
         assert len(server.requests) == 3
 
     async def test_max_retries_sets_the_number_of_retries(self, scripted: Any) -> None:
@@ -2738,7 +2796,9 @@ class TestAutomaticRetries:
 
         assert len(server.requests) == 5
 
-    async def test_zero_max_retries_disables_retries(self, scripted: Any) -> None:
+    async def test_bhv_retries_018_zero_max_retries_disables_retries(
+        self, scripted: Any
+    ) -> None:
         server = scripted((503, _SOON, "{}"), _OK)
 
         with pytest.raises(ServerException):
@@ -2774,7 +2834,7 @@ class TestAutomaticRetries:
         assert time.monotonic() - started >= 0.9
         assert len(server.requests) == 2
 
-    async def test_a_wait_longer_than_the_timeout_budget_ends_the_retries(
+    async def test_bhv_retries_025_a_wait_longer_than_the_timeout_budget_ends_the_retries(
         self, scripted: Any
     ) -> None:
         server = scripted((503, {"Retry-After": "30"}, "{}"), _OK)
@@ -2786,7 +2846,9 @@ class TestAutomaticRetries:
         assert time.monotonic() - started < 1.4
         assert len(server.requests) == 1
 
-    async def test_a_dropped_connection_is_retried(self, scripted: Any) -> None:
+    async def test_bhv_retries_013_a_dropped_connection_is_retried(
+        self, scripted: Any
+    ) -> None:
         server = scripted(None, _OK)
 
         await _get(_retry_api(server))
@@ -2802,6 +2864,27 @@ class TestAutomaticRetries:
             await _get(_retry_api(server, max_retries=1))
 
         assert len(server.requests) == 2
+
+    async def test_bhv_retries_014_per_call_max_retries_zero_disables_the_retries_the_transport_allows(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, _SOON, "{}"), _OK)
+        api = _retry_api(server, max_retries=3)
+
+        with pytest.raises(ServerException):
+            await api.call_result(
+                "GET",
+                "/x",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+                request_options=FindPetsByStatusOptions(max_retries=0),
+            )
+
+        assert len(server.requests) == 1
 
     async def test_bhv_retries_005_a_retry_builds_the_authentication_headers_again(
         self, scripted: Any

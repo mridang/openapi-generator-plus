@@ -350,7 +350,7 @@ test('bhv options 005 caller headers override defaults', function (): void {
     expect($capturedHeaders['Accept'] ?? null)->toBe('application/json');
 });
 
-test('bhv serializationwire 032 decodes iso 8859 1 body to utf 8 when charset declared', function (): void {
+test('bhv serializationwire 032 bhv serializationwire 033 decodes iso 8859 1 body to utf 8 when charset declared', function (): void {
     $body = "\xE9"; // ISO-8859-1 'é'
     $mockResponse = new MockResponse($body, [
         'http_code' => 200,
@@ -383,6 +383,22 @@ test('bhv serializationwire 031 decodes bom-less utf-16 body as big endian', fun
     // Sanity check the byte-order decision: read little-endian, the same
     // bytes would decode to something other than "Tag".
     expect(mb_convert_encoding($body, 'UTF-8', 'UTF-16LE'))->not->toBe('Tag');
+});
+
+test('bhv serializationwire 030 decodes a big endian bom utf 16 body as big endian', function (): void {
+    // "Tag" encoded as UTF-16 big-endian behind a big-endian byte-order mark: the BOM selects
+    // the byte order and is not part of the text.
+    $body = "\xFE\xFF\x00T\x00a\x00g";
+    $mockResponse = new MockResponse($body, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'text/plain; charset=utf-16'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/utf16bom', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('Tag');
 });
 
 test('treats absent charset as utf 8', function (): void {
@@ -2164,6 +2180,42 @@ test('bhv retries 011 a 308 from https to http with a body throws without replay
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
         ->toThrow(ApiException::class);
+});
+
+test('bhv redirects 007 returns the redirect response when following is disabled', function (): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'https://api.example.com/next'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(false)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(302);
+});
+
+test('bhv redirects 019 redirect refusal messages never carry a query parameter credential', function (): void {
+    /* F861 / D16: a refusal names the URLs it refused, but a query parameter
+     * can hold a credential, so the message keeps the scheme, host and path only. */
+    $downgrade = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink?api_key=query-value'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
+
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret?api_key=query-value', [], 'sensitive=payload'))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(ApiException::class);
+            if (!$e instanceof ApiException) {
+                return;
+            }
+            expect($e->getMessage())->toBe(
+                'Refusing to replay request body across HTTPS->HTTP redirect: '
+                . 'https://api.example.com/secret -> http://insecure.example.com/sink'
+            );
+        });
 });
 
 test('bhv redirects 001 a 302 from https to http with a body proceeds as a GET without the body', function (): void {

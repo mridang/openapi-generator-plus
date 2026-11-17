@@ -625,3 +625,85 @@ test('bhv authoauthtwoauthcode 013 failed exchange keeps the previous session', 
     expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer token1']);
     expect($client->capturedRequests)->toHaveCount(2);
 });
+
+test('bhv authoauthtwoauthcode 008 the code exchange proves the challenge of the authorization url', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read']
+    );
+    $authenticator->setApiClient($client);
+
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl('s'), PHP_URL_QUERY), $params);
+    $authenticator->exchangeCode('the-code');
+
+    parse_str((string) ($client->capturedRequests[0]['body'] ?? ''), $form);
+    $verifier = (string) ($form['code_verifier'] ?? '');
+    expect(preg_match('/^[A-Za-z0-9._~-]{43,128}$/', $verifier))->toBe(1);
+    expect($params['code_challenge'])->toBe(rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='));
+});
+
+test('bhv authoauthtwoauthcode 009 every authorization url starts a new verifier', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read']
+    );
+    $authenticator->setApiClient($client);
+    $challenge = static function (string $url): string {
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $params);
+        return (string) $params['code_challenge'];
+    };
+
+    $first = $challenge($authenticator->buildAuthorizationUrl('a'));
+    $second = $challenge($authenticator->buildAuthorizationUrl('b'));
+    expect($second)->not->toBe($first);
+
+    $authenticator->exchangeCode('the-code');
+    parse_str((string) ($client->capturedRequests[0]['body'] ?? ''), $form);
+    $verifier = (string) ($form['code_verifier'] ?? '');
+    expect(rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='))->toBe($second);
+});
+
+test('bhv authoauthtwoauthcode 016 invalidate access token drops the access token and keeps the refresh token', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('auth-code-123');
+    $authenticator->invalidateAccessToken();
+
+    $headers = $authenticator->getAuthHeaders();
+
+    $refreshRequest = $client->capturedRequests[1];
+    expect($refreshRequest['body'] ?? '')->toContain('grant_type=refresh_token');
+    expect($refreshRequest['body'] ?? '')->toContain('refresh_token=refresh1');
+    expect($headers['Authorization'])->toBe('Bearer access2');
+});

@@ -107,6 +107,19 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOptions002TestFindPetsByStatusWithNullOptionsSendsNoStatusKey()
+    {
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.FindPetsByStatusAsync(null);
+
+        string url = client.CapturedUrl!.AbsoluteUri;
+        Assert.DoesNotContain("status=", url, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BhvOperations040TestFindPetsByStatusExplicitEmptyStatusSendsStatusKey()
     {
         // The flip side of allowEmptyValue: when the caller EXPLICITLY supplies
@@ -945,7 +958,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestConfiguredAuthenticatorIsAppliedToSecuredOperation()
+    public async Task BhvAuthintegration006ConfiguredBearerAuthenticatorIsAppliedToASecuredOperation()
     {
         // AUTH-APPLIED regression guard (Wave A1): a configured BearerAuthenticator
         // must actually be applied to a SECURED operation's outbound request. This
@@ -967,6 +980,111 @@ public class PetApiTest
 
         Assert.True(client.CapturedHeaders.ContainsKey("Authorization"));
         Assert.Equal("Bearer applied-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration003ASchemeCredentialWinsOverTheClientLevelAuthenticator()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["petStoreBearer"] = new BearerAuthenticator("http://localhost", "scheme-token"),
+        };
+        var api = new PetApi(
+            client,
+            config,
+            new BearerAuthenticator("http://localhost", "client-token"),
+            schemes
+        );
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("Bearer scheme-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration007EachOperationSendsTheCredentialOfItsOwnScheme()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["petStoreBearer"] = new BearerAuthenticator("http://localhost", "scheme-token"),
+            ["petStoreBasic"] = new BasicAuthenticator("http://localhost", "user", "pass"),
+        };
+        var api = new PetApi(client, config, null, schemes);
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(pet);
+        Assert.Equal("Bearer scheme-token", client.CapturedHeaders["Authorization"]);
+
+        try
+        {
+            await api.AddPetTreatmentAsync(1L, new PetTreatment(pet));
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+        Assert.StartsWith(
+            "Basic ",
+            client.CapturedHeaders["Authorization"],
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration008ACallWithNoSchemeCredentialFallsBackToTheClientAuthenticator()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["serviceToken"] = new BearerAuthenticator("http://localhost", "wrong-scheme"),
+        };
+        var api = new PetApi(
+            client,
+            config,
+            new BearerAuthenticator("http://localhost", "client-token"),
+            schemes
+        );
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("Bearer client-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration014ResolvesTheFirstListedSchemeTheClientHolds()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["apiKeyHeader"] = new ApiKeyHeaderAuthenticator("http://localhost", "key-1"),
+        };
+        var api = new PetApi(client, config, null, schemes);
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("key-1", client.CapturedHeaders["X-API-Key"]);
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"));
     }
 
     [Fact]
@@ -1120,7 +1238,7 @@ public class PetApiTest
     [Theory]
     [InlineData("6869", "aGk%3D", "aGk=")]
     [InlineData("FBFF", "%2B%2F8%3D", "+/8=")]
-    public async Task ByteFormatParamsAreSentAsStandardBase64(
+    public async Task BhvOperations059ByteFormatParamsAreSentAsStandardBase64(
         string hex,
         string query,
         string header
@@ -1217,6 +1335,54 @@ public class PetApiTest
     {
         var config = Configuration.Builder().BaseUrl("http://localhost").Build();
         return new PetApi(new FakeApiClient(status, contentType, body), config);
+    }
+
+    [Fact]
+    public async Task BhvOperations018WithHttpInfoReturnsStatusDataHeadersAndRawBody()
+    {
+        var api = NewPetApiForMock(200, "application/json", "{\"name\":\"x\",\"photoUrls\":[]}");
+
+        var result = await api.GetPetByIdWithHttpInfoAsync(1L);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Contains("\"name\"", result.RawBody, StringComparison.Ordinal);
+        Assert.Equal("application/json", result.Headers["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task BhvOperations021DigitLeadingQueryParamKeepsItsWireName()
+    {
+        var client = new QueryCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.FindPetsByStatusAsync(
+            new FindPetsByStatusOptions { Status = "available", N2ndPage = 3 }
+        );
+
+        Assert.Contains("2ndPage=3", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations094UploadPetDocumentDefaultSelectionStillSendsMultipart()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+
+        await api.UploadPetDocumentAsync(
+            1L,
+            new UploadPetDocumentOptions { File = fileData, DocumentType = "vaccination" }
+        );
+
+        Assert.StartsWith(
+            "multipart/form-data",
+            client.CapturedHeaders["Content-Type"],
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]

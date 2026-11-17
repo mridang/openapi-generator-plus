@@ -71,6 +71,50 @@ public final class TransportOptions {
   }
 
   /**
+   * Describe these options for a log. The proxy password and the value of every sensitive default
+   * header are replaced by {@code ***}, so the text never carries a credential.
+   *
+   * @return a masked description of the options
+   */
+  @Override
+  public String toString() {
+    Map<String, String> headers = new java.util.LinkedHashMap<>();
+    for (Map.Entry<String, String> header : defaultHeaders.entrySet()) {
+      headers.put(header.getKey(), isSensitiveHeader(header.getKey()) ? "***" : header.getValue());
+    }
+    return "TransportOptions{verifySsl="
+        + verifySsl
+        + ", caCertPath="
+        + caCertPath
+        + ", proxy="
+        + (proxy == null ? null : Builder.redactUserInfo(proxy))
+        + ", timeout="
+        + timeout
+        + ", followRedirects="
+        + followRedirects
+        + ", maxRedirects="
+        + maxRedirects
+        + ", userAgent="
+        + userAgent
+        + ", defaultHeaders="
+        + headers
+        + ", injectRequestId="
+        + injectRequestId
+        + ", maxRetries="
+        + maxRetries
+        + "}";
+  }
+
+  /** A header whose value is a credential: the SDK strips it across origins, so it is masked. */
+  private static boolean isSensitiveHeader(String name) {
+    String lower = name.toLowerCase(java.util.Locale.ROOT);
+    return DefaultApiClient.SENSITIVE_HEADER_NAMES.contains(lower)
+        || lower.contains("key")
+        || lower.contains("token")
+        || lower.contains("secret");
+  }
+
+  /**
    * Create a new builder for constructing {@link TransportOptions} instances.
    *
    * @return a new builder with sensible defaults
@@ -301,32 +345,42 @@ public final class TransportOptions {
     }
 
     /**
-     * Set the HTTP/HTTPS proxy URL.
+     * Set the HTTP/HTTPS proxy URL. The URL is checked by {@link #build()}, so a malformed value is
+     * reported once, when the options are built.
      *
      * @param proxy proxy URL (e.g. {@code "http://proxy:3128"}), or {@code null}
      * @return this builder
-     * @throws IllegalArgumentException if the proxy URL is not a valid URI
      */
     public Builder proxy(@Nullable String proxy) {
-      if (proxy != null) {
-        java.net.URI uri;
-        try {
-          uri = java.net.URI.create(proxy);
-        } catch (IllegalArgumentException e) {
-          throw new IllegalArgumentException("Invalid proxy URL: " + redactUserInfo(proxy), e);
-        }
-        String scheme = uri.getScheme();
-        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
-          throw new IllegalArgumentException(
-              "Invalid proxy URL (must use http or https scheme): " + redactUserInfo(proxy));
-        }
-        if (uri.getHost() == null || uri.getHost().isEmpty()) {
-          throw new IllegalArgumentException(
-              "Invalid proxy URL (missing host): " + redactUserInfo(proxy));
-        }
-      }
       this.proxy = proxy;
       return this;
+    }
+
+    /**
+     * Check a proxy URL: it must parse, use http or https, and name a host.
+     *
+     * @param proxy the proxy URL as supplied, or {@code null} for a direct connection
+     * @throws IllegalArgumentException if the proxy URL is not usable
+     */
+    private static void validateProxy(@Nullable String proxy) {
+      if (proxy == null) {
+        return;
+      }
+      java.net.URI uri;
+      try {
+        uri = java.net.URI.create(proxy);
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("Invalid proxy URL: " + redactUserInfo(proxy), e);
+      }
+      String scheme = uri.getScheme();
+      if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+        throw new IllegalArgumentException(
+            "Invalid proxy URL (must use http or https scheme): " + redactUserInfo(proxy));
+      }
+      if (uri.getHost() == null || uri.getHost().isEmpty()) {
+        throw new IllegalArgumentException(
+            "Invalid proxy URL (missing host): " + redactUserInfo(proxy));
+      }
     }
 
     /**
@@ -439,6 +493,7 @@ public final class TransportOptions {
      * @return the configured transport options
      */
     public TransportOptions build() {
+      validateProxy(proxy);
       if (httpClient != null) {
         if (proxy != null || caCertPath != null || !verifySsl) {
           throw new IllegalArgumentException(

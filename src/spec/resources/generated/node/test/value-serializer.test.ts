@@ -961,6 +961,10 @@ describe("ValueSerializer", () => {
     expect(ValueSerializer.serialize("a+b", "path", "string")).toBe("a+b");
   });
 
+  test("bhv serializationparam 081 semicolon preserved (sub-delimiter)", () => {
+    expect(ValueSerializer.serialize("a;b", "path", "string")).toBe("a;b");
+  });
+
   test("bhv serializationparam 103 unicode encoded as UTF-8 percent", () => {
     expect(ValueSerializer.serialize("日本", "path", "string")).toBe(
       "%E6%97%A5%E6%9C%AC",
@@ -1227,6 +1231,35 @@ describe("ValueSerializer", () => {
         ),
       ).toBe(";day=2024-01-15");
     });
+
+    test("bhv serializationparam 027 a date at a year boundary still emits date-only in a styled path", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "day",
+          ValueSerializer.stringifyDate(
+            new Date(Date.UTC(2024, 11, 31, 23, 59, 59, 999)),
+          ),
+          "path",
+          "Date",
+          null,
+          "matrix",
+          false,
+        ),
+      ).toBe(";day=2024-12-31");
+      expect(
+        ValueSerializer.serializeStyled(
+          "day",
+          ValueSerializer.stringifyDate(
+            new Date(Date.UTC(2025, 0, 1, 0, 0, 0, 0)),
+          ),
+          "path",
+          "Date",
+          null,
+          "matrix",
+          false,
+        ),
+      ).toBe(";day=2025-01-01");
+    });
   });
 
   describe("encodeQueryComponent", () => {
@@ -1261,6 +1294,15 @@ describe("ValueSerializer", () => {
       // when reserved characters are preserved.
       expect(ValueSerializer.encodeQueryAllowingReserved("a b:c")).toBe(
         "a%20b:c",
+      );
+    });
+
+    test("bhv serializationparam 002 allowReserved leaves reserved characters literal but still encodes the others", () => {
+      expect(ValueSerializer.encodeQueryAllowingReserved("k=v&x;y,z:1")).toBe(
+        "k=v&x;y,z:1",
+      );
+      expect(ValueSerializer.encodeQueryAllowingReserved("a b#c")).toBe(
+        "a%20b%23c",
       );
     });
 

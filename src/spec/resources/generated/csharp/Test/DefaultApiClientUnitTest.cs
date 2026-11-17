@@ -177,6 +177,116 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvTransport008GeneratesADifferentRequestIdPerRequest()
+    {
+        var requestIds = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            requestIds.Add(req.Headers.GetValues("X-Request-ID").Single());
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, requestIds.Count);
+        Assert.NotEqual(requestIds[0], requestIds[1]);
+    }
+
+    [Fact]
+    public async Task BhvTransport011IncludesTransportDefaultHeaders()
+    {
+        List<string>? customHeaders = null;
+        var handler = new CapturingHandler(req =>
+        {
+            customHeaders = req.Headers.TryGetValues("X-Custom", out var values)
+                ? values.ToList()
+                : null;
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions
+            .Builder()
+            .DefaultHeader("X-Custom", "custom-value")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(new List<string> { "custom-value" }, customHeaders);
+    }
+
+    [Fact]
+    public async Task BhvTransport014InjectsARequestIdThatIsAUuid()
+    {
+        string? requestId = null;
+        var handler = new CapturingHandler(req =>
+        {
+            requestId = req.Headers.GetValues("X-Request-ID").Single();
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.True(Guid.TryParse(requestId, out _));
+    }
+
+    [Fact]
+    public async Task BhvTransport052EmptyUserAgentOptionSendsAnEmptyUserAgentHeader()
+    {
+        List<string>? userAgents = null;
+        var handler = new CapturingHandler(req =>
+        {
+            userAgents = req.Headers.TryGetValues("User-Agent", out var values)
+                ? values.ToList()
+                : null;
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().UserAgent(string.Empty).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(new List<string> { string.Empty }, userAgents);
+    }
+
+    [Fact]
+    public void BhvTransport046ProxyAuthorizationHeaderIsNullWhenNoProxyIsConfigured()
+    {
+        var client = new DefaultApiClient();
+
+        Assert.Null(client.ProxyAuthorizationHeader);
+    }
+
+    [Fact]
     public async Task BhvTransport041InjectsCustomUserAgent()
     {
         string? capturedUserAgent = null;
@@ -385,7 +495,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallerHeadersWinRegardlessOfCasing()
+    public async Task BhvTransport003CallerHeadersWinRegardlessOfCasing()
     {
         List<string>? userAgents = null;
         List<string>? requestIds = null;
@@ -472,7 +582,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task NoRedirectRequestCarriesNoTransportDefaultHeadersButKeepsTheUserAgent()
+    public async Task BhvRedirects016NoRedirectLeavesTheTransportDefaultHeadersOff()
     {
         /* The OAuth2 token POST is sent with noRedirect: a default Authorization
            header meant for the API must not reach the authorization server. */
@@ -846,6 +956,42 @@ public class DefaultApiClientUnitTest
         DefaultApiClient.ValidateMultipartFilename("file.png");
     }
 
+    [Fact]
+    public async Task BhvSerializationwire032DecodesIso88591BodyToUtf8WhenTheCharsetIsDeclared()
+    {
+        Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+        byte[] latin1Bytes = new byte[] { 0x63, 0x61, 0x66, 0xE9 }; // "café" in ISO-8859-1
+        var handler = new RawByteHandler(
+            HttpStatusCode.OK,
+            latin1Bytes,
+            "text/plain; charset=iso-8859-1"
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/latin1-word"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal("café", response.Body);
+    }
+
+    [Fact]
+    public void BhvSerializationwire042MultipartFilenameEscapesBackslashAndQuote()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("a\"b\\c.png");
+        Assert.Equal("filename=\"a\\\"b\\\\c.png\"", directive);
+    }
+
+    [Fact]
+    public void BhvSerializationwire050MultipartFilenameContainingNulIsRejected()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            DefaultApiClient.ValidateMultipartFilename("a\0b.pdf")
+        );
+    }
+
     // -- Gap H: response body charset handling --
 
     [Fact]
@@ -906,7 +1052,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task DecodesBomlessUtf16BodyAsBigEndian()
+    public async Task BhvSerializationwire031DecodesBomlessUtf16BodyAsBigEndian()
     {
         // RFC 2781: a UTF-16 stream with no BOM defaults to big-endian. A bare
         // "charset=utf-16" (no endianness suffix, no BOM) must therefore decode
@@ -1185,7 +1331,7 @@ public class DefaultApiClientUnitTest
     // ---- 307/308 replays every kind of request body ----
 
     [Fact]
-    public async Task Redirect307ReplaysMultipartBodyWithItsBoundary()
+    public async Task BhvRetries012Redirect307ReplaysMultipartBodyWithItsBoundary()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1370,7 +1516,145 @@ public class DefaultApiClientUnitTest
         Assert.Equal(2, handler.Requests.Count);
     }
 
+    [Fact]
+    public async Task BhvRedirects007ReturnsTheRedirectResponseWhenRedirectsAreDisabled()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.Redirect,
+            location: new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().FollowRedirects(false).Build()
+        );
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(302, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvRedirects013KeepsAuthorizationAndCookieOnASameOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.Redirect,
+            location: new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer secret" },
+                { "Cookie", "session=abc" },
+            },
+            null
+        );
+
+        HttpRequestMessage second = handler.Requests[1];
+        Assert.True(second.Headers.Contains("Authorization"));
+        Assert.True(second.Headers.Contains("Cookie"));
+    }
+
+    [Fact]
+    public async Task BhvRedirects015NoRedirectReturnsA307Response()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("http://origin.example.com/token"),
+            new Dictionary<string, string>(),
+            "grant_type=client_credentials",
+            noRedirect: true
+        );
+
+        Assert.Equal(307, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvRedirects022NoRedirectReturnsA308Verbatim()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.PermanentRedirect,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("http://origin.example.com/token"),
+            new Dictionary<string, string>(),
+            "grant_type=client_credentials",
+            noRedirect: true
+        );
+
+        Assert.Equal(308, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvRedirects019RefusalMessagesNeverCarryAQueryParameterCredential()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://downgraded.example.com/landed?api_key=SECRET")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("https://secure.example.com/start?api_key=SECRET"),
+                new Dictionary<string, string>(),
+                "secret-payload"
+            )
+        );
+
+        Assert.Equal(
+            "Refusing to replay request body across HTTPS->HTTP redirect:"
+                + " https://secure.example.com/start?*** -> http://downgraded.example.com/landed?***",
+            ex.Message
+        );
+        Assert.DoesNotContain("SECRET", ex.Message, StringComparison.Ordinal);
+    }
+
     // ---- 3.3: HTTPS->HTTP body replay guard ----
+
+    [Fact]
+    public async Task BhvRetries020RefusesReplayOfAPostBodyRedirectedFromHttpsToHttp()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://downgraded.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("https://secure.example.com/start"),
+                new Dictionary<string, string>(),
+                new byte[] { 1, 2, 3 }
+            )
+        );
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(307, ex.StatusCode);
+    }
 
     [Fact]
     public async Task BhvRetries017RefusesBodyReplayOnHttpsToHttpDowngrade()
@@ -1439,7 +1723,7 @@ public class DefaultApiClientUnitTest
     // ---- T-D1: exceeding maxRedirects throws "too many redirects" ----
 
     [Fact]
-    public async Task ThrowsWhenRedirectChainExceedsMax()
+    public async Task BhvRedirects018ThrowsWhenRedirectChainExceedsMax()
     {
         // Always-redirect handler: every response is a 302 pointing at the
         // same origin, so the loop runs until maxRedirects is exhausted.
@@ -1665,6 +1949,23 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(2, handler.Requests.Count);
         Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvErrors038ABodyTruncatedAfterTheHeadersThrowsNetworkExceptionWithStatusZero()
+    {
+        var client = new DefaultApiClient(new HttpClient(new FailingBodyHandler()));
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/truncated"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(0, ex.StatusCode);
     }
 
     // ---- response-body-read-error-not-wrapped ----
@@ -1974,6 +2275,56 @@ public class DefaultApiClientUnitTest
         Assert.Equal(200, response.StatusCode);
     }
 
+    [Fact]
+    public async Task BhvLifecycle019CloseLetsAnInFlightRequestFinishAndRefusesANewOne()
+    {
+        using var gate = new GatedHandler();
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().HttpMessageHandler(gate).Build()
+        );
+        Task<ApiHttpResponse> running = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null
+        );
+        await gate.Entered.Task;
+
+        client.Dispose();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/next"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        Assert.Equal("ApiClient has been closed and can no longer send requests", ex.Message);
+
+        gate.Release.SetResult();
+        ApiHttpResponse response = await running;
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvLifecycle022ClosingAnIdleClientReleasesItAndASecondCloseIsANoOp()
+    {
+        var client = new DefaultApiClient(CreateMockHttpClient(HttpStatusCode.OK, "{}"));
+
+        client.Dispose();
+        client.Dispose();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+    }
+
     private sealed class GatedHandler : HttpMessageHandler
     {
         public TaskCompletionSource Entered { get; } =
@@ -2254,7 +2605,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task InjectedHttpClientIsNeverDisposedByTheSdk()
+    public async Task BhvLifecycle020CloseNeverClosesACallerSuppliedHttpClient()
     {
         var injected = new HttpClient(new MockHandler(HttpStatusCode.OK, "ok"));
         var client = new DefaultApiClient(TransportOptions.Builder().HttpClient(injected).Build());
@@ -2269,7 +2620,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task InjectedHandlerReceivesTheRequestAndOutlivesTheSdkClient()
+    public async Task BhvLifecycle009ClosingTheClientNeverClosesACallerSuppliedTransport()
     {
         var handler = new DisposeTrackingHandler();
         var client = new DefaultApiClient(
@@ -2878,7 +3229,7 @@ public class DefaultApiClientUnitTest
     [InlineData(400)]
     [InlineData(404)]
     [InlineData(501)]
-    public async Task OtherStatusesAreNotRetried(int status)
+    public async Task BhvRetries007OtherStatusesAreNotRetried(int status)
     {
         var handler = new SequenceHandler(_ => Respond(status));
         var client = new DefaultApiClient(
@@ -2927,7 +3278,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task APerCallMaxRetriesReplacesTheTransportsForThatCallOnly()
+    public async Task BhvRetries004APerCallMaxRetriesReplacesTheTransportsForThatCallOnly()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(
@@ -3015,7 +3366,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task AMultipartBodyIsNeverRetried()
+    public async Task BhvRetries003AMultipartBodyIsNeverRetried()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(
@@ -3049,7 +3400,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task EveryRetryRebuildsTheHeaders()
+    public async Task BhvRetries005EveryRetryRebuildsTheHeaders()
     {
         var handler = new SequenceHandler(n => n == 0 ? Respond(503) : Respond(200, null));
         var client = new DefaultApiClient(
@@ -3132,6 +3483,23 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(TimeSpan.FromSeconds(0.375), DefaultApiClient.RetryDelay(0, none, now, 1));
         Assert.Equal(TimeSpan.FromSeconds(6), DefaultApiClient.RetryDelay(9, none, now, 1));
+    }
+
+    [Fact]
+    public void BhvRetries022RetryAfterAsAnHttpDateIsTheTimeUntilThatDate()
+    {
+        var wall = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(
+            wall.Ticks - wall.Ticks % TimeSpan.TicksPerSecond,
+            TimeSpan.Zero
+        );
+        var inThirtySeconds = now.AddSeconds(30)
+            .ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.Equal(
+            TimeSpan.FromSeconds(30),
+            DefaultApiClient.RetryDelay(0, Header(inThirtySeconds), now, 0.5)
+        );
     }
 
     [Fact]

@@ -186,4 +186,10 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(-> { auth.auth_headers }).must_raise ArgumentError
     end
   end
+
+  it 'bhv_authbearer_002 validates a token from the provider like a fixed token' do
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', token_provider: -> { "bad\ntoken" })
+
+    _(-> { auth.auth_headers }).must_raise ArgumentError
+  end
 end

@@ -52,6 +52,22 @@ class DefaultApiClientTest {
   }
 
   @Nested
+  @DisplayName("default TLS verification")
+  class DefaultTlsVerification {
+
+    @Test
+    @DisplayName("bhvTransport023 the default transport rejects a certificate from an untrusted CA")
+    void bhvTransport023DefaultTransportRejectsAnUntrustedCertificate() {
+      String chasmUrl = ChasmContainer.getHttpsBaseUrl();
+
+      DefaultApiClient client = new DefaultApiClient();
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () -> client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null));
+    }
+  }
+
+  @Nested
   @DisplayName("hostname verification")
   class HostnameVerification {
 
@@ -291,6 +307,21 @@ class DefaultApiClientTest {
     }
 
     @Test
+    @DisplayName("bhvTransport058 timeout raises NetworkTimeoutError")
+    void bhvTransport058TimeoutRaisesNetworkTimeoutError() throws ApiException {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+
+      TransportOptions transport = TransportOptions.builder().timeout(1000).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      com.example.petstore.errors.NetworkTimeoutException ex =
+          assertThrowsExactly(
+              com.example.petstore.errors.NetworkTimeoutException.class,
+              () -> client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null));
+      assertEquals(0, ex.getStatusCode());
+    }
+
+    @Test
     @DisplayName("bhvRedirects009 one timeout covers the whole redirect chain")
     void bhvRedirects009TimeoutCoversTheWholeRedirectChain() {
       String chasmUrl = ChasmContainer.getBaseUrl();
@@ -381,6 +412,45 @@ class DefaultApiClientTest {
     }
 
     @Test
+    @DisplayName("bhvTransport007 generates unique request ids")
+    void bhvTransport007GeneratesUniqueRequestIds() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+
+      TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      ObjectMapper mapper = new ObjectMapper();
+
+      ApiHttpResponse response1 =
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+      String requestId1 =
+          mapper.readTree(response1.body()).get("headers").get("x-request-id").asText();
+
+      ApiHttpResponse response2 =
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+      String requestId2 =
+          mapper.readTree(response2.body()).get("headers").get("x-request-id").asText();
+
+      assertNotEquals(requestId1, requestId2);
+    }
+
+    @Test
+    @DisplayName("bhvTransport013 injects request id header")
+    void bhvTransport013InjectsRequestIdHeader() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+
+      TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      ApiHttpResponse response =
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+
+      assertEquals(200, response.statusCode());
+      JsonNode json = new ObjectMapper().readTree(response.body());
+      assertFalse(json.get("headers").get("x-request-id").asText().isEmpty());
+    }
+
+    @Test
     @DisplayName("bhvTransport008 generates unique X-Request-ID per request")
     void bhvTransport008GeneratesUniqueRequestIds() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
@@ -407,6 +477,23 @@ class DefaultApiClientTest {
   @Nested
   @DisplayName("default headers")
   class DefaultHeaders {
+
+    @Test
+    @DisplayName("bhvTransport010 includes transport default headers")
+    void bhvTransport010IncludesTransportDefaultHeaders() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+
+      TransportOptions transport =
+          TransportOptions.builder().defaultHeader("X-Default-Probe", "yes").build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      ApiHttpResponse response =
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+
+      assertEquals(200, response.statusCode());
+      JsonNode json = new ObjectMapper().readTree(response.body());
+      assertEquals("yes", json.get("headers").get("x-default-probe").asText());
+    }
 
     @Test
     @DisplayName("bhvTransport011 includes transport-level default headers")

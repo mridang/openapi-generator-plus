@@ -182,7 +182,7 @@ import Testing
 
   /* A proxy without a scheme is refused, whichever way the platform parses
    * it, and the message names the offending text. */
-  @Test func testProxyWithoutSchemeIsRejected() throws {
+  @Test func testBhvOptions031ProxyWithoutSchemeIsRejected() throws {
     let error = #expect(throws: ConfigurationError.self) {
       try TransportOptionsBuilder().proxy("proxy.example.com:8080").build()
     }
@@ -203,7 +203,7 @@ import Testing
       "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21"
     ),
   ])
-  func testProxyErrorMasksTheUserinfo(url: String, message: String) throws {
+  func testBhvOptions008ProxyErrorMasksTheUserinfo(url: String, message: String) throws {
     let error = #expect(throws: ConfigurationError.self) {
       try TransportOptionsBuilder().proxy(url).build()
     }
@@ -225,7 +225,7 @@ import Testing
         == "Invalid timeout: must be a positive number of milliseconds (got \(timeout))")
   }
 
-  @Test func testProxySchemeIsMatchedCaseInsensitively() throws {
+  @Test func testBhvOptions014ProxySchemeIsMatchedCaseInsensitively() throws {
     let opts = try TransportOptionsBuilder().proxy("HTTP://proxy.example.com:8080").build()
     #expect(opts.proxy?.host == "proxy.example.com")
     #expect(opts.proxy?.port == 8080)

@@ -1312,6 +1312,7 @@ internal class ObjectSerializer(
                 is Number -> JsonPrimitive(value)
                 is Boolean -> JsonPrimitive(value)
                 is String -> JsonPrimitive(value)
+                is Duration -> JsonPrimitive(formatDuration(value))
                 is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJsonElementStatic(v) })
                 is List<*> -> JsonArray(value.map { toJsonElementStatic(it) })
                 else -> JsonPrimitive(value.toString())

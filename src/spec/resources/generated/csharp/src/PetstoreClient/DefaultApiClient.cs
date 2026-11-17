@@ -903,7 +903,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         response.Dispose();
                         throw new ApiException(
                             refusedStatus,
-                            $"Refusing to follow redirect to non-HTTP(S) URL: {nextUrl}",
+                            $"Refusing to follow redirect to non-HTTP(S) URL: {RedactQuery(nextUrl)}",
                             refusedHeaders
                         );
                     }
@@ -953,7 +953,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         response.Dispose();
                         throw new ApiException(
                             redirectStatus,
-                            $"Refusing to replay request body across HTTPS->HTTP redirect: {currentUrl} -> {nextUrl}",
+                            $"Refusing to replay request body across HTTPS->HTTP redirect: {RedactQuery(currentUrl)} -> {RedactQuery(nextUrl)}",
                             downgradeHeaders
                         );
                     }
@@ -1236,6 +1236,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private static bool IsRedirectStatus(int code)
     {
         return code is 301 or 302 or 303 or 307 or 308;
+    }
+
+    /// <summary>
+    /// Renders a URL for an error message with its query replaced by <c>***</c>, so a
+    /// credential carried in a query parameter never reaches a log or an exception.
+    /// </summary>
+    internal static string RedactQuery(Uri url)
+    {
+        string text = url.GetLeftPart(UriPartial.Path);
+        return string.IsNullOrEmpty(url.Query) ? text : text + "?***";
     }
 
     private static bool SameOrigin(Uri a, Uri b)

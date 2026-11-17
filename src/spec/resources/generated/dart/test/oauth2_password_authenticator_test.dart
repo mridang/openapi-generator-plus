@@ -458,7 +458,7 @@ void main() {
 
   group('OAuth2PasswordAuthenticator scheme wrapper', () {
     test(
-      'LegacyAuthPasswordAuthenticator uses the declared token and refresh URLs',
+      'bhv authoauthtwopassword 012 LegacyAuthPasswordAuthenticator uses the declared token and refresh URLs',
       () async {
         final client = _FakeApiClient();
         client.enqueue(

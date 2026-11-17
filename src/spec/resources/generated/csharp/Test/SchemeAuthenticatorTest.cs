@@ -89,6 +89,31 @@ public sealed class SchemeAuthenticatorTest
         }
     }
 
+    private sealed class CapturingTokenClient : PetstoreClient.IApiClient
+    {
+        public Uri? LastUrl { get; private set; }
+
+        public string? LastBody { get; private set; }
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            LastUrl = url;
+            LastBody = body?.ToString();
+            return Task.FromResult(
+                new PetstoreClient.ApiHttpResponse(
+                    200,
+                    "{\"access_token\":\"tok1\",\"expires_in\":3600}",
+                    new Dictionary<string, string>()
+                )
+            );
+        }
+    }
+
     private static readonly string[] PetStoreBasicAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME",
@@ -98,7 +123,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] PetStoreBasicAuthenticatorFields = ["username", "password"];
 
     [Fact]
-    public void BhvAuthscheme001PetStoreBasicAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthbasic001PetStoreBasicAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(PetStoreBasicAuthenticatorVariables, PetStoreBasicAuthenticatorFields),
@@ -179,6 +204,23 @@ public sealed class SchemeAuthenticatorTest
         }
     }
 
+    [Fact]
+    public void BhvAuthbasic002PetStoreBasicAuthenticatorEmitsABasicHeaderAndMasksThePassword()
+    {
+        string password = "pw-" + "marker";
+        var auth = new PetstoreClient.Auth.PetStoreBasicAuthenticator(
+            Host,
+            username: ExplicitValue("username"),
+            password: password
+        );
+
+        Assert.Equal(
+            BasicHeader(ExplicitValue("username"), password),
+            auth.GetAuthHeaders()["Authorization"]
+        );
+        Assert.DoesNotContain(password, auth.ToString(), StringComparison.Ordinal);
+    }
+
     private static readonly string[] AdminBasicAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME",
@@ -188,7 +230,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] AdminBasicAuthenticatorFields = ["username", "password"];
 
     [Fact]
-    public void BhvAuthscheme001AdminBasicAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthbasic001AdminBasicAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(AdminBasicAuthenticatorVariables, AdminBasicAuthenticatorFields),
@@ -267,6 +309,23 @@ public sealed class SchemeAuthenticatorTest
                 }
             );
         }
+    }
+
+    [Fact]
+    public void BhvAuthbasic002AdminBasicAuthenticatorEmitsABasicHeaderAndMasksThePassword()
+    {
+        string password = "pw-" + "marker";
+        var auth = new PetstoreClient.Auth.AdminBasicAuthenticator(
+            Host,
+            username: ExplicitValue("username"),
+            password: password
+        );
+
+        Assert.Equal(
+            BasicHeader(ExplicitValue("username"), password),
+            auth.GetAuthHeaders()["Authorization"]
+        );
+        Assert.DoesNotContain(password, auth.ToString(), StringComparison.Ordinal);
     }
 
     private static readonly string[] PetStoreBearerAuthenticatorVariables =
@@ -393,6 +452,30 @@ public sealed class SchemeAuthenticatorTest
         );
     }
 
+    [Fact]
+    public void BhvAuthbearer001PetStoreBearerAuthenticatorPrintsItsOwnNameWithTheTokenMasked()
+    {
+        string token = "tok-" + "marker";
+        var auth = new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host, token: token);
+
+        Assert.StartsWith(
+            "PetStoreBearerAuthenticator(",
+            auth.ToString(),
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthbearer006PetStoreBearerAuthenticatorEmitsABearerHeaderAndMasksTheToken()
+    {
+        string token = "tok-" + "marker";
+        var auth = new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host, token: token);
+
+        Assert.Equal("Bearer " + token, auth.GetAuthHeaders()["Authorization"]);
+        Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+    }
+
     private static readonly string[] ServiceTokenAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN",
@@ -517,6 +600,26 @@ public sealed class SchemeAuthenticatorTest
         );
     }
 
+    [Fact]
+    public void BhvAuthbearer001ServiceTokenAuthenticatorPrintsItsOwnNameWithTheTokenMasked()
+    {
+        string token = "tok-" + "marker";
+        var auth = new PetstoreClient.Auth.ServiceTokenAuthenticator(Host, token: token);
+
+        Assert.StartsWith("ServiceTokenAuthenticator(", auth.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthbearer006ServiceTokenAuthenticatorEmitsABearerHeaderAndMasksTheToken()
+    {
+        string token = "tok-" + "marker";
+        var auth = new PetstoreClient.Auth.ServiceTokenAuthenticator(Host, token: token);
+
+        Assert.Equal("Bearer " + token, auth.GetAuthHeaders()["Authorization"]);
+        Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+    }
+
     private static readonly string[] ApiKeyHeaderAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
@@ -597,6 +700,18 @@ public sealed class SchemeAuthenticatorTest
                 }
             );
         }
+    }
+
+    [Fact]
+    public void BhvAuthapikey007ApiKeyHeaderAuthenticatorEmitsItsKeyAtItsSpecLocation()
+    {
+        var auth = new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(
+            Host,
+            apiKey: ExplicitValue("apiKey")
+        );
+
+        Assert.Single(Carried(auth));
+        Assert.Equal(ExplicitValue("apiKey"), auth.GetAuthHeaders()["X-API-Key"]);
     }
 
     private static readonly string[] InternalApiKeyAuthenticatorVariables =
@@ -681,6 +796,18 @@ public sealed class SchemeAuthenticatorTest
         }
     }
 
+    [Fact]
+    public void BhvAuthapikey007InternalApiKeyAuthenticatorEmitsItsKeyAtItsSpecLocation()
+    {
+        var auth = new PetstoreClient.Auth.InternalApiKeyAuthenticator(
+            Host,
+            apiKey: ExplicitValue("apiKey")
+        );
+
+        Assert.Single(Carried(auth));
+        Assert.Equal(ExplicitValue("apiKey"), auth.GetAuthHeaders()["X-Internal-Key"]);
+    }
+
     private static readonly string[] ApiKeyQueryAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY",
@@ -763,6 +890,18 @@ public sealed class SchemeAuthenticatorTest
         }
     }
 
+    [Fact]
+    public void BhvAuthapikey007ApiKeyQueryAuthenticatorEmitsItsKeyAtItsSpecLocation()
+    {
+        var auth = new PetstoreClient.Auth.ApiKeyQueryAuthenticator(
+            Host,
+            apiKey: ExplicitValue("apiKey")
+        );
+
+        Assert.Single(Carried(auth));
+        Assert.Equal(ExplicitValue("apiKey"), auth.GetQueryParams()["api_key"]);
+    }
+
     private static readonly string[] SessionCookieAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY",
@@ -843,6 +982,18 @@ public sealed class SchemeAuthenticatorTest
                 }
             );
         }
+    }
+
+    [Fact]
+    public void BhvAuthapikey007SessionCookieAuthenticatorEmitsItsKeyAtItsSpecLocation()
+    {
+        var auth = new PetstoreClient.Auth.SessionCookieAuthenticator(
+            Host,
+            apiKey: ExplicitValue("apiKey")
+        );
+
+        Assert.Single(Carried(auth));
+        Assert.Equal(ExplicitValue("apiKey"), auth.GetCookieParams()["SESSION_ID"]);
     }
 
     private static readonly string[] MachineAuthClientCredentialsAuthenticatorVariables =
@@ -949,6 +1100,31 @@ public sealed class SchemeAuthenticatorTest
                     );
                     Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
                 }
+            );
+        }
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoclientcred009MachineAuthClientCredentialsAuthenticatorSendsItsSpecScopesToItsTokenUrl()
+    {
+        var client = new CapturingTokenClient();
+        var auth = new PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator(
+            Host,
+            clientId: ExplicitValue("clientId"),
+            clientSecret: ExplicitValue("clientSecret")
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        string[] scopes = ["pets:read", "pets:write"];
+        Assert.Equal(new Uri("https://auth.example.com/oauth/token"), client.LastUrl);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(
+                Uri.EscapeDataString(scope),
+                client.LastBody!,
+                StringComparison.Ordinal
             );
         }
     }
@@ -1061,6 +1237,33 @@ public sealed class SchemeAuthenticatorTest
         }
     }
 
+    [Fact]
+    public async Task BhvAuthoauthtwopassword012LegacyAuthPasswordAuthenticatorSendsItsSpecScopesAndUrls()
+    {
+        var client = new CapturingTokenClient();
+        var auth = new PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator(
+            Host,
+            clientId: ExplicitValue("clientId"),
+            clientSecret: ExplicitValue("clientSecret"),
+            username: ExplicitValue("username"),
+            password: ExplicitValue("password")
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        string[] scopes = ["read"];
+        Assert.Equal(new Uri("https://auth.example.com/oauth/token"), client.LastUrl);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(
+                Uri.EscapeDataString(scope),
+                client.LastBody!,
+                StringComparison.Ordinal
+            );
+        }
+    }
+
     private static readonly string[] UserAuthAuthorizationCodeAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID",
@@ -1168,6 +1371,26 @@ public sealed class SchemeAuthenticatorTest
         }
     }
 
+    [Fact]
+    public void BhvAuthoauthtwoauthcode020UserAuthAuthorizationCodeAuthenticatorSendsItsSpecScopesAndUrls()
+    {
+        var auth = new PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator(
+            Host,
+            clientId: ExplicitValue("clientId"),
+            clientSecret: ExplicitValue("clientSecret"),
+            redirectUri: ExplicitUri
+        );
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        string[] scopes = ["pets:read", "pets:write"];
+        Assert.StartsWith("https://auth.example.com/authorize", url, StringComparison.Ordinal);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), url, StringComparison.Ordinal);
+        }
+    }
+
     private static readonly string[] BrowserAuthImplicitAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID",
@@ -1261,6 +1484,24 @@ public sealed class SchemeAuthenticatorTest
                     Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
                 }
             );
+        }
+    }
+
+    [Fact]
+    public void BhvAuthoauthtwoimplicit006BrowserAuthImplicitAuthenticatorUsesItsSpecUrlAndScopes()
+    {
+        var auth = new PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator(
+            Host,
+            clientId: ExplicitValue("clientId")
+        );
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        string[] scopes = ["read"];
+        Assert.StartsWith("https://auth.example.com/authorize", url, StringComparison.Ordinal);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), url, StringComparison.Ordinal);
         }
     }
 

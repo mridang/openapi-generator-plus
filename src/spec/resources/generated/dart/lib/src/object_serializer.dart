@@ -283,7 +283,20 @@ List<T> deserializeArray<T>(
       'Expected JSON array, got ${json.runtimeType}',
     );
   }
-  return json.map((item) => deserializeElement(item)).toList();
+  return json
+      .map((item) => _deserializeElement(item, deserializeElement))
+      .toList();
+}
+
+/// Applies [deserializeElement] to one element of a container. A cast or type
+/// failure inside it becomes a [SerializationException], as at the top level.
+T _deserializeElement<T>(Object? item, T Function(dynamic) deserializeElement) {
+  try {
+    return deserializeElement(item);
+  } catch (e) {
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize element: $e', e);
+  }
 }
 
 /// Projects a model's array field to its JSON list.
@@ -315,7 +328,9 @@ Map<String, T> deserializeMap<T>(
       'Expected JSON object, got ${json.runtimeType}',
     );
   }
-  return json.map((k, v) => MapEntry(k as String, deserializeValue(v)));
+  return json.map(
+    (k, v) => MapEntry(k as String, _deserializeElement(v, deserializeValue)),
+  );
 }
 
 /// Parses a JSON string into a typed `Map<String, T>` at the response

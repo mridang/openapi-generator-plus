@@ -115,3 +115,17 @@ public final class ConfigurationBuilder {
     )
   }
 }
+
+extension Configuration: CustomStringConvertible, CustomDebugStringConvertible {
+  /// The configuration with every credential-bearing default header shown as `***`
+  /// (the same rule ``ApiError`` applies to response headers).
+  public var description: String {
+    let headers = ApiError.compactJson(ApiError.maskingSecrets(defaultHeaders))
+    return "\(type(of: self))(baseURL: \(baseURL), defaultHeaders: \(headers))"
+  }
+
+  /// The same text as ``description``, so `String(reflecting:)` never shows a secret either.
+  public var debugDescription: String {
+    description
+  }
+}

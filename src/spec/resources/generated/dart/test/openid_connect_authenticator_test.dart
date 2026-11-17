@@ -75,6 +75,42 @@ OpenIdConnectAuthenticator _createAuthenticator() {
 
 void main() {
   group('OpenIdConnectAuthenticator', () {
+    test(
+      'bhv authoidc 018 omits an empty state from the authorization url',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        final url = await auth.buildAuthorizationUrl('');
+
+        expect(url, isNot(contains('state=')));
+      },
+    );
+
+    test(
+      'bhv authoidc 022 the authorization url always requests the openid scope once',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        final url = await auth.buildAuthorizationUrl('s');
+        final scopes = Uri.parse(url).queryParameters['scope']!.split(' ');
+
+        expect(scopes.where((s) => s == 'openid').length, equals(1));
+        expect(scopes, contains('profile'));
+      },
+    );
+
     test('bhv authoidc 002 builds authorization URL from discovery', () async {
       final client = _FakeApiClient();
       client.enqueue(
@@ -474,6 +510,28 @@ void main() {
         await expectLater(
           auth.exchangeCode('oidc-code'),
           throwsA(same(failure)),
+        );
+      },
+    );
+
+    test(
+      'bhv authoidc 009 a failed rediscovery keeps the previous session and the next exchange retries',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+        client.enqueue('{"error":"unavailable"}', statusCode: 500);
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+        client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.buildAuthorizationUrl('s');
+        await expectLater(auth.exchangeCode('first'), throwsA(anything));
+        await auth.exchangeCode('second');
+
+        expect(
+          (await auth.authHeadersAsync())['Authorization'],
+          equals('Bearer oidc-tok'),
         );
       },
     );

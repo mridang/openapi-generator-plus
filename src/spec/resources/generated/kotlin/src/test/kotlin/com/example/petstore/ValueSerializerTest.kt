@@ -12,6 +12,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 class ValueSerializerTest {
     @Nested
@@ -864,6 +866,98 @@ class ValueSerializerTest {
         fun absentValue() {
             assertNull(ValueSerializer.serializeContent("p", null, "query"))
             assertEquals("", ValueSerializer.serializeContent("p", null, "header"))
+        }
+    }
+
+    @Nested
+    @DisplayName("style, allowReserved and date-time edge cases")
+    inner class StyleAndReservedEdgeTests {
+        @Test
+        @DisplayName("bhvSerializationparam002 allow reserved leaves reserved chars literal but still encodes others")
+        fun allowReservedLeavesReservedCharsLiteral() {
+            assertEquals("a/b:c?d=e&f", ValueSerializer.encodeQueryAllowingReserved("a/b:c?d=e&f"))
+            assertEquals("a%23b%20c", ValueSerializer.encodeQueryAllowingReserved("a#b c"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam003 allow reserved still percent encodes non ascii")
+        fun allowReservedStillPercentEncodesNonAscii() {
+            assertEquals("%E6%97%A5%E6%9C%AC/%20%5B", ValueSerializer.encodeQueryAllowingReserved("日本/ ["))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam029 dot-segment path values raise IllegalArgumentException with no style")
+        fun dotSegmentPathValueIsRejectedWithoutAStyle() {
+            for (style in listOf<String?>(null, "")) {
+                for (segment in listOf(".", "..")) {
+                    val ex =
+                        assertThrowsExactly(IllegalArgumentException::class.java) {
+                            ValueSerializer.serializeStyled("name", segment, "path", "string", null, style, false)
+                        }
+                    assertEquals("Path parameter 'name' must not be '.' or '..'", ex.message)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam034 empty string is preserved in the query and in form style")
+        fun emptyStringIsPreservedInQueryAndFormStyle() {
+            assertEquals("", ValueSerializer.serialize("", "query", "string", null))
+            assertEquals("", ValueSerializer.serializeStyled("q", "", "query", "string", null, "form", true))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam048 a date-time parameter that is not format date keeps its time")
+        fun dateTimeParameterKeepsItsTime() {
+            val at = OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC)
+            assertEquals("2024-01-02T03:04:05.000+00:00", ValueSerializer.serialize(at, "query", "string", null))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam053 label style encodes the value and joins exploded items with dots")
+        fun labelStyleEncodesTheValue() {
+            assertEquals(".a%20b", ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "label", false))
+            assertEquals(".a.b", ValueSerializer.serializeStyled("ids", listOf("a", "b"), "path", "array", null, "label", true))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam075 pipeDelimited array with explode true returns a list")
+        fun pipeDelimitedArrayWithExplodeReturnsList() {
+            assertEquals(
+                listOf("a", "b"),
+                ValueSerializer.serializeStyled("ids", listOf("a", "b"), "query", "array", null, "pipeDelimited", true),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam078 a query value is not path-encoded")
+        fun queryValueIsNotPathEncoded() {
+            assertEquals("a b/c", ValueSerializer.serializeStyled("q", "a b/c", "query", "string", null, "form", false))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam083 a set expands exactly like a list")
+        fun setExpandsLikeAList() {
+            assertEquals(
+                listOf("a", "b"),
+                ValueSerializer.serializeStyled("ids", linkedSetOf("a", "b"), "query", "array", null, "form", true),
+            )
+            assertEquals(listOf("a", "b"), ValueSerializer.serialize(linkedSetOf("a", "b"), "query", "array", "multi"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam094 spaceDelimited array with explode true returns a list")
+        fun spaceDelimitedArrayWithExplodeReturnsList() {
+            assertEquals(
+                listOf("a", "b"),
+                ValueSerializer.serializeStyled("ids", listOf("a", "b"), "query", "array", null, "spaceDelimited", true),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam102 a string with spaces is URL-encoded in a path")
+        fun stringWithSpacesIsUrlEncoded() {
+            assertEquals("a%20b", ValueSerializer.serializeStyled("name", "a b", "path", "string", null, "simple", false))
         }
     }
 }

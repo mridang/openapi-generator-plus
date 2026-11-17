@@ -169,7 +169,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("image/jpeg, image/png, application/json");
     });
 
-    test("returns single application/json unchanged", () => {
+    test("bhv headers 023 selectHeaders with a single accept returns it unchanged", () => {
       const headers = headerSelector.selectHeaders(
         ["application/json"],
         "application/json",

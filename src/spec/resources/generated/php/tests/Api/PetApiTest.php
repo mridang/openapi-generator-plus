@@ -18,9 +18,17 @@ use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
+use PetstoreClient\Api\GetMultiServerPetInfoServerPrimary;
+use PetstoreClient\Api\GetMultiServerPetInfoServerRegional;
+use PetstoreClient\Api\GetMultiServerPetInfoServerRegionalRegion;
 use PetstoreClient\Api\PetApi;
+use PetstoreClient\ApiResult;
 use PetstoreClient\Errors\ApiException;
+use PetstoreClient\Errors\SerializationException;
+use PetstoreClient\Test\CapturingApiClient;
+use PetstoreClient\Auth\AdminBasicAuthenticator;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
+use PetstoreClient\Auth\ApiKeyHeaderAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
@@ -120,6 +128,27 @@ test('bhv operations 025 add pet with http info', function (): void {
     expect($result->statusCode)->toBe(200);
     expect($result->data)->toBeInstanceOf(Pet::class);
     expect($result->headers)->not->toBeEmpty();
+});
+
+test('bhv operations 018 the with http info variant returns status, data, headers and raw body', function (): void {
+    $api = newPetApiForMock(201, 'application/json', '{"name":"Dog","photoUrls":[]}');
+
+    $result = $api->addPetWithHttpInfo(new Pet(name: 'Dog', photoUrls: new \Ds\Set([])), new AddPetOptions());
+
+    expect($result)->toBeInstanceOf(ApiResult::class);
+    expect($result->statusCode)->toBe(201);
+    expect($result->data)->toBeInstanceOf(Pet::class);
+    expect($result->headers)->toBeArray();
+    expect($result->rawBody)->toBe('{"name":"Dog","photoUrls":[]}');
+});
+
+test('bhv operations 006 api result raw body is a non nil string even for an empty body', function (): void {
+    $api = newPetApiForMock(204, 'application/json', '');
+
+    $result = $api->deletePetWithHttpInfo(1, new DeletePetOptions());
+
+    expect($result->rawBody)->toBeString();
+    expect($result->rawBody)->toBe('');
 });
 
 test('bhv operations 047 get pet by id', function (): void {
@@ -251,6 +280,20 @@ test('bhv operations 046 get pet avatar thumbnail', function (): void {
     expect($result)->not->toBeNull();
 });
 
+test('bhv operations 093 upload pet document rejects an undeclared request content type', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+    file_put_contents($tmpFile, 'PDF');
+    $file = new \SplFileObject($tmpFile, 'r');
+    $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
+
+    expect(fn () => $this->api->uploadPetDocument(1, $options, requestContentType: 'text/plain'))
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Unsupported request content-type 'text/plain' for uploadPetDocument; declared types are ["
+        );
+    unlink($tmpFile);
+});
+
 test('bhv operations 062 get pet avatar thumbnail decodes a byte value carried as a json string', function (): void {
     /* A top-level `format: byte` value returned as application/json arrives as
      * a JSON string literal (quotes included). It must be JSON-parsed and then
@@ -261,6 +304,13 @@ test('bhv operations 062 get pet avatar thumbnail decodes a byte value carried a
     $result = $api->getPetAvatarThumbnail(1);
 
     expect($result)->toBe('test-image');
+});
+
+test('bhv operations 063 get pet avatar thumbnail rejects malformed base64 with a serialization error', function (): void {
+    $api = newPetApiForMock(200, 'application/json', '"not*base64!"');
+
+    expect(fn () => $api->getPetAvatarThumbnail(1))
+        ->toThrow(SerializationException::class);
 });
 
 test('bhv operations 074 set pet avatar thumbnail', function (): void {
@@ -378,6 +428,27 @@ test('bhv operations 061 get external pet info uses per operation server url', f
     expect($redirecting->requestedUrls[0])->toStartWith($externalServer . '/');
 });
 
+test('bhv operations 085 the multi server operation offers a fixed and a templated server', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, Configuration::builder()->baseUrl('http://localhost')->build());
+
+    try {
+        $api->getMultiServerPetInfo(1, new GetMultiServerPetInfoServerPrimary());
+    } catch (\Exception) {
+        // The capturing client answers with an empty body; only the request URL matters here.
+    }
+    expect($client->capturedUrl)->toBe('https://primary.example.com/v1/pet/1/multi');
+
+    foreach (GetMultiServerPetInfoServerRegionalRegion::cases() as $region) {
+        try {
+            $api->getMultiServerPetInfo(2, new GetMultiServerPetInfoServerRegional($region));
+        } catch (\Exception) {
+            // Same as above: the URL is the assertion.
+        }
+        expect($client->capturedUrl)->toBe("https://{$region->value}.example.com/v1/pet/2/multi");
+    }
+});
+
 test('bhv operations 058 get pet tag sends styled parameters', function (): void {
     $result = $this->api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
 
@@ -475,7 +546,7 @@ test('bhv operations 067 get pet tag sends object valued parameters in their dec
     expect($captured->headers['X-Criteria'] ?? null)->toBe('breed,lab,min_age,3');
 });
 
-test('bhv operations 044 find pets by status sends a deepObject filter and a digit-leading query name', function (): void {
+test('bhv operations 044 bhv operations 021 find pets by status sends a deepObject filter and a digit-leading query name', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {
@@ -638,7 +709,7 @@ test('form array field serializes as repeated keys', function (): void {
     expect($captured->body)->not->toContain('tags%5B%5D');
 });
 
-test('form optional null field is omitted', function (): void {
+test('bhv serializationwire 011 form optional null field is omitted', function (): void {
     // Canonical behavior #2: an unset optional field (note) must not appear in
     // the body at all — no empty note= pair.
     [$api, $captured] = newBodyCapturingPetApi();
@@ -1201,7 +1272,43 @@ function newHeaderCapturingPetApi(): array
     return [new PetApi(apiClient: $client, config: $config), $captured];
 }
 
-test('the credential of the scheme the operation requires is sent', function (): void {
+/**
+ * Builds a PetApi whose client only holds the given scheme authenticators (no default
+ * Authorization header), plus the captured header bag.
+ *
+ * @param array<string, \PetstoreClient\Auth\Authenticator> $schemes
+ * @return array{0: PetApi, 1: \stdClass}
+ */
+function newSchemeCapturingPetApi(array $schemes): array
+{
+    $captured = new \stdClass();
+    $captured->headers = [];
+
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
+        {
+            $this->captured->headers = $headers;
+            return new \PetstoreClient\ApiHttpResponse(
+                200,
+                '{"id":1,"name":"x","photoUrls":[]}',
+                ['Content-Type' => 'application/json']
+            );
+        }
+    };
+    $config = Configuration::builder()->baseUrl('http://localhost:9999')->build();
+
+    return [new PetApi($client, $config, null, $schemes), $captured];
+}
+
+test('bhv operations 079 the credential of the scheme the operation requires is sent', function (): void {
     /* addPet accepts the apiKeyHeader scheme or the petStoreBearer scheme; only the
      * bearer credential is configured here, so it is the one that reaches the wire. */
     $captured = new \stdClass();
@@ -1258,7 +1365,7 @@ test('a per call timeout and retry count must be valid', function (): void {
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
 });
 
-test('bhv operations 078 auth omitted from options falls back to configuration credentials', function (): void {
+test('bhv operations 078 bhv operations 081 auth omitted from options falls back to configuration credentials', function (): void {
     // With no Options (or an Options carrying a null auth) the operation must
     // fall back to the client's configured credentials — here the default
     // Authorization header set on the Configuration.
@@ -1269,6 +1376,28 @@ test('bhv operations 078 auth omitted from options falls back to configuration c
     $api->addPet($pet);
 
     expect($captured->headers['Authorization'] ?? null)->toBe('Bearer default-token');
+});
+
+test('bhv operations 020 a credential held for a scheme the operation does not name is never sent', function (): void {
+    [$api, $captured] = newSchemeCapturingPetApi([
+        'adminBasic' => new AdminBasicAuthenticator('http://localhost:9999', 'admin', 'password'),
+    ]);
+
+    $api->addPet(new Pet(name: 'AdminDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg'])));
+
+    expect($captured->headers)->not->toHaveKey('Authorization');
+});
+
+test('bhv operations 080 uses the first declared scheme the client holds a credential for', function (): void {
+    [$api, $captured] = newSchemeCapturingPetApi([
+        'petStoreBearer' => new BearerAuthenticator('http://localhost:9999', 'scheme-token'),
+        'apiKeyHeader' => new ApiKeyHeaderAuthenticator('http://localhost:9999', 'key-1'),
+    ]);
+
+    $api->addPet(new Pet(name: 'FirstSchemeDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg'])));
+
+    expect($captured->headers['X-API-Key'] ?? null)->toBe('key-1');
+    expect($captured->headers)->not->toHaveKey('Authorization');
 });
 
 test('bhv operations 086 unsecured operation options has no auth field', function (): void {
@@ -1582,7 +1711,7 @@ test('bhv operations 024 add pet treatment sends the chosen anyOf variant as the
     expect($captured->body)->toContain('"dosage":"5mg"');
 });
 
-test('bhv operations 032 deprecated operations, parameters and models carry the deprecation marker', function (): void {
+test('bhv operations 032 bhv operations 033 deprecated operations, parameters and models carry the deprecation marker', function (): void {
     foreach (['findPetsByStatus', 'findPetsByStatusWithHttpInfo', 'getPetById', 'getPetByIdWithHttpInfo'] as $method) {
         $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
         expect($doc)->toBeString();

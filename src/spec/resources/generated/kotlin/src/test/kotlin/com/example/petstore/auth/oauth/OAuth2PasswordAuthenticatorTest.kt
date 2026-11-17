@@ -243,6 +243,59 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuthoauthtwopassword005 keeps ~ literal and percent-encodes * ! ' ( ) in the token request body")
+    fun bhvAuthoauthtwopassword005BodyKeepsUnreservedMarksAndEncodesTheSubDelimiters() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"at","expires_in":3600}""")
+        val auth =
+            OAuth2PasswordAuthenticator(
+                host = "https://api.example.com",
+                clientId = "id-._~*!'()",
+                clientSecret = "sec-._~*!'()",
+                tokenUrl = "https://auth.example.com/token",
+                refreshUrl = null,
+                username = "testuser",
+                password = "testpass",
+                scopes = listOf("read"),
+                clientAuthMethod = ClientAuthMethod.BODY,
+            )
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+
+        assertTrue(
+            client.lastBody!!.contains("client_id=id-._~%2A%21%27%28%29&client_secret=sec-._~%2A%21%27%28%29"),
+            client.lastBody,
+        )
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwopassword006 the refresh grant goes to the refresh url and falls back to the token url")
+    fun refreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"r1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth =
+            OAuth2PasswordAuthenticator(
+                "https://api.example.com",
+                "id",
+                "secret",
+                "https://auth.example.com/token",
+                "user",
+                "pw",
+                listOf("read"),
+                null,
+            )
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        runBlocking { auth.getAuthHeaders() }
+
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"), client.lastBody)
+        assertEquals("https://auth.example.com/token", client.lastUrl)
+    }
+
+    @Test
     fun bhvAuthoauthtwopassword001BasicAuthKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
         // RFC 6749 section 2.3.1 plus the shared unreserved set: '-._~' stay
         // literal and '*' '!' ''' '(' ')' are percent-encoded in both parts.

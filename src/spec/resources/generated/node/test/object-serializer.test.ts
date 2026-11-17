@@ -118,7 +118,7 @@ describe("ObjectSerializer", () => {
       expect(result).toBe("2024-01-01T00:00:00.000+00:00");
     });
 
-    test("bhv serializationobject 150 serialized datetime string ends with an offset", () => {
+    test("bhv serializationobject 149 bhv serializationobject 150 serialized datetime string ends with an offset", () => {
       const date = new Date("2024-01-01T12:30:45.000Z");
       const result = ObjectSerializer.stringify(date);
       expect(result).toMatch(/[+-]\d{2}:\d{2}$|Z$/);
@@ -156,8 +156,14 @@ describe("ObjectSerializer", () => {
   });
 
   describe("SerializationErrorWrappingTests", () => {
-    test("bhv serializationobject 170 truncated JSON throws SerializationError not raw parse error", () => {
+    test("bhv serializationobject 170 bhv serializationobject 089 truncated JSON throws SerializationError not raw parse error", () => {
       expect(() => ObjectSerializer.parseJson("{")).toThrow(SerializationError);
+    });
+
+    test("bhv serializationobject 095 invalid json structure throws SerializationError", () => {
+      expect(() => ObjectSerializer.parseJson('{"name" "Rex"}')).toThrow(
+        SerializationError,
+      );
     });
 
     test("bhv serializationobject 060 parseJson strips a leading BOM", () => {
@@ -199,7 +205,7 @@ describe("ObjectSerializer", () => {
           ObjectSerializer.deserialize({ expiresAt: "not-a-date" }, EdgeCases),
       ],
     ])(
-      "throws exactly SerializationError, a root error, for %s",
+      "bhv serializationobject 077 throws exactly SerializationError, a root error, for %s",
       (_failure, decode) => {
         let caught: unknown;
         try {
@@ -245,11 +251,11 @@ describe("ObjectSerializer", () => {
       expect(ObjectSerializer.toPathValue(42)).toBe("42");
     });
 
-    test('bhv serializationobject 043 converts true to "true"', () => {
+    test('bhv serializationobject 043 bhv serializationobject 166 converts true to "true"', () => {
       expect(ObjectSerializer.toPathValue(true)).toBe("true");
     });
 
-    test('bhv serializationobject 033 converts false to "false"', () => {
+    test('bhv serializationobject 033 bhv serializationobject 166 converts false to "false"', () => {
       expect(ObjectSerializer.toPathValue(false)).toBe("false");
     });
   });
@@ -279,13 +285,13 @@ describe("ObjectSerializer", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"])).toBe("a,b,c");
     });
 
-    test("bhv serializationobject 098 joins array with comma for csv", () => {
+    test("bhv serializationobject 098 bhv serializationobject 168 joins array with comma for csv", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "csv")).toBe(
         "a,b,c",
       );
     });
 
-    test("bhv serializationobject 100 joins array with space for ssv", () => {
+    test("bhv serializationobject 100 bhv serializationobject 169 joins array with space for ssv", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "ssv")).toBe(
         "a b c",
       );
@@ -538,7 +544,7 @@ describe("ObjectSerializer", () => {
     expect(category!.name).toBe("Dogs");
   });
 
-  test("accepts a valid enum value on a model property", () => {
+  test("bhv serializationobject 069 accepts a valid enum value on a model property", () => {
     const json = { name: "Fido", photoUrls: [], status: "available" };
     const pet = ObjectSerializer.deserialize(json, Pet);
     expect(pet!.status).toBe(PetStatusEnum.Available);
@@ -604,6 +610,15 @@ describe("ObjectSerializer", () => {
     );
   });
 
+  test("bhv serializationobject 062 deserialize throws when a required container field is explicitly null", () => {
+    // A required, non-nullable array (Pet.photoUrls) explicitly null on the
+    // wire must hard-fail, like a null scalar does.
+    const json = { name: "Rex", photoUrls: null };
+    expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+      SerializationError,
+    );
+  });
+
   test("bhv serializationobject 053 deserialize applies schema default for absent field", () => {
     // default-on-deserialize: Order.status carries a schema `default: placed`.
     // When the wire payload OMITS status, deserialize must populate it with
@@ -614,7 +629,7 @@ describe("ObjectSerializer", () => {
     expect(order!.status).toBe(OrderStatusEnum.Placed);
   });
 
-  test("bhv serializationobject 025 Defaults: absent fields take the schema default, explicit null is preserved", () => {
+  test("bhv serializationobject 025 bhv serializationobject 111 Defaults: absent fields take the schema default, explicit null is preserved", () => {
     // default-vs-explicit-null contract: a schema `default` applies ONLY when
     // the property is ABSENT from the payload. An explicit JSON null is a
     // provided value and must be PRESERVED (the field stays null), not
@@ -672,7 +687,7 @@ describe("ObjectSerializer", () => {
   });
 
   describe("DeserializeDiscardsExtraneousFields", () => {
-    test("unknown JSON keys do not appear on the deserialized instance", () => {
+    test("bhv serializationobject 082 unknown JSON keys do not appear on the deserialized instance", () => {
       const json: Record<string, unknown> = {
         id: 7,
         name: "Cats",
@@ -1064,6 +1079,15 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
+    test("bhv serializationobject 108 nested array-of-array<int32> deserializes to typed int leaves", () => {
+      const decoded = ObjectSerializer.deserializeArray(
+        [[1, 2], [3]],
+        (x: unknown) => ObjectSerializer.deserializeArray(x, int32Leaf),
+      );
+      expect(decoded).toEqual([[1, 2], [3]]);
+      expect(decoded.flat().every((leaf) => Number.isInteger(leaf))).toBe(true);
+    });
+
     test.each([
       ["a number", 1700000000],
       ["a boolean", true],
@@ -1234,7 +1258,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("bhv serializationobject 026 round-trip: serialize then deserialize preserves the Buffer bytes", () => {
+    test("bhv serializationobject 026 bhv serializationobject 079 round-trip: serialize then deserialize preserves the Buffer bytes", () => {
       const original = Buffer.from([0x00, 0x01, 0xff, 0xee, 0xab]);
       const passport = new PetPassport({
         thumbnail: original as unknown as PetPassport["thumbnail"],
@@ -1422,11 +1446,14 @@ describe("ObjectSerializer", () => {
       "tomorrow",
       "10:00",
       "1700000000",
-    ])("rejects the non-RFC 3339 date-time %p", (shipDate) => {
-      expect(() => ObjectSerializer.deserialize({ shipDate }, Order)).toThrow(
-        SerializationError,
-      );
-    });
+    ])(
+      "bhv serializationobject 011 rejects the non-RFC 3339 date-time %p",
+      (shipDate) => {
+        expect(() => ObjectSerializer.deserialize({ shipDate }, Order)).toThrow(
+          SerializationError,
+        );
+      },
+    );
 
     test.each([
       ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00.000Z"],
@@ -1443,22 +1470,28 @@ describe("ObjectSerializer", () => {
       "mailto:a@b.com",
       "ftp://x.org/f",
       "https://example.com/items/sample",
-    ])("accepts the absolute URI %p and keeps its text", (homepageUrl) => {
-      const pet = ObjectSerializer.deserialize(
-        { name: "sample", photoUrls: [], homepageUrl },
-        Pet,
-      );
-      expect(pet!.homepageUrl).toBe(homepageUrl);
-    });
-
-    test.each(["/relative", "not a uri", ""])("rejects %p", (homepageUrl) => {
-      expect(() =>
-        ObjectSerializer.deserialize(
+    ])(
+      "bhv serializationobject 021 accepts the absolute URI %p and keeps its text",
+      (homepageUrl) => {
+        const pet = ObjectSerializer.deserialize(
           { name: "sample", photoUrls: [], homepageUrl },
           Pet,
-        ),
-      ).toThrow(SerializationError);
-    });
+        );
+        expect(pet!.homepageUrl).toBe(homepageUrl);
+      },
+    );
+
+    test.each(["/relative", "not a uri", ""])(
+      "bhv serializationobject 008 rejects %p",
+      (homepageUrl) => {
+        expect(() =>
+          ObjectSerializer.deserialize(
+            { name: "sample", photoUrls: [], homepageUrl },
+            Pet,
+          ),
+        ).toThrow(SerializationError);
+      },
+    );
 
     test("bhv serializationobject 173 a uri-reference field still accepts a relative reference", () => {
       const pet = ObjectSerializer.deserialize(
@@ -1635,7 +1668,7 @@ describe("ObjectSerializer", () => {
         );
       });
 
-      test("serialize: a time model field is truncated to milliseconds and decodes back", () => {
+      test("bhv serializationobject 163 serialize: a time model field is truncated to milliseconds and decodes back", () => {
         const json = ObjectSerializer.serialize(
           new EdgeCases({
             cutoff: Temporal.PlainTime.from("10:30:00.123456789"),
@@ -1839,9 +1872,18 @@ describe("ObjectSerializer", () => {
             SerializationError,
           );
         });
+
+        test.each(["9999999999999999999999s", "-9999999999999999999999s"])(
+          "bhv serializationobject 080 raises SerializationError for the overflowing duration %p",
+          (value) => {
+            expect(() => durationFromProtoJson(value)).toThrow(
+              SerializationError,
+            );
+          },
+        );
       });
 
-      test("bhv serializationobject 073 round-trip: stringify then durationFromProtoJson is lossless", () => {
+      test("bhv serializationobject 145 bhv serializationobject 073 round-trip: stringify then durationFromProtoJson is lossless", () => {
         const original = Temporal.Duration.from("PT1H30M");
         const restored = durationFromProtoJson(
           ObjectSerializer.stringify(original),
@@ -2066,7 +2108,7 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("bhv serializationobject 176 round-trip preserves the member through serialize then deserialize", () => {
+    test("bhv serializationobject 176 bhv serializationobject 109 round-trip preserves the member through serialize then deserialize", () => {
       const original = new StockItem({
         priority: Priority.Number2,
         availability: Availability.OnHold,
@@ -2116,7 +2158,7 @@ describe("ObjectSerializer", () => {
       expect(scans[1]!.toString("utf-8")).toBe("beta");
     });
 
-    test("round-trip preserves raw scan bytes", () => {
+    test("bhv serializationobject 079 round-trip preserves raw scan bytes", () => {
       const original = [
         Buffer.from([0x00, 0xff, 0x10]),
         Buffer.from([0xab, 0xcd]),
@@ -2146,7 +2188,7 @@ describe("ObjectSerializer", () => {
     // element-by-element into a list on the way back.
 
     // (1) SCALAR variant — a single Buffer.
-    test("scalar Buffer variant serializes to a base64 STRING, not an int-array", () => {
+    test("bhv unions 019 scalar Buffer variant serializes to a base64 STRING, not an int-array", () => {
       const request: SetPetAvatarThumbnailRequest = Buffer.from([
         0x01, 0x02, 0x03, 0x04,
       ]);
@@ -2158,7 +2200,7 @@ describe("ObjectSerializer", () => {
       expect(Array.isArray(wire)).toBe(false);
     });
 
-    test("scalar base64 string deserializes back to the original 4 bytes", () => {
+    test("bhv unions 023 SetPetAvatarThumbnail byte oneOf round-trips a scalar through base64", () => {
       // The union has no runtime decode wrapper, so the scalar variant decodes
       // through the same base64 path the bare `format: byte` field uses:
       // a JSON string -> Buffer.from(str, 'base64').
@@ -2173,7 +2215,7 @@ describe("ObjectSerializer", () => {
     });
 
     // (2) ARRAY variant — a list of two byte payloads.
-    test("array-of-Buffer variant serializes to an array of base64 strings and round-trips", () => {
+    test("bhv unions 022 SetPetAvatarThumbnail array byte oneOf round-trips through base64", () => {
       const payloads = [
         Buffer.from([0x01, 0x02, 0x03, 0x04]),
         Buffer.from([0x05, 0x06]),
@@ -2194,7 +2236,7 @@ describe("ObjectSerializer", () => {
     // bare-union encoding keeps the two cases structurally distinct: a scalar
     // is a JSON string, the array is a JSON array, so the wire form alone
     // disambiguates and a scalar string can never decode as a list.
-    test("bhv serializationobject 118 a scalar base64 wire value resolves to the scalar variant, not a list", () => {
+    test("bhv unions 018 a scalar base64 wire value resolves to the scalar variant, not a list", () => {
       const wire = JSON.parse(
         ObjectSerializer.serialize(
           Buffer.from([0x01, 0x02, 0x03, 0x04]) as SetPetAvatarThumbnailRequest,
@@ -2320,7 +2362,7 @@ describe("ObjectSerializer", () => {
     });
 
     // A bare JSON null body decodes to null for a model return type.
-    test("bhv serializationobject 067 a literal null body deserializes to null", () => {
+    test("bhv serializationobject 138 bhv serializationobject 067 a literal null body deserializes to null", () => {
       expect(
         ObjectSerializer.deserialize(
           ObjectSerializer.parseJson("null"),
@@ -2742,7 +2784,7 @@ describe("model value-equality", () => {
     expect(a.equals({ id: 1, name: "Dogs" })).toBe(false);
   });
 
-  test("deep equality compares nested models and collections structurally", () => {
+  test("bhv serializationobject 090 deep equality compares nested models and collections structurally", () => {
     const a = new Pet({
       id: 7,
       name: "Rex",
@@ -2775,7 +2817,7 @@ describe("model value-equality", () => {
     expect(a.equals(c)).toBe(false);
   });
 
-  test("bhv serializationobject 075 equality compares byte arrays by content (bare, list and map)", () => {
+  test("bhv serializationobject 005 bhv serializationobject 075 equality compares byte arrays by content (bare, list and map)", () => {
     const vault = (
       seal: number[],
       shard: number[],
@@ -2973,7 +3015,7 @@ describe("toBinary", () => {
       expect(decoded.n2fa).toBe(true);
     });
 
-    test("bhv serializationobject 014 a readOnly property is decoded and a writeOnly property is written and decoded", () => {
+    test("bhv serializationobject 014 bhv serializationobject 017 a readOnly property is decoded and a writeOnly property is written and decoded", () => {
       const decoded = ObjectSerializer.deserialize(
         { id: 7, username: "u", password: "p" },
         Account,
@@ -3006,7 +3048,7 @@ describe("toBinary", () => {
     });
 
     test.each(["In-Stock", "on-hold", "OUT_OF_STOCK"])(
-      "the inline enum value %s round-trips",
+      "bhv serializationobject 022 the inline enum value %s round-trips",
       (phase) => {
         const decoded = ObjectSerializer.deserialize({ phase }, EdgeCases)!;
 
@@ -3094,7 +3136,7 @@ describe("toBinary", () => {
       expect(unknownValue).toBe("not-a-separator");
     });
 
-    test("an order quantity above its declared maximum still decodes", () => {
+    test("bhv serializationobject 032 an order quantity above its declared maximum still decodes", () => {
       expect(
         ObjectSerializer.deserialize({ quantity: 500 }, Order)!.quantity,
       ).toBe(500);

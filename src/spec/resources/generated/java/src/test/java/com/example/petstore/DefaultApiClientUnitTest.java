@@ -225,6 +225,18 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/utf16-bom",
+        exchange -> {
+          // A big-endian byte-order mark (FE FF) makes the BOM-less body that follows it
+          // big-endian.
+          byte[] body = new byte[] {(byte) 0xFE, (byte) 0xFF, 0x00, 0x44, 0x00, 0x6F, 0x00, 0x63};
+          exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-16");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
         "/utf16-no-bom",
         exchange -> {
           // RFC 2781: a UTF-16 body with NO byte-order mark defaults to
@@ -344,6 +356,52 @@ class DefaultApiClientUnitTest {
           try (OutputStream os = exchange.getResponseBody()) {
             os.write(body);
           }
+        });
+    server.createContext(
+        "/content-encoding-gzip",
+        exchange -> {
+          java.io.ByteArrayOutputStream compressed = new java.io.ByteArrayOutputStream();
+          try (java.util.zip.GZIPOutputStream gzip =
+              new java.util.zip.GZIPOutputStream(compressed)) {
+            gzip.write("{\"ok\":true}".getBytes(StandardCharsets.UTF_8));
+          }
+          byte[] body = compressed.toByteArray();
+          exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/repeated-header",
+        exchange -> {
+          exchange.getResponseHeaders().add("X-Repeated", "first");
+          exchange.getResponseHeaders().add("X-Repeated", "second");
+          exchange.getResponseHeaders().add("X-Repeated", "third");
+          byte[] response = "ok".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+
+    server.createContext(
+        "/redirect-bad-location",
+        exchange -> {
+          // A Location that does not parse as a URI: the 3xx is returned as it is.
+          exchange.getResponseHeaders().add("Location", "http://[::1");
+          exchange.sendResponseHeaders(302, -1);
+          exchange.close();
+        });
+    server.createContext(
+        "/truncated-body",
+        exchange -> {
+          // Declares 100 bytes, sends 9 and closes, so reading the body fails.
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, 100);
+          exchange.getResponseBody().write("{\"partial\"".getBytes(StandardCharsets.UTF_8));
+          exchange.close();
         });
     // A handler that stalls (/stalled-body) must not hold up the other requests.
     server.setExecutor(
@@ -654,6 +712,30 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvTransport022RepeatedResponseHeadersAreJoinedInOrder() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/repeated-header", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    String joined =
+        response.headers().entrySet().stream()
+            .filter(e -> e.getKey().equalsIgnoreCase("X-Repeated"))
+            .findFirst()
+            .map(Map.Entry::getValue)
+            .orElse(null);
+    assertEquals("first, second, third", joined);
+  }
+
+  @Test
+  void bhvTransport052SendsAnEmptyUserAgentWhenTheOptionIsTheEmptyString() throws Exception {
+    TransportOptions transport = TransportOptions.builder().userAgent("").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"user-agent\":\"\""), response.body());
+  }
+
+  @Test
   void bhvTransport041InjectsCustomUserAgent() throws Exception {
     TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -703,6 +785,19 @@ class DefaultApiClientUnitTest {
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", headers, null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"x-request-id\":\"caller-provided-id\""));
+  }
+
+  @Test
+  void bhvTransport047CallerHeaderReplacesADefaultOfAnotherCase() throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder().defaultHeader("Accept", "text/plain").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response =
+        client.sendRequest(
+            "GET", baseUrl + "/echo-headers", Map.of("accept", "application/json"), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"accept\":\"application/json\""), response.body());
+    assertFalse(response.body().contains("text/plain"), response.body());
   }
 
   @Test
@@ -1118,6 +1213,11 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvSerializationWire036IsCaseInsensitiveOnTheExtension() {
+    assertEquals("image/png", DefaultApiClient.guessMimeTypeFromName("IMAGE.PNG"));
+  }
+
+  @Test
   void bhvSerializationWire038MultipartFileWithPdfExtensionSetsApplicationPdfContentType() {
     assertEquals("application/pdf", DefaultApiClient.guessMimeTypeFromName("doc.pdf"));
   }
@@ -1284,6 +1384,13 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvSerializationWire028NonBmpCharacterInFilenameBecomesOneUnderscore() {
+    assertEquals(
+        "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
+        DefaultApiClient.buildFilenameDirective("😀.png"));
+  }
+
+  @Test
   void bhvSerializationWire042MultipartFilenameBackslashEscapesQuotes() {
     String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
     assertTrue(directive.contains("a\\\"b.txt"));
@@ -1444,6 +1551,179 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvRedirects008ReturnsTheRedirectWhenFollowingIsDisabled() throws Exception {
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().followRedirects(false).build());
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/redirect-status?302", Map.of(), null);
+    assertEquals(302, response.statusCode());
+    assertEquals("/echo", response.headers().get("location"));
+  }
+
+  @Test
+  void bhvRedirects010UnparseableLocationComesBackAsTheRedirectResponse() throws Exception {
+    // A Location that cannot be parsed leaves nothing to follow, exactly like a
+    // missing one: the 3xx is the terminal response.
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/redirect-bad-location", Map.of(), null);
+    assertEquals(302, response.statusCode());
+  }
+
+  @Test
+  void bhvRedirects013SameOriginRedirectKeepsAuthorizationAndCookie() throws Exception {
+    final Map<String, String> seen = new java.util.concurrent.ConcurrentHashMap<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/start",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", "/landed");
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    server.createContext(
+        "/landed",
+        exchange -> {
+          for (String name : List.of("Authorization", "Cookie")) {
+            String value = exchange.getRequestHeaders().getFirst(name);
+            seen.put(name, value == null ? "<absent>" : value);
+          }
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      String url = "http://localhost:" + server.getAddress().getPort() + "/start";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Authorization", "Bearer secret");
+      headers.put("Cookie", "session=secret");
+      ApiHttpResponse response = client.sendRequest("GET", url, headers, null);
+      assertEquals(200, response.statusCode());
+      assertEquals(
+          Map.of("Authorization", "Bearer secret", "Cookie", "session=secret"),
+          seen,
+          "a same-origin redirect must keep the caller's credential headers");
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRedirects019RefusalMessageNeverCarriesAQueryParameterCredential() {
+    String url = "https://api.example.invalid/x?api_key=secret-value";
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.scripted =
+        RecordingHttpClient.redirect(
+            307,
+            "http://other.example.invalid/y",
+            java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).build());
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class, () -> client.sendRequest("POST", url, Map.of(), "payload"));
+    assertFalse(ex.toString().contains("secret-value"), "was: " + ex);
+    assertFalse(ex.toString().contains("api_key"), "was: " + ex);
+    assertTrue(
+        ex.toString()
+            .contains(
+                "Refusing to replay request body across HTTPS->HTTP redirect: "
+                    + "https://api.example.invalid/x -> http://other.example.invalid/y"),
+        "was: " + ex);
+  }
+
+  @Test
+  void bhvRedirects021NoRedirectReturnsThe307Verbatim() throws Exception {
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+    ApiHttpResponse response =
+        client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "payload", true);
+    assertEquals(307, response.statusCode());
+  }
+
+  @Test
+  void bhvRedirects025CrossOriginRedirectStripsDefaultAndCredentialHeaders() throws Exception {
+    final Map<String, String> seen = new java.util.concurrent.ConcurrentHashMap<>();
+    HttpServer target = HttpServer.create(new InetSocketAddress(0), 0);
+    target.createContext(
+        "/landed",
+        exchange -> {
+          for (String name : List.of("Authorization", "Cookie", "X-Trace")) {
+            String value = exchange.getRequestHeaders().getFirst(name);
+            seen.put(name, value == null ? "<absent>" : value);
+          }
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    target.start();
+    String targetUrl = "http://localhost:" + target.getAddress().getPort() + "/landed";
+
+    HttpServer origin = HttpServer.create(new InetSocketAddress(0), 0);
+    origin.createContext(
+        "/start",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", targetUrl);
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    origin.start();
+    String originUrl = "http://localhost:" + origin.getAddress().getPort() + "/start";
+
+    try {
+      TransportOptions transport =
+          TransportOptions.builder()
+              .followRedirects(true)
+              .defaultHeader("Authorization", "Bearer default-secret")
+              .defaultHeader("X-Trace", "keep")
+              .build();
+      DefaultApiClient client = new DefaultApiClient(transport);
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Cookie", "session=secret");
+      ApiHttpResponse response = client.sendRequest("GET", originUrl, headers, null);
+      assertEquals(200, response.statusCode());
+      assertEquals(
+          Map.of("Authorization", "<absent>", "Cookie", "<absent>", "X-Trace", "keep"),
+          seen,
+          "a cross-origin redirect drops default and credential headers, other defaults stay");
+    } finally {
+      origin.stop(0);
+      target.stop(0);
+    }
+  }
+
+  @Test
+  void bhvErrors038TruncatedBodyThrowsNetworkExceptionWithStatusZero() {
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+    com.example.petstore.errors.NetworkException ex =
+        assertThrowsExactly(
+            com.example.petstore.errors.NetworkException.class,
+            () -> client.sendRequest("GET", baseUrl + "/truncated-body", Map.of(), null));
+    assertEquals(0, ex.getStatusCode());
+  }
+
+  @Test
+  void bhvErrors043BodyReadFailureIsWrappedInNetworkException() {
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+    com.example.petstore.errors.NetworkException ex =
+        assertThrowsExactly(
+            com.example.petstore.errors.NetworkException.class,
+            () -> client.sendRequest("GET", baseUrl + "/truncated-body", Map.of(), null));
+    assertInstanceOf(java.io.IOException.class, ex.getCause());
+  }
+
+  @Test
+  void bhvErrors040MalformedRequestUrlRaisesIllegalArgumentException() {
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+    assertThrowsExactly(
+        IllegalArgumentException.class,
+        () -> client.sendRequest("GET", "http://exa mple.invalid/x", Map.of(), null));
+  }
+
+  @Test
   void bhvRedirects022NoRedirectReturns308Response() throws Exception {
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -1517,6 +1797,38 @@ class DefaultApiClientUnitTest {
             .contains(
                 "Refusing to replay request body across HTTPS->HTTP redirect: "
                     + "https://api.example.invalid/x -> http://other.example.invalid/y"),
+        "was: " + ex);
+  }
+
+  @Test
+  void bhvRetries010Redirect307HttpsToHttpWithBodyIsRefused() {
+    assertHttpsToHttpBodyIsRefused(307);
+  }
+
+  @Test
+  void bhvRetries011Redirect308HttpsToHttpWithBodyIsRefused() {
+    assertHttpsToHttpBodyIsRefused(308);
+  }
+
+  private void assertHttpsToHttpBodyIsRefused(int status) {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.scripted =
+        RecordingHttpClient.redirect(
+            status,
+            "http://other.example.invalid/y",
+            java.net.http.HttpRequest.newBuilder(
+                    java.net.URI.create("https://api.example.invalid/x"))
+                .build());
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () -> client.sendRequest("POST", "https://api.example.invalid/x", Map.of(), "payload"));
+    assertEquals(status, ex.getStatusCode());
+    assertTrue(
+        ex.toString().contains("Refusing to replay request body across HTTPS->HTTP redirect"),
         "was: " + ex);
   }
 
@@ -1648,6 +1960,17 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvTransport026CallerLowerCaseAcceptEncodingSuppressesTheSdkOwn() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest(
+            "GET", baseUrl + "/echo-headers", Map.of("accept-encoding", "identity"), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"accept-encoding\":\"identity\""), response.body());
+    assertFalse(response.body().contains("gzip"), response.body());
+  }
+
+  @Test
   void bhvTransport045CallerAcceptEncodingInAnyCaseIsKeptAlone() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response =
@@ -1682,7 +2005,15 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void decodesBomlessUtf16AsBigEndian() throws Exception {
+  void bhvSerializationWire030DecodesBigEndianBomUtf16AsBigEndian() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf16-bom", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("Doc", response.body(), "a big-endian BOM must decode the body as big-endian");
+  }
+
+  @Test
+  void bhvSerializationWire031DecodesBomlessUtf16AsBigEndian() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf16-no-bom", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -1813,6 +2144,25 @@ class DefaultApiClientUnitTest {
         client.sendRequest("GET", baseUrl + "/content-encoding-deflate", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertEquals("{\"ok\":true}", response.body());
+    assertFalse(response.headers().containsKey("content-encoding"));
+    assertFalse(response.headers().containsKey("content-length"));
+  }
+
+  @Test
+  void bhvTransport034DecompressesAValidGzipEncodedBody() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/content-encoding-gzip", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("{\"ok\":true}", response.body());
+  }
+
+  @Test
+  void bhvTransport027DecodedBodyDropsContentEncodingAndContentLength() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/content-encoding-gzip", Map.of(), null);
+    assertEquals(200, response.statusCode());
     assertFalse(response.headers().containsKey("content-encoding"));
     assertFalse(response.headers().containsKey("content-length"));
   }
@@ -2231,6 +2581,12 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvRetries022RetryAfterAsAnHttpDateIsHonoured() {
+    java.time.Instant now = java.time.Instant.parse("2026-01-01T00:00:00Z");
+    assertEquals(5000L, DefaultApiClient.retryAfterMillis("Thu, 01 Jan 2026 00:00:05 GMT", now));
+  }
+
+  @Test
   void backoffDoublesFromHalfASecondToEightSecondsWithQuarterJitter() {
     assertEquals(500L, DefaultApiClient.backoffMillis(0, 0.0));
     assertEquals(1000L, DefaultApiClient.backoffMillis(1, 0.0));
@@ -2380,7 +2736,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void perCallRetryCountReplacesTheTransportsForThatCallOnly() throws Exception {
+  void bhvRetries004PerCallRetryCountReplacesTheTransportsForThatCallOnly() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
     try {
@@ -2510,6 +2866,53 @@ class DefaultApiClientUnitTest {
       assertEquals(200, finished.statusCode());
       assertEquals("done", finished.body());
       assertTrue(client.isTransportReleased(), "the last request released the transport");
+    } finally {
+      release.countDown();
+      slow.stop(0);
+    }
+  }
+
+  @Test
+  void bhvLifecycle019CloseRefusesANewRequestWithoutSendingItWhileAnotherIsInFlight()
+      throws Exception {
+    var entered = new java.util.concurrent.CountDownLatch(1);
+    var release = new java.util.concurrent.CountDownLatch(1);
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer slow = HttpServer.create(new InetSocketAddress(0), 0);
+    slow.createContext(
+        "/",
+        exchange -> {
+          hits.incrementAndGet();
+          entered.countDown();
+          try {
+            release.await();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          byte[] response = "done".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+    slow.start();
+    var result = new java.util.concurrent.atomic.AtomicReference<ApiHttpResponse>();
+    try {
+      DefaultApiClient client = new DefaultApiClient();
+      Thread running =
+          new Thread(() -> result.set(client.sendRequest("GET", urlOf(slow), Map.of(), null)));
+      running.start();
+      assertTrue(entered.await(10, java.util.concurrent.TimeUnit.SECONDS));
+
+      client.close();
+
+      assertThrowsExactly(
+          IllegalStateException.class,
+          () -> client.sendRequest("GET", urlOf(slow), Map.of(), null));
+      assertEquals(1, hits.get(), "the refused request must never reach the server");
+      release.countDown();
+      running.join(10_000);
+      assertEquals(200, java.util.Objects.requireNonNull(result.get()).statusCode());
     } finally {
       release.countDown();
       slow.stop(0);

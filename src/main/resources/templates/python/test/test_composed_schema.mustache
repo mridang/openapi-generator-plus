@@ -87,8 +87,6 @@ class TestAnyOfPetTreatment:
         assert serialized is not None
         assert len(serialized) > 0
 
-    def test_bhv_unions_007_bhv_serializationobject_127_no_matching_variant_raises(self) -> None:
-
     def test_bhv_unions_001_a_factory_wraps_its_variant_and_only_that_variant_matches(self) -> None:
         medication = Medication(drugName='Amoxicillin', dosage='500mg')
         wrapped = PetTreatment(medication)
@@ -240,6 +238,8 @@ class TestOneOfNonDiscriminatorValidator:
     """
 
     def test_bhv_serializationobject_128_first_variant_match_returns_value(self) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=b'avatar-bytes')
+        assert req.actual_instance == b'avatar-bytes'
 
     def test_bhv_unions_018_scalar_base64_string_resolves_to_the_scalar_variant(self) -> None:
         restored = ObjectSerializer().deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest)

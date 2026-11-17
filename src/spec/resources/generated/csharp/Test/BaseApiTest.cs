@@ -844,6 +844,40 @@ public class BaseApiTest
         Assert.Equal(2, client.Authorizations.Count);
     }
 
+    private sealed class FailingRefreshAuthenticator : IInvalidatableAuthenticator
+    {
+        private int _fetches;
+
+        public string GetHost() => "";
+
+        public Dictionary<string, string> GetAuthHeaders() => [];
+
+        public Task<Dictionary<string, string>> GetAuthHeadersAsync()
+        {
+            _fetches++;
+            if (_fetches > 1)
+            {
+                throw new NetworkException("token endpoint unreachable");
+            }
+            return Task.FromResult(
+                new Dictionary<string, string> { ["Authorization"] = "Bearer t1" }
+            );
+        }
+
+        public void InvalidateAccessToken() { }
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration001AFailedReauthenticationLeavesThe401AsItIs()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new FailingRefreshAuthenticator();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithAuth(client, auth, "{}"));
+
+        Assert.Single(client.Authorizations);
+    }
+
     [Fact]
     public async Task BhvRetries002AnAuthenticatorWithoutATokenCacheNeverReplaysA401()
     {
@@ -886,6 +920,37 @@ public class BaseApiTest
 
         Assert.Equal(0, auth.Invalidations);
         Assert.Single(client.Authorizations);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration016NoSchemeCredentialIsSentOnASecurityNoneOperation()
+    {
+        var client = new CapturingApiClient();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["api_key"] = new ApiKeyHeaderAuthenticator("http://localhost", "scheme-secret"),
+        };
+        var api = new StoreApi(client, new Configuration("http://localhost"), null, schemes);
+
+        try
+        {
+            // getInventory is security:[]; no scheme credential may reach the wire.
+            await api.GetInventoryAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.DoesNotContain(
+            client.CapturedHeaders.Values,
+            v => v.Contains("scheme-secret", StringComparison.Ordinal)
+        );
+        Assert.DoesNotContain(
+            "scheme-secret",
+            client.CapturedUrl!.ToString(),
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -1084,6 +1149,22 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvSerializationwire010FindPetsByStatusOmittingStatusSendsNoStatusInTheQuery()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("http://localhost"));
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions());
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+        Assert.DoesNotContain("status", client.CapturedUrl!.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task DigitLeadingQueryParameterIsSentUnderItsWireName()
     {
         var client = new CapturingApiClient();
@@ -1199,6 +1280,42 @@ public class BaseApiTest
         );
         Assert.NotNull(client.CapturedBody);
         Assert.Contains("name=alice", client.CapturedBody.ToString()!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire011FormOptionalNullFieldIsOmitted()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "name", "alice" }, { "nickname", null! } },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("name=alice", client.CapturedBody.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire013FormUrlencodedBodyKeepsAWellFormedSurrogatePair()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "emoji", "\U0001F600" } },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("emoji=%F0%9F%98%80", client.CapturedBody.ToString());
     }
 
     [Fact]
@@ -1401,6 +1518,50 @@ public class BaseApiTest
                 )
             );
         }
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire006EmptyBinaryBodyYieldsNull()
+    {
+        var client = new BinaryResponseApiClient
+        {
+            ContentType = "application/octet-stream",
+            Body = "",
+        };
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<byte[]>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/octet-stream"],
+            "application/json"
+        );
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire017OctetStreamBinaryResponseRoundtripsEveryByteExactly()
+    {
+        byte[] original = Enumerable.Range(0, 256).Select(i => (byte)i).ToArray();
+        var client = new BinaryResponseApiClient
+        {
+            ContentType = "application/octet-stream",
+            Body = Convert.ToBase64String(original),
+        };
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<string>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/octet-stream"],
+            "application/json"
+        );
+        Assert.NotNull(result);
+        Assert.Equal(original, Convert.FromBase64String(result!));
     }
 
     [Fact]

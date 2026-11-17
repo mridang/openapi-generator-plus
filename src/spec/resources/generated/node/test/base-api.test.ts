@@ -206,7 +206,7 @@ describe("BaseApi", () => {
   ];
 
   test.each(cases)(
-    "status %i throws correct exception",
+    "bhv errors 037 status %i throws correct exception",
     async (status, ErrorClass) => {
       try {
         await api().call(
@@ -352,6 +352,26 @@ describe("BaseApi config default Accept", () => {
    * first and then merges config.defaultHeaders OVER it, so the
    * outgoing request must carry the config default.
    */
+  test("bhv operations 008 config.defaultHeaders Accept wins over the operation-negotiated Accept", async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({
+      baseUrl: "http://localhost",
+      defaultHeaders: { Accept: "application/xml" },
+    });
+    const api = new TestableApi(client, config);
+    await api.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      (json) => json as unknown,
+    );
+    expect(client.capturedHeaders["Accept"]).toBe("application/xml");
+  });
+
   test("bhv options 001 config default Accept overrides negotiated Accept", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({
@@ -465,6 +485,23 @@ describe("BaseApi query parameters", () => {
 });
 
 describe("BaseApi", () => {
+  test("bhv serializationwire 001 a query param whose value is null is omitted from the URL", async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    await testApi.call(
+      "GET",
+      "/test/echo",
+      { status: null },
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    expect(client.capturedUrl).toBe("http://localhost/test/echo");
+  });
+
   test("bhv options 002 null options omits allowEmptyValue param", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
@@ -475,6 +512,18 @@ describe("BaseApi", () => {
       // Response deserialization may fail; we only care about the captured URL
     }
     expect(client.capturedUrl).not.toContain("status=");
+  });
+
+  test("bhv operations 041 findPetsByStatus omitting status sends no status key in query", async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const petApi = new PetApi(client, config);
+    try {
+      await petApi.findPetsByStatus({});
+    } catch {
+      // Response deserialization may fail; we only care about the captured URL
+    }
+    expect(new URL(client.capturedUrl).searchParams.has("status")).toBe(false);
   });
 
   test("bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query", async () => {
@@ -490,7 +539,7 @@ describe("BaseApi", () => {
     expect(client.capturedUrl).not.toContain("status=");
   });
 
-  test("findPetsByStatus with explicit empty status sends status= in query", async () => {
+  test("bhv operations 040 findPetsByStatus with explicit empty status sends status= in query", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const petApi = new PetApi(client, config);
@@ -501,6 +550,26 @@ describe("BaseApi", () => {
       // Response deserialization may fail; we only care about the captured URL
     }
     expect(client.capturedUrl).toContain("status=");
+  });
+
+  test("bhv operations 003 AllowEmptyValue param is included in the query when its value is empty string", async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    await testApi.call(
+      "GET",
+      "/test/echo",
+      { filter: "" },
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    expect(new URL(client.capturedUrl).searchParams.has("filter")).toBe(true);
+    expect(new URL(client.capturedUrl).searchParams.get("filter")).toBe("");
   });
 
   test("bhv serializationwire 016 includes empty value param in query string when value is empty string", async () => {
@@ -647,6 +716,29 @@ describe("BaseApi", () => {
     ).toBe("auth-value");
   });
 
+  test("bhv authintegration 004 appends auth cookies to a Cookie header the operation already set", async () => {
+    const capturing = new CapturingApiClient();
+    const auth = new TestAuthenticator({}, {}, { session: "abc123" });
+    await new TestableApi(
+      capturing,
+      new Configuration({ baseUrl: "https://api.example.com" }),
+    ).call(
+      "GET",
+      "/items",
+      {},
+      { Cookie: "theme=dark" },
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+      auth,
+    );
+
+    expect(capturing.capturedHeaders["Cookie"]).toBe(
+      "theme=dark; session=abc123",
+    );
+  });
+
   test("bhv authintegration 017 sets Cookie header from auth cookies", async () => {
     const capturing = new CapturingApiClient();
     const auth = new TestAuthenticator(
@@ -674,7 +766,7 @@ describe("BaseApi", () => {
     );
   });
 
-  test("bhv operations 008 an explicit per-call Accept header wins over the default Accept and the negotiated Accept", async () => {
+  test("bhv operations 004 an explicit per-call Accept header wins over the default Accept and the negotiated Accept", async () => {
     const capturing = new CapturingApiClient();
     const config = Configuration.builder()
       .baseUrl("https://api.example.com")
@@ -850,6 +942,41 @@ describe("BaseApi", () => {
       expect(seen.filter((request) => request.url !== tokenUrl)).toHaveLength(
         2,
       );
+    });
+
+    test("bhv retries 002 a bearer authenticator never replays a 401", async () => {
+      const seen: Array<string | undefined> = [];
+      const stub: ApiClient = {
+        async sendRequest(_method, _url, headers): Promise<ApiHttpResponse> {
+          seen.push(headers["Authorization"]);
+          return {
+            statusCode: 401,
+            body: "{}",
+            headers: { "content-type": "application/json" },
+          };
+        },
+      };
+      const testable = new TestableApi(
+        stub,
+        new Configuration({ baseUrl: "https://api.example.com" }),
+        new BearerAuthenticator("https://api.example.com", "fixed"),
+      );
+
+      const error = await testable
+        .call(
+          "GET",
+          "/items",
+          {},
+          {},
+          null,
+          ["application/json"],
+          "application/json",
+          null,
+        )
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(UnauthorizedError);
+      expect(seen).toHaveLength(1);
     });
 
     test("bhv retries 006 does not replay a multipart body", async () => {
@@ -1177,7 +1304,7 @@ describe("BaseApi", () => {
     ["a nested map", { location: { lat: 1.5 } }],
     ["an array of objects", { location: [{ lat: 1.5 }] }],
   ])(
-    "form-urlencoded body rejects %s with SerializationError",
+    "bhv serializationwire 014 form-urlencoded body rejects %s with SerializationError",
     async (_label, body) => {
       const client = new CapturingApiClient();
       const config = new Configuration({ baseUrl: "http://localhost" });
@@ -1201,6 +1328,23 @@ describe("BaseApi", () => {
       expect(client.capturedBody).toBeNull();
     },
   );
+
+  test("bhv serializationwire 011 a null optional form field is omitted", async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    await testApi.call(
+      "POST",
+      "/test/echo",
+      {},
+      {},
+      { name: "a", tag: null },
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      null,
+    );
+    expect(client.capturedBody).toBe("name=a");
+  });
 
   test("bhv serializationwire 013 form-urlencoded body keeps a well-formed surrogate pair", async () => {
     const client = new CapturingApiClient();
@@ -1244,7 +1388,7 @@ describe("BaseApi", () => {
   // caller pick among the declared types; omitting it keeps the first declared
   // type (image/jpeg) for backward compatibility. image/jpeg and image/png
   // share the same raw-binary body, so the same payload is reused for both.
-  test("setPetAvatar honours the selected request content type", async () => {
+  test("bhv operations 071 setPetAvatar honours the selected request content type", async () => {
     const payload = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
 
     // (1) No selector -> first declared content-type (image/jpeg), unchanged.
@@ -1512,6 +1656,28 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi", () => {
+  test("bhv serializationwire 018 an octet-stream response is carried as base64 and decodes to its bytes", async () => {
+    const original = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const client = new CapturingApiClient();
+    client.responseBody = Buffer.from(original).toString("base64");
+    client.responseHeaders = { "content-type": "application/octet-stream" };
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/octet-stream"],
+      "application/octet-stream",
+      (json) => json as string,
+    );
+    expect(Array.from(Buffer.from(result as string, "base64"))).toEqual(
+      Array.from(original),
+    );
+  });
+
   test("bhv serializationwire 017 octet-stream response roundtrips bytes exactly", async () => {
     const original = new Uint8Array([0x00, 0xff, 0x42, 0x7f, 0x80, 0xc3, 0xa9]);
     const client = new CapturingApiClient();
@@ -1596,6 +1762,30 @@ describe("BaseApi", () => {
     );
     expect(typeof result).toBe("string");
     expect(result).toBe("hello world");
+  });
+
+  test("bhv serializationwire 006 an empty binary response body yields no value and never reaches the decoder", async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = "";
+    client.responseHeaders = { "content-type": "application/octet-stream" };
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    let decoded = false;
+    const result = await testApi.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/octet-stream"],
+      "application/octet-stream",
+      (json) => {
+        decoded = true;
+        return json as Uint8Array;
+      },
+    );
+    expect(decoded).toBe(false);
+    expect(result).toBeUndefined();
   });
 
   test("bhv operations 010 empty body yields undefined", async () => {
@@ -1698,6 +1888,27 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi WithHTTPInfo variant", () => {
+  test("bhv operations 006 ApiResult rawBody is a non-null string even for an empty body", async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = "";
+    const testApi = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    const result = await testApi.callForResult(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    expect(typeof result.rawBody).toBe("string");
+    expect(result.rawBody).toBe("");
+  });
+
   test("bhv operations 018 returns ApiResult with status, data, headers, and rawBody", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"id":7,"name":"WithInfoPet"}';
@@ -1807,6 +2018,71 @@ describe("BaseApi scheme credentials", () => {
     );
 
     expect(client.capturedHeaders["Authorization"]).toBe("Bearer b");
+  });
+
+  test("bhv authintegration 007 each operation sends the credential of its own scheme", async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+      null,
+      { bearer, apiKey },
+    );
+
+    await testApi.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+      testApi.resolve(["bearer"]),
+    );
+    expect(client.capturedHeaders["Authorization"]).toBe("Bearer b");
+    expect(client.capturedHeaders["X-Api-Key"]).toBeUndefined();
+
+    await testApi.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+      testApi.resolve(["apiKey"]),
+    );
+    expect(client.capturedHeaders["X-Api-Key"]).toBe("k");
+    expect(client.capturedHeaders["Authorization"]).toBeUndefined();
+  });
+
+  test("bhv authintegration 008 a call with no scheme credential falls back to the client-level authenticator", async () => {
+    const client = new CapturingApiClient();
+    const clientAuth = new TestAuthenticator({
+      "X-Client-Auth": "client-level-token",
+    });
+    const testApi = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+      clientAuth,
+      { bearer },
+    );
+
+    await testApi.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+      testApi.resolve(["apiKey"]),
+    );
+
+    expect(client.capturedHeaders["X-Client-Auth"]).toBe("client-level-token");
   });
 
   test("bhv authintegration 009 falls back to client-level authenticator when no scheme credential resolved", async () => {
@@ -2258,6 +2534,15 @@ describe("BaseApi error request context", () => {
     );
     expect(err.requestMethod).toBe("POST");
     expect(err.requestPath).toBe("/v3/items");
+  });
+
+  test("bhv errors 026 the rendered request line never carries the query string", async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 404;
+    const err = await fail(client, "GET", "/items/7");
+    expect(err.requestPath).not.toContain("?");
+    expect(err.toString()).toContain("\nRequest: GET /items/7\n");
+    expect(err.toString()).not.toContain("page=2");
   });
 
   test("a relative base URL gives the path without the query string", async () => {

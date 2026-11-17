@@ -144,6 +144,19 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvLifecycle017TheTokenProviderOverloadTakesAProviderInPlaceOfAToken()
+    {
+        var auth = new BearerAuthenticator(
+            "https://api.example.com",
+            _ => Task.FromResult("from-provider")
+        );
+
+        var headers = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("Bearer from-provider", headers["Authorization"]);
+    }
+
+    [Fact]
     public void ATokenProviderAlsoServesTheSynchronousHeaders()
     {
         var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("sync"));

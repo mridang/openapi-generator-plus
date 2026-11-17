@@ -28,7 +28,8 @@ import { UserAuthAuthorizationCodeAuthenticator } from "../src/auth/oauth/user-a
 import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 import * as entryPoint from "../src/index.js";
-import { Client } from "../src/client.js";
+import { Client, type ClientCredentials } from "../src/client.js";
+import { OpenIdConnectAuthenticator } from "../src/auth/oauth/openid-connect-authenticator.js";
 import { TransportOptions } from "../src/transport-options.js";
 import { Pet } from "../src/models/index.js";
 
@@ -37,6 +38,12 @@ describe("Client", () => {
 
   test("bhv lifecycle 012 construct with authenticator only", () => {
     const client = new Client(authenticator);
+
+    expect(client).toBeDefined();
+  });
+
+  test("bhv lifecycle 010 construct with authenticator and undefined transport options", () => {
+    const client = new Client(authenticator, undefined, {});
 
     expect(client).toBeDefined();
   });
@@ -261,6 +268,15 @@ describe("Client", () => {
       );
     });
 
+    test("bhv lifecycle 015 takes one optional keyword credential per security scheme, named after it", () => {
+      const credentials: ClientCredentials = {
+        apiKeyHeader: new ApiKeyHeaderAuthenticator(host, "key-token"),
+        petStoreBearer: new PetStoreBearerAuthenticator(host, "bearer-token"),
+      };
+
+      expect(new Client(credentials)).toBeDefined();
+    });
+
     test("a client with no credential at all is refused", () => {
       expect(() => new Client({})).toThrow(
         new TypeError("At least one credential is required"),
@@ -395,6 +411,25 @@ describe("Client", () => {
     ).rejects.toThrow("closed");
   });
 
+  test("bhv lifecycle 007 close on a client with a supplied transport leaves that transport usable", async () => {
+    let called = 0;
+    const customFetch = (async () => {
+      called++;
+      return new Response("{}");
+    }) as typeof fetch;
+    const client = new Client(
+      authenticator,
+      TransportOptions.builder().fetch(customFetch).build(),
+    );
+
+    await client.close();
+
+    expect(await customFetch("http://example.invalid/")).toBeInstanceOf(
+      Response,
+    );
+    expect(called).toBe(1);
+  });
+
   test("bhv lifecycle 009 close() never calls or closes a caller-supplied fetch", async () => {
     let called = 0;
     const customFetch = (async () => {
@@ -448,6 +483,20 @@ describe("Client", () => {
     );
     expect(util.inspect(apiKey)).not.toContain("key-secret-xyz");
     expect(JSON.stringify(apiKey)).not.toContain("key-secret-xyz");
+  });
+
+  test("bhv lifecycle 002 api key header rejects crlf and non ascii", () => {
+    expect(
+      () => new ApiKeyHeaderAuthenticator("/api/v3", "abc\r\nInjected: yes"),
+    ).toThrow(TypeError);
+    expect(() => new ApiKeyHeaderAuthenticator("/api/v3", "kéy")).toThrow(
+      TypeError,
+    );
+  });
+
+  test("bhv lifecycle 003 api key query accepts non ascii", () => {
+    const query = new ApiKeyQueryAuthenticator("/api/v3", "kéy");
+    expect(query.getQueryParams()).toEqual({ api_key: "kéy" });
   });
 
   test("bhv lifecycle 004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
@@ -654,7 +703,7 @@ describe("scheme authenticators the spec declares", () => {
       expect(calls[1]!.params.get("grant_type")).toBe("refresh_token");
     });
 
-    test("the authorization-code wrapper builds the declared authorize URL and uses the declared token and refresh URLs", async () => {
+    test("bhv authoauthtwoauthcode 020 the authorization-code wrapper sends the spec scopes and urls", async () => {
       const auth = new UserAuthAuthorizationCodeAuthenticator(
         host,
         "cid",
@@ -682,7 +731,7 @@ describe("scheme authenticators the spec declares", () => {
       ]);
     });
 
-    test("the implicit wrapper builds the declared authorize URL", () => {
+    test("bhv authoauthtwoimplicit 006 the implicit wrapper uses its spec url and scopes", () => {
       const auth = new BrowserAuthImplicitAuthenticator(host, "cid");
 
       expect(auth.buildAuthorizationUrl()).toBe(
@@ -690,7 +739,7 @@ describe("scheme authenticators the spec declares", () => {
       );
     });
 
-    test("the OpenID Connect wrapper discovers from the declared URL", async () => {
+    test("bhv authoidc 012 the OpenID Connect wrapper discovers from its spec url and sends the openid scope", async () => {
       const discovery: ApiClient = {
         async sendRequest(
           method: string,
@@ -725,6 +774,53 @@ describe("scheme authenticators the spec declares", () => {
         },
       ]);
       expect(url.startsWith("https://sso.example.com/authorize?")).toBe(true);
+      expect(new URL(url).searchParams.get("scope")?.split(" ")).toContain(
+        "openid",
+      );
+    });
+
+    test("bhv authoidc 008 does not send the transport default headers to the discovery endpoint", async () => {
+      const seen: Array<{ url: string; headers: Record<string, string> }> = [];
+      const stub = (async (
+        input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        seen.push({
+          url: String(input),
+          headers: { ...(init?.headers as Record<string, string>) },
+        });
+        return new Response(
+          JSON.stringify({
+            authorization_endpoint: "https://sso.example.com/authorize",
+            token_endpoint: "https://sso.example.com/token",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }) as typeof fetch;
+      const oidc = new OpenIdConnectAuthenticator(
+        host,
+        "https://auth.example.com/.well-known/openid-configuration",
+        "cid",
+        "csecret",
+        "https://app.example.com/cb",
+        ["openid"],
+      );
+      const client = new Client(
+        oidc,
+        TransportOptions.builder()
+          .fetch(stub)
+          .defaultHeader("X-Trace", "on")
+          .build(),
+      );
+
+      await oidc.buildAuthorizationUrl();
+
+      expect(client).toBeDefined();
+      expect(seen).toHaveLength(1);
+      expect(seen[0]!.url).toBe(
+        "https://auth.example.com/.well-known/openid-configuration",
+      );
+      expect(seen[0]!.headers["X-Trace"]).toBeUndefined();
     });
   });
 });

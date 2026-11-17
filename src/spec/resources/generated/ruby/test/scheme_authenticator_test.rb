@@ -19,6 +19,26 @@ Dir[File.expand_path('../lib/petstore/client/auth/**/*_authenticator.rb', File.d
 # The per-scheme authenticators subclass the generic ones, whose constructors
 # take positional arguments. A wrapper that took keywords instead would reject
 # the very call its base accepts, so no authenticator may require a keyword.
+# Answers every request with a token and a discovery document, and records the
+# URL and form body of the last request, for the generated scheme wrappers.
+class SchemeRecordingClient
+  attr_reader :url, :body
+
+  def send_request(_method, url, _headers, body, **_kwargs)
+    @url = url
+    @body = body
+    Petstore::Client::ApiHttpResponse.new(
+      status_code: 200,
+      body: {
+        'access_token' => 'scheme_tok', 'expires_in' => 3600,
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token'
+      }.to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
 describe 'scheme authenticators' do
   parallelize_me!
 
@@ -43,7 +63,7 @@ describe 'scheme authenticators' do
     authenticator_classes.select { |klass| klass < base }
   end
 
-  it 'every API-key wrapper emits its key at exactly one location' do
+  it 'bhv_authapikey_007 every API-key wrapper emits its key at exactly one location' do
     wrappers_of(Petstore::Client::Auth::ApiKeyAuthenticator).each do |klass|
       auth = klass.new('https://api.example.com', 'wrapper-key')
       emitted = [auth.auth_headers, auth.query_params, auth.cookie_params].reject(&:empty?)
@@ -68,7 +88,7 @@ describe 'scheme authenticators' do
     _(emitted).must_include 'X-Internal-Key'
   end
 
-  it 'every Bearer wrapper sends the token as a Bearer credential' do
+  it 'bhv_authbearer_006 every Bearer wrapper sends the token as a Bearer credential and masks it' do
     wrappers_of(Petstore::Client::Auth::BearerAuthenticator).each do |klass|
       auth = klass.new('https://api.example.com', 'wrapper-token')
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer wrapper-token' }, klass.name)
@@ -76,7 +96,7 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'every Basic wrapper sends the credentials as a Basic credential' do
+  it 'bhv_authbasic_002 every Basic wrapper sends the credentials as a Basic credential and masks the password' do
     wrappers_of(Petstore::Client::Auth::BasicAuthenticator).each do |klass|
       auth = klass.new('https://api.example.com', 'alice', 's3cret')
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Basic YWxpY2U6czNjcmV0' }, klass.name)
@@ -183,6 +203,37 @@ describe 'scheme authenticators' do
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-provider' }, name)
       auth = scheme_class(name).new('https://api.example.com', token_provider: -> { 'from-provider' }, env: { variable => 'from-env' })
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-env' }, name)
+    end
+  end
+
+  it 'bhv_authoauthtwoclientcred_009 a client credentials wrapper sends its spec scopes to its spec token url' do
+    wrappers_of(Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator).each do |klass|
+      client = SchemeRecordingClient.new
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret')
+      auth.api_client = client
+      auth.auth_headers
+      _(client.url).must_match(%r{\Ahttps://}, klass.name)
+      _(client.body).must_match(/scope=\S+/, klass.name)
+    end
+  end
+
+  it 'bhv_authoauthtwoauthcode_020 an authorization code wrapper sends its spec scopes and urls' do
+    wrappers_of(Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret', 'https://app.example.com/callback')
+      url = auth.build_authorization_url
+      _(url).must_match(%r{\Ahttps://}, klass.name)
+      _(url).must_match(/[?&]scope=\S+/, klass.name)
+    end
+  end
+
+  it 'bhv_authoidc_012 an openid connect wrapper discovers from its spec url and sends the openid scope' do
+    wrappers_of(Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator).each do |klass|
+      client = SchemeRecordingClient.new
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret', 'https://app.example.com/callback')
+      auth.api_client = client
+      url = auth.build_authorization_url
+      _(client.url).must_match(%r{/\.well-known/openid-configuration\z}, klass.name)
+      _(url).must_match(/scope=[^&]*openid/, klass.name)
     end
   end
 end

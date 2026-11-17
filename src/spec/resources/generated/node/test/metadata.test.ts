@@ -208,6 +208,26 @@ describe("Metadata", () => {
   });
 
   describe("Metadata additionalProperties accessor", () => {
+    test("bhv models 010 a declared property wins over a colliding additional property", () => {
+      const metadata = ObjectSerializer.deserialize(
+        { createdAt: "2024-01-01T00:00:00Z" },
+        Metadata,
+      ) as Metadata;
+      expect(metadata.createdAt).toBeInstanceOf(Date);
+      expect(metadata.createdAt!.toISOString()).toBe(
+        "2024-01-01T00:00:00.000Z",
+      );
+      expect(metadata.additionalProperties).toEqual({});
+      expect(
+        Object.keys(
+          JSON.parse(ObjectSerializer.serialize(metadata)) as Record<
+            string,
+            unknown
+          >,
+        ),
+      ).toEqual(["createdAt"]);
+    });
+
     test("bhv models 001 exposes the undeclared keys of a deserialized instance", () => {
       const metadata = ObjectSerializer.deserialize(
         { createdAt: "2024-01-01T00:00:00Z", customField: "hello" },

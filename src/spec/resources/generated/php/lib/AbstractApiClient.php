@@ -275,7 +275,7 @@ abstract class AbstractApiClient implements ApiClient
                          * returning the 3xx, matching the throwing SDKs. */
                         throw new ApiException(
                             $response->statusCode,
-                            "Refusing to follow redirect to non-HTTP(S) URL: $nextUrl",
+                            'Refusing to follow redirect to non-HTTP(S) URL: ' . self::withoutQuery($nextUrl),
                             $this->joinedHeaders($response->headers)
                         );
                     }
@@ -320,7 +320,8 @@ abstract class AbstractApiClient implements ApiClient
                          * matching the SDKs that throw on a refused replay. */
                         throw new ApiException(
                             $statusCode,
-                            "Refusing to replay request body across HTTPS->HTTP redirect: $url -> $nextUrl",
+                            'Refusing to replay request body across HTTPS->HTTP redirect: '
+                            . self::withoutQuery($url) . ' -> ' . self::withoutQuery($nextUrl),
                             $this->joinedHeaders($response->headers)
                         );
                     }
@@ -827,6 +828,15 @@ abstract class AbstractApiClient implements ApiClient
     protected static function isRedirectStatus(int $code): bool
     {
         return in_array($code, [301, 302, 303, 307, 308], true);
+    }
+
+    /**
+     * Drop the query and fragment from a URL before it is quoted in an error
+     * message, so a credential passed as a query parameter never reaches a log.
+     */
+    protected static function withoutQuery(string $url): string
+    {
+        return substr($url, 0, strcspn($url, '?#'));
     }
 
     /**

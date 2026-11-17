@@ -229,6 +229,17 @@ describe Petstore::Client::Api::BaseApi do
     _(result[:method]).must_equal 'GET'
   end
 
+  it 'bhv_serializationwire_003 application/json response parses to an object' do
+    client = FixedResponseApiClient.new(
+      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: '{"id":1,"name":"Dogs"}',
+                                            headers: { 'Content-Type' => 'application/json' })
+    )
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', 'Object')
+    _(result).must_equal('id' => 1, 'name' => 'Dogs')
+  end
+
   it 'bhv_serializationwire_019 returns raw string for non-JSON response' do
     result = api.call('GET', '/test/text-plain', {}, {}, nil,
                       ['text/plain'], 'application/json', 'String')
@@ -1217,5 +1228,27 @@ describe Petstore::Client::Api::BaseApi do
                              request_options: CallOptions.new(nil, nil, nil))
 
     _(client.captured_kwargs.keys).must_equal([:retry_headers])
+  end
+
+  it 'bhv_retries_004 a per-call max_retries applies to that call only' do
+    client = RecordingDefaultApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
+                             request_options: CallOptions.new(nil, nil, 4))
+    _(client.captured_kwargs[:max_retries]).must_equal 4
+
+    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil)
+    _(client.captured_kwargs[:max_retries]).must_be_nil
+  end
+
+  it 'bhv_authintegration_006 applies a configured bearer authenticator to a secured operation' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    client_auth = Petstore::Client::Auth::BearerAuthenticator.new('http://localhost', 'configured-token')
+    test_api = TestableApi.new(client, config, client_auth)
+    test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+    _(client.captured_headers['Authorization']).must_equal 'Bearer configured-token'
   end
 end

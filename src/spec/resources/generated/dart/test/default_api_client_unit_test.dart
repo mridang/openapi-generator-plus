@@ -31,6 +31,14 @@ class _ProxyCredentialClient extends AbstractApiClient {
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding) => bytes;
 }
 
+class _OwnedTransportClient extends AbstractApiClient {
+  _OwnedTransportClient(http.Client inner)
+    : super(TransportOptionsBuilder().build(), inner, null);
+
+  @override
+  Uint8List decompressBytes(Uint8List bytes, String contentEncoding) => bytes;
+}
+
 class _CloseTrackingClient extends http.BaseClient {
   _CloseTrackingClient(this._inner);
 
@@ -196,6 +204,41 @@ void main() {
             'GET',
             'http://localhost:${server.port}/test',
             {'x-request-id': 'abc'},
+            null,
+          );
+          expect(receivedUA, equals(['MyApp']));
+          expect(receivedRequestId, equals(['abc']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv transport 003 a caller header in mixed letter case suppresses the injected User-Agent and X-Request-ID',
+      () async {
+        List<String>? receivedUA;
+        List<String>? receivedRequestId;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          receivedUA = request.headers['user-agent'];
+          receivedRequestId = request.headers['x-request-id'];
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .userAgent('Sdk/9.9')
+              .injectRequestId(true)
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+
+          await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/test',
+            {'User-Agent': 'MyApp', 'X-REQUEST-id': 'abc'},
             null,
           );
           expect(receivedUA, equals(['MyApp']));
@@ -1860,43 +1903,252 @@ void main() {
       return server;
     }
 
-    test('the timeout covers the whole redirect chain', () async {
-      final server = await slowChain();
-      try {
-        final client = DefaultApiClient(
-          transportOptions: TransportOptionsBuilder().timeout(1200).build(),
-        );
-        await expectLater(
-          client.sendRequest(
+    test(
+      'bhv redirects 009 the timeout covers the whole redirect chain',
+      () async {
+        final server = await slowChain();
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().timeout(1200).build(),
+          );
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/chain/1',
+              {},
+              null,
+            ),
+            throwsA(isA<NetworkTimeoutException>()),
+          );
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test(
+      'bhv redirects 002 a redirect chain inside the budget completes',
+      () async {
+        final server = await slowChain();
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().timeout(5000).build(),
+          );
+          final response = await client.sendRequest(
             'GET',
             'http://127.0.0.1:${server.port}/chain/1',
             {},
             null,
-          ),
-          throwsA(isA<NetworkTimeoutException>()),
-        );
-      } finally {
-        await server.close(force: true);
-      }
+          );
+          expect(response.statusCode, equals(200));
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test('bhv lifecycle 008 closed client rejects further requests', () async {
+      var hits = 0;
+      final custom = MockClient((_) async {
+        hits++;
+        return http.Response('', 200);
+      });
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().httpClient(custom).build(),
+      );
+      client.close();
+
+      await expectLater(
+        client.sendRequest('POST', 'http://custom.test/closed', {}, null),
+        throwsA(isA<StateError>()),
+      );
+      expect(hits, equals(0));
     });
 
-    test('a redirect chain inside the budget completes', () async {
-      final server = await slowChain();
-      try {
+    test(
+      'bhv lifecycle 021 closing the client lets a running request finish',
+      () async {
+        final gate = Completer<void>();
+        final custom = MockClient((_) async {
+          await gate.future;
+          return http.Response('finished', 200);
+        });
         final client = DefaultApiClient(
-          transportOptions: TransportOptionsBuilder().timeout(5000).build(),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(custom)
+              .build(),
         );
-        final response = await client.sendRequest(
+
+        final inFlight = client.sendRequest(
           'GET',
-          'http://127.0.0.1:${server.port}/chain/1',
+          'http://custom.test/running',
           {},
           null,
         );
-        expect(response.statusCode, equals(200));
-      } finally {
-        await server.close(force: true);
-      }
-    });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        client.close();
+        gate.complete();
+
+        final resp = await inFlight;
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, equals('finished'));
+      },
+    );
+
+    test(
+      'bhv lifecycle 022 releases the transport at once when idle and a second close is a no-op',
+      () {
+        final inner = _CloseTrackingClient(
+          MockClient((_) async => http.Response('', 200)),
+        );
+        final client = _OwnedTransportClient(inner);
+
+        client.close();
+        expect(inner.closed, isTrue);
+        expect(client.close, returnsNormally);
+      },
+    );
+
+    test(
+      'bhv redirects 008 returns the redirect as is when following is disabled',
+      () async {
+        var hits = 0;
+        final custom = MockClient((_) async {
+          hits++;
+          return http.Response(
+            '',
+            302,
+            headers: {'location': 'http://custom.test/landed'},
+          );
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(custom)
+              .followRedirects(false)
+              .build(),
+        );
+
+        final resp = await client.sendRequest(
+          'GET',
+          'http://custom.test/start',
+          {},
+          null,
+        );
+
+        expect(resp.statusCode, equals(302));
+        expect(hits, equals(1));
+      },
+    );
+
+    test(
+      'bhv redirects 015 no redirect returns the 307 response itself',
+      () async {
+        var hits = 0;
+        final custom = MockClient((_) async {
+          hits++;
+          return http.Response(
+            '',
+            307,
+            headers: {'location': 'http://custom.test/target'},
+          );
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(custom)
+              .build(),
+        );
+
+        final resp = await client.sendRequest(
+          'GET',
+          'http://custom.test/source',
+          {},
+          null,
+          noRedirect: true,
+        );
+
+        expect(resp.statusCode, equals(307));
+        expect(hits, equals(1));
+      },
+    );
+
+    test(
+      'bhv redirects 018 raises ApiException when the redirect budget is exhausted',
+      () async {
+        final custom = MockClient((_) async {
+          return http.Response(
+            '',
+            301,
+            headers: {'location': 'http://custom.test/again'},
+          );
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(custom)
+              .maxRedirects(1)
+              .build(),
+        );
+
+        await expectLater(
+          client.sendRequest('GET', 'http://custom.test/start', {}, null),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              equals('Too many redirects (exceeded 1)'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 038 a body truncated after the headers throws NetworkException with status 0',
+      () async {
+        final sockets = <Socket>[];
+        final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((conn) {
+          sockets.add(conn);
+          conn.listen((_) {
+            conn.write(
+              'HTTP/1.1 200 OK\r\n'
+              'Content-Type: text/plain\r\n'
+              'Content-Length: 100\r\n'
+              '\r\n'
+              'abc',
+            );
+            conn.close();
+          });
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().timeout(5000).build(),
+          );
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/truncated-body',
+              {},
+              null,
+            ),
+            throwsA(
+              isA<NetworkException>()
+                  .having((e) => e.statusCode, 'statusCode', 0)
+                  .having(
+                    (e) => e,
+                    'not a timeout',
+                    isNot(isA<NetworkTimeoutException>()),
+                  ),
+            ),
+          );
+        } finally {
+          for (final conn in sockets) {
+            conn.destroy();
+          }
+          await server.close();
+        }
+      },
+    );
 
     test(
       'a server that never answers throws NetworkTimeoutException',
@@ -2040,6 +2292,20 @@ void main() {
      * be read or parsed must fail fast at construction with an ArgumentError
      * (a configuration error) — NOT a raw dart:io FileSystemException /
      * TlsException, and not an ApiException. */
+    test(
+      'bhv transport 048 a nonexistent caCertPath fails even when verifySsl is false',
+      () {
+        final transport = TransportOptionsBuilder()
+            .verifySsl(false)
+            .caCertPath('/nonexistent/ca.pem')
+            .build();
+        expect(
+          () => DefaultApiClient(transportOptions: transport),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
     test(
       'bhv errors 041 non-existent caCertPath throws ArgumentError at construction',
       () {
@@ -2204,7 +2470,7 @@ void main() {
     }
 
     test(
-      'bhv serializationwire 039 multipart .png field sets image/png Content-Type',
+      'bhv serializationwire 039 bhv serializationwire 047 multipart .png field sets image/png Content-Type',
       () async {
         String body = '';
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -2233,7 +2499,7 @@ void main() {
     );
 
     test(
-      'bhv serializationwire 038 multipart .pdf field sets application/pdf Content-Type',
+      'bhv serializationwire 038 bhv serializationwire 037 multipart .pdf field sets application/pdf Content-Type',
       () async {
         String body = '';
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -2284,6 +2550,95 @@ void main() {
             },
           );
           expect(body, contains('content-type: application/octet-stream'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv serializationwire 036 multipart file extension is matched case-insensitively',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {
+              'PHOTO.PNG': Uint8List.fromList([0x89, 0x50, 0x4E, 0x47]),
+            },
+          );
+          expect(body, contains('content-type: image/png'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv serializationwire 045 multipart model part uses wire property names and date-time format',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {
+              'meta': <String, Object?>{
+                'created_at': DateTime.utc(2024, 1, 15, 14, 30, 45),
+              },
+            },
+          );
+          expect(body, contains('"created_at"'));
+          expect(body, contains('2024-01-15T14:30:45'));
+          expect(body, isNot(contains('"createdAt"')));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv serializationwire 046 multipart non-ASCII field name is preserved as UTF-8',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {'nombre_ñ': 'x'},
+          );
+          expect(body, contains(latin1.decode(utf8.encode('nombre_ñ'))));
         } finally {
           await server.close();
         }
@@ -2686,6 +3041,62 @@ void main() {
                   ),
             ),
           );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+  });
+
+  group('Caller Accept-Encoding and decoded headers', () {
+    test(
+      'bhv transport 045 keeps a caller-supplied Accept-Encoding in any letter case',
+      () async {
+        List<String>? received;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          received = request.headers['accept-encoding'];
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          await DefaultApiClient().sendRequest(
+            'GET',
+            'http://localhost:${server.port}/test',
+            {'accept-encoding': 'identity'},
+            null,
+          );
+          expect(received, equals(['identity']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv transport 027 a decoded body drops the Content-Encoding and Content-Length headers',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.set('Content-Encoding', 'gzip')
+            ..add(GZipCodec().encode(utf8.encode('{"ok":true}')))
+            ..close();
+        });
+
+        try {
+          final resp = await DefaultApiClient().sendRequest(
+            'GET',
+            'http://localhost:${server.port}/gzip',
+            {},
+            null,
+          );
+          expect(resp.body, equals('{"ok":true}'));
+          expect(resp.headers.containsKey('content-encoding'), isFalse);
+          expect(resp.headers.containsKey('content-length'), isFalse);
         } finally {
           await server.close();
         }

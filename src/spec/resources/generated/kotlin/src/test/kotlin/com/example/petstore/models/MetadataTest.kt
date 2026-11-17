@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import java.time.OffsetDateTime
 
 class MetadataTest {
     private val json =
@@ -116,7 +117,45 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("additional properties survive a full ObjectSerializer round-trip")
+    @DisplayName("bhvModels004 deserializes additional string properties")
+    fun testDeserializesAdditionalStringProperties() {
+        val serializer = ObjectSerializer()
+
+        val decoded = serializer.deserialize<Metadata>("{\"customField\":\"hello\"}")
+
+        assertNotNull(decoded)
+        assertEquals("hello", decoded!!.additionalProperties["customField"])
+    }
+
+    @Test
+    @DisplayName("bhvModels009 additional property values come back as strings")
+    fun testAdditionalPropertiesAreTypedAsString() {
+        val serializer = ObjectSerializer()
+        val original = Metadata()
+        original.additionalProperties["key"] = "value"
+
+        val decoded = serializer.deserialize<Metadata>(serializer.serialize(original))
+
+        assertNotNull(decoded)
+        assertInstanceOf(String::class.java, decoded!!.additionalProperties["key"])
+        assertEquals("value", decoded.additionalProperties["key"])
+    }
+
+    @Test
+    @DisplayName("bhvModels010 a declared property wins over a colliding additional property")
+    fun testDeclaredPropertyWinsOverCollidingAdditionalProperty() {
+        val serializer = ObjectSerializer()
+        val metadata = Metadata(createdAt = OffsetDateTime.parse("2024-01-01T00:00:00Z"))
+        metadata.additionalProperties["createdAt"] = "x"
+
+        val encoded = serializer.serialize(metadata)
+
+        assertEquals(1, Regex("\"createdAt\"").findAll(encoded).count(), encoded)
+        assertFalse(encoded.contains("\"x\""), encoded)
+    }
+
+    @Test
+    @DisplayName("bhvModels001 additional properties survive a full ObjectSerializer round-trip")
     fun testAdditionalPropertiesRoundTripThroughObjectSerializer() {
         // The on-the-wire round-trip must preserve free-form extras: the SDK's
         // ObjectSerializer (not a bare kotlinx Json) writes additionalProperties
@@ -158,8 +197,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("deprecated operations and schemas carry the Kotlin @Deprecated marker")
-    fun testDeprecationMarkers() {
+    @DisplayName("bhvOperations032 deprecated operations and schemas carry the Kotlin @Deprecated marker")
+    fun bhvOperations032DeprecationMarkersAreEmitted() {
         // F1155: reflection, so the test itself does not call a deprecated member.
         val api = Class.forName("com.example.petstore.api.PetApi")
         for (name in listOf("findPetsByStatus", "getPetById")) {
@@ -171,6 +210,21 @@ class MetadataTest {
             Class.forName("com.example.petstore.models.Tag").isAnnotationPresent(Deprecated::class.java),
             "the deprecated Tag schema must be @Deprecated",
         )
+    }
+
+    @Test
+    @DisplayName("bhvOperations033 deprecation markers sit on every variant of a deprecated operation")
+    fun bhvOperations033DeprecationMarkersSitOnEveryVariant() {
+        // F1155: reflection, so the test itself does not call a deprecated member.
+        val api = Class.forName("com.example.petstore.api.PetApi")
+        for (name in listOf("findPetsByStatus", "getPetById")) {
+            val variants = api.declaredMethods.filter { it.name.startsWith("${name}WithHttpInfo") }
+            assertTrue(variants.isNotEmpty(), "PetApi.${name}WithHttpInfo must exist")
+            assertTrue(
+                variants.all { it.isAnnotationPresent(Deprecated::class.java) },
+                "every variant of PetApi.$name must be @Deprecated",
+            )
+        }
     }
 
     @Test

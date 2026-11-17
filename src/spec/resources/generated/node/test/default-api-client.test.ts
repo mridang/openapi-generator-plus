@@ -222,7 +222,7 @@ describe("DefaultApiClient", () => {
   describe("redirect chain timeout is one budget", () => {
     // Three hops of 500 ms each: one end-to-end budget of 1200 ms fails where
     // a per-hop timer would pass; 5000 ms is the positive control.
-    test("a chain longer than the budget times out", async () => {
+    test("bhv redirects 009 a chain longer than the budget times out", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
       const client = new DefaultApiClient(
         TransportOptions.builder().timeout(1200).build(),
@@ -480,7 +480,7 @@ describe("DefaultApiClient", () => {
     ["no-location", '{"redirect":"no-location"}'],
     ["malformed-location", '{"redirect":"malformed"}'],
   ])(
-    "a 302 with an unusable Location (%s) is returned untouched",
+    "bhv redirects 010 a 302 with an unusable Location (%s) is returned untouched",
     async (path, body) => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
       const client = new DefaultApiClient(

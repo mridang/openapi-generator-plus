@@ -118,6 +118,13 @@ class ValueSerializerTest {
   class PathEncodingParityTests {
 
     @Test
+    @DisplayName("bhvSerializationParam034 empty string preserved")
+    void bhvSerializationParam034EmptyStringPreserved() {
+      assertEquals("", ValueSerializer.serialize("", "path", "string", null));
+      assertEquals("", ValueSerializer.serialize("", "query", "string", null));
+    }
+
+    @Test
     @DisplayName("bhvSerializationParam016 ASCII-safe pass-through")
     void bhvSerializationParam016AsciiSafePassThrough() {
       assertEquals("abc123", ValueSerializer.serialize("abc123", "path", "string", null));
@@ -262,6 +269,34 @@ class ValueSerializerTest {
   class QueryTests {
 
     @Test
+    @DisplayName(
+        "bhvSerializationParam048 keeps the time of a date-time parameter that is not a format:"
+            + " date")
+    void bhvSerializationParam048DateTimeWithoutDateFormatKeepsTheTime() {
+      java.time.OffsetDateTime at = java.time.OffsetDateTime.parse("2024-05-06T07:08:09Z");
+      assertEquals(
+          "2024-05-06T07:08:09.000+00:00", ValueSerializer.serialize(at, "query", "string", null));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationParam078 query location is not path-encoded")
+    void bhvSerializationParam078QueryLocationIsNotPathEncoded() {
+      assertEquals("a/b c", ValueSerializer.serialize("a/b c", "query", "string", null));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationParam083 a set expands like a list")
+    void bhvSerializationParam083SetExpandsLikeAList() {
+      assertEquals(
+          Arrays.asList("red", "green"),
+          ValueSerializer.serialize(
+              new java.util.LinkedHashSet<>(Arrays.asList("red", "green")),
+              "query",
+              "array",
+              "multi"));
+    }
+
+    @Test
     @DisplayName("bhvSerializationParam067 null returns null")
     void bhvSerializationParam067NullReturnsNull() {
       assertNull(ValueSerializer.serialize(null, "query", "string", null));
@@ -396,6 +431,18 @@ class ValueSerializerTest {
   @Nested
   @DisplayName("header location")
   class HeaderTests {
+
+    @Test
+    @DisplayName(
+        "bhvSerializationParam082 serializeStyled writes a simple-style object as a header list")
+    void bhvSerializationParam082SimpleStyleObjectIsAHeaderList() {
+      Map<String, Object> user = new java.util.LinkedHashMap<>();
+      user.put("role", "admin");
+      user.put("firstName", "Alex");
+      assertEquals(
+          "role,admin,firstName,Alex",
+          ValueSerializer.serializeStyled("user", user, "header", "object", null, "simple", false));
+    }
 
     @Test
     @DisplayName("bhvSerializationParam063 null returns empty string")
@@ -539,6 +586,14 @@ class ValueSerializerTest {
   class LabelStyleTests {
 
     @Test
+    @DisplayName("bhvSerializationParam053 label style encodes value")
+    void bhvSerializationParam053LabelStyleEncodesValue() {
+      assertEquals(
+          ".a%2Fb",
+          ValueSerializer.serializeStyled("color", "a/b", "path", "string", null, "label", true));
+    }
+
+    @Test
     @DisplayName("bhvSerializationParam052 scalar returns dot-prefixed value")
     void bhvSerializationParam052ScalarReturnsDotPrefixedValue() {
       assertEquals(
@@ -578,6 +633,21 @@ class ValueSerializerTest {
   class SpaceDelimitedStyleTests {
 
     @Test
+    @DisplayName("bhvSerializationParam094 spaceDelimited array with explode true returns list")
+    void bhvSerializationParam094SpaceDelimitedExplodeReturnsList() {
+      assertEquals(
+          Arrays.asList("red", "green", "blue"),
+          ValueSerializer.serializeStyled(
+              "color",
+              Arrays.asList("red", "green", "blue"),
+              "query",
+              "array",
+              null,
+              "spaceDelimited",
+              true));
+    }
+
+    @Test
     @DisplayName("bhvSerializationParam093 array joins with space")
     void bhvSerializationParam093ArrayJoinsWithSpace() {
       assertEquals(
@@ -615,6 +685,21 @@ class ValueSerializerTest {
   @Nested
   @DisplayName("pipeDelimited style")
   class PipeDelimitedStyleTests {
+
+    @Test
+    @DisplayName("bhvSerializationParam075 pipeDelimited array with explode true returns list")
+    void bhvSerializationParam075PipeDelimitedExplodeReturnsList() {
+      assertEquals(
+          Arrays.asList("red", "green", "blue"),
+          ValueSerializer.serializeStyled(
+              "color",
+              Arrays.asList("red", "green", "blue"),
+              "query",
+              "array",
+              null,
+              "pipeDelimited",
+              true));
+    }
 
     @Test
     @DisplayName("bhvSerializationParam074 array joins with pipe")
@@ -664,6 +749,20 @@ class ValueSerializerTest {
       // Space is illegal in a URL and must still be percent-encoded even
       // when reserved characters are preserved.
       assertEquals("a%20b:c", ValueSerializer.encodeQueryAllowingReserved("a b:c"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationParam002 allow reserved leaves reserved chars literal but still encodes"
+            + " others")
+    void bhvSerializationParam002AllowReservedKeepsReservedCharsLiteral() {
+      assertEquals("a:b/c%20d%23e", ValueSerializer.encodeQueryAllowingReserved("a:b/c d#e"));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationParam003 allow reserved still percent encodes non ascii")
+    void bhvSerializationParam003AllowReservedStillEncodesNonAscii() {
+      assertEquals("%C3%A9/%C3%BC", ValueSerializer.encodeQueryAllowingReserved("é/ü"));
     }
 
     @Test
@@ -761,6 +860,15 @@ class ValueSerializerTest {
     void bhvSerializationParam085NullReturnsEmptyString() {
       assertEquals(
           "", ValueSerializer.serializeStyled("id", null, "path", "string", null, "simple", true));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationParam089 simple style encodes value")
+    void bhvSerializationParam089SimpleStyleEncodesValue() {
+      assertEquals(
+          "x%20y%2Fz",
+          ValueSerializer.serializeStyled(
+              "name", "x y/z", "path", "string", null, "simple", false));
     }
 
     @Test

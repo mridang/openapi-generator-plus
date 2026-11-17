@@ -68,7 +68,7 @@ describe("TransportOptions", () => {
   });
 
   test.each([-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY])(
-    "maxRetries rejects %p",
+    "bhv options 007 a negative maxRetries is rejected: %p",
     (value) => {
       expect(() => TransportOptions.builder().maxRetries(value)).toThrow(
         `Invalid maxRetries: must be a non-negative integer (got ${value})`,
@@ -202,12 +202,21 @@ describe("TransportOptions", () => {
       "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
     ],
   ])(
-    "the builder rejects %s with TypeError and the exact message",
+    "bhv options 031 proxy %s is rejected with TypeError and the exact message",
     (_label, proxy, message) => {
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
     },
   );
+
+  test("bhv options 011 a proxy URL with no host is rejected", () => {
+    expect(() => TransportOptions.builder().proxy("http://")).toThrow(
+      TypeError,
+    );
+    expect(
+      () => new TransportOptions({ ...directOptions, proxy: "http://" }),
+    ).toThrow("Invalid proxy URL (unparseable): http://");
+  });
 
   test.each([
     [
@@ -221,7 +230,7 @@ describe("TransportOptions", () => {
       "Invalid proxy URL (unparseable): http://***@",
     ],
   ])(
-    "the proxy error for %s never prints the userinfo",
+    "bhv options 008 the proxy error for %s never prints the userinfo",
     (_label, proxy, message) => {
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
       expect(() => new TransportOptions({ ...directOptions, proxy })).toThrow(
@@ -387,7 +396,7 @@ describe("TransportOptions", () => {
       ["JSON", (o: TransportOptions) => JSON.stringify(o)],
       ["inspect", (o: TransportOptions) => util.inspect(o)],
     ])(
-      "%s hides the proxy password and secret header values",
+      "bhv options 023 %s masks the proxy password and sensitive default headers",
       (_name, render) => {
         const opts = new TransportOptions({
           ...directOptions,

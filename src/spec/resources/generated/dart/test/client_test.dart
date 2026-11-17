@@ -234,6 +234,78 @@ void main() {
       },
     );
 
+    test(
+      'bhv lifecycle 002 API key header rejects a line feed and non-ASCII',
+      () {
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            apiKey: 'abc\ndef',
+            location: ApiKeyLocation.header,
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            apiKey: 'naïve',
+            location: ApiKeyLocation.header,
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test('bhv lifecycle 003 API key query accepts non-ASCII', () {
+      final queryAuth = ApiKeyAuthenticator(
+        host: '/api/v3',
+        keyParamName: 'api_key',
+        apiKey: 'naïve',
+        location: ApiKeyLocation.query,
+      );
+
+      expect(queryAuth.queryParams(), equals({'api_key': 'naïve'}));
+    });
+
+    test(
+      'bhv lifecycle 014 reads the token from the environment when none is passed',
+      () {
+        final fromEnvironment = Platform
+            .environment[BearerAuthenticator.defaultEnvironmentVariable];
+        if (fromEnvironment == null) {
+          expect(
+            () => Client.withToken(host: '/api/v3'),
+            throwsA(isA<ArgumentError>()),
+          );
+          return;
+        }
+
+        expect(Client.withToken(host: '/api/v3'), isNotNull);
+      },
+    );
+
+    test(
+      'bhv lifecycle 015 takes one optional keyword credential per security scheme, named after it',
+      () {
+        expect(() => Client(), throwsArgumentError);
+        expect(() => Client(petStoreBasic: null), throwsArgumentError);
+        expect(() => Client(adminBasic: null), throwsArgumentError);
+        expect(() => Client(petStoreBearer: null), throwsArgumentError);
+        expect(() => Client(serviceToken: null), throwsArgumentError);
+        expect(() => Client(apiKeyHeader: null), throwsArgumentError);
+        expect(() => Client(internalApiKey: null), throwsArgumentError);
+        expect(() => Client(apiKeyQuery: null), throwsArgumentError);
+        expect(() => Client(sessionCookie: null), throwsArgumentError);
+        expect(() => Client(machineAuth: null), throwsArgumentError);
+        expect(() => Client(legacyAuth: null), throwsArgumentError);
+        expect(() => Client(userAuth: null), throwsArgumentError);
+        expect(() => Client(browserAuth: null), throwsArgumentError);
+        expect(() => Client(ssoAuth: null), throwsArgumentError);
+      },
+    );
+
     test('bhv lifecycle 001 API groups are accessible', () {
       final authenticator = BearerAuthenticator(
         host: '/api/v3',

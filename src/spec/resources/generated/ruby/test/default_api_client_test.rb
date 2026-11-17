@@ -121,7 +121,7 @@ describe Petstore::Client::DefaultApiClient do
     # The fixture proxy's second port answers 407 unless the request carries
     # Proxy-Authorization, so these two prove the credentials in the proxy URL
     # reach the proxy on the wire.
-    it 'authenticating proxy accepts the credentials from the proxy URL' do
+    it 'bhv_transport_001 authenticating proxy accepts the credentials from the proxy URL' do
       chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
       transport = Petstore::Client::TransportOptions.builder
         .proxy("http://user:pass@#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")

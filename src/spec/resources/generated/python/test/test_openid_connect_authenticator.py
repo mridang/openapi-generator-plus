@@ -224,6 +224,38 @@ class TestOpenIdConnectAuthenticator:
         ):
             auth.build_authorization_url()
 
+    def test_bhv_authoidc_007_discovery_404_raises_not_found_exception(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=404,
+            body="<html>Not found</html>",
+            headers={"content-type": "text/html"},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(NotFoundException) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is NotFoundException
+        assert exc_info.value.status_code == 404
+
+    def test_bhv_authoidc_026_discovery_missing_token_endpoint_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps(
+                {"authorization_endpoint": "https://auth.example.com/authorize"}
+            ),
+            headers={"content-type": "application/json"},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(
+            SerializationException,
+            match="OIDC discovery document is missing 'token_endpoint'",
+        ) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is SerializationException
+
     def test_bhv_authoidc_011_fetches_discovery_document_only_once(self) -> None:
         # The discovery document must be cached: a second build must reuse it
         # rather than issue a second GET to the discovery endpoint.
@@ -354,6 +386,70 @@ class TestDiscoveryCacheLifetime:
 
         assert _parse_max_age(headers) == expected
 
+    def test_bhv_authoidc_001_a_max_age_beyond_one_year_is_clamped_to_one_year(
+        self,
+    ) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=9999999999")
+        auth.set_api_client(mock_client)
+        module = "petstore_client.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.build_authorization_url()
+            clock.monotonic.return_value = 1000.0 + 31535999
+            auth.build_authorization_url()
+            assert mock_client.send_request.call_count == 1
+
+            clock.monotonic.return_value = 1000.0 + 31536000
+            auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+    def test_bhv_authoidc_009_failed_rediscovery_keeps_the_old_delegate(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        discovery = _discovery_client("max-age=100").send_request.return_value
+        failing = ApiHttpResponse(
+            status_code=500,
+            body="<html>Error</html>",
+            headers={"content-type": "text/html"},
+        )
+        answers = {"discovery_up": True}
+        mock_client = MagicMock()
+
+        def respond(
+            method: str, url: str, *args: Any, **kwargs: Any
+        ) -> ApiHttpResponse:
+            if url.endswith("openid-configuration"):
+                return discovery if answers["discovery_up"] else failing
+            return ApiHttpResponse(
+                status_code=200,
+                body=json.dumps(
+                    {"access_token": "at-1", "token_type": "Bearer", "expires_in": 3600}
+                ),
+                headers={"content-type": "application/json"},
+            )
+
+        mock_client.send_request.side_effect = respond
+        auth.set_api_client(mock_client)
+        module = "petstore_client.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.exchange_code("the-code")
+            answers["discovery_up"] = False
+            clock.monotonic.return_value = 1100.0
+            with pytest.raises(InternalServerErrorException) as exc_info:
+                auth.get_auth_headers()
+            assert type(exc_info.value) is InternalServerErrorException
+            answers["discovery_up"] = True
+            clock.monotonic.return_value = 1101.0
+            assert auth.get_auth_headers() == {"Authorization": "Bearer at-1"}
+
     def test_bhv_authoidc_020_rediscovery_after_expiry_keeps_the_exchanged_session(
         self,
     ) -> None:
@@ -438,7 +534,9 @@ class TestDiscoveryTransportFailure:
 
 
 class TestOidcAuthorizationUrl:
-    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+    def test_bhv_authoidc_022_the_authorization_url_always_requests_the_openid_scope_once(
+        self,
+    ) -> None:
         auth, _ = _create_authenticator_with_discovery()
 
         assert _without_pkce(auth.build_authorization_url()) == (
@@ -450,7 +548,7 @@ class TestOidcAuthorizationUrl:
 
 
 class TestSsoAuthWrapper:
-    def test_bhv_authoidc_022_discovers_from_the_spec_url_and_requests_the_openid_scope(
+    def test_bhv_authoidc_012_discovers_from_the_spec_url_and_requests_the_openid_scope(
         self,
     ) -> None:
         from petstore_client.auth.oauth.sso_auth_authenticator import (

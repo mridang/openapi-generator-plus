@@ -377,6 +377,7 @@ class DefaultApiClientUnitTest {
           }
         });
 
+    server.createContext(
         "/redirect-bad-location",
         exchange -> {
           // A Location that does not parse as a URI: the 3xx is returned as it is.

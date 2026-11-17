@@ -19,6 +19,7 @@ class _FakeApiClient implements ApiClient {
   final List<String> bodies = [];
   Object? failure;
   bool? lastNoRedirect;
+  Map<String, String>? lastHeaders;
   bool? lastNoDefaultHeaders;
   int requestCount = 0;
 
@@ -45,6 +46,7 @@ class _FakeApiClient implements ApiClient {
       throw error;
     }
     lastNoRedirect = noRedirect;
+    lastHeaders = headers;
     lastNoDefaultHeaders = noDefaultHeaders;
     if (body != null) {
       final text = utf8.decode(body as List<int>);
@@ -280,6 +282,29 @@ void main() {
 
         expect(first, equals('long'));
         expect(second, equals('long'));
+        expect(client.requestCount, equals(1));
+      },
+    );
+
+    test(
+      'bhv authoauthtwotokenmgr 007 expires_in applies one margin capped at half the lifetime',
+      () async {
+        // A two-second token is still served from cache: an uncapped margin
+        // would expire it before the second call.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"short","expires_in":2}');
+        client.enqueue('{"access_token":"fresh","expires_in":2}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
+
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
+
+        expect(first, equals('short'));
+        expect(second, equals('short'));
         expect(client.requestCount, equals(1));
       },
     );
@@ -627,24 +652,27 @@ void main() {
       );
     }
 
-    test('a non-JSON token response carries no parser detail', () async {
-      final client = _FakeApiClient();
-      client.enqueue('<html>not json</html>');
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-      await expectLater(
-        () => manager.getAccessToken('https://auth.example.com/token', {
-          'grant_type': 'client_credentials',
-        }),
-        throwsA(
-          isA<OAuth2TokenException>().having(
-            (e) => e.message,
-            'message',
-            'Token response is not valid JSON',
+    test(
+      'bhv authoauthtwotokenmgr 040 an unusable token response has the canonical message and no parser detail',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('<html>not json</html>');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+        await expectLater(
+          () => manager.getAccessToken('https://auth.example.com/token', {
+            'grant_type': 'client_credentials',
+          }),
+          throwsA(
+            isA<OAuth2TokenException>().having(
+              (e) => e.message,
+              'message',
+              'Token response is not valid JSON',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('a JSON array token response is not a JSON object', () async {
       final client = _FakeApiClient();
@@ -724,6 +752,26 @@ void main() {
                 ),
           ),
         );
+      },
+    );
+
+    test(
+      'bhv authoauthtwotokenmgr 035 the token request is a form post accepting json',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await manager.getAccessToken('https://auth.example.com/token', {
+          'grant_type': 'client_credentials',
+        });
+
+        expect(
+          client.lastHeaders!['Content-Type'],
+          equals('application/x-www-form-urlencoded'),
+        );
+        expect(client.lastHeaders!['Accept'], equals('application/json'));
       },
     );
 

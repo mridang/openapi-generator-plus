@@ -368,6 +368,77 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun bhvAuthoidc004DiscoveryAcceptsAMatchingIssuerWithATrailingSlash() {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"issuer":"https://auth.example.com/","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+        )
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val url = runBlocking { auth.buildAuthorizationUrl() }
+
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"), url)
+    }
+
+    @Test
+    fun bhvAuthoidc005DiscoveryAcceptsLoopbackClearTextAndRefusesOtherClearText() {
+        for ((tokenEndpoint, accepted) in listOf(
+            "https://auth.example.com/token" to true,
+            "http://localhost:8080/token" to true,
+            "http://127.0.0.1:8080/token" to true,
+            "http://[::1]:8080/token" to true,
+            "http://idp.example.com/token" to false,
+        )) {
+            val client = FakeApiClient()
+            client.enqueue(
+                """{"issuer":"https://auth.example.com","authorization_endpoint":"http://localhost:8080/authorize","token_endpoint":"$tokenEndpoint"}""",
+            )
+            val auth = createAuthenticator()
+            auth.setApiClient(client)
+
+            if (accepted) {
+                val url = runBlocking { auth.buildAuthorizationUrl() }
+                assertTrue(url.startsWith("http://localhost:8080/authorize?"), tokenEndpoint)
+            } else {
+                val ex =
+                    assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                        runBlocking { auth.buildAuthorizationUrl() }
+                    }
+                assertEquals("OIDC discovery 'token_endpoint' must use https", ex.message, tokenEndpoint)
+            }
+        }
+    }
+
+    @Test
+    fun bhvAuthoidc022AuthorizationUrlRequestsTheOpenidScopeOnce() {
+        for (scopes in listOf(listOf("profile"), listOf("openid", "profile"), listOf("profile", "openid", "openid"))) {
+            val client = FakeApiClient()
+            client.enqueue(discovery("https://auth.example.com/authorize"))
+            val auth =
+                OpenIdConnectAuthenticator(
+                    host = "https://api.example.com",
+                    openIdConnectUrl = "https://auth.example.com/.well-known/openid-configuration",
+                    clientId = "my-client-id",
+                    clientSecret = "my-client-secret",
+                    redirectUri = "https://app.example.com/callback",
+                    scopes = scopes,
+                )
+            auth.setApiClient(client)
+
+            val url = runBlocking { auth.buildAuthorizationUrl() }
+
+            val scope =
+                java.net.URLDecoder.decode(
+                    Regex("scope=([^&]+)").find(url)!!.groupValues[1],
+                    Charsets.UTF_8,
+                )
+            assertEquals(1, scope.split(" ").count { it == "openid" }, scope)
+            assertTrue(scope.split(" ").contains("profile"), scope)
+        }
+    }
+
+    @Test
     fun throwsWhenDiscoveredEndpointIsNotHttps() {
         // F859: the token endpoint receives the client secret and the code.
         val client = FakeApiClient()
@@ -452,7 +523,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun discoveryIsCachedWhileItsMaxAgeHasNotElapsed() {
+    fun bhvAuthoidc003DiscoveryIsCachedWhileItsMaxAgeHasNotElapsed() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=3600"))
 

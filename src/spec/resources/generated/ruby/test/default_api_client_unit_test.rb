@@ -285,6 +285,22 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_transport_052 sends an empty User-Agent header when the option is the empty string' do
+    captured_ua = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_ua = env.request_headers['User-Agent']
+        [200, {}, '{}']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.user_agent('').build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(captured_ua).must_equal ''
+  end
+
   it 'bhv_transport_042 injects default User-Agent when not explicitly set' do
     captured_ua = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -375,6 +391,58 @@ describe 'DefaultApiClientUnit' do
     end
     _(captured_ids.length).must_equal 2
     _(captured_ids[0]).wont_equal captured_ids[1]
+  end
+
+  it 'bhv_transport_007 generates unique request ids across three requests' do
+    ids = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      3.times do
+        stub.get('/test') do |env|
+          ids << env.request_headers['X-Request-ID']
+          [200, {}, '{}']
+        end
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.inject_request_id(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      3.times { client.send_request('GET', 'http://localhost/test', {}, nil) }
+    end
+    _(ids.length).must_equal 3
+    _(ids.uniq.length).must_equal 3
+  end
+
+  it 'bhv_transport_013 injects an X-Request-ID header' do
+    sent = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        sent = env.request_headers['X-Request-ID']
+        [200, {}, '{}']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.inject_request_id(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(sent).wont_be_nil
+    _(sent).wont_be_empty
+  end
+
+  it 'bhv_transport_010 includes transport default headers' do
+    sent = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        sent = env.request_headers['X-Team']
+        [200, {}, '{}']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.default_header('X-Team', 'core').build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(sent).must_equal 'core'
   end
 
   it 'bhv_transport_039 includes transport-level default headers' do
@@ -602,7 +670,7 @@ describe 'DefaultApiClientUnit' do
 
   # ── Per-part MIME sniffing (Gap J) ──
 
-  it 'bhv_serializationwire_039 sets image/png Content-Type for .png upload' do
+  it 'bhv_serializationwire_039 bhv_serializationwire_047 sets image/png Content-Type for .png upload' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/upload') do |env|
@@ -711,7 +779,93 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  # ── Multipart filename directive and part type (ruby-03) ──
+
+  it 'bhv_serializationwire_028 turns a non-BMP character in a multipart filename into one underscore' do
+    client = Petstore::Client::DefaultApiClient.new
+    directive = client.send(:build_content_disposition, 'file', "\u{1F600}.png")
+    _(directive).must_include 'filename="_.png"'
+  end
+
+  it 'bhv_serializationwire_041 omits filename* when the multipart filename is pure ASCII' do
+    client = Petstore::Client::DefaultApiClient.new
+    directive = client.send(:build_content_disposition, 'file', 'plain.txt')
+    _(directive).must_equal 'Content-Disposition: form-data; name="file"; filename="plain.txt"'
+    _(directive).wont_include 'filename*'
+  end
+
+  it 'bhv_serializationwire_036 derives the part type from the extension in any letter case' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new("\x89PNG\r\n".b)
+    io.define_singleton_method(:path) { 'PHOTO.PNG' }
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: image/png'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serializationwire_037 sets the file part type from the filename extension' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('bytes')
+    io.define_singleton_method(:path) { 'anim.gif' }
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: image/gif'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serializationwire_018 hands an octet-stream response over as base64 of its bytes' do
+    bytes = "\x00\xFF\x42".b
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/bin') { [200, { 'content-type' => 'application/octet-stream' }, bytes] }
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/bin', {}, nil)
+      _(response.body).must_equal Base64.strict_encode64(bytes)
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_errors_040 raises ArgumentError for a request URL that does not parse' do
+    client = Petstore::Client::DefaultApiClient.new
+    err = assert_raises(ArgumentError) { client.send_request('GET', 'http://[::1/x', {}, nil) }
+    _(err.message).must_include 'Invalid request URL'
+  end
+
   # ── Response charset decoding (Gap H) ──
+
+  it 'bhv_serializationwire_033 decodes a body in the charset its Content-Type declares' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/shift-jis') do
+        [200, { 'content-type' => 'text/plain; charset=Shift_JIS' }, "\x82\xA0".b]
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/shift-jis', {}, nil)
+      _(response.body).must_equal "\u3042"
+    end
+    stubs.verify_stubbed_calls
+  end
 
   it 'bhv_serializationwire_032 decodes ISO-8859-1 response body to UTF-8' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -801,6 +955,21 @@ describe 'DefaultApiClientUnit' do
       _(response.body).must_equal 'Tag'
     end
     stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_transport_046 leaves the proxy auth header unset when no proxy is configured' do
+    sent = :unset
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        sent = env.request_headers['Proxy-Authorization']
+        [200, {}, '{}']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(sent).must_be_nil
   end
 
   it 'parses proxy URL with userinfo without raising' do
@@ -1268,6 +1437,14 @@ describe 'DefaultApiClientUnit' do
     end
     _(err).must_be_instance_of ArgumentError
     _(err).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
+  end
+
+  it 'bhv_transport_048 raises ArgumentError for a non-existent ca_cert_path even when verify_ssl is false' do
+    transport = Petstore::Client::TransportOptions.builder.verify_ssl(false).ca_cert_path('/nonexistent/ca.pem').build
+    err = assert_raises(ArgumentError) do
+      Petstore::Client::DefaultApiClient.new(transport)
+    end
+    _(err.message).must_include '/nonexistent/ca.pem'
   end
 
   # A configured CA pins trust to that CA alone: the connection gets an empty
@@ -1739,6 +1916,10 @@ describe 'DefaultApiClientUnit' do
     _(accept_encoding_sent({ 'Accept-Encoding' => 'gzip' })).must_equal 'gzip'
   end
 
+  it 'bhv_transport_026 a lower-case caller accept-encoding suppresses the value the SDK would send' do
+    _(accept_encoding_sent({ 'accept-encoding' => 'gzip' })).must_equal 'gzip'
+  end
+
   # ── a body that fails after the response head arrived ──
   # Serves one connection on a loopback port: reads the request head, then lets
   # the block write whatever the scenario needs before the socket is closed.
@@ -1756,7 +1937,7 @@ describe 'DefaultApiClientUnit' do
     [port, thread]
   end
 
-  it 'raises NetworkError, not a response, when the connection closes mid-body' do
+  it 'bhv_errors_038 raises NetworkError, not a response, when the connection closes mid-body' do
     port, thread = serve_once do |socket|
       socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
                    "Transfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\n{\"a\":\r\n")
@@ -1797,6 +1978,20 @@ describe 'DefaultApiClientUnit' do
     _(err).must_be_instance_of Petstore::Client::Errors::NetworkTimeoutError
     _(err.status_code).must_equal 0
     _(err.cause).must_be_kind_of Faraday::TimeoutError
+    thread.join
+  end
+
+  it 'bhv_transport_028 a per-call timeout replaces the transport timeout' do
+    port, thread = serve_once do |_socket|
+      sleep 1.5
+    end
+    transport = Petstore::Client::TransportOptions.builder.timeout(60_000).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+
+    err = assert_raises(Petstore::Client::Errors::NetworkTimeoutError) do
+      client.send_request('GET', "http://127.0.0.1:#{port}/stalled", {}, nil, timeout: 300, max_retries: 0)
+    end
+    _(err.status_code).must_equal 0
     thread.join
   end
 
@@ -2019,5 +2214,66 @@ describe 'DefaultApiClientUnit', 'redirect dependencies' do
   it 'does not declare the faraday-follow_redirects gem' do
     spec = Gem::Specification.load('petstore_client.gemspec')
     _(spec.runtime_dependencies.map(&:name)).wont_include 'faraday-follow_redirects'
+  end
+
+  it 'bhv_redirects_008 returns the redirect response as it is when redirects are disabled' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/moved') do
+        [302, { 'location' => 'http://localhost/final' }, '']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(false).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
+      _(resp.status_code).must_equal 302
+      _(resp.headers['location']).must_equal 'http://localhost/final'
+    end
+  end
+
+  it 'bhv_redirects_015 returns a 307 verbatim when no_redirect is set' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/moved') do
+        [307, { 'location' => 'http://localhost/final' }, '']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil, no_redirect: true)
+      _(resp.status_code).must_equal 307
+    end
+  end
+
+  it 'bhv_redirects_026 raises ApiError when maxRedirects is exceeded' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/loop') do
+        [302, { 'location' => 'http://localhost/loop' }, '']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).max_redirects(2).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
+        client.send_request(:GET, 'http://localhost/loop', {}, nil)
+      end
+      _(err.detail_message).must_equal 'Too many redirects (exceeded 2)'
+      _(err.status_code).must_equal 302
+    end
+  end
+
+  it 'bhv_retries_020 refuses to replay a POST body when redirected from HTTPS to HTTP' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do
+        [307, { 'location' => 'http://insecure.example.com/upload' }, '']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
+        client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
+      end
+      _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
+    end
   end
 end

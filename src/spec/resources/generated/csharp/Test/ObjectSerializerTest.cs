@@ -50,7 +50,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DateTimeReturnsIso8601String()
+        public void BhvSerializationobject157DateTimeReturnsIso8601String()
         {
             var dt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
             string result = ObjectSerializer.Stringify(dt);
@@ -633,7 +633,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ConstructingAModelWithANullRequiredValueDoesNotThrow()
+        public void BhvSerializationobject029ConstructingAModelWithANullRequiredValueDoesNotThrow()
         {
             // F316: a model checks nothing when it is built in code.
             var viaConstructor = new Account(null!);
@@ -1116,7 +1116,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void UnknownPropertyDoesNotThrow()
+        public void BhvSerializationobject082UnknownPropertyDoesNotThrow()
         {
             var json = "{\"id\":1,\"name\":\"Dogs\",\"unknownField\":\"ignored\"}";
             var category = _serializer.Deserialize<Category>(json);
@@ -2109,7 +2109,7 @@ public static class ObjectSerializerTest
         [InlineData("/relative")]
         [InlineData("not a uri")]
         [InlineData("")]
-        public void NonAbsoluteUriIsRejected(string text)
+        public void BhvSerializationobject008NonAbsoluteUriIsRejected(string text)
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Pet>(
@@ -2535,6 +2535,108 @@ public static class ObjectSerializerTest
                     );
                 }
             }
+        }
+    }
+
+    public class BehaviourContractTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void BhvSerializationobject030OutOfRangeIntegerInAModelIsRejectedWhenDecoded()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<StockItem>("{\"priority\":1,\"matrix\":[[3000000000]]}")
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationobject032SlugAndNicknameDecodeAsGiven()
+        {
+            var edge = _serializer.Deserialize<EdgeCases>("{\"slug\":\"not-matching\"}");
+            var pet = _serializer.Deserialize<Pet>(
+                "{\"name\":\"a\",\"photoUrls\":[],\"nickname\":\"x\"}"
+            );
+
+            Assert.Equal("not-matching", edge!.Slug);
+            Assert.Equal("x", pet!.Nickname);
+        }
+
+        [Fact]
+        public void BhvSerializationobject047DeclaredKeysOfAStrictModelDecode()
+        {
+            var tag = _serializer.Deserialize<StrictTag>("{\"id\":1,\"name\":\"a\"}");
+
+            Assert.Equal(1L, tag!.Id);
+            Assert.Equal("a", tag.Name);
+        }
+
+        [Fact]
+        public void BhvSerializationobject057DoubleLiteralOverflowingToInfinityIsRejected()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Defaults>("{\"weight\":1e400}")
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationobject118ScalarWhereANestedModelIsExpectedRaises()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Pet>("{\"name\":\"a\",\"photoUrls\":[],\"category\":5}")
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationobject122NullElementsOfInt32ContainersAreRejected()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Dictionary<string, int>>("{\"a\":null}")
+            );
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<List<List<int>>>("[[1,null]]")
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationobject146DurationInsideAHashSerializesAsProtobufString()
+        {
+            var durations = new Dictionary<string, TimeSpan>
+            {
+                { "retry", new TimeSpan(1, 30, 0) },
+            };
+
+            Assert.Contains(
+                "\"retry\":\"5400s\"",
+                _serializer.Serialize(durations),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationobject149NegativeEightHourOffsetIsKeptInTheSerializedString()
+        {
+            var metadata = new Metadata
+            {
+                CreatedAt = new DateTimeOffset(2024, 1, 1, 12, 30, 45, TimeSpan.FromHours(-8)),
+            };
+
+            Assert.Contains("-08:00", _serializer.Serialize(metadata), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerializationobject176UuidRoundTripPreservesIdentity()
+        {
+            var ids = new Dictionary<string, Guid>
+            {
+                { "id", Guid.Parse("123e4567-e89b-12d3-a456-426614174000") },
+            };
+
+            var decoded = _serializer.Deserialize<Dictionary<string, Guid>>(
+                _serializer.Serialize(ids)
+            );
+
+            Assert.Equal(ids, decoded);
         }
     }
 }

@@ -509,6 +509,82 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvErrors003EveryStatusSpecificErrorKeepsAnOptionalCause()
+    {
+        var cause = new InvalidOperationException("root cause");
+
+        Assert.Same(cause, new BadRequestException("bad", cause).InnerException);
+        Assert.Same(cause, new UnauthorizedException("unauthorized", cause).InnerException);
+        Assert.Same(cause, new ForbiddenException("forbidden", cause).InnerException);
+        Assert.Same(cause, new NotFoundException("missing", cause).InnerException);
+        Assert.Same(cause, new ConflictException("conflict", cause).InnerException);
+        Assert.Same(cause, new UnprocessableEntityException("invalid", cause).InnerException);
+        Assert.Same(cause, new TooManyRequestsException("slow down", cause).InnerException);
+        Assert.Same(cause, new InternalServerErrorException("boom", cause).InnerException);
+        Assert.Same(cause, new ClientException(418, "teapot", cause).InnerException);
+        Assert.Same(cause, new ServerException(503, "unavailable", cause).InnerException);
+    }
+
+    [Theory]
+    [InlineData(400, typeof(BadRequestException))]
+    [InlineData(401, typeof(UnauthorizedException))]
+    [InlineData(403, typeof(ForbiddenException))]
+    [InlineData(404, typeof(NotFoundException))]
+    [InlineData(409, typeof(ConflictException))]
+    [InlineData(418, typeof(ClientException))]
+    [InlineData(422, typeof(UnprocessableEntityException))]
+    [InlineData(429, typeof(TooManyRequestsException))]
+    [InlineData(500, typeof(InternalServerErrorException))]
+    [InlineData(503, typeof(ServerException))]
+    [InlineData(302, typeof(ApiException))]
+    public void BhvErrors006FromResponseMapsEveryStatusToItsException(int status, Type expected)
+    {
+        var ex = ApiException.FromResponse(status, new Dictionary<string, string>(), null);
+
+        Assert.Equal(expected, ex.GetType());
+    }
+
+    [Fact]
+    public void BhvErrors011FromResponseNamesTheRequestInTheMessageAndInTheFields()
+    {
+        var ex = ApiException.FromResponse(
+            409,
+            new Dictionary<string, string>(),
+            null,
+            "DELETE",
+            "/orders/9"
+        );
+
+        Assert.Equal("API returned status code 409 for DELETE /orders/9", ex.Message);
+        Assert.Equal("DELETE", ex.RequestMethod);
+        Assert.Equal("/orders/9", ex.RequestPath);
+    }
+
+    [Fact]
+    public void BhvErrors024RendersTheMessageStatusHeadersAndBody()
+    {
+        var ex = new ApiException(
+            409,
+            "conflict",
+            new Dictionary<string, string> { { "x-request-id", "r-7" } },
+            "{\"id\":3}"
+        );
+
+        Assert.Equal(
+            "conflict\nHTTP status code: 409\nResponse headers: {\"x-request-id\":\"r-7\"}\nResponse body: {\"id\":3}",
+            ex.ToString()
+        );
+    }
+
+    [Fact]
+    public void BhvErrors028GetTypedErrorBodyReturnsNullForAnEmptyBody()
+    {
+        var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), "");
+
+        Assert.Null(ex.GetTypedErrorBody<Category>());
+    }
+
+    [Fact]
     public void UnusableResponseFactoryIsNotPartOfThePublicSurface()
     {
         var factory = typeof(ApiException).GetMethod(

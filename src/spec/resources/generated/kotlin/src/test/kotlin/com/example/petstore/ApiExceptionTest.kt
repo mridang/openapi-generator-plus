@@ -457,6 +457,57 @@ class ApiExceptionTest {
     }
 
     @Test
+    @DisplayName("bhvErrors007 From response records the request method and the path it was given")
+    fun fromResponseRecordsTheMethodAndPath() {
+        val ex = ApiException.fromResponse(404, emptyMap(), null, "GET", "/items/3")
+
+        assertEquals("GET", ex.requestMethod)
+        assertEquals("/items/3", ex.requestPath)
+        assertTrue(ex.toString().contains("\nRequest: GET /items/3"), ex.toString())
+    }
+
+    @Test
+    @DisplayName("bhvErrors011 FromResponse names the request in the rendered message and in its fields")
+    fun fromResponseNamesTheRequestInTheRenderedForm() {
+        val ex = ApiException.fromResponse(404, emptyMap(), null, "PUT", "/items/3")
+
+        assertEquals("API returned status code 404", ex.message)
+        assertEquals("PUT", ex.requestMethod)
+        assertEquals("/items/3", ex.requestPath)
+        assertTrue(ex.toString().lines().contains("Request: PUT /items/3"), ex.toString())
+    }
+
+    @Test
+    @DisplayName("bhvErrors017 GetTypedErrorBody throws SerializationException for malformed JSON")
+    fun getTypedErrorBodyThrowsForMalformedJson() {
+        val ex = ApiException.fromResponse(400, emptyMap(), "{\"id\":")
+
+        assertThrows(SerializationException::class.java) {
+            ex.getTypedErrorBody<com.example.petstore.models.Category>()
+        }
+    }
+
+    @Test
+    @DisplayName("bhvErrors022 the rendered form omits empty headers and an empty body")
+    fun renderedFormOmitsEmptyHeadersAndBody() {
+        val ex =
+            ApiException(
+                statusCode = 500,
+                message = "boom",
+                responseHeaders = emptyMap(),
+                responseBody = "",
+            )
+
+        assertEquals("boom\nHTTP status code: 500", ex.toString())
+    }
+
+    @Test
+    @DisplayName("bhvErrors028 GetTypedErrorBody returns null for an empty body")
+    fun getTypedErrorBodyIsNullForAnEmptyBody() {
+        assertNull(ApiException.fromResponse(400, emptyMap(), "").getTypedErrorBody<com.example.petstore.models.Category>())
+    }
+
+    @Test
     @DisplayName("bhvErrors016 GetTypedErrorBody returns null for an empty response body")
     fun errorBodyIsNullForAnEmptyResponseBody() {
         assertNull(ApiException.fromResponse(400, emptyMap(), "").errorBody)

@@ -190,6 +190,16 @@ public class StoreApiTest
     }
 
     [Fact]
+    public async Task BhvOperations110GetOrderByIdThrowsTheBadRequestClassForA400()
+    {
+        var mockApi = NewStoreApiForMock(400, "application/json", "{\"message\":\"Bad request\"}");
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.BadRequestException>(async () =>
+            await mockApi.GetOrderByIdAsync(1L)
+        );
+    }
+
+    [Fact]
     public async Task BhvOperations106TestGetOrderNotFound()
     {
         var mockApi = NewStoreApiForMock(

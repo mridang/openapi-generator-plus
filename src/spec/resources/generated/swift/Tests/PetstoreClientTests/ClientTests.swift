@@ -67,7 +67,8 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
           "ApiClient has been closed and can no longer send requests"))
   }
 
-  @Test func testBhvLifecycle007CloseLeavesASuppliedSessionOpen() async throws {
+  /* Closing the client never invalidates a session the caller supplied. */
+  @Test func testBhvLifecycle007BhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
     let probe = InvalidationProbe()
     let session = URLSession(configuration: .ephemeral, delegate: probe, delegateQueue: nil)
     let transport = try TransportOptionsBuilder().session(session).build()
@@ -277,7 +278,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002PetStoreBasicAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  @Test func testBhvAuthscheme001PetStoreBasicAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try PetStoreBasicAuthenticator(
@@ -288,7 +289,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  @Test func testPetStoreBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002PetStoreBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try PetStoreBasicAuthenticator(
@@ -320,7 +325,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002AdminBasicAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  @Test func testBhvAuthscheme001AdminBasicAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try AdminBasicAuthenticator(
@@ -331,7 +336,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  @Test func testAdminBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002AdminBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try AdminBasicAuthenticator(
@@ -363,7 +372,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002PetStoreBearerAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  @Test func testBhvAuthscheme001PetStoreBearerAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try PetStoreBearerAuthenticator(
@@ -371,7 +380,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-value"])
   }
 
-  @Test func testPetStoreBearerAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002PetStoreBearerAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try PetStoreBearerAuthenticator(
@@ -399,7 +412,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002ServiceTokenAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  @Test func testBhvAuthscheme001ServiceTokenAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try ServiceTokenAuthenticator(
@@ -407,7 +420,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-value"])
   }
 
-  @Test func testServiceTokenAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002ServiceTokenAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try ServiceTokenAuthenticator(
@@ -435,7 +452,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002ApiKeyHeaderAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  @Test func testBhvAuthscheme001ApiKeyHeaderAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try ApiKeyHeaderAuthenticator(
@@ -443,7 +460,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY": "env-value"])
   }
 
-  @Test func testApiKeyHeaderAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002ApiKeyHeaderAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try ApiKeyHeaderAuthenticator(
@@ -471,7 +492,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002InternalApiKeyAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  @Test func testBhvAuthscheme001InternalApiKeyAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try InternalApiKeyAuthenticator(
@@ -479,7 +500,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY": "env-value"])
   }
 
-  @Test func testInternalApiKeyAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002InternalApiKeyAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try InternalApiKeyAuthenticator(
@@ -507,7 +532,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002ApiKeyQueryAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  @Test func testBhvAuthscheme001ApiKeyQueryAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try ApiKeyQueryAuthenticator(
@@ -515,7 +540,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY": "env-value"])
   }
 
-  @Test func testApiKeyQueryAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002ApiKeyQueryAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try ApiKeyQueryAuthenticator(
@@ -543,7 +572,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002SessionCookieAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  @Test func testBhvAuthscheme001SessionCookieAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try SessionCookieAuthenticator(
@@ -551,7 +580,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY": "env-value"])
   }
 
-  @Test func testSessionCookieAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002SessionCookieAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try SessionCookieAuthenticator(
@@ -581,7 +614,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   @Test
   func
-    testBhvLifecycle002MachineAuthClientCredentialsAuthenticatorReadsItsCredentialsFromTheEnvironment()
+    testBhvAuthscheme001MachineAuthClientCredentialsAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try MachineAuthClientCredentialsAuthenticator(
@@ -592,9 +625,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
   @Test
   func
-    testMachineAuthClientCredentialsAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvLifecycle015BhvAuthscheme002MachineAuthClientCredentialsAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try MachineAuthClientCredentialsAuthenticator(
@@ -628,7 +663,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   }
 
   @Test
-  func testBhvLifecycle002LegacyAuthPasswordAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  func testBhvAuthscheme001LegacyAuthPasswordAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try LegacyAuthPasswordAuthenticator(
@@ -642,8 +677,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
   @Test
-  func testLegacyAuthPasswordAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  func
+    testBhvLifecycle015BhvAuthscheme002LegacyAuthPasswordAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try LegacyAuthPasswordAuthenticator(
@@ -681,7 +719,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   @Test
   func
-    testBhvLifecycle002UserAuthAuthorizationCodeAuthenticatorReadsItsCredentialsFromTheEnvironment()
+    testBhvAuthscheme001UserAuthAuthorizationCodeAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try UserAuthAuthorizationCodeAuthenticator(
@@ -693,9 +731,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
   @Test
   func
-    testUserAuthAuthorizationCodeAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvLifecycle015BhvAuthscheme002UserAuthAuthorizationCodeAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try UserAuthAuthorizationCodeAuthenticator(
@@ -731,7 +771,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   }
 
   @Test
-  func testBhvLifecycle002BrowserAuthImplicitAuthenticatorReadsItsCredentialsFromTheEnvironment()
+  func testBhvAuthscheme001BrowserAuthImplicitAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
     _ = try BrowserAuthImplicitAuthenticator(
@@ -739,8 +779,11 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID": "env-value"])
   }
 
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
   @Test
-  func testBrowserAuthImplicitAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  func
+    testBhvLifecycle015BhvAuthscheme002BrowserAuthImplicitAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try BrowserAuthImplicitAuthenticator(
@@ -768,7 +811,8 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvLifecycle002SsoAuthAuthenticatorReadsItsCredentialsFromTheEnvironment() throws {
+  @Test func testBhvAuthscheme001SsoAuthAuthenticatorReadsItsCredentialsFromTheEnvironment() throws
+  {
     _ = try SsoAuthAuthenticator(
       host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
       environment: [
@@ -778,7 +822,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  @Test func testSsoAuthAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws
+  /* One optional keyword credential per scheme, named after it, and an explicit one
+   * needs no environment at all. */
+  @Test
+  func
+    testBhvLifecycle015BhvAuthscheme002SsoAuthAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    throws
   {
     _ = try SsoAuthAuthenticator(
       host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",

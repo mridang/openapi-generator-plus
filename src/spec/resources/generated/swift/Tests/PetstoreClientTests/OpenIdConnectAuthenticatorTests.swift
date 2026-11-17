@@ -10,6 +10,48 @@ import Testing
 
 @testable import PetstoreClient
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
+/* Answers the discovery request with a handler of its own, so the transport
+ * test never shares a handler with the DefaultApiClient suites. */
+private final class DiscoveryStubURLProtocol: URLProtocol {
+  nonisolated(unsafe) static var handler: ((URLRequest) -> (Data, Int, [String: String]))?
+
+  static func session(handler: @escaping (URLRequest) -> (Data, Int, [String: String]))
+    -> URLSession
+  {
+    DiscoveryStubURLProtocol.handler = handler
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [DiscoveryStubURLProtocol.self]
+    return URLSession(configuration: config)
+  }
+
+  override class func canInit(with request: URLRequest) -> Bool { return true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+
+  override func startLoading() {
+    guard let handler = DiscoveryStubURLProtocol.handler, let url = request.url else {
+      client?.urlProtocolDidFinishLoading(self)
+      return
+    }
+    let (data, statusCode, headers) = handler(request)
+    guard
+      let response = HTTPURLResponse(
+        url: url, statusCode: statusCode, httpVersion: "HTTP/1.1", headerFields: headers)
+    else {
+      client?.urlProtocolDidFinishLoading(self)
+      return
+    }
+    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+    client?.urlProtocol(self, didLoad: data)
+    client?.urlProtocolDidFinishLoading(self)
+  }
+
+  override func stopLoading() {}
+}
+
 @Suite final class OpenIdConnectAuthenticatorTests {
 
   // MARK: - Mock ApiClient
@@ -377,9 +419,9 @@ import Testing
     ("max-age=abc", 1),
     ("max-age=99999999999999999999999", 1),
   ])
-  func testDiscoveryIsCachedForTheMaxAgeTheServerSent(cacheControl: String, discoveryRequests: Int)
-    async throws
-  {
+  func testBhvAuthoidc003DiscoveryIsCachedForTheMaxAgeTheServerSent(
+    cacheControl: String, discoveryRequests: Int
+  ) async throws {
     let client = MockApiClient()
     for _ in 0..<2 {
       client.responses.append(
@@ -433,6 +475,153 @@ import Testing
     dump(auth, to: &dumped)
     #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
     #expect(Mirror(reflecting: auth).children.isEmpty)
+  }
+
+  @Test func testBhvAuthoidc007Discovery404RaisesNotFoundError() async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: "missing", statusCode: 404)))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    await #expect(throws: NotFoundError.self) {
+      _ = try await auth.buildAuthorizationURL()
+    }
+  }
+
+  /* The discovery request goes to the identity provider, another origin, so the
+   * transport's default headers are not sent with it. */
+  @Test func testBhvAuthoidc008DiscoveryRequestLeavesTheTransportDefaultHeadersOff() async throws {
+    var discoveryHeaders: [String: String] = [:]
+    let session = DiscoveryStubURLProtocol.session { request in
+      discoveryHeaders = request.allHTTPHeaderFields ?? [:]
+      return (Data(Self.discoveryJSON.utf8), 200, ["Content-Type": "application/json"])
+    }
+    let transport = try TransportOptionsBuilder()
+      .defaultHeader(name: "Authorization", value: "Bearer api-token")
+      .maxRetries(0)
+      .build()
+    let auth = createAuthenticator()
+    auth.setApiClient(DefaultApiClient(transportOptions: transport, session: session))
+
+    _ = try await auth.buildAuthorizationURL()
+
+    #expect(discoveryHeaders["Authorization"] == nil)
+    #expect(discoveryHeaders["Accept"] == "application/json")
+  }
+
+  /* A failed rediscovery leaves the delegate in place: the session exchanged
+   * before it is still used once discovery works again. */
+  @Test func testBhvAuthoidc009FailedRediscoveryKeepsTheOldDelegate() async throws {
+    let client = MockApiClient()
+    let expired = ApiHttpResponse(
+      statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": "max-age=0"])
+    client.responses.append(.success(expired))
+    client.responses.append(
+      .success(
+        makeResponse(
+          body: "{\"access_token\":\"at-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}")))
+    client.responses.append(.success(makeResponse(body: "boom", statusCode: 500)))
+    client.responses.append(.success(expired))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("the-code")
+    await #expect(throws: InternalServerError.self) {
+      _ = try await auth.authHeaders()
+    }
+    let headers = try await auth.authHeaders()
+
+    #expect(headers["Authorization"] == "Bearer at-1")
+  }
+
+  @Test func testBhvAuthoidc015InvalidateAccessTokenKeepsTheSessionAndTheRefreshToken() async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+    client.responses.append(
+      .success(
+        makeResponse(
+          body:
+            "{\"access_token\":\"at-1\",\"refresh_token\":\"rt-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}"
+        )))
+    client.responses.append(
+      .success(
+        makeResponse(
+          body: "{\"access_token\":\"at-2\",\"token_type\":\"Bearer\",\"expires_in\":3600}")))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("the-code")
+    auth.invalidateAccessToken()
+    let headers = try await auth.authHeaders()
+
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(headers["Authorization"] == "Bearer at-2")
+    #expect(body.contains("grant_type=refresh_token"))
+    #expect(body.contains("refresh_token=rt-1"))
+  }
+
+  @Test func testBhvAuthoidc016MalformedDiscoveryDocumentRaisesSerializationError() async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: "{not json")))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let error = await #expect(throws: SerializationError.self) {
+      _ = try await auth.buildAuthorizationURL()
+    }
+    #expect(error?.message == "OIDC discovery document is not a JSON object")
+  }
+
+  @Test func testBhvAuthoidc018EmptyStateIsOmittedFromTheAuthorizationUrl() async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let url = try await auth.buildAuthorizationURL(state: "")
+
+    #expect(!url.contains("state="))
+    #expect(url.contains("response_type=code"))
+  }
+
+  /* The PKCE verifier lives on the delegate, which a rediscovery that names the
+   * same endpoints keeps, so the exchange still proves the authorization URL. */
+  @Test func testBhvAuthoidc021RediscoveryKeepsThePkceVerifierOfTheAuthorizationUrl() async throws {
+    let client = MockApiClient()
+    let expired = ApiHttpResponse(
+      statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": "max-age=0"])
+    client.responses.append(.success(expired))
+    client.responses.append(.success(expired))
+    client.responses.append(
+      .success(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}")))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let url = try await auth.buildAuthorizationURL()
+    let items = URLComponents(string: url)?.queryItems ?? []
+    let challenge = try #require(items.first { $0.name == "code_challenge" }?.value)
+
+    try await auth.exchangeCode("the-code")
+
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    let verifier = try #require(
+      body.split(separator: "&").first { $0.hasPrefix("code_verifier=") }
+        .map { String($0.dropFirst("code_verifier=".count)) })
+    #expect(PKCE.challenge(for: verifier) == challenge)
+  }
+
+  @Test func testBhvAuthoidc023ReprShowsTheNonSecretFieldsAndMasksTheSecret() {
+    let auth = createAuthenticator()
+
+    #expect(
+      String(describing: auth)
+        == "OpenIdConnectAuthenticator(host: https://api.example.com, openIDConnectURL: https://auth.example.com/.well-known/openid-configuration, clientID: my-client-id, clientSecret: ***, redirectURI: https://app.example.com/callback, scopes: [\"openid\", \"profile\"])"
+    )
+    #expect(String(reflecting: auth) == String(describing: auth))
   }
 
   // MARK: - Generated scheme wrapper

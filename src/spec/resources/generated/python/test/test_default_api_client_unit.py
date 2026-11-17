@@ -376,6 +376,90 @@ class TestDefaultApiClientUnit:
         sent = json.loads(response.body)["headers"]["content-type"]
         assert sent.startswith(f"{expected}; boundary=")
 
+    def test_bhv_transport_001_proxy_url_with_userinfo_routes_through_the_proxy(
+        self,
+    ) -> None:
+        import base64
+
+        # The echo server stands in for the proxy. The target host does not
+        # exist, so a 200 proves the request went through the proxy, and the
+        # Proxy-Authorization header it echoes proves the userinfo was sent.
+        transport = (
+            TransportOptions.builder()
+            .proxy(f"http://user:pass@127.0.0.1:{self.port}")
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", "http://unreachable.invalid/echo", {}, None
+        )
+        assert response.status_code == 200
+        body = json.loads(response.body)
+        expected = "Basic " + base64.b64encode(b"user:pass").decode("ascii")
+        assert body["headers"].get("proxy-authorization") == expected
+
+    def test_bhv_transport_008_generates_a_unique_x_request_id_per_request(
+        self,
+    ) -> None:
+        transport = TransportOptions.builder().inject_request_id(True).build()
+        client = DefaultApiClient(transport)
+        first = json.loads(
+            client.send_request("GET", f"{self.base_url}/echo", {}, None).body
+        )
+        second = json.loads(
+            client.send_request("GET", f"{self.base_url}/echo", {}, None).body
+        )
+        assert first["headers"]["x-request-id"] != second["headers"]["x-request-id"]
+
+    def test_bhv_transport_011_includes_the_transport_level_default_headers(
+        self,
+    ) -> None:
+        transport = (
+            TransportOptions.builder().default_header("X-Transport-Level", "on").build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        assert response.status_code == 200
+        body = json.loads(response.body)
+        assert body["headers"].get("x-transport-level") == "on"
+
+    def test_bhv_transport_014_injects_an_x_request_id_in_uuid_format(self) -> None:
+        import uuid
+
+        transport = TransportOptions.builder().inject_request_id(True).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        request_id = json.loads(response.body)["headers"]["x-request-id"]
+        assert str(uuid.UUID(request_id)) == request_id
+        assert uuid.UUID(request_id).version == 4
+
+    def test_bhv_transport_030_content_encoding_gzip_lie_with_plaintext_body_surfaces_api_exception(
+        self,
+    ) -> None:
+        from petstore_client.errors import ApiException
+
+        client = DefaultApiClient()
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", f"{self.base_url}/bad-gzip", {}, None)
+        assert type(excinfo.value) is ApiException
+        assert excinfo.value.status_code == 200
+
+    def test_bhv_transport_045_keeps_a_caller_supplied_accept_encoding(self) -> None:
+        client = DefaultApiClient()
+        response = client.send_request(
+            "GET", f"{self.base_url}/echo", {"Accept-Encoding": "identity"}, None
+        )
+        body = json.loads(response.body)
+        assert body["headers"].get("accept-encoding") == "identity"
+
+    def test_bhv_transport_046_leaves_proxy_authorization_off_when_no_proxy_is_configured(
+        self,
+    ) -> None:
+        client = DefaultApiClient()
+        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        body = json.loads(response.body)
+        assert "proxy-authorization" not in body["headers"]
+
 
 class TestCharsetDecoding:
     """Verify response body decoding honors the Content-Type charset."""
@@ -402,7 +486,16 @@ class TestCharsetDecoding:
         )
         assert decoded == "é"
 
-    def test_bomless_utf16_decodes_big_endian(self) -> None:
+    def test_bhv_serializationwire_030_decodes_a_big_endian_bom_utf16_body_as_big_endian(
+        self,
+    ) -> None:
+        big_endian_bom = b"\xfe\xff\x00L\x00o\x00g"
+        decoded = _decode_with_charset(big_endian_bom, "text/plain; charset=utf-16")
+        assert decoded == "Log"
+
+    def test_bhv_serializationwire_031_decodes_bomless_utf16_body_as_big_endian(
+        self,
+    ) -> None:
         # "Log" encoded as UTF-16 big-endian WITHOUT a BOM. RFC 2781 says a
         # BOM-less UTF-16 stream defaults to big-endian, so these bytes must
         # decode to "Log" — not the little-endian misread "䰀漀最".
@@ -421,7 +514,9 @@ class TestCharsetDecoding:
         decoded = _decode_with_charset(little_endian_bom, "text/plain; charset=utf-16")
         assert decoded == "Log"
 
-    def test_send_request_decodes_iso_8859_1_response(self) -> None:
+    def test_bhv_serializationwire_033_decodes_response_body_using_declared_charset(
+        self,
+    ) -> None:
         import socketserver
         import threading
 
@@ -579,6 +674,12 @@ class TestMultipartContentType:
     def test_bhv_serializationwire_037_guess_content_type_from_extension(self) -> None:
         assert _guess_content_type("file.png") == "image/png"
 
+    def test_bhv_serializationwire_036_guess_content_type_is_case_insensitive_on_the_extension(
+        self,
+    ) -> None:
+        assert _guess_content_type("FILE.PNG") == "image/png"
+        assert _guess_content_type("Report.PDF") == "application/pdf"
+
     def test_bhv_serializationwire_040_guess_content_type_unknown_extension_defaults_to_octet_stream(
         self,
     ) -> None:
@@ -618,7 +719,9 @@ class TestMultipartContentType:
         assert b'filename="file"' in body
         assert b"Content-Type: application/octet-stream" in body
 
-    def test_multipart_scalar_parts_use_the_wire_text_form(self) -> None:
+    def test_bhv_serializationwire_048_multipart_scalar_parts_use_the_wire_text_form(
+        self,
+    ) -> None:
         # A boolean companion field is the text `true`/`false`, as in the other
         # SDKs, not Python's `True`/`False`.
         client = DefaultApiClient()
@@ -723,7 +826,9 @@ class TestMultipartBinaryPreservation:
         # The payload must appear verbatim in the body
         assert payload in body
 
-    def test_tuple_with_filename_emits_filename_and_mime(self) -> None:
+    def test_bhv_serializationwire_038_pdf_extension_sets_application_pdf_content_type(
+        self,
+    ) -> None:
         client = DefaultApiClient()
         body = client._build_multipart_body(
             {"upload": ("file.pdf", b"%PDF-1.4")}, "boundary"
@@ -731,6 +836,15 @@ class TestMultipartBinaryPreservation:
         assert b'filename="file.pdf"' in body
         assert b"Content-Type: application/pdf" in body
         assert b"%PDF-1.4" in body
+
+    def test_bhv_serializationwire_039_png_extension_sets_image_png_content_type(
+        self,
+    ) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body(
+            {"upload": ("file.png", b"\x89PNG\r\n\x1a\n")}, "boundary"
+        )
+        assert b"Content-Type: image/png" in body
 
 
 class _FakeResp:
@@ -1122,6 +1236,60 @@ class TestRedirectRefusals:
         }
 
 
+class TestRedirectBudgetAndOptOut:
+    """A disabled redirect loop returns the 3xx, a spent budget with a Location
+    is refused, and a spent budget whose last 3xx has no Location is returned."""
+
+    def test_bhv_redirects_007_returns_the_redirect_response_when_disabled(
+        self,
+    ) -> None:
+        pool = _RedirectPool("https://example.com/dest")
+        transport = TransportOptions.builder().follow_redirects(False).build()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert response.status_code == 302
+        assert len(pool.calls) == 1
+
+    def test_bhv_redirects_023_returns_the_last_3xx_without_location_when_budget_is_used_up(
+        self,
+    ) -> None:
+        responses = [
+            _FakeResp(302, {"location": "https://example.com/hop-1"}),
+            _FakeResp(302, {"location": "https://example.com/hop-2"}),
+            _FakeResp(302, {}),
+        ]
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return responses.pop(0)
+
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(2).build()
+        )
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert response.status_code == 302
+        assert responses == []
+
+    def test_bhv_redirects_026_throws_api_exception_when_max_redirects_is_exceeded(
+        self,
+    ) -> None:
+        from petstore_client.errors import ApiException
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _FakeResp(302, {"location": "https://example.com/next"})
+
+        transport = (
+            TransportOptions.builder().follow_redirects(True).max_redirects(1).build()
+        )
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert type(excinfo.value) is ApiException
+        assert excinfo.value.message == "Too many redirects (exceeded 1)"
+
+
 class TestRedirectMessagesKeepTheQueryOut:
     def test_bhv_redirects_019_the_downgrade_refusal_does_not_quote_a_query_parameter_api_key(
         self,
@@ -1223,7 +1391,9 @@ class TestAuthRequestsOmitTheCallersDefaultHeaders:
         )
         return pool.sent
 
-    def test_a_default_header_is_left_off_the_token_request(self) -> None:
+    def test_bhv_redirects_016_a_default_header_is_left_off_the_token_request(
+        self,
+    ) -> None:
         sent = self._send(True)
         assert "X-Default" not in sent
         assert sent["Accept"] == "application/json"
@@ -1384,7 +1554,7 @@ class TestRedirectExhaustion:
         response = client.send_request("GET", "https://example.com/start", {}, None)
         assert response.status_code == 302
 
-    def test_redirect_hops_share_one_timeout_budget(self) -> None:
+    def test_bhv_redirects_009_redirect_hops_share_one_timeout_budget(self) -> None:
         import time
 
         from petstore_client.errors import NetworkTimeoutException
@@ -1440,6 +1610,90 @@ class TestUseAfterClose:
         # The request must never have been issued against the closed client.
         assert pool.calls == 0
 
+    def test_bhv_lifecycle_019_close_lets_an_in_flight_request_finish_and_refuses_a_new_one(
+        self,
+    ) -> None:
+        import threading
+
+        started = threading.Event()
+        release = threading.Event()
+        results: list[Any] = []
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                started.set()
+                release.wait(5)
+                return _FakeResp(200, {})
+
+            def clear(self) -> None:
+                return None
+
+        client = DefaultApiClient(pool_manager=_Pool())
+
+        def run() -> None:
+            results.append(
+                client.send_request("GET", "https://example.com/x", {}, None)
+            )
+
+        worker = threading.Thread(target=run)
+        worker.start()
+        assert started.wait(5)
+
+        client.close()
+        with pytest.raises(RuntimeError) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        assert type(excinfo.value) is RuntimeError
+        assert (
+            str(excinfo.value)
+            == "ApiClient has been closed and can no longer send requests"
+        )
+
+        release.set()
+        worker.join(5)
+        assert [response.status_code for response in results] == [200]
+
+    def test_bhv_lifecycle_021_closing_the_client_lets_a_running_request_finish(
+        self,
+    ) -> None:
+        import threading
+
+        started = threading.Event()
+        release = threading.Event()
+        results: list[Any] = []
+
+        class _Pool:
+            cleared = False
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                started.set()
+                release.wait(5)
+                return _FakeResp(200, {})
+
+            def clear(self) -> None:
+                self.cleared = True
+
+        pool = _Pool()
+        client = DefaultApiClient()
+        client._pool_manager = pool
+        client._owns_pool = True
+
+        def run() -> None:
+            results.append(
+                client.send_request("GET", "https://example.com/x", {}, None)
+            )
+
+        worker = threading.Thread(target=run)
+        worker.start()
+        assert started.wait(5)
+
+        client.close()
+        assert pool.cleared is False
+
+        release.set()
+        worker.join(5)
+        assert [response.status_code for response in results] == [200]
+        assert pool.cleared is True
+
     def test_close_is_idempotent(self) -> None:
         client = DefaultApiClient()
         client.close()
@@ -1449,6 +1703,37 @@ class TestUseAfterClose:
 class TestBodyReadErrorWrapped:
     """A failure DURING the response body read (after headers are received)
     must be wrapped in the SDK NetworkException, not leak the raw urllib3 error."""
+
+    def test_bhv_transport_029_a_response_body_that_stalls_after_the_headers_raises_network_timeout(
+        self,
+    ) -> None:
+        import urllib3
+        import urllib3.exceptions
+        from petstore_client.errors import NetworkTimeoutException
+
+        class _StalledBodyResp:
+            status = 200
+            headers: ClassVar[dict[str, Any]] = {}
+
+            def read(self) -> bytes:
+                no_pool: Any = None
+                raise urllib3.exceptions.ReadTimeoutError(
+                    no_pool, "https://example.com/x", "read timed out"
+                )
+
+            def release_conn(self) -> None:
+                return None
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _StalledBodyResp()
+
+        transport = TransportOptions.builder().follow_redirects(False).build()
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(NetworkTimeoutException) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        assert excinfo.value.status_code == 0
+        assert isinstance(excinfo.value.__cause__, urllib3.exceptions.ReadTimeoutError)
 
     def test_bhv_errors_043_body_read_error_is_wrapped_in_network_exception(
         self,
@@ -1916,6 +2201,20 @@ class TestRedirectCredentialForwarding:
         assert "authorization" not in followed
 
 
+class TestRedirectCookieAndAuthorizationOnSameOrigin:
+    def test_bhv_redirects_013_keeps_authorization_and_cookie_on_a_same_origin_redirect(
+        self,
+    ) -> None:
+        followed = _headers_on_second_hop(
+            "https://example.com/start",
+            "https://example.com/dest",
+            {"Authorization": "Bearer secret", "Cookie": "session=abc123"},
+        )
+
+        assert followed["authorization"] == "Bearer secret"
+        assert followed["cookie"] == "session=abc123"
+
+
 class TestGarbageCaCertPath:
     def test_bhv_errors_039_unparseable_ca_file_raises_value_error_naming_the_path(
         self, tmp_path: Any
@@ -2147,7 +2446,7 @@ class TestRetryPolicy:
         ("header", "expected"),
         [("0", 0.0), ("3", 3.0), ("1.5", 1.5), (" 7 ", 7.0), ("120", 60.0)],
     )
-    def test_retry_after_seconds_replaces_the_backoff_and_is_capped_at_a_minute(
+    def test_bhv_retries_023_retry_after_seconds_replaces_the_backoff_and_is_capped_at_a_minute(
         self, header: str, expected: float
     ) -> None:
         assert _retry_delay(0, header, jitter=0.0) == expected
@@ -2181,7 +2480,9 @@ class TestRetryPolicy:
                 "GET", "https://example.com/x", {}, None, deadline=time.monotonic() - 1
             )
 
-    def test_a_deadline_replaces_the_configured_timeout(self) -> None:
+    def test_bhv_transport_028_a_per_call_deadline_replaces_the_configured_timeout(
+        self,
+    ) -> None:
         class _Pool:
             def __init__(self) -> None:
                 self.timeout: Any = None

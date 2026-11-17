@@ -491,7 +491,7 @@ test('bhv authintegration 016 an operation sends no credential when none of its 
     expect($client->capturedHeaders)->not->toHaveKey('X-Default');
 });
 
-test('without scheme credentials the default authenticator applies to a secured operation', function (): void {
+test('bhv authintegration 008 without scheme credentials the default authenticator applies to a secured operation', function (): void {
     [$api, $client] = newSchemeApi([], new TestAuthenticator(headers: ['X-Default' => 'd']));
 
     $api->callWithRequirements(['application/json'], [['bearer']]);
@@ -669,6 +669,35 @@ test('bhv operations 016 sends no body when null', function (): void {
     expect(true)->toBeTrue();
 });
 
+test('bhv serializationwire 010 bhv operations 041 bhv serializationwire 001 findPetsByStatus omitting status sends no status= in query', function (): void {
+    // findPetsByStatus has an optional `status` query param declared
+    // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
+    // value IF the client chooses to send the key — it does NOT mean the SDK
+    // must always send the key. When the caller omits status (null), the built
+    // request URL must carry no `status` key at all rather than a spurious
+    // empty `status=` pair.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
+test('bhv options 002 null options omits allow empty value param from the query', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->findPetsByStatus();
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
 test('bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query', function (): void {
     // findPetsByStatus has an optional `status` query param declared
     // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
@@ -687,7 +716,7 @@ test('bhv serializationwire 010 findPetsByStatus omitting status sends no status
     expect($client->capturedUrl)->not->toContain('status=');
 });
 
-test('findPetsByStatus with explicit empty status sends status= in query', function (): void {
+test('bhv operations 040 bhv operations 003 findPetsByStatus with explicit empty status sends status= in query', function (): void {
     // When the caller explicitly supplies an empty value for the
     // allowEmptyValue param, the key IS present with an empty value: `status=`.
     $client = new CapturingApiClient();
@@ -1151,6 +1180,26 @@ test('bhv operations 008 config default Accept wins over operation-negotiated Ac
     expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
 });
 
+test('bhv options 001 config default header overrides operation negotiated accept', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
+});
+
 test('bhv operations 004 an explicit Accept header parameter wins over the configured default and the negotiated one', function (): void {
     $client = new CapturingApiClient();
     $config = Configuration::builder()
@@ -1171,6 +1220,50 @@ test('bhv operations 004 an explicit Accept header parameter wins over the confi
     expect($client->capturedHeaders['Accept'] ?? null)->toBe('text/csv');
     expect(array_keys(array_change_key_case($client->capturedHeaders, CASE_LOWER)))
         ->toContain('accept');
+});
+
+test('bhv operations 001 a per call header replaces a default header of the same name', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('X-Tenant', 'default-tenant')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        ['X-Tenant' => 'per-call-tenant'],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    $tenantValues = array_filter(
+        $client->capturedHeaders,
+        static fn (string $name): bool => strcasecmp($name, 'X-Tenant') === 0,
+        ARRAY_FILTER_USE_KEY
+    );
+    expect(array_values($tenantValues))->toBe(['per-call-tenant']);
+});
+
+test('bhv serializationwire 013 form urlencoded body keeps a well formed surrogate pair', function (): void {
+    // U+1F600 is a surrogate pair in UTF-16 and four UTF-8 bytes; the form body must carry
+    // exactly those bytes percent-encoded, with no lone surrogate.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        ['q' => "\u{1F600}"],
+        ['application/json'],
+        'application/x-www-form-urlencoded',
+        null
+    );
+    expect($client->capturedBody)->toBe('q=%F0%9F%98%80');
 });
 
 // -- BinaryResponseTests --
@@ -1545,4 +1638,146 @@ test('an operation that keeps failing with a retryable status is attempted three
     expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
         ->toThrow(ServerException::class);
     expect(count($seen))->toBe(3);
+});
+
+/**
+ * A transport that answers 401 to every API call. Its token endpoint issues a token for
+ * the first $tokens requests and fails after that. Every request is appended to $requests.
+ *
+ * @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests
+ */
+function alwaysUnauthorizedApiClient(\ArrayObject $requests, int $tokens): ApiClient
+{
+    return new class ($requests, $tokens) implements ApiClient {
+        private int $issued = 0;
+
+        /** @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+        public function __construct(private readonly \ArrayObject $requests, private readonly int $tokens)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->requests[] = ['url' => $url, 'headers' => $headers];
+            if ($url === 'https://auth.example.com/token') {
+                $this->issued++;
+                if ($this->issued > $this->tokens) {
+                    return new ApiHttpResponse(500, '{"error":"server_error"}', ['Content-Type' => 'application/json']);
+                }
+                return new ApiHttpResponse(
+                    200,
+                    (string) json_encode(['access_token' => 't' . $this->issued, 'expires_in' => 3600]),
+                    ['Content-Type' => 'application/json']
+                );
+            }
+            return new ApiHttpResponse(401, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+}
+
+test('bhv authintegration 001 a failed re-authentication leaves the 401 as it is', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = alwaysUnauthorizedApiClient($requests, 1);
+    $auth = new \PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'))
+        ->toThrow(UnauthorizedException::class);
+    $apiCalls = array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    );
+    expect($apiCalls)->toHaveCount(1);
+});
+
+test('bhv retries 008 reports a second 401 as unauthorized after exactly one replay', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = alwaysUnauthorizedApiClient($requests, 2);
+    $auth = new \PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'))
+        ->toThrow(UnauthorizedException::class);
+    $apiCalls = array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    );
+    expect($apiCalls)->toHaveCount(2);
+});
+
+test('bhv retries 002 a bearer authenticator is never replayed on a 401', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = alwaysUnauthorizedApiClient($requests, 0);
+    $api = new TestableApi(
+        $client,
+        new Configuration('http://localhost'),
+        new BearerAuthenticator('https://api.example.com', 'static-token')
+    );
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'))
+        ->toThrow(UnauthorizedException::class);
+    expect($requests)->toHaveCount(1);
+});
+
+test('bhv authintegration 004 appends auth cookies to a cookie header the operation already set', function (): void {
+    $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        ['Cookie' => 'theme=dark'],
+        null,
+        ['application/json'],
+        'application/json',
+        'object',
+        $auth
+    );
+    expect($result)->toBeArray();
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('theme=dark; session=abc123');
+});
+
+test('bhv authintegration 011 has no per call authenticator on any options object', function (string $class): void {
+    expect(property_exists($class, 'authenticator'))->toBeFalse();
+    expect(property_exists($class, 'auth'))->toBeFalse();
+})->with([
+    'add pet' => [AddPetOptions::class],
+    'find pets by status' => [FindPetsByStatusOptions::class],
+]);
+
+test('bhv errors 027 an absolute url in the path bypasses the client base url', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', 'https://other.example.com/v1/items', [], [], null, ['application/json'], null, null);
+
+    expect($client->capturedUrl)->toBe('https://other.example.com/v1/items');
 });

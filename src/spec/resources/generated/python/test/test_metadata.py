@@ -111,6 +111,37 @@ class TestMetadataTypedAdditionalProperties:
             pytest.fail(f"round-trip raised unexpectedly: {exc}")
         assert restored.additional_properties["additional_properties"] == {"foo": "bar"}
 
+    def test_bhv_models_001_undeclared_wire_keys_are_captured_into_additional_properties(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        metadata = Metadata.model_validate(
+            {"createdAt": "2024-01-01T00:00:00Z", "region": "eu"}
+        )
+
+        assert metadata.additional_properties == {"region": "eu"}
+
+    def test_bhv_models_010_a_declared_property_wins_over_a_colliding_additional_property(
+        self,
+    ) -> None:
+        from datetime import datetime, timezone
+
+        from petstore_client.models import Metadata
+
+        stamp = datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
+        declared_only = json.loads(
+            ObjectSerializer().serialize(Metadata(created_at=stamp))
+        )
+        colliding = Metadata(
+            created_at=stamp, additional_properties={"createdAt": "x", "extra": 1}
+        )
+
+        data = json.loads(ObjectSerializer().serialize(colliding))
+
+        assert data["createdAt"] == declared_only["createdAt"]
+        assert data["extra"] == 1
+
 
 class TestModelDocstringNoExampleNull:
     def test_bhv_models_007_generated_model_has_no_example_null_doc_line(self) -> None:
@@ -724,6 +755,24 @@ class TestEveryOperationTakesOptions:
         assert (built.timeout, built.max_retries) == (5, 0)
         assert built.headers["X-A"] == "1"
         assert options().timeout is None
+
+    @pytest.mark.parametrize(
+        "module,api,operation,options_name,call_settings_only", OPERATIONS
+    )
+    def test_bhv_authintegration_011_has_no_per_call_authenticator_on_any_options_object(
+        self,
+        module: str,
+        api: str,
+        operation: str,
+        options_name: str,
+        call_settings_only: bool,
+    ) -> None:
+        options = getattr(
+            importlib.import_module("petstore_client.api.options"), options_name
+        )
+        names = {field.name for field in dataclasses.fields(options)}
+
+        assert not names & {"auth", "authenticator"}
 
 
 class TestMetadataEquality:

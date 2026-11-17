@@ -10,6 +10,7 @@ package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
 import com.example.petstore.errors.OpenAPIException;
@@ -33,7 +34,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void appliesOverridesAndFallsBackToDefaultsForUnsetVariables() {
+  void bhvServers001PartialOverrideKeepsTheOtherVariablesDefaults() {
     // "env" is overridden, "version" is left to its default — the resolved
     // URL must mix both.
     ServerConfiguration config =
@@ -115,7 +116,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void substitutesEveryOccurrenceOfARepeatedVariable() {
+  void bhvServers002ReplacesAVariableRepeatedInTheTemplateEverywhere() {
     ServerConfiguration config =
         new ServerConfiguration(
             "https://{region}.cdn.example.com/{region}/v1",
@@ -177,6 +178,54 @@ class ServerConfigurationTest {
 
     assertEquals(List.of("prod"), variable.getEnumValues());
     assertThrowsExactly(IllegalArgumentException.class, () -> config.getUrl(Map.of("env", "dev")));
+  }
+
+  @Test
+  void bhvServers003AcceptsAnOverrideThatIsInTheVariableEnum() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{env}.api.example.com",
+            null,
+            Map.of("env", new ServerVariable("prod", null, List.of("prod", "staging"))));
+
+    assertEquals("https://staging.api.example.com", config.getUrl(Map.of("env", "staging")));
+  }
+
+  @Test
+  void bhvServers010SubstitutesVariablesWithTheirDefaultValues() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{env}.api.example.com/v{version}",
+            null,
+            Map.of(
+                "env", new ServerVariable("staging", null, List.of("prod", "staging")),
+                "version", new ServerVariable("2", null, List.of())));
+
+    assertEquals("https://staging.api.example.com/v2", config.getUrl(Map.of()));
+  }
+
+  @Test
+  void bhvServers012RejectionNamesTheValueVariableAndAllowedValues() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{region}.cdn.example.com",
+            null,
+            Map.of("region", new ServerVariable("eu", null, List.of("eu", "us"))));
+
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> config.getUrl(Map.of("region", "ap")));
+    assertEquals(
+        "Invalid value 'ap' for server variable 'region'. Allowed values: [eu, us]",
+        ex.getMessage());
+  }
+
+  @Test
+  void bhvServers015AllowsANullDescription() {
+    ServerConfiguration config = new ServerConfiguration("https://api.example.com", null, Map.of());
+
+    assertNull(config.getDescription());
+    assertEquals("https://api.example.com", config.getUrl());
   }
 
   @Test

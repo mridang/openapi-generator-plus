@@ -69,6 +69,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuthoauthtwoimplicit013 an empty access token is treated as unset and throws")
     fun emptyAccessTokenIsTreatedAsUnset() {
         val auth = createAuthenticator()
         auth.setAccessToken("")
