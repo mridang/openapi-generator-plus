@@ -34,11 +34,12 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert err.response_body == nil
   end
 
-  test "is an exception with a message" do
+  test "bhv errors 019 is an exception whose string form names the status" do
     err = {{moduleName}}.Errors.ApiError.exception(status_code: 500, message: "boom")
 
     assert %{{moduleName}}.Errors.ApiError{} = err
     assert {{moduleName}}.Errors.ApiError.message(err) != ""
+    assert Exception.message(err) =~ "500"
   end
 
   test "an empty message renders the default text, like a missing one" do
@@ -53,7 +54,7 @@ defmodule {{moduleName}}.ApiErrorTest do
            ) == default <> "\nHTTP status code: 500"
   end
 
-  test "bhv errors 024 the message lists the status, headers and body, and leaves out what is empty" do
+  test "bhv errors 022 bhv errors 024 the message lists the status, headers and body, and leaves out what is empty" do
     full =
       {{moduleName}}.Errors.ApiError.exception(
         message: "boom",
@@ -217,6 +218,20 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert err.response_body == ~s("overloaded")
   end
 
+  test "bhv errors 005 from_response leaves the error body nil when the body is not JSON" do
+    err = {{moduleName}}.Errors.ApiError.from_response(500, %{}, "<html>oops</html>")
+
+    assert err.error_body == nil
+    assert err.response_body == "<html>oops</html>"
+  end
+
+  test "bhv errors 012 from_response without a request keeps the plain message" do
+    err = {{moduleName}}.Errors.ApiError.from_response(500, %{}, ~s({"k":"v"}))
+
+    assert err.request_method == nil
+    refute Exception.message(err) =~ "Request:"
+  end
+
   test "bhv errors 008 from_response parses an error body that starts with a UTF-8 BOM" do
     body = <<0xEF, 0xBB, 0xBF>> <> ~s({"code":1})
     err = {{moduleName}}.Errors.ApiError.from_response(404, %{}, body)
@@ -287,7 +302,7 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert body.name == "Dogs"
   end
 
-  test "bhv errors 015 typed_error_body returns nil when there is no response body" do
+  test "bhv errors 016 bhv errors 030 bhv errors 015 typed_error_body returns nil when there is no response body" do
     err =
       {{moduleName}}.Errors.ApiError.exception(
         status_code: 500,
@@ -296,6 +311,8 @@ defmodule {{moduleName}}.ApiErrorTest do
       )
 
     assert {{moduleName}}.Errors.ApiError.typed_error_body(err, "Category") == nil
+    no_body = %{err | response_body: nil}
+    assert {{moduleName}}.Errors.ApiError.typed_error_body(no_body, "Category") == nil
   end
 
   test "bhv errors 014 typed_error_body ignores extraneous fields not on the model" do
@@ -323,7 +340,7 @@ defmodule {{moduleName}}.ApiErrorTest do
       assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(serialization_error)
     end
 
-    test "every SDK exception module is listed in exceptions/0" do
+    test "bhv errors 018 every SDK exception module is listed in exceptions/0" do
       modules = {{moduleName}}.Errors.{{errorPrefix}}Error.exceptions()
 
       assert {{moduleName}}.Errors.ApiError in modules
@@ -404,6 +421,14 @@ defmodule {{moduleName}}.ApiErrorTest do
       serialization = %{{moduleName}}.Errors.SerializationError{message: "bad"}
       refute {{moduleName}}.Errors.ApiError.api_error?(serialization)
       refute {{moduleName}}.Errors.ApiError.api_error?(%ArgumentError{message: "unrelated"})
+    end
+
+    test "bhv errors 033 NotFoundError is a ClientError and an ApiError" do
+      err = {{moduleName}}.Errors.ApiError.from_response(404, %{}, nil)
+
+      assert %{{moduleName}}.Errors.NotFoundError{} = err
+      assert {{moduleName}}.Errors.ClientError.client_error?(err)
+      assert {{moduleName}}.Errors.ApiError.api_error?(err)
     end
 
     test "a 429 is a TooManyRequestsError and a ClientError" do

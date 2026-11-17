@@ -757,7 +757,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     end
   end
 
-  test "bhv serializationwire 017 octet-stream binary response roundtrips exactly via base64 decode" do
+  test "bhv serializationwire 017 bhv serializationwire 018 octet-stream binary response roundtrips exactly via base64 decode" do
     original = <<0x00, 0xFF, 0x42>>
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: OctetStreamApiClient}
@@ -801,7 +801,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert is_binary(result)
   end
 
-  test "bhv operations 010 empty body returns nil" do
+  test "bhv serializationwire 006 bhv operations 010 empty body returns nil" do
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: EmptyBinaryApiClient}
 
@@ -903,7 +903,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
 
   # Charset-aware response decoding (Gap H)
 
-  test "decode_text_body decodes ISO-8859-1 to é" do
+  test "bhv serializationwire 032 decode_text_body decodes ISO-8859-1 to é" do
     result =
       {{moduleName}}.DefaultApiClient.decode_text_body(
         <<0xE9>>,
@@ -913,14 +913,14 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert result == "é"
   end
 
-  test "decode_text_body with no charset returns bytes unchanged (UTF-8 default)" do
+  test "bhv serializationwire 034 decode_text_body with no charset returns bytes unchanged (UTF-8 default)" do
     result =
       {{moduleName}}.DefaultApiClient.decode_text_body("hello", "text/plain")
 
     assert result == "hello"
   end
 
-  test "decode_text_body with unknown charset falls back to UTF-8 (no exception)" do
+  test "bhv serializationwire 035 decode_text_body with unknown charset falls back to UTF-8 (no exception)" do
     bytes = "hello"
 
     result =
@@ -1599,7 +1599,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
   # Behavior #4: a multipart file part derives its Content-Type from the
   # filename extension (.png -> image/png), falling back to
   # application/octet-stream for an unknown/extension-less filename.
-  test "multipart file part Content-Type is derived from the filename extension" do
+  test "bhv serializationwire 037 bhv serializationwire 039 bhv serializationwire 047 multipart file part Content-Type is derived from the filename extension" do
     body = %{"file" => {:file, "avatar.png", <<1, 2, 3>>}}
     serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
@@ -1607,7 +1607,21 @@ defmodule {{moduleName}}.Api.BaseApiTest do
       "Expected image/png for .png file, got: #{serialized}"
   end
 
-  test "bhv authintegration 008 multipart file part falls back to application/octet-stream for unknown extension" do
+  test "bhv serializationwire 038 a pdf file part is application/pdf" do
+    body = %{"file" => {:file, "report.pdf", <<1, 2, 3>>}}
+    serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: application/pdf")
+  end
+
+  test "bhv serializationwire 036 the file extension is matched case-insensitively" do
+    body = %{"file" => {:file, "AVATAR.PNG", <<1, 2, 3>>}}
+    serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: image/png")
+  end
+
+  test "bhv authintegration 008 bhv serializationwire 040 multipart file part falls back to application/octet-stream for unknown extension" do
     body = %{"file" => {:file, "blob", <<1, 2, 3>>}}
     serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
@@ -1619,7 +1633,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
   # reuses the field name as the filename and derives its Content-Type from
   # that name's extension, falling back to application/octet-stream when the
   # name has none. Matches the cross-language go/node/java contract.
-  test "multipart raw-bytes part reuses field name as filename and falls back to octet-stream" do
+  test "bhv serializationwire 049 multipart raw-bytes part reuses field name as filename and falls back to octet-stream" do
     body = %{"file" => {:raw, <<0, 1, 2>>}}
     serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
@@ -1632,7 +1646,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
   # Behavior #5: a non-ASCII multipart field name is preserved verbatim as
   # UTF-8 in the Content-Disposition `name=` parameter — not transliterated
   # to `?` and not stripped.
-  test "multipart non-ASCII field name is preserved as UTF-8" do
+  test "bhv serializationwire 046 multipart non-ASCII field name is preserved as UTF-8" do
     body = %{"имя" => "value"}
     serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
@@ -1640,6 +1654,21 @@ defmodule {{moduleName}}.Api.BaseApiTest do
       "Expected non-ASCII field name preserved as UTF-8, got: #{serialized}"
     refute String.contains?(serialized, "name=\"?\""),
       "Field name must not be transliterated to ?, got: #{serialized}"
+  end
+
+  test "bhv serializationwire 045 multipart model part uses wire property names and date time format" do
+    pet = %{{moduleName}}.Models.Pet{name: "rex", photo_urls: []}
+    body = %{"pet" => pet}
+    serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: application/json")
+    assert String.contains?(serialized, "\"photoUrls\"")
+    refute String.contains?(serialized, "photo_urls")
+
+    when_sent = ~U[2024-01-02 03:04:05Z]
+    stamped = {{moduleName}}.DefaultApiClient.build_multipart_body(%{"at" => when_sent}, "BOUNDARY")
+
+    assert String.contains?(stamped, "2024-01-02T03:04:05.000+00:00")
   end
 
   # Behavior #6: deserializing an out-of-schema enum value raises the SDK
@@ -1826,7 +1855,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     )
   end
 
-  test "a call is retried on 408, 409, 429 and 5xx other than 501, and then succeeds" do
+  test "bhv retries 021 a call is retried on 408, 409, 429 and 5xx other than 501, and then succeeds" do
     for status <- [408, 409, 429, 500, 502, 503, 504] do
       state = retry_state([{status, [{"retry-after", "0"}]}, 200])
 
@@ -1835,7 +1864,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     end
   end
 
-  test "a call that keeps failing is tried max_retries + 1 times and reports the last response" do
+  test "bhv retries 024 a call that keeps failing is tried max_retries + 1 times and reports the last response" do
     state = retry_state([{500, [{"retry-after", "0"}]}])
 
     assert {:error, %{{moduleName}}.Errors.InternalServerError{status_code: 500}} = get_thing(state)
@@ -1847,7 +1876,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
-  test "max_retries 0 sends the request once" do
+  test "bhv retries 018 max_retries 0 sends the request once" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
 
     assert {:error, %{{moduleName}}.Errors.ServerError{status_code: 503}} = get_thing(state)
@@ -1863,7 +1892,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     end
   end
 
-  test "a network error before any response is retried" do
+  test "bhv retries 013 a network error before any response is retried" do
     state = retry_state([{:transport_error, :econnrefused}, 200], max_retries: 1)
 
     assert {:ok, _} = get_thing(state)
@@ -1891,7 +1920,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
-  test "a retry never waits past the end-to-end timeout" do
+  test "bhv retries 025 a retry never waits past the end-to-end timeout" do
     started = System.monotonic_time(:millisecond)
 
     asked = retry_state([{503, [{"retry-after", "5"}]}, 200], timeout: 300)
@@ -1921,7 +1950,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     )
   end
 
-  test "bhv retries 004 a per-call max_retries replaces the transport's for that call only" do
+  test "bhv retries 014 bhv retries 004 a per-call max_retries replaces the transport's for that call only" do
     state = retry_state([{500, [{"retry-after", "0"}]}])
 
     assert {:error, _} = get_thing_with(state, max_retries: 0)
@@ -1986,7 +2015,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     end
   end
 
-  test "bhv errors 036 an error response names the request, without its query string" do
+  test "bhv errors 026 bhv errors 036 an error response names the request, without its query string" do
     state = retry_state([404])
 
     assert {:error, %{{moduleName}}.Errors.NotFoundError{} = error} =
@@ -2047,7 +2076,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert {:ok, %{{moduleName}}.Models.Tag{}} = decode_as(return_type, 201)
   end
 
-  test "bhv retries 007 the retry policy: statuses, backoff and Retry-After" do
+  test "bhv retries 022 bhv retries 023 bhv retries 007 the retry policy: statuses, backoff and Retry-After" do
     for status <- [408, 409, 429, 500, 502, 503, 599] do
       assert {{moduleName}}.Api.BaseApi.retryable_status?(status)
     end
