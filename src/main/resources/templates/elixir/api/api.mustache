@@ -149,7 +149,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
     * `options` - {{#vendorExtensions.op.hasOptionsParam}}Optional parameters (query, header, form, cookie){{#hasAuthMethods}}, plus an optional per-operation authenticator in `auth`{{/hasAuthMethods}}.{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}Optional per-operation authenticator in `auth`.{{/vendorExtensions.op.hasOptionsParam}}
   {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}}{{#hasAuthMethods}} Per-operation auth is supplied via the Options struct's `auth` field, not here.{{/hasAuthMethods}}
+    * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}}{{#hasAuthMethods}} Per-operation auth is supplied via the Options struct's `auth` field, not here.{{/hasAuthMethods}}
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 

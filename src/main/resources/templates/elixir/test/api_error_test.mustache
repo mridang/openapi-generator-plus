@@ -172,7 +172,7 @@ defmodule {{moduleName}}.ApiErrorTest do
     from_url = {{moduleName}}.Errors.ApiError.with_request(err, :get, "https://api.example.com/items/7?key=hunter2#top")
     assert from_url.request_method == "GET"
     assert from_url.request_path == "/items/7"
-    refute {{moduleName}}.Errors.ApiError.message(from_url) =~ "hunter2"
+    refute Exception.message(from_url) =~ "hunter2"
 
     from_path = {{moduleName}}.Errors.ApiError.with_request(err, "post", "/items?page=2")
     assert from_path.request_method == "POST"
