@@ -96,3 +96,9 @@ src/spec/resources/generated/*/mix.lock
 /.cursorrules
 /.clinerules
 /.windsurfrules
+
+# Generator output of a local run (the integration specs use src/spec/resources/generated)
+/generated-code/
+
+# IDE project files
+*.iml

@@ -5,7 +5,7 @@ Ruby, Node, Dart, Go, Rust, Swift and Elixir. Everything here follows from that:
 change to one generator is a change to twelve, and a difference between two languages
 is a defect until you can name the language feature that forces it.
 
-Read `CLAUDE.md` too: it holds the alignment rules for generated prose and examples.
+The alignment rules for generated prose and examples are in the section "Template and generated-prose rules" below. This repository keeps agent instructions in `AGENTS.md` files only; there is no `CLAUDE.md`.
 
 ## Goal and how this documentation is organised
 
@@ -39,6 +39,22 @@ The documentation tree is fixed. Do not put language-specific tables in the root
 | `docs/decisions.md` | The settled cross-language decisions in prose for users, linking to the issues for deferred work. |
 
 Rules for the pages: keep tables in the language page and the types page only, one source of truth each (a version floor is written once and the other pages link to it); regenerate or edit the language page whenever its manifest floor, type mapping or option list changes; state the floor from the build manifest, not from memory; never describe a feature the generated SDK does not have.
+## Template and generated-prose rules
+
+**Structure and layout of generated files belong in Mustache templates.** When the generator emits a file (per-operation Options classes, authenticators and so on), render a `.mustache` file under `src/main/resources/templates/<language>/` with a context map. Never build file content with `StringBuilder` or string concatenation in Java.
+
+**Never depend on a spec-sourced vendor extension in a template.** An `x-*` key that came from the input document is fragile: it works only if every spec sets it. Use the native `CodegenOperation`, `CodegenParameter` or `CodegenProperty` field where one carries what you need (`{{#content}}`, `{{#servers}}`, `{{#cookieParams}}`, `{{style}}`, `{{isExplode}}`). Mustache is logic-less, so a value the generator has to compute (a decorator object, a format flag such as `isDuration`) is computed in Java and handed to the template through `vendorExtensions` under a name without an `x-` prefix, so that it reads as generator-owned. That is the sanctioned mechanism where no native field exists.
+
+**The twelve SDKs are character-level aligned.** Generated prose (`README.md`, `SKILLS.md`) is written once and repeated verbatim in every language; only a token that names something the language calls differently may vary (`interface`, `protocol`, `trait`, `behaviour`; `property`, `field`, `attribute`; a type such as `byte[]`, `Vec<u8>`, `Data`). Sections appear in the same order with the same headings in all twelve, and a section is never added to one language alone.
+
+**Every code example in generated prose compiles and runs as written.** Read the generated file it describes and copy the real signature; never write an example from memory of another language. Verify examples by extracting them into a scratch file and building them against the generated package. Defects that shipped before: a `RequestContext` parameter no generator emits, `url()` where the accessor is `getUrl` or `get_url`, a `Servers::SERVER_0` constant where the class declares `server0()`, error-handling examples calling suspending operations without `await`, a Maven coordinate with `LATEST`.
+
+**A change to one generator applies to all twelve.** After fixing one, compare the other eleven for the same fault in a different shape; grepping for the literal you fixed misses a phantom parameter that is a typed argument in one language and an untyped one in another.
+
+**The fixture cannot leak.** The petstore vocabulary reads as correct in that one output and wrong everywhere else. `FixtureVocabularyLeakTest` generates every SDK from a second spec that shares no vocabulary and fails on any fixture identifier. When it reports a word you think is legitimate, prove that it comes from the spec under generation before adding it to the allow-list.
+
+**Integration tests run in Docker.** The specs for generated clients run inside containers; use `etc/ci-local.sh` (see Commands) and save long Maven output to a file before reading it.
+
 ## Parity workflow
 
 The twelve SDKs must be perfectly harmonised: the same public API shape, wire bytes,
@@ -99,6 +115,8 @@ rules hold for every session and every agent, however the work starts:
 The desktop app reads hooks and agents from the main checkout's `.claude/`, so after
 pulling changes to them copy `.claude/{settings.json,agents,hooks,skills,workflows}` from
 the PR branch into the main checkout.
+
+**Findings ledger (temporary).** `PARITY_FINDINGS.json`, `PARITY_FINDINGS.md` and `etc/parity-findings.py` stay in the repository for now, together with `PARITY_DECISIONS.json`/`.md`, `PARITY_FIXTURES.md` and `PARITY_TOKENS.json`, which that script and the language `AGENTS.md` files still cite. A final reconciliation will fold their reasons into the `AGENTS.md` files and then remove them; do not add new material to them. `API_SURFACE.md` stays because `etc/api-surface.py` and `etc/api-surface-render.py` generate and check it.
 
 ## Layout
 
@@ -406,7 +424,7 @@ current behaviour as intentional and does not "rediscover" the old divergence.
 - **python maps `format: date-time` MODEL fields to the `OffsetDateTime` alias** (`Annotated[AwareDatetime, PlainSerializer(isoformat(timespec="milliseconds"), when_used="json")]`, in `_types`), NOT bare `pydantic.AwareDatetime`, so `model_dump_json` emits the canonical `.SSS+00:00` (fixed 3-digit fraction, numeric offset, never `Z`) that the other 11 pin. The `typeMapping` stays `AwareDatetime` (parameter metadata, return-type strings and options-class annotations rely on it and were already correct); only `BetterPythonCodegen.postProcessModelProperty` rewrites the model-field token to `OffsetDateTime`. Do NOT "simplify" date-time model fields back to bare `AwareDatetime`.
 - **An empty response body passes through for ANY `Content-Encoding`, in all 12** (see the corrected Round-7 note above). Round-8 reverted the backwards elixir/dart-io raise and added go's `len(raw)==0` guard. Locked by a per-language unit test.
 - **elixir's operation-level `:server` override is gated by `{{#servers}}{{#-first}}` (emitted only on ops that declare `servers:`) and resolves the URL via the typed server-variant module's own `url/1`** (`server.__struct__.url(server)` / module-atom dispatch), not `ServerConfiguration.url/2`. A bare `%ServerConfiguration{}` still resolves (its module exposes `url/1`), so the hand-built test server keeps working. Previously `:server` was emitted on every op and the generated typed variant modules were dead. Do NOT drop the gating or route back through `ServerConfiguration.url`.
-- **kotlin warnings-as-errors (`allWarningsAsErrors`) is DEFERRED, not armed** (PARITY_TODO R8-F4). It is the one compiled-SDK gate still missing; arming it surfaces a required-param always-true null-check and a Kotlin-2.2 value-based `equals()` warning on date-time models that need a dedicated cleanup first. The `-Xsuppress-warning` flags WERE migrated to the modern `-Xwarning-level=UNCHECKED_CAST:disabled` / `DEPRECATION:disabled` syntax (the old flag is deprecated and, under `-Werror`, its own deprecation warning is fatal). Do NOT re-add `allWarningsAsErrors` until R8-F4's two cleanups land. **dart DID arm `analyzer: language: strict-casts/strict-inference/strict-raw-types`** to match node `tsconfig strict` / csharp Nullable+analyzers / php phpstan level 9 (it immediately caught a raw `TextMapPropagator` generic, now fixed).
+- **kotlin warnings-as-errors (`allWarningsAsErrors`) is DEFERRED, not armed** (retired backlog item R8-F4, kept below). It is the one compiled-SDK gate still missing; arming it surfaces a required-param always-true null-check and a Kotlin-2.2 value-based `equals()` warning on date-time models that need a dedicated cleanup first. The `-Xsuppress-warning` flags WERE migrated to the modern `-Xwarning-level=UNCHECKED_CAST:disabled` / `DEPRECATION:disabled` syntax (the old flag is deprecated and, under `-Werror`, its own deprecation warning is fatal). Do NOT re-add `allWarningsAsErrors` until R8-F4's two cleanups land. **dart DID arm `analyzer: language: strict-casts/strict-inference/strict-raw-types`** to match node `tsconfig strict` / csharp Nullable+analyzers / php phpstan level 9 (it immediately caught a raw `TextMapPropagator` generic, now fixed).
 - **OAuth2 percent-encoding keeps exactly the RFC 3986 unreserved set `-._~` literal and %-encodes `* ! ' ( )`** in the token-request body, the RFC 6749 §2.3.1 Basic client-auth header, and the authorize-URL query, across 11 languages (space stays `+` in the body/Basic form-encoding and `%20` in the authorize URL — unchanged). **swift's authorize URL is the one FORCED residual**: it is built via `URLComponents`/`URLQueryItem`, whose `urlQueryAllowed` set keeps `*!'()` literal and leaves a literal `+`; making it canonical means abandoning `URLComponents` and re-encoding manually, which risks the parsed-query-preservation behavior. Latent (a spec-compliant OP decodes either form identically; no fixture uses these chars). Do NOT rewrite swift's authorize URL for this.
 - **csharp uses the BCL `System.Diagnostics.DistributedContextPropagator` (W3C) for trace-context, not the OpenTelemetry API** the other 11 reference — it no-ops when `Activity.Current` is null rather than when an OTel package is absent. Behaviourally equivalent (DistributedContextPropagator defaults to W3C). FORCED-leaning; do not re-flag. csharp also rejects a non-absolute OIDC endpoint URL (it types the endpoint as `System.Uri`), where the other 11 accept any non-empty string — a benign extra guard.
 - **Per-model oneOf/anyOf wrapper no-match strings differ from the central `ObjectSerializer` helper string, and from each other.** The 9 central-helper languages (java, kotlin, csharp, php, swift, node, go, dart, elixir) throw `No oneOf/anyOf variant matched the JSON`. The per-model build paths each keep their own wording: java and csharp `JSON did not match any schema in the <X> union: <raw JSON>`; ruby and elixir `JSON did not match any schema in the <X> oneOf/anyOf union` (no body); kotlin `No anyOf variant of <X> matched the response body`; rust `<X>: anyOf payload matched no member schema`; python `No match found when setting \`actual_instance\` in <X> with anyOf schemas: …`. That is six per-model wordings, not consistent within a path. Not harmonized (would require unifying unrelated code paths); documented so it is not re-flagged (ledger F396).
@@ -488,3 +506,15 @@ found **not** to be a clean fixable defect. They are closed; do not spend anothe
   `"2024-01-01"` as a date-time. That fallback is not forced by Foundation and could be removed
   (ledger F307); until then swift stays lenient and clean twelve-language parity here is not
   achieved.
+
+## Leftovers from the retired backlog (PARITY_TODO.md)
+
+The audit backlog `PARITY_TODO.md` was removed once every item was fixed or recorded as forced above. These items were still open or documented when it went; none is a regression, and each is latent, cosmetic or a deliberate style.
+
+- php fills `data` for a non-JSON body when the operation declares no return type (benign). Error-message wording differs slightly between languages for enum validation and for an empty path parameter.
+- go and swift fail the token exchange when a token field is not a string; the other ten ignore it. Changing it means replacing their typed decoders.
+- dart operations take an explicit, non-defaulted `options` argument, unlike the other eleven (a deliberate uniform signature).
+- swift builds the authorize URL with `URLComponents`, which keeps `*!'()` and a literal `+`; rewriting it risks the parsed-query behaviour.
+- csharp uses the BCL `DistributedContextPropagator` for trace context (not OpenTelemetry) and rejects a non-absolute OIDC endpoint URL through `System.Uri`.
+- Seven languages keep a native float for a bare `format: number` (see the forced divergences); go does not nil-guard a value-typed body; go, rust, dart and swift treat an empty proxy string as "no proxy" instead of an error; per-model oneOf wrapper strings differ from the central helper string.
+- kotlin `allWarningsAsErrors` is not armed: it needs the query-parameter builder to emit required parameters without a null check, and a fix for the Kotlin 2.2 identity-sensitive `equals` warning on date-time models.
