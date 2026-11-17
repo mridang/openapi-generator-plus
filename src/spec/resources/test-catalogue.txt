@@ -1,24 +1,24 @@
 # Behaviour catalogue: every generated test suite names a test for each line below with the token bhv<id>
-authapikey001 | A Unicode space is not blank and is a valid query key
-authapikey002 | Crlf in cookie key throws at construction
+authapikey001 | A Unicode space is not blank and is a valid query key | multi
+authapikey002 | Crlf in cookie key throws at construction | multi
 authapikey003 | Crlf in query key throws at construction
 authapikey004 | Empty key cookie throws at construction
-authapikey005 | Empty key header throws at construction
+authapikey005 | Empty key header throws at construction | multi
 authapikey006 | Empty key query throws at construction
-authapikey007 | Generated scheme wrappers emit their key at their spec location
+authapikey007 | Generated scheme wrappers emit their key at their spec location | multi
 authapikey008 | HEADER location rejects a non-ASCII key
 authapikey009 | QUERY location accepts a non-ASCII key
 authapikey010 | Redacts the API key in toString
-authapikey011 | Rejects a key made only of ASCII whitespace such as a vertical tab
+authapikey011 | Rejects a key made only of ASCII whitespace such as a vertical tab | multi
 authapikey012 | The redacted repr shows the non-secret fields and masks the key
 authapikey013 | Valid cookie key passes
 authapikey014 | Valid header key passes
 authapikey015 | Valid query key is exposed in query params
 authapikey016 | Valid query key passes
 authapikey017 | Whitespace only key throws at construction
-authbasic001 | Basic credentials are read from the environment when none are passed
-authbasic002 | Generated scheme wrapper emits a basic header and masks the password
-authbasic003 | Missing or empty credentials fail at construction
+authbasic001 | Basic credentials are read from the environment when none are passed | multi
+authbasic002 | Generated scheme wrapper emits a basic header and masks the password | multi
+authbasic003 | Missing or empty credentials fail at construction | multi
 authbasic004 | Non ascii credentials are encoded as utf8
 authbasic005 | Password is not leaked in default to string
 authbasic006 | Redacts secret
@@ -27,23 +27,23 @@ authbasic008 | Rejects username with colon at construction
 authbasic009 | Rejects username with crlf at construction
 authbasic010 | The redacted repr shows host and username and masks the password
 authbasic011 | Valid credentials produce basic header
-authbearer001 | $name prints its own name with the token masked
+authbearer001 | $name prints its own name with the token masked | multi
 authbearer002 | A provider result is validated like a fixed token
 authbearer003 | Already prefixed token is not doubled
 authbearer004 | Doubled bearer prefix is stripped only once
-authbearer005 | Empty token is rejected at construction
-authbearer006 | Generated scheme wrapper emits a bearer header and masks the token
+authbearer005 | Empty token is rejected at construction | multi
+authbearer006 | Generated scheme wrapper emits a bearer header and masks the token | multi
 authbearer007 | Lowercase bearer prefix is stripped
 authbearer008 | Mixed case bearer prefix is stripped
 authbearer009 | Raw token is prefixed with bearer
-authbearer010 | Reads the token from the environment when none is passed
+authbearer010 | Reads the token from the environment when none is passed | multi
 authbearer011 | Redacts the token in toString
 authbearer012 | Rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)
 authbearer013 | The redacted repr shows the host and masks the token
 authbearer014 | Token provider is called for every request
 authbearer015 | Token that merely begins with the word bearer is kept whole
-authbearer016 | Unicode space is not blank so the printable ascii check rejects it
-authbearer017 | Whitespace only token is rejected at construction
+authbearer016 | Unicode space is not blank so the printable ascii check rejects it | multi
+authbearer017 | Whitespace only token is rejected at construction | multi
 authintegration001 | A failed re-authentication leaves the 401 as it is
 authintegration002 | A per-call HTTP-aware authenticator is given the API's client
 authintegration003 | A scheme credential wins over the client-level authenticator and the fallback is used when none matches
@@ -54,7 +54,7 @@ authintegration007 | Each operation sends the credential of its own scheme
 authintegration008 | F857: a call with no scheme credential falls back to the client-level authenticator
 authintegration009 | Falls back to client-level authenticator when no per-call auth is supplied
 authintegration010 | Forwards auth headers
-authintegration011 | Has no per-call authenticator on any Options object
+authintegration011 | Has no per-call authenticator on any Options object | multi
 authintegration012 | Inherited-security operation applies the configured client authenticator
 authintegration013 | Per-call :auth overrides client-level authenticator
 authintegration014 | Resolves the credential of the first listed scheme the client holds
@@ -68,7 +68,7 @@ authoauthtwoauthcode004 | Authorization URL percent-encodes * ! ' ( ) and keeps 
 authoauthtwoauthcode005 | Authorize url with existing query string uses amp separator
 authoauthtwoauthcode006 | Builds authorization url with required params
 authoauthtwoauthcode007 | Builds authorization url with state
-authoauthtwoauthcode008 | Code exchange proves the challenge of the authorization url
+authoauthtwoauthcode008 | Code exchange proves the challenge of the authorization url | multi
 authoauthtwoauthcode009 | Every authorization URL starts a new verifier
 authoauthtwoauthcode010 | Exchange code rejects empty code
 authoauthtwoauthcode011 | Exchange code rejects whitespace only code
@@ -84,7 +84,7 @@ authoauthtwoauthcode020 | Scheme wrapper sends the spec scopes and urls
 authoauthtwoauthcode021 | Second exchange code sends the new code
 authoauthtwoauthcode022 | Second exchange without refresh token drops the old refresh token
 authoauthtwoauthcode023 | The authorization url carries a PKCE S256 challenge that the code exchange proves
-authoauthtwoauthcode024 | The code exchange goes to tokenUrl and the refresh grant to refreshUrl
+authoauthtwoauthcode024 | The code exchange goes to tokenUrl and the refresh grant to refreshUrl | multi
 authoauthtwoauthcode025 | The redacted repr shows the non-secret fields
 authoauthtwoauthcode026 | The refresh grant carries the client credentials
 authoauthtwoauthcode027 | Throws before exchange code called
@@ -115,13 +115,13 @@ authoauthtwoimplicit009 | Omits an empty state from the authorization url
 authoauthtwoimplicit010 | Redacts secret
 authoauthtwoimplicit011 | The redacted repr shows the non-secret fields
 authoauthtwoimplicit012 | Throws when access token not set
-authoauthtwoimplicit013 | Throws when access token set to empty
+authoauthtwoimplicit013 | Throws when access token set to empty | multi
 authoauthtwopassword001 | Basic auth keeps the unreserved tilde literal and percent-encodes * ! ' ( )
 authoauthtwopassword002 | Basic auth url encodes client id and secret
 authoauthtwopassword003 | Get host returns configured host
 authoauthtwopassword004 | InvalidateAccessToken keeps the refresh token and refreshes with it
 authoauthtwopassword005 | Keeps ~ literal and percent-encodes * ! \' ( ) in the token request body
-authoauthtwopassword006 | Password sends the refresh grant to the refresh url and falls back to the token url
+authoauthtwopassword006 | Password sends the refresh grant to the refresh url and falls back to the token url | multi
 authoauthtwopassword007 | Redacts secret
 authoauthtwopassword008 | Refresh in basic mode carries the basic header and no client id
 authoauthtwopassword009 | Refresh in body mode carries the client credentials
@@ -136,17 +136,17 @@ authoauthtwopassword017 | The first grant goes to tokenUrl and the refresh grant
 authoauthtwopassword018 | The redacted repr shows the non-secret fields
 authoauthtwopassword019 | Uses refresh token on subsequent calls
 authoauthtwotokenmgr001 | A 2xx token response that is not JSON raises OAuth2TokenError
-authoauthtwotokenmgr002 | A bearer or absent token_type is accepted
+authoauthtwotokenmgr002 | A bearer or absent token_type is accepted | multi
 authoauthtwotokenmgr003 | A refresh response without expires_in clears the stale expiry
-authoauthtwotokenmgr004 | A token with expires_in of 60 is reused once and not refetched on every call
-authoauthtwotokenmgr005 | An expires_in beyond one year is clamped to one year
+authoauthtwotokenmgr004 | A token with expires_in of 60 is reused once and not refetched on every call | multi
+authoauthtwotokenmgr005 | An expires_in beyond one year is clamped to one year | multi
 authoauthtwotokenmgr006 | Exchange bypasses the cached token and the refresh token
-authoauthtwotokenmgr007 | Expires in applies one margin capped at half the lifetime
+authoauthtwotokenmgr007 | Expires in applies one margin capped at half the lifetime | multi
 authoauthtwotokenmgr008 | Expires in as float is floored
 authoauthtwotokenmgr009 | Expires in as json string is accepted
 authoauthtwotokenmgr010 | Expires in long lived token applies full buffer
 authoauthtwotokenmgr011 | Expires in negative skips caching
-authoauthtwotokenmgr012 | Expires in of zero is stale at once
+authoauthtwotokenmgr012 | Expires in of zero is stale at once | multi
 authoauthtwotokenmgr013 | Expires in short lived token does not storm
 authoauthtwotokenmgr014 | Extracts access token from response
 authoauthtwotokenmgr015 | Failed exchange restores the previous session
@@ -154,7 +154,7 @@ authoauthtwotokenmgr016 | Failed refresh falls back to the original grant
 authoauthtwotokenmgr017 | Ignores non string refresh token
 authoauthtwotokenmgr018 | Invalidate access token forces refetch
 authoauthtwotokenmgr019 | Invalidate access token triggers single refetch under concurrency
-authoauthtwotokenmgr020 | Non string refresh token is ignored
+authoauthtwotokenmgr020 | Non string refresh token is ignored | multi
 authoauthtwotokenmgr021 | Refetches token when expired
 authoauthtwotokenmgr022 | Refresh grant carries the refresh token and the client credentials only
 authoauthtwotokenmgr023 | Refresh grant in the params is posted exactly once
@@ -167,19 +167,19 @@ authoauthtwotokenmgr029 | The refresh grant goes to the refreshUrl
 authoauthtwotokenmgr030 | Throws when no api client injected
 authoauthtwotokenmgr031 | Throws when token request fails
 authoauthtwotokenmgr032 | Token endpoint error response parsed to typed error
-authoauthtwotokenmgr033 | Token endpoint redirect is rejected
+authoauthtwotokenmgr033 | Token endpoint redirect is rejected | multi
 authoauthtwotokenmgr034 | Token post requests no redirect from transport
 authoauthtwotokenmgr035 | Token request is a form post accepting json
 authoauthtwotokenmgr036 | Token response missing access token throws typed error
 authoauthtwotokenmgr037 | Token transport failure propagates network exception
-authoauthtwotokenmgr038 | Token type other than bearer is refused without echoing it
+authoauthtwotokenmgr038 | Token type other than bearer is refused without echoing it | multi
 authoauthtwotokenmgr039 | Token without expires in is cached indefinitely
-authoauthtwotokenmgr040 | Unusable token response has the canonical message and no cause
-authoidc001 | A max-age beyond one year is clamped to one year
+authoauthtwotokenmgr040 | Unusable token response has the canonical message and no cause | multi
+authoidc001 | A max-age beyond one year is clamped to one year | multi
 authoidc002 | Builds authorization url from discovery
-authoidc003 | Caches the discovery document for the Cache-Control max-age
+authoidc003 | Caches the discovery document for the Cache-Control max-age | multi
 authoidc004 | Discovery accepts a matching issuer with a trailing slash
-authoidc005 | Discovery rejects a clear text endpoint unless it is loopback
+authoidc005 | Discovery rejects a clear text endpoint unless it is loopback | multi
 authoidc006 | Discovery transport failure propagates network exception
 authoidc007 | Discovery404 raises not found exception
 authoidc008 | Does not send the transport default headers to the discovery endpoint
@@ -196,15 +196,15 @@ authoidc018 | Omits an empty state from the authorization url
 authoidc019 | Redacts secret
 authoidc020 | Rediscovery after max-age expiry keeps the exchanged session
 authoidc021 | Rediscovery keeps the pkce verifier of the authorization url
-authoidc022 | The authorization url always requests the openid scope once
+authoidc022 | The authorization url always requests the openid scope once | multi
 authoidc023 | The redacted repr shows the non-secret fields
 authoidc024 | Throws when discovery issuer does not match the discovery url
 authoidc025 | Throws when discovery missing authorization endpoint
 authoidc026 | Throws when discovery missing token endpoint
-authoidc027 | Throws when discovery returns a non-2xx status
+authoidc027 | Throws when discovery returns a non-2xx status | multi
 authoidc028 | Throws when no api client injected
-authscheme001 | ${name} reads its own credential variables from the environment
-authscheme002 | Explicit arguments need no environment
+authscheme001 | ${name} reads its own credential variables from the environment | multi
+authscheme002 | Explicit arguments need no environment | multi
 config001 | BaseUrl overrides server
 config002 | Builder accumulates headers
 config003 | Builder is fluent
@@ -219,15 +219,15 @@ config011 | Builder sets base url
 config012 | Builder sets multiple default headers
 config013 | Builder sets single default header
 config014 | Default configuration is stateless
-config015 | Inspect masks sensitive default headers
+config015 | Inspect masks sensitive default headers | multi
 config016 | Invalid server variable enum value throws
 errors001 | Escapes control characters in the rendered body
-errors002 | Every status exception carries the request context
-errors003 | Every status-specific error accepts an optional cause
+errors002 | Every status exception carries the request context | multi
+errors003 | Every status-specific error accepts an optional cause | multi
 errors004 | Exposes status code message body headers error body
 errors005 | From response leaves the error body null when the body is not json
-errors006 | From response maps every status to its exception
-errors007 | From response records the request method and path without the query string
+errors006 | From response maps every status to its exception | multi
+errors007 | From response records the request method and path without the query string | multi
 errors008 | From_response parses a BOM-prefixed error body
 errors009 | From_response refuses a deeply nested error body
 errors010 | FromResponse keeps a scalar json body as the error body
@@ -247,7 +247,7 @@ errors023 | Rendered form masks credential headers
 errors024 | Renders the message, status, headers and body
 errors025 | SerializationException is a OpenAPIException
 errors026 | The request method and path are rendered on their own line and never carry the query string
-errors027 | Absolute URL in path bypasses client base_url (per-op server override)
+errors027 | Absolute URL in path bypasses client base_url (per-op server override) | multi
 errors028 | Get typed error body returns null for empty body
 errors029 | GetTypedErrorBody deserializes the raw body into the requested type
 errors030 | GetTypedErrorBody returns null when there is no response body
@@ -257,7 +257,7 @@ errors033 | NotFoundError is ClientError is ApiError
 errors034 | Parses JSON error body
 errors035 | Rejects a text/plain body for a model return with a SerializationError naming the Content-Type
 errors036 | The error carries the method and the path without the query string
-errors037 | Throws correct exception
+errors037 | Throws correct exception | multi
 errors038 | A body truncated after the headers throws NetworkError with status 0
 errors039 | Garbage-PEM caCertPath throws ArgumentError at construction
 errors040 | Malformed request URL raises ArgumentError
@@ -351,9 +351,9 @@ operations024 | Add pet treatment sends the chosen anyOf variant as the body
 operations025 | Add pet with http info
 operations026 | An operation no scheme credential matches uses the client-level authenticator
 operations027 | Delete pet
-operations028 | Delete pet cookie param with a character outside cookie-octet fails before sending
-operations029 | Delete pet cookie param with CRLF fails closed
-operations030 | Delete pet sends a legal cookie value raw
+operations028 | Delete pet cookie param with a character outside cookie-octet fails before sending | multi
+operations029 | Delete pet cookie param with CRLF fails closed | multi
+operations030 | Delete pet sends a legal cookie value raw | multi
 operations031 | Delete pet with http info
 operations032 | Deprecated operations, parameters and models carry the deprecation marker
 operations033 | Deprecation markers sit on every variant of a deprecated operation
@@ -373,16 +373,16 @@ operations046 | Get pet avatar thumbnail
 operations047 | Get pet by id
 operations048 | Get pet by id with http info
 operations049 | Get pet by name empty required string query param throws
-operations050 | Get pet by name refuses an empty required header before sending
-operations051 | Get pet by name rejects a dot segment before dispatch
+operations050 | Get pet by name refuses an empty required header before sending | multi
+operations051 | Get pet by name rejects a dot segment before dispatch | multi
 operations052 | Get pet by name throws when required path param is empty
 operations053 | Get pet passport
 operations054 | Get pet passport with http info
 operations055 | Get pet photo
-operations056 | Get pet summary refuses an empty required cookie before sending
+operations056 | Get pet summary refuses an empty required cookie before sending | multi
 operations057 | Get pet summary sends the matrix date segment, the session cookie and the date array
 operations058 | Get pet tag
-operations059 | Get pet tag sends byte parameters as standard padded base64
+operations059 | Get pet tag sends byte parameters as standard padded base64 | multi
 operations060 | Get pet tag uses the matrix and label path styles
 operations061 | GetExternalPetInfo uses the per-operation server
 operations062 | GetPetAvatarThumbnail decodes a JSON string literal as base64 bytes
@@ -407,8 +407,8 @@ operations080 | Test add pet uses the first declared scheme the client holds a c
 operations081 | Test add pet using configured credentials
 operations082 | Test no operation options offers a per call authenticator
 operations083 | The generated staging server variant resolves its variables into the request URL
-operations084 | The mirror operation server resolves reserved characters raw
-operations085 | The multi-server operation offers a fixed and a templated server
+operations084 | The mirror operation server resolves reserved characters raw | multi
+operations085 | The multi-server operation offers a fixed and a templated server | multi
 operations086 | Unsecured operation options has no auth field
 operations087 | Update pet
 operations088 | Update pet with http info
@@ -433,7 +433,7 @@ operations106 | Get order not found
 operations107 | GetBySwatch omits the optional query parameter and header when they are not set
 operations108 | GetDepartment decodes the mutually recursive models
 operations109 | GetMatrix decodes an array of integer arrays
-operations110 | GetOrderById picks the status-specific error class for each typed status route
+operations110 | GetOrderById picks the status-specific error class for each typed status route | multi
 operations111 | GetOrderByTrackingId rejects a malformed uuid before sending a request
 operations112 | GetStockItem decodes the int enum and the nested arrays
 operations113 | GetSwatch decodes a bare enum
@@ -454,8 +454,8 @@ options003 | Server variable overrides resolve in base URL
 options004 | Caller headers override transport defaults
 options005 | Caller headers override defaults
 options006 | Does not override caller request id
-options007 | A negative maxRetries is rejected
-options008 | A proxy URL error never carries the user-info
+options007 | A negative maxRetries is rejected | multi
+options008 | A proxy URL error never carries the user-info | multi
 options009 | A proxy URL with an IPv6 literal host is accepted and kept verbatim
 options010 | A proxy URL with an unterminated IPv6 literal is rejected
 options011 | A proxy URL with no host is rejected
@@ -470,17 +470,17 @@ options019 | DefaultHeaders defaults to empty map
 options020 | FollowRedirects defaults to true
 options021 | FollowRedirects defaults to true with null maxRedirects
 options022 | InjectRequestId defaults to false
-options023 | Inspect masks the proxy password and sensitive default headers
+options023 | Inspect masks the proxy password and sensitive default headers | multi
 options024 | Invalid proxy URL throws error
 options025 | MaxRedirects defaults to null
 options026 | MaxRetries defaults to 2
-options027 | MaxRetries is set by the builder and by the constructor, 0 disabling retries
+options027 | MaxRetries is set by the builder and by the constructor, 0 disabling retries | multi
 options028 | Merges headers from defaultHeaders call
 options029 | Modifying source map does not affect built options
 options030 | Null proxy url is accepted
-options031 | Proxy "$url" is rejected with "$message"
+options031 | Proxy "$url" is rejected with "$message" | multi
 options032 | Proxy defaults to null
-options033 | Rejects a non-positive timeout with the canonical message
+options033 | Rejects a non-positive timeout with the canonical message | multi
 options034 | Setting proxy is supported on all platforms
 options035 | Setting proxy URL is preserved on read-back
 options036 | Setting timeout to 5000 is accessible
@@ -500,10 +500,10 @@ redirects006 | Respects maxRedirects limit
 redirects007 | Returns redirect response when disabled
 redirects008 | Returns redirect when disabled
 redirects009 | The timeout is one budget for every redirect hop
-redirects010 | A 3xx whose Location is absent or unparseable comes back as the redirect response
+redirects010 | A 3xx whose Location is absent or unparseable comes back as the redirect response | multi
 redirects011 | Api key header stripped on cross origin redirect
 redirects012 | Cross origin redirect strips sensitive headers
-redirects013 | Keeps Authorization and Cookie on a same-origin redirect
+redirects013 | Keeps Authorization and Cookie on a same-origin redirect | multi
 redirects014 | No redirect false follows redirects as before
 redirects015 | No redirect returns307 response
 redirects016 | NoDefaultHeaders leaves the transport default headers off a request
@@ -514,8 +514,8 @@ redirects020 | Redirect to non-http(s) scheme throws ApiException
 redirects021 | Returns the 307 verbatim when no_redirect: true
 redirects022 | Returns the 308 verbatim when no_redirect: true
 redirects023 | Returns the last 3xx without a Location when the redirect budget is used up
-redirects024 | Same origin redirect keeps sensitive headers
-redirects025 | Strips default headers and credential-named headers on a cross-origin redirect
+redirects024 | Same origin redirect keeps sensitive headers | multi
+redirects025 | Strips default headers and credential-named headers on a cross-origin redirect | multi
 redirects026 | Throws ApiException when maxRedirects is exceeded
 results001 | Allows nil data for empty responses
 results002 | Exposes headers
@@ -530,7 +530,7 @@ retries007 | Does not replay other statuses
 retries008 | Reports a second 401 as Unauthorized after exactly one replay
 retries009 | Timeout and maxRetries reach the transport
 retries010 | 307 https->http with a body throws (no body replay)
-retries011 | 308 https->http with a body throws (no body replay)
+retries011 | 308 https->http with a body throws (no body replay) | multi
 retries012 | Multipart body replayed on 307 redirect
 retries013 | A network error before a response is retried
 retries014 | A per-call maxRetries of 0 disables the retries the transport allows
@@ -550,12 +550,12 @@ serializationobject002 | A bare type: number is exact and written in plain notat
 serializationobject003 | A date-time without an offset is rejected
 serializationobject004 | A deserialize failure carries the canonical message with the parser detail
 serializationobject005 | A differing byte inside a map VALUE makes them unequal
-serializationobject006 | A duplicate object key resolves to the last value
+serializationobject006 | A duplicate object key resolves to the last value | multi
 serializationobject007 | A format: password property is masked in toString and kept on the wire
-serializationobject008 | A format: uri model field rejects a relative reference
+serializationobject008 | A format: uri model field rejects a relative reference | multi
 serializationobject009 | A list of byte arrays is not equal to a map of them
 serializationobject010 | A nickname longer than its declared maximum still decodes and round-trips
-serializationobject011 | A non RFC 3339 date-time "$text" is rejected
+serializationobject011 | A non RFC 3339 date-time "$text" is rejected | multi
 serializationobject012 | A prefixItems tuple (Pet.location) keeps its mixed items in order
 serializationobject013 | A protobuf-JSON duration decodes, encodes back and keeps its sign
 serializationobject014 | A readOnly property is decoded
@@ -565,7 +565,7 @@ serializationobject017 | A writeOnly property is decoded
 serializationobject018 | A writeOnly property is serialized
 serializationobject019 | Accented character serializes without unicode escape
 serializationobject020 | Additional property re-serializes at the top level not nested
-serializationobject021 | An absolute URI $uri is accepted verbatim
+serializationobject021 | An absolute URI $uri is accepted verbatim | multi
 serializationobject022 | An inline enum (EdgeCases.phase) round-trips its non-identifier wire values
 serializationobject023 | An optional nullable field still drops its null
 serializationobject024 | An unknown inline enum value is rejected
@@ -621,7 +621,7 @@ serializationobject073 | Duration round-trips through a model body
 serializationobject074 | EdgeCases.slug accepts a value matching its pattern
 serializationobject075 | Equality compares byte arrays by content (bare, list and map)
 serializationobject076 | Every Availability member, hostile ones included, round-trips its wire value
-serializationobject077 | Every wire-shape failure is a SerializationError
+serializationobject077 | Every wire-shape failure is a SerializationError | multi
 serializationobject078 | Float returns string representation
 serializationobject079 | Format:byte scalar and array fields round-trip through base64
 serializationobject080 | Format:duration that is malformed or overflows raises the SDK SerializationException
@@ -726,7 +726,7 @@ serializationobject178 | Wet subtype serialize auto-emits discriminator
 serializationobject179 | Whole-second datetime serializes with a fixed three-digit fraction
 serializationobject180 | Wrong primitive type throws SerializationException
 serializationobject181 | Zero Duration stringifies as 0s
-serializationparam001 | A null array element keeps its empty slot
+serializationparam001 | A null array element keeps its empty slot | multi
 serializationparam002 | Allow reserved leaves reserved chars literal but still encodes others
 serializationparam003 | Allow reserved still percent encodes non ascii
 serializationparam004 | An already percent-encoded value is encoded again
@@ -785,7 +785,7 @@ serializationparam056 | Matrix array with explode true repeats name
 serializationparam057 | Matrix null returns empty string
 serializationparam058 | Matrix scalar returns semicolon prefixed name value
 serializationparam059 | Matrix style encodes value
-serializationparam060 | MaybeAllowReserved wraps only when allowReserved is true
+serializationparam060 | MaybeAllowReserved wraps only when allowReserved is true | multi
 serializationparam061 | Null returns empty map
 serializationparam062 | Null returns empty string
 serializationparam063 | Null returns empty string
