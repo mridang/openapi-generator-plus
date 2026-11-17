@@ -200,26 +200,15 @@ defmodule {{moduleName}}.Errors.ApiError do
     })
   end
 
-  @doc """
-  Record the request an error answers: the HTTP method and the request path.
-
-  The path is the part of the URL after the host, with the query string and the
-  fragment dropped, so a credential carried in the query never lands in an error
-  message. `message/1` renders them as a `Request: GET /path` line after the
-  status line. Works on `ApiError` and on every error that specialises it; an
-  error that already carries a request is returned unchanged, and a term that is
-  not one of them is returned as it is.
-
-  ## Parameters
-
-    * `error` - The error to annotate.
-    * `method` - The HTTP method, an atom (`:get`) or a string; rendered upper case.
-    * `url_or_path` - The request URL or its path.
-
-  ## Returns
-
-    The error with `request_method` and `request_path` set.
-  """
+  @doc false
+  # Records the request an error answers: the HTTP method (upper case) and the
+  # request path, with the query string and the fragment dropped so a credential
+  # carried in the query never lands in an error message. `message/1` renders
+  # them as a `Request: GET /path` line after the status line. Works on
+  # `ApiError` and on every error that specialises it; an error that already
+  # carries a request is returned unchanged, and a term that is not one of them
+  # is returned as it is. `method` is an atom (`:get`) or a string; `url_or_path`
+  # is the request URL or its path.
   @spec with_request(term(), atom() | String.t(), String.t()) :: term()
   def with_request(%{request_method: nil, request_path: nil} = error, method, url_or_path) do
     %{error | request_method: method |> to_string() |> String.upcase(), request_path: request_path(url_or_path)}

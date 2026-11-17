@@ -2262,6 +2262,14 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": "baseapi.invokeapi",
+   "aspect": "optional",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "elixir passes the per-call settings (timeout, headers, max_retries) to the shared invoke function as a trailing keyword list; it is a support function called only by the generated operations, and the other languages carry the same settings in their own per-call options object"
   }
  ]
 }

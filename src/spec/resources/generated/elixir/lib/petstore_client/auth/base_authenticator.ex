@@ -26,24 +26,13 @@ defmodule PetstoreClient.Auth.BaseAuthenticator do
     end
   end
 
-  @doc """
-  Resolve one credential of an authenticator.
-
-  A value that was passed is used as it is. A `nil` is read once, now, from the
-  environment variable `OPEN_API_<FIELD>` (for the field `"TOKEN"`,
-  `OPEN_API_TOKEN`); an empty variable counts as unset. A credential found
-  in neither place raises, so a client that is missing one fails when it is
-  built and not on its first request.
-
-  ## Parameters
-
-    * `value` - The credential as passed, or `nil`.
-    * `field` - The upper-case field name that ends the variable name.
-
-  ## Returns
-
-    The credential.
-  """
+  @doc false
+  # Resolves one credential of an authenticator. A value that was passed is used
+  # as it is. A `nil` is read once, now, from the environment variable
+  # `OPEN_API_<FIELD>` (for the field "TOKEN", `OPEN_API_TOKEN`); an
+  # empty variable counts as unset. A credential found in neither place raises,
+  # so a client that is missing one fails when it is built and not on its first
+  # request.
   @spec credential(term(), String.t()) :: term()
   def credential(nil, field) do
     name = "OPEN_API_" <> field
