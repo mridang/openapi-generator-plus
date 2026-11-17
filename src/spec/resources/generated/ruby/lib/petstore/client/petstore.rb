@@ -34,33 +34,78 @@ module Petstore::Client
     # @return [::Petstore::Client::Api::StoreApi]
     attr_reader :store
 
-    # Creates a new client with the given authenticator and transport options.
+    # Creates a new client from its credentials and transport options.
     #
-    # If the authenticator includes {Auth::HttpAwareAuthenticator}, the shared
+    # Each security scheme of the API has one optional credential, named after
+    # the scheme (+pet_store_basic+, +admin_basic+, +pet_store_bearer+, +service_token+, +api_key_header+, +internal_api_key+, +api_key_query+, +session_cookie+, +machine_auth+, +legacy_auth+, +user_auth+, +browser_auth+, +sso_auth+). An operation
+    # uses the credential of the first scheme in its own security requirement
+    # that you configured, and there is no per-call override. When none of its
+    # schemes matches, the operation uses +authenticator+ if one is given and
+    # otherwise sends no credential. The base URL comes from the first
+    # credential given, +authenticator+ first.
+    #
+    # If a credential includes {Auth::HttpAwareAuthenticator}, the shared
     # {ApiClient} is injected so that token exchange and discovery requests
     # use the same proxy, TLS, and timeout settings.
     #
-    # @param authenticator [Auth::Authenticator] Provides host URL and auth headers.
+    # @param authenticator [Auth::Authenticator, nil] default credential, used by an operation that no scheme credential matches
     # @param transport_options [TransportOptions, nil] HTTP transport configuration (proxy, TLS, timeouts, etc.).
-    def initialize(authenticator, transport_options = nil)
+    # @param pet_store_basic [Auth::Authenticator, nil] credential of the +petStoreBasic+ security scheme
+    # @param admin_basic [Auth::Authenticator, nil] credential of the +adminBasic+ security scheme
+    # @param pet_store_bearer [Auth::Authenticator, nil] credential of the +petStoreBearer+ security scheme
+    # @param service_token [Auth::Authenticator, nil] credential of the +serviceToken+ security scheme
+    # @param api_key_header [Auth::Authenticator, nil] credential of the +apiKeyHeader+ security scheme
+    # @param internal_api_key [Auth::Authenticator, nil] credential of the +internalApiKey+ security scheme
+    # @param api_key_query [Auth::Authenticator, nil] credential of the +apiKeyQuery+ security scheme
+    # @param session_cookie [Auth::Authenticator, nil] credential of the +sessionCookie+ security scheme
+    # @param machine_auth [Auth::Authenticator, nil] credential of the +machineAuth+ security scheme
+    # @param legacy_auth [Auth::Authenticator, nil] credential of the +legacyAuth+ security scheme
+    # @param user_auth [Auth::Authenticator, nil] credential of the +userAuth+ security scheme
+    # @param browser_auth [Auth::Authenticator, nil] credential of the +browserAuth+ security scheme
+    # @param sso_auth [Auth::Authenticator, nil] credential of the +ssoAuth+ security scheme
+    # @raise [ArgumentError] when no credential is given
+    def initialize(authenticator = nil, transport_options = nil, pet_store_basic: nil, admin_basic: nil, pet_store_bearer: nil, service_token: nil, api_key_header: nil, internal_api_key: nil, api_key_query: nil, session_cookie: nil, machine_auth: nil, legacy_auth: nil, user_auth: nil, browser_auth: nil, sso_auth: nil)
+      # @type var schemes: Hash[String, Auth::Authenticator]
+      schemes = {}
+      schemes['petStoreBasic'] = pet_store_basic unless pet_store_basic.nil?
+      schemes['adminBasic'] = admin_basic unless admin_basic.nil?
+      schemes['petStoreBearer'] = pet_store_bearer unless pet_store_bearer.nil?
+      schemes['serviceToken'] = service_token unless service_token.nil?
+      schemes['apiKeyHeader'] = api_key_header unless api_key_header.nil?
+      schemes['internalApiKey'] = internal_api_key unless internal_api_key.nil?
+      schemes['apiKeyQuery'] = api_key_query unless api_key_query.nil?
+      schemes['sessionCookie'] = session_cookie unless session_cookie.nil?
+      schemes['machineAuth'] = machine_auth unless machine_auth.nil?
+      schemes['legacyAuth'] = legacy_auth unless legacy_auth.nil?
+      schemes['userAuth'] = user_auth unless user_auth.nil?
+      schemes['browserAuth'] = browser_auth unless browser_auth.nil?
+      schemes['ssoAuth'] = sso_auth unless sso_auth.nil?
+      first_credential = authenticator || schemes.values.first
+      raise ArgumentError, 'At least one credential is required' if first_credential.nil?
+
       transport_options ||= TransportOptions.builder.build
       api_client = DefaultApiClient.new(transport_options)
       @api_client = api_client
-      authenticator.api_client = api_client if authenticator.is_a?(Auth::HttpAwareAuthenticator)
+      [authenticator, *schemes.values].compact.each do |credential|
+        credential.api_client = api_client if credential.is_a?(Auth::HttpAwareAuthenticator)
+      end
 
       config = Configuration.builder
-        .base_url(authenticator.host)
+        .base_url(first_credential.host)
         .build
-      @pet = Api::PetApi.new(api_client, config, authenticator)
-      @store = Api::StoreApi.new(api_client, config, authenticator)
+      @pet = Api::PetApi.new(api_client, config, authenticator, schemes)
+      @store = Api::StoreApi.new(api_client, config, authenticator, schemes)
     end
 
     # Releases the HTTP stack this client built (connection pool and sockets).
     #
-    # Calling it again is harmless. A request made through any of the API
-    # groups after it raises a RuntimeError. A Faraday connection supplied
-    # through {TransportOptions::Builder#connection} belongs to the caller and
-    # is never closed.
+    # Closing is graceful and idempotent: the client is marked closed at once,
+    # a request already in flight finishes, and the connection is released when
+    # the last of them completes (at once when none is running). A request
+    # started after it raises a RuntimeError, and calling it again does
+    # nothing. A Faraday connection supplied through
+    # {TransportOptions::Builder#connection} belongs to the caller and is
+    # never closed.
     #
     # @return [void]
     def close

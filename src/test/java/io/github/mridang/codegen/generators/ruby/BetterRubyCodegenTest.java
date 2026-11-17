@@ -2,6 +2,7 @@ package io.github.mridang.codegen.generators.ruby;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
@@ -195,5 +196,61 @@ class BetterRubyCodegenTest {
                 source.contains(
                         "client_secret = require_credential(client_secret, 'ACME_CLIENT_SECRET', 'client_secret', env)"),
                 source);
+    }
+
+    @Test
+    void theClientTakesOneKeywordCredentialPerSchemeNamedAfterIt(@TempDir Path outputDir) {
+        final SecurityScheme http = new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer");
+        final java.util.LinkedHashMap<String, SecurityScheme> schemes = new java.util.LinkedHashMap<>();
+        schemes.put("petStoreBearer", http);
+        schemes.put("admin-basic", http);
+        final BetterRubyCodegen codegen = new BetterRubyCodegen();
+        codegen.setOutputDir(outputDir.toString());
+        codegen.processOpts();
+        codegen.processOpenAPI(apiWith(schemes));
+
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> client =
+                (List<Map<String, Object>>) codegen.additionalProperties().get("clientSchemes");
+        assertNotNull(client);
+        assertEquals(
+                List.of("petStoreBearer=pet_store_bearer", "admin-basic=admin_basic"),
+                client.stream()
+                        .map(e -> e.get("schemeId") + "=" + e.get("argName"))
+                        .collect(java.util.stream.Collectors.toList()));
+    }
+
+    @Test
+    void aCredentialNamedLikeAKeywordOrAnotherArgumentGetsASuffix() {
+        final List<Map<String, Object>> schemes = new java.util.ArrayList<>();
+        for (final String id : List.of("end", "authenticator", "transportOptions", "a-b", "a_b")) {
+            schemes.add(new java.util.HashMap<>(Map.of("schemeId", id)));
+        }
+
+        BetterRubyCodegen.nameCredentialArguments(schemes, "end"::equals);
+
+        assertEquals(
+                List.of(
+                        "end_credential",
+                        "authenticator_credential",
+                        "transport_options_credential",
+                        "a_b",
+                        "a_b_credential"),
+                schemes.stream().map(e -> e.get("argName")).collect(java.util.stream.Collectors.toList()));
+    }
+
+    @Test
+    void anOptionsObjectNeverCarriesAnAuthenticator(@TempDir Path outputDir) {
+        final org.openapitools.codegen.CodegenOperation op = new org.openapitools.codegen.CodegenOperation();
+        op.operationId = "addThing";
+        op.hasAuthMethods = true;
+        final BetterRubyCodegen codegen = new BetterRubyCodegen();
+        codegen.setOutputDir(outputDir.toString());
+        codegen.processOpts();
+
+        final String source = codegen.generateOptionsFileContent(op, List.of(), "AddThingOptions");
+
+        assertFalse(source.contains("auth"), source);
+        assertTrue(source.contains("attr_reader :timeout, :headers, :max_retries"), source);
     }
 }

@@ -17,15 +17,10 @@ module Petstore::Client
       # end-to-end timeout, +headers+ are sent in addition to (and win over) the
       # client's default headers, and +max_retries+ replaces the client's retry
       # count. When nil, the client's own value is used.
-      #
-      # The optional +auth+ member overrides the client's configured
-      # credentials for this call only; when nil, the base client falls
-      # back to the Configuration credentials.
       class AddPetOptions
-        attr_reader :auth, :timeout, :headers, :max_retries
+        attr_reader :timeout, :headers, :max_retries
 
-        def initialize(auth: nil, timeout: nil, headers: nil, max_retries: nil)
-          @auth = auth
+        def initialize(timeout: nil, headers: nil, max_retries: nil)
           @timeout = timeout
           @headers = headers&.dup&.freeze
           @max_retries = max_retries

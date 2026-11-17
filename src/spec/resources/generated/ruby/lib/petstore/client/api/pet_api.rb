@@ -171,13 +171,14 @@ module Petstore::Client
     # Everything about your Pets (globs like /pets/* and /pets/**/ and an id of #{petId})
     # @see https://example.com/docs/pets Find out more about pets (it's */ here) on two lines
     class PetApi < BaseApi
-      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil)
+      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil,
+                     scheme_authenticators = {})
         super
       end
 
       # Add a new pet to the store
       # @param pet [Pet] Create a new pet in the store
-      # @param options [AddPetOptions] per-call options: the optional timeout, headers and max_retries, plus an optional per-call authenticator
+      # @param options [AddPetOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def add_pet(pet, options = nil)
@@ -223,7 +224,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          options&.auth,
+          scheme_authenticator('apiKeyHeader', 'petStoreBearer'),
           operation_id: 'PetApi.add_pet',
           request_options: options
         )
@@ -286,7 +287,7 @@ module Petstore::Client
           ['application/json'],
           'multipart/form-data',
           'Array<Photo>',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.add_pet_photos',
           request_options: options
         )
@@ -295,7 +296,7 @@ module Petstore::Client
       # Record a treatment for a pet
       # @param pet_id [Integer]
       # @param pet_treatment [PetTreatment]
-      # @param options [AddPetTreatmentOptions] per-call options: the optional timeout, headers and max_retries, plus an optional per-call authenticator
+      # @param options [AddPetTreatmentOptions] per-call options: the optional timeout, headers and max_retries
       # @return [PetTreatment]
       # @raise [ApiError] if fails to make API call
       def add_pet_treatment(pet_id, pet_treatment, options = nil)
@@ -347,7 +348,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'PetTreatment',
-          options&.auth,
+          nil,
           operation_id: 'PetApi.add_pet_treatment',
           request_options: options
         )
@@ -355,7 +356,7 @@ module Petstore::Client
 
       # Deletes a pet
       # @param pet_id [Integer] Pet id to delete
-      # @param options [DeletePetOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters, plus an optional per-call authenticator
+      # @param options [DeletePetOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def delete_pet(pet_id, options = nil)
@@ -395,7 +396,7 @@ module Petstore::Client
           [],
           'application/json',
           nil,
-          options&.auth,
+          scheme_authenticator('adminBasic', 'machineAuth'),
           operation_id: 'PetApi.delete_pet',
           request_options: options
         )
@@ -452,7 +453,7 @@ module Petstore::Client
           ['application/octet-stream'],
           'application/json',
           'File',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.download_pet_document',
           request_options: options
         )
@@ -501,7 +502,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Pet>',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.find_pets_born_on',
           request_options: options
         )
@@ -572,7 +573,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Pet>',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.find_pets_by_status',
           request_options: options
         )
@@ -625,7 +626,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_external_pet_info',
           request_options: options
         )
@@ -678,7 +679,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_multi_server_pet_info',
           request_options: options
         )
@@ -728,7 +729,7 @@ module Petstore::Client
           ['image/jpeg', 'image/png'],
           'application/json',
           'File',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_avatar',
           request_options: options
         )
@@ -778,7 +779,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'ByteArray',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_avatar_thumbnail',
           request_options: options
         )
@@ -836,7 +837,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_by_id',
           request_options: options
         )
@@ -919,7 +920,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_by_name',
           request_options: options
         )
@@ -969,7 +970,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'PetPassport',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_passport',
           request_options: options
         )
@@ -1026,7 +1027,7 @@ module Petstore::Client
           ['image/jpeg', 'image/png', 'application/json'],
           'application/json',
           'File',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_photo',
           request_options: options
         )
@@ -1114,7 +1115,7 @@ module Petstore::Client
           ['text/plain'],
           'application/json',
           'String',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_summary',
           request_options: options
         )
@@ -1234,7 +1235,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_tag',
           request_options: options
         )
@@ -1287,7 +1288,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_staging_pet_info',
           request_options: options
         )
@@ -1356,7 +1357,7 @@ module Petstore::Client
           [],
           resolved_content_type,
           nil,
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           raw_body: true,
           operation_id: 'PetApi.set_pet_avatar',
           request_options: options
@@ -1405,7 +1406,7 @@ module Petstore::Client
           [],
           'application/json',
           nil,
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.set_pet_avatar_thumbnail',
           request_options: options
         )
@@ -1471,7 +1472,7 @@ module Petstore::Client
           ['application/json'],
           'application/x-www-form-urlencoded',
           'ApiResponse',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.set_pet_preferences',
           request_options: options
         )
@@ -1532,7 +1533,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.update_pet',
           request_options: options
         )
@@ -1589,7 +1590,7 @@ module Petstore::Client
           ['application/json'],
           'multipart/form-data',
           'ApiResponse',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.upload_pet_certificate',
           request_options: options
         )
@@ -1673,7 +1674,7 @@ module Petstore::Client
           ['application/json'],
           resolved_content_type,
           'ApiResponse',
-          nil,
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.upload_pet_document',
           request_options: options
         )

@@ -76,4 +76,26 @@ describe 'README' do
     _(readme).must_include 'an empty variable counts as unset'
     _(readme).must_include 'Every operation takes an optional Options object'
   end
+
+  it 'documents the credential per security scheme, closing the client and cookie parameters' do
+    _(readme).must_include '### Credentials per security scheme'
+    _(readme).must_include '`pet_store_basic:`'
+    _(readme).must_include '`admin_basic:`'
+    _(readme).must_include '`pet_store_bearer:`'
+    _(readme).must_include '`service_token:`'
+    _(readme).must_include '`api_key_header:`'
+    _(readme).must_include '`internal_api_key:`'
+    _(readme).must_include '`api_key_query:`'
+    _(readme).must_include '`session_cookie:`'
+    _(readme).must_include '`machine_auth:`'
+    _(readme).must_include '`legacy_auth:`'
+    _(readme).must_include '`user_auth:`'
+    _(readme).must_include '`browser_auth:`'
+    _(readme).must_include '`sso_auth:`'
+    _(readme).must_include 'there is no per-call override'
+    _(readme).must_include '### Closing the client'
+    _(readme).must_include 'a request already in flight finishes'
+    _(readme).must_include '### Cookie parameters'
+    _(readme).must_include 'RFC 6265 cookie-octet'
+  end
 end

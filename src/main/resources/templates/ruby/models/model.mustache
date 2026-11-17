@@ -482,10 +482,12 @@ module {{moduleName}}
       # Inverse mapping from JSON key to ruby attribute name.
       JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
 
-      # Attribute type mapping.
+      # Attribute type mapping. An inline enum property names its enum class,
+      # so decoding checks the value against the allowed ones and fails on an
+      # unknown one; a model never checks it when it is built.
       OPENAPI_TYPES = {
         {{#vars}}
-        {{{name}}}: '{{{dataType}}}'{{^-last}},{{/-last}}
+        {{{name}}}: '{{#isEnum}}{{classname}}::{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}'{{^-last}},{{/-last}}
         {{/vars}}
       }.freeze
 
@@ -644,20 +646,10 @@ module {{moduleName}}
       # @return [Object] Write-only property.
       {{/isWriteOnly}}
       {{#required}}
-      {{#isEnum}}
-      attribute :{{name}}, Types::String.enum(*{{enumName}}::VALUES){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
-      {{/isEnum}}
-      {{^isEnum}}
       attribute :{{name}}, {{#isNullable}}Types::Any{{/isNullable}}{{^isNullable}}Types::Required{{/isNullable}}{{#defaultValue}}.default({{{.}}}){{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}}.default({{vendorExtensions.siblingDefaultEnumType}}::{{vendorExtensions.siblingDefaultEnumVar}}){{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}
-      {{/isEnum}}
       {{/required}}
       {{^required}}
-      {{#isEnum}}
-      attribute :{{name}}, Types::String.enum(*{{enumName}}::VALUES).optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
-      {{/isEnum}}
-      {{^isEnum}}
       attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}}.default({{vendorExtensions.siblingDefaultEnumType}}::{{vendorExtensions.siblingDefaultEnumVar}}){{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}
-      {{/isEnum}}
       {{/required}}
       {{/vars}}
     end

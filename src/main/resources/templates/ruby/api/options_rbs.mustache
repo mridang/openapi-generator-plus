@@ -14,9 +14,6 @@ module {{moduleName}}
         attr_reader {{paramName}}: {{rbsType}}?
 {{/required}}
 {{/params}}
-{{#hasAuthField}}
-        attr_reader auth: ::{{moduleName}}::Auth::Authenticator?
-{{/hasAuthField}}
         def initialize: ({{initializeSignature}}) -> void
       end
     end

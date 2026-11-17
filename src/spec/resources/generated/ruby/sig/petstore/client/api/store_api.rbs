@@ -1,7 +1,7 @@
 module Petstore::Client
   module Api
     class StoreApi < BaseApi
-      def initialize: (?::Petstore::Client::ApiClient? api_client, ?::Petstore::Client::Configuration config, ?::Petstore::Client::Auth::Authenticator? authenticator) -> void
+      def initialize: (?::Petstore::Client::ApiClient? api_client, ?::Petstore::Client::Configuration config, ?::Petstore::Client::Auth::Authenticator? authenticator, ?Hash[String, ::Petstore::Client::Auth::Authenticator] scheme_authenticators) -> void
       def create_account: (Models::Account account, ?Options::CreateAccountOptions? options) -> Models::Account
       def create_account_with_http_info: (Models::Account account, ?Options::CreateAccountOptions? options) -> ::Petstore::Client::ApiResult[Models::Account]
       def delete_order: (Integer order_id, ?Options::DeleteOrderOptions? options) -> void

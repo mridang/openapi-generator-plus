@@ -29,12 +29,13 @@ module Petstore::Client
       #
       #   * NO_AUTH                 -> suppress auth (do NOT fall back to the
       #                                client authenticator)
-      #   * nil                     -> no per-call override; fall back to the
-      #                                client-level authenticator
-      #   * a real authenticator    -> per-call override; use it as-is
+      #   * nil                     -> no scheme credential applies; fall back
+      #                                to the client-level authenticator
+      #   * a real authenticator    -> the credential of the scheme the
+      #                                operation names; use it as-is
       #
-      # Generated operation methods pass NO_AUTH for security:[] operations and
-      # nil for secured operations without a per-call override. Callers never
+      # Generated operation methods pass NO_AUTH for security:[] operations
+      # and the result of {#scheme_authenticator} for the others. Callers never
       # construct or see this value.
       NO_AUTH = ::Object.new.freeze
 
@@ -45,15 +46,34 @@ module Petstore::Client
       #
       # @param api_client [ApiClient, nil] the HTTP transport client
       # @param config [Configuration] API-level configuration (base URL and default headers)
-      # @param authenticator [Authenticator, nil] default authenticator for operations without explicit auth
-      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil)
+      # @param authenticator [Authenticator, nil] default authenticator, used by an operation that no scheme credential matches
+      # @param scheme_authenticators [Hash{String => Authenticator}] the credential of each security scheme the
+      #   client holds, by the scheme's name in the spec
+      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil,
+                     scheme_authenticators = {})
         @config = config
         @api_client = api_client || ::Petstore::Client::DefaultApiClient.new
         @header_selector = ::Petstore::Client::HeaderSelector.new
         @authenticator = authenticator
+        @scheme_authenticators = scheme_authenticators.dup.freeze
       end
 
       protected
+
+      # The credential of the first of +names+ the client holds, or nil when it
+      # holds none of them, which leaves the call to the default authenticator
+      # (and sends no credential when there is none). +names+ is the scheme
+      # order of the operation's own security requirement.
+      #
+      # @param names [Array<String>] security scheme names, in the operation's order
+      # @return [Authenticator, nil]
+      def scheme_authenticator(*names)
+        names.each do |name|
+          found = @scheme_authenticators[name]
+          return found if found
+        end
+        nil
+      end
 
       # Invoke an API operation and return the full result including status
       # code, headers, and raw body alongside the deserialized data.
@@ -71,7 +91,8 @@ module Petstore::Client
       #   body is decoded as the type of the status the response actually carries.
       # @param auth [Object, nil] operation-specific auth resolution. Three states:
       #   NO_AUTH suppresses auth (security: [] operation), nil falls back to the
-      #   client-level authenticator, and a real authenticator is a per-call override.
+      #   client-level authenticator, and a real authenticator is the credential of the
+      #   scheme the operation names.
       # @param operation_id [String, nil] the calling operation as +Class.operation+, named in a
       #   serialization error (defaults to the API class name)
       # @param request_options [Object, nil] the per-call options of the operation: its +timeout+
@@ -99,9 +120,10 @@ module Petstore::Client
         #   * NO_AUTH               -> the operation is explicitly unauthenticated
         #                              (security:[]); apply NO credential, and do
         #                              NOT fall back to the client authenticator.
-        #   * nil                   -> secured operation with no per-call override;
-        #                              fall back to the client-level authenticator.
-        #   * a real authenticator  -> per-call override; use it as-is.
+        #   * nil                   -> no scheme credential applies; fall back to
+        #                              the client-level authenticator.
+        #   * a real authenticator  -> the credential of the scheme the operation
+        #                              names; use it as-is.
         # equal? is identity comparison, so a real authenticator can never be
         # mistaken for the sentinel.
         # @type var effective_auth: untyped
@@ -110,11 +132,6 @@ module Petstore::Client
                          else
                            auth || @authenticator
                          end
-        # A per-call authenticator that needs HTTP (OAuth2, OpenID Connect) was
-        # never handed the transport by the Client; give it this API's own.
-        # @type var per_call: untyped
-        per_call = !effective_auth.equal?(@authenticator)
-        effective_auth.api_client = @api_client if per_call && effective_auth.is_a?(::Petstore::Client::Auth::HttpAwareAuthenticator)
         effective_auth&.query_params&.each { |k, v| query_params[k] = v }
 
         query_string = build_query_string(query_params)
@@ -217,7 +234,8 @@ module Petstore::Client
       # @param return_type [String, nil] return type for deserialization (nil for void)
       # @param auth [Object, nil] operation-specific auth resolution. Three states:
       #   NO_AUTH suppresses auth (security: [] operation), nil falls back to the
-      #   client-level authenticator, and a real authenticator is a per-call override.
+      #   client-level authenticator, and a real authenticator is the credential of the
+      #   scheme the operation names.
       # @param operation_id [String, nil] the calling operation as +Class.operation+
       # @return [Object, nil] deserialized response or nil
       # @raise [Errors::ApiError] if the API call fails

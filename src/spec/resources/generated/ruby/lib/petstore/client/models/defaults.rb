@@ -60,10 +60,12 @@ module Petstore::Client
       # Inverse mapping from JSON key to ruby attribute name.
       JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
 
-      # Attribute type mapping.
+      # Attribute type mapping. An inline enum property names its enum class,
+      # so decoding checks the value against the allowed ones and fails on an
+      # unknown one; a model never checks it when it is built.
       OPENAPI_TYPES = {
         retries: 'Integer',
-        mode: 'String',
+        mode: 'Defaults::ModeEnum',
         label: 'String',
         greeting: 'String',
         swatch: 'Swatch',
@@ -136,7 +138,7 @@ module Petstore::Client
       end
 
       attribute :retries, Types::Any.optional.meta(omittable: true).default(3)
-      attribute :mode, Types::String.enum(*ModeEnum::VALUES).optional.meta(omittable: true).default('medium')
+      attribute :mode, Types::Any.optional.meta(omittable: true).default('medium')
       attribute :label, Types::Any.optional.meta(omittable: true).default('untitled')
       attribute :greeting, Types::Any.optional.meta(omittable: true).default("it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b")
       attribute :swatch, Types::Any.optional.meta(omittable: true).default('green')

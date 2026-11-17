@@ -761,6 +761,36 @@ describe Petstore::Client::ObjectSerializer do
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
+    it 'names the enum and the unknown value when an inline model enum fails to decode' do
+      json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
+      error = _(proc { Petstore::Client::ObjectSerializer.deserialize(json, 'Pet') }).must_raise(
+        Petstore::Client::Errors::SerializationError
+      )
+      _(error.message).must_include 'Unknown enum value for Pet::StatusEnum: "banana"'
+    end
+
+    # F316: building a model never validates. An unknown enum string and a value
+    # of the wrong type are held as given; only decoding fails on them.
+    it 'builds a model holding an unknown inline enum string without raising' do
+      pet = Petstore::Client::Models::Pet.new(name: 'Rex', photo_urls: Set['u'], status: 'banana')
+
+      _(pet.status).must_equal 'banana'
+    end
+
+    it 'builds a model holding values of the wrong type without raising' do
+      pet = Petstore::Client::Models::Pet.new(name: 42, photo_urls: 'not-a-set', id: 'abc', status: 7)
+
+      _(pet.name).must_equal 42
+      _(pet.id).must_equal 'abc'
+      _(pet.status).must_equal 7
+    end
+
+    it 'copies a model into an unknown inline enum string without raising' do
+      pet = Petstore::Client::Models::Pet.new(name: 'Rex', photo_urls: Set['u']).with(status: 'banana')
+
+      _(pet.status).must_equal 'banana'
+    end
+
     it 'deserializes an inline model enum with a known value' do
       json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"available"}'
       pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')

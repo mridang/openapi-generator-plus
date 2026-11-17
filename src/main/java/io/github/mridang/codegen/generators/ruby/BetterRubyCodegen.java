@@ -382,6 +382,48 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         }
     }
 
+    /**
+     * Names the keyword argument of every client credential (F857). The shared pass lists one
+     * entry per security scheme with a camel-case {@code paramName}; Ruby spells an argument in
+     * snake case, so each entry gains {@code argName}.
+     */
+    @Override
+    public void processOpenAPI(final io.swagger.v3.oas.models.OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> schemes =
+                (List<Map<String, Object>>) additionalProperties.get("clientSchemes");
+        if (schemes != null) {
+            nameCredentialArguments(schemes, this::isReservedWord);
+        }
+    }
+
+    /**
+     * Gives each client credential a Ruby keyword argument name: the snake-case form of the scheme
+     * name. A name that is a Ruby keyword, one of the client's own arguments or an earlier
+     * credential's name gets the suffix {@code _credential}, then a number, so every argument can
+     * be read back as a local variable.
+     *
+     * @param schemes the shared {@code clientSchemes} entries; each gains {@code argName}
+     * @param reserved tells whether a name is a Ruby keyword
+     */
+    static void nameCredentialArguments(
+            final List<Map<String, Object>> schemes,
+            final java.util.function.Predicate<String> reserved) {
+        final Set<String> taken = new HashSet<>(Arrays.asList("authenticator", "transport_options"));
+        for (final Map<String, Object> scheme : schemes) {
+            final String base = NamingConvention.SNAKE_CASE.apply(String.valueOf(scheme.get("schemeId")));
+            String name = base;
+            int counter = 1;
+            while (reserved.test(name) || taken.contains(name)) {
+                name = base + "_credential" + (counter > 1 ? "_" + counter : "");
+                counter++;
+            }
+            taken.add(name);
+            scheme.put("argName", name);
+        }
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
@@ -1522,33 +1564,22 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             first = false;
             sig.append(p.paramName).append(": nil");
         }
-        // Authed operations carry an optional per-operation `auth` keyword,
-        // typed as the generic Authenticator. It never has a required value
-        // (defaults to nil → fall back to Configuration credentials) and is
-        // always appended last so it stays out of the required-keyword block.
-        if (op.hasAuthMethods) {
-            if (!first) sig.append(", ");
-            sig.append("auth: nil");
-        }
         // The per-call request options, on every Options object: a timeout in
         // milliseconds, extra headers and a retry count that apply to this
-        // call alone (nil keeps the client's value).
-        if (!first || op.hasAuthMethods) sig.append(", ");
+        // call alone (nil keeps the client's value). There is no per-call
+        // authenticator (F857): an operation uses the credential of the scheme
+        // its spec names, held by the client.
+        if (!first) sig.append(", ");
         sig.append("timeout: nil, headers: nil, max_retries: nil");
 
         // Single grouped attr_accessor line (Style/AccessorGrouping): all
-        // option params plus the optional `auth` member when present.
+        // option params plus the per-call request options.
         final StringBuilder accessors = new StringBuilder();
         boolean firstAcc = true;
         for (final CodegenParameter p : optionsParams) {
             if (!firstAcc) accessors.append(", ");
             firstAcc = false;
             accessors.append(':').append(p.paramName);
-        }
-        if (op.hasAuthMethods) {
-            if (!firstAcc) accessors.append(", ");
-            firstAcc = false;
-            accessors.append(":auth");
         }
         if (!firstAcc) accessors.append(", ");
         accessors.append(":timeout, :headers, :max_retries");
@@ -1563,14 +1594,8 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         context.put("accessorList", accessors.toString());
         context.put("modelRequires", modelRequires);
         context.put("hasModelRequires", !modelRequires.isEmpty());
-        injectAuthFieldContext(op, context);
-        // The per-operation auth field is typed as the generic Authenticator
-        // interface. In Ruby it lives in the gem's Auth module; no extra
-        // require is needed because the Auth module is autoloaded via Zeitwerk
-        // and referenced through the gem namespace at runtime.
-        context.put("authImport", moduleName + "::Auth::" + getAuthenticatorTypeName());
 
-        generateOptionsRbsFile(op, optionsParams, className, op.hasAuthMethods);
+        generateOptionsRbsFile(op, optionsParams, className);
 
         return renderOptionsTemplate("api/options.mustache", context);
     }
@@ -1625,8 +1650,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     private void generateOptionsRbsFile(
             CodegenOperation op,
             List<CodegenParameter> optionsParams,
-            String className,
-            boolean hasAuthField) {
+            String className) {
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
@@ -1652,14 +1676,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             final String rbsType = optionRbsType(p);
             sig.append('?').append(p.paramName).append(": ").append(rbsType).append('?');
         }
-        // Optional per-operation authenticator keyword, typed as the generic
-        // Authenticator interface. Always nullable; always last.
-        if (hasAuthField) {
-            if (!first) sig.append(", ");
-            sig.append("?auth: ::").append(moduleName)
-                    .append("::Auth::").append(getAuthenticatorTypeName()).append('?');
-            first = false;
-        }
         if (!first) sig.append(", ");
         sig.append("?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?");
 
@@ -1668,7 +1684,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         context.put("moduleName", moduleName);
         context.put("params", params);
         context.put("initializeSignature", sig.toString());
-        context.put("hasAuthField", hasAuthField);
 
         final String content = renderOptionsTemplate("api/options_rbs.mustache", context);
 

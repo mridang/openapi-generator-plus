@@ -81,7 +81,8 @@ module {{moduleName}}
     # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/tagExternalDocs}}
     class {{classname}} < BaseApi
-      def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default_configuration, authenticator = nil)
+      def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default_configuration, authenticator = nil,
+                     scheme_authenticators = {})
         super
       end
     {{#operation}}
@@ -104,7 +105,7 @@ module {{moduleName}}
 {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
-      # @param options [{{{dataType}}}] per-call options: the optional timeout, headers and max_retries{{#vendorExtensions.op.hasOptionsParam}}, plus the query, header, form and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
+      # @param options [{{{dataType}}}] per-call options: the optional timeout, headers and max_retries{{#vendorExtensions.op.hasOptionsParam}}, plus the query, header, form and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
 {{#vendorExtensions.hasMultipleConsumes}}
@@ -380,7 +381,7 @@ module {{moduleName}}
 {{/vendorExtensions.hasMultipleConsumes}}
           {{#vendorExtensions.op.hasMultiple2xx}}{ {{#vendorExtensions.op.successResponses}}{{#isRange}}'{{statusCode}}'{{/isRange}}{{^isRange}}{{statusCode}}{{/isRange}} => '{{{returnType}}}'{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}} },
 {{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
-{{/vendorExtensions.op.hasMultiple2xx}}          {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
+{{/vendorExtensions.op.hasMultiple2xx}}          {{#vendorExtensions.op.hasSecuritySchemes}}scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
           raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
           operation_id: '{{classname}}.{{operationId}}',
           request_options: options

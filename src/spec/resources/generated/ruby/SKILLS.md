@@ -33,6 +33,15 @@ authenticator = Petstore::Client::Auth::BearerAuthenticator.new('https://api.exa
 client = Petstore::Client::Petstore.new(authenticator)
 ```
 
+### Credentials per security scheme
+
+`Petstore.new` takes one optional credential for each security scheme of the API, named after the scheme: `pet_store_basic:`, `admin_basic:`, `pet_store_bearer:`, `service_token:`, `api_key_header:`, `internal_api_key:`, `api_key_query:`, `session_cookie:`, `machine_auth:`, `legacy_auth:`, `user_auth:`, `browser_auth:`, `sso_auth:`. Each operation uses the credential of the first scheme in its own security requirement that you configured; there is no per-call override. An optional `authenticator` (the first argument) serves any operation no scheme credential matches, and an operation that declares no security sends no credential of its own. The client is refused, with an `ArgumentError`, when it gets no credential at all.
+
+```ruby
+# credential is the Auth::Authenticator you built for that scheme
+client = Petstore::Client::Petstore.new(nil, nil, pet_store_basic: credential)
+```
+
 ### Credentials from the environment
 
 A credential you leave out is read, once, when the authenticator is built, from the environment variable of its security scheme; an empty variable counts as unset. The value you pass wins, and a Bearer token falls back to `token_provider:` (called for every request) when neither is set. A credential still missing raises `ArgumentError` before the client is built.
@@ -268,6 +277,14 @@ Every operation takes an optional Options object whose `timeout` (milliseconds),
 ```ruby
 options = Petstore::Client::Api::Options::<Operation>Options.new(timeout: 2_000, max_retries: 0)
 ```
+
+### Closing the client
+
+`client.close` is graceful and idempotent. The client is marked closed at once and a request started afterwards raises a `RuntimeError`; a request already in flight finishes, and the connection the SDK built is released when the last one completes. A second `close` does nothing, and a `Faraday::Connection` you supplied is never closed.
+
+### Cookie parameters
+
+A cookie parameter is sent as it is, without percent-encoding, when every character of its value is a legal RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash). Any other value raises an `ArgumentError` before the request is sent, so encode the value yourself first if it holds one of those characters.
 
 ### Cancellation
 
