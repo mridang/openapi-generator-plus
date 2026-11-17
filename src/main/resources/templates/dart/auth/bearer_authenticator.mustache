@@ -18,7 +18,7 @@ bool _isAsciiBlank(String value) =>
 class BearerAuthenticator extends BaseAuthenticator {
   /// The environment variable read when neither [token] nor [tokenProvider] is
   /// given and no [environmentVariable] names another one.
-  static const String defaultEnvironmentVariable = '{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_TOKEN';
+  static const String defaultEnvironmentVariable = '{{envVarPrefix}}_TOKEN';
 
   final String _host;
   final String? _token;

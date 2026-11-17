@@ -19,6 +19,7 @@ class InternalApiKeyAuthenticator extends ApiKeyAuthenticator {
   }) : super(
          keyParamName: 'X-Internal-Key',
          location: ApiKeyLocation.header,
-         environmentVariable: 'PETSTORE_CLIENT_INTERNAL_API_KEY',
+         environmentVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
        );
 }

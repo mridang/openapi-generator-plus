@@ -37,6 +37,32 @@ final authenticator = BearerAuthenticator(host: 'https://api.example.com', token
 final client = {{clientClassName}}(authenticator: authenticator);
 ```
 
+{{#hasCredentialEnvVars}}
+### Credentials from the environment
+
+An authenticator reads a credential you do not pass from an environment variable, once, when it is built. An empty value counts as unset, an explicit argument wins, and a credential found nowhere fails the build of the authenticator with `ArgumentError`. Pass `environment:` a map where there is no process environment, such as the browser.
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+{{#credentialEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/credentialEnvVars}}
+
+{{/hasCredentialEnvVars}}
+
+{{#hasCredentialEnvVars}}
+### Credentials from the environment
+
+An authenticator reads a credential you do not pass from an environment variable, once, when it is built. An empty value counts as unset, an explicit argument wins, and a credential found nowhere fails the build of the authenticator with `ArgumentError`. Pass `environment:` a map where there is no process environment, such as the browser.
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+{{#credentialEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/credentialEnvVars}}
+
+{{/hasCredentialEnvVars}}
+
 {{#hasBasicAuth}}
 ### Basic Auth
 
@@ -256,6 +282,23 @@ An `ApiException` prints its response body capped at 1 KiB (`... (N more bytes)`
     print('SDK error: $e');
   }
 }{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+```
+
+### Credentials per security scheme
+
+{{clientClassName}} takes one optional credential for each security scheme of the API, named after the scheme{{#clientSchemes}}{{#-first}}: `{{/-first}}{{paramName}}{{^-last}}`, `{{/-last}}{{#-last}}`{{/-last}}{{/clientSchemes}}. Each operation uses the credential of the scheme its spec names; there is no per-call override. An optional `authenticator` serves any operation no scheme credential matches. The client is refused when it gets no credential at all.
+
+## Per-call options
+
+Every operation takes an options object as its trailing argument, `null` when nothing is set. Besides any query, header, form or cookie parameters it carries `timeout` (milliseconds, end to end), `headers` (replace a header already set) and `maxRetries` (`0` turns retries off) for that call only.
+
+```dart
+// SomeOperationOptions stands for the options class of any operation.
+const options = SomeOperationOptions(
+  timeout: 2000,
+  headers: {'X-Trace': 'abc'},
+  maxRetries: 0,
+);
 ```
 
 ## Configuration

@@ -19,6 +19,7 @@ class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator {
   }) : super(
          keyParamName: 'X-API-Key',
          location: ApiKeyLocation.header,
-         environmentVariable: 'PETSTORE_CLIENT_API_KEY_HEADER',
+         environmentVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY',
        );
 }

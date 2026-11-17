@@ -19,6 +19,7 @@ class SessionCookieAuthenticator extends ApiKeyAuthenticator {
   }) : super(
          keyParamName: 'SESSION_ID',
          location: ApiKeyLocation.cookie,
-         environmentVariable: 'PETSTORE_CLIENT_SESSION_COOKIE',
+         environmentVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY',
        );
 }

@@ -49,13 +49,17 @@ class _MockGetExternalPetInfoServer extends GetExternalPetInfoServer {
   String getUrl() => chasmUrl;
 }
 
-PetApi _newPetApiForIntegration() {
+PetApi _newPetApiForIntegration({Map<String, Authenticator>? schemes}) {
   final config = ConfigurationBuilder()
       .baseUrl(chasmUrl)
       .defaultHeader('Authorization', 'Bearer test-token')
       .build();
   final client = DefaultApiClient();
-  return PetApi(apiClient: client, config: config);
+  return PetApi(
+    apiClient: client,
+    config: config,
+    schemeAuthenticators: schemes,
+  );
 }
 
 void main() {
@@ -69,23 +73,25 @@ void main() {
 
   group('PetApi', () {
     test('addPet', () async {
-      final api = _newPetApiForIntegration();
-      final auth = _TestAuth();
+      final api = _newPetApiForIntegration(
+        schemes: {'petStoreBearer': _TestAuth()},
+      );
 
       final result = await api.addPet(
         Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}),
-        AddPetOptions(auth: auth),
+        null,
       );
       expect(result, isNotNull);
     });
 
     test('addPetWithHttpInfo', () async {
-      final api = _newPetApiForIntegration();
-      final auth = _TestAuth();
+      final api = _newPetApiForIntegration(
+        schemes: {'petStoreBearer': _TestAuth()},
+      );
 
       final result = await api.addPetWithHttpInfo(
         Pet(name: 'Buddy', photoUrls: <String>{'http://example.com/buddy.jpg'}),
-        AddPetOptions(auth: auth),
+        null,
       );
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
@@ -96,14 +102,14 @@ void main() {
     test('getPetById', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetById(1, null);
+      final result = await api.getPetById(1, null, null);
       expect(result, isNotNull);
     });
 
     test('getPetByIdWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetByIdWithHttpInfo(1, null);
+      final result = await api.getPetByIdWithHttpInfo(1, null, null);
       expect(result.statusCode, equals(200));
       expect(result.rawBody, isNotEmpty);
       expect(result.headers, isNotNull);
@@ -136,6 +142,7 @@ void main() {
           name: 'UpdatedFido',
           photoUrls: <String>{'http://example.com/fido-updated.jpg'},
         ),
+        null,
       );
       expect(result, isNotNull);
     });
@@ -149,26 +156,26 @@ void main() {
           name: 'UpdatedFido',
           photoUrls: <String>{'http://example.com/fido-updated.jpg'},
         ),
+        null,
       );
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
     });
 
     test('deletePet', () async {
-      final api = _newPetApiForIntegration();
-      final auth = _TestAuth();
+      final api = _newPetApiForIntegration(
+        schemes: {'adminBasic': _TestAuth()},
+      );
 
-      await api.deletePet(1, DeletePetOptions(auth: auth));
+      await api.deletePet(1, null);
     });
 
     test('deletePetWithHttpInfo', () async {
-      final api = _newPetApiForIntegration();
-      final auth = _TestAuth();
-
-      final result = await api.deletePetWithHttpInfo(
-        1,
-        DeletePetOptions(auth: auth),
+      final api = _newPetApiForIntegration(
+        schemes: {'adminBasic': _TestAuth()},
       );
+
+      final result = await api.deletePetWithHttpInfo(1, null);
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
     });
@@ -176,21 +183,25 @@ void main() {
     test('getPetPassport', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetPassport(1);
+      final result = await api.getPetPassport(1, null);
       expect(result, isNotNull);
     });
 
     test('getPetPassportWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetPassportWithHttpInfo(1);
+      final result = await api.getPetPassportWithHttpInfo(1, null);
       expect(result.statusCode, equals(200));
     });
 
     test('setPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
-      await api.setPetAvatar(1, Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]));
+      await api.setPetAvatar(
+        1,
+        Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
+        null,
+      );
     });
 
     test('setPetAvatar rejects an unrecognised request content-type', () async {
@@ -201,6 +212,7 @@ void main() {
         api.setPetAvatar(
           1,
           Uint8List.fromList([0xFF, 0xD8, 0xFF]),
+          null,
           'application/unknown-type',
         ),
         throwsA(
@@ -248,7 +260,7 @@ void main() {
 
         // A non-trivial JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
         final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
-        await api.setPetAvatar(1, payload);
+        await api.setPetAvatar(1, payload, null);
 
         // (1) The body bytes are EXACTLY the raw payload — not a JSON
         // int-array, not "{}", not base64, not JSON-marshaled.
@@ -291,9 +303,9 @@ void main() {
         final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
 
         // (1) No selector — defaults to the first declared type (image/jpeg).
-        await api.setPetAvatar(1, payload);
+        await api.setPetAvatar(1, payload, null);
         // (2) Selector set to image/png — overrides the Content-Type header.
-        await api.setPetAvatar(1, payload, 'image/png');
+        await api.setPetAvatar(1, payload, null, 'image/png');
 
         expect(captured.length, equals(2));
         expect(captured[0], equals('image/jpeg'));
@@ -332,11 +344,13 @@ void main() {
           await api.setPetAvatar(
             1,
             Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
+            null,
             'application/json',
           );
           await api.setPetAvatarThumbnail(
             1,
             SetPetAvatarThumbnailRequest(Uint8List.fromList(<int>[1, 2, 3])),
+            null,
           );
 
           expect(bodies[0], equals([0xFF, 0xD8, 0xFF, 0xE0]));
@@ -351,14 +365,14 @@ void main() {
     test('getPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetAvatar(1);
+      final result = await api.getPetAvatar(1, null);
       expect(result, isNotNull);
     });
 
     test('getPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetAvatarThumbnail(1);
+      final result = await api.getPetAvatarThumbnail(1, null);
       expect(result, isNotNull);
     });
 
@@ -368,6 +382,7 @@ void main() {
       await api.setPetAvatarThumbnail(
         1,
         SetPetAvatarThumbnailRequest(Uint8List.fromList(<int>[1, 2, 3])),
+        null,
       );
     });
 
@@ -588,13 +603,13 @@ void main() {
     test('downloadPetDocument', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.downloadPetDocument(1, 1);
+      final result = await api.downloadPetDocument(1, 1, null);
       expect(result, isNotNull);
     });
 
     test('getPetPhoto', () async {
       final api = _newPetApiForIntegration();
-      final result = await api.getPetPhoto(1, 1);
+      final result = await api.getPetPhoto(1, 1, null);
       expect(result, isNotNull);
     });
 
@@ -620,6 +635,7 @@ void main() {
       final result = await api.getExternalPetInfo(
         1,
         _MockGetExternalPetInfoServer(),
+        null,
       );
       expect(result, isNotNull);
     });
@@ -640,7 +656,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetAvatarWithHttpInfo(1);
+        final result = await api.getPetAvatarWithHttpInfo(1, null);
         expect(result.statusCode, equals(200));
       } finally {
         await server.close();
@@ -693,7 +709,7 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         await expectLater(
-          api.getPetById(1, null),
+          api.getPetById(1, null, null),
           throwsA(
             isA<ApiException>().having(
               (e) => e.message,
@@ -731,7 +747,7 @@ void main() {
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
           await expectLater(
-            api.getPetById(1, null),
+            api.getPetById(1, null, null),
             throwsA(
               isA<ApiException>().having(
                 (e) => e.message,
@@ -839,7 +855,7 @@ void main() {
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
           await expectLater(
-            api.getPetAvatarThumbnail(1),
+            api.getPetAvatarThumbnail(1, null),
             throwsA(isA<SerializationException>()),
           );
         } finally {
@@ -865,7 +881,7 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         await expectLater(
-          api.getPetById(1, null),
+          api.getPetById(1, null, null),
           throwsA(isA<SerializationException>()),
         );
       } finally {
@@ -873,11 +889,11 @@ void main() {
       }
     });
 
-    /* per-call-auth-override: an Authenticator passed to the BASE operation
-     * method (not just WithHttpInfo) must be applied to the outgoing request.
-     * The default header carries one token; the per-call authenticator carries
-     * a different one and must win on the wire. */
-    test('addPet per-call auth override', () async {
+    /* The credential configured for the scheme of the BASE operation method
+     * (not just WithHttpInfo) is applied to the outgoing request. The default
+     * header carries one token, the scheme credential another, and the scheme
+     * credential wins on the wire. */
+    test('addPet applies the credential of its scheme', () async {
       String? capturedAuth;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -894,15 +910,18 @@ void main() {
             .baseUrl('http://localhost:${server.port}')
             .defaultHeader('Authorization', 'Bearer default-token')
             .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-        final auth = _PerCallAuth();
+        final api = PetApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          schemeAuthenticators: {'petStoreBearer': _PerCallAuth()},
+        );
 
         await api.addPet(
           Pet(
             name: 'OverrideDog',
             photoUrls: <String>{'http://example.com/p.jpg'},
           ),
-          AddPetOptions(auth: auth),
+          null,
         );
 
         expect(capturedAuth, equals('Bearer per-call-token'));
@@ -911,11 +930,10 @@ void main() {
       }
     });
 
-    /* auth-in-options-applied: an Authenticator supplied via the Options
-     * object (AddPetOptions(auth: ...)) must be threaded onto the outgoing
-     * request, overriding the client's default header. This is the folded
-     * replacement for the removed standalone `auth:` parameter. */
-    test('addPet auth supplied via Options is applied', () async {
+    /* F857: the credential configured for the scheme an operation's spec
+     * names (schemeAuthenticators) is applied to the outgoing request,
+     * overriding the client's default header. There is no per-call override. */
+    test('addPet auth supplied for its scheme is applied', () async {
       String? capturedAuth;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -932,12 +950,15 @@ void main() {
             .baseUrl('http://localhost:${server.port}')
             .defaultHeader('Authorization', 'Bearer default-token')
             .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-        final auth = _PerCallAuth();
+        final api = PetApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          schemeAuthenticators: {'petStoreBearer': _PerCallAuth()},
+        );
 
         await api.addPet(
           Pet(name: 'OptDog', photoUrls: <String>{'http://example.com/p.jpg'}),
-          AddPetOptions(auth: auth),
+          null,
         );
 
         expect(capturedAuth, equals('Bearer per-call-token'));
@@ -999,7 +1020,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetById(7, null);
+        final result = await api.getPetById(7, null, null);
         expect(result, isNotNull);
         expect(result.id, equals(7));
       } finally {
@@ -1442,7 +1463,7 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.getPetById(99999, null);
+        await api.getPetById(99999, null, null);
         fail('Expected error for non-existent pet');
       } on NotFoundException {
         // Expected
@@ -1461,7 +1482,7 @@ void main() {
       );
 
       try {
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
         fail('Expected error for server error response');
       } on InternalServerErrorException {
         // Expected
@@ -1512,6 +1533,60 @@ void main() {
           expect(capturedCookie, equals('session=abc'));
         } finally {
           await server.close();
+        }
+      },
+    );
+  });
+
+  group('cookie parameters (F840)', () {
+    /* A value made only of RFC 6265 cookie-octets goes out raw; any other
+     * value fails with an ArgumentError before a request is sent. */
+    Future<(String?, Object?)> callWithSession(String session) async {
+      String? capturedCookie;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedCookie = request.headers.value('cookie');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('hello')
+          ..close();
+      });
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          await api.getPetSummary(
+            1,
+            DateTime.utc(2024, 1, 15),
+            GetPetSummaryOptions(session: session),
+          );
+        } on Object catch (e) {
+          return (capturedCookie, e);
+        }
+        return (capturedCookie, null);
+      } finally {
+        await server.close();
+      }
+    }
+
+    test('a value of legal cookie-octets is sent raw', () async {
+      final (cookie, error) = await callWithSession('a=b/c%20d');
+
+      expect(error, isNull);
+      expect(cookie, equals('session=a=b/c%20d'));
+    });
+
+    test(
+      'a value with a space, semicolon, comma, quote or backslash fails before sending',
+      () async {
+        for (final value in ['a b', 'a;b', 'a,b', 'a"b', r'a\b', 'caf\u00e9']) {
+          final (cookie, error) = await callWithSession(value);
+
+          expect(error, isA<ArgumentError>(), reason: value);
+          expect(cookie, isNull, reason: value);
         }
       },
     );
@@ -1572,21 +1647,19 @@ void main() {
     });
 
     /* The `options` argument is documented on every operation that takes
-     * it: the authenticator clause appears only where the Options class
-     * carries one, and an auth-only Options says just that. */
+     * it, by what the Options class carries (no authenticator: F857). */
     test('document the options argument by what it carries', () {
       expect(
         source,
         contains(
-          '  /// `options` options carrying an optional per-call authenticator\n'
+          '  /// `options` options carrying the per-call timeout, headers and retry budget\n'
           '  Future<Pet> addPet(',
         ),
       );
       expect(
         source,
         contains(
-          '  /// `options` options for query, header, form, and cookie parameters, '
-          'plus an optional per-call authenticator\n'
+          '  /// `options` options for query, header, form, and cookie parameters\n'
           '  Future<void> deletePet(',
         ),
       );

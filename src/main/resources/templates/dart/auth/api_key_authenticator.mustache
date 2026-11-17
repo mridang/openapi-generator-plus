@@ -19,7 +19,7 @@ bool _isAsciiBlank(String value) =>
 class ApiKeyAuthenticator extends BaseAuthenticator {
   /// The environment variable read when neither [apiKey] nor [apiKeyProvider]
   /// is given and no [environmentVariable] names another one.
-  static const String defaultEnvironmentVariable = '{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_API_KEY';
+  static const String defaultEnvironmentVariable = '{{envVarPrefix}}_API_KEY';
 
   final String _host;
   final String _keyParamName;

@@ -138,6 +138,7 @@ void main() {
 
           final created = await api.createAccount(
             const Account(username: 'u', password: 'p'),
+            null,
           );
 
           expect(requestBody, contains('"password":"p"'));
@@ -169,6 +170,7 @@ void main() {
 
         await api.getOrderByTrackingId(
           UuidValue.fromString('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'),
+          null,
         );
 
         expect(
@@ -189,14 +191,14 @@ void main() {
     test('placeOrder', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.placeOrder(Order());
+      final result = await api.placeOrder(Order(), null);
       expect(result, isNotNull);
     });
 
     test('placeOrderWithHttpInfo', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.placeOrderWithHttpInfo(Order());
+      final result = await api.placeOrderWithHttpInfo(Order(), null);
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -215,14 +217,14 @@ void main() {
     test('getInventory', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.getInventory();
+      final result = await api.getInventory(null);
       expect(result, isNotNull);
     });
 
     test('getInventoryWithHttpInfo', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.getInventoryWithHttpInfo();
+      final result = await api.getInventoryWithHttpInfo(null);
       expect(result.statusCode, equals(200));
       expect(result.data, isNotNull);
     });
@@ -230,21 +232,21 @@ void main() {
     test('getOrderById', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.getOrderById(1);
+      final result = await api.getOrderById(1, null);
       expect(result, isNotNull);
     });
 
     test('getOrderByIdWithHttpInfo', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.getOrderByIdWithHttpInfo(1);
+      final result = await api.getOrderByIdWithHttpInfo(1, null);
       expect(result.statusCode, equals(200));
       expect(result.headers, isNotNull);
     });
 
     test('deleteOrder', () async {
       final api = _newStoreApiForIntegration();
-      await api.deleteOrder(1);
+      await api.deleteOrder(1, null);
     });
 
     test('getOrderNotFound', () async {
@@ -254,7 +256,7 @@ void main() {
       final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.getOrderById(99999);
+        await api.getOrderById(99999, null);
         fail('Expected error for non-existent order');
       } on NotFoundException {
         // Expected
@@ -273,7 +275,7 @@ void main() {
       );
 
       try {
-        await api.getOrderById(1);
+        await api.getOrderById(1, null);
         fail('Expected error for server error response');
       } on InternalServerErrorException {
         // Expected
@@ -301,7 +303,7 @@ void main() {
           config: config,
         );
 
-        await api.placeOrder(Order());
+        await api.placeOrder(Order(), null);
         fail('Expected error for server error response');
       } on InternalServerErrorException {
         // Expected
@@ -335,7 +337,7 @@ void main() {
               .build();
           final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-          final result = await api.getGroupedCategories();
+          final result = await api.getGroupedCategories(null);
           expect(result, hasLength(2));
 
           final first = result[0]['a'];
@@ -372,7 +374,7 @@ void main() {
             .build();
         final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getMatrix();
+        final result = await api.getMatrix(null);
         expect(
           result,
           equals([
@@ -413,7 +415,7 @@ void main() {
           final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
           await expectLater(
-            api.getInventory(),
+            api.getInventory(null),
             throwsA(isA<SerializationException>()),
           );
         } finally {
@@ -440,7 +442,7 @@ void main() {
           final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
           await expectLater(
-            api.getMatrix(),
+            api.getMatrix(null),
             throwsA(isA<SerializationException>()),
           );
         } finally {
@@ -468,7 +470,7 @@ void main() {
             .build();
         final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getSwatchGroups();
+        final result = await api.getSwatchGroups(null);
         expect(result, hasLength(2));
         expect(result[0]['a'], equals(Swatch.red));
         expect(result[1]['b'], equals(Swatch.blue));
@@ -496,7 +498,7 @@ void main() {
             .build();
         final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getTimestampGroups();
+        final result = await api.getTimestampGroups(null);
         expect(result, hasLength(1));
         final ts = result[0]['t'];
         expect(ts, isA<DateTime>());
@@ -509,7 +511,10 @@ void main() {
     test('getSwatch decodes a bare enum', () async {
       final server = await _serveJson('"green"');
       try {
-        expect(await _storeApiFor(server).getSwatch(), equals(Swatch.green));
+        expect(
+          await _storeApiFor(server).getSwatch(null),
+          equals(Swatch.green),
+        );
       } finally {
         await server.close();
       }
@@ -520,7 +525,7 @@ void main() {
         '{"value":"a","child":{"value":"b","child":{"value":"c"}}}',
       );
       try {
-        final tree = await _storeApiFor(server).getTree();
+        final tree = await _storeApiFor(server).getTree(null);
         expect(tree.value, equals('a'));
         expect(tree.child?.value, equals('b'));
         expect(tree.child?.child?.value, equals('c'));
@@ -535,7 +540,7 @@ void main() {
         '{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}',
       );
       try {
-        final department = await _storeApiFor(server).getDepartment();
+        final department = await _storeApiFor(server).getDepartment(null);
         expect(department.name, equals('d'));
         expect(department.lead?.name, equals('e'));
         expect(department.lead?.department?.name, equals('d2'));
@@ -549,7 +554,7 @@ void main() {
       () async {
         final server = await _serveJson('{}');
         try {
-          final defaults = await _storeApiFor(server).getDefaults();
+          final defaults = await _storeApiFor(server).getDefaults(null);
           expect(defaults.retries, equals(3));
           expect(defaults.label, equals('untitled'));
           expect(defaults.ratio, equals(1.5));
@@ -596,7 +601,7 @@ void main() {
             .build();
         final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.deleteOrder(99999);
+        await api.deleteOrder(99999, null);
         fail('Expected error for deleting non-existent order');
       } on NotFoundException {
         // Expected

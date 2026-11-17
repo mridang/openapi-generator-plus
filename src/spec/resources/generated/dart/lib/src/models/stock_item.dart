@@ -21,7 +21,11 @@ class StockItem {
   /// Quantity grid as an array of integer arrays
   final List<List<int>>? matrix;
 
-  const StockItem({required this.priority, this.availability, this.matrix});
+  const StockItem({
+    required this.priority,
+    this.availability = Availability.onHold,
+    this.matrix,
+  });
 
   /// Creates a [StockItem] from a JSON map.
   factory StockItem.fromJson(Map<String, dynamic> json) {
@@ -37,9 +41,14 @@ class StockItem {
     }
     return StockItem(
       priority: Priority.fromJson(json['priority'] as int),
-      availability: json['availability'] != null
-          ? Availability.fromJson(json['availability'] as String)
-          : null,
+      /* Cross-cutting `default-applies-only-when-absent`: apply the default
+         solely when the key is OMITTED; an explicit `null` is preserved as
+         null per the JSON-Schema contract. */
+      availability: json.containsKey('availability')
+          ? (json['availability'] != null
+                ? Availability.fromJson(json['availability'] as String)
+                : null)
+          : Availability.onHold,
       matrix: json['matrix'] != null
           ? deserializeArray(
               json['matrix'] as List,

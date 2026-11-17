@@ -17,11 +17,11 @@ typedef _Credentials = (String username, String password);
 class BasicAuthenticator extends BaseAuthenticator {
   /// The environment variable read for the user name when no credential is
   /// given and no [usernameVariable] names another one.
-  static const String defaultUsernameVariable = '{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_USERNAME';
+  static const String defaultUsernameVariable = '{{envVarPrefix}}_USERNAME';
 
   /// The environment variable read for the password when no credential is
   /// given and no [passwordVariable] names another one.
-  static const String defaultPasswordVariable = '{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_PASSWORD';
+  static const String defaultPasswordVariable = '{{envVarPrefix}}_PASSWORD';
 
   final String _host;
   final String? _username;

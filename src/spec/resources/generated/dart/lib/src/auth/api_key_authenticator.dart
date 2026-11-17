@@ -25,7 +25,8 @@ bool _isAsciiBlank(String value) =>
 class ApiKeyAuthenticator extends BaseAuthenticator {
   /// The environment variable read when neither [apiKey] nor [apiKeyProvider]
   /// is given and no [environmentVariable] names another one.
-  static const String defaultEnvironmentVariable = 'PETSTORE_CLIENT_API_KEY';
+  static const String defaultEnvironmentVariable =
+      'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY';
 
   final String _host;
   final String _keyParamName;

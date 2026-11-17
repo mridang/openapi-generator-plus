@@ -1,14 +1,7 @@
-import '../../auth/authenticator.dart';
-
 /// Options for the deletePet operation.
 class DeletePetOptions {
   /// Session cookie used for authentication
   final String? apiKey;
-
-  /// Per-operation authenticator. When non-null it overrides the client's
-  /// configured credentials for this call only; null falls back to the
-  /// configured authenticator.
-  final Authenticator? auth;
 
   /// End-to-end timeout in milliseconds for this call only. When non-null it
   /// replaces the transport's timeout; null keeps it. Must not be negative.
@@ -25,7 +18,6 @@ class DeletePetOptions {
 
   const DeletePetOptions({
     this.apiKey,
-    this.auth,
     this.timeout,
     this.headers,
     this.maxRetries,

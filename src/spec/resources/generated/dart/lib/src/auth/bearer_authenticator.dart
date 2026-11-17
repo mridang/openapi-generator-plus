@@ -24,7 +24,8 @@ bool _isAsciiBlank(String value) =>
 class BearerAuthenticator extends BaseAuthenticator {
   /// The environment variable read when neither [token] nor [tokenProvider] is
   /// given and no [environmentVariable] names another one.
-  static const String defaultEnvironmentVariable = 'PETSTORE_CLIENT_TOKEN';
+  static const String defaultEnvironmentVariable =
+      'SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN';
 
   final String _host;
   final String? _token;

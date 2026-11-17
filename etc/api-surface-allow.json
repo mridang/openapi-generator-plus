@@ -1987,6 +1987,50 @@
   },
   {
    "element": [
+    "*options"
+   ],
+   "aspect": "type",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F827 wave 3: dart mints an Options object for every operation (mintsOptionsForEveryOperation), so an operation with no parameters of its own has one too; the other eleven add the same objects in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "petapi.*",
+    "storeapi.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F827 wave 3: every dart operation takes the options argument, also an operation with no query, header, form or cookie parameter and no security; the other eleven add it in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so dart's Options objects carry no per-call authenticator; the other eleven drop the field in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "baseapi.schemeauthenticator"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "value": "extra*",
+   "reason": "F857: the helper the generated API classes call to pick the credential of the scheme an operation names; dart has no protected visibility across libraries, so it is public like the other BaseApi helpers"
+  },
+  {
+   "element": [
     "apiclient.sendrequest",
     "abstractapiclient.sendrequest",
     "defaultapiclient.sendrequest"
@@ -2016,7 +2060,7 @@
    "languages": [
     "dart"
    ],
-   "reason": "F862: the default environment variable names are public constants so a caller and the tests can name them; the variable is {PACKAGE}_{FIELD}"
+   "reason": "F862: the default environment variable names are public constants so a caller and the tests can name them; they are <envVarPrefix>_TOKEN, _API_KEY, _USERNAME and _PASSWORD, the unqualified names the base authenticators and Client.withToken read"
   },
   {
    "element": [
@@ -2653,16 +2697,6 @@
     "php"
    ],
    "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F868 models are immutable (readonly properties) and withX() returns a changed copy; php has no data-class copy, and clone cannot change a readonly property before PHP 8.5"
-  },
-  {
-   "element": [
-    "abstractapiclient.sendrequest"
-   ],
-   "aspect": "params",
-   "languages": [
-    "dart"
-   ],
-   "reason": "wave 2 (F860): only php and dart have an AbstractApiClient, php now takes noDefaultHeaders and dart takes it in its own wave; drop this row and the php one once both do"
   },
   {
    "element": "*",

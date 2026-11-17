@@ -19,6 +19,7 @@ class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator {
   }) : super(
          keyParamName: 'api_key',
          location: ApiKeyLocation.query,
-         environmentVariable: 'PETSTORE_CLIENT_API_KEY_QUERY',
+         environmentVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY',
        );
 }

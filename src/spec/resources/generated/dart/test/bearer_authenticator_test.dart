@@ -248,4 +248,384 @@ void main() {
       });
     });
   });
+
+  group('per-scheme authenticators', () {
+    group('AdminBasicAuthenticator', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => AdminBasicAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD': 'value',
+            },
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () => AdminBasicAuthenticator(host: '/api/v3', environment: const {}),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
+            ),
+          ),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => AdminBasicAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
+            ),
+          ),
+        );
+      });
+    });
+    group('ApiKeyHeaderAuthenticator', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => ApiKeyHeaderAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': 'value',
+            },
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () =>
+              ApiKeyHeaderAuthenticator(host: '/api/v3', environment: const {}),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY'),
+            ),
+          ),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => ApiKeyHeaderAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY'),
+            ),
+          ),
+        );
+      });
+    });
+    group('ApiKeyQueryAuthenticator', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => ApiKeyQueryAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': 'value',
+            },
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () =>
+              ApiKeyQueryAuthenticator(host: '/api/v3', environment: const {}),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
+            ),
+          ),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => ApiKeyQueryAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
+            ),
+          ),
+        );
+      });
+    });
+    group('InternalApiKeyAuthenticator', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => InternalApiKeyAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': 'value',
+            },
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () => InternalApiKeyAuthenticator(
+            host: '/api/v3',
+            environment: const {},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => InternalApiKeyAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
+              ),
+            ),
+          ),
+        );
+      });
+    });
+    group('PetStoreBasicAuthenticator', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => PetStoreBasicAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD': 'value',
+            },
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () => PetStoreBasicAuthenticator(
+            host: '/api/v3',
+            environment: const {},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME',
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => PetStoreBasicAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME',
+              ),
+            ),
+          ),
+        );
+      });
+    });
+    group('PetStoreBearerAuthenticator', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => PetStoreBearerAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': 'value',
+            },
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () => PetStoreBearerAuthenticator(
+            host: '/api/v3',
+            environment: const {},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN'),
+            ),
+          ),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => PetStoreBearerAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN'),
+            ),
+          ),
+        );
+      });
+    });
+    group('ServiceTokenAuthenticator', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => ServiceTokenAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': 'value',
+            },
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () =>
+              ServiceTokenAuthenticator(host: '/api/v3', environment: const {}),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
+            ),
+          ),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => ServiceTokenAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
+            ),
+          ),
+        );
+      });
+    });
+    group('SessionCookieAuthenticator', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => SessionCookieAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': 'value',
+            },
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () => SessionCookieAuthenticator(
+            host: '/api/v3',
+            environment: const {},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'),
+            ),
+          ),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => SessionCookieAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'),
+            ),
+          ),
+        );
+      });
+    });
+  });
 }

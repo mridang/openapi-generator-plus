@@ -46,10 +46,12 @@ class BaseApi {
     ApiClient? apiClient,
     Configuration? config,
     Authenticator? authenticator,
+    Map<String, Authenticator>? schemeAuthenticators,
   }) : apiClient = apiClient ?? DefaultApiClient(),
        config = config ?? Configuration.defaultConfiguration(),
        _headerSelector = HeaderSelector(),
-       _authenticator = authenticator;
+       _authenticator = authenticator,
+       _schemes = schemeAuthenticators ?? const {};
 
   /// The HTTP transport client used for sending requests.
   final ApiClient apiClient;
@@ -59,6 +61,22 @@ class BaseApi {
 
   /// Content negotiation logic for Accept and Content-Type headers.
   final HeaderSelector _headerSelector;
+
+  /* The credential of each security scheme, by the scheme's name in the spec. */
+  final Map<String, Authenticator> _schemes;
+
+  /// The authenticator of the first of [names] the client has a credential for,
+  /// or null when it has none of them, which leaves the call to the default
+  /// authenticator (and sends no credential when there is none).
+  Authenticator? schemeAuthenticator(List<String> names) {
+    for (final name in names) {
+      final found = _schemes[name];
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
+  }
 
   /// Optional authenticator for request-level auth when not passed per-call.
   final Authenticator? _authenticator;

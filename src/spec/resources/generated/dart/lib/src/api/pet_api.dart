@@ -23,11 +23,24 @@ import 'options/add_pet_options.dart';
 import 'options/add_pet_photos_options.dart';
 import 'options/add_pet_treatment_options.dart';
 import 'options/delete_pet_options.dart';
+import 'options/download_pet_document_options.dart';
+import 'options/find_pets_born_on_options.dart';
 import 'options/find_pets_by_status_options.dart';
+import 'options/get_external_pet_info_options.dart';
+import 'options/get_multi_server_pet_info_options.dart';
+import 'options/get_pet_avatar_options.dart';
+import 'options/get_pet_avatar_thumbnail_options.dart';
+import 'options/get_pet_by_id_options.dart';
 import 'options/get_pet_by_name_options.dart';
+import 'options/get_pet_passport_options.dart';
+import 'options/get_pet_photo_options.dart';
 import 'options/get_pet_summary_options.dart';
 import 'options/get_pet_tag_options.dart';
+import 'options/get_staging_pet_info_options.dart';
+import 'options/set_pet_avatar_options.dart';
+import 'options/set_pet_avatar_thumbnail_options.dart';
 import 'options/set_pet_preferences_options.dart';
+import 'options/update_pet_options.dart';
 import 'options/upload_pet_certificate_options.dart';
 import 'options/upload_pet_document_options.dart';
 
@@ -213,11 +226,16 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
 /// See <https://example.com/docs/pets> Find out more about pets (it's */ here)
 /// on two lines
 class PetApi extends BaseApi {
-  PetApi({super.apiClient, super.config, super.authenticator});
+  PetApi({
+    super.apiClient,
+    super.config,
+    super.authenticator,
+    super.schemeAuthenticators,
+  });
 
   /// Add a new pet to the store
   /// `pet` Create a new pet in the store
-  /// `options` options carrying an optional per-call authenticator
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<Pet> addPet(Pet pet, AddPetOptions? options) async {
     final result = await addPetWithHttpInfo(pet, options);
     final data = result.data;
@@ -242,7 +260,10 @@ class PetApi extends BaseApi {
     Pet pet,
     AddPetOptions? options,
   ) async {
-    final Authenticator? auth = options?.auth;
+    final Authenticator? auth = schemeAuthenticator(const [
+      'petStoreBearer',
+      'apiKeyHeader',
+    ]);
 
     var path = '/pet';
 
@@ -369,7 +390,7 @@ class PetApi extends BaseApi {
   }
 
   /// Record a treatment for a pet
-  /// `options` options carrying an optional per-call authenticator
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<PetTreatment> addPetTreatment(
     int petId,
     PetTreatment petTreatment,
@@ -404,7 +425,10 @@ class PetApi extends BaseApi {
     PetTreatment petTreatment,
     AddPetTreatmentOptions? options,
   ) async {
-    final Authenticator? auth = options?.auth;
+    final Authenticator? auth = schemeAuthenticator(const [
+      'petStoreBasic',
+      'petStoreBearer',
+    ]);
 
     var path = '/pet/{petId}/treatment';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -458,7 +482,7 @@ class PetApi extends BaseApi {
   /// Deletes a pet
   /// `petId` Pet id to delete
   /// `apiKey` Session cookie used for authentication
-  /// `options` options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+  /// `options` options for query, header, form, and cookie parameters
   Future<void> deletePet(int petId, DeletePetOptions? options) async {
     await deletePetWithHttpInfo(petId, options);
   }
@@ -468,7 +492,10 @@ class PetApi extends BaseApi {
     int petId,
     DeletePetOptions? options,
   ) async {
-    final Authenticator? auth = options?.auth;
+    final Authenticator? auth = schemeAuthenticator(const [
+      'machineAuth',
+      'adminBasic',
+    ]);
 
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -546,8 +573,17 @@ class PetApi extends BaseApi {
 
   /// Download a vet document
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
-  Future<Uint8List> downloadPetDocument(int petId, int documentId) async {
-    final result = await downloadPetDocumentWithHttpInfo(petId, documentId);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Uint8List> downloadPetDocument(
+    int petId,
+    int documentId,
+    DownloadPetDocumentOptions? options,
+  ) async {
+    final result = await downloadPetDocumentWithHttpInfo(
+      petId,
+      documentId,
+      options,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -570,6 +606,7 @@ class PetApi extends BaseApi {
   Future<ApiResult<Uint8List>> downloadPetDocumentWithHttpInfo(
     int petId,
     int documentId,
+    DownloadPetDocumentOptions? options,
   ) async {
     var path = '/pet/{petId}/documents/{documentId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -632,14 +669,21 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Uint8List',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
       deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
 
   /// List pets born on a given date
   /// `bornOn` Date of birth to match
-  Future<List<Pet>> findPetsBornOn(DateTime bornOn) async {
-    final result = await findPetsBornOnWithHttpInfo(bornOn);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<List<Pet>> findPetsBornOn(
+    DateTime bornOn,
+    FindPetsBornOnOptions? options,
+  ) async {
+    final result = await findPetsBornOnWithHttpInfo(bornOn, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -661,6 +705,7 @@ class PetApi extends BaseApi {
   /// Performs the findPetsBornOn operation and returns the full API result.
   Future<ApiResult<List<Pet>>> findPetsBornOnWithHttpInfo(
     DateTime bornOn,
+    FindPetsBornOnOptions? options,
   ) async {
     var path = '/pet/born-on/{bornOn}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -702,6 +747,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Pet>',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
     );
@@ -834,11 +882,13 @@ class PetApi extends BaseApi {
   }
 
   /// Get external pet info
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<Pet> getExternalPetInfo(
     int petId,
     GetExternalPetInfoServer? server,
+    GetExternalPetInfoOptions? options,
   ) async {
-    final result = await getExternalPetInfoWithHttpInfo(petId, server);
+    final result = await getExternalPetInfoWithHttpInfo(petId, server, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -861,6 +911,7 @@ class PetApi extends BaseApi {
   Future<ApiResult<Pet>> getExternalPetInfoWithHttpInfo(
     int petId,
     GetExternalPetInfoServer? server,
+    GetExternalPetInfoOptions? options,
   ) async {
     var path = '/pet/{petId}/external';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -908,17 +959,26 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
 
   /// Get multi-server pet info
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<Pet> getMultiServerPetInfo(
     int petId,
     GetMultiServerPetInfoServer? server,
+    GetMultiServerPetInfoOptions? options,
   ) async {
-    final result = await getMultiServerPetInfoWithHttpInfo(petId, server);
+    final result = await getMultiServerPetInfoWithHttpInfo(
+      petId,
+      server,
+      options,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -941,6 +1001,7 @@ class PetApi extends BaseApi {
   Future<ApiResult<Pet>> getMultiServerPetInfoWithHttpInfo(
     int petId,
     GetMultiServerPetInfoServer? server,
+    GetMultiServerPetInfoOptions? options,
   ) async {
     var path = '/pet/{petId}/multi';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -988,6 +1049,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
@@ -995,8 +1059,12 @@ class PetApi extends BaseApi {
 
   /// Get the pet's profile photo
   /// Returns the raw image bytes of the pet's current avatar.
-  Future<Uint8List> getPetAvatar(int petId) async {
-    final result = await getPetAvatarWithHttpInfo(petId);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Uint8List> getPetAvatar(
+    int petId,
+    GetPetAvatarOptions? options,
+  ) async {
+    final result = await getPetAvatarWithHttpInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1015,7 +1083,10 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
-  Future<ApiResult<Uint8List>> getPetAvatarWithHttpInfo(int petId) async {
+  Future<ApiResult<Uint8List>> getPetAvatarWithHttpInfo(
+    int petId,
+    GetPetAvatarOptions? options,
+  ) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -1056,14 +1127,21 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Uint8List',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
       deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
 
   /// Get the pet's avatar thumbnail as base64
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
-  Future<Uint8List> getPetAvatarThumbnail(int petId) async {
-    final result = await getPetAvatarThumbnailWithHttpInfo(petId);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Uint8List> getPetAvatarThumbnail(
+    int petId,
+    GetPetAvatarThumbnailOptions? options,
+  ) async {
+    final result = await getPetAvatarThumbnailWithHttpInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1085,6 +1163,7 @@ class PetApi extends BaseApi {
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
   Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHttpInfo(
     int petId,
+    GetPetAvatarThumbnailOptions? options,
   ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -1126,6 +1205,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Uint8List',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
       deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
@@ -1133,6 +1215,7 @@ class PetApi extends BaseApi {
   /// Find pet by ID
   /// Returns a single pet
   /// `petId` ID of pet to return
+  /// `options` options carrying the per-call timeout, headers and retry budget
   /// ### `petId` — Small breed ID
   /// A common small-breed pet identifier
   /// ```json
@@ -1144,8 +1227,12 @@ class PetApi extends BaseApi {
   /// 42
   /// ```
   @Deprecated('This operation is deprecated.')
-  Future<Pet> getPetById(int petId, GetPetByIdServer? server) async {
-    final result = await getPetByIdWithHttpInfo(petId, server);
+  Future<Pet> getPetById(
+    int petId,
+    GetPetByIdServer? server,
+    GetPetByIdOptions? options,
+  ) async {
+    final result = await getPetByIdWithHttpInfo(petId, server, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1168,6 +1255,7 @@ class PetApi extends BaseApi {
   Future<ApiResult<Pet>> getPetByIdWithHttpInfo(
     int petId,
     GetPetByIdServer? server,
+    GetPetByIdOptions? options,
   ) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -1215,6 +1303,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
@@ -1333,8 +1424,12 @@ class PetApi extends BaseApi {
 
   /// Get the pet's passport
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
-  Future<PetPassport> getPetPassport(int petId) async {
-    final result = await getPetPassportWithHttpInfo(petId);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<PetPassport> getPetPassport(
+    int petId,
+    GetPetPassportOptions? options,
+  ) async {
+    final result = await getPetPassportWithHttpInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1354,7 +1449,10 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
-  Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(int petId) async {
+  Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(
+    int petId,
+    GetPetPassportOptions? options,
+  ) async {
     var path = '/pet/{petId}/passport';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -1395,6 +1493,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'PetPassport',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserialize(body, PetPassport.fromJson) as PetPassport,
@@ -1403,8 +1504,13 @@ class PetApi extends BaseApi {
 
   /// Get a photo or its metadata
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
-  Future<Uint8List> getPetPhoto(int petId, int photoId) async {
-    final result = await getPetPhotoWithHttpInfo(petId, photoId);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Uint8List> getPetPhoto(
+    int petId,
+    int photoId,
+    GetPetPhotoOptions? options,
+  ) async {
+    final result = await getPetPhotoWithHttpInfo(petId, photoId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1426,6 +1532,7 @@ class PetApi extends BaseApi {
   Future<ApiResult<Uint8List>> getPetPhotoWithHttpInfo(
     int petId,
     int photoId,
+    GetPetPhotoOptions? options,
   ) async {
     var path = '/pet/{petId}/photos/{photoId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -1488,6 +1595,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Uint8List',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
       deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
@@ -1867,11 +1977,13 @@ class PetApi extends BaseApi {
   }
 
   /// Get staging pet info
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<Pet> getStagingPetInfo(
     int petId,
     GetStagingPetInfoServer? server,
+    GetStagingPetInfoOptions? options,
   ) async {
-    final result = await getStagingPetInfoWithHttpInfo(petId, server);
+    final result = await getStagingPetInfoWithHttpInfo(petId, server, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1894,6 +2006,7 @@ class PetApi extends BaseApi {
   Future<ApiResult<Pet>> getStagingPetInfoWithHttpInfo(
     int petId,
     GetStagingPetInfoServer? server,
+    GetStagingPetInfoOptions? options,
   ) async {
     var path = '/pet/{petId}/staging';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -1941,6 +2054,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
@@ -1948,18 +2064,21 @@ class PetApi extends BaseApi {
 
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<void> setPetAvatar(
     int petId,
-    Uint8List body, [
+    Uint8List body,
+    SetPetAvatarOptions? options, [
     String? requestContentType,
   ]) async {
-    await setPetAvatarWithHttpInfo(petId, body, requestContentType);
+    await setPetAvatarWithHttpInfo(petId, body, options, requestContentType);
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
   Future<ApiResult<void>> setPetAvatarWithHttpInfo(
     int petId,
-    Uint8List body, [
+    Uint8List body,
+    SetPetAvatarOptions? options, [
     String? requestContentType,
   ]) async {
     var path = '/pet/{petId}/avatar';
@@ -2013,18 +2132,24 @@ class PetApi extends BaseApi {
       returnType: '',
       rawBody: true,
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
     );
   }
 
   /// Set the pet's avatar thumbnail as base64
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<void> setPetAvatarThumbnail(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+    SetPetAvatarThumbnailOptions? options,
   ) async {
     await setPetAvatarThumbnailWithHttpInfo(
       petId,
       setPetAvatarThumbnailRequest,
+      options,
     );
   }
 
@@ -2032,6 +2157,7 @@ class PetApi extends BaseApi {
   Future<ApiResult<void>> setPetAvatarThumbnailWithHttpInfo(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+    SetPetAvatarThumbnailOptions? options,
   ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -2073,6 +2199,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
     );
   }
 
@@ -2192,8 +2321,9 @@ class PetApi extends BaseApi {
   /// Update an existing pet
   /// `petId` ID of pet to update
   /// `pet` Pet object that needs to be updated
-  Future<Pet> updatePet(int petId, Pet pet) async {
-    final result = await updatePetWithHttpInfo(petId, pet);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Pet> updatePet(int petId, Pet pet, UpdatePetOptions? options) async {
+    final result = await updatePetWithHttpInfo(petId, pet, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -2212,7 +2342,11 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the updatePet operation and returns the full API result.
-  Future<ApiResult<Pet>> updatePetWithHttpInfo(int petId, Pet pet) async {
+  Future<ApiResult<Pet>> updatePetWithHttpInfo(
+    int petId,
+    Pet pet,
+    UpdatePetOptions? options,
+  ) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -2253,6 +2387,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
