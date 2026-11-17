@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-func TestNewCallSettings_NoOptionsLeavesEverythingToTheClient(t *testing.T) {
+func TestRequestOption_NewCallSettings_NoOptionsLeavesEverythingToTheClient(t *testing.T) {
 	t.Parallel()
 	settings, err := newCallSettings(nil)
 	if err != nil {
@@ -26,7 +26,7 @@ func TestNewCallSettings_NoOptionsLeavesEverythingToTheClient(t *testing.T) {
 	}
 }
 
-func TestNewCallSettings_AppliesEveryOption(t *testing.T) {
+func TestRequestOption_NewCallSettings_AppliesEveryOption(t *testing.T) {
 	t.Parallel()
 	settings, err := newCallSettings([]RequestOption{
 		WithTimeout(1500 * time.Millisecond),
@@ -51,7 +51,7 @@ func TestNewCallSettings_AppliesEveryOption(t *testing.T) {
 	}
 }
 
-func TestNewCallSettings_ALaterOptionOfTheSameKindWins(t *testing.T) {
+func TestRequestOption_NewCallSettings_ALaterOptionOfTheSameKindWins(t *testing.T) {
 	t.Parallel()
 	settings, err := newCallSettings([]RequestOption{
 		WithTimeout(time.Second),
@@ -71,7 +71,7 @@ func TestNewCallSettings_ALaterOptionOfTheSameKindWins(t *testing.T) {
 	}
 }
 
-func TestWithHeaders_CopiesTheMapWhenTheOptionIsBuilt(t *testing.T) {
+func TestRequestOption_WithHeaders_CopiesTheMapWhenTheOptionIsBuilt(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{"X-One": "1"}
 	option := WithHeaders(headers)
@@ -86,7 +86,7 @@ func TestWithHeaders_CopiesTheMapWhenTheOptionIsBuilt(t *testing.T) {
 	}
 }
 
-func TestNewCallSettings_RejectsAnInvalidTimeout(t *testing.T) {
+func TestRequestOption_NewCallSettings_RejectsAnInvalidTimeout(t *testing.T) {
 	t.Parallel()
 	for _, timeout := range []time.Duration{0, -time.Second, time.Microsecond} {
 		if _, err := newCallSettings([]RequestOption{WithTimeout(timeout)}); !errors.Is(err, ErrInvalidTimeout) {
@@ -95,14 +95,14 @@ func TestNewCallSettings_RejectsAnInvalidTimeout(t *testing.T) {
 	}
 }
 
-func TestNewCallSettings_RejectsANegativeRetryLimit(t *testing.T) {
+func TestRequestOption_NewCallSettings_RejectsANegativeRetryLimit(t *testing.T) {
 	t.Parallel()
 	if _, err := newCallSettings([]RequestOption{WithMaxRetries(-1)}); !errors.Is(err, ErrInvalidMaxRetries) {
 		t.Errorf("expected ErrInvalidMaxRetries, got %v", err)
 	}
 }
 
-func TestNewCallSettings_ReportsTheFirstInvalidOption(t *testing.T) {
+func TestRequestOption_NewCallSettings_ReportsTheFirstInvalidOption(t *testing.T) {
 	t.Parallel()
 	_, err := newCallSettings([]RequestOption{WithMaxRetries(-1), WithTimeout(0)})
 	if !errors.Is(err, ErrInvalidMaxRetries) || errors.Is(err, ErrInvalidTimeout) {

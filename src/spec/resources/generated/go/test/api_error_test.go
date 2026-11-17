@@ -46,10 +46,10 @@ var (
 	_ apierrors.OpenAPIError = (*apierrors.OAuth2ServerError)(nil)
 )
 
-// TestForeignError_DoesNotSatisfyOpenAPIError confirms the brand is exclusive:
+// TestApiError_ForeignError_DoesNotSatisfyOpenAPIError confirms the brand is exclusive:
 // an arbitrary error, even one wrapping nothing SDK-shaped, must not match
 // OpenAPIError, or errors.As against the brand would tell a caller nothing.
-func TestForeignError_DoesNotSatisfyOpenAPIError(t *testing.T) {
+func TestApiError_ForeignError_DoesNotSatisfyOpenAPIError(t *testing.T) {
 	t.Parallel()
 	for _, err := range []error{errors.New("boom"), fmt.Errorf("wrapped: %w", errors.New("boom"))} {
 		if _, ok := err.(OpenAPIErrorBrand); ok {
@@ -65,9 +65,9 @@ func TestForeignError_DoesNotSatisfyOpenAPIError(t *testing.T) {
 // OpenAPIErrorBrand aliases the brand so the type assertion above reads as one.
 type OpenAPIErrorBrand = apierrors.OpenAPIError
 
-// TestNetworkErrors_AreApiErrorsWithStatusZero confirms the transport errors
+// TestApiError_NetworkErrors_AreApiErrorsWithStatusZero confirms the transport errors
 // carry status 0, keep their cause and satisfy the brand.
-func TestNetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
+func TestApiError_NetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
 	t.Parallel()
 	cause := errors.New("connection refused")
 	var netErr error = apierrors.NewNetworkError("request failed", cause)
@@ -101,10 +101,10 @@ func TestNetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
 	}
 }
 
-// TestTypedErrors_MatchTheirParentsViaErrorsAs confirms the hierarchy reads the
+// TestApiError_TypedErrors_MatchTheirParentsViaErrorsAs confirms the hierarchy reads the
 // same as in the other SDKs: a *NotFoundError is a *ClientError and an
 // *ApiError, and an *InternalServerError is a *ServerError and an *ApiError.
-func TestTypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
+func TestApiError_TypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
 	t.Parallel()
 	notFound := apierrors.FromResponse(404, nil, "")
 	if _, ok := notFound.(*apierrors.NotFoundError); !ok {
@@ -341,11 +341,11 @@ func TestApiError_FieldsAreImmutable(t *testing.T) {
 	}
 }
 
-// TestFromResponse_MapsEveryStatusToItsType confirms the public status factory
+// TestApiError_FromResponse_MapsEveryStatusToItsType confirms the public status factory
 // that every generated operation and the OpenID Connect discovery request use
 // builds the most specific type for each status, and keeps the status, headers
 // and body on the embedded ApiError.
-func TestFromResponse_MapsEveryStatusToItsType(t *testing.T) {
+func TestApiError_FromResponse_MapsEveryStatusToItsType(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		status int
@@ -395,9 +395,9 @@ func TestFromResponse_MapsEveryStatusToItsType(t *testing.T) {
 	}
 }
 
-// TestPackageRoot_ReexportsTheErrorTree confirms every error type can be named
+// TestApiError_PackageRoot_ReexportsTheErrorTree confirms every error type can be named
 // from the package root as well as from the errors package.
-func TestPackageRoot_ReexportsTheErrorTree(t *testing.T) {
+func TestApiError_PackageRoot_ReexportsTheErrorTree(t *testing.T) {
 	t.Parallel()
 	var (
 		_ petstore.OpenAPIError = (*petstore.ApiError)(nil)
@@ -449,12 +449,12 @@ func TestApiError_SatisfiesOpenAPIError(t *testing.T) {
 	}
 }
 
-// TestTypedError_SatisfiesOpenAPIErrorAndApiError confirms a typed 4xx/5xx error
+// TestApiError_TypedError_SatisfiesOpenAPIErrorAndApiError confirms a typed 4xx/5xx error
 // is matchable as OpenAPIError and as the specific typed error through
 // errors.As, and — because it embeds ApiError — promotes the ApiError getters.
 // This preserves how consumers currently narrow typed errors while adding the
 // branded root.
-func TestTypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
+func TestApiError_TypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
 	t.Parallel()
 	err := apierrors.FromResponse(404, nil, `{"k":"v"}`)
 
@@ -480,10 +480,10 @@ func TestTypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
 	}
 }
 
-// TestSerializationError_SatisfiesOpenAPIErrorAndKeepsCause confirms
+// TestApiError_SerializationError_SatisfiesOpenAPIErrorAndKeepsCause confirms
 // *SerializationError is declared beside the rest of the hierarchy, satisfies
 // the brand, is re-exported by the main package and keeps its cause.
-func TestSerializationError_SatisfiesOpenAPIErrorAndKeepsCause(t *testing.T) {
+func TestApiError_SerializationError_SatisfiesOpenAPIErrorAndKeepsCause(t *testing.T) {
 	t.Parallel()
 	cause := errors.New("unexpected end of JSON input")
 	var err error = apierrors.NewSerializationError("failed to decode", cause)
@@ -600,7 +600,7 @@ func TestApiError_ErrorCapsTheBodyEscapesControlsAndMasksSecretHeaders(t *testin
 // FromResponse keeps whatever JSON the server sent as the error body, scalars
 // and a leading byte order mark included, and never fails on a body it cannot
 // parse: the raw body is still retained.
-func TestFromResponse_ParsesScalarAndBomPrefixedBodies(t *testing.T) {
+func TestApiError_FromResponse_ParsesScalarAndBomPrefixedBodies(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string

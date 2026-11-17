@@ -186,7 +186,7 @@ type keyEmitter interface {
 // Each per-scheme wrapper fixes the key name and the location its security
 // scheme declares: the key is emitted there and nowhere else, an empty key is
 // refused up front, and the printed form names the wrapper and masks the key.
-func TestApiKeyWrappers_EmitTheKeyWhereTheirSchemeDeclaresIt(t *testing.T) {
+func TestApiKeyAuthenticator_ApiKeyWrappers_EmitTheKeyWhereTheirSchemeDeclaresIt(t *testing.T) {
 	t.Parallel()
 	const host = "https://api.example.com"
 	none := map[string]string{}

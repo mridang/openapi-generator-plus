@@ -13,7 +13,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func TestInjectTraceContext_NoOpWithoutTracer(t *testing.T) {
+func TestTraceContextUtil_NoOpWithoutTracer(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"X-Existing": "value",
@@ -28,7 +28,7 @@ func TestInjectTraceContext_NoOpWithoutTracer(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_EmptyHeadersDoNotCauseException(t *testing.T) {
+func TestTraceContextUtil_EmptyHeadersDoNotCauseException(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
@@ -36,7 +36,7 @@ func TestInjectTraceContext_EmptyHeadersDoNotCauseException(t *testing.T) {
 	InjectTraceContext(headers)
 }
 
-func TestInjectTraceContext_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
+func TestTraceContextUtil_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
@@ -47,7 +47,7 @@ func TestInjectTraceContext_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
+func TestTraceContextUtil_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
@@ -58,7 +58,7 @@ func TestInjectTraceContext_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_PreservesAuthorizationHeader(t *testing.T) {
+func TestTraceContextUtil_PreservesAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"Authorization": "Bearer token123",
@@ -71,7 +71,7 @@ func TestInjectTraceContext_PreservesAuthorizationHeader(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_PreservesContentTypeHeader(t *testing.T) {
+func TestTraceContextUtil_PreservesContentTypeHeader(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -84,7 +84,7 @@ func TestInjectTraceContext_PreservesContentTypeHeader(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_PreservesXRequestIdHeader(t *testing.T) {
+func TestTraceContextUtil_PreservesXRequestIdHeader(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"X-Request-ID": "req-12345",
@@ -97,7 +97,7 @@ func TestInjectTraceContext_PreservesXRequestIdHeader(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_PreservesAllExistingHeaders(t *testing.T) {
+func TestTraceContextUtil_PreservesAllExistingHeaders(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"Authorization": "Bearer token",
@@ -121,7 +121,7 @@ func TestInjectTraceContext_PreservesAllExistingHeaders(t *testing.T) {
 // Registering and clearing the propagator while requests inject trace context
 // is race-free: the suite runs with -race, which fails on an unsynchronised
 // global.
-func TestSetTraceContextPropagator_ConcurrentSetAndInjectIsRaceFree(t *testing.T) {
+func TestTraceContextUtil_ConcurrentSetAndInjectIsRaceFree(t *testing.T) {
 	t.Cleanup(func() { SetTraceContextPropagator(nil) })
 	var wg sync.WaitGroup
 	for i := 0; i < 4; i++ {
@@ -145,11 +145,11 @@ func TestSetTraceContextPropagator_ConcurrentSetAndInjectIsRaceFree(t *testing.T
 	wg.Wait()
 }
 
-// TestSetTraceContextPropagator_RegisteredPropagatorIsUsed confirms the hook
+// TestTraceContextUtil_RegisteredPropagatorIsUsed confirms the hook
 // the doc example tells a caller to register is public and actually used: an
 // unreachable or ignored hook would mean trace context is never injected. The
 // propagator is package state, so this test does not run in parallel.
-func TestSetTraceContextPropagator_RegisteredPropagatorIsUsed(t *testing.T) {
+func TestTraceContextUtil_RegisteredPropagatorIsUsed(t *testing.T) {
 	const traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 	SetTraceContextPropagator(func(_ context.Context, headers map[string]string) {
 		headers["traceparent"] = traceparent
@@ -205,7 +205,7 @@ func remoteParent(t *testing.T, state string) context.Context {
 	return trace.ContextWithRemoteSpanContext(context.Background(), parent)
 }
 
-func TestInjectTraceContext_InjectsTraceparentWhenSpanActive(t *testing.T) {
+func TestTraceContextUtil_InjectsTraceparentWhenSpanActive(t *testing.T) {
 	span, exporter := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
 	headers := map[string]string{}
 
@@ -222,7 +222,7 @@ func TestInjectTraceContext_InjectsTraceparentWhenSpanActive(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_IncludesTracestateWhenPresent(t *testing.T) {
+func TestTraceContextUtil_IncludesTracestateWhenPresent(t *testing.T) {
 	span, _ := withActiveSpan(t, remoteParent(t, "vendor=value"), sdktrace.AlwaysSample())
 	defer span.End()
 	headers := map[string]string{}
@@ -234,7 +234,7 @@ func TestInjectTraceContext_IncludesTracestateWhenPresent(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_OmitsTracestateWhenEmpty(t *testing.T) {
+func TestTraceContextUtil_OmitsTracestateWhenEmpty(t *testing.T) {
 	span, _ := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
 	defer span.End()
 	headers := map[string]string{}
@@ -249,7 +249,7 @@ func TestInjectTraceContext_OmitsTracestateWhenEmpty(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_FormatsTraceFlagsCorrectly(t *testing.T) {
+func TestTraceContextUtil_FormatsTraceFlagsCorrectly(t *testing.T) {
 	for _, tc := range []struct {
 		sampler sdktrace.Sampler
 		flags   string

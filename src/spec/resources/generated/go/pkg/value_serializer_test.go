@@ -21,7 +21,7 @@ import (
 // An optional integer, number or boolean parameter is a pointer in the Options
 // struct; the query, header and cookie paths must send its value, not the
 // pointer address.
-func TestSerializeStyled_OptionalScalarPointersSendTheirValue(t *testing.T) {
+func TestValueSerializer_SerializeStyled_OptionalScalarPointersSendTheirValue(t *testing.T) {
 	t.Parallel()
 	limit := int64(5)
 	ratio := 1.5
@@ -53,7 +53,7 @@ func TestSerializeStyled_OptionalScalarPointersSendTheirValue(t *testing.T) {
 
 // ── SerializeValue by location ──
 
-func TestSerializeValue_QueryString(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryString(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("hello", "query", "string", "")
 	if result != "hello" {
@@ -61,7 +61,7 @@ func TestSerializeValue_QueryString(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_PathString(t *testing.T) {
+func TestValueSerializer_SerializeValue_PathString(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("hello world", "path", "string", "")
 	str, ok := result.(string)
@@ -73,7 +73,7 @@ func TestSerializeValue_PathString(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_PathStringAsIs(t *testing.T) {
+func TestValueSerializer_SerializeValue_PathStringAsIs(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("hello", "path", "string", "")
 	if result != "hello" {
@@ -81,7 +81,7 @@ func TestSerializeValue_PathStringAsIs(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_PathStringSlash(t *testing.T) {
+func TestValueSerializer_SerializeValue_PathStringSlash(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a/b", "path", "string", "")
 	if result != "a%2Fb" {
@@ -89,7 +89,7 @@ func TestSerializeValue_PathStringSlash(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_PathInteger(t *testing.T) {
+func TestValueSerializer_SerializeValue_PathInteger(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(42, "path", "integer", "")
 	if result != "42" {
@@ -97,7 +97,7 @@ func TestSerializeValue_PathInteger(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_PathBooleanTrue(t *testing.T) {
+func TestValueSerializer_SerializeValue_PathBooleanTrue(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(true, "path", "boolean", "")
 	if result != "true" {
@@ -105,7 +105,7 @@ func TestSerializeValue_PathBooleanTrue(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_PathBooleanFalse(t *testing.T) {
+func TestValueSerializer_SerializeValue_PathBooleanFalse(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(false, "path", "boolean", "")
 	if result != "false" {
@@ -113,7 +113,7 @@ func TestSerializeValue_PathBooleanFalse(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_HeaderString(t *testing.T) {
+func TestValueSerializer_SerializeValue_HeaderString(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("hello", "header", "string", "")
 	if result != "hello" {
@@ -121,7 +121,7 @@ func TestSerializeValue_HeaderString(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_CookieString(t *testing.T) {
+func TestValueSerializer_SerializeValue_CookieString(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("hello", "cookie", "string", "")
 	if result != "hello" {
@@ -129,7 +129,7 @@ func TestSerializeValue_CookieString(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_CookieNull(t *testing.T) {
+func TestValueSerializer_SerializeValue_CookieNull(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(nil, "cookie", "string", "")
 	if result != "" {
@@ -137,7 +137,7 @@ func TestSerializeValue_CookieNull(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_NilQuery(t *testing.T) {
+func TestValueSerializer_SerializeValue_NilQuery(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(nil, "query", "string", "")
 	if result != nil {
@@ -145,7 +145,7 @@ func TestSerializeValue_NilQuery(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_NilPath(t *testing.T) {
+func TestValueSerializer_SerializeValue_NilPath(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(nil, "path", "string", "")
 	if result != "" {
@@ -153,7 +153,7 @@ func TestSerializeValue_NilPath(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryInteger(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryInteger(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(42, "query", "integer", "")
 	if result != "42" {
@@ -161,7 +161,7 @@ func TestSerializeValue_QueryInteger(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryBooleanTrue(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryBooleanTrue(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(true, "query", "boolean", "")
 	if result != "true" {
@@ -169,7 +169,7 @@ func TestSerializeValue_QueryBooleanTrue(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryBooleanFalse(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryBooleanFalse(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(false, "query", "boolean", "")
 	if result != "false" {
@@ -177,7 +177,7 @@ func TestSerializeValue_QueryBooleanFalse(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryArray(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryArray(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{"a", "b", "c"}, "query", "array", "csv")
 	if result != "a,b,c" {
@@ -185,7 +185,7 @@ func TestSerializeValue_QueryArray(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryArraySsv(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryArraySsv(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{"a", "b", "c"}, "query", "array", "ssv")
 	if result != "a b c" {
@@ -193,7 +193,7 @@ func TestSerializeValue_QueryArraySsv(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryArrayTsv(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryArrayTsv(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{"a", "b", "c"}, "query", "array", "tsv")
 	if result != "a\tb\tc" {
@@ -201,7 +201,7 @@ func TestSerializeValue_QueryArrayTsv(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryArrayPipes(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryArrayPipes(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{"a", "b", "c"}, "query", "array", "pipes")
 	if result != "a|b|c" {
@@ -209,7 +209,7 @@ func TestSerializeValue_QueryArrayPipes(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryEmptyArrayCsv(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryEmptyArrayCsv(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{}, "query", "array", "csv")
 	if result != "" {
@@ -217,7 +217,7 @@ func TestSerializeValue_QueryEmptyArrayCsv(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryEmptyArrayMulti(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryEmptyArrayMulti(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{}, "query", "array", "multi")
 	items, ok := result.([]string)
@@ -229,7 +229,7 @@ func TestSerializeValue_QueryEmptyArrayMulti(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QuerySingleElementArray(t *testing.T) {
+func TestValueSerializer_SerializeValue_QuerySingleElementArray(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{"a"}, "query", "array", "csv")
 	if result != "a" {
@@ -237,7 +237,7 @@ func TestSerializeValue_QuerySingleElementArray(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryIntegerArray(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryIntegerArray(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]any{1, 2, 3}, "query", "array", "csv")
 	if result != "1,2,3" {
@@ -245,7 +245,7 @@ func TestSerializeValue_QueryIntegerArray(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryBooleanArray(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryBooleanArray(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]any{true, false}, "query", "array", "csv")
 	if result != "true,false" {
@@ -253,7 +253,7 @@ func TestSerializeValue_QueryBooleanArray(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_QueryArrayMulti(t *testing.T) {
+func TestValueSerializer_SerializeValue_QueryArrayMulti(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{"a", "b"}, "query", "array", "multi")
 	items, ok := result.([]string)
@@ -265,7 +265,7 @@ func TestSerializeValue_QueryArrayMulti(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_HeaderNull(t *testing.T) {
+func TestValueSerializer_SerializeValue_HeaderNull(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(nil, "header", "string", "")
 	if result != "" {
@@ -273,7 +273,7 @@ func TestSerializeValue_HeaderNull(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_HeaderInteger(t *testing.T) {
+func TestValueSerializer_SerializeValue_HeaderInteger(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(42, "header", "integer", "")
 	if result != "42" {
@@ -281,7 +281,7 @@ func TestSerializeValue_HeaderInteger(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_HeaderBooleanTrue(t *testing.T) {
+func TestValueSerializer_SerializeValue_HeaderBooleanTrue(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(true, "header", "boolean", "")
 	if result != "true" {
@@ -289,7 +289,7 @@ func TestSerializeValue_HeaderBooleanTrue(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_HeaderArray(t *testing.T) {
+func TestValueSerializer_SerializeValue_HeaderArray(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{"a", "b", "c"}, "header", "array", "")
 	if result != "a,b,c" {
@@ -297,7 +297,7 @@ func TestSerializeValue_HeaderArray(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_HeaderEmptyArray(t *testing.T) {
+func TestValueSerializer_SerializeValue_HeaderEmptyArray(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{}, "header", "array", "")
 	if result != "" {
@@ -305,7 +305,7 @@ func TestSerializeValue_HeaderEmptyArray(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_HeaderIntegerArray(t *testing.T) {
+func TestValueSerializer_SerializeValue_HeaderIntegerArray(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]any{1, 2, 3}, "header", "array", "")
 	if result != "1,2,3" {
@@ -313,7 +313,7 @@ func TestSerializeValue_HeaderIntegerArray(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_FormNull(t *testing.T) {
+func TestValueSerializer_SerializeValue_FormNull(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(nil, "form", "string", "")
 	if result != "" {
@@ -321,7 +321,7 @@ func TestSerializeValue_FormNull(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_FormString(t *testing.T) {
+func TestValueSerializer_SerializeValue_FormString(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("hello", "form", "string", "")
 	if result != "hello" {
@@ -329,7 +329,7 @@ func TestSerializeValue_FormString(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_FormInteger(t *testing.T) {
+func TestValueSerializer_SerializeValue_FormInteger(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(42, "form", "integer", "")
 	if result != "42" {
@@ -337,7 +337,7 @@ func TestSerializeValue_FormInteger(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_FormBooleanTrue(t *testing.T) {
+func TestValueSerializer_SerializeValue_FormBooleanTrue(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(true, "form", "boolean", "")
 	if result != "true" {
@@ -345,7 +345,7 @@ func TestSerializeValue_FormBooleanTrue(t *testing.T) {
 	}
 }
 
-func TestSerializeValue_FormBooleanFalse(t *testing.T) {
+func TestValueSerializer_SerializeValue_FormBooleanFalse(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(false, "form", "boolean", "")
 	if result != "false" {
@@ -355,7 +355,7 @@ func TestSerializeValue_FormBooleanFalse(t *testing.T) {
 
 // ── SerializeStyled: matrix ──
 
-func TestSerializeStyled_MatrixScalar(t *testing.T) {
+func TestValueSerializer_SerializeStyled_MatrixScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "5", "path", "string", "", "matrix", false)
 	if result != ";id=5" {
@@ -363,7 +363,7 @@ func TestSerializeStyled_MatrixScalar(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_MatrixArrayNoExplode(t *testing.T) {
+func TestValueSerializer_SerializeStyled_MatrixArrayNoExplode(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green", "blue"}, "path", "array", "", "matrix", false)
 	if result != ";color=red,green,blue" {
@@ -371,7 +371,7 @@ func TestSerializeStyled_MatrixArrayNoExplode(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_MatrixArrayExplode(t *testing.T) {
+func TestValueSerializer_SerializeStyled_MatrixArrayExplode(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green", "blue"}, "path", "array", "", "matrix", true)
 	if result != ";color=red;color=green;color=blue" {
@@ -379,7 +379,7 @@ func TestSerializeStyled_MatrixArrayExplode(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_MatrixNil(t *testing.T) {
+func TestValueSerializer_SerializeStyled_MatrixNil(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", nil, "path", "string", "", "matrix", false)
 	if result != "" {
@@ -389,7 +389,7 @@ func TestSerializeStyled_MatrixNil(t *testing.T) {
 
 // ── SerializeStyled: label ──
 
-func TestSerializeStyled_LabelScalar(t *testing.T) {
+func TestValueSerializer_SerializeStyled_LabelScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "5", "path", "string", "", "label", false)
 	if result != ".5" {
@@ -397,7 +397,7 @@ func TestSerializeStyled_LabelScalar(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_LabelArrayNoExplode(t *testing.T) {
+func TestValueSerializer_SerializeStyled_LabelArrayNoExplode(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green"}, "path", "array", "", "label", false)
 	if result != ".red,green" {
@@ -405,7 +405,7 @@ func TestSerializeStyled_LabelArrayNoExplode(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_LabelArrayExplode(t *testing.T) {
+func TestValueSerializer_SerializeStyled_LabelArrayExplode(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green"}, "path", "array", "", "label", true)
 	if result != ".red.green" {
@@ -413,7 +413,7 @@ func TestSerializeStyled_LabelArrayExplode(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_LabelNil(t *testing.T) {
+func TestValueSerializer_SerializeStyled_LabelNil(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", nil, "path", "string", "", "label", true)
 	if result != "" {
@@ -423,7 +423,7 @@ func TestSerializeStyled_LabelNil(t *testing.T) {
 
 // ── SerializeStyled: simple ──
 
-func TestSerializeStyled_SimpleScalar(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SimpleScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "5", "path", "string", "", "simple", false)
 	if result != "5" {
@@ -431,7 +431,7 @@ func TestSerializeStyled_SimpleScalar(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_SimpleArray(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SimpleArray(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green"}, "path", "array", "", "simple", false)
 	if result != "red,green" {
@@ -439,7 +439,7 @@ func TestSerializeStyled_SimpleArray(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_SimpleNil(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SimpleNil(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", nil, "path", "string", "", "simple", false)
 	if result != "" {
@@ -447,7 +447,7 @@ func TestSerializeStyled_SimpleNil(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_SimpleScalarPathEncodesValue(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SimpleScalarPathEncodesValue(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "hello world", "path", "string", "", "simple", false)
 	if result != "hello%20world" {
@@ -459,7 +459,7 @@ func TestSerializeStyled_SimpleScalarPathEncodesValue(t *testing.T) {
 // %2F so it cannot inject extra path segments. This is asserted both for the
 // simple style and for the no-style (empty) path, since api/api.mustache routes
 // every path param through SerializeStyled.
-func TestSerializeStyled_SimpleScalarPathEncodesSlash(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SimpleScalarPathEncodesSlash(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "a/b", "path", "string", "", "simple", false)
 	if result != "a%2Fb" {
@@ -467,7 +467,7 @@ func TestSerializeStyled_SimpleScalarPathEncodesSlash(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
+func TestValueSerializer_SerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "a/b", "path", "string", "", "", false)
 	if result != "a%2Fb" {
@@ -477,7 +477,7 @@ func TestSerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
 
 // ── SerializeStyled: form ──
 
-func TestSerializeStyled_FormScalar(t *testing.T) {
+func TestValueSerializer_SerializeStyled_FormScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "blue", "query", "string", "", "form", true)
 	if result != "blue" {
@@ -485,7 +485,7 @@ func TestSerializeStyled_FormScalar(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_FormArrayExplode(t *testing.T) {
+func TestValueSerializer_SerializeStyled_FormArrayExplode(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green"}, "query", "array", "", "form", true)
 	items, ok := result.([]string)
@@ -497,7 +497,7 @@ func TestSerializeStyled_FormArrayExplode(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_FormArrayNoExplode(t *testing.T) {
+func TestValueSerializer_SerializeStyled_FormArrayNoExplode(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green"}, "query", "array", "", "form", false)
 	if result != "red,green" {
@@ -505,7 +505,7 @@ func TestSerializeStyled_FormArrayNoExplode(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_FormScalarExplodeTrueReturnsString(t *testing.T) {
+func TestValueSerializer_SerializeStyled_FormScalarExplodeTrueReturnsString(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "blue", "query", "string", "", "form", true)
 	str, ok := result.(string)
@@ -517,7 +517,7 @@ func TestSerializeStyled_FormScalarExplodeTrueReturnsString(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_FormSingleElementArrayExplodeTrueReturnsList(t *testing.T) {
+func TestValueSerializer_SerializeStyled_FormSingleElementArrayExplodeTrueReturnsList(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"blue"}, "query", "array", "", "form", true)
 	items, ok := result.([]string)
@@ -529,7 +529,7 @@ func TestSerializeStyled_FormSingleElementArrayExplodeTrueReturnsList(t *testing
 	}
 }
 
-func TestSerializeStyled_FormNilQuery(t *testing.T) {
+func TestValueSerializer_SerializeStyled_FormNilQuery(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", nil, "query", "string", "", "form", true)
 	if result != nil {
@@ -539,7 +539,7 @@ func TestSerializeStyled_FormNilQuery(t *testing.T) {
 
 // ── SerializeStyled: spaceDelimited ──
 
-func TestSerializeStyled_SpaceDelimitedArray(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SpaceDelimitedArray(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "spaceDelimited", false)
 	if result != "red green blue" {
@@ -547,7 +547,7 @@ func TestSerializeStyled_SpaceDelimitedArray(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_SpaceDelimitedArrayExplode(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SpaceDelimitedArrayExplode(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "spaceDelimited", true)
 	items, ok := result.([]string)
@@ -559,7 +559,7 @@ func TestSerializeStyled_SpaceDelimitedArrayExplode(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_SpaceDelimitedScalar(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SpaceDelimitedScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "red", "query", "string", "", "spaceDelimited", false)
 	if result != "red" {
@@ -569,7 +569,7 @@ func TestSerializeStyled_SpaceDelimitedScalar(t *testing.T) {
 
 // ── SerializeStyled: pipeDelimited ──
 
-func TestSerializeStyled_PipeDelimitedArray(t *testing.T) {
+func TestValueSerializer_SerializeStyled_PipeDelimitedArray(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "pipeDelimited", false)
 	if result != "red|green|blue" {
@@ -577,7 +577,7 @@ func TestSerializeStyled_PipeDelimitedArray(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_PipeDelimitedArrayExplode(t *testing.T) {
+func TestValueSerializer_SerializeStyled_PipeDelimitedArrayExplode(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "pipeDelimited", true)
 	items, ok := result.([]string)
@@ -589,7 +589,7 @@ func TestSerializeStyled_PipeDelimitedArrayExplode(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_PipeDelimitedScalar(t *testing.T) {
+func TestValueSerializer_SerializeStyled_PipeDelimitedScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "red", "query", "string", "", "pipeDelimited", false)
 	if result != "red" {
@@ -611,7 +611,7 @@ func TestSerializeStyled_PipeDelimitedScalar(t *testing.T) {
 // reflection path is exercised without importing the models package.
 type myColorEnum string
 
-func TestSerializeStyled_PipeDelimitedPointerToSlice(t *testing.T) {
+func TestValueSerializer_SerializeStyled_PipeDelimitedPointerToSlice(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	// *[]string is the shape of an OPTIONAL array query param.
@@ -624,7 +624,7 @@ func TestSerializeStyled_PipeDelimitedPointerToSlice(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_SpaceDelimitedPointerToSlice(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SpaceDelimitedPointerToSlice(t *testing.T) {
 	t.Parallel()
 	sizes := []string{"S", "M"}
 	result := serializeStyled("sizes", &sizes, "query", "array", "ssv", "spaceDelimited", false)
@@ -633,7 +633,7 @@ func TestSerializeStyled_SpaceDelimitedPointerToSlice(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_FormExplodePointerToSliceReturnsList(t *testing.T) {
+func TestValueSerializer_SerializeStyled_FormExplodePointerToSliceReturnsList(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	result := serializeStyled("colors", &colors, "query", "array", "", "form", true)
@@ -646,7 +646,7 @@ func TestSerializeStyled_FormExplodePointerToSliceReturnsList(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_FormTypedEnumSlice(t *testing.T) {
+func TestValueSerializer_SerializeStyled_FormTypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	colors := []myColorEnum{"blue", "black"}
 	// A slice of a named element type must reflect per-element, not %v the slice.
@@ -656,7 +656,7 @@ func TestSerializeStyled_FormTypedEnumSlice(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_PipeDelimitedPointerToTypedEnumSlice(t *testing.T) {
+func TestValueSerializer_SerializeStyled_PipeDelimitedPointerToTypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	colors := []myColorEnum{"blue", "black"}
 	// *[]EnumType — optional array of a named enum: both deref and per-element
@@ -667,7 +667,7 @@ func TestSerializeStyled_PipeDelimitedPointerToTypedEnumSlice(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_SimpleHeaderPointerToSlice(t *testing.T) {
+func TestValueSerializer_SerializeStyled_SimpleHeaderPointerToSlice(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	// Optional array HEADER param: simple style, comma-joined.
@@ -677,7 +677,7 @@ func TestSerializeStyled_SimpleHeaderPointerToSlice(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_PathPointerToSliceArray(t *testing.T) {
+func TestValueSerializer_SerializeStyled_PathPointerToSliceArray(t *testing.T) {
 	t.Parallel()
 	colors := []string{"red", "green"}
 	// Styled path-array branch must also dereference the pointer and encode
@@ -692,7 +692,7 @@ func TestSerializeStyled_PathPointerToSliceArray(t *testing.T) {
 // pointer-to-slice and a typed slice as arrays, and report nil pointers as
 // non-arrays so the caller omits the param rather than emitting a bogus value.
 
-func TestToStringSlice_PointerToSlice(t *testing.T) {
+func TestValueSerializer_ToStringSlice_PointerToSlice(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	items, ok := toStringSlice(&colors)
@@ -704,7 +704,7 @@ func TestToStringSlice_PointerToSlice(t *testing.T) {
 	}
 }
 
-func TestToStringSlice_NilPointerIsNotArray(t *testing.T) {
+func TestValueSerializer_ToStringSlice_NilPointerIsNotArray(t *testing.T) {
 	t.Parallel()
 	var colors *[]string
 	if _, ok := toStringSlice(colors); ok {
@@ -712,7 +712,7 @@ func TestToStringSlice_NilPointerIsNotArray(t *testing.T) {
 	}
 }
 
-func TestToStringSlice_TypedEnumSlice(t *testing.T) {
+func TestValueSerializer_ToStringSlice_TypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	items, ok := toStringSlice([]myColorEnum{"blue", "black"})
 	if !ok {
@@ -725,7 +725,7 @@ func TestToStringSlice_TypedEnumSlice(t *testing.T) {
 
 // ── SerializeDeepObject ──
 
-func TestSerializeDeepObject(t *testing.T) {
+func TestValueSerializer_SerializeDeepObject(t *testing.T) {
 	t.Parallel()
 	result := serializeDeepObject("filter", map[string]any{
 		"status": "active",
@@ -740,7 +740,7 @@ func TestSerializeDeepObject(t *testing.T) {
 	}
 }
 
-func TestSerializeDeepObject_Nil(t *testing.T) {
+func TestValueSerializer_SerializeDeepObject_Nil(t *testing.T) {
 	t.Parallel()
 	result := serializeDeepObject("filter", nil)
 	if len(result) != 0 {
@@ -750,7 +750,7 @@ func TestSerializeDeepObject_Nil(t *testing.T) {
 
 // ── SerializeStyled: fallback to SerializeValue for unknown style ──
 
-func TestSerializeStyled_UnknownStyleFallback(t *testing.T) {
+func TestValueSerializer_SerializeStyled_UnknownStyleFallback(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "5", "query", "string", "", "unknownStyle", false)
 	if result != "5" {
@@ -760,7 +760,7 @@ func TestSerializeStyled_UnknownStyleFallback(t *testing.T) {
 
 // ── SerializeStyled: empty style delegates to SerializeValue ──
 
-func TestSerializeStyled_EmptyStyle(t *testing.T) {
+func TestValueSerializer_SerializeStyled_EmptyStyle(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "5", "query", "string", "", "", false)
 	if result != "5" {
@@ -772,7 +772,7 @@ func TestSerializeStyled_EmptyStyle(t *testing.T) {
 // Cross-language parity tests for path-segment percent-encoding.
 // Every SDK must produce identical encoded strings for these inputs.
 
-func TestPathEncodingParity_AsciiSafePassThrough(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_AsciiSafePassThrough(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("abc123", "path", "string", "")
 	if result != "abc123" {
@@ -780,7 +780,7 @@ func TestPathEncodingParity_AsciiSafePassThrough(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_SpaceEncoded(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_SpaceEncoded(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a b", "path", "string", "")
 	if result != "a%20b" {
@@ -788,7 +788,7 @@ func TestPathEncodingParity_SpaceEncoded(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_SlashEncoded(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_SlashEncoded(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a/b", "path", "string", "")
 	if result != "a%2Fb" {
@@ -796,7 +796,7 @@ func TestPathEncodingParity_SlashEncoded(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_QuestionMarkEncoded(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_QuestionMarkEncoded(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a?b", "path", "string", "")
 	if result != "a%3Fb" {
@@ -804,7 +804,7 @@ func TestPathEncodingParity_QuestionMarkEncoded(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_HashEncoded(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_HashEncoded(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a#b", "path", "string", "")
 	if result != "a%23b" {
@@ -812,7 +812,7 @@ func TestPathEncodingParity_HashEncoded(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_CommaPreserved(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_CommaPreserved(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a,b", "path", "string", "")
 	if result != "a,b" {
@@ -820,7 +820,7 @@ func TestPathEncodingParity_CommaPreserved(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_ColonPreserved(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_ColonPreserved(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a:b", "path", "string", "")
 	if result != "a:b" {
@@ -828,7 +828,7 @@ func TestPathEncodingParity_ColonPreserved(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_PlusPreserved(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_PlusPreserved(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a+b", "path", "string", "")
 	if result != "a+b" {
@@ -836,7 +836,7 @@ func TestPathEncodingParity_PlusPreserved(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_UnicodeEncoded(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_UnicodeEncoded(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("日本", "path", "string", "")
 	if result != "%E6%97%A5%E6%9C%AC" {
@@ -844,7 +844,7 @@ func TestPathEncodingParity_UnicodeEncoded(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_EmptyStringPreserved(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_EmptyStringPreserved(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("", "path", "string", "")
 	if result != "" {
@@ -852,7 +852,7 @@ func TestPathEncodingParity_EmptyStringPreserved(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_NullReturnsEmpty(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_NullReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(nil, "path", "string", "")
 	if result != "" {
@@ -860,7 +860,7 @@ func TestPathEncodingParity_NullReturnsEmpty(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_SimpleStyleEncodesValue(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_SimpleStyleEncodesValue(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "a b", "path", "string", "", "simple", false)
 	if result != "a%20b" {
@@ -868,7 +868,7 @@ func TestPathEncodingParity_SimpleStyleEncodesValue(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_SimpleStyleArrayEncodesEachItem(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_SimpleStyleArrayEncodesEachItem(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", []string{"a b", "c?d"}, "path", "array", "", "simple", false)
 	if result != "a%20b,c%3Fd" {
@@ -894,7 +894,7 @@ func TestValueSerializer_PathArrayItemWithReservedCharIsPercentEncoded(t *testin
 	}
 }
 
-func TestPathEncodingParity_MatrixStyleEncodesValue(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_MatrixStyleEncodesValue(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "a b", "path", "string", "", "matrix", false)
 	if result != ";color=a%20b" {
@@ -902,7 +902,7 @@ func TestPathEncodingParity_MatrixStyleEncodesValue(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_LabelStyleEncodesValue(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_LabelStyleEncodesValue(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "a b", "path", "string", "", "label", false)
 	if result != ".a%20b" {
@@ -910,7 +910,7 @@ func TestPathEncodingParity_LabelStyleEncodesValue(t *testing.T) {
 	}
 }
 
-func TestPathEncodingParity_QueryLocationNotPathEncoded(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_QueryLocationNotPathEncoded(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "a b", "query", "string", "", "form", false)
 	if result != "a b" {
@@ -918,7 +918,7 @@ func TestPathEncodingParity_QueryLocationNotPathEncoded(t *testing.T) {
 	}
 }
 
-func TestEmptyStringPathParamIsMissingRequiredParameter(t *testing.T) {
+func TestValueSerializer_EmptyStringPathParamIsMissingRequiredParameter(t *testing.T) {
 	t.Parallel()
 	// Gap W — empty-string path values silently produce malformed
 	// URLs like `/resource//details`; reject them before the request is
@@ -941,7 +941,7 @@ func TestEmptyStringPathParamIsMissingRequiredParameter(t *testing.T) {
 	}
 }
 
-func TestDotSegmentPathParamIsInvalidPathParameter(t *testing.T) {
+func TestValueSerializer_DotSegmentPathParamIsInvalidPathParameter(t *testing.T) {
 	t.Parallel()
 	type label string
 	for _, value := range []any{".", "..", label("..")} {
@@ -968,7 +968,7 @@ func TestDotSegmentPathParamIsInvalidPathParameter(t *testing.T) {
 // ISO+offset string, mismatching the 6 SDKs (Java/Kotlin/C#/Python/
 // Ruby/Elixir) with native LocalDate types.
 
-func TestFormatDatePathParam_TimeReturnsDateOnly(t *testing.T) {
+func TestValueSerializer_FormatDatePathParam_TimeReturnsDateOnly(t *testing.T) {
 	t.Parallel()
 	when := time.Date(2024, time.January, 15, 14, 30, 45, 0, time.UTC)
 	if got := stringifyDate(when); got != "2024-01-15" {
@@ -976,14 +976,14 @@ func TestFormatDatePathParam_TimeReturnsDateOnly(t *testing.T) {
 	}
 }
 
-func TestFormatDatePathParam_StringPassesThrough(t *testing.T) {
+func TestValueSerializer_FormatDatePathParam_StringPassesThrough(t *testing.T) {
 	t.Parallel()
 	if got := stringifyDate("2024-01-15"); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
 	}
 }
 
-func TestFormatDatePathParam_MidnightUtcReturnsDateOnly(t *testing.T) {
+func TestValueSerializer_FormatDatePathParam_MidnightUtcReturnsDateOnly(t *testing.T) {
 	t.Parallel()
 	// UTC/midnight edge: a time.Time at exactly midnight UTC must still emit
 	// the bare date with no time/offset suffix, matching Node/Swift/Dart.
@@ -993,7 +993,7 @@ func TestFormatDatePathParam_MidnightUtcReturnsDateOnly(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_PathEncodedExactlyOnce(t *testing.T) {
+func TestValueSerializer_SerializeStyled_PathEncodedExactlyOnce(t *testing.T) {
 	t.Parallel()
 	// path-double-encoding: SerializeStyled already percent-encodes the path
 	// segment, so the api template must NOT wrap it again. A space must become
@@ -1016,7 +1016,7 @@ func TestSerializeStyled_PathEncodedExactlyOnce(t *testing.T) {
 
 // ── allowReserved query encoding ──
 
-func TestEncodeQueryAllowingReserved_ReservedCharsPreserved(t *testing.T) {
+func TestValueSerializer_EncodeQueryAllowingReserved_ReservedCharsPreserved(t *testing.T) {
 	t.Parallel()
 	// OAS allowReserved: true — RFC 3986 reserved characters go on the wire
 	// literal, so a version string keeps its "." "/" and ":" unescaped.
@@ -1030,7 +1030,7 @@ func TestEncodeQueryAllowingReserved_ReservedCharsPreserved(t *testing.T) {
 	}
 }
 
-func TestEncodeQueryAllowingReserved_EncodesFragmentAndBrackets(t *testing.T) {
+func TestValueSerializer_EncodeQueryAllowingReserved_EncodesFragmentAndBrackets(t *testing.T) {
 	t.Parallel()
 	got := encodeQueryAllowingReserved("a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u")
 	want := "a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u"
@@ -1039,7 +1039,7 @@ func TestEncodeQueryAllowingReserved_EncodesFragmentAndBrackets(t *testing.T) {
 	}
 }
 
-func TestMaybeAllowReserved_WrapsOnlyWhenAllowReserved(t *testing.T) {
+func TestValueSerializer_MaybeAllowReserved_WrapsOnlyWhenAllowReserved(t *testing.T) {
 	t.Parallel()
 	// allowReserved false leaves the value unchanged.
 	if got := maybeAllowReserved("plain", false); got != "plain" {
@@ -1062,7 +1062,7 @@ func TestMaybeAllowReserved_WrapsOnlyWhenAllowReserved(t *testing.T) {
 // Every sub-delimiter and the unreserved tilde stay literal in a path segment,
 // each one a separate entry in the encoder's restore list; a character dropped
 // from that list would silently start to be percent-encoded.
-func TestPathEncodingParity_SubDelimitersAndTildeStayLiteral(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_SubDelimitersAndTildeStayLiteral(t *testing.T) {
 	t.Parallel()
 	for _, c := range []string{";", "=", ",", ":", "@", "!", "$", "&", "'", "(", ")", "*", "+", "~"} {
 		value := "a" + c + "b"
@@ -1074,7 +1074,7 @@ func TestPathEncodingParity_SubDelimitersAndTildeStayLiteral(t *testing.T) {
 
 // An already percent-encoded value is encoded again, not trusted: the percent
 // sign itself is escaped, so the receiver decodes back the exact input.
-func TestPathEncodingParity_PercentSignIsEncoded(t *testing.T) {
+func TestValueSerializer_PathEncodingParity_PercentSignIsEncoded(t *testing.T) {
 	t.Parallel()
 	result := serializeValue("a%20b", "path", "string", "")
 	if result != "a%2520b" {
@@ -1091,7 +1091,7 @@ type styledCriteria struct {
 
 // D47/F1143: an object-valued parameter is encoded property by property, in the
 // model's declaration order, whatever its wire names (min_age is snake case).
-func TestSerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
+func TestValueSerializer_SerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
 	t.Parallel()
 	breed := "lab"
 	minAge := int32(3)
@@ -1122,14 +1122,14 @@ func TestSerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_ObjectWithNoSetPropertiesIsOmittedFromTheQuery(t *testing.T) {
+func TestValueSerializer_SerializeStyled_ObjectWithNoSetPropertiesIsOmittedFromTheQuery(t *testing.T) {
 	t.Parallel()
 	if got := serializeStyled("criteria", &styledCriteria{}, "query", "styledCriteria", "", "form", true); got != nil {
 		t.Errorf("expected the parameter to be omitted, got %v", got)
 	}
 }
 
-func TestSerializeDeepObject_ModelBecomesBracketedKeys(t *testing.T) {
+func TestValueSerializer_SerializeDeepObject_ModelBecomesBracketedKeys(t *testing.T) {
 	t.Parallel()
 	breed := "lab"
 	minAge := int32(3)

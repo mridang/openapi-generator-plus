@@ -19,7 +19,7 @@ import (
 
 // ── oneOf with discriminator: PetFood ──
 
-func TestPetFood_DeserializeDryFood(t *testing.T) {
+func TestComposedSchema_PetFood_DeserializeDryFood(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"foodType":"dry","weightKg":2.5}`)
 
@@ -38,7 +38,7 @@ func TestPetFood_DeserializeDryFood(t *testing.T) {
 	}
 }
 
-func TestPetFood_DeserializeWetFood(t *testing.T) {
+func TestComposedSchema_PetFood_DeserializeWetFood(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"foodType":"wet","volumeMl":400}`)
 
@@ -57,7 +57,7 @@ func TestPetFood_DeserializeWetFood(t *testing.T) {
 	}
 }
 
-func TestPetFood_DeserializeUnknownDiscriminator(t *testing.T) {
+func TestComposedSchema_PetFood_DeserializeUnknownDiscriminator(t *testing.T) {
 	t.Parallel()
 	// Gap AU: SDK now throws on unknown discriminator values for parity
 	// with the other 11 SDKs. Previously this test asserted silent nil.
@@ -73,7 +73,7 @@ func TestPetFood_DeserializeUnknownDiscriminator(t *testing.T) {
 	}
 }
 
-func TestPetFood_DeserializeMissingDiscriminator(t *testing.T) {
+func TestComposedSchema_PetFood_DeserializeMissingDiscriminator(t *testing.T) {
 	t.Parallel()
 	// A payload omitting the discriminator field entirely cannot route to any
 	// variant; UnmarshalJSON surfaces an error rather than leaving the union
@@ -90,7 +90,7 @@ func TestPetFood_DeserializeMissingDiscriminator(t *testing.T) {
 	}
 }
 
-func TestPetFood_DeserializeEmptyDiscriminator(t *testing.T) {
+func TestComposedSchema_PetFood_DeserializeEmptyDiscriminator(t *testing.T) {
 	t.Parallel()
 	// An empty discriminator value matches no listed variant and must error
 	// rather than silently leaving the union nil.
@@ -103,7 +103,7 @@ func TestPetFood_DeserializeEmptyDiscriminator(t *testing.T) {
 	}
 }
 
-func TestPetFood_UnknownDiscriminatorErrorNamesValue(t *testing.T) {
+func TestComposedSchema_PetFood_UnknownDiscriminatorErrorNamesValue(t *testing.T) {
 	t.Parallel()
 	// CS4: the error message must surface the offending discriminator value
 	// so callers can diagnose server/spec drift.
@@ -119,7 +119,7 @@ func TestPetFood_UnknownDiscriminatorErrorNamesValue(t *testing.T) {
 	}
 }
 
-func TestPetFood_SerializeDryFood(t *testing.T) {
+func TestComposedSchema_PetFood_SerializeDryFood(t *testing.T) {
 	t.Parallel()
 	food := models.PetFood{}
 	// Manually set via deserialization first
@@ -142,7 +142,7 @@ func TestPetFood_SerializeDryFood(t *testing.T) {
 	}
 }
 
-func TestPetFood_ConstructedFromAPointerStoresTheVariantByValue(t *testing.T) {
+func TestComposedSchema_PetFood_ConstructedFromAPointerStoresTheVariantByValue(t *testing.T) {
 	t.Parallel()
 	food := models.NewPetFood(models.NewDryFood(2.5))
 
@@ -151,7 +151,7 @@ func TestPetFood_ConstructedFromAPointerStoresTheVariantByValue(t *testing.T) {
 	}
 }
 
-func TestPetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
+func TestComposedSchema_PetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
 	t.Parallel()
 	food := models.NewPetFood(*models.NewDryFood(2.5))
 
@@ -170,7 +170,7 @@ func TestPetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
 	}
 }
 
-func TestPetFood_DiscriminatorKeyMatchesCaseSensitively(t *testing.T) {
+func TestComposedSchema_PetFood_DiscriminatorKeyMatchesCaseSensitively(t *testing.T) {
 	t.Parallel()
 	var food models.PetFood
 	err := json.Unmarshal([]byte(`{"FOODTYPE":"dry","weightKg":2.5}`), &food)
@@ -181,7 +181,7 @@ func TestPetFood_DiscriminatorKeyMatchesCaseSensitively(t *testing.T) {
 
 // ── anyOf without discriminator: PetTreatment ──
 
-func TestPetTreatment_DeserializeMedication(t *testing.T) {
+func TestComposedSchema_PetTreatment_DeserializeMedication(t *testing.T) {
 	t.Parallel()
 	// Single-variant payload: only the Medication variant validates, so only
 	// it is retained and no other variant is kept.
@@ -205,7 +205,7 @@ func TestPetTreatment_DeserializeMedication(t *testing.T) {
 	}
 }
 
-func TestPetTreatment_DeserializeSurgery(t *testing.T) {
+func TestComposedSchema_PetTreatment_DeserializeSurgery(t *testing.T) {
 	t.Parallel()
 	// Single-variant payload: only the Surgery variant validates (the Medication
 	// variant requires drugName, which is absent), so only Surgery is retained.
@@ -229,12 +229,12 @@ func TestPetTreatment_DeserializeSurgery(t *testing.T) {
 	}
 }
 
-// TestPetTreatment_RetainsAllMatchingVariantsLosslessly pins the retain-all
+// TestComposedSchema_PetTreatment_RetainsAllMatchingVariantsLosslessly pins the retain-all
 // contract for a non-discriminated anyOf. PetTreatment is documented as matching
 // a medication, a surgery, OR BOTH. A payload that satisfies BOTH variants at
 // once must keep the fields of EVERY matched variant (not just the first), and
 // must re-serialize to the UNION of all retained fields with no silent drop.
-func TestPetTreatment_RetainsAllMatchingVariantsLosslessly(t *testing.T) {
+func TestComposedSchema_PetTreatment_RetainsAllMatchingVariantsLosslessly(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}`)
 
@@ -299,7 +299,7 @@ func TestPetTreatment_RetainsAllMatchingVariantsLosslessly(t *testing.T) {
 // PetTreatment retains both members with DIFFERENT `notes` values, the merged
 // encoding must keep the LAST-declared member's value (Surgery) and emit `notes`
 // exactly once — never a duplicate JSON key.
-func TestPetTreatment_SharedPropertyCollisionLastWins(t *testing.T) {
+func TestComposedSchema_PetTreatment_SharedPropertyCollisionLastWins(t *testing.T) {
 	t.Parallel()
 	medNotes := "from-medication"
 	surgNotes := "from-surgery"
@@ -330,7 +330,7 @@ func TestPetTreatment_SharedPropertyCollisionLastWins(t *testing.T) {
 // TreatmentRecord declares its variants as Surgery then Medication, the reverse
 // of alphabetical order: the variants are tried, and kept, in declaration order,
 // and on a shared property the later declared variant (Medication) wins.
-func TestTreatmentRecord_TriesVariantsInDeclarationOrder(t *testing.T) {
+func TestComposedSchema_TreatmentRecord_TriesVariantsInDeclarationOrder(t *testing.T) {
 	t.Parallel()
 	var record models.TreatmentRecord
 	if err := json.Unmarshal([]byte(`{"drugName":"Amoxicillin","procedureName":"Spay"}`), &record); err != nil {
@@ -348,7 +348,7 @@ func TestTreatmentRecord_TriesVariantsInDeclarationOrder(t *testing.T) {
 	}
 }
 
-func TestTreatmentRecord_SharedPropertyCollisionLaterDeclaredWins(t *testing.T) {
+func TestComposedSchema_TreatmentRecord_SharedPropertyCollisionLaterDeclaredWins(t *testing.T) {
 	t.Parallel()
 	surgNotes := "from-surgery"
 	medNotes := "from-medication"
@@ -372,7 +372,7 @@ func TestTreatmentRecord_SharedPropertyCollisionLaterDeclaredWins(t *testing.T) 
 	}
 }
 
-func TestPetTreatment_NoMatchThrows(t *testing.T) {
+func TestComposedSchema_PetTreatment_NoMatchThrows(t *testing.T) {
 	t.Parallel()
 	// oneof-nondiscriminator-no-match-silent: a payload matching neither
 	// Medication nor Surgery must surface as an error rather than silently
@@ -386,7 +386,7 @@ func TestPetTreatment_NoMatchThrows(t *testing.T) {
 	}
 }
 
-func TestPetTreatment_SerializeRoundTrip(t *testing.T) {
+func TestComposedSchema_PetTreatment_SerializeRoundTrip(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`)
 
@@ -406,7 +406,7 @@ func TestPetTreatment_SerializeRoundTrip(t *testing.T) {
 
 // ── allOf: PetWithOwner extends Pet fields ──
 
-func TestPetWithOwner_Deserialize(t *testing.T) {
+func TestComposedSchema_PetWithOwner_Deserialize(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{
 		"name": "Fido",
@@ -422,7 +422,7 @@ func TestPetWithOwner_Deserialize(t *testing.T) {
 	}
 }
 
-func TestPetWithOwner_Serialize(t *testing.T) {
+func TestComposedSchema_PetWithOwner_Serialize(t *testing.T) {
 	t.Parallel()
 	pet := models.NewPetWithOwner("Fido", []string{"http://example.com/fido.jpg"}, "John Doe")
 
@@ -446,7 +446,7 @@ func TestPetWithOwner_Serialize(t *testing.T) {
 	}
 }
 
-func TestPetWithOwner_RoundTrip(t *testing.T) {
+func TestComposedSchema_PetWithOwner_RoundTrip(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{
 		"name": "Buddy",
@@ -481,7 +481,7 @@ func TestPetWithOwner_RoundTrip(t *testing.T) {
 // reaches the wire. These tests pin that contract and the scalar-vs-array
 // decode ordering.
 
-func TestSetPetAvatarThumbnailRequest_ByteOneOfRoundTripsThroughBase64(t *testing.T) {
+func TestComposedSchema_SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64(t *testing.T) {
 	t.Parallel()
 
 	// (1) Scalar variant: a base64 STRING on the wire decodes to the scalar
@@ -546,7 +546,7 @@ func TestSetPetAvatarThumbnailRequest_ByteOneOfRoundTripsThroughBase64(t *testin
 	}
 }
 
-func TestSetPetAvatarThumbnailRequest_ConstructedFromVariantsSerializes(t *testing.T) {
+func TestComposedSchema_SetPetAvatarThumbnailRequest_ConstructedFromVariantsSerializes(t *testing.T) {
 	t.Parallel()
 
 	scalar := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02, 0x03, 0x04})
@@ -571,7 +571,7 @@ func TestSetPetAvatarThumbnailRequest_ConstructedFromVariantsSerializes(t *testi
 // The variants are declared [byte, array-of-byte]; an empty JSON array decodes
 // into both Go types, so the first declared variant (the scalar []byte) must win
 // rather than the alphabetically first one.
-func TestSetPetAvatarThumbnailRequest_AmbiguousPayloadResolvesToFirstDeclaredVariant(t *testing.T) {
+func TestComposedSchema_SetPetAvatarThumbnailRequest_AmbiguousPayloadResolvesToFirstDeclaredVariant(t *testing.T) {
 	t.Parallel()
 
 	var request models.SetPetAvatarThumbnailRequest
@@ -583,7 +583,7 @@ func TestSetPetAvatarThumbnailRequest_AmbiguousPayloadResolvesToFirstDeclaredVar
 	}
 }
 
-func TestSetPetAvatarThumbnailRequest_EqualComparesByValue(t *testing.T) {
+func TestComposedSchema_SetPetAvatarThumbnailRequest_EqualComparesByValue(t *testing.T) {
 	t.Parallel()
 
 	a := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
@@ -597,7 +597,7 @@ func TestSetPetAvatarThumbnailRequest_EqualComparesByValue(t *testing.T) {
 	}
 }
 
-func TestPetTreatment_EqualComparesByValue(t *testing.T) {
+func TestComposedSchema_PetTreatment_EqualComparesByValue(t *testing.T) {
 	t.Parallel()
 
 	a := models.NewPetTreatment(models.Medication{DrugName: "Amoxicillin"})
@@ -611,7 +611,7 @@ func TestPetTreatment_EqualComparesByValue(t *testing.T) {
 	}
 }
 
-func TestDryFood_AbsentDiscriminatorPropertyIsFilledWithItsDefault(t *testing.T) {
+func TestComposedSchema_DryFood_AbsentDiscriminatorPropertyIsFilledWithItsDefault(t *testing.T) {
 	t.Parallel()
 	var food models.DryFood
 	if err := json.Unmarshal([]byte(`{"weightKg":2.5}`), &food); err != nil {
@@ -622,7 +622,7 @@ func TestDryFood_AbsentDiscriminatorPropertyIsFilledWithItsDefault(t *testing.T)
 	}
 }
 
-func TestDryFood_NullDiscriminatorPropertyIsStillRejected(t *testing.T) {
+func TestComposedSchema_DryFood_NullDiscriminatorPropertyIsStillRejected(t *testing.T) {
 	t.Parallel()
 	var food models.DryFood
 	if err := json.Unmarshal([]byte(`{"foodType":null,"weightKg":2.5}`), &food); err == nil {
@@ -632,7 +632,7 @@ func TestDryFood_NullDiscriminatorPropertyIsStillRejected(t *testing.T) {
 
 // ── Typed variant constructors and accessors ──
 
-func TestPetFood_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
+func TestComposedSchema_PetFood_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
 	t.Parallel()
 	food := models.NewDryFoodPetFood(*models.NewDryFood(2.5))
 
@@ -655,7 +655,7 @@ func TestPetFood_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
 	}
 }
 
-func TestPetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
+func TestComposedSchema_PetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
 	t.Parallel()
 	for name, food := range map[string]models.PetFood{
 		"foreign value": models.NewPetFood("kibble"),
@@ -667,7 +667,7 @@ func TestPetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
 	}
 }
 
-func TestPetTreatment_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
+func TestComposedSchema_PetTreatment_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
 	t.Parallel()
 	drug := "Amoxicillin"
 	treatment := models.NewMedicationPetTreatment(models.Medication{DrugName: drug})
@@ -684,7 +684,7 @@ func TestPetTreatment_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
 	}
 }
 
-func TestPetTreatment_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
+func TestComposedSchema_PetTreatment_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
 	t.Parallel()
 	treatment := models.NewPetTreatment("rest")
 	if _, err := json.Marshal(treatment); err == nil || !strings.Contains(err.Error(), "is not a variant of PetTreatment") {
@@ -692,7 +692,7 @@ func TestPetTreatment_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
 	}
 }
 
-func TestSetPetAvatarThumbnailRequest_TypedConstructorsNameTheirVariants(t *testing.T) {
+func TestComposedSchema_SetPetAvatarThumbnailRequest_TypedConstructorsNameTheirVariants(t *testing.T) {
 	t.Parallel()
 	scalar := models.NewByteSliceSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
 	if !scalar.IsByteSlice() || scalar.IsByteSliceSlice() {
@@ -706,7 +706,7 @@ func TestSetPetAvatarThumbnailRequest_TypedConstructorsNameTheirVariants(t *test
 
 // ── Models are immutable: a With method returns a copy ──
 
-func TestModel_WithReturnsACopyAndLeavesTheReceiverAlone(t *testing.T) {
+func TestComposedSchema_Model_WithReturnsACopyAndLeavesTheReceiverAlone(t *testing.T) {
 	t.Parallel()
 	original := models.DryFood{FoodType: "dry", WeightKg: 2.5}
 	changed := original.WithWeightKg(3)
@@ -719,7 +719,7 @@ func TestModel_WithReturnsACopyAndLeavesTheReceiverAlone(t *testing.T) {
 	}
 }
 
-func TestModel_WithAndWithoutSetAndClearAnOptionalField(t *testing.T) {
+func TestComposedSchema_Model_WithAndWithoutSetAndClearAnOptionalField(t *testing.T) {
 	t.Parallel()
 	original := models.Medication{DrugName: "Amoxicillin"}
 	with := original.WithDosage("250mg")

@@ -636,7 +636,7 @@ func TestDefaultApiClient_SendsMultipartFormData(t *testing.T) {
  * number, boolean, JSON, binary), not just the binary path. Confirm that
  * sending a multipart form whose String-valued field name contains CR/LF
  * fails end-to-end at SendRequest, not just at the helper. */
-func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
+func TestDefaultApiClient_Multipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
 	t.Parallel()
 	client := NewDefaultApiClient(nil)
 	badFields := map[string]any{
@@ -1304,7 +1304,7 @@ func TestDefaultApiClient_CustomHttpDoerReceivesTheRequest(t *testing.T) {
 	}
 }
 
-func TestTransportOptionsBuilder_SuppliedTransportConflictsWithSdkProxyAndTlsSettings(t *testing.T) {
+func TestDefaultApiClient_TransportOptionsBuilder_SuppliedTransportConflictsWithSdkProxyAndTlsSettings(t *testing.T) {
 	t.Parallel()
 	cases := map[string]*TransportOptionsBuilder{
 		"proxy":         NewTransportOptionsBuilder().HttpClient(&recordingDoer{}).Proxy("http://proxy:3128"),
