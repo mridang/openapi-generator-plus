@@ -74,6 +74,50 @@ public class PetTreatment : IEquatable<PetTreatment>
         MatchedInstances = matchedInstances;
     }
 
+    /// <summary>Wraps a <c>Medication</c> value as this union.</summary>
+    /// <param name="value">The variant value.</param>
+    /// <returns>A union holding <paramref name="value"/>.</returns>
+    public static PetTreatment FromMedication(Medication value)
+    {
+        return new PetTreatment(value);
+    }
+
+    /// <summary>Whether a retained variant is a <c>Medication</c>.</summary>
+    /// <returns>True when one is.</returns>
+    public bool IsMedication()
+    {
+        return MatchedInstances.Any(instance => instance is Medication);
+    }
+
+    /// <summary>The first retained variant that is a <c>Medication</c>.</summary>
+    /// <returns>The variant, or null when no retained variant is one.</returns>
+    public Medication? AsMedication()
+    {
+        return MatchedInstances.OfType<Medication>().FirstOrDefault();
+    }
+
+    /// <summary>Wraps a <c>Surgery</c> value as this union.</summary>
+    /// <param name="value">The variant value.</param>
+    /// <returns>A union holding <paramref name="value"/>.</returns>
+    public static PetTreatment FromSurgery(Surgery value)
+    {
+        return new PetTreatment(value);
+    }
+
+    /// <summary>Whether a retained variant is a <c>Surgery</c>.</summary>
+    /// <returns>True when one is.</returns>
+    public bool IsSurgery()
+    {
+        return MatchedInstances.Any(instance => instance is Surgery);
+    }
+
+    /// <summary>The first retained variant that is a <c>Surgery</c>.</summary>
+    /// <returns>The variant, or null when no retained variant is one.</returns>
+    public Surgery? AsSurgery()
+    {
+        return MatchedInstances.OfType<Surgery>().FirstOrDefault();
+    }
+
     private sealed class PetTreatmentConverter : JsonConverter<PetTreatment>
     {
         public override PetTreatment? Read(

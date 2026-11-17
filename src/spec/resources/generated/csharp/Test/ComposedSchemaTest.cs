@@ -278,6 +278,19 @@ public class ComposedSchemaTest
         Assert.Null(Record.Exception(() => SetPetAvatarThumbnailRequest.FromByte(null!)));
     }
 
+    [Fact]
+    public void AnAnyOfTypedFactoryWrapsAVariantAndTheAccessorsReadItBack()
+    {
+        var medication = new Medication { DrugName = "Amoxicillin", Dosage = "500mg" };
+
+        var union = PetTreatment.FromMedication(medication);
+
+        Assert.True(union.IsMedication());
+        Assert.False(union.IsSurgery());
+        Assert.Same(medication, union.AsMedication());
+        Assert.Null(union.AsSurgery());
+    }
+
     // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
 
     [Fact]
