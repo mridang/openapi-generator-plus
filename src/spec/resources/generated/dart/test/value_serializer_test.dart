@@ -742,6 +742,25 @@ void main() {
       expect(items, equals(['red']));
     });
 
+    test('path array item with reserved char is percent encoded', () {
+      // Gap W1 regression: every per-item path value in a styled array
+      // must be percent-encoded BEFORE being joined with the structural
+      // separator. Otherwise '/', '?', '#', space leak into the URL.
+      final items = ['a/b', 'c'];
+      expect(
+        serializeStyled('name', items, 'path', 'array', '', 'simple', false),
+        equals('a%2Fb,c'),
+      );
+      expect(
+        serializeStyled('name', items, 'path', 'array', '', 'label', true),
+        equals('.a%2Fb.c'),
+      );
+      expect(
+        serializeStyled('name', items, 'path', 'array', '', 'matrix', false),
+        equals(';name=a%2Fb,c'),
+      );
+    });
+
     // Path encoding parity
     // Cross-language parity tests for path-segment percent-encoding.
     // Every SDK must produce identical encoded strings for these inputs.
@@ -826,25 +845,6 @@ void main() {
           false,
         );
         expect(result, equals('a%20b,c%3Fd'));
-      });
-
-      test('path_array_item_with_reserved_char_is_percent_encoded', () {
-        // Gap W1 regression: every per-item path value in a styled array
-        // must be percent-encoded BEFORE being joined with the structural
-        // separator. Otherwise '/', '?', '#', space leak into the URL.
-        final items = ['a/b', 'c'];
-        expect(
-          serializeStyled('name', items, 'path', 'array', '', 'simple', false),
-          equals('a%2Fb,c'),
-        );
-        expect(
-          serializeStyled('name', items, 'path', 'array', '', 'label', true),
-          equals('.a%2Fb.c'),
-        );
-        expect(
-          serializeStyled('name', items, 'path', 'array', '', 'matrix', false),
-          equals(';name=a%2Fb,c'),
-        );
       });
 
       test('matrix style encodes value', () {

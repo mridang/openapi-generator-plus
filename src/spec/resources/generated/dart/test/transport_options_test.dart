@@ -332,7 +332,7 @@ void main() {
     });
   });
 
-  group('TimeoutConfigTests', () {
+  group('TransportOptions', () {
     test('timeout defaults to 10000 ms (10 seconds)', () {
       // Default TransportOptions applies a 10-second end-to-end request timeout.
       final opts = TransportOptionsBuilder().build();
@@ -353,7 +353,7 @@ void main() {
     });
   });
 
-  group('ProxyConfigTests', () {
+  group('TransportOptions', () {
     test('setting proxy URL is preserved on read-back', () {
       final opts = TransportOptionsBuilder()
           .proxy('http://proxy.example.com:8080')
