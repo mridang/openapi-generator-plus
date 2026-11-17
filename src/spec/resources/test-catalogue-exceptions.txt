@@ -60,3 +60,5 @@ go | *unnumbered | tests beyond the shared catalogue: language-specific behaviou
 rust | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 swift | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 elixir | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
+rust | serializationobject009 | Rust types a list of byte arrays (Vec<Vec<u8>>) and a map of byte arrays (HashMap<String, Vec<u8>>) as different types with no equality between them, so they cannot be compared for equality at all
+rust | unions011 | rust models derive PartialEq but never Hash, and a member model can hold a format: number field (f64, D83) which has no Eq or Hash, so a matching hash cannot be derived for every anyOf wrapper
