@@ -427,6 +427,43 @@ async fn test_bhv_options_001_base_api_config_default_header_overrides_negotiate
     );
 }
 
+#[tokio::test]
+async fn test_bhv_operations_001_base_api_per_call_header_replaces_default_header_of_same_name() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .default_header("X-Trace-Id", "default")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let opts = AddPetOptions::new().header("X-Trace-Id", "per-call");
+    let _ = api.add_pet(pet, Some(&opts)).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("X-Trace-Id").map(|s| s.as_str()),
+        Some("per-call"),
+        "a per-call header must replace the default header of the same name"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_operations_004_base_api_explicit_accept_header_beats_default_and_negotiated_accept() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .default_header("Accept", "application/xml")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = GetPetByIdOptions::new().header("Accept", "text/plain");
+    let _ = api.get_pet_by_id(1, None, Some(&opts)).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Accept").map(|s| s.as_str()),
+        Some("text/plain"),
+        "an explicit Accept header must beat the config default and the negotiated Accept"
+    );
+}
+
 // -- Auth Option<>: falling back to the client-level authenticator --
 
 #[tokio::test]
@@ -579,7 +616,7 @@ async fn test_bhv_serializationwire_013_base_api_serializes_form_urlencoded_body
 // A date-time form field goes on the wire in the canonical stringify form
 // (millisecond fraction, numeric offset), percent-encoded.
 #[tokio::test]
-async fn test_set_pet_preferences_form_body_date_time_canonical() {
+async fn test_bhv_operations_075_base_api_set_pet_preferences_form_body_date_time_canonical() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
@@ -622,12 +659,12 @@ async fn test_set_pet_preferences_sends_form_content_type() {
 // for each position: query (`bornAfter`), header (`Report-Date`) and
 // form-urlencoded body (`renewalDate`). None may carry a time component.
 #[tokio::test]
-async fn test_date_query_param_serialises_date_only() {
+async fn test_bhv_operations_069_base_api_date_query_and_header_params_serialise_date_only() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
-    let opts = FindPetsByStatusOptions::new().born_after(date);
+    let opts = FindPetsByStatusOptions::new().born_after(date).report_date(date);
     let _ = api.find_pets_by_status(Some(&opts)).await;
     let url = client.captured_url.lock().unwrap();
     assert!(url.contains("bornAfter=2024-01-01"), "expected bornAfter=2024-01-01, got: {}", url);
@@ -636,16 +673,6 @@ async fn test_date_query_param_serialises_date_only() {
         "date-only query param must carry no time component, got: {}",
         url
     );
-}
-
-#[tokio::test]
-async fn test_date_header_param_serialises_date_only() {
-    let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
-    let api = PetApi::new(client.clone(), config, None);
-    let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
-    let opts = FindPetsByStatusOptions::new().report_date(date);
-    let _ = api.find_pets_by_status(Some(&opts)).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("Report-Date").map(String::as_str),
@@ -655,7 +682,7 @@ async fn test_date_header_param_serialises_date_only() {
 }
 
 #[tokio::test]
-async fn test_date_form_param_serialises_date_only() {
+async fn test_bhv_operations_019_base_api_date_form_param_serialises_date_only() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
@@ -976,6 +1003,21 @@ async fn test_bhv_options_002_base_api_allow_empty_value_omits_param_when_unset(
     // the key rides the wire only when the caller supplies a value (see the
     // empty-string test below).
     assert!(!url.contains("status="), "expected no status= for allowEmptyValue param with unset value, got: {}", url);
+}
+
+#[tokio::test]
+async fn test_bhv_operations_003_base_api_allow_empty_value_sends_the_key_for_an_empty_string() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = FindPetsByStatusOptions::new().status(String::new());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        url.contains("status="),
+        "an empty allowEmptyValue param must send the status= key, got: {}",
+        url
+    );
 }
 
 #[tokio::test]
@@ -1307,6 +1349,22 @@ impl {{packageName}}::api_client::ApiClient for HeaderCapturingApiClient {
                 }))
         })
     }
+}
+
+#[tokio::test]
+async fn test_bhv_operations_014_base_api_passes_a_binary_body_as_is() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
+    let _ = api.set_pet_avatar(1, image_bytes.clone(), None, None).await;
+    let body = client.captured_body.lock().unwrap();
+    assert_eq!(
+        body.as_deref(),
+        Some(image_bytes.as_slice()),
+        "a binary body must reach the wire unchanged, got: {:?}",
+        body
+    );
 }
 
 #[tokio::test]
@@ -1723,7 +1781,7 @@ async fn test_bhv_authintegration_005_base_api_security_none_op_suppresses_clien
 // authenticator` branch of the three-state contract; the sentinel change must
 // not regress it. `add_pet` is a secured operation.
 #[tokio::test]
-async fn test_base_api_secured_op_applies_client_authenticator() {
+async fn test_bhv_operations_026_base_api_secured_op_with_no_matching_scheme_uses_client_authenticator() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let client_auth: Arc<dyn {{packageName}}::auth::Authenticator> =
