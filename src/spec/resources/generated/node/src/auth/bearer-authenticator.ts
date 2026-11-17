@@ -9,11 +9,14 @@ import { BaseAuthenticator } from "./base-authenticator.js";
 import { resolveCredential } from "./credentials.js";
 import type { CredentialProvider } from "./credentials.js";
 
+/** The environment variable read when no token is passed. */
+const TOKEN_VARIABLE = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
+
 /**
  * Authenticator for HTTP Bearer token authentication.
  *
- * The token is the explicit argument, or else the environment variable named
- * by `envField` (`PETSTORE_CLIENT_TOKEN` by default), read once here. A
+ * The token is the explicit argument, or else the environment variable
+ * `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, read once here (an empty variable counts as unset). A
  * {@link CredentialProvider} in its place is called for every request. A
  * missing token fails here, when the authenticator is built.
  */
@@ -26,14 +29,9 @@ export class BearerAuthenticator extends BaseAuthenticator {
    * @param host API base URL
    * @param token the token, a provider called for every request, or omitted to
    *   read it from the environment
-   * @param envField the environment field read when no token is passed
    * @throws TypeError if no token is supplied or the token is malformed
    */
-  constructor(
-    host: string,
-    token?: string | CredentialProvider,
-    envField = "TOKEN",
-  ) {
+  constructor(host: string, token?: string | CredentialProvider) {
     super();
     this.host = host;
     if (typeof token === "function") {
@@ -43,7 +41,7 @@ export class BearerAuthenticator extends BaseAuthenticator {
     }
     this.provider = null;
     this.token = BearerAuthenticator.validated(
-      resolveCredential(token, envField, "Bearer token"),
+      resolveCredential(token, TOKEN_VARIABLE, "Bearer token"),
     );
   }
 

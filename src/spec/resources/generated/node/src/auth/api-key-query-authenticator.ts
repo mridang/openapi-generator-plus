@@ -7,6 +7,7 @@
 
 import { ApiKeyAuthenticator } from "./api-key-authenticator.js";
 import { ApiKeyLocation } from "./api-key-location.js";
+import { resolveCredential } from "./credentials.js";
 
 /**
  * Scheme-specific authenticator for the apiKeyQuery security scheme.
@@ -16,9 +17,12 @@ export class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator {
     super(
       host,
       "api_key",
-      apiKey,
+      resolveCredential(
+        apiKey,
+        "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY",
+        "API key for 'api_key'",
+      ),
       ApiKeyLocation.QUERY,
-      "API_KEY_QUERY_API_KEY",
     );
   }
 }

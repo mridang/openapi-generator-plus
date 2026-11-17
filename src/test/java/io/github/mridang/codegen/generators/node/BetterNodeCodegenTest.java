@@ -191,14 +191,6 @@ class BetterNodeCodegenTest {
         assertEquals("string", BetterNodeCodegen.uploadType(text));
     }
 
-    @Test
-    void theEnvironmentPrefixIsTheUpperSnakeCaseNameOfThePackage() {
-        assertEquals("PETSTORE_CLIENT", BetterNodeCodegen.envPrefixFor("petstore-client"));
-        assertEquals("ACME_PET_CLIENT", BetterNodeCodegen.envPrefixFor("@acme/pet-client"));
-        assertEquals("SDK_3D_API", BetterNodeCodegen.envPrefixFor("3d.api"));
-        assertEquals("SDK_", BetterNodeCodegen.envPrefixFor("---"));
-    }
-
     private static BetterNodeCodegen configured(Map<String, Object> options) {
         final BetterNodeCodegen codegen = new BetterNodeCodegen();
         codegen.additionalProperties().putAll(options);
@@ -242,14 +234,6 @@ class BetterNodeCodegenTest {
                 "authors", "authorsJson", "issueTrackerUrl", "issueTrackerUrlJson", "documentationUrl")) {
             assertFalse(props.containsKey(key), key);
         }
-    }
-
-    @Test
-    void theEnvironmentPrefixOptionOverridesThePackageName() {
-        assertEquals("ACME", configured(Map.of("npmName", "petstore-client", "envPrefix", "acme"))
-                .additionalProperties().get("envPrefix"));
-        assertEquals("PETSTORE_CLIENT", configured(Map.of("npmName", "petstore-client"))
-                .additionalProperties().get("envPrefix"));
     }
 
     @Test
@@ -349,5 +333,74 @@ class BetterNodeCodegenTest {
         final String api = generatedFile(out, "src/api/default-api.ts");
         assertTrue(api.contains("ValueSerializer.stringifyDate(options.since)"), api);
         assertTrue(api.contains("ValueSerializer.stringifyDates("), api);
+    }
+
+    private static final String SCHEME_SPEC = String.join("\n",
+            "openapi: 3.1.0",
+            "info: {title: Acme Billing SDK, version: 1.0.0}",
+            "paths:",
+            "  /invoices:",
+            "    get:",
+            "      operationId: listInvoices",
+            "      security:",
+            "        - partnerToken: []",
+            "      responses:",
+            "        '200': {description: ok}",
+            "components:",
+            "  securitySchemes:",
+            "    partnerToken: {type: http, scheme: bearer}",
+            "    serviceToken: {type: http, scheme: bearer}",
+            "    ledgerKey: {type: apiKey, in: header, name: X-Ledger-Key}",
+            "    adminLogin: {type: http, scheme: basic}",
+            "  schemas:",
+            "    Colour:",
+            "      type: string",
+            "      enum: [red, dark-green]",
+            "    Paint:",
+            "      type: object",
+            "      properties:",
+            "        colour:",
+            "          $ref: '#/components/schemas/Colour'",
+            "          default: dark-green",
+            "");
+
+    private static Path generateSchemeSpec(String name, Map<String, Object> extra) throws IOException {
+        final Path out = Path.of("target", "node-scheme-spec", name).toAbsolutePath();
+        final Path spec = Files.createTempFile("node-schemes", ".yaml");
+        Files.writeString(spec, SCHEME_SPEC, StandardCharsets.UTF_8);
+        final Map<String, Object> options = new HashMap<>(Map.of("skipFormatter", "true"));
+        options.putAll(extra);
+        ProbeGenerator.generate("node-plus", options, out, spec.toString());
+        return out;
+    }
+
+    @Test
+    void aSchemeAuthenticatorReadsTheVariableTheSharedGeneratorNamedForIt() throws IOException {
+        final Path out = generateSchemeSpec("env", Map.of("envVarPrefix", "acme"));
+        final String partner = generatedFile(out, "src/auth/partner-token-authenticator.ts");
+        assertTrue(partner.contains("resolveCredential(token, 'ACME_PARTNER_TOKEN_TOKEN', 'Bearer token')"), partner);
+        final String service = generatedFile(out, "src/auth/service-token-authenticator.ts");
+        assertTrue(service.contains("'ACME_SERVICE_TOKEN_TOKEN'"), service);
+        final String ledger = generatedFile(out, "src/auth/ledger-key-authenticator.ts");
+        assertTrue(ledger.contains("resolveCredential(apiKey, 'ACME_API_KEY', 'API key for \\'X-Ledger-Key\\'')"), ledger);
+        final String admin = generatedFile(out, "src/auth/admin-login-authenticator.ts");
+        assertTrue(admin.contains("resolveCredential(username, 'ACME_USERNAME', 'Basic auth username')"), admin);
+        assertTrue(admin.contains("resolveCredential(password, 'ACME_PASSWORD', 'Basic auth password')"), admin);
+    }
+
+    @Test
+    void theBaseAuthenticatorsDefaultToTheSharedPrefix() throws IOException {
+        final Path out = generateSchemeSpec("prefix", Map.of());
+        final String bearer = generatedFile(out, "src/auth/bearer-authenticator.ts");
+        assertTrue(bearer.contains("const TOKEN_VARIABLE = 'ACME_BILLING_TOKEN';"), bearer);
+        final String credentials = generatedFile(out, "src/auth/credentials.ts");
+        assertFalse(credentials.contains("ENV_PREFIX"), credentials);
+    }
+
+    @Test
+    void aReferencedEnumWithASiblingDefaultStartsAtThatDefault() throws IOException {
+        final String paint = generatedFile(generateSchemeSpec("sibling", Map.of()), "src/models/paint.ts");
+        assertTrue(paint.contains("readonly colour?: Colour = Colour.DarkGreen;"), paint);
+        assertTrue(paint.contains("this.colour = Colour.DarkGreen;"), paint);
     }
 }

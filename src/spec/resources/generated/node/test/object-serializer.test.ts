@@ -1976,6 +1976,42 @@ describe("ObjectSerializer", () => {
     });
   });
 
+  describe("a $ref property with a sibling default", () => {
+    // StockItem.availability is a $ref to the Availability enum with a default
+    // written beside it: construction and decode both start from that default.
+    test("construction starts at the default", () => {
+      expect(new StockItem({ priority: Priority.Number1 }).availability).toBe(
+        Availability.OnHold,
+      );
+    });
+
+    test("decode of a payload without the key starts at the default", () => {
+      const item = ObjectSerializer.deserialize({ priority: 1 }, StockItem);
+      expect(item!.availability).toBe(Availability.OnHold);
+    });
+
+    test("an explicit value wins over the default", () => {
+      expect(
+        new StockItem({
+          priority: Priority.Number1,
+          availability: Availability.Sold,
+        }).availability,
+      ).toBe(Availability.Sold);
+      const item = ObjectSerializer.deserialize(
+        { priority: 1, availability: "Sold" },
+        StockItem,
+      );
+      expect(item!.availability).toBe(Availability.Sold);
+    });
+
+    test("the default is sent on the wire", () => {
+      const item = new StockItem({ priority: Priority.Number1 });
+      expect(JSON.parse(ObjectSerializer.serialize(item)).availability).toBe(
+        "on-hold",
+      );
+    });
+  });
+
   describe("Canonical #2 — non-lowercase string enum preserves wire casing", () => {
     // Availability is a string enum whose values are NOT all lowercase
     // ("Available", "Sold") and one of which is not a legal identifier

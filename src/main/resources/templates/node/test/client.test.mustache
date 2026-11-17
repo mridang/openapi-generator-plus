@@ -54,7 +54,7 @@ describe('{{clientClassName}}', () => {
   });
 
   describe('withToken credentials', () => {
-    const variable = '{{envPrefix}}_TOKEN';
+    const variable = '{{envVarPrefix}}_TOKEN';
     const saved = process.env[variable];
     afterEach(() => {
       if (saved === undefined) {

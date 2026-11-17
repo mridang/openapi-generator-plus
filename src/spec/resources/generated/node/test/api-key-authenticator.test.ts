@@ -233,7 +233,7 @@ describe("ApiKeyAuthenticator", () => {
   });
 
   describe("credential resolution", () => {
-    const variable = "PETSTORE_CLIENT_API_KEY";
+    const variable = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY";
     const saved = process.env[variable];
     afterEach(() => {
       if (saved === undefined) {
@@ -288,21 +288,5 @@ describe("ApiKeyAuthenticator", () => {
         );
       },
     );
-
-    it("reads the field a scheme-specific authenticator names", () => {
-      process.env["PETSTORE_CLIENT_OTHER_API_KEY"] = "other-key";
-      try {
-        const auth = new ApiKeyAuthenticator(
-          "https://api.example.com",
-          "api_key",
-          undefined,
-          ApiKeyLocation.QUERY,
-          "OTHER_API_KEY",
-        );
-        expect(auth.getQueryParams()).toEqual({ api_key: "other-key" });
-      } finally {
-        delete process.env["PETSTORE_CLIENT_OTHER_API_KEY"];
-      }
-    });
   });
 });

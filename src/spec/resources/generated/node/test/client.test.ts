@@ -69,7 +69,7 @@ describe("Client", () => {
   });
 
   describe("withToken credentials", () => {
-    const variable = "PETSTORE_CLIENT_TOKEN";
+    const variable = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
     const saved = process.env[variable];
     afterEach(() => {
       if (saved === undefined) {

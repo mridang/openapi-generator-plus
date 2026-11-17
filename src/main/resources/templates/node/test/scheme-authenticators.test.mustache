@@ -12,7 +12,7 @@ describe('per-scheme authenticators', () => {
     expect(Object.getPrototypeOf(cls)).toBe(base);
   });
 
-  const environmentSchemes: Array<[string, new (host: string) => unknown, string[]]> = [
+  const environmentSchemes: Array<[string, new (host: string, ...credentials: string[]) => unknown, string[]]> = [
 {{#perSchemeAuthEntries}}
 {{#envVars}}
     ['{{className}}', {{className}}, [{{{.}}}]],
@@ -20,29 +20,55 @@ describe('per-scheme authenticators', () => {
 {{/perSchemeAuthEntries}}
   ];
 
+  const withVariables = (variables: string[], values: Array<string | undefined>, body: () => void): void => {
+    const saved = variables.map((variable) => process.env[variable]);
+    try {
+      variables.forEach((variable, index) => {
+        const value = values[index];
+        if (value === undefined) {
+          delete process.env[variable];
+        } else {
+          process.env[variable] = value;
+        }
+      });
+      body();
+    } finally {
+      variables.forEach((variable, index) => {
+        const value = saved[index];
+        if (value === undefined) {
+          delete process.env[variable];
+        } else {
+          process.env[variable] = value;
+        }
+      });
+    }
+  };
+
   for (const [name, cls, variables] of environmentSchemes) {
     it(`${name} reads its own credential variables from the environment`, () => {
-      const saved = variables.map((variable) => process.env[variable]);
-      try {
-        variables.forEach((variable) => {
-          process.env[variable] = `value-${variable}`;
-        });
+      withVariables(variables, variables.map((variable) => `value-${variable}`), () => {
         expect(() => new cls('https://api.example.com')).not.toThrow();
+      });
+    });
 
-        variables.forEach((variable) => {
-          delete process.env[variable];
-        });
+    it(`${name} fails when it is built and a variable is unset`, () => {
+      withVariables(variables, variables.map(() => undefined), () => {
         expect(() => new cls('https://api.example.com')).toThrow(variables[0]);
-      } finally {
-        variables.forEach((variable, index) => {
-          const value = saved[index];
-          if (value === undefined) {
-            delete process.env[variable];
-          } else {
-            process.env[variable] = value;
-          }
-        });
-      }
+      });
+    });
+
+    it(`${name} treats an empty variable as unset`, () => {
+      withVariables(variables, variables.map(() => ''), () => {
+        expect(() => new cls('https://api.example.com')).toThrow(variables[0]);
+      });
+    });
+
+    it(`${name} prefers the explicit credential over the variables`, () => {
+      const invalid = 'bad\r\nvalue';
+      withVariables(variables, variables.map(() => invalid), () => {
+        expect(() => new cls('https://api.example.com')).toThrow(TypeError);
+        expect(() => new cls('https://api.example.com', ...variables.map(() => 'explicit'))).not.toThrow();
+      });
     });
   }
 });

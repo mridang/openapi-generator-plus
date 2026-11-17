@@ -137,7 +137,7 @@ export class Client {
   /**
    * Creates a client authenticated with a Bearer token.
    *
-   * The token is the argument, or else the `PETSTORE_CLIENT_TOKEN` environment
+   * The token is the argument, or else the `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` environment
    * variable (an empty variable counts as unset), read once here. A provider
    * function in its place is called for every request, so a token that
    * rotates is always current. A missing token throws here, when the client is

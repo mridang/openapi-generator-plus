@@ -69,8 +69,8 @@ describe('BasicAuthenticator', () => {
   });
 
   describe('credential resolution', () => {
-    const userVariable = '{{envPrefix}}_USERNAME';
-    const secretVariable = '{{envPrefix}}_PASSWORD';
+    const userVariable = '{{envVarPrefix}}_USERNAME';
+    const secretVariable = '{{envVarPrefix}}_PASSWORD';
     const savedUser = process.env[userVariable];
     const savedSecret = process.env[secretVariable];
     const restore = (name: string, value: string | undefined): void => {
@@ -112,16 +112,15 @@ describe('BasicAuthenticator', () => {
       );
     });
 
-    it('reads the fields a scheme-specific authenticator names', () => {
-      process.env['{{envPrefix}}_ADMIN_USERNAME'] = 'admin';
-      process.env['{{envPrefix}}_ADMIN_PASSWORD'] = 'admin-pw';
-      try {
-        const auth = new BasicAuthenticator('https://api.example.com', undefined, undefined, 'ADMIN_');
-        expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Basic ' + Buffer.from('admin:admin-pw').toString('base64') });
-      } finally {
-        delete process.env['{{envPrefix}}_ADMIN_USERNAME'];
-        delete process.env['{{envPrefix}}_ADMIN_PASSWORD'];
-      }
+    it.each([userVariable, secretVariable])('an empty %s counts as unset', (empty) => {
+      process.env[userVariable] = 'alice';
+      process.env[secretVariable] = 'x';
+      process.env[empty] = '';
+      expect(() => new BasicAuthenticator('https://api.example.com', undefined, undefined)).toThrow(
+        new TypeError(
+          `${empty === userVariable ? 'Basic auth username' : 'Basic auth password'} is required: pass it explicitly or set ${empty}`
+        )
+      );
     });
   });
 });

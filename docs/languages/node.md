@@ -50,7 +50,7 @@ Development tools are Jest 30 with ts-jest, ESLint 9, Prettier 3 and typedoc, al
 
 ## Options
 
-Pass options with `--additional-properties` or a config file. Options that apply to every language, such as `clientClassName`, `errorPrefix`, `generateTests`, `generateUnitTests` and `licenseId`, are shared by all twelve generators and are not repeated here. The Node generator adds these:
+Pass options with `--additional-properties` or a config file. Options that apply to every language, such as `clientClassName`, `errorPrefix`, `envVarPrefix`, `generateTests`, `generateUnitTests` and `licenseId`, are shared by all twelve generators and are not repeated here. The Node generator adds these:
 
 | Option | Meaning |
 |---|---|
@@ -60,13 +60,14 @@ Pass options with `--additional-properties` or a config file. Options that apply
 | `authors` | Written to the manifest and README. |
 | `repositoryUrl`, `homepageUrl`, `issueTrackerUrl` | Written to the manifest and README only when given. |
 | `documentationUrl` | Written to the README only when given. |
-| `envPrefix` | The prefix of the environment variables the authenticators read when no credential is passed. Defaults to the package name in upper snake case. |
 
 ## Idiom notes
 
 - `Configuration` and `TransportOptions` take one options object and also have a fluent builder.
 - Every error class takes the ES2022 `{ cause }` bag as its last argument, which is how `Error` itself chains causes.
-- Each operation takes a trailing per-call options object, which can carry `{ signal?: AbortSignal }`. `Configuration` can also hold a client-level signal. Cancellation raises the abort error, never the timeout error.
+- Every operation, including one that has no parameters and no security, takes a trailing `RequestOptions` object: `{ signal?, timeout?, maxRetries?, headers? }`. `timeout` (positive milliseconds, or `null` to wait indefinitely), `maxRetries` (a non-negative integer) and `headers` replace the transport's values for that one call, and an invalid value throws a `TypeError` before anything is sent. This one object is where node keeps the per-call settings that the other SDKs put on a per-operation Options type, so node does not generate an empty Options type for an operation that has no parameters of its own. `Configuration` can also hold a client-level signal. Cancellation raises the abort error, never the timeout error.
+- An authenticator whose credential is not passed reads it from the environment once, when it is built. The variable is `<PREFIX>_<FIELD>` in upper snake case (`ACME_TOKEN`, `ACME_API_KEY`, `ACME_USERNAME`, `ACME_PASSWORD`). `<PREFIX>` is the `envVarPrefix` option, else the API title without a trailing "SDK". When two security schemes have a field of the same name, each is qualified with its scheme id (`ACME_PARTNER_TOKEN_TOKEN`), and the generated README lists the names for the spec. An explicit argument wins over the variable, an empty variable counts as unset, and a credential that neither supplies throws a `TypeError` when the authenticator, and so the client, is built. `BearerAuthenticator` and `Client.withToken` also accept a function returning the token (or a promise of it), called for every request. OAuth 2.0 and OpenID Connect authenticators take their credentials as arguments only.
+- A property that is a `$ref` to an enum and carries a `default` beside the reference starts at that default: the field is initialised to the enum member, and decoding a payload that omits the key gives the same member. An explicit value or an explicit `null` is never replaced.
 - Authenticators have a synchronous header method and a distinct `...Async` one. The package exports `isNoAuth` and `isHttpAwareAuthenticator` type guards.
 - Models are classes with an `equals()` method. Their string form is `util.inspect`, with `format: password` fields shown as `***`.
 - A missing required parameter throws a `TypeError`, and its message is written with double quotes because it embeds `'<param>'`.

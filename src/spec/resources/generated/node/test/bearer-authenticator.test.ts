@@ -142,7 +142,7 @@ describe("BearerAuthenticator", () => {
   });
 
   describe("credential resolution", () => {
-    const variable = "PETSTORE_CLIENT_TOKEN";
+    const variable = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
     const saved = process.env[variable];
     afterEach(() => {
       if (saved === undefined) {
@@ -201,22 +201,6 @@ describe("BearerAuthenticator", () => {
       expect(() => new BearerAuthenticator("https://api.example.com")).toThrow(
         TypeError,
       );
-    });
-
-    it("reads another field when a scheme-specific variable is named", () => {
-      process.env["PETSTORE_CLIENT_MY_SCHEME_TOKEN"] = "scheme-token";
-      try {
-        const auth = new BearerAuthenticator(
-          "https://api.example.com",
-          undefined,
-          "MY_SCHEME_TOKEN",
-        );
-        expect(auth.getAuthHeaders()).toEqual({
-          Authorization: "Bearer scheme-token",
-        });
-      } finally {
-        delete process.env["PETSTORE_CLIENT_MY_SCHEME_TOKEN"];
-      }
     });
 
     it("a provider is called for every request, so a rotating token is current", async () => {

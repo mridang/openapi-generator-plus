@@ -82,7 +82,7 @@ describe('BearerAuthenticator', () => {
   });
 
   describe('credential resolution', () => {
-    const variable = '{{envPrefix}}_TOKEN';
+    const variable = '{{envVarPrefix}}_TOKEN';
     const saved = process.env[variable];
     afterEach(() => {
       if (saved === undefined) {
@@ -125,16 +125,6 @@ describe('BearerAuthenticator', () => {
     it('validates a token read from the environment like an explicit one', () => {
       process.env[variable] = 'tok\r\nInjected: yes';
       expect(() => new BearerAuthenticator('https://api.example.com')).toThrow(TypeError);
-    });
-
-    it('reads another field when a scheme-specific variable is named', () => {
-      process.env['{{envPrefix}}_MY_SCHEME_TOKEN'] = 'scheme-token';
-      try {
-        const auth = new BearerAuthenticator('https://api.example.com', undefined, 'MY_SCHEME_TOKEN');
-        expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Bearer scheme-token' });
-      } finally {
-        delete process.env['{{envPrefix}}_MY_SCHEME_TOKEN'];
-      }
     });
 
     it('a provider is called for every request, so a rotating token is current', async () => {

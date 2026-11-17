@@ -41,7 +41,7 @@ export class StockItem {
   @Expose({ name: "priority" })
   readonly priority!: Priority;
   @Expose({ name: "availability" })
-  readonly availability?: Availability;
+  readonly availability?: Availability = Availability.OnHold;
   /**
    * Quantity grid as an array of integer arrays
    */
@@ -55,6 +55,9 @@ export class StockItem {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
+    if (this.availability === undefined) {
+      this.availability = Availability.OnHold;
+    }
     if (data !== undefined) {
       if (this.priority == null) {
         throw new TypeError("priority is required");

@@ -2475,18 +2475,6 @@
   },
   {
    "element": [
-    "apikeyauthenticator.<ctor>",
-    "basicauthenticator.<ctor>",
-    "bearerauthenticator.<ctor>"
-   ],
-   "aspect": "ctor",
-   "languages": [
-    "node"
-   ],
-   "reason": "F862: node's base authenticators take a trailing constructor argument (`envField`, `fieldPrefix`) naming the environment variable the credential falls back to, because a TypeScript per-scheme subclass passes it to super() and reads <PREFIX>_<SCHEME>_<FIELD>; wave 2 lands the environment fallback in every SDK, in each language's own idiom"
-  },
-  {
-   "element": [
     "*authenticator.<ctor>"
    ],
    "aspect": "ctor-optional",
@@ -2495,6 +2483,16 @@
    ],
    "value": "*?*",
    "reason": "F862: a static credential (token, API key, user name, password) may be omitted and is then read from <PREFIX>_<FIELD> in the environment; a missing one throws when the authenticator is built"
+  },
+  {
+   "element": [
+    "bearerauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "node"
+   ],
+   "reason": "F862: node's BearerAuthenticator takes the token or the token-provider callback in the one `token` parameter (`string | CredentialProvider`), the TypeScript way to accept either; the other SDKs take the callback as a separate parameter or overload"
   },
   {
    "element": [
@@ -3122,8 +3120,7 @@
    "aspect": "params",
    "languages": [
     "kotlin",
-    "php",
-    "node"
+    "php"
    ],
    "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
   },
@@ -3132,8 +3129,7 @@
    "aspect": "optional",
    "languages": [
     "kotlin",
-    "php",
-    "node"
+    "php"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
   },
