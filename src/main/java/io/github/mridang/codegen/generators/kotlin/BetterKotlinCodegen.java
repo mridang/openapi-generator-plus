@@ -365,10 +365,10 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
              * error body executed as a script). --retry rides out transient
              * GitHub-release hiccups; -S surfaces the curl error on failure. */
             "[ -x /cache/ktlint-1.5.0 ] || { curl -fSL --retry 5 --retry-delay 2"
-                + " --retry-all-errors -o /cache/ktlint-1.5.0.part"
+                + " --retry-all-errors -o /cache/ktlint-1.5.0.part.$$"
                 + " https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint"
-                + " && chmod +x /cache/ktlint-1.5.0.part"
-                + " && mv /cache/ktlint-1.5.0.part /cache/ktlint-1.5.0; }",
+                + " && chmod +x /cache/ktlint-1.5.0.part.$$"
+                + " && mv /cache/ktlint-1.5.0.part.$$ /cache/ktlint-1.5.0; }",
             "/cache/ktlint-1.5.0 --format '**/*.kt'"
         };
     }

@@ -123,4 +123,12 @@ class BetterKotlinCodegenTest {
 
         assertEquals("https://example.com", codegen.additionalProperties().get("homepageUrl"));
     }
+
+    @Test
+    void theFormatterDownloadsKtlintToAFileNamedForItsOwnProcess() {
+        String commands = String.join("\n", new BetterKotlinCodegen().getFormatterCommands());
+
+        assertTrue(commands.contains("/cache/ktlint-1.5.0.part.$$"));
+        assertFalse(commands.contains("/cache/ktlint-1.5.0.part "));
+    }
 }
