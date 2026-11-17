@@ -54,6 +54,19 @@ class BetterRubyCodegenTest {
     }
 
     @Test
+    void aWordWithABraceInADocCommentIsSetInCodeFont() {
+        assertEquals(
+                "id of <tt>#{petId}</tt> and <tt>{x}.</tt>",
+                BetterRubyCodegen.escapeYardLinkBraces("id of #{petId} and {x}."));
+    }
+
+    @Test
+    void aDocCommentWithoutBracesIsUnchanged() {
+        assertEquals(
+                "plain 'text' & more", BetterRubyCodegen.escapeYardLinkBraces("plain 'text' & more"));
+    }
+
+    @Test
     void constantNamesAreUpperCaseIdentifiers() {
         assertEquals("A_B", BetterRubyCodegen.toRubyConstantName("a-b"));
         assertEquals("O_CLOCK", BetterRubyCodegen.toRubyConstantName("o'clock"));
