@@ -719,6 +719,37 @@ public class DefaultApiClientUnitTest
         DefaultApiClient.ValidateMultipartFilename("file.png");
     }
 
+    [Fact]
+    public async Task BhvSerializationwire032DecodesIso88591BodyToUtf8WhenTheCharsetIsDeclared()
+    {
+        Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+        byte[] latin1Bytes = new byte[] { 0x63, 0x61, 0x66, 0xE9 }; // "café" in ISO-8859-1
+        var handler = new RawByteHandler(
+            HttpStatusCode.OK,
+            latin1Bytes,
+            "text/plain; charset=iso-8859-1");
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "GET", new Uri("http://example.com/latin1-word"),
+            new Dictionary<string, string>(), null);
+        Assert.Equal("café", response.Body);
+    }
+
+    [Fact]
+    public void BhvSerializationwire042MultipartFilenameEscapesBackslashAndQuote()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("a\"b\\c.png");
+        Assert.Equal("filename=\"a\\\"b\\\\c.png\"", directive);
+    }
+
+    [Fact]
+    public void BhvSerializationwire050MultipartFilenameContainingNulIsRejected()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            DefaultApiClient.ValidateMultipartFilename("a\0b.pdf"));
+    }
+
     // -- Gap H: response body charset handling --
 
     [Fact]
@@ -771,7 +802,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task DecodesBomlessUtf16BodyAsBigEndian()
+    public async Task BhvSerializationwire031DecodesBomlessUtf16BodyAsBigEndian()
     {
         // RFC 2781: a UTF-16 stream with no BOM defaults to big-endian. A bare
         // "charset=utf-16" (no endianness suffix, no BOM) must therefore decode
@@ -1042,7 +1073,7 @@ public class DefaultApiClientUnitTest
     // ---- 307/308 replays every kind of request body ----
 
     [Fact]
-    public async Task Redirect307ReplaysMultipartBodyWithItsBoundary()
+    public async Task BhvRetries012Redirect307ReplaysMultipartBodyWithItsBoundary()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1205,6 +1236,25 @@ public class DefaultApiClientUnitTest
     }
 
     // ---- 3.3: HTTPS->HTTP body replay guard ----
+
+    [Fact]
+    public async Task BhvRetries020RefusesReplayOfAPostBodyRedirectedFromHttpsToHttp()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://downgraded.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            new byte[] { 1, 2, 3 }
+        ));
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(307, ex.StatusCode);
+    }
 
     [Fact]
     public async Task BhvRetries017RefusesBodyReplayOnHttpsToHttpDowngrade()
@@ -2543,7 +2593,7 @@ public class DefaultApiClientUnitTest
     [InlineData(400)]
     [InlineData(404)]
     [InlineData(501)]
-    public async Task OtherStatusesAreNotRetried(int status)
+    public async Task BhvRetries007OtherStatusesAreNotRetried(int status)
     {
         var handler = new SequenceHandler(_ => Respond(status));
         var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
@@ -2583,7 +2633,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task APerCallMaxRetriesReplacesTheTransportsForThatCallOnly()
+    public async Task BhvRetries004APerCallMaxRetriesReplacesTheTransportsForThatCallOnly()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(
@@ -2656,7 +2706,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task AMultipartBodyIsNeverRetried()
+    public async Task BhvRetries003AMultipartBodyIsNeverRetried()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
@@ -2682,7 +2732,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task EveryRetryRebuildsTheHeaders()
+    public async Task BhvRetries005EveryRetryRebuildsTheHeaders()
     {
         var handler = new SequenceHandler(n => n == 0 ? Respond(503) : Respond(200, null));
         var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
@@ -2750,6 +2800,16 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(TimeSpan.FromSeconds(0.375), DefaultApiClient.RetryDelay(0, none, now, 1));
         Assert.Equal(TimeSpan.FromSeconds(6), DefaultApiClient.RetryDelay(9, none, now, 1));
+    }
+
+    [Fact]
+    public void BhvRetries022RetryAfterAsAnHttpDateIsTheTimeUntilThatDate()
+    {
+        var wall = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(wall.Ticks - wall.Ticks % TimeSpan.TicksPerSecond, TimeSpan.Zero);
+        var inThirtySeconds = now.AddSeconds(30).ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.Equal(TimeSpan.FromSeconds(30), DefaultApiClient.RetryDelay(0, Header(inThirtySeconds), now, 0.5));
     }
 
     [Fact]
