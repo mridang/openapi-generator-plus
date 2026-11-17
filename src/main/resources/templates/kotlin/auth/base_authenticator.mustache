@@ -14,17 +14,29 @@ abstract class BaseAuthenticator : Authenticator {
 }
 
 /**
- * Where a credential is read from when the caller does not pass it: the environment variable
- * `{{credentialEnvPrefix}}_<FIELD>`. The value is read once, when the authenticator is built, and an
+ * Where a credential is read from when the caller does not pass it: an environment variable named
+ * for the credential (`{{envVarPrefix}}_TOKEN`, or the scheme's own name when a security scheme
+ * generated its own authenticator). The value is read once, when the authenticator is built, and an
  * empty value counts as not set.
  */
 internal object CredentialEnvironment {
     /** The environment lookup; an internal seam so a test needs no real environment variable. */
     internal var lookup: (String) -> String? = { name -> System.getenv(name) }
 
-    /** The name of the environment variable that carries [field]. */
-    fun variable(field: String): String = "{{credentialEnvPrefix}}_$field"
+    /** The value of [variable], or null when it is unset or empty. */
+    fun read(variable: String): String? = lookup(variable)?.takeIf { it.isNotEmpty() }
 
-    /** The value of the variable for [field], or null when it is unset or empty. */
-    fun read(field: String): String? = lookup(variable(field))?.takeIf { it.isNotEmpty() }
+    /**
+     * The credential [explicit] when it was passed, else the value of [variable].
+     *
+     * @throws IllegalArgumentException naming [variable] when neither is set
+     */
+    fun require(
+        explicit: String?,
+        variable: String,
+        what: String,
+    ): String =
+        explicit ?: read(variable) ?: throw IllegalArgumentException(
+            "A value for $what is required: pass one or set $variable"
+        )
 }

@@ -11,10 +11,10 @@ package com.example.petstore.auth
  * Authenticator for API key authentication. Supports sending the key
  * as a header, query parameter, or cookie.
  *
- * The key is the first of: [apiKey], the environment variable `OPEN_API_API_KEY` (read
- * once, here; an empty value counts as unset). [apiKeyProvider] is called on every request and
- * replaces both, for a key that rotates. When none of the three is given, building the
- * authenticator fails.
+ * The key is the first of: [apiKey], the environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY` (read
+ * once, here; an empty value counts as unset), then whatever [apiKeyProvider] returns on every
+ * request, for a key that rotates. When none of the three is given, building the authenticator
+ * fails.
  *
  * @param host the base URL of the API
  * @param keyParamName the name of the header, query parameter, or cookie carrying the key
@@ -23,19 +23,38 @@ package com.example.petstore.auth
  * @param apiKeyProvider returns the current API key on each request
  * @throws IllegalArgumentException if there is no key, or it is not a valid value for its location
  */
-open class ApiKeyAuthenticator(
+open class ApiKeyAuthenticator internal constructor(
     private val host: String,
     private val keyParamName: String,
-    apiKey: String? = null,
+    apiKey: String?,
     private val location: ApiKeyLocation,
-    private val apiKeyProvider: (suspend () -> String)? = null,
+    private val apiKeyProvider: (suspend () -> String)?,
+    environmentVariable: String,
 ) : BaseAuthenticator() {
+    /**
+     * Creates an authenticator that reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY` when no key is passed.
+     *
+     * @param host the base URL of the API
+     * @param keyParamName the name of the header, query parameter, or cookie carrying the key
+     * @param apiKey the API key value
+     * @param location where the API key is sent on each request
+     * @param apiKeyProvider returns the current API key on each request
+     * @throws IllegalArgumentException if there is no key, or it is not a valid value for its location
+     */
+    constructor(
+        host: String,
+        keyParamName: String,
+        apiKey: String? = null,
+        location: ApiKeyLocation,
+        apiKeyProvider: (suspend () -> String)? = null,
+    ) : this(host, keyParamName, apiKey, location, apiKeyProvider, "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY")
+
     private val apiKey: String? =
-        if (apiKeyProvider != null) {
+        apiKey ?: CredentialEnvironment.read(environmentVariable) ?: if (apiKeyProvider != null) {
             null
         } else {
-            apiKey ?: CredentialEnvironment.read("API_KEY") ?: throw IllegalArgumentException(
-                "An API key for '$keyParamName' is required: pass one or set ${CredentialEnvironment.variable("API_KEY")}",
+            throw IllegalArgumentException(
+                "An API key for '$keyParamName' is required: pass one, pass an apiKeyProvider or set $environmentVariable",
             )
         }
 

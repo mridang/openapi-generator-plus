@@ -517,4 +517,48 @@ class ComposedSchemaTest {
             assertNotEquals(first, lists)
         }
     }
+
+    @Nested
+    @DisplayName("oneOf typed factories and accessors - ReserveStockResponse")
+    inner class ReserveStockResponseAccessorTests {
+        @Test
+        @DisplayName("a factory wraps its variant and only its is accessor answers true")
+        fun testFactoryWrapsItsVariant() {
+            val reservation = Reservation(reservationId = 31L, quantity = 4)
+            val union = ReserveStockResponse.fromReservation(reservation)
+
+            assertSame(reservation, union.actualInstance)
+            assertTrue(union.isReservation)
+            assertFalse(union.isReservationReceipt)
+        }
+
+        @Test
+        @DisplayName("an as accessor returns the variant, or null for the other one")
+        fun testAsAccessorsReturnTheVariantOrNull() {
+            val receipt = ReservationReceipt(receiptCode = "rcpt-77", expiresAt = java.time.OffsetDateTime.parse("2030-01-01T00:00:00Z"))
+            val union = ReserveStockResponse.fromReservationReceipt(receipt)
+
+            assertSame(receipt, union.asReservationReceipt())
+            assertNull(union.asReservation())
+        }
+
+        @Test
+        @DisplayName("a union built by a factory equals one built from the same variant by the constructor")
+        fun testFactoryAndConstructorAgree() {
+            val reservation = Reservation(reservationId = 31L, quantity = 4)
+
+            assertEquals(ReserveStockResponse(reservation), ReserveStockResponse.fromReservation(reservation))
+        }
+
+        @Test
+        @DisplayName("a union with no variant answers false and null to every accessor")
+        fun testEmptyUnionAnswersNothing() {
+            val union = ReserveStockResponse()
+
+            assertFalse(union.isReservation)
+            assertNull(union.asReservation())
+            assertFalse(union.isReservationReceipt)
+            assertNull(union.asReservationReceipt())
+        }
+    }
 }

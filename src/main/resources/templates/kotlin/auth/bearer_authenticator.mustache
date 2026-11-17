@@ -5,28 +5,43 @@ package {{invokerPackage}}.auth
 /**
  * Authenticator for HTTP Bearer token authentication.
  *
- * The token is the first of: [token], the environment variable `{{credentialEnvPrefix}}_TOKEN` (read
- * once, here; an empty value counts as unset). [tokenProvider] is called on every request and
- * replaces both, for a token that rotates. When none of the three is given, building the
- * authenticator fails.
+ * The token is the first of: [token], the environment variable `{{envVarPrefix}}_TOKEN` (read
+ * once, here; an empty value counts as unset), then whatever [tokenProvider] returns on every
+ * request, for a token that rotates. When none of the three is given, building the authenticator
+ * fails.
  *
  * @param host the base URL of the API
  * @param token the bearer token
  * @param tokenProvider returns the current bearer token on each request
  * @throws IllegalArgumentException if there is no token, or it is not a valid header value
  */
-open class BearerAuthenticator(
+open class BearerAuthenticator internal constructor(
     private val host: String,
-    token: String? = null,
-    private val tokenProvider: (suspend () -> String)? = null,
+    token: String?,
+    private val tokenProvider: (suspend () -> String)?,
+    environmentVariable: String,
 ) : BaseAuthenticator() {
 
+    /**
+     * Creates an authenticator that reads `{{envVarPrefix}}_TOKEN` when no token is passed.
+     *
+     * @param host the base URL of the API
+     * @param token the bearer token
+     * @param tokenProvider returns the current bearer token on each request
+     * @throws IllegalArgumentException if there is no token, or it is not a valid header value
+     */
+    constructor(
+        host: String,
+        token: String? = null,
+        tokenProvider: (suspend () -> String)? = null,
+    ) : this(host, token, tokenProvider, "{{envVarPrefix}}_TOKEN")
+
     private val token: String? =
-        if (tokenProvider != null) {
+        token ?: CredentialEnvironment.read(environmentVariable) ?: if (tokenProvider != null) {
             null
         } else {
-            token ?: CredentialEnvironment.read("TOKEN") ?: throw IllegalArgumentException(
-                "A bearer token is required: pass one or set ${CredentialEnvironment.variable("TOKEN")}"
+            throw IllegalArgumentException(
+                "A bearer token is required: pass one, pass a tokenProvider or set $environmentVariable"
             )
         }
 
@@ -58,11 +73,7 @@ open class BearerAuthenticator(
 
     override suspend fun getAuthHeaders(): Map<String, String> {
         val token: String =
-            if (tokenProvider != null) {
-                tokenProvider.invoke().also { validateToken(it) }
-            } else {
-                requireNotNull(this.token)
-            }
+            this.token ?: requireNotNull(tokenProvider).invoke().also { validateToken(it) }
         // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
         // from env files are commonly stored already-prefixed; emitting
         // "Bearer Bearer xyz" would otherwise silently break auth.

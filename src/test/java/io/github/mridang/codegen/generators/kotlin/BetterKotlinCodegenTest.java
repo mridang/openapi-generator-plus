@@ -4,9 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.openapitools.codegen.CodegenProperty;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
+import org.openapitools.codegen.CodegenComposedSchemas;
 
 /** Unit tests of the naming rules in {@link BetterKotlinCodegen}. */
 class BetterKotlinCodegenTest {
@@ -130,5 +134,90 @@ class BetterKotlinCodegenTest {
 
         assertTrue(commands.contains("/cache/ktlint-1.5.0.part.$$"));
         assertFalse(commands.contains("/cache/ktlint-1.5.0.part "));
+    }
+
+    /* F827: every operation takes an Options object, even one with no parameter and no security. */
+    @Test
+    void everyOperationGetsAnOptionsObject() {
+        assertTrue(new BetterKotlinCodegen().mintsOptionsForEveryOperation());
+    }
+
+    private static CodegenModel unionOf(String... types) {
+        CodegenModel model = new CodegenModel();
+        List<CodegenProperty> variants = new ArrayList<>();
+        for (String type : types) {
+            CodegenProperty variant = new CodegenProperty();
+            variant.dataType = type;
+            variants.add(variant);
+        }
+        model.setComposedSchemas(new CodegenComposedSchemas(List.of(), variants, List.of(), null));
+        return model;
+    }
+
+    /* F878: a union names its variants for the typed factories and accessors. */
+    @Test
+    void namesTheVariantsOfAUnion() {
+        CodegenModel model = unionOf("Reservation", "List<String>", "ByteArray", "Map<String, Any>");
+
+        BetterKotlinCodegen.nameUnionVariants(model);
+
+        List<CodegenProperty> variants = model.getComposedSchemas().getOneOf();
+        assertEquals("Reservation", variants.get(0).vendorExtensions.get("variantName"));
+        assertEquals("ListOfString", variants.get(1).vendorExtensions.get("variantName"));
+        assertEquals("ByteArray", variants.get(2).vendorExtensions.get("variantName"));
+        assertEquals("MapOfStringAny", variants.get(3).vendorExtensions.get("variantName"));
+    }
+
+    /* An erased generic type cannot be tested with `is`, and `is Any` is always true. */
+    @Test
+    void onlyABareClassNameVariantGetsAnIsAndAsAccessor() {
+        CodegenModel model = unionOf("Reservation", "ByteArray", "List<String>", "Any");
+
+        BetterKotlinCodegen.nameUnionVariants(model);
+
+        List<CodegenProperty> variants = model.getComposedSchemas().getOneOf();
+        assertEquals(true, variants.get(0).vendorExtensions.get("isPlainVariant"));
+        assertEquals(true, variants.get(1).vendorExtensions.get("isPlainVariant"));
+        assertEquals(false, variants.get(2).vendorExtensions.get("isPlainVariant"));
+        assertEquals(false, variants.get(3).vendorExtensions.get("isPlainVariant"));
+    }
+
+    @Test
+    void variantsThatWouldShareANameAreNumbered() {
+        CodegenModel model = unionOf("String", "kotlin.String", "Int");
+
+        BetterKotlinCodegen.nameUnionVariants(model);
+
+        List<CodegenProperty> variants = model.getComposedSchemas().getOneOf();
+        assertEquals("String", variants.get(0).vendorExtensions.get("variantName"));
+        assertEquals("String2", variants.get(1).vendorExtensions.get("variantName"));
+        assertEquals("Int", variants.get(2).vendorExtensions.get("variantName"));
+    }
+
+    @Test
+    void aModelWithoutAUnionIsLeftAlone() {
+        BetterKotlinCodegen.nameUnionVariants(new CodegenModel());
+    }
+
+    /* F862: an authenticator reads the variable the shared generator named for each credential. */
+    @Test
+    void credentialVariablesAreReadByFieldName() {
+        Map<String, Object> ctx =
+                Map.of(
+                        "envVars",
+                        List.of(
+                                Map.of("field", "token", "envName", "SHOP_TOKEN"),
+                                Map.of("field", "apiKey", "envName", "SHOP_API_KEY")));
+
+        Map<String, String> byField = BetterKotlinCodegen.envNamesByField(ctx);
+
+        assertEquals("SHOP_TOKEN", byField.get("token"));
+        assertEquals("SHOP_API_KEY", byField.get("apiKey"));
+        assertEquals(2, byField.size());
+    }
+
+    @Test
+    void aSchemeWithoutCredentialVariablesHasNone() {
+        assertTrue(BetterKotlinCodegen.envNamesByField(Map.of()).isEmpty());
     }
 }

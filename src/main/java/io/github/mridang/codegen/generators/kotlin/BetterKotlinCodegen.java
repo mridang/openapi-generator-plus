@@ -593,13 +593,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 "userAgentDefault", artifactId + "/" + artifactVersion + " (kotlin)");
 
         resolvePackageLinks();
-        /* The credential environment variables are {PREFIX}_TOKEN, {PREFIX}_API_KEY and so on,
-           where the prefix is the SDK's own name (the error prefix) in upper snake case. */
-        additionalProperties.put(
-                "credentialEnvPrefix",
-                String.valueOf(additionalProperties.get("errorPrefixSnake"))
-                        .toUpperCase(java.util.Locale.ROOT));
-
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
         final String clientClassName = (String) additionalProperties.get("clientClassName");
@@ -859,26 +852,83 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return pascalAuthFilename(stem, ".kt");
     }
 
+    /**
+     * Every operation takes an Options object, so each call has a slot for its own timeout,
+     * headers and retry budget (F827), even an operation with no parameter and no security.
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
         final Map<String, Object> ctx = baseSchemeContext(spec);
         final String pkg = invokerPackage + (spec.isOAuth() ? ".auth.oauth" : ".auth");
         ctx.put("package", pkg);
-        final List<String> imports = spec.isOAuth()
-                ? List.of(invokerPackage + ".auth.Authenticator")
-                : List.of();
+        final List<String> imports = new ArrayList<>();
+        if (spec.isOAuth()) {
+            imports.add(invokerPackage + ".auth.Authenticator");
+            imports.add(invokerPackage + ".auth.CredentialEnvironment");
+        }
         ctx.put("imports", imports);
+        final Map<String, String> envNames = envNamesByField(ctx);
         final List<Map<String, String>> constructorParams = new ArrayList<>();
         for (final String name : spec.paramNames()) {
             final Map<String, String> param = new HashMap<>();
             param.put("name", name);
-            param.put("type", "String");
+            param.put("type", "host".equals(name) ? "String" : "String? = null");
+            param.put("doc", "host".equals(name)
+                    ? "the base URL of the API"
+                    : "the " + name + " credential; left out, it is read once from `"
+                            + envNames.get(name) + "` (an empty value counts as unset)");
             constructorParams.add(param);
         }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            constructorParams.add(providerParam("tokenProvider"));
+        } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            constructorParams.add(providerParam("apiKeyProvider"));
+        }
         ctx.put("constructorParams", constructorParams);
-        ctx.put("superArgs", buildKotlinSuperArgs(spec));
+        ctx.put("superArgs", buildKotlinSuperArgs(spec, envNames));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    private static Map<String, String> providerParam(final String name) {
+        final Map<String, String> param = new HashMap<>();
+        param.put("name", name);
+        param.put("type", "(suspend () -> String)? = null");
+        param.put("doc", "returns the current credential on every request, used when neither"
+                + " the argument nor the environment variable is set");
+        return param;
+    }
+
+    /**
+     * The environment variable of each credential field of one scheme, by constructor field name
+     * (F862). The names come from the shared {@code envVars} the base context carries.
+     */
+    @SuppressWarnings("unchecked")
+    static Map<String, String> envNamesByField(final Map<String, Object> ctx) {
+        final Map<String, String> byField = new HashMap<>();
+        final Object envVars = ctx.get("envVars");
+        if (envVars instanceof List) {
+            for (final Object entry : (List<Object>) envVars) {
+                final Map<String, Object> scheme = (Map<String, Object>) entry;
+                byField.put(String.valueOf(scheme.get("field")), String.valueOf(scheme.get("envName")));
+            }
+        }
+        return byField;
+    }
+
+    /**
+     * The expression that resolves one credential of an OAuth or OpenID Connect scheme: the
+     * argument, else its environment variable, else a failure naming the variable (F862).
+     */
+    private static String resolvedCredential(
+            final String field, final Map<String, String> envNames) {
+        return "CredentialEnvironment.require(" + field + ", \"" + envNames.get(field) + "\", \""
+                + field + "\")";
     }
 
     private static String formatKotlinScopes(@Nullable Map<String, String> scopes) {
@@ -888,42 +938,50 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return "listOf(\"" + String.join("\", \"", scopes.keySet()) + "\")";
     }
 
-    private List<String> buildKotlinSuperArgs(SchemeAuthSpec spec) {
+    private List<String> buildKotlinSuperArgs(SchemeAuthSpec spec, Map<String, String> env) {
         if ("BasicAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "username", "password");
+            return List.of("host", "username", "password",
+                    "\"" + env.get("username") + "\"", "\"" + env.get("password") + "\"");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "token");
+            return List.of("host", "token", "tokenProvider", "\"" + env.get("token") + "\"");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + escapeKotlinString(java.util.Objects.toString(spec.keyParamName(), "")) + "\"", "apiKey",
-                    "ApiKeyLocation." + spec.keyIn());
+                    "ApiKeyLocation." + spec.keyIn(), "apiKeyProvider",
+                    "\"" + env.get("apiKey") + "\"");
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "clientId", "clientSecret",
+            return List.of("host", resolvedCredential("clientId", env),
+                    resolvedCredential("clientSecret", env),
                     "\"" + spec.tokenUrl() + "\"", formatKotlinScopes(spec.scopes()));
         }
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
                     ? "\"" + spec.refreshUrl() + "\"" : "null";
-            return List.of("host", "clientId", "clientSecret",
+            return List.of("host", resolvedCredential("clientId", env),
+                    resolvedCredential("clientSecret", env),
                     "\"" + spec.tokenUrl() + "\"",
-                    "username", "password", formatKotlinScopes(spec.scopes()), refreshArg);
+                    resolvedCredential("username", env), resolvedCredential("password", env),
+                    formatKotlinScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
                     ? "\"" + spec.refreshUrl() + "\"" : "null";
-            return List.of("host", "clientId", "clientSecret",
+            return List.of("host", resolvedCredential("clientId", env),
+                    resolvedCredential("clientSecret", env),
                     "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
-                    "redirectUri", formatKotlinScopes(spec.scopes()), refreshArg);
+                    resolvedCredential("redirectUri", env), formatKotlinScopes(spec.scopes()),
+                    refreshArg);
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "clientId",
+            return List.of("host", resolvedCredential("clientId", env),
                     "\"" + spec.authorizationUrl() + "\"", formatKotlinScopes(spec.scopes()));
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
-                    "clientId", "clientSecret", "redirectUri", "listOf()");
+                    resolvedCredential("clientId", env), resolvedCredential("clientSecret", env),
+                    resolvedCredential("redirectUri", env), "listOf()");
         }
         return List.of();
     }
@@ -1156,6 +1214,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         final ModelsMap result = super.postProcessModels(objs);
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
+            nameUnionVariants(model);
             boolean hasContentEqualsField = false;
             for (final CodegenProperty prop : model.vars) {
                 if (markEquality(prop)) {
@@ -1177,6 +1236,43 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         }
         dropSamePackageImports(result);
         return result;
+    }
+
+    /**
+     * Names the variants of a oneOf union for the typed factories and accessors (F878):
+     * {@code variantName} is the Kotlin type as an identifier part ({@code Reservation},
+     * {@code ListOfByteArray}) and {@code isPlainVariant} is true when the variant is a bare
+     * class name, so an {@code is} test is legal for it (a generic type is erased). Two
+     * variants that would share a name get a numeric suffix, in declaration order.
+     *
+     * @param model the model whose composed variants to name
+     */
+    static void nameUnionVariants(final CodegenModel model) {
+        if (model.getComposedSchemas() == null || model.getComposedSchemas().getOneOf() == null) {
+            return;
+        }
+        final Set<String> taken = new HashSet<>();
+        for (final CodegenProperty variant : model.getComposedSchemas().getOneOf()) {
+            final String type = variant.dataType == null ? "Any" : variant.dataType;
+            final String simple = type.indexOf('<') < 0 && type.indexOf('.') > 0
+                    ? type.substring(type.lastIndexOf('.') + 1)
+                    : type;
+            final StringBuilder name = new StringBuilder();
+            for (final String word :
+                    simple.replace("<", " Of ").split("[^A-Za-z0-9]+", -1)) {
+                if (!word.isEmpty()) {
+                    name.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+                }
+            }
+            String unique = name.length() == 0 ? "Value" : name.toString();
+            for (int n = 2; !taken.add(unique); n++) {
+                unique = name + String.valueOf(n);
+            }
+            variant.vendorExtensions.put("variantName", unique);
+            variant.vendorExtensions.put(
+                    "isPlainVariant",
+                    simple.matches("[A-Za-z_][A-Za-z0-9_]*") && !"Any".equals(simple));
+        }
     }
 
     /**

@@ -61,6 +61,28 @@ class ReserveStockResponse(
             else -> a.hashCode()
         }
 
+    /** Tells whether this union holds a [Reservation]. */
+    val isReservation: Boolean
+        get() = actualInstance is Reservation
+
+    /** The held variant as a [Reservation], or null when this union holds another variant. */
+    fun asReservation(): Reservation? = actualInstance as? Reservation
+
+    /** Tells whether this union holds a [ReservationReceipt]. */
+    val isReservationReceipt: Boolean
+        get() = actualInstance is ReservationReceipt
+
+    /** The held variant as a [ReservationReceipt], or null when this union holds another variant. */
+    fun asReservationReceipt(): ReservationReceipt? = actualInstance as? ReservationReceipt
+
+    companion object {
+        /** Wraps a [Reservation] as this union. */
+        fun fromReservation(value: Reservation): ReserveStockResponse = ReserveStockResponse(value)
+
+        /** Wraps a [ReservationReceipt] as this union. */
+        fun fromReservationReceipt(value: ReservationReceipt): ReserveStockResponse = ReserveStockResponse(value)
+    }
+
     internal object Serializer : kotlinx.serialization.KSerializer<ReserveStockResponse> {
         override val descriptor =
             kotlinx.serialization.descriptors.buildClassSerialDescriptor("ReserveStockResponse")

@@ -1306,13 +1306,22 @@ class PetApiTest {
         @Test
         @DisplayName("unsecured operation Options exposes no auth field")
         fun testUnsecuredOperationOptionsExposesNoAuth() {
-            // Compile-level guard: an unsecured operation's Options object must
-            // NOT expose an auth field, and unsecured ops with path params only
-            // (getPetById) take no Options arg at all. This is a no-op at
-            // runtime; it fails to compile if a regression reintroduces auth on
-            // unsecured operations.
+            // An unsecured operation's Options object must NOT expose an auth
+            // field. An unsecured operation with path params only (getPetById)
+            // still takes an Options object, which holds just the per-call
+            // timeout, headers and maxRetries (F827).
             val opts = FindPetsByStatusOptions(status = "available")
             assertNotNull(opts)
+            val callSettingsOnly =
+                com.example.petstore.api.options
+                    .GetPetByIdOptions(timeout = 1000L, maxRetries = 0)
+            assertEquals(1000L, callSettingsOnly.timeout)
+            assertEquals(
+                listOf("headers", "maxRetries", "timeout"),
+                com.example.petstore.api.options.GetPetByIdOptions::class.java.declaredFields
+                    .map { it.name }
+                    .sorted(),
+            )
             // AddPetOptions (secured op) DOES carry the auth field.
             val secured = AddPetOptions(auth = bearerAuth)
             assertNotNull(secured.auth)

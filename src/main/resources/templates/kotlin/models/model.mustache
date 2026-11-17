@@ -228,6 +228,32 @@ class {{classname}}(
       else -> a.hashCode()
     }
 
+{{#composedSchemas.oneOf}}
+{{#vendorExtensions.isPlainVariant}}
+
+  /** Tells whether this union holds a [{{{dataType}}}]. */
+  val is{{vendorExtensions.variantName}}: Boolean
+    get() = actualInstance is {{{dataType}}}
+
+  /** The held variant as a [{{{dataType}}}], or null when this union holds another variant. */
+  fun as{{vendorExtensions.variantName}}(): {{{dataType}}}? = actualInstance as? {{{dataType}}}
+{{/vendorExtensions.isPlainVariant}}
+{{/composedSchemas.oneOf}}
+{{#composedSchemas.oneOf}}
+{{#-first}}
+
+  companion object {
+{{/-first}}
+{{^-first}}
+
+{{/-first}}
+    /** Wraps a [{{{dataType}}}] as this union. */
+    fun from{{vendorExtensions.variantName}}(value: {{{dataType}}}): {{classname}} = {{classname}}(value)
+{{#-last}}
+  }
+{{/-last}}
+{{/composedSchemas.oneOf}}
+
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
     override val descriptor =
       kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
@@ -313,6 +339,32 @@ class {{classname}}(
       is List<*> -> a.fold(1) { acc, e -> 31 * acc + deepHash(e) }
       else -> a.hashCode()
     }
+
+{{#composedSchemas.oneOf}}
+{{#vendorExtensions.isPlainVariant}}
+
+  /** Tells whether this union holds a [{{{dataType}}}]. */
+  val is{{vendorExtensions.variantName}}: Boolean
+    get() = actualInstance is {{{dataType}}}
+
+  /** The held variant as a [{{{dataType}}}], or null when this union holds another variant. */
+  fun as{{vendorExtensions.variantName}}(): {{{dataType}}}? = actualInstance as? {{{dataType}}}
+{{/vendorExtensions.isPlainVariant}}
+{{/composedSchemas.oneOf}}
+{{#composedSchemas.oneOf}}
+{{#-first}}
+
+  companion object {
+{{/-first}}
+{{^-first}}
+
+{{/-first}}
+    /** Wraps a [{{{dataType}}}] as this union. */
+    fun from{{vendorExtensions.variantName}}(value: {{{dataType}}}): {{classname}} = {{classname}}(value)
+{{#-last}}
+  }
+{{/-last}}
+{{/composedSchemas.oneOf}}
 
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
     override val descriptor =
@@ -825,7 +877,7 @@ data class {{classname}}(
 {{/vendorExtensions.isLocalTime}}{{#vendorExtensions.isDuration}}  @Contextual
 {{/vendorExtensions.isDuration}}{{#isDecimal}}  @Contextual
 {{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
-{{/isNumber}}{{/isDecimal}}  {{#vendorExtensions.overridesBase}}override {{/vendorExtensions.overridesBase}}val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}},
+{{/isNumber}}{{/isDecimal}}  {{#vendorExtensions.overridesBase}}override {{/vendorExtensions.overridesBase}}val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}{{^vendorExtensions.siblingDefaultIsEnum}}null{{/vendorExtensions.siblingDefaultIsEnum}}{{#vendorExtensions.siblingDefaultIsEnum}}{{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/isContainer}}{{/required}},
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
   {{! The overflow bucket is a constructor parameter so that copy() carries it and

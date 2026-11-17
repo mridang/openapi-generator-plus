@@ -99,7 +99,7 @@ class Client : AutoCloseable {
          *
          * @param host API base URL
          * @param accessToken Bearer token; when null the environment variable
-         *   `OPEN_API_TOKEN` is used, and a missing token fails here
+         *   `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` is used, and a missing token fails here
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
          * @return configured client instance
          * @throws IllegalArgumentException if no token is given or set, or a configured custom CA certificate cannot be read or parsed

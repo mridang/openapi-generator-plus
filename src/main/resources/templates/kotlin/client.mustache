@@ -106,7 +106,7 @@ class {{clientClassName}} : AutoCloseable {
          *
          * @param host API base URL
          * @param accessToken Bearer token; when null the environment variable
-         *   `{{credentialEnvPrefix}}_TOKEN` is used, and a missing token fails here
+         *   `{{envVarPrefix}}_TOKEN` is used, and a missing token fails here
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
          * @return configured client instance
          * @throws IllegalArgumentException if no token is given or set, or a configured custom CA certificate cannot be read or parsed

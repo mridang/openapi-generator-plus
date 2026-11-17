@@ -97,10 +97,10 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: credentials not passed come from OPEN_API_USERNAME and OPEN_API_PASSWORD")
+    @DisplayName("F862: credentials not passed come from SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME and SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD")
     fun credentialsComeFromTheEnvironment() =
         runBlocking {
-            val env = mapOf("OPEN_API_USERNAME" to "alice", "OPEN_API_PASSWORD" to "s3" + "cret")
+            val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "alice", "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "s3" + "cret")
             val auth = withEnvironment(env) { BasicAuthenticator("https://api.example.com") }
             assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
             val mixed = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "bob") }
@@ -111,9 +111,69 @@ class BasicAuthenticatorTest {
     @DisplayName("F862: a missing credential fails at construction and names its environment variable")
     fun missingCredentialFailsAtConstruction() {
         val ex =
-            withEnvironment(mapOf("OPEN_API_USERNAME" to "alice", "OPEN_API_PASSWORD" to "")) {
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "alice", "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "")) {
                 assertThrows(IllegalArgumentException::class.java) { BasicAuthenticator("https://api.example.com") }
             }
-        assertTrue(ex.message!!.contains("OPEN_API_PASSWORD"), ex.message)
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"), ex.message)
+    }
+
+    @Test
+    @DisplayName("F862: an explicit credential wins over the environment, one credential at a time")
+    fun explicitCredentialWinsOverTheEnvironment() =
+        runBlocking {
+            val env =
+                mapOf(
+                    "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "from-env",
+                    "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "pw" + "-env",
+                )
+            val auth = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice") }
+            assertEquals("Basic YWxpY2U6cHctZW52", auth.getAuthHeaders()["Authorization"])
+            val both = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice", "s3" + "cret") }
+            assertEquals("Basic YWxpY2U6czNjcmV0", both.getAuthHeaders()["Authorization"])
+        }
+
+    @Test
+    @DisplayName("F862: an empty variable counts as unset and fails naming the variable")
+    fun emptyUsernameVariableFails() {
+        val ex =
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "", "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "x")) {
+                assertThrows(IllegalArgumentException::class.java) { BasicAuthenticator("https://api.example.com") }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"), ex.message)
+    }
+
+    @Test
+    @DisplayName("F862: a security scheme's authenticator reads the variables of its own scheme")
+    fun schemeWrapperReadsItsOwnVariables() =
+        runBlocking {
+            val env =
+                mapOf(
+                    "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME" to "alice",
+                    "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD" to "s3" + "cret",
+                )
+            val auth = withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com") }
+            assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+            val explicit = withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com", "bob", "pw") }
+            assertEquals("Basic Ym9iOnB3", explicit.getAuthHeaders()["Authorization"])
+            val other =
+                withEnvironment(env) {
+                    assertThrows(IllegalArgumentException::class.java) { PetStoreBasicAuthenticator("https://api.example.com") }
+                }
+            assertTrue(other.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME"), other.message)
+        }
+
+    @Test
+    @DisplayName("F862: a scheme's authenticator treats an empty variable as unset and names it when missing")
+    fun schemeWrapperEmptyVariableFails() {
+        val env =
+            mapOf(
+                "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME" to "alice",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD" to "",
+            )
+        val ex =
+            withEnvironment(env) {
+                assertThrows(IllegalArgumentException::class.java) { AdminBasicAuthenticator("https://api.example.com") }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD"), ex.message)
     }
 }

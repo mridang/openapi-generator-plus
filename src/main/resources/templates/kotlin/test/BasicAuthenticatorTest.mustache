@@ -87,9 +87,9 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: credentials not passed come from {{credentialEnvPrefix}}_USERNAME and {{credentialEnvPrefix}}_PASSWORD")
+    @DisplayName("F862: credentials not passed come from {{envVarPrefix}}_USERNAME and {{envVarPrefix}}_PASSWORD")
     fun credentialsComeFromTheEnvironment() = runBlocking {
-        val env = mapOf("{{credentialEnvPrefix}}_USERNAME" to "alice", "{{credentialEnvPrefix}}_PASSWORD" to "s3" + "cret")
+        val env = mapOf("{{envVarPrefix}}_USERNAME" to "alice", "{{envVarPrefix}}_PASSWORD" to "s3" + "cret")
         val auth = withEnvironment(env) { BasicAuthenticator("https://api.example.com") }
         assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
         val mixed = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "bob") }
@@ -99,9 +99,55 @@ class BasicAuthenticatorTest {
     @Test
     @DisplayName("F862: a missing credential fails at construction and names its environment variable")
     fun missingCredentialFailsAtConstruction() {
-        val ex = withEnvironment(mapOf("{{credentialEnvPrefix}}_USERNAME" to "alice", "{{credentialEnvPrefix}}_PASSWORD" to "")) {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_USERNAME" to "alice", "{{envVarPrefix}}_PASSWORD" to "")) {
             assertThrows(IllegalArgumentException::class.java) { BasicAuthenticator("https://api.example.com") }
         }
-        assertTrue(ex.message!!.contains("{{credentialEnvPrefix}}_PASSWORD"), ex.message)
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_PASSWORD"), ex.message)
+    }
+
+    @Test
+    @DisplayName("F862: an explicit credential wins over the environment, one credential at a time")
+    fun explicitCredentialWinsOverTheEnvironment() = runBlocking {
+        val env = mapOf("{{envVarPrefix}}_USERNAME" to "from-env", "{{envVarPrefix}}_PASSWORD" to "pw" + "-env")
+        val auth = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice") }
+        assertEquals("Basic YWxpY2U6cHctZW52", auth.getAuthHeaders()["Authorization"])
+        val both = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice", "s3" + "cret") }
+        assertEquals("Basic YWxpY2U6czNjcmV0", both.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("F862: an empty variable counts as unset and fails naming the variable")
+    fun emptyUsernameVariableFails() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_USERNAME" to "", "{{envVarPrefix}}_PASSWORD" to "x")) {
+            assertThrows(IllegalArgumentException::class.java) { BasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_USERNAME"), ex.message)
+    }
+
+    @Test
+    @DisplayName("F862: a security scheme's authenticator reads the variables of its own scheme")
+    fun schemeWrapperReadsItsOwnVariables() = runBlocking {
+        val env = mapOf(
+            "{{envVarPrefix}}_ADMIN_BASIC_USERNAME" to "alice",
+            "{{envVarPrefix}}_ADMIN_BASIC_PASSWORD" to "s3" + "cret",
+        )
+        val auth = withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com") }
+        assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+        val explicit = withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com", "bob", "pw") }
+        assertEquals("Basic Ym9iOnB3", explicit.getAuthHeaders()["Authorization"])
+        val other = withEnvironment(env) {
+            assertThrows(IllegalArgumentException::class.java) { PetStoreBasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(other.message!!.contains("{{envVarPrefix}}_PET_STORE_BASIC_USERNAME"), other.message)
+    }
+
+    @Test
+    @DisplayName("F862: a scheme's authenticator treats an empty variable as unset and names it when missing")
+    fun schemeWrapperEmptyVariableFails() {
+        val env = mapOf("{{envVarPrefix}}_ADMIN_BASIC_USERNAME" to "alice", "{{envVarPrefix}}_ADMIN_BASIC_PASSWORD" to "")
+        val ex = withEnvironment(env) {
+            assertThrows(IllegalArgumentException::class.java) { AdminBasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_ADMIN_BASIC_PASSWORD"), ex.message)
     }
 }
