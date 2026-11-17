@@ -238,6 +238,16 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject192 an unknown enum string fails at decode and names the value")
+        fun unknownEnumStringFailsAtDecodeNamingTheValue() {
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"banana\"}")
+                }
+            assertTrue(ex.message.orEmpty().contains("banana"), "the message must name the value, got ${ex.message}")
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject063 missing required field throws SerializationException")
         fun missingRequiredFieldThrowsSerializationException() {
             val ex =
@@ -1004,7 +1014,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("int64 keeps every digit above 2^53 and rejects fractions")
+        @DisplayName("bhvSerializationobject191 int64 keeps every digit above 2^53 and rejects fractions")
         fun int64KeepsPrecisionAndRejectsFractions() {
             val big = serializer.deserialize<com.example.petstore.models.Order>("{\"id\":9007199254740993}")
             assertEquals(9007199254740993L, big!!.id)
@@ -1130,7 +1140,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("long returns string representation")
+        @DisplayName("bhvSerializationobject190 a long is stringified to its exact decimal digits")
         fun longReturnsString() {
             assertEquals("9007199254740993", serializer.stringify(9007199254740993L))
         }

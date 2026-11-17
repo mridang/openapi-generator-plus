@@ -629,7 +629,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("401 throws UnauthorizedException")
+        @DisplayName("bhvErrors071 a 401 response throws UnauthorizedException")
         fun throws401() {
             assertThrows(UnauthorizedException::class.java) {
                 runBlocking { api().call("GET", "/test/status/401") }
@@ -2095,7 +2095,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("TransportOptions accepts proxy URL containing basic-auth credentials")
+        @DisplayName("bhvOptions052 a proxy URL carrying credentials is accepted")
         fun transportOptionsAcceptsProxyWithBasicAuthCredentials() {
             // Verifies the proxy URL parser does not reject user:pass@host:port form.
             val opts =

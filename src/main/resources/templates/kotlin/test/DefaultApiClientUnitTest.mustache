@@ -1329,6 +1329,39 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvRedirects033 a redirect to a different port is a different origin and drops the credentials")
+        fun redirectToADifferentPortDropsTheCredentials() {
+            var hopHeaders: io.ktor.http.Headers? = null
+            var hopCount = 0
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://first.example.com:9090/dest"),
+                    )
+                } else {
+                    hopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "http://first.example.com:8080/start",
+                    mapOf("Authorization" to "Bearer secret", "Cookie" to "session=abc"),
+                    null,
+                )
+            }
+            assertEquals(2, hopCount)
+            assertNull(hopHeaders?.get("Authorization"), "Authorization must not follow a redirect to another port")
+            assertNull(hopHeaders?.get("Cookie"), "Cookie must not follow a redirect to another port")
+        }
+
+        @Test
         @DisplayName("bhvRedirects008 returns redirect when disabled")
         fun returnsRedirectWhenFollowingIsDisabled() {
             var hopCount = 0
@@ -1505,7 +1538,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("maxRedirects of zero returns a 3xx without a Location instead of failing")
+        @DisplayName("bhvRedirects031 maxRedirects of zero returns a 3xx without a Location instead of failing")
         fun zeroMaxRedirectsReturnsTheLocationlessRedirect() {
             val engine = MockEngine { _ -> respond("", HttpStatusCode.Found) }
             val transport = TransportOptions.builder().followRedirects(true).maxRedirects(0).build()
@@ -2552,7 +2585,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a 503 is sent again until it succeeds")
+        @DisplayName("bhvRetries038 a 503 is sent again until it succeeds")
         fun aRetryableStatusIsSentAgain() {
             val apiClient = retrying(listOf(503, 503, 200))
 
@@ -2634,6 +2667,17 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvRetries033 the last network error is reported once the retries are spent")
+        fun theLastNetworkErrorIsReportedOnceTheRetriesAreSpent() {
+            val apiClient = retrying(listOf(java.io.IOException("first"), java.io.IOException("second")))
+
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) { get(apiClient) }
+
+            assertEquals(3, requestCount)
+            assertEquals("second", ex.cause?.message)
+        }
+
+        @Test
         @DisplayName("a timeout is not retried")
         fun aTimeoutIsNotRetried() {
             val apiClient = retrying(listOf(java.net.SocketTimeoutException("socket timed out")))
@@ -2658,6 +2702,34 @@ class DefaultApiClientUnitTest {
             get(shortest)
             assertEquals(1, sleeps.size)
             assertTrue(sleeps[0] in 375L..376L, "the shortest wait is 75% of 500 ms, got ${sleeps[0]}")
+        }
+
+        @Test
+        @DisplayName("bhvRetries030 the retry backoff jitter takes at most a quarter off the delay")
+        fun jitterTakesAtMostAQuarterOffTheDelay() {
+            for (jitter in listOf(0.0, 0.5, 0.999999)) {
+                sleeps.clear()
+                requestCount = 0
+                get(retrying(listOf(503), maxRetries = 1, jitter = jitter))
+
+                assertEquals(1, sleeps.size, "one retry for jitter $jitter")
+                assertTrue(sleeps[0] in 375L..500L, "jitter $jitter must leave 375 to 500 ms, got ${sleeps[0]}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRetries041 the backoff starts at 0.5 s, doubles up to 8 s and has up to 25% jitter taken off")
+        fun backoffStartsAtHalfASecondAndHasUpToAQuarterTakenOff() {
+            val apiClient = retrying(listOf(503), maxRetries = 5, jitter = 0.0)
+
+            get(apiClient)
+
+            assertEquals(listOf(500L, 1000L, 2000L, 4000L, 8000L), sleeps)
+
+            sleeps.clear()
+            requestCount = 0
+            get(retrying(listOf(503), maxRetries = 1, jitter = 0.999999))
+            assertTrue(sleeps[0] in 375L..376L, "the shortest first wait is 75% of 500 ms, got ${sleeps[0]}")
         }
 
         @Test
@@ -2772,7 +2844,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("every retry is a fresh request that carries the caller's headers again")
+        @DisplayName("bhvRetries039 every retry is a fresh request that carries the same authentication headers again")
         fun everyRetryIsAFreshRequest() {
             val apiClient = retrying(listOf(503, 503, 200), injectRequestId = true)
 
@@ -2787,7 +2859,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a request body is sent again unchanged")
+        @DisplayName("bhvRetries034 a string body is sent again unchanged on every retry")
         fun aBodyIsReplayed() {
             val apiClient = retrying(listOf(503, 200))
 
