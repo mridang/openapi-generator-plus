@@ -82,6 +82,12 @@ These came out of the long parity session and each one cost at least a CI round.
 - The shared helper containers start once per Maven run (`SharedHelperContainers`), and the generated tests use `CHASM_HTTP_URL` and `PROXY_URL` when they are set. A TLS host-name test must match the stable part of the message, because the shared container name replaces the IP in it.
 - Kotlin: the ktlint download races when two processes share one cache path. Download to a per-process file and move it into place.
 
+### Test parity check (TestParitySpec)
+- Every client spec saves `target/test-parity/<lang>.json` (canonical `group::test` keys and the total) and `TestParitySpec`, ordered last, compares the languages that ran: a missing or extra group, an unreadable report or zero tests fails it; with all twelve it also fails on a missing common test and on a stale allow entry. A focused gate (`etc/ci-local.sh check <Lang>`) adds the spec, which compares only the languages of that run and skips below two.
+- Every gap is listed with a reason in `src/spec/resources/test-parity-allow.json`. Never widen it to make a run pass: add the missing test to the language (the fix), or list the gap with the language feature that forces it. `tracked in #118` marks a real difference nobody has fixed yet; do not copy that reason onto a new gap.
+- Name a new test so the normaliser finds it in every language: the same words as the sibling tests, in the file or class named after the type under test. A Go test named after a function (`TestSerializeValue_...`) creates a group the others lack. The rules and their golden-name tests are in `TestNameNormaliser` and `TestNameNormaliserTest`.
+- Check one language by hand with `etc/ci-local.sh mvn -o -B test -Dtest='io.github.mridang.codegen.spec.parity.*Test'` for the unit tests; the spec itself needs the summaries of at least two client specs from the same Maven run.
+
 ### Docker and reading logs
 - If `docker ps` hangs, the Docker VMM has a wedged vCPU: container creation stalls and a restart of the daemon does not clear it. Stop, say so, and let the owner restart Docker; do not queue more runs behind it.
 - Read the newest log of the current run and check its mtime. A stale log from an earlier run once showed a green result for a gate that had not run.
