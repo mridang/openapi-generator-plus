@@ -860,8 +860,8 @@ fn is_valid_cookie_value(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        fits_budget, is_retryable_error, is_retryable_status, parse_retry_after, retry_delay,
-        serialize_body, BaseApi, CallOptions, InvokeApiParams,
+        build_query_string, fits_budget, is_retryable_error, is_retryable_status,
+        parse_retry_after, retry_delay, serialize_body, BaseApi, CallOptions, InvokeApiParams,
     };
     use crate::api_client::{ApiClient, RequestBody};
     use crate::api_http_response::ApiHttpResponse;
@@ -1463,5 +1463,17 @@ mod tests {
             "application/json",
         ).unwrap();
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_060_build_query_string_encodes_reserved_by_default() {
+        let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), false)]);
+        assert_eq!(query, "q=a%3Ab%2Fc");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_060_build_query_string_keeps_reserved_when_allowed() {
+        let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), true)]);
+        assert_eq!(query, "q=a:b/c");
     }
 }

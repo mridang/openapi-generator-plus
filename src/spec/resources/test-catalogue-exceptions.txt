@@ -34,3 +34,8 @@ go | authintegration013 | go has no per-call auth override: a call cannot replac
 go | options027 | Go has no constructor that takes maxRetries: TransportOptions is built only through NewTransportOptionsBuilder, so there is no second construction path to test; the builder path and the MaxRetries(0) disabling are bhv options 026
 ||||||| 4610d9ef3
 rust | serializationobject009 | Rust == takes two values of one type, so a list of byte arrays cannot be compared with a map of them: the compiler rejects the comparison, a stronger guarantee than a runtime inequality
+||||||| 4610d9ef3
+rust | headers002 | select_headers takes a typed string content type, so a nil value cannot reach it; the empty-string default is covered by bhv headers 001
+rust | headers005 | select_headers takes a typed slice of accept values, so a nil value cannot reach it; the empty slice is covered by bhv headers 004
+rust | headers015 | is_json_mime takes a typed string reference, so a nil value cannot reach it; the empty string is covered by bhv headers 014
+rust | serializationparam083 | a set parameter reaches the serializer only as an iterator over its items, and a HashSet has no defined order, so set and list expansion cannot differ observably; the list expansion is covered by bhv serializationparam 032 and 009

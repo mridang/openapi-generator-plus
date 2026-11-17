@@ -863,15 +863,20 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 mod tests {
     use super::{self as object_serializer, QueryValue, SerializationError};
 
-    /* D47: an object-valued parameter is expanded per property, in declaration
-     * order for a model and in key order for a map; a nested value is refused. */
-    #[test]
-    fn test_object_valued_parameters_expand_per_style() {
+    fn sample_object() -> std::collections::HashMap<String, serde_json::Value> {
         let mut map: std::collections::HashMap<String, serde_json::Value> =
             std::collections::HashMap::new();
         map.insert("min_age".to_string(), serde_json::json!(3));
         map.insert("breed".to_string(), serde_json::json!("lab"));
         map.insert("skipped".to_string(), serde_json::Value::Null);
+        map
+    }
+
+    /* D47: an object-valued parameter is expanded per property, in declaration
+     * order for a model and in key order for a map; a nested value is refused. */
+    #[test]
+    fn test_bhv_serializationparam_036_object_query_pairs_one_entry_per_property() {
+        let map = sample_object();
 
         assert_eq!(
             Some(vec![
@@ -880,15 +885,33 @@ mod tests {
             ]),
             object_serializer::object_query_pairs(&map, "form", true).unwrap()
         );
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_039_stringify_param_form_not_exploded_is_one_list() {
+        let map = sample_object();
+
         assert_eq!(None, object_serializer::object_query_pairs(&map, "form", false).unwrap());
         assert_eq!(
             "breed,lab,min_age,3",
             object_serializer::stringify_param(&map, "form", false).unwrap()
         );
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_082_stringify_param_simple_object_is_a_header_list() {
+        let map = sample_object();
+
         assert_eq!(
             "breed=lab,min_age=3",
             object_serializer::stringify_param(&map, "simple", true).unwrap()
         );
+    }
+
+    #[test]
+    fn test_object_valued_parameters_pipe_delimited_and_nested_values() {
+        let mut map = sample_object();
+
         assert_eq!(
             "breed|lab|min_age|3",
             object_serializer::stringify_param(&map, "pipeDelimited", false).unwrap()
@@ -1173,6 +1196,31 @@ mod tests {
          * `YYYY-MM-DD` by its own type, so no heuristic is needed. */
         let result = object_serializer::to_path_value(&"2024-01-15T10:30:00Z".to_string());
         assert_eq!(result, "2024-01-15T10:30:00Z");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_001_stringify_null_element_keeps_an_empty_slot() {
+        let items: Vec<Option<String>> = vec![Some("a".to_string()), None, Some("c".to_string())];
+        let texts: Vec<String> = items.iter().map(object_serializer::stringify).collect();
+        assert_eq!(texts, ["a", "", "c"]);
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_011_null_element_in_multi_array_is_an_empty_value() {
+        let items: Vec<Option<String>> = vec![Some("a".to_string()), None, Some("c".to_string())];
+        let texts: Vec<String> = items.iter().map(object_serializer::stringify).collect();
+        match crate::value_serializer::serialize_array_value(&texts, "query", "multi") {
+            Some(crate::value_serializer::SerializedValue::Multi(values)) => {
+                assert_eq!(values, ["a", "", "c"]);
+            }
+            other => panic!("expected a multi list, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_027_to_path_value_date_at_year_boundary_is_date_only() {
+        let date = chrono::NaiveDate::from_ymd_opt(2024, 12, 31).expect("a valid date");
+        assert_eq!(object_serializer::to_path_value(&date), "2024-12-31");
     }
 
     #[test]
