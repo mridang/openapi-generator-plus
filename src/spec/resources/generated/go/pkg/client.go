@@ -56,6 +56,8 @@ var ErrMissingCredential = auth.ErrMissingCredential
 type Client struct {
 	/* Pet holds the API operations for the PetApi group. */
 	Pet *PetApi
+	/* Problems holds the API operations for the ProblemsApi group. */
+	Problems *ProblemsApi
 	/* Store holds the API operations for the StoreApi group. */
 	Store *StoreApi
 
@@ -126,9 +128,11 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 	client := &Client{
 		apiClient: apiClient,
 		Pet:       NewPetApi(apiClient, config, authenticator, Credentials{}),
+		Problems:  NewProblemsApi(apiClient, config, authenticator, Credentials{}),
 		Store:     NewStoreApi(apiClient, config, authenticator, Credentials{}),
 	}
 	client.Pet.credentials = credentials
+	client.Problems.credentials = credentials
 	client.Store.credentials = credentials
 	return client
 }

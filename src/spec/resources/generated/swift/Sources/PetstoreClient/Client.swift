@@ -35,6 +35,8 @@ public final class Client: Sendable {
 
   /// API operations for the PetApi group.
   public let pet: PetApi
+  /// API operations for the ProblemsApi group.
+  public let problems: ProblemsApi
   /// API operations for the StoreApi group.
   public let store: StoreApi
 
@@ -172,6 +174,9 @@ public final class Client: Sendable {
       .build()
 
     self.pet = PetApi(
+      apiClient: apiClient, config: config, authenticator: authenticator,
+      schemeAuthenticators: schemes)
+    self.problems = ProblemsApi(
       apiClient: apiClient, config: config, authenticator: authenticator,
       schemeAuthenticators: schemes)
     self.store = StoreApi(

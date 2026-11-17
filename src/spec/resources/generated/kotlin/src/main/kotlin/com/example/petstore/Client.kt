@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import com.example.petstore.api.PetApi
+import com.example.petstore.api.ProblemsApi
 import com.example.petstore.api.StoreApi
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.BearerAuthenticator
@@ -43,6 +44,9 @@ class Client : AutoCloseable {
 
     /** API operations for the PetApi group. */
     val pet: PetApi
+
+    /** API operations for the ProblemsApi group. */
+    val problems: ProblemsApi
 
     /** API operations for the StoreApi group. */
     val store: StoreApi
@@ -155,6 +159,7 @@ class Client : AutoCloseable {
                 .build()
 
         this.pet = PetApi(apiClient, config, authenticator, schemeAuthenticators)
+        this.problems = ProblemsApi(apiClient, config, authenticator, schemeAuthenticators)
         this.store = StoreApi(apiClient, config, authenticator, schemeAuthenticators)
     }
 

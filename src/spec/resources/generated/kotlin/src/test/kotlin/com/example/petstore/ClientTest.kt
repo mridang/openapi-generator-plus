@@ -379,6 +379,7 @@ class ClientTest {
         val client = Client(authenticator)
 
         assertNotNull(client.pet)
+        assertNotNull(client.problems)
         assertNotNull(client.store)
     }
 }

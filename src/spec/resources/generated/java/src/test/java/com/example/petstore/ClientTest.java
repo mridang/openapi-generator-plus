@@ -228,6 +228,7 @@ class ClientTest {
     Client client = new Client(authenticator);
 
     assertNotNull(client.pet);
+    assertNotNull(client.problems);
     assertNotNull(client.store);
   }
 

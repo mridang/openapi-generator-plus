@@ -41,6 +41,9 @@ public sealed class Client : IDisposable
     /// <summary>API operations for the PetApi group.</summary>
     public PetApi Pet { get; }
 
+    /// <summary>API operations for the ProblemsApi group.</summary>
+    public ProblemsApi Problems { get; }
+
     /// <summary>API operations for the StoreApi group.</summary>
     public StoreApi Store { get; }
 
@@ -149,6 +152,7 @@ public sealed class Client : IDisposable
 
         Configuration config = Configuration.Builder().BaseUrl(host).Build();
         Pet = new PetApi(_apiClient, config, authenticator, schemeAuthenticators);
+        Problems = new ProblemsApi(_apiClient, config, authenticator, schemeAuthenticators);
         Store = new StoreApi(_apiClient, config, authenticator, schemeAuthenticators);
     }
 

@@ -94,6 +94,7 @@ fn test_bhv_lifecycle_001_client_api_groups_are_accessible() {
     let client = Client::new(Box::new(authenticator), None);
 
     let _ = &client.pet;
+    let _ = &client.problems;
     let _ = &client.store;
 }
 
