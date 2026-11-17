@@ -158,6 +158,37 @@ func TestBhvAuthbasic003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNam
 	}
 }
 
+// An empty environment variable fails construction without arguments, and the error names that variable.
+func TestBhvAuthscheme003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingTheVariableWhenItIsEmpty(t *testing.T) {
+	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
+		t.Run(schemePetStoreBasicAuthenticatorFields[i], func(t *testing.T) {
+			setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, variable, "empty")
+
+			a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", "")
+
+			requireMissingCredential(t, err, variable)
+			if a != nil {
+				t.Error("expected no authenticator")
+			}
+		})
+	}
+}
+
+// A per-scheme basic wrapper emits the same Authorization header as the base authenticator it wraps.
+func TestBhvAuthbasic019_SchemeAuthenticator_PetStoreBasicAuthenticator_EmitsTheBaseBasicHeader(t *testing.T) {
+	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	base, err := auth.NewBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error from NewBasicAuthenticator: %v", err)
+	}
+	if got, want := a.AuthHeaders()["Authorization"], base.AuthHeaders()["Authorization"]; got != want {
+		t.Errorf("expected the base Basic header %q, got %q", want, got)
+	}
+}
+
 var schemeAdminBasicAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME", "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD"}
 
 var schemeAdminBasicAuthenticatorFields = []string{"username", "password"}
@@ -206,7 +237,7 @@ func TestSchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableCountsAsUnse
 	}
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme004_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeAdminBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeAdminBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -271,7 +302,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_AnEmptyVariableCountsAs
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthbearer019_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemePetStoreBearerAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBearerAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -409,7 +440,7 @@ func TestBhvAuthscheme002_SchemeAuthenticator_ServiceTokenAuthenticator_WithProv
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func TestBhvAuthbearer025_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
@@ -495,7 +526,38 @@ func TestBhvAuthapikey019_SchemeAuthenticator_ApiKeyHeaderAuthenticator_RejectsA
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+// With no key passed the environment supplies it, and a passed key wins over the environment.
+func TestBhvAuthapikey021_SchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsTheKeyFromEnvironmentUnlessOnePassed(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
+
+	fromEnvironment, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply the key, got %v", err)
+	}
+	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, fromEnvironment, schemeEnvValue)
+
+	passed, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, schemeArgValue("apiKey"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, passed, schemeArgValue)
+}
+
+// The per-scheme wrapper never prints its key in its default string form.
+func TestBhvAuthapikey025_SchemeAuthenticator_ApiKeyHeaderAuthenticator_MasksTheKeyInItsDebugOutput(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
+
+	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	secret := schemeEnvValue("apiKey")
+	if s := a.String(); strings.Contains(s, secret) {
+		t.Errorf("expected the key to be masked, got %q", s)
+	}
+}
+
+func TestBhvAuthscheme005_SchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -653,7 +715,7 @@ func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_RejectsAnEmptyKeyAtConstru
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme006_SchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -732,7 +794,7 @@ func TestSchemeAuthenticator_SessionCookieAuthenticator_RejectsAnEmptyKeyAtConst
 	}
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme007_SchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeSessionCookieAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1057,7 +1119,7 @@ func TestSchemeAuthenticator_SsoAuthAuthenticator_AnEmptyVariableCountsAsUnset(t
 	}
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme008_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeSsoAuthAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {

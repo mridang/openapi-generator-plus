@@ -53,6 +53,20 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      */
     private static final Pattern WRAPPER_TYPE = Pattern.compile("\\b(DateTime|Duration)\\b");
 
+    /**
+     * The behaviour id of the environment-failure test of each named scheme authenticator:
+     * authscheme004 to authscheme008 name the scheme, so one test name carries one id.
+     */
+    private static final Map<String, String> FAILS_NAMING_IDS = new HashMap<>();
+
+    static {
+        FAILS_NAMING_IDS.put("AdminBasicAuthenticator", "BhvAuthscheme004_");
+        FAILS_NAMING_IDS.put("ApiKeyHeaderAuthenticator", "BhvAuthscheme005_");
+        FAILS_NAMING_IDS.put("ApiKeyQueryAuthenticator", "BhvAuthscheme006_");
+        FAILS_NAMING_IDS.put("SessionCookieAuthenticator", "BhvAuthscheme007_");
+        FAILS_NAMING_IDS.put("SsoAuthAuthenticator", "BhvAuthscheme008_");
+    }
+
     private static final String OPTION_REPOSITORY_URL = "repositoryUrl";
     private static final String OPTION_HOMEPAGE_URL = "homepageUrl";
     private static final String OPTION_AUTHORS = "authors";
@@ -1172,6 +1186,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             final boolean isBearer) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        entry.put("failsNamingId", FAILS_NAMING_IDS.getOrDefault((String) entry.get("className"), ""));
         entry.put("package", spec.isOAuth() ? "oauth" : "auth");
         final boolean isBasic = "BasicAuthenticator".equals(spec.baseClass());
         entry.put("isBasic", isBasic);
