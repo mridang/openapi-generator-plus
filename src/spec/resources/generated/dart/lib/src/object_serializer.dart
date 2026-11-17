@@ -137,12 +137,16 @@ String serialize(Object? object) {
 }
 
 /// Converts the Dart values `jsonEncode` cannot write on its own: a [DateTime]
-/// takes the canonical date-time wire form and binary data is base64. Any
-/// other value is refused, so the caller sees a [SerializationException].
+/// takes the canonical date-time wire form, binary data is base64, and a model
+/// is written through its own `toJson()`. Supplying a `toEncodable` hook
+/// replaces `jsonEncode`'s default `toJson()` dispatch, so the hook must do it.
+/// A value with no `toJson()` is refused: `jsonEncode` wraps the failure in a
+/// [JsonUnsupportedObjectError], which the caller sees as a
+/// [SerializationException].
 Object _encodeNonJsonValue(Object? value) {
   if (value is DateTime) return formatDateTimeOffset(value);
   if (value is Uint8List) return base64Encode(value);
-  throw JsonUnsupportedObjectError(value);
+  return (value as dynamic).toJson() as Object;
 }
 
 /// Strips a leading UTF-8 BOM (U+FEFF) from a JSON string.
