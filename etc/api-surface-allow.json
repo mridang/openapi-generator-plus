@@ -2402,9 +2402,7 @@
    "aspect": "params",
    "languages": [
     "java",
-    "kotlin",
-    "php",
-    "node"
+    "php"
    ],
    "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
   },
@@ -2413,9 +2411,7 @@
    "aspect": "optional",
    "languages": [
     "java",
-    "kotlin",
-    "php",
-    "node"
+    "php"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
   },
@@ -2544,18 +2540,6 @@
   },
   {
    "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath"
-   ],
-   "aspect": "member",
-   "languages": [
-    "node"
-   ],
-   "value": "extra*",
-   "reason": "F830: owner decision, ApiError and every subclass gain requestMethod and requestPath (query string stripped); the other eleven SDKs land the same members in the same wave, drop this row once they have"
-  },
-  {
-   "element": [
     "*.with"
    ],
    "aspect": "member",
@@ -2576,7 +2560,7 @@
     "node"
    ],
    "value": "extra*",
-   "reason": "F827: owner decision, per-call options carry an optional timeout, headers and maxRetries; node extends its RequestOptions object, the other SDKs extend their own per-operation options, drop this row once they have"
+   "reason": "node's per-call timeout, headers and maxRetries live on the RequestOptions object every operation accepts as its trailing argument, which has no counterpart in the other SDKs, where they sit on the per-operation Options type"
   },
   {
    "element": [
@@ -2830,42 +2814,6 @@
     "go"
    ],
    "reason": "go types an inline enum query or form parameter as a named type in the options package with a constant per value, as it does for an inline model enum, F876"
-  },
-  {
-   "element": [
-    "*options.timeout",
-    "*options.headers",
-    "*options.maxretries"
-   ],
-   "aspect": "member",
-   "languages": [
-    "kotlin"
-   ],
-   "reason": "F827 owner decision (per-call timeout, headers and maxRetries on every operation Options object): lands per language in wave 2; kotlin carries it first. Drop this row once the majority has the three members."
-  },
-  {
-   "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath",
-    "apierror.fromresponse"
-   ],
-   "aspect": "member",
-   "languages": [
-    "kotlin"
-   ],
-   "reason": "F830 owner decision (requestMethod and requestPath on ApiException, set where BaseApi builds the error): lands per language in wave 2; kotlin carries it first. Drop this row once the majority has them."
-  },
-  {
-   "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath",
-    "apierror.fromresponse"
-   ],
-   "aspect": "params",
-   "languages": [
-    "kotlin"
-   ],
-   "reason": "F830 owner decision (requestMethod and requestPath on ApiException, set where BaseApi builds the error): lands per language in wave 2; kotlin carries it first. Drop this row once the majority has them."
   },
   {
    "element": [
@@ -3208,6 +3156,43 @@
    ],
    "value": "*options, requestcontenttype)",
    "reason": "owner decision F827 (2026-11-17): the trailing optional Options argument that carries the per-call settings, ahead of the content-type selector (S8 keeps the selector last in python). Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "node"
+   ],
+   "reason": "node passes the request context of the failed call as one object (`request`, with method and path) because a TypeScript options object keeps the factory's positional arguments stable; the other languages spell it as two trailing requestMethod and requestPath arguments"
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.headers",
+    "*options.maxretries"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "reason": "node carries per-call timeout, headers and maxRetries on the trailing RequestOptions argument of every operation, beside the AbortSignal it already needs, instead of on the per-operation Options interface; the capability is the same"
+  },
+  {
+   "element": "*.with",
+   "aspect": "params",
+   "languages": [
+    "node"
+   ],
+   "reason": "node's copy method takes a partial patch object (with(patch)) because a TypeScript model has no named-argument or builder syntax; the other languages' copy methods (toBuilder, copy, copyWith) take none or named arguments"
+  },
+  {
+   "element": "reservestockresponse.*",
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "missing*",
+   "reason": "a oneOf in node is a TypeScript union alias of the variant types, so there is no wrapper to hold isX/asX accessors; the caller narrows the union with a structural or discriminator check"
   }
  ]
 }
