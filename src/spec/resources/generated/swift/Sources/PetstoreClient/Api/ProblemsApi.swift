@@ -25,6 +25,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - fallbackId: The fallbackId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``UnexpectedFailureError`` on HTTP default with a ``UnexpectedFailure`` body
   public func getFallback(fallbackId: String, options: GetFallbackOptions? = nil) async throws
     -> ModelResult
   {
@@ -41,6 +44,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getFallback operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``UnexpectedFailureError`` on HTTP default with a ``UnexpectedFailure`` body
   public func getFallbackWithHTTPInfo(fallbackId: String, options: GetFallbackOptions? = nil)
     async throws -> ApiResult<ModelResult>
   {
@@ -72,7 +78,10 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
       operation: "ProblemsApi.getFallback",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
-      maxRetries: options?.maxRetries
+      maxRetries: options?.maxRetries,
+      errorSchemas: [
+        "default": UnexpectedFailureError.fromErrorResponse
+      ]
     )
 
     return try await invokeAPIForResult(params, as: ModelResult.self)
@@ -83,6 +92,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - memberId: The memberId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``MemberNotFoundError`` on HTTP 404 with a ``MemberNotFound`` body
   public func getMember(memberId: String, options: GetMemberOptions? = nil) async throws
     -> ModelResult
   {
@@ -99,6 +111,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getMember operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``MemberNotFoundError`` on HTTP 404 with a ``MemberNotFound`` body
   public func getMemberWithHTTPInfo(memberId: String, options: GetMemberOptions? = nil) async throws
     -> ApiResult<ModelResult>
   {
@@ -130,7 +145,10 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
       operation: "ProblemsApi.getMember",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
-      maxRetries: options?.maxRetries
+      maxRetries: options?.maxRetries,
+      errorSchemas: [
+        "404": MemberNotFoundError.fromErrorResponse
+      ]
     )
 
     return try await invokeAPIForResult(params, as: ModelResult.self)
@@ -141,6 +159,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - projectId: The projectId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``ProjectNotFoundError`` on HTTP 404 with a ``ProjectNotFound`` body
   public func getProject(projectId: String, options: GetProjectOptions? = nil) async throws
     -> ModelResult
   {
@@ -157,6 +178,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getProject operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``ProjectNotFoundError`` on HTTP 404 with a ``ProjectNotFound`` body
   public func getProjectWithHTTPInfo(projectId: String, options: GetProjectOptions? = nil)
     async throws -> ApiResult<ModelResult>
   {
@@ -188,7 +212,10 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
       operation: "ProblemsApi.getProject",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
-      maxRetries: options?.maxRetries
+      maxRetries: options?.maxRetries,
+      errorSchemas: [
+        "404": ProjectNotFoundError.fromErrorResponse
+      ]
     )
 
     return try await invokeAPIForResult(params, as: ModelResult.self)
@@ -199,6 +226,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - rangeId: The rangeId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``RejectedRequestError`` on HTTP 4XX with a ``RejectedRequest`` body
   public func getRange(rangeId: String, options: GetRangeOptions? = nil) async throws -> ModelResult
   {
     let result = try await getRangeWithHTTPInfo(rangeId: rangeId, options: options)
@@ -214,6 +244,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getRange operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``RejectedRequestError`` on HTTP 4XX with a ``RejectedRequest`` body
   public func getRangeWithHTTPInfo(rangeId: String, options: GetRangeOptions? = nil) async throws
     -> ApiResult<ModelResult>
   {
@@ -245,7 +278,10 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
       operation: "ProblemsApi.getRange",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
-      maxRetries: options?.maxRetries
+      maxRetries: options?.maxRetries,
+      errorSchemas: [
+        "4XX": RejectedRequestError.fromErrorResponse
+      ]
     )
 
     return try await invokeAPIForResult(params, as: ModelResult.self)
@@ -256,6 +292,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - upstreamId: The upstreamId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``UpstreamFailureError`` on HTTP 5XX with a ``UpstreamFailure`` body
   public func getUpstream(upstreamId: String, options: GetUpstreamOptions? = nil) async throws
     -> ModelResult
   {
@@ -272,6 +311,9 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getUpstream operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``UpstreamFailureError`` on HTTP 5XX with a ``UpstreamFailure`` body
   public func getUpstreamWithHTTPInfo(upstreamId: String, options: GetUpstreamOptions? = nil)
     async throws -> ApiResult<ModelResult>
   {
@@ -303,7 +345,10 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
       operation: "ProblemsApi.getUpstream",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
-      maxRetries: options?.maxRetries
+      maxRetries: options?.maxRetries,
+      errorSchemas: [
+        "5XX": UpstreamFailureError.fromErrorResponse
+      ]
     )
 
     return try await invokeAPIForResult(params, as: ModelResult.self)
@@ -314,6 +359,10 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - lockId: The lockId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``StateConflictError`` on HTTP 409 with a ``StateConflict`` body
+  ///   - ``StateConflictError`` on HTTP 423 with a ``StateConflict`` body
   public func takeLock(lockId: String, options: TakeLockOptions? = nil) async throws -> ModelResult
   {
     let result = try await takeLockWithHTTPInfo(lockId: lockId, options: options)
@@ -329,6 +378,10 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the takeLock operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``StateConflictError`` on HTTP 409 with a ``StateConflict`` body
+  ///   - ``StateConflictError`` on HTTP 423 with a ``StateConflict`` body
   public func takeLockWithHTTPInfo(lockId: String, options: TakeLockOptions? = nil) async throws
     -> ApiResult<ModelResult>
   {
@@ -360,7 +413,11 @@ public final class ProblemsApi: BaseApi, @unchecked Sendable {
       operation: "ProblemsApi.takeLock",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
-      maxRetries: options?.maxRetries
+      maxRetries: options?.maxRetries,
+      errorSchemas: [
+        "409": StateConflictError.fromErrorResponse,
+        "423": StateConflictError.fromErrorResponse,
+      ]
     )
 
     return try await invokeAPIForResult(params, as: ModelResult.self)

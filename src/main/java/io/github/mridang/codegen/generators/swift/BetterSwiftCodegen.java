@@ -618,6 +618,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("indirect.mustache", srcDir, "Indirect.swift"),
             new SupportingFileSpec("errors/root_error.mustache", errorsDir, rootErrorName("Error") + ".swift"),
             new SupportingFileSpec("errors/api_error.mustache", errorsDir, "ApiError.swift"),
+            new SupportingFileSpec("errors/error_factory.mustache", errorsDir, "ErrorFactory.swift"),
             new SupportingFileSpec("errors/client_error.mustache", errorsDir, "ClientError.swift"),
             new SupportingFileSpec("errors/server_error.mustache", errorsDir, "ServerError.swift"),
             new SupportingFileSpec("errors/bad_request_error.mustache", errorsDir, "BadRequestError.swift"),
@@ -1243,6 +1244,19 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         /* F857: no per-operation authenticator. An operation uses the credential the client
          * holds for the scheme its spec names, so the Options object has no `auth` field. */
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(getOutputDir(), "Sources", packageName, "Errors", className + ".swift")
+                .toString();
     }
 
     /** {@inheritDoc} */
