@@ -5,7 +5,9 @@ from petstore_client.api_result import ApiResult
 
 
 class TestApiResult:
-    def test_carries_data_status_code_headers_and_raw_body(self) -> None:
+    def test_bhv_results_003_carries_data_status_code_headers_and_raw_body(
+        self,
+    ) -> None:
         result = ApiResult(
             status_code=200,
             data={"id": 1},
@@ -18,7 +20,7 @@ class TestApiResult:
         assert result.raw_body == '{"id": 1}'
         assert result.headers == {"Content-Type": "application/json"}
 
-    def test_data_may_be_none_for_empty_response(self) -> None:
+    def test_bhv_results_001_data_may_be_none_for_empty_response(self) -> None:
         # A 204 No Content carries no deserialized payload, but raw_body is
         # always populated (an empty string when the server sent no body).
         result: ApiResult[None] = ApiResult(
@@ -30,7 +32,7 @@ class TestApiResult:
         assert result.raw_body == ""
         assert result.headers == {}
 
-    def test_headers_are_a_read_only_copy(self) -> None:
+    def test_bhv_results_002_headers_are_a_read_only_copy(self) -> None:
         source = {"Content-Type": "application/json"}
         result: ApiResult[None] = ApiResult(
             status_code=200, data=None, raw_body="", headers=source

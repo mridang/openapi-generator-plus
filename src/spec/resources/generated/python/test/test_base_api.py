@@ -189,7 +189,7 @@ class TestExceptionDispatch:
             (502, ServerException),
         ],
     )
-    async def test_throws_correct_exception(
+    async def test_bhv_errors_037_throws_correct_exception(
         self, api: Any, status: Any, expected_class: Any
     ) -> None:
         with pytest.raises(expected_class) as exc_info:
@@ -210,7 +210,7 @@ class TestExceptionDispatch:
 
 
 class TestErrorBodyParsing:
-    async def test_parses_json_error_body(self, api: Any) -> None:
+    async def test_bhv_errors_034_parses_json_error_body(self, api: Any) -> None:
         with pytest.raises(BadRequestException) as exc_info:
             await api.call(
                 "GET",
@@ -280,7 +280,7 @@ class _FailingApiClient(ApiClient):
 class TestErrorRequestContext:
     """F830: the error BaseApi builds names the method and the path, never the query."""
 
-    async def test_an_http_error_records_the_method_and_the_path_without_the_query(
+    async def test_bhv_errors_036_an_http_error_records_the_method_and_the_path_without_the_query(
         self,
     ) -> None:
         api = StubApi(
@@ -385,7 +385,7 @@ def _json(status: int, body: str, **headers: str) -> ApiHttpResponse:
 class TestPerCallOptions:
     """F827: the Options object of one call overrides the timeout, the headers and the retry budget."""
 
-    async def test_per_call_headers_replace_a_configured_default_header_of_the_same_name(
+    async def test_bhv_operations_001_per_call_headers_replace_a_configured_default_header_of_the_same_name(
         self,
     ) -> None:
         client = _ScriptedApiClient(_json(200, "{}"))
@@ -411,7 +411,9 @@ class TestPerCallOptions:
         assert "X-Tenant" not in client.sent[0]
         assert client.sent[0]["X-Keep"] == "yes"
 
-    async def test_per_call_max_retries_overrides_the_transport_budget(self) -> None:
+    async def test_bhv_retries_004_per_call_max_retries_overrides_the_transport_budget(
+        self,
+    ) -> None:
         client = _ScriptedApiClient(
             _json(503, "{}", **{"retry-after": "0"}), _json(200, "{}")
         )
@@ -457,7 +459,7 @@ class TestPerCallOptions:
 
         assert len(client.sent) == 1
 
-    async def test_per_call_timeout_replaces_the_transport_timeout_for_one_call(
+    async def test_bhv_transport_002_per_call_timeout_replaces_the_transport_timeout_for_one_call(
         self,
     ) -> None:
         client = _DeadlineCapturingClient()
@@ -546,7 +548,7 @@ class TestMultipleSuccessResponses:
 
 
 class TestExceptionHierarchy:
-    async def test_not_found_hierarchy(self, api: Any) -> None:
+    async def test_bhv_errors_033_not_found_hierarchy(self, api: Any) -> None:
         with pytest.raises(NotFoundException) as exc_info:
             await api.call(
                 "GET",
@@ -562,7 +564,9 @@ class TestExceptionHierarchy:
         assert isinstance(exc_info.value, ApiException)
         assert isinstance(exc_info.value, OpenAPIException)
 
-    async def test_internal_server_error_hierarchy(self, api: Any) -> None:
+    async def test_bhv_errors_031_internal_server_error_hierarchy(
+        self, api: Any
+    ) -> None:
         with pytest.raises(InternalServerErrorException) as exc_info:
             await api.call(
                 "GET",
@@ -580,7 +584,9 @@ class TestExceptionHierarchy:
 
 
 class TestSuccessDeserialization:
-    async def test_deserializes_json_response(self, api: Any) -> None:
+    async def test_bhv_serializationwire_004_deserializes_json_response(
+        self, api: Any
+    ) -> None:
         result = await api.call(
             "GET",
             "/test/echo",
@@ -595,7 +601,9 @@ class TestSuccessDeserialization:
         # chasm echo envelope always includes a method field
         assert result["method"] == "GET"
 
-    async def test_returns_raw_string_for_non_json(self, api: Any) -> None:
+    async def test_bhv_serializationwire_019_returns_raw_string_for_non_json(
+        self, api: Any
+    ) -> None:
         result = await api.call(
             "GET",
             "/test/text-plain",
@@ -630,7 +638,9 @@ class TestSuccessDeserialization:
         assert isinstance(result, bytes)
         assert json.loads(result)["method"] == "GET"
 
-    async def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
+    async def test_bhv_operations_015_returns_none_when_return_type_is_none(
+        self, api: Any
+    ) -> None:
         result = await api.call(
             "GET",
             "/test/echo",
@@ -643,7 +653,9 @@ class TestSuccessDeserialization:
         )
         assert result is None
 
-    async def test_raw_body_is_non_null_string(self, api: Any) -> None:
+    async def test_bhv_operations_006_raw_body_is_non_null_string(
+        self, api: Any
+    ) -> None:
         # ApiResult.raw_body is typed non-null (str); the transport always
         # produces a body string (empty when the server sent none).
         result = await api.call_result(
@@ -658,7 +670,7 @@ class TestSuccessDeserialization:
         )
         assert isinstance(result.raw_body, str)
 
-    async def test_with_http_info_returns_status_data_headers_and_raw_body(
+    async def test_bhv_operations_018_with_http_info_returns_status_data_headers_and_raw_body(
         self,
     ) -> None:
         client = CapturingApiClient()
@@ -681,7 +693,9 @@ class TestSuccessDeserialization:
 
 
 class TestQueryParameters:
-    async def test_appends_query_params(self, api: Any) -> None:
+    async def test_bhv_serializationwire_002_appends_query_params(
+        self, api: Any
+    ) -> None:
         result = await api.call(
             "GET",
             "/test/echo",
@@ -694,7 +708,9 @@ class TestQueryParameters:
         )
         assert result is None
 
-    async def test_includes_empty_value_param_in_query_string(self, api: Any) -> None:
+    async def test_bhv_serializationwire_016_includes_empty_value_param_in_query_string(
+        self, api: Any
+    ) -> None:
         result = await api.call(
             "GET",
             "/test/echo",
@@ -709,7 +725,7 @@ class TestQueryParameters:
 
 
 class TestQuerySerialization:
-    async def test_expands_array_query_params(self) -> None:
+    async def test_bhv_serializationwire_009_expands_array_query_params(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -725,7 +741,9 @@ class TestQuerySerialization:
         )
         assert "tags=a&tags=b" in client.captured_url
 
-    async def test_serializes_boolean_query_params(self) -> None:
+    async def test_bhv_serializationwire_020_serializes_boolean_query_params(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -741,7 +759,9 @@ class TestQuerySerialization:
         )
         assert "active=true" in client.captured_url
 
-    async def test_serializes_number_query_params(self) -> None:
+    async def test_bhv_serializationwire_023_serializes_number_query_params(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -758,7 +778,7 @@ class TestQuerySerialization:
         assert "limit=10" in client.captured_url
         assert "limit=10.0" not in client.captured_url
 
-    async def test_handles_empty_query_params(self) -> None:
+    async def test_bhv_serializationwire_015_handles_empty_query_params(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -774,7 +794,7 @@ class TestQuerySerialization:
         )
         assert "?" not in client.captured_url
 
-    async def test_collapses_double_slash_when_base_url_has_trailing_slash(
+    async def test_bhv_operations_007_collapses_double_slash_when_base_url_has_trailing_slash(
         self,
     ) -> None:
         # Gap Z — baseUrl='http://x/' + path='/y' must produce
@@ -798,7 +818,9 @@ class TestQuerySerialization:
 
 
 class TestAllowEmptyValueQueryParams:
-    async def test_null_options_omits_allow_empty_value_param(self) -> None:
+    async def test_bhv_options_002_null_options_omits_allow_empty_value_param(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         api = PetApi(api_client=client, config=config)
@@ -810,7 +832,9 @@ class TestAllowEmptyValueQueryParams:
             f"Expected no status param when options is None, got: {client.captured_url}"
         )
 
-    async def test_allow_empty_value_param_omitted_when_null(self) -> None:
+    async def test_bhv_serializationwire_001_allow_empty_value_param_omitted_when_null(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         api = PetApi(api_client=client, config=config)
@@ -824,7 +848,9 @@ class TestAllowEmptyValueQueryParams:
             f"Expected no status= for allowEmptyValue param with null value, got: {client.captured_url}"
         )
 
-    async def test_allow_empty_value_param_included_when_empty(self) -> None:
+    async def test_bhv_operations_003_allow_empty_value_param_included_when_empty(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         api = PetApi(api_client=client, config=config)
@@ -838,7 +864,9 @@ class TestAllowEmptyValueQueryParams:
 
 
 class TestAuthInjection:
-    async def test_forwards_auth_headers(self, api: Any) -> None:
+    async def test_bhv_authintegration_010_forwards_auth_headers(
+        self, api: Any
+    ) -> None:
         auth = StubAuthenticator(headers={"X-Custom": "auth-value"})
         result = await api.call(
             "GET",
@@ -855,7 +883,7 @@ class TestAuthInjection:
         # chasm envelope lowercases all header keys
         assert result["headers"]["x-custom"] == "auth-value"
 
-    async def test_sets_cookie_header(self, api: Any) -> None:
+    async def test_bhv_authintegration_017_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={"session": "abc123"})
         result = await api.call(
             "GET",
@@ -871,7 +899,9 @@ class TestAuthInjection:
         assert result is not None
         assert result["headers"]["cookie"] == "session=abc123"
 
-    async def test_joins_several_auth_cookies_with_a_semicolon(self, api: Any) -> None:
+    async def test_bhv_authintegration_004_joins_several_auth_cookies_with_a_semicolon(
+        self, api: Any
+    ) -> None:
         auth = StubAuthenticator(cookies={"session": "abc123", "theme": "dark"})
         result = await api.call(
             "GET",
@@ -887,7 +917,9 @@ class TestAuthInjection:
         assert result is not None
         assert result["headers"]["cookie"] == "session=abc123; theme=dark"
 
-    async def test_falls_back_to_client_level_authenticator(self) -> None:
+    async def test_bhv_authintegration_009_falls_back_to_client_level_authenticator(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         client_auth = StubAuthenticator(headers={"X-Client-Auth": "client-level-token"})
@@ -904,7 +936,9 @@ class TestAuthInjection:
         )
         assert client.captured_headers.get("X-Client-Auth") == "client-level-token"
 
-    async def test_per_call_auth_overrides_client_level(self) -> None:
+    async def test_bhv_authintegration_013_per_call_auth_overrides_client_level(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         client_auth = StubAuthenticator(headers={"X-Client-Auth": "client-level-token"})
@@ -987,7 +1021,9 @@ class TestNoAuthSentinel:
     * a real :class:`Authenticator` -> per-call override — UNCHANGED.
     """
 
-    async def test_sentinel_suppresses_client_level_authenticator(self) -> None:
+    async def test_bhv_authintegration_015_sentinel_suppresses_client_level_authenticator(
+        self,
+    ) -> None:
         # NO_AUTH must NOT re-acquire the client-level credential: no auth
         # header, no auth query param, no auth cookie reaches the wire.
         client = CapturingApiClient()
@@ -1013,7 +1049,9 @@ class TestNoAuthSentinel:
         assert "Cookie" not in client.captured_headers
         assert "api_key=" not in client.captured_url
 
-    async def test_none_falls_back_to_client_level_authenticator(self) -> None:
+    async def test_bhv_authintegration_008_none_falls_back_to_client_level_authenticator(
+        self,
+    ) -> None:
         # None is the secured-op-no-override state: client credential applies.
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
@@ -1044,7 +1082,9 @@ class TestSecurityNoneAuthSuppression:
     NOT carry the configured client credential, while a secured operation with
     the same configured authenticator still must (guards over-suppression)."""
 
-    async def test_security_none_op_sends_no_credential(self) -> None:
+    async def test_bhv_authintegration_005_security_none_op_sends_no_credential(
+        self,
+    ) -> None:
         # get_inventory is declared `security: []`; configure the client WITH
         # an authenticator and assert the outbound request carries NO
         # Authorization header, NO api-key header/query param, and NO auth
@@ -1075,7 +1115,9 @@ class TestSecurityNoneAuthSuppression:
             f"security:[] op must not send an api-key query param, got: {client.captured_url}"
         )
 
-    async def test_inherited_security_op_applies_client_credential(self) -> None:
+    async def test_bhv_authintegration_012_inherited_security_op_applies_client_credential(
+        self,
+    ) -> None:
         # get_pet_by_id declares no security of its own, so it inherits the
         # global requirement. This generator strips the inherited auth methods
         # off such an operation, so the api method passes None (not NO_AUTH) and
@@ -1136,7 +1178,9 @@ class TestSchemeCredentials:
     def _pet() -> Pet:
         return Pet(name="rex", photoUrls={"http://example.com/p.png"})
 
-    async def test_each_operation_sends_the_credential_of_its_own_scheme(self) -> None:
+    async def test_bhv_authintegration_007_each_operation_sends_the_credential_of_its_own_scheme(
+        self,
+    ) -> None:
         schemes = {
             "petStoreBearer": self._token("Bearer b"),
             "adminBasic": self._token("Basic a"),
@@ -1150,7 +1194,9 @@ class TestSchemeCredentials:
         await api.delete_pet(1)
         assert client.captured_headers["Authorization"] == "Basic a"
 
-    async def test_the_first_scheme_the_operation_lists_wins(self) -> None:
+    async def test_bhv_authintegration_014_the_first_scheme_the_operation_lists_wins(
+        self,
+    ) -> None:
         # add_pet lists apiKeyHeader before petStoreBearer; the order of the
         # mapping the caller built is irrelevant.
         schemes = {
@@ -1178,7 +1224,7 @@ class TestSchemeCredentials:
 
         assert client.captured_headers["Authorization"] == "Bearer default"
 
-    async def test_a_scheme_credential_wins_over_the_default_authenticator(
+    async def test_bhv_authintegration_003_a_scheme_credential_wins_over_the_default_authenticator(
         self,
     ) -> None:
         client = JsonReplyApiClient(_PET_REPLY)
@@ -1225,7 +1271,9 @@ class TestSchemeCredentials:
 
         assert client.captured_headers["Authorization"] == "Bearer default"
 
-    async def test_a_security_none_operation_sends_no_scheme_credential(self) -> None:
+    async def test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_credential(
+        self,
+    ) -> None:
         schemes = {
             name: self._token("Bearer " + name)
             for name in ("petStoreBasic", "petStoreBearer")
@@ -1352,7 +1400,9 @@ class TestCloseFinishesCallsInFlight:
 
 
 class TestBodySerialization:
-    async def test_serializes_json_body(self, api: Any) -> None:
+    async def test_bhv_serializationwire_022_serializes_json_body(
+        self, api: Any
+    ) -> None:
         result = await api.call(
             "POST",
             "/test/echo",
@@ -1370,7 +1420,7 @@ class TestBodySerialization:
         echoed_body = _json.loads(result["body"])
         assert echoed_body["key"] == "value"
 
-    async def test_sends_no_body_when_none(self) -> None:
+    async def test_bhv_operations_016_sends_no_body_when_none(self) -> None:
         client = CapturingApiClient()
         stub = StubApi(
             api_client=client, config=Configuration(base_url="http://localhost")
@@ -1387,7 +1437,7 @@ class TestBodySerialization:
         )
         assert client.captured_body is None
 
-    async def test_serializes_text_plain_body(self) -> None:
+    async def test_bhv_serializationwire_024_serializes_text_plain_body(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1404,7 +1454,9 @@ class TestBodySerialization:
         assert client.captured_body is not None
         assert "hello world" in str(client.captured_body)
 
-    async def test_serializes_form_urlencoded_body(self) -> None:
+    async def test_bhv_serializationwire_021_serializes_form_urlencoded_body(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1435,7 +1487,9 @@ class TestBodySerialization:
         assert client.captured_body is parts
         assert client.captured_headers["Content-Type"] == declared
 
-    async def test_form_urlencoded_body_encodes_space_as_plus(self) -> None:
+    async def test_bhv_serializationwire_012_form_urlencoded_body_encodes_space_as_plus(
+        self,
+    ) -> None:
         # form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
         # mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
         # urllib.parse.urlencode emits '+', matching the other SDKs.
@@ -1476,7 +1530,9 @@ class TestBodySerialization:
         wire = str(client.captured_body)
         assert wire == "nickname=rex&tags=a&tags=b"
 
-    async def test_form_optional_none_field_is_omitted(self) -> None:
+    async def test_bhv_serializationwire_011_form_optional_none_field_is_omitted(
+        self,
+    ) -> None:
         # form-optional-null-omitted: a form field whose value is None must be
         # dropped from the wire entirely, not emitted as `note=` or `note=None`.
         # None elements inside an array are likewise skipped.
@@ -1516,7 +1572,9 @@ class TestBodySerialization:
         wire = str(client.captured_body)
         assert wire == "nickname=rex&subscribed=true"
 
-    async def test_form_urlencoded_body_rejects_a_map_field(self) -> None:
+    async def test_bhv_serializationwire_014_form_urlencoded_body_rejects_a_map_field(
+        self,
+    ) -> None:
         from petstore_client.errors import SerializationException
 
         client = CapturingApiClient()
@@ -1538,7 +1596,7 @@ class TestBodySerialization:
             )
         assert client.captured_body is None
 
-    async def test_passes_binary_body_as_is(self) -> None:
+    async def test_bhv_operations_014_passes_binary_body_as_is(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1612,7 +1670,9 @@ class MalformedJsonApiClient(CapturingApiClient):
 
 
 class TestContentTypeDeserialization:
-    async def test_skips_deserialization_for_non_json_content_type(self) -> None:
+    async def test_bhv_serializationwire_025_skips_deserialization_for_non_json_content_type(
+        self,
+    ) -> None:
         client = PlainTextApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1621,7 +1681,9 @@ class TestContentTypeDeserialization:
         )
         assert result == "hello"
 
-    async def test_non_json_content_type_for_a_model_return_raises(self) -> None:
+    async def test_bhv_errors_035_non_json_content_type_for_a_model_return_raises(
+        self,
+    ) -> None:
         client = PlainTextApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1660,7 +1722,9 @@ class TestContentTypeDeserialization:
             "Unexpected response Content-Type 'text/plain' for StubApi.get_pet_by_id: expected a JSON body"
         )
 
-    async def test_deserializes_vendor_json_mime_types(self) -> None:
+    async def test_bhv_serializationwire_005_deserializes_vendor_json_mime_types(
+        self,
+    ) -> None:
         client = VendorJsonApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1708,7 +1772,9 @@ class TestByteOverJsonResponse:
         result = await api.get_pet_avatar_thumbnail(1)
         assert result == b"test-image"
 
-    async def test_byte_return_type_over_json_decodes_base64(self) -> None:
+    async def test_bhv_serializationwire_017_byte_return_type_over_json_decodes_base64(
+        self,
+    ) -> None:
         client = ByteJsonApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1815,7 +1881,9 @@ class TestMalformedSuccessBodyFailsLoud:
 
 
 class TestHeaderFlowThrough:
-    async def test_empty_content_type_defaults_to_json(self) -> None:
+    async def test_bhv_serializationwire_007_empty_content_type_defaults_to_json(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1831,7 +1899,7 @@ class TestHeaderFlowThrough:
         )
         assert client.captured_headers.get("Content-Type") == "application/json"
 
-    async def test_all_headers_flow_through(self) -> None:
+    async def test_bhv_operations_002_all_headers_flow_through(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -1848,7 +1916,9 @@ class TestHeaderFlowThrough:
         assert "Accept" in client.captured_headers
         assert "Content-Type" in client.captured_headers
 
-    async def test_config_default_accept_wins_over_operation_negotiation(self) -> None:
+    async def test_bhv_operations_008_config_default_accept_wins_over_operation_negotiation(
+        self,
+    ) -> None:
         # R5-1: a config-level default header (Accept: application/xml) must
         # WIN over the operation's negotiated Accept (application/json). The
         # base API applies select_headers first, then merges
@@ -1895,7 +1965,7 @@ class TestHeaderFlowThrough:
         ]
         assert client.captured_headers["accept"] == "application/vnd.x+json"
 
-    async def test_an_explicit_accept_header_parameter_beats_default_and_negotiated(
+    async def test_bhv_operations_004_an_explicit_accept_header_parameter_beats_default_and_negotiated(
         self,
     ) -> None:
         client = CapturingApiClient()
@@ -1941,7 +2011,9 @@ class TestHeaderFlowThrough:
 
 
 class TestServerVariableOverrides:
-    def test_server_variable_overrides_resolve_in_base_url(self) -> None:
+    def test_bhv_options_003_server_variable_overrides_resolve_in_base_url(
+        self,
+    ) -> None:
         config = (
             Configuration.builder()
             .server(Servers.SERVER_1, {"environment": "staging"})
@@ -1949,17 +2021,19 @@ class TestServerVariableOverrides:
         )
         assert config.base_url == "https://staging.example.com/api/v3"
 
-    def test_default_server_variables_produce_correct_base_url(self) -> None:
+    def test_bhv_operations_009_default_server_variables_produce_correct_base_url(
+        self,
+    ) -> None:
         config = Configuration.builder().server(Servers.SERVER_1).build()
         assert config.base_url == "https://api.example.com/api/v3"
 
-    def test_invalid_enum_value_raises_error(self) -> None:
+    def test_bhv_errors_032_invalid_enum_value_raises_error(self) -> None:
         with pytest.raises(ValueError):
             Configuration.builder().server(
                 Servers.SERVER_1, {"environment": "invalid"}
             ).build()
 
-    def test_api_request_uses_resolved_server_url(
+    def test_bhv_operations_005_api_request_uses_resolved_server_url(
         self, api: Any, chasm_http_url: Any
     ) -> None:
         config = (
@@ -2036,7 +2110,9 @@ class EmptyBinaryApiClient(CapturingApiClient):
 
 
 class TestBinaryResponse:
-    async def test_octet_stream_response_decoded_as_base64_bytes(self) -> None:
+    async def test_bhv_serializationwire_018_octet_stream_response_decoded_as_base64_bytes(
+        self,
+    ) -> None:
         import base64
 
         binary_data = b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a"
@@ -2056,7 +2132,7 @@ class TestBinaryResponse:
         )
         assert result == binary_data
 
-    async def test_image_png_response_decoded_as_bytes(self) -> None:
+    async def test_bhv_operations_012_image_png_response_decoded_as_bytes(self) -> None:
         import base64
 
         binary_data = b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d"
@@ -2069,7 +2145,9 @@ class TestBinaryResponse:
         )
         assert result == binary_data
 
-    async def test_json_response_parsed_to_object(self) -> None:
+    async def test_bhv_serializationwire_003_json_response_parsed_to_object(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -2085,7 +2163,7 @@ class TestBinaryResponse:
         )
         assert result is None
 
-    async def test_text_plain_response_returns_string(self) -> None:
+    async def test_bhv_operations_017_text_plain_response_returns_string(self) -> None:
         client = PlainTextApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -2095,7 +2173,7 @@ class TestBinaryResponse:
         assert isinstance(result, str)
         assert result == "hello"
 
-    async def test_empty_body_yields_none(self) -> None:
+    async def test_bhv_operations_010_empty_body_yields_none(self) -> None:
         client = EmptyBinaryApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -2111,7 +2189,7 @@ class TestBinaryResponse:
         )
         assert result is None
 
-    async def test_empty_binary_body_with_bytes_return_type_yields_empty_bytes(
+    async def test_bhv_serializationwire_006_empty_binary_body_with_bytes_return_type_yields_empty_bytes(
         self,
     ) -> None:
         """An empty application/octet-stream response with a bytes return type
@@ -2165,7 +2243,9 @@ class TestNoPerCallBaseUrlParam:
 
 
 class TestNullBodyContentType:
-    async def test_null_body_post_does_not_send_content_type(self) -> None:
+    async def test_bhv_operations_013_null_body_post_does_not_send_content_type(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -2183,7 +2263,9 @@ class TestNullBodyContentType:
             "Content-Type must NOT be sent when body is None"
         )
 
-    async def test_empty_string_body_includes_content_type(self) -> None:
+    async def test_bhv_operations_011_empty_string_body_includes_content_type(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -2201,7 +2283,9 @@ class TestNullBodyContentType:
             "Content-Type must be sent when body is an empty string"
         )
 
-    async def test_empty_json_object_body_includes_content_type(self) -> None:
+    async def test_bhv_serializationwire_008_empty_json_object_body_includes_content_type(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -2222,7 +2306,9 @@ class TestNullBodyContentType:
 
 
 class TestTypedErrorBody:
-    def test_get_typed_error_body_deserializes_into_given_type(self) -> None:
+    def test_bhv_errors_029_get_typed_error_body_deserializes_into_given_type(
+        self,
+    ) -> None:
         err = BadRequestException(
             message="boom",
             response_headers={},
@@ -2233,7 +2319,9 @@ class TestTypedErrorBody:
         assert typed.id == 42
         assert typed.name == "Dogs"
 
-    def test_get_typed_error_body_returns_none_for_empty_body(self) -> None:
+    def test_bhv_errors_028_get_typed_error_body_returns_none_for_empty_body(
+        self,
+    ) -> None:
         err = BadRequestException(message="boom", response_headers={}, response_body="")
         assert err.get_typed_error_body(Category) is None
 
@@ -2299,7 +2387,9 @@ class TestNamedEnumParams:
         )
         assert client.captured_headers["Preferred-Swatch"] == "blue"
 
-    async def test_optional_enum_params_are_omitted_when_unset(self) -> None:
+    async def test_bhv_serializationwire_010_optional_enum_params_are_omitted_when_unset(
+        self,
+    ) -> None:
         from petstore_client.models.swatch import Swatch
 
         client = JsonReplyApiClient("{}")
@@ -2621,7 +2711,7 @@ class TestAutomaticRetries:
         assert len(server.requests) == 2
 
     @pytest.mark.parametrize("status", [400, 401, 403, 404, 422, 501])
-    async def test_other_statuses_are_not_retried(
+    async def test_bhv_retries_007_other_statuses_are_not_retried(
         self, scripted: Any, status: int
     ) -> None:
         server = scripted((status, _SOON, "{}"), _OK)
@@ -2713,7 +2803,7 @@ class TestAutomaticRetries:
 
         assert len(server.requests) == 2
 
-    async def test_a_retry_builds_the_authentication_headers_again(
+    async def test_bhv_retries_005_a_retry_builds_the_authentication_headers_again(
         self, scripted: Any
     ) -> None:
         class CountingAuthenticator(StubAuthenticator):
@@ -2764,7 +2854,9 @@ class TestAutomaticRetries:
 
         assert len(server.requests) == 1
 
-    async def test_a_multipart_body_is_never_retried(self, scripted: Any) -> None:
+    async def test_bhv_retries_003_a_multipart_body_is_never_retried(
+        self, scripted: Any
+    ) -> None:
         server = scripted((503, _SOON, "{}"), _OK)
         api = _retry_api(server)
 
@@ -2830,7 +2922,7 @@ class HttpAwareStubAuthenticator(StubAuthenticator, HttpAwareAuthenticator):
 
 
 class TestPerCallAuthenticatorGetsTheClient:
-    async def test_a_per_call_authenticator_is_given_the_client_of_the_call(
+    async def test_bhv_authintegration_002_a_per_call_authenticator_is_given_the_client_of_the_call(
         self, scripted: Any
     ) -> None:
         server = scripted(_OK)
@@ -2865,7 +2957,7 @@ class TestUnauthorizedReplay:
             "POST", "/x", {}, {}, body, ["application/json"], content_type, None, auth
         )
 
-    async def test_a_401_drops_the_token_and_replays_the_request_once(
+    async def test_bhv_retries_001_a_401_drops_the_token_and_replays_the_request_once(
         self, scripted: Any
     ) -> None:
         server = scripted((401, {}, "{}"), _OK)
@@ -2879,7 +2971,7 @@ class TestUnauthorizedReplay:
             "Bearer t2",
         ]
 
-    async def test_a_second_401_is_reported_as_unauthorized(
+    async def test_bhv_retries_008_a_second_401_is_reported_as_unauthorized(
         self, scripted: Any
     ) -> None:
         server = scripted((401, {}, "{}"))
@@ -2891,7 +2983,7 @@ class TestUnauthorizedReplay:
         assert auth.invalidations == 1
         assert len(server.requests) == 2
 
-    async def test_an_authenticator_without_a_token_cache_never_replays(
+    async def test_bhv_retries_002_an_authenticator_without_a_token_cache_never_replays(
         self, scripted: Any
     ) -> None:
         server = scripted((401, {}, "{}"), _OK)
@@ -2901,7 +2993,9 @@ class TestUnauthorizedReplay:
 
         assert len(server.requests) == 1
 
-    async def test_a_multipart_body_is_not_replayed(self, scripted: Any) -> None:
+    async def test_bhv_retries_006_a_multipart_body_is_not_replayed(
+        self, scripted: Any
+    ) -> None:
         server = scripted((401, {}, "{}"), _OK)
         auth = OAuthStubAuthenticator()
 
@@ -2913,7 +3007,7 @@ class TestUnauthorizedReplay:
         assert auth.invalidations == 0
         assert len(server.requests) == 1
 
-    async def test_a_failed_reauthentication_leaves_the_401(
+    async def test_bhv_authintegration_001_a_failed_reauthentication_leaves_the_401(
         self, scripted: Any
     ) -> None:
         server = scripted((401, {}, "{}"), _OK)

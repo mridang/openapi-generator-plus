@@ -16,7 +16,7 @@ from petstore_client.transport_options import TransportOptions
 
 
 class TestTlsVerificationDisabled:
-    def test_makes_https_request_with_verify_ssl_false(
+    def test_bhv_transport_018_makes_https_request_with_verify_ssl_false(
         self, chasm_https_url: Any
     ) -> None:
         transport = TransportOptions.builder().verify_ssl(False).build()
@@ -29,7 +29,7 @@ class TestTlsVerificationDisabled:
 
 
 class TestCustomCaBundle:
-    def test_makes_https_request_with_custom_ca_cert(
+    def test_bhv_transport_017_makes_https_request_with_custom_ca_cert(
         self, chasm_https_url: Any, ca_cert_path: Any
     ) -> None:
         transport = (
@@ -53,7 +53,7 @@ def _proxy_manager(client: DefaultApiClient) -> urllib3.ProxyManager:
 
 
 class TestHttpProxy:
-    def test_makes_http_request_through_proxy(
+    def test_bhv_transport_015_makes_http_request_through_proxy(
         self, chasm_internal_http_url: Any, proxy_url: Any
     ) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).build()
@@ -134,7 +134,9 @@ class TestProxyWithCredentials:
     # is {}), so the client must build the header itself. Assert the live
     # pool manager actually carries the Proxy-Authorization header, not just
     # that the URL string preserves the userinfo.
-    def test_proxy_with_credentials_injects_basic_authorization(self) -> None:
+    def test_bhv_transport_021_proxy_with_credentials_injects_basic_authorization(
+        self,
+    ) -> None:
         transport = (
             TransportOptions.builder()
             .proxy("http://alice:s3cret@127.0.0.1:3128")
@@ -166,7 +168,9 @@ class TestProxyWithCredentials:
         expected = "Basic " + base64.b64encode(b"al@ice:p:ss").decode("ascii")
         assert proxy_headers.get("proxy-authorization") == expected
 
-    def test_proxy_without_credentials_has_no_proxy_authorization(self) -> None:
+    def test_bhv_transport_009_proxy_without_credentials_has_no_proxy_authorization(
+        self,
+    ) -> None:
         transport = TransportOptions.builder().proxy("http://127.0.0.1:3128").build()
         client = DefaultApiClient(transport)
         proxy_headers = {
@@ -174,7 +178,9 @@ class TestProxyWithCredentials:
         }
         assert "proxy-authorization" not in proxy_headers
 
-    def test_canonical_user_pass_proxy_carries_credentials(self) -> None:
+    def test_bhv_transport_020_canonical_user_pass_proxy_carries_credentials(
+        self,
+    ) -> None:
         # Gap AK (canonical scenario, AUDIT.md): a proxy URL of the form
         # http://user:pass@127.0.0.1:3128 must carry the proxy credentials —
         # the userinfo is extracted and surfaced as Proxy-Authorization
@@ -194,7 +200,7 @@ class TestProxyWithCredentials:
 
 
 class TestHttpProxyWithTls:
-    def test_makes_https_request_through_proxy_with_verify_ssl_false(
+    def test_bhv_transport_016_makes_https_request_through_proxy_with_verify_ssl_false(
         self, chasm_internal_https_url: Any, proxy_url: Any
     ) -> None:
         transport = (
@@ -210,7 +216,9 @@ class TestHttpProxyWithTls:
 
 
 class TestRequestTimeout:
-    def test_times_out_on_slow_endpoint(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_024_times_out_on_slow_endpoint(
+        self, chasm_http_url: Any
+    ) -> None:
         transport = TransportOptions.builder().timeout(1000).build()
         client = DefaultApiClient(transport)
 
@@ -238,7 +246,9 @@ class TestRedirectChainTimeoutIsOneBudget:
             )
         assert excinfo.value.status_code == 0
 
-    def test_a_chain_inside_the_budget_completes(self, chasm_http_url: Any) -> None:
+    def test_bhv_redirects_002_a_chain_inside_the_budget_completes(
+        self, chasm_http_url: Any
+    ) -> None:
         client = DefaultApiClient(TransportOptions.builder().timeout(5000).build())
 
         response = client.send_request(
@@ -249,7 +259,9 @@ class TestRedirectChainTimeoutIsOneBudget:
 
 
 class TestMultiValueResponseHeaders:
-    def test_repeated_headers_are_joined_in_order(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_022_repeated_headers_are_joined_in_order(
+        self, chasm_http_url: Any
+    ) -> None:
         client = DefaultApiClient()
 
         response = client.send_request(
@@ -279,7 +291,9 @@ class TestResponseCookiesAreNotReplayed:
 
 
 class TestUserAgentHeader:
-    def test_injects_custom_user_agent_header(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_012_injects_custom_user_agent_header(
+        self, chasm_http_url: Any
+    ) -> None:
         transport = TransportOptions.builder().user_agent("MyApp/1.0").build()
         client = DefaultApiClient(transport)
         response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
@@ -289,7 +303,7 @@ class TestUserAgentHeader:
         # chasm envelope lowercases all header keys
         assert body["headers"]["user-agent"] == "MyApp/1.0"
 
-    def test_lowercase_caller_headers_suppress_injection(
+    def test_bhv_transport_003_lowercase_caller_headers_suppress_injection(
         self, chasm_http_url: Any
     ) -> None:
         transport = (
@@ -309,7 +323,9 @@ class TestUserAgentHeader:
 
 
 class TestRequestIdInjection:
-    def test_injects_request_id_header(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_013_injects_request_id_header(
+        self, chasm_http_url: Any
+    ) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
         response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
@@ -325,7 +341,9 @@ class TestRequestIdInjection:
             request_id,
         )
 
-    def test_generates_unique_request_ids(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_007_generates_unique_request_ids(
+        self, chasm_http_url: Any
+    ) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
 
@@ -339,7 +357,9 @@ class TestRequestIdInjection:
 
 
 class TestDefaultHeaders:
-    def test_includes_transport_default_headers(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_010_includes_transport_default_headers(
+        self, chasm_http_url: Any
+    ) -> None:
         transport = (
             TransportOptions.builder()
             .default_header("X-Custom", "custom-value")
@@ -352,7 +372,7 @@ class TestDefaultHeaders:
         body = json.loads(response.body)
         assert body["headers"]["x-custom"] == "custom-value"
 
-    def test_caller_headers_override_transport_defaults(
+    def test_bhv_options_004_caller_headers_override_transport_defaults(
         self, chasm_http_url: Any
     ) -> None:
         transport = (
@@ -369,7 +389,9 @@ class TestDefaultHeaders:
 
 
 class TestRedirectHandling:
-    def test_follows_redirects_when_enabled(self, chasm_http_url: Any) -> None:
+    def test_bhv_redirects_004_follows_redirects_when_enabled(
+        self, chasm_http_url: Any
+    ) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         client = DefaultApiClient(transport)
         response = client.send_request(
@@ -380,7 +402,9 @@ class TestRedirectHandling:
         # chasm 302 redirect target lands on the echo envelope
         assert '"method"' in response.body
 
-    def test_returns_redirect_when_disabled(self, chasm_http_url: Any) -> None:
+    def test_bhv_redirects_008_returns_redirect_when_disabled(
+        self, chasm_http_url: Any
+    ) -> None:
         transport = TransportOptions.builder().follow_redirects(False).build()
         client = DefaultApiClient(transport)
         response = client.send_request(
@@ -389,7 +413,7 @@ class TestRedirectHandling:
 
         assert response.status_code == 302
 
-    def test_redirect_303_switches_to_get_and_drops_body(
+    def test_bhv_redirects_005_redirect_303_switches_to_get_and_drops_body(
         self, chasm_http_url: Any
     ) -> None:
         """Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4."""
@@ -411,7 +435,9 @@ class TestRedirectHandling:
         assert parsed["method"] == "GET"
         assert parsed["body"] == ""
 
-    def test_multipart_body_replayed_on_307_redirect(self, chasm_http_url: Any) -> None:
+    def test_bhv_retries_012_multipart_body_replayed_on_307_redirect(
+        self, chasm_http_url: Any
+    ) -> None:
         """T-new-3: multipart bodies must be replayed across 307 redirects per
         RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
         request after a 307 still carries the multipart form parts. chasm's
@@ -453,7 +479,7 @@ class TestRedirectHandling:
 
 
 class TestMaxRedirects:
-    def test_respects_max_redirects_limit(self) -> None:
+    def test_bhv_redirects_006_respects_max_redirects_limit(self) -> None:
         transport = (
             TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
         )
@@ -667,7 +693,7 @@ class TestN1RedirectBodyReplayMatrix:
 
         return _Pool()
 
-    def test_302_https_to_http_with_body_proceeds(self) -> None:
+    def test_bhv_redirects_001_302_https_to_http_with_body_proceeds(self) -> None:
         # 302 demotes POST -> GET and drops the body, so the plaintext hop
         # carries no sensitive payload: it must proceed, not throw.
         transport = TransportOptions.builder().follow_redirects(True).build()
@@ -720,7 +746,7 @@ class TestN1RedirectBodyReplayMatrix:
         client.send_request("HEAD", "http://example.com/start", {}, None)
         assert pool.calls[1][0] == "HEAD"
 
-    def test_307_https_to_http_with_body_raises(self) -> None:
+    def test_bhv_retries_010_307_https_to_http_with_body_raises(self) -> None:
         from petstore_client.errors import ApiException
 
         transport = TransportOptions.builder().follow_redirects(True).build()
@@ -736,7 +762,7 @@ class TestN1RedirectBodyReplayMatrix:
         # The plaintext replay must never have been issued.
         assert len(pool.calls) == 1
 
-    def test_308_https_to_http_with_body_raises(self) -> None:
+    def test_bhv_retries_011_308_https_to_http_with_body_raises(self) -> None:
         from petstore_client.errors import ApiException
 
         transport = TransportOptions.builder().follow_redirects(True).build()
@@ -815,7 +841,9 @@ class TestConcurrentRedirects:
                 302, {"location": "http://example.com/loop"}
             )
 
-    def test_concurrent_requests_do_not_share_redirect_budget(self) -> None:
+    def test_bhv_redirects_003_concurrent_requests_do_not_share_redirect_budget(
+        self,
+    ) -> None:
         """One shared client; many threads. Half walk an infinite chain and
         must each independently hit the limit, half follow a single hop and
         must each independently reach 200. If the redirect counter or the
@@ -909,7 +937,9 @@ class TestConcurrentRedirects:
 
 
 class TestMultipartBody:
-    def test_sends_multipart_form_data(self, chasm_http_url: Any) -> None:
+    def test_bhv_serializationwire_027_sends_multipart_form_data(
+        self, chasm_http_url: Any
+    ) -> None:
         client = DefaultApiClient()
         form_data = {"description": "A test file", "file": b"file content"}
         response = client.send_request(
@@ -917,7 +947,7 @@ class TestMultipartBody:
         )
         assert response is not None
 
-    def test_multipart_field_name_with_crlf_rejected_on_string_value(
+    def test_bhv_serializationwire_026_multipart_field_name_with_crlf_rejected_on_string_value(
         self, chasm_http_url: Any
     ) -> None:
         """W-new-2: multipart field-name validation must run on every branch
@@ -947,13 +977,19 @@ class TestHttpCompression:
         assert "content-length" not in response.headers
         assert json.loads(response.body)["title"] == "compressed fixture body"
 
-    def test_decompresses_gzip_response(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_005_decompresses_gzip_response(
+        self, chasm_http_url: Any
+    ) -> None:
         self._assert_decompresses(chasm_http_url, "gzip")
 
-    def test_decompresses_brotli_response(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_004_decompresses_brotli_response(
+        self, chasm_http_url: Any
+    ) -> None:
         self._assert_decompresses(chasm_http_url, "br")
 
-    def test_decompresses_zstd_response(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_006_decompresses_zstd_response(
+        self, chasm_http_url: Any
+    ) -> None:
         self._assert_decompresses(chasm_http_url, "zstd")
 
 
@@ -962,7 +998,7 @@ class TestNullBodyContentLength:
     # Content-Length: 0. Some servers / WAFs reject body-bearing verbs
     # with no Content-Length (411 Length Required). The client sets the
     # header explicitly on body-bearing verbs when the body is None.
-    def test_post_with_null_body_sends_content_length_zero(
+    def test_bhv_transport_019_post_with_null_body_sends_content_length_zero(
         self, chasm_http_url: Any
     ) -> None:
         client = DefaultApiClient()
@@ -979,7 +1015,7 @@ class TestClientLifecycle:
     # idempotent. A request issued on a closed client must raise the
     # invalid-state RuntimeError (closed-flag guard), not a leaked transport
     # error, matching the uniform use-after-close contract across SDKs.
-    def test_close_releases_underlying_client(self) -> None:
+    def test_bhv_lifecycle_018_close_releases_underlying_client(self) -> None:
         client = DefaultApiClient()
         client.close()
         # close() is idempotent.
@@ -1004,7 +1040,7 @@ class TestTlsVerificationEnforced:
         assert parts.hostname is not None
         return f"https://{socket.gethostbyname(parts.hostname)}:{parts.port}"
 
-    def test_default_transport_rejects_a_certificate_from_an_untrusted_ca(
+    def test_bhv_transport_023_default_transport_rejects_a_certificate_from_an_untrusted_ca(
         self, chasm_https_url: Any
     ) -> None:
         client = DefaultApiClient(TransportOptions.builder().build())
@@ -1016,7 +1052,7 @@ class TestTlsVerificationEnforced:
         assert excinfo.value.status_code == 0
         assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
 
-    def test_verify_ssl_true_rejects_an_address_the_certificate_does_not_name(
+    def test_bhv_transport_025_verify_ssl_true_rejects_an_address_the_certificate_does_not_name(
         self, chasm_https_url: Any, ca_cert_path: Any
     ) -> None:
         transport = (

@@ -12,25 +12,27 @@ class TestConfigurationDefaults:
         assert config.base_url == "/api/v3"
         assert len(config.default_headers) == 0
 
-    def test_builder_produces_correct_defaults(self) -> None:
+    def test_bhv_config_005_builder_produces_correct_defaults(self) -> None:
         config = Configuration.builder().build()
 
         assert config.base_url == "/api/v3"
         assert len(config.default_headers) == 0
 
-    def test_builder_returns_configuration_builder_instance(self) -> None:
+    def test_bhv_config_007_builder_returns_configuration_builder_instance(
+        self,
+    ) -> None:
         builder = Configuration.builder()
 
         assert isinstance(builder, ConfigurationBuilder)
 
 
 class TestConfigurationBuilder:
-    def test_builder_sets_base_url(self) -> None:
+    def test_bhv_config_011_builder_sets_base_url(self) -> None:
         config = Configuration.builder().base_url("https://custom.example.com").build()
 
         assert config.base_url == "https://custom.example.com"
 
-    def test_builder_sets_single_default_header(self) -> None:
+    def test_bhv_config_013_builder_sets_single_default_header(self) -> None:
         config = (
             Configuration.builder()
             .default_header("Authorization", "Bearer token123")
@@ -39,7 +41,7 @@ class TestConfigurationBuilder:
 
         assert config.default_headers["Authorization"] == "Bearer token123"
 
-    def test_builder_sets_multiple_default_headers(self) -> None:
+    def test_bhv_config_012_builder_sets_multiple_default_headers(self) -> None:
         config = (
             Configuration.builder()
             .default_headers(
@@ -54,7 +56,7 @@ class TestConfigurationBuilder:
         assert config.default_headers["Authorization"] == "Bearer token123"
         assert config.default_headers["X-Custom"] == "value"
 
-    def test_builder_accumulates_headers(self) -> None:
+    def test_bhv_config_002_builder_accumulates_headers(self) -> None:
         config = (
             Configuration.builder()
             .default_header("X-First", "one")
@@ -68,7 +70,7 @@ class TestConfigurationBuilder:
         assert config.default_headers["X-Second"] == "two"
         assert config.default_headers["X-Third"] == "three"
 
-    def test_builder_merges_single_and_bulk_headers(self) -> None:
+    def test_bhv_config_004_builder_merges_single_and_bulk_headers(self) -> None:
         config = (
             Configuration.builder()
             .default_header("X-First", "one")
@@ -82,7 +84,7 @@ class TestConfigurationBuilder:
         assert config.default_headers["X-Second"] == "two"
         assert config.default_headers["X-Third"] == "three"
 
-    def test_builder_produces_independent_instances(self) -> None:
+    def test_bhv_config_006_builder_produces_independent_instances(self) -> None:
         builder = Configuration.builder().base_url("https://example.com")
         first = builder.build()
         second = builder.build()
@@ -90,7 +92,7 @@ class TestConfigurationBuilder:
         assert first is not second
         assert first.base_url == second.base_url
 
-    def test_builder_sets_all_fields(self) -> None:
+    def test_bhv_config_010_builder_sets_all_fields(self) -> None:
         config = (
             Configuration.builder()
             .base_url("https://api.example.com")
@@ -103,7 +105,7 @@ class TestConfigurationBuilder:
         assert config.default_headers["Authorization"] == "Bearer token"
         assert config.default_headers["X-Custom"] == "value"
 
-    def test_builder_is_fluent(self) -> None:
+    def test_bhv_config_003_builder_is_fluent(self) -> None:
         builder = Configuration.builder()
 
         assert builder is builder.base_url("https://example.com")
@@ -115,7 +117,7 @@ class TestConfigurationBuilder:
 
 
 class TestConfigurationServerResolution:
-    def test_builder_server_resolves_url(self) -> None:
+    def test_bhv_config_008_builder_server_resolves_url(self) -> None:
         server = ServerConfiguration(
             url_template="https://{env}.example.com/api/{version}",
             description="Test server",
@@ -135,7 +137,7 @@ class TestConfigurationServerResolution:
 
         assert config.base_url == "https://api.example.com/api/v3"
 
-    def test_builder_server_with_variable_overrides(self) -> None:
+    def test_bhv_config_009_builder_server_with_variable_overrides(self) -> None:
         server = ServerConfiguration(
             url_template="https://{env}.example.com/api/{version}",
             variables={
@@ -158,7 +160,7 @@ class TestConfigurationServerResolution:
 
         assert config.base_url == "https://staging.example.com/api/v2"
 
-    def test_builder_base_url_overrides_server(self) -> None:
+    def test_bhv_config_001_builder_base_url_overrides_server(self) -> None:
         server = ServerConfiguration(url_template="https://api.example.com")
 
         config = (
@@ -172,7 +174,7 @@ class TestConfigurationServerResolution:
 
 
 class TestDefaultConfiguration:
-    def test_default_configuration_returns_instance(self) -> None:
+    def test_bhv_config_014_default_configuration_returns_instance(self) -> None:
         config = Configuration.default_configuration()
 
         assert isinstance(config, Configuration)
@@ -213,7 +215,9 @@ class TestConfigurationRepr:
             "x-client-SECRET",
         ],
     )
-    def test_repr_masks_sensitive_default_header_values(self, name: str) -> None:
+    def test_bhv_config_015_repr_masks_sensitive_default_header_values(
+        self, name: str
+    ) -> None:
         config = Configuration.builder().default_header(name, "hunter2").build()
 
         assert "hunter2" not in repr(config)

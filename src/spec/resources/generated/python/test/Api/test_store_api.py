@@ -41,12 +41,12 @@ class TestStoreApi:
         )
         self.api = StoreApi(config=config)
 
-    async def test_get_inventory(self) -> None:
+    async def test_bhv_operations_102_get_inventory(self) -> None:
         result = await self.api.get_inventory()
 
         assert isinstance(result, dict)
 
-    async def test_place_order(self) -> None:
+    async def test_bhv_operations_117_place_order(self) -> None:
         order = Order(
             id=1,
             petId=12345,
@@ -61,14 +61,14 @@ class TestStoreApi:
         assert result is not None
         assert result.id is not None
 
-    async def test_get_inventory_with_http_info(self) -> None:
+    async def test_bhv_operations_103_get_inventory_with_http_info(self) -> None:
         result = await self.api.get_inventory_with_http_info()
 
         assert result is not None
         assert 200 <= result.status_code < 300
         assert result.data is not None
 
-    async def test_place_order_with_http_info(self) -> None:
+    async def test_bhv_operations_119_place_order_with_http_info(self) -> None:
         order = Order(
             id=1,
             petId=12345,
@@ -84,20 +84,20 @@ class TestStoreApi:
         assert 200 <= result.status_code < 300
         assert result.data is not None
 
-    async def test_get_order_by_id(self) -> None:
+    async def test_bhv_operations_104_get_order_by_id(self) -> None:
         result = await self.api.get_order_by_id(1)
 
         assert result is not None
         assert result.id is not None
 
-    async def test_get_order_by_id_with_http_info(self) -> None:
+    async def test_bhv_operations_105_get_order_by_id_with_http_info(self) -> None:
         result = await self.api.get_order_by_id_with_http_info(1)
 
         assert result is not None
         assert 200 <= result.status_code < 300
         assert result.data is not None
 
-    async def test_delete_order(self) -> None:
+    async def test_bhv_operations_099_delete_order(self) -> None:
         await self.api.delete_order(1)
 
         assert True
@@ -139,14 +139,14 @@ def _create_mock_server(
 class TestStoreApiErrorHandling:
     """Test suite for StoreApi error handling."""
 
-    async def test_get_order_not_found(self) -> None:
+    async def test_bhv_operations_106_get_order_not_found(self) -> None:
         api, server = _create_mock_server(
             404, "application/json", '{"message":"Order not found"}'
         )
         with pytest.raises(NotFoundException):
             await api.get_order_by_id(99999)
 
-    async def test_place_order_server_error(self) -> None:
+    async def test_bhv_operations_118_place_order_server_error(self) -> None:
         api, server = _create_mock_server(
             500, "application/json", '{"message":"Internal server error"}'
         )
@@ -156,7 +156,7 @@ class TestStoreApiErrorHandling:
         with pytest.raises(InternalServerErrorException):
             await api.place_order(order)
 
-    async def test_delete_order_not_found(self) -> None:
+    async def test_bhv_operations_100_delete_order_not_found(self) -> None:
         api, server = _create_mock_server(
             404, "application/json", '{"message":"Order not found"}'
         )
@@ -168,7 +168,9 @@ class TestStoreApiNestedContainer:
     """nested-container-deserialize: an operation returning array-of-map-of-model
     must decode the leaves into typed Category instances, not raw dicts."""
 
-    async def test_get_grouped_categories_decodes_typed_leaves(self) -> None:
+    async def test_bhv_operations_101_get_grouped_categories_decodes_typed_leaves(
+        self,
+    ) -> None:
         body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]'
         api, server = _create_mock_server(200, "application/json", body)
 
@@ -220,7 +222,7 @@ class TestStoreApiFixtureOperations:
     """Operations whose only purpose is to pin the generated return type and
     request body: the reply is served by a local listener."""
 
-    async def test_get_order_by_tracking_id_puts_the_lowercase_uuid_in_the_path(
+    async def test_bhv_operations_124_get_order_by_tracking_id_puts_the_lowercase_uuid_in_the_path(
         self,
     ) -> None:
         import uuid
@@ -236,7 +238,7 @@ class TestStoreApiFixtureOperations:
             == "/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
         )
 
-    async def test_create_account_sends_the_password_and_keeps_the_read_only_id(
+    async def test_bhv_operations_098_create_account_sends_the_password_and_keeps_the_read_only_id(
         self,
     ) -> None:
         import json
@@ -253,24 +255,30 @@ class TestStoreApiFixtureOperations:
         assert json.loads(seen["body"]) == {"username": "u", "password": "p"}
         assert account.id == 7
 
-    async def test_get_swatch_decodes_a_bare_enum(self) -> None:
+    async def test_bhv_operations_113_get_swatch_decodes_a_bare_enum(self) -> None:
         api, _ = _recording_server('"green"')
 
         assert await api.get_swatch() == Swatch.GREEN
 
-    async def test_get_swatch_groups_decodes_an_array_of_enum_maps(self) -> None:
+    async def test_bhv_operations_114_get_swatch_groups_decodes_an_array_of_enum_maps(
+        self,
+    ) -> None:
         api, _ = _recording_server('[{"a":"red"},{"b":"blue"}]')
 
         assert await api.get_swatch_groups() == [{"a": Swatch.RED}, {"b": Swatch.BLUE}]
 
-    async def test_get_timestamp_groups_decodes_date_time_leaves(self) -> None:
+    async def test_bhv_operations_115_get_timestamp_groups_decodes_date_time_leaves(
+        self,
+    ) -> None:
         api, _ = _recording_server('[{"at":"2024-01-02T03:04:05.000+00:00"}]')
 
         result = await api.get_timestamp_groups()
 
         assert result[0]["at"] == datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
 
-    async def test_get_department_decodes_the_mutually_recursive_models(self) -> None:
+    async def test_bhv_operations_108_get_department_decodes_the_mutually_recursive_models(
+        self,
+    ) -> None:
         body = '{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}'
         api, _ = _recording_server(body)
 
@@ -281,7 +289,9 @@ class TestStoreApiFixtureOperations:
         assert department.lead.department is not None
         assert department.lead.department.name == "d2"
 
-    async def test_get_tree_decodes_the_self_recursive_model(self) -> None:
+    async def test_bhv_operations_116_get_tree_decodes_the_self_recursive_model(
+        self,
+    ) -> None:
         api, _ = _recording_server(
             '{"value":"a","child":{"value":"b","child":{"value":"c"}}}'
         )
@@ -292,7 +302,9 @@ class TestStoreApiFixtureOperations:
         assert tree.child.child is not None
         assert tree.child.child.value == "c"
 
-    async def test_get_defaults_applies_the_exact_typed_schema_defaults(self) -> None:
+    async def test_bhv_operations_123_get_defaults_applies_the_exact_typed_schema_defaults(
+        self,
+    ) -> None:
         from decimal import Decimal
 
         api, _ = _recording_server("{}")
@@ -306,7 +318,7 @@ class TestStoreApiFixtureOperations:
         assert defaults.weight == 2.0
         assert defaults.ceiling == 9000000000
 
-    async def test_get_stock_item_decodes_the_int_enum_and_the_nested_arrays(
+    async def test_bhv_operations_112_get_stock_item_decodes_the_int_enum_and_the_nested_arrays(
         self,
     ) -> None:
         api, _ = _recording_server('{"priority":2,"matrix":[[1,2],[3]]}')
@@ -361,7 +373,7 @@ class TestStoreApiContentParameters:
             '{"caption":"a<b>&c","takenAt":"2024-01-02T03:04:05.000+00:00","location":{"lat":1.5}}'
         ]
 
-    async def test_header_content_is_sent_not_ignored(self) -> None:
+    async def test_bhv_operations_121_header_content_is_sent_not_ignored(self) -> None:
         api, seen = _capture_server()
 
         await api.search_store(SearchStoreOptions(x_filter={"k": "v"}))
@@ -383,7 +395,9 @@ class TestStoreApiContentParameters:
 
         assert parse_qs(urlsplit(seen["path"]).query)["at"] == ["10:30:00.123"]
 
-    async def test_time_parameter_drops_a_zero_fraction(self) -> None:
+    async def test_bhv_operations_107_time_parameter_drops_a_zero_fraction(
+        self,
+    ) -> None:
         api, seen = _capture_server()
 
         await api.search_store(SearchStoreOptions(at=dt.time(10, 30, 0)))

@@ -14,42 +14,42 @@ from {{packageName}}.models.set_pet_avatar_thumbnail_request import SetPetAvatar
 class TestOneOfPetFood:
     """oneOf with discriminator: PetFood"""
 
-    def test_deserializes_dry_food(self) -> None:
+    def test_bhv_unions_012_deserializes_dry_food(self) -> None:
         json_str = '{"foodType":"dry","weightKg":2.5}'
         result = ObjectSerializer().deserialize(json_str, 'PetFood')
         assert result is not None
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, DryFood)
 
-    def test_deserializes_wet_food(self) -> None:
+    def test_bhv_unions_013_deserializes_wet_food(self) -> None:
         json_str = '{"foodType":"wet","volumeMl":400}'
         result = ObjectSerializer().deserialize(json_str, 'PetFood')
         assert result is not None
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, WetFood)
 
-    def test_missing_discriminator_raises(self) -> None:
+    def test_bhv_unions_015_missing_discriminator_raises(self) -> None:
         """Gap AU: missing discriminator field must raise, not silently wrap."""
         json_str = '{"weightKg":2.5}'
         with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(json_str, 'PetFood')
         assert 'Missing discriminator' in str(exc_info.value)
 
-    def test_empty_discriminator_raises(self) -> None:
+    def test_bhv_unions_024_empty_discriminator_raises(self) -> None:
         """Gap AU: empty discriminator value must raise."""
         json_str = '{"foodType":"","weightKg":2.5}'
         with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(json_str, 'PetFood')
         assert 'Empty discriminator' in str(exc_info.value) or 'Unknown discriminator' in str(exc_info.value)
 
-    def test_unknown_discriminator_raises(self) -> None:
+    def test_bhv_unions_016_unknown_discriminator_raises(self) -> None:
         """Gap AU: unknown discriminator value must raise."""
         json_str = '{"foodType":"raw","calories":300}'
         with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(json_str, 'PetFood')
         assert 'Unknown discriminator' in str(exc_info.value)
 
-    def test_serializes_dry_food(self) -> None:
+    def test_bhv_unions_020_serializes_dry_food(self) -> None:
         json_str = '{"foodType":"dry","weightKg":2.5}'
         result = ObjectSerializer().deserialize(json_str, 'PetFood')
         serialized = ObjectSerializer().serialize(result)
@@ -60,28 +60,28 @@ class TestOneOfPetFood:
 class TestAnyOfPetTreatment:
     """anyOf without discriminator: PetTreatment"""
 
-    def test_deserializes_medication(self) -> None:
+    def test_bhv_unions_014_deserializes_medication(self) -> None:
         json_str = '{"drugName":"Amoxicillin","dosage":"500mg"}'
         result = ObjectSerializer().deserialize(json_str, 'PetTreatment')
         assert result is not None
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, Medication)
 
-    def test_deserializes_surgery(self) -> None:
+    def test_bhv_unions_006_deserializes_surgery(self) -> None:
         json_str = '{"procedureName":"Spay","durationMinutes":45}'
         result = ObjectSerializer().deserialize(json_str, 'PetTreatment')
         assert result is not None
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, Surgery)
 
-    def test_serialize_round_trip(self) -> None:
+    def test_bhv_unions_008_serialize_round_trip(self) -> None:
         json_str = '{"drugName":"Amoxicillin","dosage":"500mg"}'
         result = ObjectSerializer().deserialize(json_str, 'PetTreatment')
         serialized = ObjectSerializer().serialize(result)
         assert serialized is not None
         assert len(serialized) > 0
 
-    def test_no_matching_variant_raises(self) -> None:
+    def test_bhv_unions_007_no_matching_variant_raises(self) -> None:
         """oneof-nondiscriminator-no-match-silent: a payload matching neither
         Medication nor Surgery must raise rather than yield a silently-empty
         union.
@@ -90,7 +90,7 @@ class TestAnyOfPetTreatment:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, 'PetTreatment')
 
-    def test_anyof_retains_all_matching_variants_losslessly(self) -> None:
+    def test_bhv_unions_009_anyof_retains_all_matching_variants_losslessly(self) -> None:
         """anyOf retains all matching variants (medication and surgery)
         losslessly.
 
@@ -127,7 +127,7 @@ class TestAnyOfPetTreatment:
         for field in ('drugName', 'dosage', 'procedureName', 'durationMinutes'):
             assert field in serialized
 
-    def test_anyof_shared_property_collision_last_wins(self) -> None:
+    def test_bhv_unions_010_anyof_shared_property_collision_last_wins(self) -> None:
         """anyOf-collision-last-wins: both Medication and Surgery declare
         `notes`. When a PetTreatment retains both members with DIFFERENT
         `notes` values, the merged encoding keeps the LAST-declared member's
@@ -146,7 +146,7 @@ class TestAnyOfPetTreatment:
         # `notes` appears exactly once -- no duplicate key.
         assert serialized.count('"notes"') == 1
 
-    def test_anyof_single_variant_still_round_trips(self) -> None:
+    def test_bhv_unions_003_anyof_single_variant_still_round_trips(self) -> None:
         """Retain-all must not regress the single-variant case: a
         medication-only and a surgery-only payload each still decode to exactly
         one retained variant and serialize back without leaking the other
@@ -177,7 +177,7 @@ class TestAnyOfTreatmentRecord:
 
     _BOTH = '{"drugName":"Amoxicillin","procedureName":"Spay"}'
 
-    def test_variants_are_retained_in_declaration_order(self) -> None:
+    def test_bhv_unions_005_variants_are_retained_in_declaration_order(self) -> None:
         record = ObjectSerializer().deserialize(self._BOTH, 'TreatmentRecord')
         assert [type(m) for m in record.matched_instances] == [Surgery, Medication]
         assert isinstance(record.actual_instance, Surgery)
@@ -187,7 +187,7 @@ class TestAnyOfTreatmentRecord:
 
         assert TreatmentRecord.any_of_schemas == ('Surgery', 'Medication')
 
-    def test_the_opposite_declaration_order_keeps_its_own_order(self) -> None:
+    def test_bhv_unions_025_the_opposite_declaration_order_keeps_its_own_order(self) -> None:
         treatment = ObjectSerializer().deserialize(self._BOTH, 'PetTreatment')
         assert [type(m) for m in treatment.matched_instances] == [Medication, Surgery]
 
@@ -230,7 +230,7 @@ class TestOneOfNonDiscriminatorValidator:
 class TestAllOfPetWithOwner:
     """allOf: PetWithOwner"""
 
-    def test_deserializes_all_properties(self) -> None:
+    def test_bhv_unions_004_deserializes_all_properties(self) -> None:
         json_str = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}'
         result = ObjectSerializer().deserialize(json_str, 'PetWithOwner')
         assert result is not None
@@ -245,14 +245,14 @@ class TestAllOfPetWithOwner:
         assert type(result.owner_email) is str
         assert result.owner_email == 'not-an-email'
 
-    def test_serializes_to_json(self) -> None:
+    def test_bhv_unions_021_serializes_to_json(self) -> None:
         json_str = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}'
         result = ObjectSerializer().deserialize(json_str, 'PetWithOwner')
         serialized = ObjectSerializer().serialize(result)
         assert 'Fido' in serialized
         assert 'John Doe' in serialized
 
-    def test_round_trip_preserves_fields(self) -> None:
+    def test_bhv_unions_017_round_trip_preserves_fields(self) -> None:
         json_str = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}'
         original = ObjectSerializer().deserialize(json_str, 'PetWithOwner')
         serialized = ObjectSerializer().serialize(original)

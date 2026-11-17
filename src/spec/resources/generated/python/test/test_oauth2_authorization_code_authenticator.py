@@ -41,7 +41,9 @@ def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
 
 
 class TestOAuth2AuthorizationCodeAuthenticator:
-    def test_builds_authorization_url_with_required_params(self) -> None:
+    def test_bhv_authoauthtwoauthcode_006_builds_authorization_url_with_required_params(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         url = auth.build_authorization_url()
@@ -56,13 +58,17 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert params["scope"] == ["read write"]
         assert params["response_type"] == ["code"]
 
-    def test_exchange_code_rejects_empty_code(self) -> None:
+    def test_bhv_authoauthtwoauthcode_010_exchange_code_rejects_empty_code(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         auth.set_api_client(MagicMock())
         with pytest.raises(ValueError, match="^Authorization code must not be empty$"):
             auth.exchange_code("")
 
-    def test_exchange_code_rejects_whitespace_only_code(self) -> None:
+    def test_bhv_authoauthtwoauthcode_011_exchange_code_rejects_whitespace_only_code(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         auth.set_api_client(mock_client)
@@ -80,7 +86,9 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         ):
             auth.get_auth_headers()
 
-    def test_builds_authorization_url_with_state(self) -> None:
+    def test_bhv_authoauthtwoauthcode_007_builds_authorization_url_with_state(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         url = auth.build_authorization_url(state="csrf-state-123")
@@ -89,7 +97,9 @@ class TestOAuth2AuthorizationCodeAuthenticator:
 
         assert params["state"] == ["csrf-state-123"]
 
-    def test_exchanges_code_with_correct_grant_type(self) -> None:
+    def test_bhv_authoauthtwoauthcode_012_exchanges_code_with_correct_grant_type(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -117,7 +127,9 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert "client_id=my_client_id" in body
         assert "client_secret=my_secret" in body
 
-    def test_includes_refresh_token_on_refresh(self) -> None:
+    def test_bhv_authoauthtwoauthcode_015_includes_refresh_token_on_refresh(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         # First call: exchange_code returns a refresh token with immediate expiry
@@ -154,7 +166,9 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert "grant_type=refresh_token" in body
         assert headers["Authorization"] == "Bearer access_2"
 
-    def test_throws_before_exchange_code_called(self) -> None:
+    def test_bhv_authoauthtwoauthcode_027_throws_before_exchange_code_called(
+        self,
+    ) -> None:
         # Requesting a token before the code exchange is a wrong call order:
         # the invalid-state RuntimeError, not an SDK error.
         auth = _create_authenticator()
@@ -164,19 +178,23 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert type(exc_info.value) is RuntimeError
         assert not isinstance(exc_info.value, OpenAPIException)
 
-    def test_get_host_returns_configured_host(self) -> None:
+    def test_bhv_authoauthtwoauthcode_014_get_host_returns_configured_host(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         assert auth.get_host() == "https://api.example.com"
 
-    def test_redacts_secret(self) -> None:
+    def test_bhv_authoauthtwoauthcode_019_redacts_secret(self) -> None:
         """The repr masks the client_secret as ``***`` and never leaks it."""
         auth = _create_authenticator()
         rendered = repr(auth)
         assert "my_secret" not in rendered
         assert "***" in rendered
 
-    def test_auth_headers_before_exchange_returns_recoverable_error(self) -> None:
+    def test_bhv_authoauthtwoauthcode_003_auth_headers_before_exchange_returns_recoverable_error(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         # Calling get_auth_headers before exchange_code is a precondition
@@ -194,7 +212,9 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         # Caller continues normally after catching -- no process crash.
         assert auth.get_host() == "https://api.example.com"
 
-    def test_authorize_url_with_existing_query_string_uses_amp_separator(self) -> None:
+    def test_bhv_authoauthtwoauthcode_005_authorize_url_with_existing_query_string_uses_amp_separator(
+        self,
+    ) -> None:
         # RFC 6749 §3.1: the authorization endpoint URI MAY already include
         # a query component (e.g. tenant-scoped Auth0 URLs). The builder
         # must preserve existing query items alongside the OAuth2 ones
@@ -235,7 +255,7 @@ class TestAuthorizationUrlEncoding:
             "&scope=read%20write"
         )
 
-    def test_authorize_url_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
+    def test_bhv_authoauthtwoauthcode_004_authorize_url_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
         self,
     ) -> None:
         auth = OAuth2AuthorizationCodeAuthenticator(
@@ -257,7 +277,7 @@ class TestAuthorizationUrlEncoding:
             "&scope=a%2Ab%20c%21d&state=s%20t~%281%29"
         )
 
-    def test_code_exchange_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
+    def test_bhv_authoauthtwoauthcode_017_code_exchange_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
         self,
     ) -> None:
         auth = OAuth2AuthorizationCodeAuthenticator(
@@ -309,7 +329,7 @@ class TestAuthorizationCodeRefreshUrlRouting:
 
         return [call[0][1] for call in mock_client.send_request.call_args_list]
 
-    def test_code_goes_to_the_token_url_and_the_refresh_to_the_refresh_url(
+    def test_bhv_authoauthtwoauthcode_024_code_goes_to_the_token_url_and_the_refresh_to_the_refresh_url(
         self,
     ) -> None:
         assert self._urls_of_exchange_then_refresh(
@@ -339,7 +359,9 @@ def _form_of(call: Any) -> dict[str, list[str]]:
 
 
 class TestAuthorizationCodeSession:
-    def test_the_refresh_carries_the_client_credentials(self) -> None:
+    def test_bhv_authoauthtwoauthcode_026_the_refresh_carries_the_client_credentials(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
@@ -358,7 +380,9 @@ class TestAuthorizationCodeSession:
             "client_secret": ["my_secret"],
         }
 
-    def test_a_rejected_refresh_surfaces_after_exactly_one_refresh_post(self) -> None:
+    def test_bhv_authoauthtwoauthcode_002_a_rejected_refresh_surfaces_after_exactly_one_refresh_post(
+        self,
+    ) -> None:
         from petstore_client.errors import OAuth2ServerException
 
         auth = _create_authenticator()
@@ -377,7 +401,9 @@ class TestAuthorizationCodeSession:
         assert excinfo.value.code == "invalid_grant"
         assert mock_client.send_request.call_count == 2
 
-    def test_a_second_exchange_sends_the_new_code(self) -> None:
+    def test_bhv_authoauthtwoauthcode_021_a_second_exchange_sends_the_new_code(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
@@ -394,7 +420,9 @@ class TestAuthorizationCodeSession:
         assert second["code"] == ["b"]
         assert auth.get_auth_headers() == {"Authorization": "Bearer t2"}
 
-    def test_a_second_exchange_without_a_refresh_token_drops_the_old_one(self) -> None:
+    def test_bhv_authoauthtwoauthcode_022_a_second_exchange_without_a_refresh_token_drops_the_old_one(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
@@ -411,7 +439,9 @@ class TestAuthorizationCodeSession:
         third = _form_of(mock_client.send_request.call_args_list[2])
         assert third["refresh_token"] == [""]
 
-    def test_a_failed_exchange_keeps_the_previous_session(self) -> None:
+    def test_bhv_authoauthtwoauthcode_013_a_failed_exchange_keeps_the_previous_session(
+        self,
+    ) -> None:
         from petstore_client.errors import OAuth2ServerException
 
         auth = _create_authenticator()
@@ -431,7 +461,7 @@ class TestAuthorizationCodeSession:
 
 
 class TestUserAuthWrapper:
-    def test_uses_the_spec_urls_and_scopes(self) -> None:
+    def test_bhv_authoauthtwoauthcode_020_uses_the_spec_urls_and_scopes(self) -> None:
         from petstore_client.auth.oauth.user_auth_authorization_code_authenticator import (
             UserAuthAuthorizationCodeAuthenticator,
         )
@@ -460,7 +490,9 @@ class TestUserAuthWrapper:
 
 
 class TestAuthorizationCodeRedactedRepr:
-    def test_repr_lists_the_non_secret_fields_and_masks_the_secret(self) -> None:
+    def test_bhv_authoauthtwoauthcode_025_repr_lists_the_non_secret_fields_and_masks_the_secret(
+        self,
+    ) -> None:
         assert repr(_create_authenticator()) == (
             "OAuth2AuthorizationCodeAuthenticator(host='https://api.example.com', "
             "client_id='my_client_id', client_secret='***', "
@@ -477,7 +509,9 @@ class TestPkce:
         digest = hashlib.sha256(verifier.encode("ascii")).digest()
         return base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
 
-    def test_the_authorization_url_carries_an_s256_challenge(self) -> None:
+    def test_bhv_authoauthtwoauthcode_023_the_authorization_url_carries_an_s256_challenge(
+        self,
+    ) -> None:
         params = parse_qs(
             urlparse(_create_authenticator().build_authorization_url()).query
         )
@@ -486,7 +520,9 @@ class TestPkce:
         assert re.fullmatch(r"[A-Za-z0-9_-]{43}", params["code_challenge"][0])
         assert "nonce" not in params
 
-    def test_the_code_exchange_proves_the_challenge_with_the_verifier(self) -> None:
+    def test_bhv_authoauthtwoauthcode_008_the_code_exchange_proves_the_challenge_with_the_verifier(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = _code_reply(
@@ -502,7 +538,9 @@ class TestPkce:
         assert re.fullmatch(r"[A-Za-z0-9_-]+", verifier)
         assert self._challenge_of(verifier) == params["code_challenge"][0]
 
-    def test_every_authorization_url_gets_a_new_verifier(self) -> None:
+    def test_bhv_authoauthtwoauthcode_009_every_authorization_url_gets_a_new_verifier(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         first = parse_qs(urlparse(auth.build_authorization_url()).query)[
@@ -514,7 +552,9 @@ class TestPkce:
 
         assert first != second
 
-    def test_an_exchange_without_a_built_url_sends_no_verifier(self) -> None:
+    def test_bhv_authoauthtwoauthcode_001_an_exchange_without_a_built_url_sends_no_verifier(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = _code_reply(
@@ -545,7 +585,7 @@ class TestPkce:
 
 
 class TestInvalidateAccessToken:
-    def test_a_dropped_token_is_replaced_by_a_refresh_and_the_refresh_token_is_kept(
+    def test_bhv_authoauthtwoauthcode_016_a_dropped_token_is_replaced_by_a_refresh_and_the_refresh_token_is_kept(
         self,
     ) -> None:
         auth = _create_authenticator()

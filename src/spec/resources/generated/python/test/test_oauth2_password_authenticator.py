@@ -50,7 +50,7 @@ def _create_authenticator_with_mock() -> tuple[OAuth2PasswordAuthenticator, Magi
 
 
 class TestOAuth2PasswordAuthenticator:
-    def test_sends_password_grant_type(self) -> None:
+    def test_bhv_authoauthtwopassword_014_sends_password_grant_type(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
         auth.get_auth_headers()
@@ -59,7 +59,7 @@ class TestOAuth2PasswordAuthenticator:
         body = call_args[0][3]
         assert "grant_type=password" in body
 
-    def test_sends_username_and_password(self) -> None:
+    def test_bhv_authoauthtwopassword_016_sends_username_and_password(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
         auth.get_auth_headers()
@@ -69,7 +69,7 @@ class TestOAuth2PasswordAuthenticator:
         assert "username=testuser" in body
         assert "password=testpass" in body
 
-    def test_sends_client_id_and_secret(self) -> None:
+    def test_bhv_authoauthtwopassword_013_sends_client_id_and_secret(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
         auth.get_auth_headers()
@@ -79,7 +79,9 @@ class TestOAuth2PasswordAuthenticator:
         assert "client_id=my_client_id" in body
         assert "client_secret=my_client_secret" in body
 
-    def test_returns_authorization_bearer_header(self) -> None:
+    def test_bhv_authoauthtwopassword_011_returns_authorization_bearer_header(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -98,7 +100,9 @@ class TestOAuth2PasswordAuthenticator:
 
         assert headers["Authorization"] == "Bearer tok-pwd"
 
-    def test_uses_refresh_token_on_subsequent_calls(self) -> None:
+    def test_bhv_authoauthtwopassword_019_uses_refresh_token_on_subsequent_calls(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
@@ -136,12 +140,16 @@ class TestOAuth2PasswordAuthenticator:
         assert "grant_type=refresh_token" in body
         assert "refresh_token=ref1" in body
 
-    def test_get_host_returns_configured_host(self) -> None:
+    def test_bhv_authoauthtwopassword_003_get_host_returns_configured_host(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         assert auth.get_host() == "https://api.example.com"
 
-    def test_basic_auth_url_encodes_client_id_and_secret(self) -> None:
+    def test_bhv_authoauthtwopassword_002_basic_auth_url_encodes_client_id_and_secret(
+        self,
+    ) -> None:
         # Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
         # client_id and client_secret MUST be application/x-www-form-
         # urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -172,7 +180,7 @@ class TestOAuth2PasswordAuthenticator:
         decoded = base64.b64decode(auth_header[len("Basic ") :]).decode("utf-8")
         assert decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff"
 
-    def test_redacts_secret(self) -> None:
+    def test_bhv_authoauthtwopassword_007_redacts_secret(self) -> None:
         """The repr masks both client_secret and password and leaks neither."""
         auth = _create_authenticator()
         rendered = repr(auth)
@@ -258,7 +266,7 @@ class TestPasswordRefreshUrlRouting:
 
         return [call[0][1] for call in mock_client.send_request.call_args_list]
 
-    def test_first_grant_goes_to_the_token_url_and_the_refresh_to_the_refresh_url(
+    def test_bhv_authoauthtwopassword_017_first_grant_goes_to_the_token_url_and_the_refresh_to_the_refresh_url(
         self,
     ) -> None:
         assert self._urls_of_two_calls("https://auth.example.com/oauth/refresh") == [
@@ -266,7 +274,9 @@ class TestPasswordRefreshUrlRouting:
             "https://auth.example.com/oauth/refresh",
         ]
 
-    def test_refresh_falls_back_to_the_token_url_without_a_refresh_url(self) -> None:
+    def test_bhv_authoauthtwopassword_006_refresh_falls_back_to_the_token_url_without_a_refresh_url(
+        self,
+    ) -> None:
         assert self._urls_of_two_calls(None) == [
             "https://auth.example.com/token",
             "https://auth.example.com/token",
@@ -300,7 +310,9 @@ def _refreshing_authenticator(
 
 
 class TestPasswordRefreshClientAuthentication:
-    def test_body_mode_refresh_carries_the_client_credentials(self) -> None:
+    def test_bhv_authoauthtwopassword_009_body_mode_refresh_carries_the_client_credentials(
+        self,
+    ) -> None:
         auth, mock_client = _refreshing_authenticator(
             ClientAuthMethod.BODY,
             _token_reply(access_token="t1", refresh_token="r1", expires_in=0),
@@ -319,7 +331,7 @@ class TestPasswordRefreshClientAuthentication:
             "client_secret": ["my_client_secret"],
         }
 
-    def test_basic_mode_refresh_carries_the_basic_header_and_no_body_credentials(
+    def test_bhv_authoauthtwopassword_008_basic_mode_refresh_carries_the_basic_header_and_no_body_credentials(
         self,
     ) -> None:
         auth, mock_client = _refreshing_authenticator(
@@ -339,7 +351,9 @@ class TestPasswordRefreshClientAuthentication:
             "refresh_token": ["r1"],
         }
 
-    def test_a_rejected_refresh_re_runs_the_password_grant(self) -> None:
+    def test_bhv_authoauthtwopassword_010_a_rejected_refresh_re_runs_the_password_grant(
+        self,
+    ) -> None:
         auth, mock_client = _refreshing_authenticator(
             ClientAuthMethod.BODY,
             _token_reply(access_token="t1", refresh_token="r1", expires_in=0),
@@ -362,7 +376,9 @@ class TestPasswordRefreshClientAuthentication:
 
 
 class TestPasswordWireEncoding:
-    def test_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(self) -> None:
+    def test_bhv_authoauthtwopassword_005_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
+        self,
+    ) -> None:
         auth = OAuth2PasswordAuthenticator(
             host="https://api.example.com",
             client_id="id~*",
@@ -385,7 +401,7 @@ class TestPasswordWireEncoding:
             "&client_id=id~%2A&client_secret=s%21%27%28%29&scope=read+a%2Ab"
         )
 
-    def test_basic_header_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
+    def test_bhv_authoauthtwopassword_001_basic_header_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
         self,
     ) -> None:
         auth = OAuth2PasswordAuthenticator(
@@ -412,7 +428,7 @@ class TestPasswordWireEncoding:
 
 
 class TestLegacyAuthWrapper:
-    def test_routes_the_grants_to_the_spec_urls_and_requests_the_spec_scope(
+    def test_bhv_authoauthtwopassword_012_routes_the_grants_to_the_spec_urls_and_requests_the_spec_scope(
         self,
     ) -> None:
         from petstore_client.auth.oauth.legacy_auth_password_authenticator import (
@@ -443,7 +459,9 @@ class TestLegacyAuthWrapper:
 
 
 class TestPasswordRedactedRepr:
-    def test_repr_lists_the_non_secret_fields_and_masks_both_secrets(self) -> None:
+    def test_bhv_authoauthtwopassword_018_repr_lists_the_non_secret_fields_and_masks_both_secrets(
+        self,
+    ) -> None:
         assert repr(_create_authenticator()) == (
             "OAuth2PasswordAuthenticator(host='https://api.example.com', "
             "client_id='my_client_id', client_secret='***', "

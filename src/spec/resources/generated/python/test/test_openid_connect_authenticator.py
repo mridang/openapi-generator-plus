@@ -66,7 +66,7 @@ def _create_authenticator_with_discovery() -> tuple[
 
 
 class TestOpenIdConnectAuthenticator:
-    def test_builds_authorization_url_from_discovery(self) -> None:
+    def test_bhv_authoidc_002_builds_authorization_url_from_discovery(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         url = auth.build_authorization_url()
@@ -79,7 +79,7 @@ class TestOpenIdConnectAuthenticator:
         assert params["response_type"] == ["code"]
         assert params["scope"] == ["openid profile"]
 
-    def test_fetches_discovery_document(self) -> None:
+    def test_bhv_authoidc_010_fetches_discovery_document(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         auth.build_authorization_url()
@@ -91,14 +91,16 @@ class TestOpenIdConnectAuthenticator:
             == "https://auth.example.com/.well-known/openid-configuration"
         )
 
-    def test_discovery_is_sent_without_the_transport_default_headers(self) -> None:
+    def test_bhv_authoidc_008_discovery_is_sent_without_the_transport_default_headers(
+        self,
+    ) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         auth.build_authorization_url()
 
         assert mock_client.send_request.call_args.kwargs["no_redirect"] is True
 
-    def test_obtains_token_after_code_exchange(self) -> None:
+    def test_bhv_authoidc_017_obtains_token_after_code_exchange(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         auth.build_authorization_url()  # force discovery so delegate is cached
@@ -125,7 +127,9 @@ class TestOpenIdConnectAuthenticator:
         assert "grant_type=authorization_code" in body
         assert "code=oidc_code" in body
 
-    def test_get_auth_headers_returns_bearer_after_exchange(self) -> None:
+    def test_bhv_authoidc_013_get_auth_headers_returns_bearer_after_exchange(
+        self,
+    ) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         auth.build_authorization_url()  # force discovery so delegate is cached
@@ -148,19 +152,19 @@ class TestOpenIdConnectAuthenticator:
 
         assert headers["Authorization"] == "Bearer oidc-tok"
 
-    def test_throws_when_no_api_client_injected(self) -> None:
+    def test_bhv_authoidc_028_throws_when_no_api_client_injected(self) -> None:
         auth = _create_authenticator()
 
         with pytest.raises(RuntimeError) as exc_info:
             auth.build_authorization_url()
         assert type(exc_info.value) is RuntimeError
 
-    def test_get_host_returns_configured_host(self) -> None:
+    def test_bhv_authoidc_014_get_host_returns_configured_host(self) -> None:
         auth = _create_authenticator()
 
         assert auth.get_host() == "https://api.example.com"
 
-    def test_redacts_secret(self) -> None:
+    def test_bhv_authoidc_019_redacts_secret(self) -> None:
         """The repr masks the client_secret as ``***`` and never leaks it."""
         auth = _create_authenticator()
         rendered = repr(auth)
@@ -171,7 +175,7 @@ class TestOpenIdConnectAuthenticator:
         ("status", "expected"),
         [(404, NotFoundException), (500, InternalServerErrorException)],
     )
-    def test_discovery_non_2xx_status_raises(
+    def test_bhv_authoidc_027_discovery_non_2xx_status_raises(
         self, status: int, expected: type[ApiException]
     ) -> None:
         # Discovery is an HTTP call like any other: a non-2xx answer (e.g. a
@@ -190,7 +194,7 @@ class TestOpenIdConnectAuthenticator:
         assert type(exc_info.value) is expected
         assert exc_info.value.status_code == status
 
-    def test_discovery_document_not_json_raises(self) -> None:
+    def test_bhv_authoidc_016_discovery_document_not_json_raises(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -203,7 +207,9 @@ class TestOpenIdConnectAuthenticator:
             auth.build_authorization_url()
         assert type(exc_info.value) is SerializationException
 
-    def test_discovery_missing_authorization_endpoint_raises(self) -> None:
+    def test_bhv_authoidc_025_discovery_missing_authorization_endpoint_raises(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -218,7 +224,7 @@ class TestOpenIdConnectAuthenticator:
         ):
             auth.build_authorization_url()
 
-    def test_fetches_discovery_document_only_once(self) -> None:
+    def test_bhv_authoidc_011_fetches_discovery_document_only_once(self) -> None:
         # The discovery document must be cached: a second build must reuse it
         # rather than issue a second GET to the discovery endpoint.
         auth, mock_client = _create_authenticator_with_discovery()
@@ -228,7 +234,7 @@ class TestOpenIdConnectAuthenticator:
 
         assert mock_client.send_request.call_count == 1
 
-    def test_discovery_empty_token_endpoint_raises(self) -> None:
+    def test_bhv_authoidc_018_discovery_empty_token_endpoint_raises(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -293,20 +299,22 @@ class TestDiscoveryDocumentIsChecked:
         ):
             auth.build_authorization_url()
 
-    def test_an_issuer_with_a_trailing_slash_is_accepted(self) -> None:
+    def test_bhv_authoidc_004_an_issuer_with_a_trailing_slash_is_accepted(self) -> None:
         auth = self._authenticator_serving(issuer="https://auth.example.com/")
         assert auth.build_authorization_url().startswith(
             "https://auth.example.com/authorize?"
         )
 
-    def test_a_document_without_an_issuer_is_accepted(self) -> None:
+    def test_bhv_authoidc_024_a_document_without_an_issuer_is_accepted(self) -> None:
         auth = self._authenticator_serving()
         assert auth.build_authorization_url().startswith(
             "https://auth.example.com/authorize?"
         )
 
     @pytest.mark.parametrize("field", ["authorization_endpoint", "token_endpoint"])
-    def test_a_clear_text_endpoint_is_rejected(self, field: str) -> None:
+    def test_bhv_authoidc_005_a_clear_text_endpoint_is_rejected(
+        self, field: str
+    ) -> None:
         auth = self._authenticator_serving(**{field: "http://auth.example.com/x"})
         with pytest.raises(
             SerializationException, match=f"OIDC discovery '{field}' must use https"
@@ -337,7 +345,7 @@ class TestDiscoveryCacheLifetime:
             (None, 86400),
         ],
     )
-    def test_max_age_is_read_from_the_cache_control_header(
+    def test_bhv_authoidc_003_max_age_is_read_from_the_cache_control_header(
         self, headers: Any, expected: int
     ) -> None:
         from petstore_client.auth.oauth.openid_connect_authenticator import (
@@ -346,7 +354,9 @@ class TestDiscoveryCacheLifetime:
 
         assert _parse_max_age(headers) == expected
 
-    def test_rediscovery_after_expiry_keeps_the_exchanged_session(self) -> None:
+    def test_bhv_authoidc_020_rediscovery_after_expiry_keeps_the_exchanged_session(
+        self,
+    ) -> None:
         from unittest.mock import patch
 
         auth = _create_authenticator()
@@ -410,7 +420,9 @@ class TestDiscoveryCacheLifetime:
 
 
 class TestDiscoveryTransportFailure:
-    def test_a_network_failure_reaches_the_caller_unchanged(self) -> None:
+    def test_bhv_authoidc_006_a_network_failure_reaches_the_caller_unchanged(
+        self,
+    ) -> None:
         from petstore_client.errors import NetworkException
 
         failure = NetworkException(message="connection refused")
@@ -438,7 +450,9 @@ class TestOidcAuthorizationUrl:
 
 
 class TestSsoAuthWrapper:
-    def test_discovers_from_the_spec_url_and_requests_the_openid_scope(self) -> None:
+    def test_bhv_authoidc_022_discovers_from_the_spec_url_and_requests_the_openid_scope(
+        self,
+    ) -> None:
         from petstore_client.auth.oauth.sso_auth_authenticator import (
             SsoAuthAuthenticator,
         )
@@ -459,7 +473,9 @@ class TestSsoAuthWrapper:
 
 
 class TestOpenIdConnectRedactedRepr:
-    def test_repr_lists_the_non_secret_fields_and_masks_the_secret(self) -> None:
+    def test_bhv_authoidc_023_repr_lists_the_non_secret_fields_and_masks_the_secret(
+        self,
+    ) -> None:
         assert repr(_create_authenticator()) == (
             "OpenIdConnectAuthenticator(host='https://api.example.com', "
             "openid_connect_url="
@@ -480,7 +496,9 @@ class TestOidcPkceAndInvalidation:
         assert re.fullmatch(r"[A-Za-z0-9_-]{43}", params["code_challenge"][0])
         assert "nonce" not in params
 
-    def test_a_rediscovery_that_names_new_endpoints_keeps_the_verifier(self) -> None:
+    def test_bhv_authoidc_021_a_rediscovery_that_names_new_endpoints_keeps_the_verifier(
+        self,
+    ) -> None:
         from unittest.mock import patch
 
         auth = _create_authenticator()
@@ -535,7 +553,7 @@ class TestOidcPkceAndInvalidation:
 
         mock_client.send_request.assert_not_called()
 
-    def test_a_dropped_token_is_replaced_by_a_refresh(self) -> None:
+    def test_bhv_authoidc_015_a_dropped_token_is_replaced_by_a_refresh(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
         auth.build_authorization_url()
         mock_client.send_request.side_effect = [
