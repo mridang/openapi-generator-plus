@@ -4578,12 +4578,25 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     @SuppressWarnings("rawtypes")
     private void captureRefSiblingDefault(CodegenProperty property, Schema p) {
-        if (property == null || p == null || p.get$ref() == null || p.getDefault() == null) {
+        if (property == null || p == null || p.getDefault() == null) {
+            return;
+        }
+        // By the time a property reaches here the parser and normaliser have usually moved the
+        // $ref into a one-element allOf and left the sibling default on the wrapper, so both
+        // spellings are the same schema.
+        String ref = p.get$ref();
+        if (ref == null && p.getAllOf() != null && p.getAllOf().size() == 1) {
+            final Object only = p.getAllOf().get(0);
+            if (only instanceof Schema) {
+                ref = ((Schema) only).get$ref();
+            }
+        }
+        if (ref == null) {
             return;
         }
         final String wire = String.valueOf(p.getDefault());
         property.vendorExtensions.put("siblingDefault", wire);
-        final String refName = ModelUtils.getSimpleRef(p.get$ref());
+        final String refName = ModelUtils.getSimpleRef(ref);
         final Schema target = this.openAPI == null ? null : ModelUtils.getSchema(this.openAPI, refName);
         final boolean isEnum = target != null && target.getEnum() != null && !target.getEnum().isEmpty();
         property.vendorExtensions.put("siblingDefaultIsEnum", isEnum);

@@ -409,6 +409,27 @@ class AbstractBetterCodegenTest {
   }
 
   @Test
+  @DisplayName("a default on the allOf wrapper the parser leaves around a $ref reaches the property")
+  void aWrappedRefSiblingDefaultIsCarriedOntoTheProperty() {
+    final StringSchema availability = new StringSchema();
+    availability.setEnum(List.of("available", "on-hold"));
+    final AbstractBetterCodegen codegen = codegen("java");
+    codegen.setOpenAPI(
+        new OpenAPI().components(new Components().addSchemas("Availability", availability)));
+    final Schema<?> reference = new Schema<>();
+    reference.set$ref("#/components/schemas/Availability");
+    final Schema<?> wrapper = new Schema<>();
+    wrapper.addAllOfItem(reference);
+    wrapper.setDefault("on-hold");
+
+    final CodegenProperty property = codegen.fromProperty("availability", wrapper, false, false);
+
+    assertEquals("on-hold", property.vendorExtensions.get("siblingDefault"));
+    assertEquals(true, property.vendorExtensions.get("siblingDefaultIsEnum"));
+    assertEquals("Availability", property.vendorExtensions.get("siblingDefaultEnumType"));
+  }
+
+  @Test
   @DisplayName("QUERY is a safe and idempotent method, POST and PATCH are neither")
   void httpMethodClassificationIsShared() {
     for (final String safe : List.of("GET", "HEAD", "OPTIONS", "TRACE", "QUERY", "query")) {
