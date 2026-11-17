@@ -2048,7 +2048,7 @@ async fn test_a_retryable_status_is_retried_until_the_call_succeeds() {
 }
 
 #[tokio::test]
-async fn test_the_last_failure_is_reported_when_the_retries_run_out() {
+async fn test_bhv_retries_024_the_last_failure_is_reported_when_the_retries_run_out() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(500, Some("0")),
@@ -2100,7 +2100,7 @@ async fn test_bhv_retries_004_zero_max_retries_sends_the_call_once() {
 }
 
 #[tokio::test]
-async fn test_a_network_failure_is_retried_but_a_timeout_is_not() {
+async fn test_bhv_retries_013_a_network_failure_is_retried_but_a_timeout_is_not() {
     let client = ScriptedApiClient::new(vec![Scripted::Network, Scripted::Status(200, None)], 2, None);
     retrying_api(&client)
         .delete_pet(1, None)
@@ -2155,7 +2155,7 @@ async fn test_retry_after_seconds_is_honoured() {
 }
 
 #[tokio::test]
-async fn test_a_retry_that_does_not_fit_the_timeout_is_not_made() {
+async fn test_bhv_retries_025_a_retry_that_does_not_fit_the_timeout_is_not_made() {
     let client = ScriptedApiClient::new(
         vec![Scripted::Status(503, Some("30")), Scripted::Status(200, None)],
         2,
@@ -2203,4 +2203,102 @@ async fn test_bhv_retries_003_a_multipart_body_is_never_retried() {
 
     assert!(outcome.is_err());
     assert_eq!(1, client.calls());
+}
+
+/// A bearer token cannot be renewed, so a 401 is reported after one attempt and
+/// the request is not sent again.
+#[tokio::test]
+async fn test_bhv_retries_002_a_bearer_authenticator_never_replays_a_401() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(401, None), Scripted::Status(200, None)],
+        2,
+        None,
+    );
+    let auth = {{packageName}}::auth::BearerAuthenticator::new("http://localhost", "secret-token")
+        .expect("a valid token");
+
+    let outcome = retrying_api_with(&client, Arc::new(auth)).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+}
+
+/// A multipart body is not sent again after a 401, even though the authenticator
+/// could renew its token: the body cannot be replayed.
+#[tokio::test]
+async fn test_bhv_retries_006_a_multipart_body_is_not_replayed_after_a_401() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(401, None), Scripted::Status(200, None)],
+        2,
+        None,
+    );
+
+    let outcome = retrying_api_with(&client, Arc::new(RenewableAuthenticator::new()))
+        .upload_pet_document(1, Some(&UploadPetDocumentOptions::new(vec![1, 2, 3])), None)
+        .await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+}
+
+/// With max retries at zero a failing call is sent exactly once, and its error is
+/// reported.
+#[tokio::test]
+async fn test_bhv_retries_018_max_retries_zero_sends_the_request_once() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(503, Some("0")), Scripted::Status(200, None)],
+        0,
+        None,
+    );
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+}
+
+/// Every call starts its own end-to-end budget, so the second call's deadline is
+/// measured from when it starts rather than from the first call.
+#[tokio::test]
+async fn test_bhv_retries_019_each_call_starts_a_fresh_timeout_budget() {
+    let budget = std::time::Duration::from_secs(30);
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(200, None), Scripted::Status(200, None)],
+        0,
+        Some(budget),
+    );
+    let api = retrying_api(&client);
+    api.delete_pet(1, None).await.expect("the first call succeeds");
+    let second_started = std::time::Instant::now();
+
+    api.delete_pet(1, None).await.expect("the second call succeeds");
+
+    let deadlines = client.deadlines.lock().unwrap();
+    assert_eq!(2, deadlines.len());
+    let second = deadlines[1].expect("a deadline");
+    assert!(second >= second_started + budget, "deadline {:?} is older than the call", second);
+}
+
+/// A per-call timeout replaces the transport's budget for that call: the deadline
+/// the client receives is the call's 30 seconds, not the transport's 600.
+#[tokio::test]
+async fn test_bhv_transport_028_a_per_call_timeout_replaces_the_transport_timeout() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(200, None)],
+        0,
+        Some(std::time::Duration::from_secs(600)),
+    );
+    let started = std::time::Instant::now();
+
+    retrying_api(&client)
+        .delete_pet(
+            1,
+            Some(&DeletePetOptions::new().timeout(std::time::Duration::from_secs(30))),
+        )
+        .await
+        .expect("the call succeeds");
+
+    let deadline = client.deadlines.lock().unwrap()[0].expect("a deadline");
+    assert!(deadline >= started + std::time::Duration::from_secs(30), "deadline {:?}", deadline);
+    assert!(deadline < started + std::time::Duration::from_secs(600), "deadline {:?}", deadline);
 }
