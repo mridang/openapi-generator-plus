@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>12</LangVersion>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- The tests build with the same analyzer set as the SDK project. -->
@@ -10,12 +10,6 @@
     <AnalysisLevel>latest-all</AnalysisLevel>
     <AnalysisMode>All</AnalysisMode>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <!-- The test host targets net8.0 (the SDK's floor) but must run wherever
-         `dotnet test` is invoked. When only a newer major runtime is installed
-         (e.g. a net10-only CI image), roll the net8 test host forward so the
-         suite still executes; on a net8 machine it runs on net8 natively. The
-         shipped library project carries no RollForward and stays pure net8. -->
-    <RollForward>Major</RollForward>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
@@ -46,7 +40,7 @@
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="1.7.3" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.0.4" />
-    <PackageReference Include="Testcontainers" Version="4.12.0" />
+    <PackageReference Include="Testcontainers" Version="4.14.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

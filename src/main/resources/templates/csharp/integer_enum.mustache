@@ -2,8 +2,8 @@
     Integer-backed enum. The wire form is a JSON number, so the members carry
     their explicit numeric values and the converter reads/writes numbers
     (mirroring the string converter's strict unknown-value rejection). System
-    .Text.Json's default enum handling is bypassed so the client targets net8.0
-    without relying on framework numeric-enum behaviour and so unknown values
+    .Text.Json's default enum handling is bypassed so the client does not rely
+    on framework numeric-enum behaviour and so unknown values
     throw rather than silently round-tripping.
 }}[JsonConverter(typeof({{classname}}Converter))]
 public enum {{classname}}

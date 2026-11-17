@@ -33,7 +33,7 @@ public class CSharpTrimmedSpec extends AbstractIntegrationSpec implements CSharp
 
   /** Base64 of the consumer .csproj (PublishTrimmed, references the SDK). */
   private static final String CSPROJ_B64 =
-      "PFByb2plY3QgU2RrPSJNaWNyb3NvZnQuTkVULlNkayI+CiAgPFByb3BlcnR5R3JvdXA+CiAgICA8T3V0cHV0VHlwZT5FeGU8L091dHB1dFR5cGU+CiAgICA8VGFyZ2V0RnJhbWV3b3JrPm5ldDguMDwvVGFyZ2V0RnJhbWV3b3JrPgogICAgPE51bGxhYmxlPmVuYWJsZTwvTnVsbGFibGU+CiAgICA8SW1wbGljaXRVc2luZ3M+ZW5hYmxlPC9JbXBsaWNpdFVzaW5ncz4KICAgIDxBc3NlbWJseU5hbWU+UGV0c3RvcmVDbGllbnQuVGVzdDwvQXNzZW1ibHlOYW1lPgogICAgPFB1Ymxpc2hUcmltbWVkPnRydWU8L1B1Ymxpc2hUcmltbWVkPgogICAgPFRyaW1Nb2RlPmZ1bGw8L1RyaW1Nb2RlPgogIDwvUHJvcGVydHlHcm91cD4KICA8SXRlbUdyb3VwPgogICAgPFByb2plY3RSZWZlcmVuY2UgSW5jbHVkZT0iL3dvcmsvc3JjL1BldHN0b3JlQ2xpZW50L1BldHN0b3JlQ2xpZW50LmNzcHJvaiIgLz4KICA8L0l0ZW1Hcm91cD4KPC9Qcm9qZWN0Pgo=";
+      "PFByb2plY3QgU2RrPSJNaWNyb3NvZnQuTkVULlNkayI+CiAgPFByb3BlcnR5R3JvdXA+CiAgICA8T3V0cHV0VHlwZT5FeGU8L091dHB1dFR5cGU+CiAgICA8VGFyZ2V0RnJhbWV3b3JrPm5ldDEwLjA8L1RhcmdldEZyYW1ld29yaz4KICAgIDxOdWxsYWJsZT5lbmFibGU8L051bGxhYmxlPgogICAgPEltcGxpY2l0VXNpbmdzPmVuYWJsZTwvSW1wbGljaXRVc2luZ3M+CiAgICA8QXNzZW1ibHlOYW1lPlBldHN0b3JlQ2xpZW50LlRlc3Q8L0Fzc2VtYmx5TmFtZT4KICAgIDxQdWJsaXNoVHJpbW1lZD50cnVlPC9QdWJsaXNoVHJpbW1lZD4KICAgIDxUcmltTW9kZT5mdWxsPC9UcmltTW9kZT4KICA8L1Byb3BlcnR5R3JvdXA+CiAgPEl0ZW1Hcm91cD4KICAgIDxQcm9qZWN0UmVmZXJlbmNlIEluY2x1ZGU9Ii93b3JrL3NyYy9QZXRzdG9yZUNsaWVudC9QZXRzdG9yZUNsaWVudC5jc3Byb2oiIC8+CiAgPC9JdGVtR3JvdXA+CjwvUHJvamVjdD4K";
 
   /** Base64 of the consumer Program.cs (round-trips a Pet via ObjectSerializer). */
   private static final String PROGRAM_B64 =
@@ -53,7 +53,7 @@ public class CSharpTrimmedSpec extends AbstractIntegrationSpec implements CSharp
             + " && RID=linux-musl-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')"
             + " && dotnet publish /tmp/consumer/Consumer.csproj -c Release -r \"$RID\""
             + " --self-contained -p:PublishTrimmed=true -p:TrimMode=full"
-            + " && /tmp/consumer/bin/Release/net8.0/\"$RID\"/publish/PetstoreClient.Test";
+            + " && /tmp/consumer/bin/Release/net10.0/\"$RID\"/publish/PetstoreClient.Test";
     return new String[] {script};
   }
 
