@@ -10,8 +10,11 @@ package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
+import javax.annotation.Nullable;
 
 /** ReservationReceipt. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+    builder = ReservationReceipt.Builder.class)
 public class ReservationReceipt {
 
   /**
@@ -20,7 +23,7 @@ public class ReservationReceipt {
    * <p>Example: {@code rcpt-77}
    */
   @JsonProperty("receiptCode")
-  public String receiptCode;
+  public final String receiptCode;
 
   /**
    * The {@code expiresAt} property.
@@ -28,20 +31,7 @@ public class ReservationReceipt {
    * <p>Example: {@code 2030-01-01T00:00:00Z}
    */
   @JsonProperty("expiresAt")
-  public OffsetDateTime expiresAt;
-
-  /* No-arg constructor required by deserialization/test tooling. It
-   * intentionally leaves the @NonNull required fields uninitialized — the
-   * @JsonCreator constructor below populates them on the deserialization path.
-   * NullAway.Init cannot be moved to a global config home without either
-   * excluding every @JsonProperty field from init-checking (which would hide
-   * genuinely-missing initializers across all models) or marking whole classes
-   * unannotated (disabling null-safety on the model entirely); both weaken a
-   * real correctness rule, so the suppression is kept here, scoped to this
-   * single framework-mandated constructor. */
-  /** Creates an empty instance for deserialization; required fields are populated later. */
-  @SuppressWarnings("NullAway.Init")
-  public ReservationReceipt() {}
+  public final OffsetDateTime expiresAt;
 
   /**
    * Creates an instance with all required properties.
@@ -49,12 +39,93 @@ public class ReservationReceipt {
    * @param receiptCode the {@code receiptCode} property
    * @param expiresAt the {@code expiresAt} property
    */
-  @com.fasterxml.jackson.annotation.JsonCreator
-  public ReservationReceipt(
-      @JsonProperty(value = "receiptCode", required = true) String receiptCode,
-      @JsonProperty(value = "expiresAt", required = true) OffsetDateTime expiresAt) {
-    this.receiptCode = java.util.Objects.requireNonNull(receiptCode, "receiptCode is required");
-    this.expiresAt = java.util.Objects.requireNonNull(expiresAt, "expiresAt is required");
+  public ReservationReceipt(String receiptCode, OffsetDateTime expiresAt) {
+    this(new Builder().receiptCode(receiptCode).expiresAt(expiresAt));
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private ReservationReceipt(Builder builder) {
+    builder.requireNullableProperties();
+    this.receiptCode =
+        java.util.Objects.requireNonNull(builder.receiptCode, "receiptCode is required");
+    this.expiresAt = java.util.Objects.requireNonNull(builder.expiresAt, "expiresAt is required");
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.receiptCode = this.receiptCode;
+    builder.expiresAt = this.expiresAt;
+    return builder;
+  }
+
+  /** Builds ReservationReceipt instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private String receiptCode;
+    @Nullable private OffsetDateTime expiresAt;
+
+    private Builder() {}
+
+    /**
+     * Sets the "receiptCode" property.
+     *
+     * @param receiptCode the new value
+     * @return this builder
+     */
+    @JsonProperty("receiptCode")
+    public Builder receiptCode(String receiptCode) {
+      this.receiptCode = receiptCode;
+      return this;
+    }
+
+    /**
+     * Sets the "expiresAt" property.
+     *
+     * @param expiresAt the new value
+     * @return this builder
+     */
+    @JsonProperty("expiresAt")
+    public Builder expiresAt(OffsetDateTime expiresAt) {
+      this.expiresAt = expiresAt;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public ReservationReceipt build() {
+      return new ReservationReceipt(this);
+    }
   }
 
   /* Value-equality based on all declared fields. Generated so model

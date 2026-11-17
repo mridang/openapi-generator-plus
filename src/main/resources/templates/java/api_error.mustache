@@ -26,6 +26,12 @@ public class ApiException extends {{errorPrefix}}Exception {
 
     @Nullable private final transient Object errorBody;
 
+    /** The HTTP method of the request that drew this error, or {@code null} when unknown. */
+    @Nullable private String requestMethod;
+
+    /** The path of that request with the query string stripped, or {@code null} when unknown. */
+    @Nullable private String requestPath;
+
     /**
      * Construct an exception with a detail message and no response context.
      *
@@ -141,25 +147,6 @@ public class ApiException extends {{errorPrefix}}Exception {
     }
 
     /**
-     * Construct an exception for a response that arrived but could not be used, keeping its
-     * real headers and the failure that made it unusable.
-     *
-     * @param statusCode the HTTP status code
-     * @param message the detail message
-     * @param responseHeaders the HTTP response headers, if available
-     * @param cause the underlying failure
-     */
-    public static ApiException forUnusableResponse(
-            int statusCode,
-            String message,
-            @Nullable Map<String, String> responseHeaders,
-            Throwable cause) {
-        ApiException exception = new ApiException(statusCode, message, responseHeaders, null, null);
-        exception.initCause(cause);
-        return exception;
-    }
-
-    /**
      * Map an HTTP response that was not a success to the exception for its status.
      *
      * <p>400, 401, 403, 404, 409 and 422 map to their named {@link ClientException}
@@ -175,6 +162,61 @@ public class ApiException extends {{errorPrefix}}Exception {
      * @return the exception for the status; the caller throws it
      */
     public static ApiException fromResponse(
+            int statusCode,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody) {
+        return build(statusCode, responseHeaders, responseBody);
+    }
+
+    /**
+     * Map an HTTP response that was not a success to the exception for its status, and
+     * record the request that drew it.
+     *
+     * <p>The mapping is the one of {@link #fromResponse(int, Map, String)}. The exception
+     * also carries the request method and the request path with the query string stripped,
+     * which {@link #toString()} renders and {@link #getRequestMethod()} and
+     * {@link #getRequestPath()} return.
+     *
+     * @param requestMethod the HTTP method of the request
+     * @param requestPath the path or URL of the request; a query string is stripped
+     * @param statusCode the HTTP status code of the response
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @return the exception for the status; the caller throws it
+     */
+    public static ApiException fromResponse(
+            String requestMethod,
+            String requestPath,
+            int statusCode,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody) {
+        ApiException exception = build(statusCode, responseHeaders, responseBody);
+        exception.requestMethod = requestMethod;
+        exception.requestPath = stripQuery(requestPath);
+        return exception;
+    }
+
+    /** The path of a request path or URL, without its scheme, host, query string or fragment. */
+    private static String stripQuery(String pathOrUrl) {
+        String path = pathOrUrl;
+        int end = path.length();
+        int query = path.indexOf('?');
+        if (query >= 0) {
+            end = query;
+        }
+        int fragment = path.indexOf('#');
+        if (fragment >= 0 && fragment < end) {
+            end = fragment;
+        }
+        path = path.substring(0, end);
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            int slash = path.indexOf('/', path.indexOf("://") + 3);
+            path = slash < 0 ? "/" : path.substring(slash);
+        }
+        return path;
+    }
+
+    private static ApiException build(
             int statusCode,
             @Nullable Map<String, String> responseHeaders,
             @Nullable String responseBody) {
@@ -227,6 +269,26 @@ public class ApiException extends {{errorPrefix}}Exception {
      */
     public int getStatusCode() {
         return statusCode;
+    }
+
+    /**
+     * Get the HTTP method of the request that drew this error.
+     *
+     * @return the HTTP method, or {@code null} when the error did not come from a request
+     */
+    @Nullable
+    public String getRequestMethod() {
+        return requestMethod;
+    }
+
+    /**
+     * Get the path of the request that drew this error, without its query string.
+     *
+     * @return the request path, or {@code null} when the error did not come from a request
+     */
+    @Nullable
+    public String getRequestPath() {
+        return requestPath;
     }
 
     /**
@@ -301,6 +363,9 @@ public class ApiException extends {{errorPrefix}}Exception {
                                 : message);
         if (statusCode != 0) {
             buf.append("\nHTTP status code: ").append(statusCode);
+        }
+        if (requestMethod != null && requestPath != null) {
+            buf.append("\nRequest: ").append(requestMethod).append(' ').append(requestPath);
         }
         if (responseHeaders != null && !responseHeaders.isEmpty()) {
             /* D17: compact JSON with the keys sorted, the same text as the other SDKs. */

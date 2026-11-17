@@ -228,6 +228,8 @@ try {
 }
 ```
 
+An `ApiException` also carries `getRequestMethod()` and `getRequestPath()` (no query string), which `toString()` renders as a `Request: GET /path` line.
+
 ## Configuration
 
 ### Custom Transport Options
@@ -269,6 +271,10 @@ var task = executor.submit(() -> client.pet.addPet(new Pet()));
 task.cancel(true);
 ```
 
+### Per-call options
+
+An operation's options object also takes `timeout(millis)`, `maxRetries(n)` and `headers(map)`, which apply to that call only.
+
 ### Raw responses, timeouts and the request id
 
 Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode()`, `data()`, `rawBody()`, `headers()`). `timeout` is one end-to-end budget in positive milliseconds. An `X-Request-ID` header is added to each request unless you set one.
@@ -279,13 +285,13 @@ Each API group is exposed as a typed field on the client (e.g., `client.pet`). A
 
 ## Models
 
-Models are generated as Java classes in the `com.example.petstore.models` package.
+Models are generated as immutable Java classes in the `com.example.petstore.models` package: the fields are `final`, a model is made with its `builder()` (or its constructor when it has required properties) and copied with `toBuilder()`. A required property that is missing fails when the model is built.
 
 ```java
-import com.example.petstore.models.Account;
-
-var model = new Account();
+var changed = model.toBuilder().someProperty(value).build();
 ```
+
+A model that accepts extra keys reads them through `getAdditionalProperties()` (unmodifiable) and writes them with the builder's `putAdditionalProperty`, `putAllAdditionalProperties`, `removeAdditionalProperty` and `additionalProperties(map)`. A `oneOf` or `anyOf` model has `ofVariant(v)`, and for a plain class variant `isVariant()` and `asVariant()`.
 
 ## Binary / File Uploads
 

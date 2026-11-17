@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import javax.annotation.Nullable;
 
 /** Defaults. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = Defaults.Builder.class)
 public class Defaults {
 
   /** Allowed values for the {@code mode} property. */
@@ -73,50 +74,241 @@ public class Defaults {
   /** The {@code retries} property. */
   @JsonProperty("retries")
   @Nullable
-  public Integer retries = 3;
+  public final Integer retries;
 
   /** The {@code mode} property. */
   @JsonProperty("mode")
   @Nullable
-  public ModeEnum mode = ModeEnum.MEDIUM;
+  public final ModeEnum mode;
 
   /** The {@code label} property. */
   @JsonProperty("label")
   @Nullable
-  public String label = "untitled";
+  public final String label;
 
   /** The {@code greeting} property. */
   @JsonProperty("greeting")
   @Nullable
-  public String greeting = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b";
+  public final String greeting;
 
   /** The {@code swatch} property. */
   @JsonProperty("swatch")
   @Nullable
-  public Swatch swatch;
+  public final Swatch swatch;
 
   /** The {@code ratio} property. */
   @JsonProperty("ratio")
   @Nullable
-  public BigDecimal ratio = new java.math.BigDecimal("1.5");
+  public final BigDecimal ratio;
 
   /** The {@code scale} property. */
   @JsonProperty("scale")
   @Nullable
-  public Float scale = 0.25F;
+  public final Float scale;
 
   /** The {@code weight} property. */
   @JsonProperty("weight")
   @Nullable
-  public Double weight = 2D;
+  public final Double weight;
 
   /** The {@code ceiling} property. */
   @JsonProperty("ceiling")
   @Nullable
-  public Long ceiling = 9000000000L;
+  public final Long ceiling;
 
-  /** Creates an empty instance. */
-  public Defaults() {}
+  /** Creates an instance with every property at its default. */
+  public Defaults() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private Defaults(Builder builder) {
+    builder.requireNullableProperties();
+    this.retries = builder.retries;
+    this.mode = builder.mode;
+    this.label = builder.label;
+    this.greeting = builder.greeting;
+    this.swatch = builder.swatch;
+    this.ratio = builder.ratio;
+    this.scale = builder.scale;
+    this.weight = builder.weight;
+    this.ceiling = builder.ceiling;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.retries = this.retries;
+    builder.mode = this.mode;
+    builder.label = this.label;
+    builder.greeting = this.greeting;
+    builder.swatch = this.swatch;
+    builder.ratio = this.ratio;
+    builder.scale = this.scale;
+    builder.weight = this.weight;
+    builder.ceiling = this.ceiling;
+    return builder;
+  }
+
+  /** Builds Defaults instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Integer retries = 3;
+    @Nullable private ModeEnum mode = ModeEnum.MEDIUM;
+    @Nullable private String label = "untitled";
+    @Nullable private String greeting = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b";
+    @Nullable private Swatch swatch;
+    @Nullable private BigDecimal ratio = new java.math.BigDecimal("1.5");
+    @Nullable private Float scale = 0.25F;
+    @Nullable private Double weight = 2D;
+    @Nullable private Long ceiling = 9000000000L;
+
+    private Builder() {}
+
+    /**
+     * Sets the "retries" property.
+     *
+     * @param retries the new value
+     * @return this builder
+     */
+    @JsonProperty("retries")
+    public Builder retries(@Nullable Integer retries) {
+      this.retries = retries;
+      return this;
+    }
+
+    /**
+     * Sets the "mode" property.
+     *
+     * @param mode the new value
+     * @return this builder
+     */
+    @JsonProperty("mode")
+    public Builder mode(@Nullable ModeEnum mode) {
+      this.mode = mode;
+      return this;
+    }
+
+    /**
+     * Sets the "label" property.
+     *
+     * @param label the new value
+     * @return this builder
+     */
+    @JsonProperty("label")
+    public Builder label(@Nullable String label) {
+      this.label = label;
+      return this;
+    }
+
+    /**
+     * Sets the "greeting" property.
+     *
+     * @param greeting the new value
+     * @return this builder
+     */
+    @JsonProperty("greeting")
+    public Builder greeting(@Nullable String greeting) {
+      this.greeting = greeting;
+      return this;
+    }
+
+    /**
+     * Sets the "swatch" property.
+     *
+     * @param swatch the new value
+     * @return this builder
+     */
+    @JsonProperty("swatch")
+    public Builder swatch(@Nullable Swatch swatch) {
+      this.swatch = swatch;
+      return this;
+    }
+
+    /**
+     * Sets the "ratio" property.
+     *
+     * @param ratio the new value
+     * @return this builder
+     */
+    @JsonProperty("ratio")
+    public Builder ratio(@Nullable BigDecimal ratio) {
+      this.ratio = ratio;
+      return this;
+    }
+
+    /**
+     * Sets the "scale" property.
+     *
+     * @param scale the new value
+     * @return this builder
+     */
+    @JsonProperty("scale")
+    public Builder scale(@Nullable Float scale) {
+      this.scale = scale;
+      return this;
+    }
+
+    /**
+     * Sets the "weight" property.
+     *
+     * @param weight the new value
+     * @return this builder
+     */
+    @JsonProperty("weight")
+    public Builder weight(@Nullable Double weight) {
+      this.weight = weight;
+      return this;
+    }
+
+    /**
+     * Sets the "ceiling" property.
+     *
+     * @param ceiling the new value
+     * @return this builder
+     */
+    @JsonProperty("ceiling")
+    public Builder ceiling(@Nullable Long ceiling) {
+      this.ceiling = ceiling;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public Defaults build() {
+      return new Defaults(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

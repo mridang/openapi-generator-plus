@@ -273,6 +273,41 @@ public class {{classname}} {
     return actualInstance;
   }
 
+{{#composedSchemas.oneOf}}
+
+  /**
+   * Wraps a {@code {{{dataType}}}} as this union.
+   *
+   * @param value the {@code {{{dataType}}}} variant
+   * @return the union holding {@code value}
+   */
+  public static {{classname}} of{{vendorExtensions.variantName}}({{{dataType}}} value) {
+    return new {{classname}}(value);
+  }
+{{#vendorExtensions.isPlainVariant}}
+
+  /**
+   * Tells whether this union holds a {@code {{{dataType}}}}.
+   *
+   * @return {@code true} when the wrapped variant is a {@code {{{dataType}}}}
+   */
+  public boolean is{{vendorExtensions.variantName}}() {
+    return actualInstance instanceof {{{dataType}}};
+  }
+
+  /**
+   * Returns the wrapped variant as a {@code {{{dataType}}}}.
+   *
+   * @return the variant, or empty when this union holds another variant
+   */
+  public java.util.Optional<{{{dataType}}}> as{{vendorExtensions.variantName}}() {
+    return actualInstance instanceof {{{dataType}}} variant
+        ? java.util.Optional.of(variant)
+        : java.util.Optional.empty();
+  }
+{{/vendorExtensions.isPlainVariant}}
+{{/composedSchemas.oneOf}}
+
   /* Value equality on the wrapped variant, so two unions decoded from the
    * same JSON compare equal (byte[] and List variants by content). */
   @Override
@@ -447,6 +482,44 @@ public class {{classname}} {
     return java.util.Collections.unmodifiableList(matchedInstances);
   }
 
+{{#composedSchemas.anyOf}}
+
+  /**
+   * Wraps a {@code {{{dataType}}}} as this union.
+   *
+   * @param value the {@code {{{dataType}}}} variant
+   * @return the union holding {@code value}
+   */
+  public static {{classname}} of{{vendorExtensions.variantName}}({{{dataType}}} value) {
+    return new {{classname}}((Object) value);
+  }
+{{#vendorExtensions.isPlainVariant}}
+
+  /**
+   * Tells whether this union retained a {@code {{{dataType}}}}.
+   *
+   * @return {@code true} when a retained variant is a {@code {{{dataType}}}}
+   */
+  public boolean is{{vendorExtensions.variantName}}() {
+    return matchedInstances.stream().anyMatch(instance -> instance instanceof {{{dataType}}});
+  }
+
+  /**
+   * Returns the first retained variant that is a {@code {{{dataType}}}}.
+   *
+   * @return the variant, or empty when no retained variant is a {@code {{{dataType}}}}
+   */
+  public java.util.Optional<{{{dataType}}}> as{{vendorExtensions.variantName}}() {
+    for (Object instance : matchedInstances) {
+      if (instance instanceof {{{dataType}}} variant) {
+        return java.util.Optional.of(variant);
+      }
+    }
+    return java.util.Optional.empty();
+  }
+{{/vendorExtensions.isPlainVariant}}
+{{/composedSchemas.anyOf}}
+
   /* Value equality on the retained variants, in order, so two unions decoded
    * from the same JSON compare equal (byte[] and List variants by content). */
   @Override
@@ -595,6 +668,7 @@ public class {{classname}} {
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = {{classname}}.Builder.class)
 public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
@@ -808,7 +882,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @JsonProperty("{{baseName}}")
   {{^required}}@Nullable{{/required}}{{#required}}{{#isNullable}}@Nullable
   @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS){{/isNullable}}{{/required}}
-  public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}}{{^isContainer}} = {{{.}}}{{/isContainer}}{{#isContainer}}{{#required}} = {{{.}}}{{/required}}{{/isContainer}}{{/defaultValue}};
+  public final {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
 
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -820,18 +894,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 
   /* Not a property itself: the entries are written flat by the any-getter. */
   @com.fasterxml.jackson.annotation.JsonIgnore
-  private java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties = new java.util.LinkedHashMap<>();
-
-  /**
-   * Stores an additional, undeclared property. Callers use it to send extra keys.
-   *
-   * @param key the property name
-   * @param value the property value
-   */
-  @com.fasterxml.jackson.annotation.JsonAnySetter
-  public void setAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
-    this.additionalProperties.put(key, value);
-  }
+  private final java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties;
 
   /**
    * Returns the additional, undeclared properties.
@@ -849,37 +912,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     return java.util.Collections.unmodifiableMap(extras);
   }
 {{/isAdditionalPropertiesTrue}}
-{{#isUnevaluatedPropertiesFalse}}
-
-  /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-   * any JSON key not declared above must be rejected at deserialization time. */
-  /**
-   * Rejects any undeclared property during deserialization.
-   *
-   * @param key the property name
-   * @param value the property value
-   * @throws IllegalArgumentException always, since unknown properties are not allowed
-   */
-  @com.fasterxml.jackson.annotation.JsonAnySetter
-  void setUnknownProperty(String key, Object value) {
-    throw new IllegalArgumentException(
-        "Unknown property '" + key + "' on {{classname}} (unevaluatedProperties:false)");
-  }
-{{/isUnevaluatedPropertiesFalse}}
 {{#hasRequired}}
-
-  /* No-arg constructor required by deserialization/test tooling. It
-   * intentionally leaves the @NonNull required fields uninitialized — the
-   * @JsonCreator constructor below populates them on the deserialization path.
-   * NullAway.Init cannot be moved to a global config home without either
-   * excluding every @JsonProperty field from init-checking (which would hide
-   * genuinely-missing initializers across all models) or marking whole classes
-   * unannotated (disabling null-safety on the model entirely); both weaken a
-   * real correctness rule, so the suppression is kept here, scoped to this
-   * single framework-mandated constructor. */
-  /** Creates an empty instance for deserialization; required fields are populated later. */
-  @SuppressWarnings("NullAway.Init")
-  public {{classname}}() {}
 
   /**
    * Creates an instance with all required properties.
@@ -888,18 +921,228 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * @param {{name}} the {@code {{baseName}}} property
 {{/requiredVars}}
    */
-  @com.fasterxml.jackson.annotation.JsonCreator
-  public {{classname}}({{#requiredVars}}@JsonProperty(value = "{{baseName}}", required = true) {{#isNullable}}@Nullable {{/isNullable}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
-{{#requiredVars}}
-    this.{{name}} = {{#isNullable}}{{name}}{{/isNullable}}{{^isNullable}}java.util.Objects.requireNonNull({{name}}, "{{name}} is required"){{/isNullable}};
-{{/requiredVars}}
+  public {{classname}}({{#requiredVars}}{{#isNullable}}@Nullable {{/isNullable}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
+    this(new Builder(){{#requiredVars}}.{{vendorExtensions.builderName}}({{name}}){{/requiredVars}});
   }
 {{/hasRequired}}
 {{^hasRequired}}
 
-  /** Creates an empty instance. */
-  public {{classname}}() {}
+  /** Creates an instance with every property at its default. */
+  public {{classname}}() {
+    this(new Builder());
+  }
 {{/hasRequired}}
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private {{classname}}(Builder builder) {
+    builder.requireNullableProperties();
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+    this.{{name}} =
+        {{#isByteArray}}java.util.Objects.requireNonNull(builder.{{name}}, "{{name}} is required").clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+            new java.util.{{vendorExtensions.copyImpl}}<>(
+                java.util.Objects.requireNonNull(builder.{{name}}, "{{name}} is required"))){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}java.util.Objects.requireNonNull(builder.{{name}}, "{{name}} is required"){{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/isNullable}}
+{{#isNullable}}
+    this.{{name}} =
+        {{#isByteArray}}builder.{{name}} == null ? null : builder.{{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}builder.{{name}} == null
+            ? null
+            : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+                new java.util.{{vendorExtensions.copyImpl}}<>(builder.{{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}builder.{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/isNullable}}
+{{/required}}
+{{^required}}
+    this.{{name}} =
+        {{#isByteArray}}builder.{{name}} == null ? null : builder.{{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}builder.{{name}} == null
+            ? null
+            : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+                new java.util.{{vendorExtensions.copyImpl}}<>(builder.{{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}builder.{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    this.additionalProperties = new java.util.LinkedHashMap<>(builder.additionalProperties);
+{{/isAdditionalPropertiesTrue}}
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is
+   * {@code instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+{{#vars}}
+    builder.{{name}} = this.{{name}};
+{{#required}}
+{{#isNullable}}
+    builder.{{name}}IsSet = true;
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    builder.additionalProperties.putAll(this.additionalProperties);
+{{/isAdditionalPropertiesTrue}}
+    return builder;
+  }
+
+  /** Builds {{classname}} instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+{{#vars}}
+    @Nullable private {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}}{{^isContainer}} = {{{.}}}{{/isContainer}}{{#isContainer}}{{#required}} = {{{.}}}{{/required}}{{/isContainer}}{{/defaultValue}};
+{{#required}}
+{{#isNullable}}
+    private boolean {{name}}IsSet;
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    private final java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties = new java.util.LinkedHashMap<>();
+{{/isAdditionalPropertiesTrue}}
+
+    private Builder() {}
+{{#vars}}
+
+    /**
+     * Sets the "{{baseName}}" property.
+     *
+     * @param {{vendorExtensions.builderName}} the new value
+     * @return this builder
+{{#deprecated}}
+     * @deprecated This property is deprecated.
+{{/deprecated}}
+     */
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
+    @JsonProperty("{{baseName}}")
+    public Builder {{vendorExtensions.builderName}}({{^required}}@Nullable {{/required}}{{#required}}{{#isNullable}}@Nullable {{/isNullable}}{{/required}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{vendorExtensions.builderName}}) {
+      this.{{name}} = {{#isByteArray}}{{vendorExtensions.builderName}} == null ? null : {{vendorExtensions.builderName}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}{{vendorExtensions.builderName}} == null
+          ? null
+          : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+              new java.util.{{vendorExtensions.copyImpl}}<>({{vendorExtensions.builderName}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{vendorExtensions.builderName}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{#required}}
+{{#isNullable}}
+      this.{{name}}IsSet = true;
+{{/isNullable}}
+{{/required}}
+      return this;
+    }
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    /**
+     * Replaces all additional, undeclared properties.
+     *
+     * @param additionalProperties the additional properties, keyed by property name
+     * @return this builder
+     */
+    public Builder additionalProperties(java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties) {
+      this.additionalProperties.clear();
+      this.additionalProperties.putAll(additionalProperties);
+      return this;
+    }
+
+    /**
+     * Adds one additional, undeclared property; deserialization uses it for every key the
+     * schema does not declare.
+     *
+     * @param key the property name
+     * @param value the property value
+     * @return this builder
+     */
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    public Builder putAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
+      this.additionalProperties.put(key, value);
+      return this;
+    }
+
+    /**
+     * Adds every entry of the given map as an additional, undeclared property.
+     *
+     * @param additionalProperties the properties to add, keyed by property name
+     * @return this builder
+     */
+    public Builder putAllAdditionalProperties(java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties) {
+      this.additionalProperties.putAll(additionalProperties);
+      return this;
+    }
+
+    /**
+     * Removes one additional, undeclared property.
+     *
+     * @param key the property name
+     * @return this builder
+     */
+    public Builder removeAdditionalProperty(String key) {
+      this.additionalProperties.remove(key);
+      return this;
+    }
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+     * any JSON key not declared above must be rejected at deserialization time. The first
+     * such key is remembered and the build refuses it. */
+    @Nullable private String unknownProperty;
+
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    void setUnknownProperty(String key, Object value) {
+      if (unknownProperty == null) {
+        unknownProperty = key;
+      }
+    }
+{{/isUnevaluatedPropertiesFalse}}
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {
+{{#isUnevaluatedPropertiesFalse}}
+      if (unknownProperty != null) {
+        throw new IllegalArgumentException(
+            "Unknown property '" + unknownProperty + "' on {{classname}} (unevaluatedProperties:false)");
+      }
+{{/isUnevaluatedPropertiesFalse}}
+{{#vars}}
+{{#required}}
+{{#isNullable}}
+      if (!{{name}}IsSet) {
+        throw new IllegalArgumentException("{{name}} is required");
+      }
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+    }
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public {{classname}} build() {
+      return new {{classname}}(this);
+    }
+  }
 
   /* Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including
    * the additionalProperties map){{/isAdditionalPropertiesTrue}}. Generated so model

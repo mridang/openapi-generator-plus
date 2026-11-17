@@ -46,6 +46,66 @@ public class ReserveStockResponse {
     return actualInstance;
   }
 
+  /**
+   * Wraps a {@code Reservation} as this union.
+   *
+   * @param value the {@code Reservation} variant
+   * @return the union holding {@code value}
+   */
+  public static ReserveStockResponse ofReservation(Reservation value) {
+    return new ReserveStockResponse(value);
+  }
+
+  /**
+   * Tells whether this union holds a {@code Reservation}.
+   *
+   * @return {@code true} when the wrapped variant is a {@code Reservation}
+   */
+  public boolean isReservation() {
+    return actualInstance instanceof Reservation;
+  }
+
+  /**
+   * Returns the wrapped variant as a {@code Reservation}.
+   *
+   * @return the variant, or empty when this union holds another variant
+   */
+  public java.util.Optional<Reservation> asReservation() {
+    return actualInstance instanceof Reservation variant
+        ? java.util.Optional.of(variant)
+        : java.util.Optional.empty();
+  }
+
+  /**
+   * Wraps a {@code ReservationReceipt} as this union.
+   *
+   * @param value the {@code ReservationReceipt} variant
+   * @return the union holding {@code value}
+   */
+  public static ReserveStockResponse ofReservationReceipt(ReservationReceipt value) {
+    return new ReserveStockResponse(value);
+  }
+
+  /**
+   * Tells whether this union holds a {@code ReservationReceipt}.
+   *
+   * @return {@code true} when the wrapped variant is a {@code ReservationReceipt}
+   */
+  public boolean isReservationReceipt() {
+    return actualInstance instanceof ReservationReceipt;
+  }
+
+  /**
+   * Returns the wrapped variant as a {@code ReservationReceipt}.
+   *
+   * @return the variant, or empty when this union holds another variant
+   */
+  public java.util.Optional<ReservationReceipt> asReservationReceipt() {
+    return actualInstance instanceof ReservationReceipt variant
+        ? java.util.Optional.of(variant)
+        : java.util.Optional.empty();
+  }
+
   /* Value equality on the wrapped variant, so two unions decoded from the
    * same JSON compare equal (byte[] and List variants by content). */
   @Override

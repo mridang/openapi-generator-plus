@@ -64,6 +64,61 @@ public interface ApiClient extends AutoCloseable {
   }
 
   /**
+   * Send an HTTP request that goes to another origin than the API, such as OpenID Connect
+   * discovery, optionally keeping the transport's default headers off it.
+   *
+   * <p>The default headers can carry the API credentials, which the identity provider's host must
+   * never see. The default implementation delegates to {@link #sendRequest(String, String, Map,
+   * Object, boolean)} and ignores {@code noDefaultHeaders}; a transport that merges default headers
+   * should override this method and honour the flag.
+   *
+   * @param method HTTP method
+   * @param url Fully qualified URL
+   * @param headers HTTP headers
+   * @param body Request body (may be null)
+   * @param noRedirect when {@code true}, do not follow 3xx responses
+   * @param noDefaultHeaders when {@code true}, send only {@code headers}, never the transport's
+   *     default headers
+   * @return ApiHttpResponse containing status code, body, and headers
+   * @throws ApiException if the request fails
+   */
+  default ApiHttpResponse sendRequest(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object body,
+      boolean noRedirect,
+      boolean noDefaultHeaders) {
+    return sendRequest(method, url, headers, body, noRedirect);
+  }
+
+  /**
+   * Send an HTTP request with per-call overrides of the timeout and the retry count.
+   *
+   * <p>A {@code null} override keeps the transport's own setting. The default implementation
+   * delegates to {@link #sendRequest(String, String, Map, Object)} and ignores the overrides; a
+   * transport that owns the timeout and the retry loop should override this method and honour them.
+   *
+   * @param method HTTP method
+   * @param url Fully qualified URL
+   * @param headers HTTP headers
+   * @param body Request body (may be null)
+   * @param timeoutMillis end-to-end timeout in milliseconds for this call, or {@code null}
+   * @param maxRetries retry count for this call (0 disables retries), or {@code null}
+   * @return ApiHttpResponse containing status code, body, and headers
+   * @throws ApiException if the request fails
+   */
+  default ApiHttpResponse sendRequest(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object body,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries) {
+    return sendRequest(method, url, headers, body);
+  }
+
+  /**
    * Releases any resources held by this client (connection pool, executor threads, sockets).
    * Default implementation is a no-op; implementations that own a pooled HTTP client should
    * override and dispose of it.

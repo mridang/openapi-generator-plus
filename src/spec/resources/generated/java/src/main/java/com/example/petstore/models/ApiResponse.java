@@ -12,25 +12,127 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
 /** ApiResponse. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = ApiResponse.Builder.class)
 public class ApiResponse {
 
   /** The {@code code} property. */
   @JsonProperty("code")
   @Nullable
-  public Integer code;
+  public final Integer code;
 
   /** The {@code type} property. */
   @JsonProperty("type")
   @Nullable
-  public String type;
+  public final String type;
 
   /** The {@code message} property. */
   @JsonProperty("message")
   @Nullable
-  public String message;
+  public final String message;
 
-  /** Creates an empty instance. */
-  public ApiResponse() {}
+  /** Creates an instance with every property at its default. */
+  public ApiResponse() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private ApiResponse(Builder builder) {
+    builder.requireNullableProperties();
+    this.code = builder.code;
+    this.type = builder.type;
+    this.message = builder.message;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.code = this.code;
+    builder.type = this.type;
+    builder.message = this.message;
+    return builder;
+  }
+
+  /** Builds ApiResponse instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Integer code;
+    @Nullable private String type;
+    @Nullable private String message;
+
+    private Builder() {}
+
+    /**
+     * Sets the "code" property.
+     *
+     * @param code the new value
+     * @return this builder
+     */
+    @JsonProperty("code")
+    public Builder code(@Nullable Integer code) {
+      this.code = code;
+      return this;
+    }
+
+    /**
+     * Sets the "type" property.
+     *
+     * @param type the new value
+     * @return this builder
+     */
+    @JsonProperty("type")
+    public Builder type(@Nullable String type) {
+      this.type = type;
+      return this;
+    }
+
+    /**
+     * Sets the "message" property.
+     *
+     * @param message the new value
+     * @return this builder
+     */
+    @JsonProperty("message")
+    public Builder message(@Nullable String message) {
+      this.message = message;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public ApiResponse build() {
+      return new ApiResponse(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

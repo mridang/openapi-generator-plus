@@ -2351,4 +2351,88 @@ class DefaultApiClientUnitTest {
       scripted.stop(0);
     }
   }
+
+  @Test
+  void perCallRetryCountReplacesTheTransportsForThatCallOnly() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      DefaultApiClient client = new DefaultApiClient();
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null, null, 0).statusCode());
+      assertEquals(1, hits.get(), "the call turned its retries off");
+      hits.set(0);
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null, null, 1).statusCode());
+      assertEquals(2, hits.get(), "the call allowed one retry");
+      hits.set(0);
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(3, hits.get(), "the next call is back to the transport's two retries");
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void perCallRetryCountCanRaiseWhatTheTransportSet() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null, null, 3).statusCode());
+      assertEquals(4, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void perCallTimeoutAppliesWhenTheTransportHasNone() throws Exception {
+    HttpServer slow = HttpServer.create(new InetSocketAddress(0), 0);
+    slow.createContext(
+        "/",
+        exchange -> {
+          try {
+            Thread.sleep(1500);
+          } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+          }
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    slow.start();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(null).maxRetries(0).build());
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkTimeoutException.class,
+          () -> client.sendRequest("GET", urlOf(slow), Map.of(), null, 300, null));
+    } finally {
+      slow.stop(0);
+    }
+  }
+
+  @Test
+  void requestWithoutDefaultHeadersSendsOnlyItsOwn() throws Exception {
+    var seen = new java.util.concurrent.atomic.AtomicReference<String>("unset");
+    HttpServer echo = HttpServer.create(new InetSocketAddress(0), 0);
+    echo.createContext(
+        "/",
+        exchange -> {
+          seen.set(String.valueOf(exchange.getRequestHeaders().getFirst("X-Default")));
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    echo.start();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().defaultHeader("X-Default", "api-secret").build());
+      client.sendRequest("GET", urlOf(echo), Map.of(), null, false, false);
+      assertEquals("api-secret", seen.get());
+      client.sendRequest("GET", urlOf(echo), Map.of(), null, false, true);
+      assertEquals("null", seen.get(), "the default header never reached the other origin");
+    } finally {
+      echo.stop(0);
+    }
+  }
 }

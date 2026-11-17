@@ -151,7 +151,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         createAccountTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -194,6 +197,9 @@ public class StoreApi extends BaseApi {
         null,
         new String[] {},
         "application/json",
+        null,
+        null,
+        null,
         null,
         null);
   }
@@ -280,6 +286,12 @@ public class StoreApi extends BaseApi {
                   "simple",
                   false));
     }
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getBySwatch",
         "GET",
@@ -290,7 +302,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getBySwatchTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null);
   }
 
   /**
@@ -323,7 +338,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getDefaultsTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -356,7 +374,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getDepartmentTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -389,7 +410,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getGroupedCategoriesTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -422,7 +446,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getInventoryTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -455,7 +482,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getMatrixTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -500,6 +530,9 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByIdTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -545,7 +578,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByTrackingIdTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -604,6 +640,12 @@ public class StoreApi extends BaseApi {
           false);
     }
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getStockItem",
         "GET",
@@ -614,7 +656,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getStockItemTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null);
   }
 
   /**
@@ -647,7 +692,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getSwatchTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -680,7 +728,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getSwatchGroupsTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -713,7 +764,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getTimestampGroupsTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
   }
 
   /**
@@ -746,7 +800,34 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getTreeTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        null);
+  }
+
+  /**
+   * Place an order for a pet
+   *
+   * <p>Convenience overload that omits the optional request body.
+   *
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public Order placeOrder() {
+    return placeOrder(null);
+  }
+
+  /**
+   * Place an order for a pet
+   *
+   * <p>Convenience overload that omits the optional request body.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Order> placeOrderWithHttpInfo() {
+    return placeOrderWithHttpInfo(null);
   }
 
   /**
@@ -781,6 +862,9 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         placeOrderTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -808,6 +892,21 @@ public class StoreApi extends BaseApi {
     String path = "/store/reservation";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    /* More than one 2xx response is declared with its own schema, so the body is
+     * decoded as the schema of the status that arrived and wrapped in the union. */
+    java.util.function.BiFunction<Integer, String, ReserveStockResponse> successDecoder =
+        (successStatus, successBody) -> {
+          if (successStatus == 200) {
+            return decodeVariant(
+                successBody,
+                new TypeReference<com.example.petstore.models.Reservation>() {}.getType(),
+                ReserveStockResponse::new);
+          }
+          return decodeVariant(
+              successBody,
+              new TypeReference<com.example.petstore.models.ReservationReceipt>() {}.getType(),
+              ReserveStockResponse::new);
+        };
     return invokeApiForResult(
         "reserveStock",
         "POST",
@@ -818,7 +917,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         reserveStockTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        null,
+        null,
+        successDecoder);
   }
 
   /**
@@ -891,6 +993,12 @@ public class StoreApi extends BaseApi {
     if (options != null && options.xFilter() != null) {
       headerParams.put("X-Filter", objectSerializer.serialize(options.xFilter()));
     }
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "searchStore",
         "GET",
@@ -901,7 +1009,10 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         searchStoreTypeRef,
-        NO_AUTH);
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null);
   }
 
   /**

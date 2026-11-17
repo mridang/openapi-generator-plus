@@ -62,13 +62,15 @@ class StoreApiTest {
 
   @Test
   void testPlaceOrder() throws Exception {
-    Order order = new Order();
-    order.id = 1L;
-    order.petId = 12345L;
-    order.quantity = 1;
-    order.shipDate = OffsetDateTime.now(ZoneOffset.UTC);
-    order.status = Order.StatusEnum.PLACED;
-    order.complete = false;
+    Order order =
+        Order.builder()
+            .id(1L)
+            .petId(12345L)
+            .quantity(1)
+            .shipDate(OffsetDateTime.now(ZoneOffset.UTC))
+            .status(Order.StatusEnum.PLACED)
+            .complete(false)
+            .build();
 
     Order result = api.placeOrder(order);
     assertNotNull(result);
@@ -86,13 +88,15 @@ class StoreApiTest {
 
   @Test
   void testPlaceOrderWithHttpInfo() throws Exception {
-    Order order = new Order();
-    order.id = 1L;
-    order.petId = 12345L;
-    order.quantity = 1;
-    order.shipDate = OffsetDateTime.now(ZoneOffset.UTC);
-    order.status = Order.StatusEnum.PLACED;
-    order.complete = false;
+    Order order =
+        Order.builder()
+            .id(1L)
+            .petId(12345L)
+            .quantity(1)
+            .shipDate(OffsetDateTime.now(ZoneOffset.UTC))
+            .status(Order.StatusEnum.PLACED)
+            .complete(false)
+            .build();
 
     ApiResult<Order> result = api.placeOrderWithHttpInfo(order);
     assertNotNull(result);
@@ -159,12 +163,14 @@ class StoreApiTest {
     StoreApi mockApi =
         newStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
 
-    Order order = new Order();
-    order.id = 1L;
-    order.petId = 12345L;
-    order.quantity = 1;
-    order.status = Order.StatusEnum.PLACED;
-    order.complete = false;
+    Order order =
+        Order.builder()
+            .id(1L)
+            .petId(12345L)
+            .quantity(1)
+            .status(Order.StatusEnum.PLACED)
+            .complete(false)
+            .build();
 
     assertThatThrownBy(() -> mockApi.placeOrder(order))
         .isExactlyInstanceOf(com.example.petstore.errors.InternalServerErrorException.class)
@@ -249,9 +255,8 @@ class StoreApiTest {
         };
     StoreApi mockedApi =
         new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
-    com.example.petstore.models.Account account = new com.example.petstore.models.Account();
-    account.username = "u";
-    account.password = "p";
+    com.example.petstore.models.Account account =
+        com.example.petstore.models.Account.builder().username("u").password("p").build();
 
     com.example.petstore.models.Account result = mockedApi.createAccount(account);
 
@@ -381,9 +386,10 @@ class StoreApiTest {
     StoreApi mockedApi =
         new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
     com.example.petstore.models.PhotoMetadata metadata =
-        new com.example.petstore.models.PhotoMetadata();
-    metadata.caption = "a<b";
-    metadata.takenAt = OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
+        com.example.petstore.models.PhotoMetadata.builder()
+            .caption("a<b")
+            .takenAt(OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC))
+            .build();
 
     mockedApi.searchStore(
         new com.example.petstore.api.options.SearchStoreOptions()
@@ -440,5 +446,53 @@ class StoreApiTest {
       Class<?> expected = (Class<?>) row[1];
       assertThatThrownBy(() -> routed.getOrderById(1L)).isExactlyInstanceOf(expected);
     }
+  }
+
+  @Test
+  void testReserveStockDecodesTheBodyAsTheSchemaOfTheStatusThatArrived() throws Exception {
+    String both =
+        "{\"reservationId\":1,\"quantity\":2,\"receiptCode\":\"rcpt-1\","
+            + "\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+
+    com.example.petstore.models.ReserveStockResponse existing =
+        newStoreApiForMock(200, "application/json", both).reserveStock();
+    com.example.petstore.models.ReserveStockResponse created =
+        newStoreApiForMock(201, "application/json", both).reserveStock();
+
+    assertThat(existing.getActualInstance())
+        .isInstanceOf(com.example.petstore.models.Reservation.class);
+    assertThat(existing.asReservation()).isPresent();
+    assertThat(existing.asReservationReceipt()).isEmpty();
+    assertThat(created.getActualInstance())
+        .isInstanceOf(com.example.petstore.models.ReservationReceipt.class);
+    assertThat(created.isReservationReceipt()).isTrue();
+    assertThat(created.asReservation()).isEmpty();
+  }
+
+  @Test
+  void testReserveStockRejectsABodyThatDoesNotMatchTheSchemaOfItsStatus() throws Exception {
+    StoreApi mockApi =
+        newStoreApiForMock(201, "application/json", "{\"reservationId\":1,\"quantity\":2}");
+
+    assertThatThrownBy(mockApi::reserveStock)
+        .isInstanceOf(com.example.petstore.errors.SerializationException.class);
+  }
+
+  @Test
+  void testPlaceOrderWithoutAnArgumentSendsNoBody() throws Exception {
+    Object[] capturedBody = new Object[] {"unset"};
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedBody[0] = body;
+          return new ApiHttpResponse(200, "{\"id\":1}", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    Order placed = mockedApi.placeOrder();
+
+    assertThat(placed.id).isEqualTo(1L);
+    assertThat(capturedBody[0]).isNull();
+    assertThat(mockedApi.placeOrderWithHttpInfo().statusCode()).isEqualTo(200);
   }
 }

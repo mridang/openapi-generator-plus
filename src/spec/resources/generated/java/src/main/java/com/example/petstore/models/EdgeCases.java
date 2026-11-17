@@ -17,6 +17,7 @@ import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
 /** Edge-case property shapes mirrored from real protobuf-derived specs. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = EdgeCases.Builder.class)
 public class EdgeCases {
 
   /** Allowed values for the {@code phase} property. */
@@ -75,12 +76,12 @@ public class EdgeCases {
   /** The {@code freeFormAny} property. */
   @JsonProperty("freeFormAny")
   @Nullable
-  public Object freeFormAny;
+  public final Object freeFormAny;
 
   /** The {@code favoriteColor} property. */
   @JsonProperty("favoriteColor")
   @Nullable
-  public Color favoriteColor;
+  public final Color favoriteColor;
 
   /**
    * Required permission is "user.grant.write" for {@literal <}admin{@literal >} {@literal &} owner
@@ -88,95 +89,451 @@ public class EdgeCases {
    */
   @JsonProperty("permissionsNote")
   @Nullable
-  public String permissionsNote;
+  public final String permissionsNote;
 
   /** The {@code and} property. */
   @JsonProperty("and")
   @Nullable
-  public Boolean and;
+  public final Boolean and;
 
   /** The {@code or} property. */
   @JsonProperty("or")
   @Nullable
-  public Boolean or;
+  public final Boolean or;
 
   /** The {@code not} property. */
   @JsonProperty("not")
   @Nullable
-  public Boolean not;
+  public final Boolean not;
 
   /** The {@code _class} property. */
   @JsonProperty("class")
   @Nullable
-  public String _class;
+  public final String _class;
 
   /** The {@code _return} property. */
   @JsonProperty("return")
   @Nullable
-  public String _return;
+  public final String _return;
 
   /** Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s") */
   @JsonProperty("retryAfter")
   @Nullable
-  public Duration retryAfter;
+  public final Duration retryAfter;
 
   /** Absolute expiry instant */
   @JsonProperty("expiresAt")
   @Nullable
-  public OffsetDateTime expiresAt;
+  public final OffsetDateTime expiresAt;
 
   /** The {@code n2fa} property. */
   @JsonProperty("2fa")
   @Nullable
-  public Boolean n2fa;
+  public final Boolean n2fa;
 
   /** The {@code separator} property. */
   @JsonProperty("separator")
   @Nullable
-  public Separator separator;
+  public final Separator separator;
 
   /** The {@code _null} property. */
   @JsonProperty("null")
   @Nullable
-  public String _null;
+  public final String _null;
 
   /** The {@code _true} property. */
   @JsonProperty("true")
   @Nullable
-  public Boolean _true;
+  public final Boolean _true;
 
   /** The {@code _false} property. */
   @JsonProperty("false")
   @Nullable
-  public Boolean _false;
+  public final Boolean _false;
 
   /** The {@code lastError} property. */
   @JsonProperty("lastError")
   @Nullable
-  public ModelError lastError;
+  public final ModelError lastError;
 
   /** The {@code outcome} property. */
   @JsonProperty("outcome")
   @Nullable
-  public Result outcome;
+  public final Result outcome;
 
   /** The {@code cutoff} property. */
   @JsonProperty("cutoff")
   @Nullable
-  public LocalTime cutoff;
+  public final LocalTime cutoff;
 
   /** The {@code phase} property. */
   @JsonProperty("phase")
   @Nullable
-  public PhaseEnum phase;
+  public final PhaseEnum phase;
 
   /** The {@code slug} property. */
   @JsonProperty("slug")
   @Nullable
-  public String slug;
+  public final String slug;
 
-  /** Creates an empty instance. */
-  public EdgeCases() {}
+  /** Creates an instance with every property at its default. */
+  public EdgeCases() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private EdgeCases(Builder builder) {
+    builder.requireNullableProperties();
+    this.freeFormAny = builder.freeFormAny;
+    this.favoriteColor = builder.favoriteColor;
+    this.permissionsNote = builder.permissionsNote;
+    this.and = builder.and;
+    this.or = builder.or;
+    this.not = builder.not;
+    this._class = builder._class;
+    this._return = builder._return;
+    this.retryAfter = builder.retryAfter;
+    this.expiresAt = builder.expiresAt;
+    this.n2fa = builder.n2fa;
+    this.separator = builder.separator;
+    this._null = builder._null;
+    this._true = builder._true;
+    this._false = builder._false;
+    this.lastError = builder.lastError;
+    this.outcome = builder.outcome;
+    this.cutoff = builder.cutoff;
+    this.phase = builder.phase;
+    this.slug = builder.slug;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.freeFormAny = this.freeFormAny;
+    builder.favoriteColor = this.favoriteColor;
+    builder.permissionsNote = this.permissionsNote;
+    builder.and = this.and;
+    builder.or = this.or;
+    builder.not = this.not;
+    builder._class = this._class;
+    builder._return = this._return;
+    builder.retryAfter = this.retryAfter;
+    builder.expiresAt = this.expiresAt;
+    builder.n2fa = this.n2fa;
+    builder.separator = this.separator;
+    builder._null = this._null;
+    builder._true = this._true;
+    builder._false = this._false;
+    builder.lastError = this.lastError;
+    builder.outcome = this.outcome;
+    builder.cutoff = this.cutoff;
+    builder.phase = this.phase;
+    builder.slug = this.slug;
+    return builder;
+  }
+
+  /** Builds EdgeCases instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Object freeFormAny;
+    @Nullable private Color favoriteColor;
+    @Nullable private String permissionsNote;
+    @Nullable private Boolean and;
+    @Nullable private Boolean or;
+    @Nullable private Boolean not;
+    @Nullable private String _class;
+    @Nullable private String _return;
+    @Nullable private Duration retryAfter;
+    @Nullable private OffsetDateTime expiresAt;
+    @Nullable private Boolean n2fa;
+    @Nullable private Separator separator;
+    @Nullable private String _null;
+    @Nullable private Boolean _true;
+    @Nullable private Boolean _false;
+    @Nullable private ModelError lastError;
+    @Nullable private Result outcome;
+    @Nullable private LocalTime cutoff;
+    @Nullable private PhaseEnum phase;
+    @Nullable private String slug;
+
+    private Builder() {}
+
+    /**
+     * Sets the "freeFormAny" property.
+     *
+     * @param freeFormAny the new value
+     * @return this builder
+     */
+    @JsonProperty("freeFormAny")
+    public Builder freeFormAny(@Nullable Object freeFormAny) {
+      this.freeFormAny = freeFormAny;
+      return this;
+    }
+
+    /**
+     * Sets the "favoriteColor" property.
+     *
+     * @param favoriteColor the new value
+     * @return this builder
+     */
+    @JsonProperty("favoriteColor")
+    public Builder favoriteColor(@Nullable Color favoriteColor) {
+      this.favoriteColor = favoriteColor;
+      return this;
+    }
+
+    /**
+     * Sets the "permissionsNote" property.
+     *
+     * @param permissionsNote the new value
+     * @return this builder
+     */
+    @JsonProperty("permissionsNote")
+    public Builder permissionsNote(@Nullable String permissionsNote) {
+      this.permissionsNote = permissionsNote;
+      return this;
+    }
+
+    /**
+     * Sets the "and" property.
+     *
+     * @param and the new value
+     * @return this builder
+     */
+    @JsonProperty("and")
+    public Builder and(@Nullable Boolean and) {
+      this.and = and;
+      return this;
+    }
+
+    /**
+     * Sets the "or" property.
+     *
+     * @param or the new value
+     * @return this builder
+     */
+    @JsonProperty("or")
+    public Builder or(@Nullable Boolean or) {
+      this.or = or;
+      return this;
+    }
+
+    /**
+     * Sets the "not" property.
+     *
+     * @param not the new value
+     * @return this builder
+     */
+    @JsonProperty("not")
+    public Builder not(@Nullable Boolean not) {
+      this.not = not;
+      return this;
+    }
+
+    /**
+     * Sets the "class" property.
+     *
+     * @param classValue the new value
+     * @return this builder
+     */
+    @JsonProperty("class")
+    public Builder classValue(@Nullable String classValue) {
+      this._class = classValue;
+      return this;
+    }
+
+    /**
+     * Sets the "return" property.
+     *
+     * @param returnValue the new value
+     * @return this builder
+     */
+    @JsonProperty("return")
+    public Builder returnValue(@Nullable String returnValue) {
+      this._return = returnValue;
+      return this;
+    }
+
+    /**
+     * Sets the "retryAfter" property.
+     *
+     * @param retryAfter the new value
+     * @return this builder
+     */
+    @JsonProperty("retryAfter")
+    public Builder retryAfter(@Nullable Duration retryAfter) {
+      this.retryAfter = retryAfter;
+      return this;
+    }
+
+    /**
+     * Sets the "expiresAt" property.
+     *
+     * @param expiresAt the new value
+     * @return this builder
+     */
+    @JsonProperty("expiresAt")
+    public Builder expiresAt(@Nullable OffsetDateTime expiresAt) {
+      this.expiresAt = expiresAt;
+      return this;
+    }
+
+    /**
+     * Sets the "2fa" property.
+     *
+     * @param n2fa the new value
+     * @return this builder
+     */
+    @JsonProperty("2fa")
+    public Builder n2fa(@Nullable Boolean n2fa) {
+      this.n2fa = n2fa;
+      return this;
+    }
+
+    /**
+     * Sets the "separator" property.
+     *
+     * @param separator the new value
+     * @return this builder
+     */
+    @JsonProperty("separator")
+    public Builder separator(@Nullable Separator separator) {
+      this.separator = separator;
+      return this;
+    }
+
+    /**
+     * Sets the "null" property.
+     *
+     * @param nullValue the new value
+     * @return this builder
+     */
+    @JsonProperty("null")
+    public Builder nullValue(@Nullable String nullValue) {
+      this._null = nullValue;
+      return this;
+    }
+
+    /**
+     * Sets the "true" property.
+     *
+     * @param trueValue the new value
+     * @return this builder
+     */
+    @JsonProperty("true")
+    public Builder trueValue(@Nullable Boolean trueValue) {
+      this._true = trueValue;
+      return this;
+    }
+
+    /**
+     * Sets the "false" property.
+     *
+     * @param falseValue the new value
+     * @return this builder
+     */
+    @JsonProperty("false")
+    public Builder falseValue(@Nullable Boolean falseValue) {
+      this._false = falseValue;
+      return this;
+    }
+
+    /**
+     * Sets the "lastError" property.
+     *
+     * @param lastError the new value
+     * @return this builder
+     */
+    @JsonProperty("lastError")
+    public Builder lastError(@Nullable ModelError lastError) {
+      this.lastError = lastError;
+      return this;
+    }
+
+    /**
+     * Sets the "outcome" property.
+     *
+     * @param outcome the new value
+     * @return this builder
+     */
+    @JsonProperty("outcome")
+    public Builder outcome(@Nullable Result outcome) {
+      this.outcome = outcome;
+      return this;
+    }
+
+    /**
+     * Sets the "cutoff" property.
+     *
+     * @param cutoff the new value
+     * @return this builder
+     */
+    @JsonProperty("cutoff")
+    public Builder cutoff(@Nullable LocalTime cutoff) {
+      this.cutoff = cutoff;
+      return this;
+    }
+
+    /**
+     * Sets the "phase" property.
+     *
+     * @param phase the new value
+     * @return this builder
+     */
+    @JsonProperty("phase")
+    public Builder phase(@Nullable PhaseEnum phase) {
+      this.phase = phase;
+      return this;
+    }
+
+    /**
+     * Sets the "slug" property.
+     *
+     * @param slug the new value
+     * @return this builder
+     */
+    @JsonProperty("slug")
+    public Builder slug(@Nullable String slug) {
+      this.slug = slug;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public EdgeCases build() {
+      return new EdgeCases(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

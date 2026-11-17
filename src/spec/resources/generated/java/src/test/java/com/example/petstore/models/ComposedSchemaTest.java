@@ -35,6 +35,50 @@ class ComposedSchemaTest {
   private final ObjectSerializer serializer = new ObjectSerializer();
 
   @Nested
+  @DisplayName("typed variant factories and accessors")
+  class TypedVariantTests {
+
+    @Test
+    @DisplayName("a oneOf union is built from one variant and reads it back typed")
+    void oneOfFactoryAndAccessors() {
+      Reservation reservation = new Reservation(31L, 4);
+
+      ReserveStockResponse union = ReserveStockResponse.ofReservation(reservation);
+
+      assertThat(union.getActualInstance()).isSameAs(reservation);
+      assertThat(union.isReservation()).isTrue();
+      assertThat(union.asReservation()).containsSame(reservation);
+      assertThat(union.isReservationReceipt()).isFalse();
+      assertThat(union.asReservationReceipt()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an anyOf union is built from one variant and reads it back typed")
+    void anyOfFactoryAndAccessors() {
+      Medication medication = new Medication("aspirin");
+
+      PetTreatment union = PetTreatment.ofMedication(medication);
+
+      assertThat(union.getMatchedInstances()).containsExactly(medication);
+      assertThat(union.isMedication()).isTrue();
+      assertThat(union.asMedication()).containsSame(medication);
+      assertThat(union.isSurgery()).isFalse();
+      assertThat(union.asSurgery()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a decoded union answers the same typed accessors")
+    void decodedUnionAnswersTypedAccessors() {
+      PetTreatment decoded =
+          Objects.requireNonNull(
+              serializer.deserialize("{\"drugName\":\"aspirin\"}", PET_TREATMENT_TYPE));
+
+      assertThat(decoded.asMedication()).isPresent();
+      assertThat(serializer.serialize(decoded)).contains("aspirin");
+    }
+  }
+
+  @Nested
   @DisplayName("oneOf with discriminator: PetFood")
   class PetFoodTests {
 

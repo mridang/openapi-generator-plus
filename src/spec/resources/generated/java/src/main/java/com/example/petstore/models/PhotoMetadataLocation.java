@@ -12,20 +12,108 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
 /** PhotoMetadataLocation. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+    builder = PhotoMetadataLocation.Builder.class)
 public class PhotoMetadataLocation {
 
   /** The {@code lat} property. */
   @JsonProperty("lat")
   @Nullable
-  public Double lat;
+  public final Double lat;
 
   /** The {@code lng} property. */
   @JsonProperty("lng")
   @Nullable
-  public Double lng;
+  public final Double lng;
 
-  /** Creates an empty instance. */
-  public PhotoMetadataLocation() {}
+  /** Creates an instance with every property at its default. */
+  public PhotoMetadataLocation() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private PhotoMetadataLocation(Builder builder) {
+    builder.requireNullableProperties();
+    this.lat = builder.lat;
+    this.lng = builder.lng;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.lat = this.lat;
+    builder.lng = this.lng;
+    return builder;
+  }
+
+  /** Builds PhotoMetadataLocation instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Double lat;
+    @Nullable private Double lng;
+
+    private Builder() {}
+
+    /**
+     * Sets the "lat" property.
+     *
+     * @param lat the new value
+     * @return this builder
+     */
+    @JsonProperty("lat")
+    public Builder lat(@Nullable Double lat) {
+      this.lat = lat;
+      return this;
+    }
+
+    /**
+     * Sets the "lng" property.
+     *
+     * @param lng the new value
+     * @return this builder
+     */
+    @JsonProperty("lng")
+    public Builder lng(@Nullable Double lng) {
+      this.lng = lng;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public PhotoMetadataLocation build() {
+      return new PhotoMetadataLocation(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

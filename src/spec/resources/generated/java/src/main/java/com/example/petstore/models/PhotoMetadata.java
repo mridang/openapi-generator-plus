@@ -13,30 +13,147 @@ import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
 /** PhotoMetadata. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = PhotoMetadata.Builder.class)
 public class PhotoMetadata {
 
   /** The {@code caption} property. */
   @JsonProperty("caption")
   @Nullable
-  public String caption;
+  public final String caption;
 
   /** The {@code isPrimary} property. */
   @JsonProperty("isPrimary")
   @Nullable
-  public Boolean isPrimary;
+  public final Boolean isPrimary;
 
   /** The {@code takenAt} property. */
   @JsonProperty("takenAt")
   @Nullable
-  public OffsetDateTime takenAt;
+  public final OffsetDateTime takenAt;
 
   /** The {@code location} property. */
   @JsonProperty("location")
   @Nullable
-  public PhotoMetadataLocation location;
+  public final PhotoMetadataLocation location;
 
-  /** Creates an empty instance. */
-  public PhotoMetadata() {}
+  /** Creates an instance with every property at its default. */
+  public PhotoMetadata() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private PhotoMetadata(Builder builder) {
+    builder.requireNullableProperties();
+    this.caption = builder.caption;
+    this.isPrimary = builder.isPrimary;
+    this.takenAt = builder.takenAt;
+    this.location = builder.location;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.caption = this.caption;
+    builder.isPrimary = this.isPrimary;
+    builder.takenAt = this.takenAt;
+    builder.location = this.location;
+    return builder;
+  }
+
+  /** Builds PhotoMetadata instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private String caption;
+    @Nullable private Boolean isPrimary;
+    @Nullable private OffsetDateTime takenAt;
+    @Nullable private PhotoMetadataLocation location;
+
+    private Builder() {}
+
+    /**
+     * Sets the "caption" property.
+     *
+     * @param caption the new value
+     * @return this builder
+     */
+    @JsonProperty("caption")
+    public Builder caption(@Nullable String caption) {
+      this.caption = caption;
+      return this;
+    }
+
+    /**
+     * Sets the "isPrimary" property.
+     *
+     * @param isPrimary the new value
+     * @return this builder
+     */
+    @JsonProperty("isPrimary")
+    public Builder isPrimary(@Nullable Boolean isPrimary) {
+      this.isPrimary = isPrimary;
+      return this;
+    }
+
+    /**
+     * Sets the "takenAt" property.
+     *
+     * @param takenAt the new value
+     * @return this builder
+     */
+    @JsonProperty("takenAt")
+    public Builder takenAt(@Nullable OffsetDateTime takenAt) {
+      this.takenAt = takenAt;
+      return this;
+    }
+
+    /**
+     * Sets the "location" property.
+     *
+     * @param location the new value
+     * @return this builder
+     */
+    @JsonProperty("location")
+    public Builder location(@Nullable PhotoMetadataLocation location) {
+      this.location = location;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public PhotoMetadata build() {
+      return new PhotoMetadata(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

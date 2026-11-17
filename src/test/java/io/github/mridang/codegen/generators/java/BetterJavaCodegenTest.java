@@ -5,6 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.swagger.v3.oas.models.OpenAPI;
+import org.openapitools.codegen.CodegenComposedSchemas;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.util.List;
@@ -192,5 +197,92 @@ class BetterJavaCodegenTest {
         assertEquals("optionsParam", codegen.toParamName("options"));
         assertEquals("serverParam", codegen.toParamName("server"));
         assertEquals("requestContentTypeParam", codegen.toParamName("requestContentType"));
+    }
+
+    @Test
+    void renamesAParameterNamedLikeAPerCallSetting() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertEquals("authParam", codegen.toParamName("auth"));
+        assertEquals("timeoutParam", codegen.toParamName("timeout"));
+        assertEquals("maxRetriesParam", codegen.toParamName("maxRetries"));
+        assertEquals("headersParam", codegen.toParamName("headers"));
+    }
+
+    @Test
+    void recordsHowACollectionPropertyIsCopiedIntoTheImmutableModel() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        String[][] rows = {
+            {"List<String>", "List", "ArrayList"},
+            {"Set<String>", "Set", "LinkedHashSet"},
+            {"Map<String, Integer>", "Map", "LinkedHashMap"},
+        };
+        for (String[] row : rows) {
+            CodegenProperty property = new CodegenProperty();
+            property.dataType = row[0];
+            codegen.postProcessModelProperty(new CodegenModel(), property);
+            assertEquals(row[1], property.vendorExtensions.get("copyKind"), row[0]);
+            assertEquals(row[2], property.vendorExtensions.get("copyImpl"), row[0]);
+        }
+        CodegenProperty scalar = new CodegenProperty();
+        scalar.dataType = "String";
+        codegen.postProcessModelProperty(new CodegenModel(), scalar);
+        assertTrue(scalar.vendorExtensions.get("copyKind") == null);
+    }
+
+    @Test
+    void namesTheVariantsOfAUnionForTheTypedFactories() {
+        CodegenModel model = new CodegenModel();
+        List<CodegenProperty> variants = new java.util.ArrayList<>();
+        for (String type : new String[] {"Reservation", "List<String>", "byte[]", "Map<String, Object>"}) {
+            CodegenProperty variant = new CodegenProperty();
+            variant.dataType = type;
+            variants.add(variant);
+        }
+        model.setComposedSchemas(
+                new CodegenComposedSchemas(List.of(), variants, List.of(), null));
+
+        BetterJavaCodegen.nameUnionVariants(model);
+
+        assertEquals("Reservation", variants.get(0).vendorExtensions.get("variantName"));
+        assertEquals("ListOfString", variants.get(1).vendorExtensions.get("variantName"));
+        assertEquals("ByteArray", variants.get(2).vendorExtensions.get("variantName"));
+        assertEquals("MapOfStringObject", variants.get(3).vendorExtensions.get("variantName"));
+        assertEquals(true, variants.get(0).vendorExtensions.get("isPlainVariant"));
+        assertEquals(false, variants.get(1).vendorExtensions.get("isPlainVariant"));
+        assertEquals(false, variants.get(2).vendorExtensions.get("isPlainVariant"));
+    }
+
+    @Test
+    void onlyAnOperationWithNothingButAnOptionalBodyGetsTheNoArgumentOverload() {
+        CodegenOperation op = new CodegenOperation();
+        op.bodyParam = new CodegenParameter();
+        op.bodyParam.required = false;
+        assertTrue(BetterJavaCodegen.hasOptionalBodyOnly(op));
+
+        op.bodyParam.required = true;
+        assertTrue(!BetterJavaCodegen.hasOptionalBodyOnly(op));
+
+        op.bodyParam.required = false;
+        op.pathParams.add(new CodegenParameter());
+        assertTrue(!BetterJavaCodegen.hasOptionalBodyOnly(op));
+
+        op = new CodegenOperation();
+        op.bodyParam = new CodegenParameter();
+        op.hasAuthMethods = true;
+        assertTrue(!BetterJavaCodegen.hasOptionalBodyOnly(op));
+    }
+
+    @Test
+    void homepageDefaultsToTheRepositoryAndAuthorsBecomeAList() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        codegen.additionalProperties().put("repositoryUrl", "https://example.com/acme/client");
+        codegen.additionalProperties().put("authors", "Ada Lovelace, Grace Hopper");
+
+        codegen.processOpts();
+
+        assertEquals("https://example.com/acme/client", codegen.additionalProperties().get("homepageUrl"));
+        assertEquals(
+                List.of(Map.of("name", "Ada Lovelace"), Map.of("name", "Grace Hopper")),
+                codegen.additionalProperties().get("authorList"));
     }
 }

@@ -405,16 +405,64 @@ public final class DefaultApiClient implements ApiClient {
       Map<String, String> headers,
       @Nullable Object body,
       boolean noRedirect) {
+    return send(method, url, headers, body, noRedirect, noRedirect, null, null);
+  }
+
+  /**
+   * Extended {@code sendRequest} that lets the caller keep the transport's default headers off this
+   * single request. OpenID Connect discovery goes to the identity provider, a different origin, so
+   * it carries only the SDK's own headers and never the caller's default headers (which may hold
+   * the API credentials). Redirects are still followed.
+   */
+  @Override
+  public ApiHttpResponse sendRequest(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object body,
+      boolean noRedirect,
+      boolean noDefaultHeaders) {
+    return send(method, url, headers, body, noRedirect, noDefaultHeaders, null, null);
+  }
+
+  /**
+   * Per-call overrides: a {@code timeoutMillis} replaces the transport's end-to-end timeout and
+   * {@code maxRetries} replaces its retry count for this single request.
+   */
+  @Override
+  public ApiHttpResponse sendRequest(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object body,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries) {
+    return send(method, url, headers, body, false, false, timeoutMillis, maxRetries);
+  }
+
+  private ApiHttpResponse send(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object body,
+      boolean noRedirect,
+      boolean noDefaultHeaders,
+      @Nullable Integer timeoutOverride,
+      @Nullable Integer maxRetriesOverride) {
 
     if (this.closed) {
       throw new IllegalStateException("ApiClient has been closed and can no longer send requests");
     }
-    /* A no-redirect request is an OAuth2 token request, which goes to the
-     * identity provider, a different origin: it carries only the SDK's own
-     * headers, never the caller's default headers (which may hold the API
-     * credentials). */
+    /* A no-redirect request is an OAuth2 token request, and a no-default-headers
+     * request is OpenID Connect discovery: both go to the identity provider, a
+     * different origin, so they carry only the SDK's own headers, never the
+     * caller's default headers (which may hold the API credentials). */
     Map<String, String> mergedHeaders =
-        noRedirect ? new HashMap<>() : new HashMap<>(transportOptions.getDefaultHeaders());
+        noDefaultHeaders ? new HashMap<>() : new HashMap<>(transportOptions.getDefaultHeaders());
+    final Integer timeoutMillis =
+        timeoutOverride != null ? timeoutOverride : transportOptions.getTimeout();
+    final int maxRetries =
+        maxRetriesOverride != null ? maxRetriesOverride : transportOptions.getMaxRetries();
     mergedHeaders.putAll(headers);
 
     /* RFC 9110 section 5.1: field names are case-insensitive, so a caller
@@ -487,11 +535,9 @@ public final class DefaultApiClient implements ApiClient {
     /* The timeout is one end-to-end budget for the whole call: every
      * redirect hop draws from the same deadline. */
     final long deadlineNanos =
-        transportOptions.getTimeout() != null
-            ? System.nanoTime() + Duration.ofMillis(transportOptions.getTimeout()).toNanos()
-            : 0L;
-    if (transportOptions.getTimeout() != null) {
-      builder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
+        timeoutMillis != null ? System.nanoTime() + Duration.ofMillis(timeoutMillis).toNanos() : 0L;
+    if (timeoutMillis != null) {
+      builder.timeout(Duration.ofMillis(timeoutMillis));
     }
 
     if (!hasHeader(mergedHeaders, "Accept-Encoding")) {
@@ -510,7 +556,8 @@ public final class DefaultApiClient implements ApiClient {
     }
 
     try {
-      HttpResponse<byte[]> response = sendWithBackoff(builder.build(), deadlineNanos, replayable);
+      HttpResponse<byte[]> response =
+          sendWithBackoff(builder.build(), deadlineNanos, replayable, maxRetries);
 
       /*
        * Manual redirect handling when maxRedirects is configured. The
@@ -612,7 +659,7 @@ public final class DefaultApiClient implements ApiClient {
 
           HttpRequest.Builder redirectBuilder =
               HttpRequest.newBuilder(redirectUri).method(nextMethod, nextBody);
-          if (transportOptions.getTimeout() != null) {
+          if (timeoutMillis != null) {
             long remainingNanos = deadlineNanos - System.nanoTime();
             if (remainingNanos <= 0) {
               throw new HttpTimeoutException("request timed out");
@@ -622,7 +669,8 @@ public final class DefaultApiClient implements ApiClient {
           for (Map.Entry<String, String> entry : redirectHeaders.entrySet()) {
             redirectBuilder.header(entry.getKey(), entry.getValue());
           }
-          response = sendWithBackoff(redirectBuilder.build(), deadlineNanos, replayable);
+          response =
+              sendWithBackoff(redirectBuilder.build(), deadlineNanos, replayable, maxRetries);
           currentMethod = nextMethod;
           currentBody = nextBody;
           currentHeaders = redirectHeaders;
@@ -681,10 +729,12 @@ public final class DefaultApiClient implements ApiClient {
       } catch (IOException e) {
         /* A corrupt Content-Encoding body is not a transport failure:
          * a response did arrive, so keep it out of NetworkException. */
-        throw ApiException.forUnusableResponse(
+        throw new ApiException(
             response.statusCode(),
             "Failed to decompress " + contentEncoding + " response body: " + e,
             responseHeaders,
+            null,
+            null,
             e);
       }
       if (!"identity".equalsIgnoreCase(contentEncoding.trim())) {
@@ -740,9 +790,9 @@ public final class DefaultApiClient implements ApiClient {
    * the timeout. A timeout, a TLS handshake failure and an interrupt are never retried.
    */
   private HttpResponse<byte[]> sendWithBackoff(
-      HttpRequest request, long deadlineNanos, boolean replayable)
+      HttpRequest request, long deadlineNanos, boolean replayable, int configuredRetries)
       throws IOException, InterruptedException {
-    final int maxRetries = replayable ? transportOptions.getMaxRetries() : 0;
+    final int maxRetries = replayable ? configuredRetries : 0;
     int retries = 0;
     HttpRequest current = request;
     while (true) {

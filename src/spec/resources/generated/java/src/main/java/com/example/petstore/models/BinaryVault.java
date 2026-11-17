@@ -14,25 +14,139 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /** BinaryVault. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = BinaryVault.Builder.class)
 public class BinaryVault {
 
   /** A bare byte array; equality compares its contents. */
   @JsonProperty("seal")
   @Nullable
-  public byte[] seal;
+  public final byte[] seal;
 
   /** A list of byte arrays; equality compares element contents. */
   @JsonProperty("shards")
   @Nullable
-  public List<byte[]> shards;
+  public final List<byte[]> shards;
 
   /** A map of byte arrays; equality compares each value's contents. */
   @JsonProperty("labels")
   @Nullable
-  public Map<String, byte[]> labels;
+  public final Map<String, byte[]> labels;
 
-  /** Creates an empty instance. */
-  public BinaryVault() {}
+  /** Creates an instance with every property at its default. */
+  public BinaryVault() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private BinaryVault(Builder builder) {
+    builder.requireNullableProperties();
+    this.seal = builder.seal == null ? null : builder.seal.clone();
+    this.shards =
+        builder.shards == null
+            ? null
+            : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(builder.shards));
+    this.labels =
+        builder.labels == null
+            ? null
+            : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(builder.labels));
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.seal = this.seal;
+    builder.shards = this.shards;
+    builder.labels = this.labels;
+    return builder;
+  }
+
+  /** Builds BinaryVault instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private byte[] seal;
+    @Nullable private List<byte[]> shards;
+    @Nullable private Map<String, byte[]> labels;
+
+    private Builder() {}
+
+    /**
+     * Sets the "seal" property.
+     *
+     * @param seal the new value
+     * @return this builder
+     */
+    @JsonProperty("seal")
+    public Builder seal(@Nullable byte[] seal) {
+      this.seal = seal == null ? null : seal.clone();
+      return this;
+    }
+
+    /**
+     * Sets the "shards" property.
+     *
+     * @param shards the new value
+     * @return this builder
+     */
+    @JsonProperty("shards")
+    public Builder shards(@Nullable List<byte[]> shards) {
+      this.shards =
+          shards == null
+              ? null
+              : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(shards));
+      return this;
+    }
+
+    /**
+     * Sets the "labels" property.
+     *
+     * @param labels the new value
+     * @return this builder
+     */
+    @JsonProperty("labels")
+    public Builder labels(@Nullable Map<String, byte[]> labels) {
+      this.labels =
+          labels == null
+              ? null
+              : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(labels));
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public BinaryVault build() {
+      return new BinaryVault(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

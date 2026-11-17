@@ -414,6 +414,49 @@ class ApiExceptionTest {
   }
 
   @Test
+  void fromResponseRecordsTheRequestMethodAndPathWithoutTheQueryString() {
+    ApiException ex =
+        ApiException.fromResponse("GET", "/items/7?token=secret#top", 404, Map.of(), "");
+
+    assertEquals("GET", ex.getRequestMethod());
+    assertEquals("/items/7", ex.getRequestPath());
+    assertTrue(ex.toString().contains("\nRequest: GET /items/7"), ex.toString());
+    assertTrue(!ex.toString().contains("secret"), ex.toString());
+  }
+
+  @Test
+  void everyStatusExceptionCarriesTheRequestContext() {
+    for (int status : new int[] {400, 401, 403, 404, 409, 422, 429, 418, 500, 503, 302}) {
+      ApiException ex = ApiException.fromResponse("DELETE", "/things", status, Map.of(), "");
+
+      assertEquals("DELETE", ex.getRequestMethod(), "status " + status);
+      assertEquals("/things", ex.getRequestPath(), "status " + status);
+    }
+  }
+
+  @Test
+  void anAbsoluteRequestUrlIsReducedToItsPath() {
+    assertEquals(
+        "/v2/items",
+        ApiException.fromResponse(
+                "POST", "https://host.example:8443/v2/items?x=1", 500, Map.of(), "")
+            .getRequestPath());
+    assertEquals(
+        "/",
+        ApiException.fromResponse("GET", "https://host.example", 500, Map.of(), "")
+            .getRequestPath());
+  }
+
+  @Test
+  void anErrorWithoutARequestRendersNoRequestLine() {
+    ApiException ex = ApiException.fromResponse(500, Map.of(), "");
+
+    assertNull(ex.getRequestMethod());
+    assertNull(ex.getRequestPath());
+    assertTrue(!ex.toString().contains("Request:"), ex.toString());
+  }
+
+  @Test
   void anEmptyBodyAndEmptyHeadersAreOmittedFromTheStringForm() {
     ApiException ex = new ApiException(500, "boom", Map.of(), "");
 

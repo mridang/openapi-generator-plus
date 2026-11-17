@@ -12,35 +12,126 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
 /** StrictTag. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = StrictTag.Builder.class)
 public class StrictTag {
 
   /** The {@code id} property. */
   @JsonProperty("id")
   @Nullable
-  public Long id;
+  public final Long id;
 
   /** The {@code name} property. */
   @JsonProperty("name")
   @Nullable
-  public String name;
+  public final String name;
 
-  /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-   * any JSON key not declared above must be rejected at deserialization time. */
-  /**
-   * Rejects any undeclared property during deserialization.
-   *
-   * @param key the property name
-   * @param value the property value
-   * @throws IllegalArgumentException always, since unknown properties are not allowed
-   */
-  @com.fasterxml.jackson.annotation.JsonAnySetter
-  void setUnknownProperty(String key, Object value) {
-    throw new IllegalArgumentException(
-        "Unknown property '" + key + "' on StrictTag (unevaluatedProperties:false)");
+  /** Creates an instance with every property at its default. */
+  public StrictTag() {
+    this(new Builder());
   }
 
-  /** Creates an empty instance. */
-  public StrictTag() {}
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private StrictTag(Builder builder) {
+    builder.requireNullableProperties();
+    this.id = builder.id;
+    this.name = builder.name;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.id = this.id;
+    builder.name = this.name;
+    return builder;
+  }
+
+  /** Builds StrictTag instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Long id;
+    @Nullable private String name;
+
+    private Builder() {}
+
+    /**
+     * Sets the "id" property.
+     *
+     * @param id the new value
+     * @return this builder
+     */
+    @JsonProperty("id")
+    public Builder id(@Nullable Long id) {
+      this.id = id;
+      return this;
+    }
+
+    /**
+     * Sets the "name" property.
+     *
+     * @param name the new value
+     * @return this builder
+     */
+    @JsonProperty("name")
+    public Builder name(@Nullable String name) {
+      this.name = name;
+      return this;
+    }
+
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+     * any JSON key not declared above must be rejected at deserialization time. The first
+     * such key is remembered and the build refuses it. */
+    @Nullable private String unknownProperty;
+
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    void setUnknownProperty(String key, Object value) {
+      if (unknownProperty == null) {
+        unknownProperty = key;
+      }
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {
+      if (unknownProperty != null) {
+        throw new IllegalArgumentException(
+            "Unknown property '"
+                + unknownProperty
+                + "' on StrictTag (unevaluatedProperties:false)");
+      }
+    }
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public StrictTag build() {
+      return new StrictTag(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

@@ -1909,28 +1909,11 @@
   },
   {
    "element": "apierror.forunusableresponse",
-   "aspect": "member",
-   "languages": [
-    "java",
-    "csharp"
-   ],
-   "reason": "tracked as F1177: a public factory only java and csharp have; to be made non-public or added everywhere"
-  },
-  {
-   "element": "apierror.forunusableresponse",
    "aspect": "optional",
    "languages": [
     "csharp"
    ],
    "reason": "tracked as F1177: csharp orders innerException before responseHeaders; to be aligned with the canonical (statusCode, message, responseHeaders, cause)"
-  },
-  {
-   "element": "metadata.setadditionalproperty",
-   "aspect": "member",
-   "languages": [
-    "java"
-   ],
-   "reason": "tracked as F1178: java/AGENTS.md keeps it public while API_SURFACE.md D51 says java drops it; the two documents must be reconciled"
   },
   {
    "element": "configurationerror",
@@ -2262,6 +2245,81 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": [
+    "*.tobuilder",
+    "*.builder"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "F868: models are immutable and java's copy method is toBuilder (Model.builder() makes a new one), where the other eleven use copyWith, with, WithX or a struct update; the builder is the java idiom for an immutable class with many optional properties"
+  },
+  {
+   "element": "*builder",
+   "aspect": "type",
+   "languages": [
+    "java"
+   ],
+   "reason": "F868: the nested Builder of each immutable model (and of F1178's additional-property methods) is java's idiom for constructing an immutable class; other languages construct with named arguments or a struct literal"
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.maxretries",
+    "*options.headers"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "F827: per-call timeout, maxRetries and headers on every per-operation Options object; new public API in java that lands in the other eleven in the same wave, then this rule is dropped"
+  },
+  {
+   "element": [
+    "apiclient.sendrequest",
+    "defaultapiclient.sendrequest"
+   ],
+   "aspect": "params",
+   "languages": [
+    "java"
+   ],
+   "reason": "F827 and F860: java overloads sendRequest (no default headers for OIDC discovery, per-call timeout and retries) instead of one method with optional arguments, which java lacks; the extractor reports the longest overload"
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "F830: the request method and path on ApiException; java names the accessors getRequestMethod and getRequestPath (the extractor sees the getter) and the other eleven add the same two fields in the same wave, then this rule is dropped"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "java"
+   ],
+   "reason": "F830: java overloads fromResponse to take the request method and path first (no optional arguments in java); the extractor reports the longest overload"
+  },
+  {
+   "element": [
+    "pettreatment.*",
+    "treatmentrecord.*",
+    "reservestockresponse.*",
+    "setpetavatarthumbnailrequest.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "value": "extra  (*",
+   "reason": "F878: typed factory ofVariant(v) and accessors isVariant() and asVariant() on a oneOf or anyOf wrapper; java's idiom for a union that holds an Object, with an Optional for the typed read"
   }
  ]
 }

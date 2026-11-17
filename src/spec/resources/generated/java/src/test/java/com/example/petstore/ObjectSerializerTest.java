@@ -449,8 +449,10 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("time body property uses the partial-time form and round-trips")
     void bodyTimeUsesPartialTimeAndRoundTrips() {
-      com.example.petstore.models.EdgeCases edge = new com.example.petstore.models.EdgeCases();
-      edge.cutoff = java.time.LocalTime.of(10, 30, 0, 123_456_789);
+      com.example.petstore.models.EdgeCases edge =
+          com.example.petstore.models.EdgeCases.builder()
+              .cutoff(java.time.LocalTime.of(10, 30, 0, 123_456_789))
+              .build();
       String json = serializer.serialize(edge);
       assertEquals("{\"cutoff\":\"10:30:00.123\"}", json);
       com.example.petstore.models.EdgeCases decoded =
@@ -713,8 +715,8 @@ class ObjectSerializerTest {
     @DisplayName("a format: password field is redacted in the model's string form")
     void passwordFieldIsRedactedInToString() {
       com.example.petstore.models.Account account =
-          new com.example.petstore.models.Account("someone");
-      account.password = "hunter2";
+          new com.example.petstore.models.Account("someone")
+              .toBuilder().password("hunter2").build();
       assertFalse(account.toString().contains("hunter2"), account.toString());
       assertTrue(account.toString().contains("password=***"), account.toString());
       assertTrue(serializer.serialize(account).contains("hunter2"));
@@ -867,9 +869,8 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("a writeOnly property is written on encode and kept on decode")
     void writeOnlyPropertyIsWrittenAndDecoded() {
-      com.example.petstore.models.Account account = new com.example.petstore.models.Account();
-      account.username = "u";
-      account.password = "p";
+      com.example.petstore.models.Account account =
+          com.example.petstore.models.Account.builder().username("u").password("p").build();
       assertTrue(serializer.serialize(account).contains("\"password\":\"p\""));
 
       com.example.petstore.models.Account decoded =
@@ -1014,9 +1015,8 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("serializes a model to valid JSON")
     void serializesModelToValidJson() {
-      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
-      category.id = 1L;
-      category.name = "Dogs";
+      com.example.petstore.models.Category category =
+          com.example.petstore.models.Category.builder().id(1L).name("Dogs").build();
       String json = serializer.serialize(category);
       assertTrue(json.contains("\"id\":1"));
       assertTrue(json.contains("\"name\":\"Dogs\""));
@@ -1032,9 +1032,8 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("includes fields explicitly set to default values")
     void includesFieldsSetToDefaultValues() {
-      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
-      category.id = 0L;
-      category.name = "";
+      com.example.petstore.models.Category category =
+          com.example.petstore.models.Category.builder().id(0L).name("").build();
       String json = serializer.serialize(category);
       assertTrue(json.contains("\"id\":0"), "serialized JSON should include id=0, got: " + json);
       assertTrue(
@@ -1091,9 +1090,8 @@ class ObjectSerializerTest {
     @DisplayName("omits fields that are null from JSON output")
     void omitsNullFieldsFromJson() {
       // Gap #13: nulls must be discarded on serialize (Jackson NON_NULL inclusion).
-      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
-      category.id = 1L;
-      category.name = null;
+      com.example.petstore.models.Category category =
+          com.example.petstore.models.Category.builder().id(1L).name(null).build();
       String json = serializer.serialize(category);
       assertTrue(json.contains("\"id\":1"), "serialized JSON should include id=1, got: " + json);
       assertFalse(
@@ -1453,8 +1451,8 @@ class ObjectSerializerTest {
     @DisplayName("type:number BigDecimal field serializes as an unquoted JSON number")
     void decimalWeightSerializesAsNumber() {
       com.example.petstore.models.Pet pet =
-          new com.example.petstore.models.Pet("Rex", java.util.Set.of("http://example.com/p.png"));
-      pet.weightKg = new java.math.BigDecimal("1.5");
+          new com.example.petstore.models.Pet("Rex", java.util.Set.of("http://example.com/p.png"))
+              .toBuilder().weightKg(new java.math.BigDecimal("1.5")).build();
       String json = serializer.serialize(pet);
       assertTrue(
           json.contains("\"weightKg\":1.5"), "weightKg must be an unquoted number, got: " + json);
@@ -1467,8 +1465,8 @@ class ObjectSerializerTest {
     @DisplayName("type:number BigDecimal field round-trips as a number")
     void decimalWeightRoundTrips() {
       com.example.petstore.models.Pet pet =
-          new com.example.petstore.models.Pet("Rex", java.util.Set.of("http://example.com/p.png"));
-      pet.weightKg = new java.math.BigDecimal("1.5");
+          new com.example.petstore.models.Pet("Rex", java.util.Set.of("http://example.com/p.png"))
+              .toBuilder().weightKg(new java.math.BigDecimal("1.5")).build();
       String json = serializer.serialize(pet);
       com.example.petstore.models.Pet back =
           java.util.Objects.requireNonNull(
@@ -1625,8 +1623,8 @@ class ObjectSerializerTest {
     @DisplayName("non-lowercase string enum preserves wire casing on round-trip")
     void stringEnumPreservesWireCasing() {
       com.example.petstore.models.StockItem item =
-          new com.example.petstore.models.StockItem(com.example.petstore.models.Priority.NUMBER_1);
-      item.availability = com.example.petstore.models.Availability.ON_HOLD;
+          new com.example.petstore.models.StockItem(com.example.petstore.models.Priority.NUMBER_1)
+              .toBuilder().availability(com.example.petstore.models.Availability.ON_HOLD).build();
       String json = serializer.serialize(item);
       assertTrue(
           json.contains("\"availability\":\"on-hold\""),
@@ -1662,12 +1660,13 @@ class ObjectSerializerTest {
     @DisplayName("array-of-byte field round-trips through base64")
     void byteArrayFieldRoundTrips() {
       com.example.petstore.models.PetPassport passport =
-          new com.example.petstore.models.PetPassport();
-      passport.thumbnail = "thumb".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-      passport.scans =
-          java.util.List.of(
-              "page-one".getBytes(java.nio.charset.StandardCharsets.UTF_8),
-              "page-two".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+          com.example.petstore.models.PetPassport.builder()
+              .thumbnail("thumb".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+              .scans(
+                  java.util.List.of(
+                      "page-one".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                      "page-two".getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+              .build();
 
       String json = serializer.serialize(passport);
       // Each scan element is base64-encoded on the wire.
@@ -1704,8 +1703,9 @@ class ObjectSerializerTest {
     @DisplayName("date-time field serialization preserves sub-second precision")
     void dateTimeFieldPreservesSubSeconds() {
       com.example.petstore.models.PhotoMetadata metadata =
-          new com.example.petstore.models.PhotoMetadata();
-      metadata.takenAt = OffsetDateTime.parse("2020-01-02T03:04:05.123Z");
+          com.example.petstore.models.PhotoMetadata.builder()
+              .takenAt(OffsetDateTime.parse("2020-01-02T03:04:05.123Z"))
+              .build();
 
       String json = serializer.serialize(metadata);
       assertTrue(
@@ -1719,7 +1719,7 @@ class ObjectSerializerTest {
       assertNotNull(decoded);
       assertNotNull(decoded.takenAt);
       assertEquals(
-          metadata.takenAt.toInstant(),
+          java.util.Objects.requireNonNull(metadata.takenAt).toInstant(),
           decoded.takenAt.toInstant(),
           "instant should match after lossless round-trip");
     }
@@ -1762,13 +1762,13 @@ class ObjectSerializerTest {
   class ByteArrayEquality {
 
     private com.example.petstore.models.BinaryVault vaultWithFreshArrays() {
-      com.example.petstore.models.BinaryVault vault = new com.example.petstore.models.BinaryVault();
-      vault.seal = new byte[] {1, 2, 3};
-      vault.shards = List.of(new byte[] {4, 5}, new byte[] {6});
       java.util.Map<String, byte[]> labels = new java.util.HashMap<>();
       labels.put("first", new byte[] {7, 8});
-      vault.labels = labels;
-      return vault;
+      return com.example.petstore.models.BinaryVault.builder()
+          .seal(new byte[] {1, 2, 3})
+          .shards(List.of(new byte[] {4, 5}, new byte[] {6}))
+          .labels(labels)
+          .build();
     }
 
     private java.util.Map<String, byte[]> labelsOf(com.example.petstore.models.BinaryVault vault) {
@@ -1799,8 +1799,8 @@ class ObjectSerializerTest {
     @DisplayName("a differing byte in the bare array makes them unequal")
     void differingBareArrayCompareUnequal() {
       com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
-      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
-      right.seal = new byte[] {1, 2, 4};
+      com.example.petstore.models.BinaryVault right =
+          vaultWithFreshArrays().toBuilder().seal(new byte[] {1, 2, 4}).build();
 
       assertNotEquals(left, right);
     }
@@ -1809,8 +1809,10 @@ class ObjectSerializerTest {
     @DisplayName("a differing byte inside the list makes them unequal")
     void differingListElementCompareUnequal() {
       com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
-      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
-      right.shards = List.of(new byte[] {4, 5}, new byte[] {9});
+      com.example.petstore.models.BinaryVault right =
+          vaultWithFreshArrays().toBuilder()
+              .shards(List.of(new byte[] {4, 5}, new byte[] {9}))
+              .build();
 
       assertNotEquals(left, right);
     }
@@ -1819,8 +1821,10 @@ class ObjectSerializerTest {
     @DisplayName("a differing byte inside a map VALUE makes them unequal")
     void differingMapValueCompareUnequal() {
       com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
-      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
-      labelsOf(right).put("first", new byte[] {7, 9});
+      com.example.petstore.models.BinaryVault right =
+          vaultWithFreshArrays().toBuilder()
+              .labels(java.util.Map.of("first", new byte[] {7, 9}))
+              .build();
 
       /* Identity comparison of map values would call these equal, since
       the maps have the same keys and Objects.equals stops at the
@@ -1832,9 +1836,10 @@ class ObjectSerializerTest {
     @DisplayName("a differing map KEY makes them unequal")
     void differingMapKeyCompareUnequal() {
       com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
-      com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
-      labelsOf(right).remove("first");
-      labelsOf(right).put("second", new byte[] {7, 8});
+      com.example.petstore.models.BinaryVault right =
+          vaultWithFreshArrays().toBuilder()
+              .labels(java.util.Map.of("second", new byte[] {7, 8}))
+              .build();
 
       assertNotEquals(left, right);
     }
@@ -1856,6 +1861,41 @@ class ObjectSerializerTest {
           SerializationException.class, () -> serializer.serialize(Double.POSITIVE_INFINITY));
       assertThrows(
           SerializationException.class, () -> serializer.serialize(Double.NEGATIVE_INFINITY));
+    }
+
+    @Test
+    @DisplayName("an overflowing float or double literal throws SerializationException")
+    void overflowingNumberLiteralIsRejected() {
+      for (String body : new String[] {"1e400", "-1e400"}) {
+        assertThrows(
+            SerializationException.class, () -> serializer.deserialize(body, Double.class), body);
+        assertThrows(
+            SerializationException.class, () -> serializer.deserialize(body, double.class), body);
+      }
+      assertThrows(SerializationException.class, () -> serializer.deserialize("1e40", Float.class));
+      assertThrows(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "[1.5,1e400]",
+                  new com.fasterxml.jackson.core.type.TypeReference<List<Double>>() {}.getType()));
+      assertEquals(1e308, serializer.<Double>deserialize("1e308", Double.class));
+      assertEquals(1.5f, serializer.<Float>deserialize("1.5", Float.class));
+    }
+
+    @Test
+    @DisplayName("a wrong-typed value in a map of integers throws SerializationException")
+    void wrongTypedMapValueThrows() {
+      for (String body : new String[] {"{\"a\":2.5}", "{\"a\":\"2\"}", "{\"a\":3000000000}"}) {
+        assertThrows(
+            SerializationException.class,
+            () ->
+                serializer.deserialize(
+                    body,
+                    new com.fasterxml.jackson.core.type.TypeReference<
+                        java.util.Map<String, Integer>>() {}.getType()),
+            body);
+      }
     }
 
     // A bare JSON null body decoded to a model type returns null, not a

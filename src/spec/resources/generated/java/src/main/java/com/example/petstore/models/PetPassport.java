@@ -14,12 +14,13 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /** PetPassport. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = PetPassport.Builder.class)
 public class PetPassport {
 
   /** The {@code pet} property. */
   @JsonProperty("pet")
   @Nullable
-  public Pet pet;
+  public final Pet pet;
 
   /**
    * Base64-encoded primary thumbnail
@@ -28,27 +29,164 @@ public class PetPassport {
    */
   @JsonProperty("thumbnail")
   @Nullable
-  public byte[] thumbnail;
+  public final byte[] thumbnail;
 
   /** Base64-encoded scans of each passport page */
   @JsonProperty("scans")
   @Nullable
-  public List<byte[]> scans;
+  public final List<byte[]> scans;
 
   /** The {@code issuedAt} property. */
   @JsonProperty("issuedAt")
   @Nullable
-  public OffsetDateTime issuedAt;
+  public final OffsetDateTime issuedAt;
 
   /**
    * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
    */
   @JsonProperty("biometricChip")
   @Nullable
-  public byte[] biometricChip;
+  public final byte[] biometricChip;
 
-  /** Creates an empty instance. */
-  public PetPassport() {}
+  /** Creates an instance with every property at its default. */
+  public PetPassport() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private PetPassport(Builder builder) {
+    builder.requireNullableProperties();
+    this.pet = builder.pet;
+    this.thumbnail = builder.thumbnail == null ? null : builder.thumbnail.clone();
+    this.scans =
+        builder.scans == null
+            ? null
+            : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(builder.scans));
+    this.issuedAt = builder.issuedAt;
+    this.biometricChip = builder.biometricChip == null ? null : builder.biometricChip.clone();
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.pet = this.pet;
+    builder.thumbnail = this.thumbnail;
+    builder.scans = this.scans;
+    builder.issuedAt = this.issuedAt;
+    builder.biometricChip = this.biometricChip;
+    return builder;
+  }
+
+  /** Builds PetPassport instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Pet pet;
+    @Nullable private byte[] thumbnail;
+    @Nullable private List<byte[]> scans;
+    @Nullable private OffsetDateTime issuedAt;
+    @Nullable private byte[] biometricChip;
+
+    private Builder() {}
+
+    /**
+     * Sets the "pet" property.
+     *
+     * @param pet the new value
+     * @return this builder
+     */
+    @JsonProperty("pet")
+    public Builder pet(@Nullable Pet pet) {
+      this.pet = pet;
+      return this;
+    }
+
+    /**
+     * Sets the "thumbnail" property.
+     *
+     * @param thumbnail the new value
+     * @return this builder
+     */
+    @JsonProperty("thumbnail")
+    public Builder thumbnail(@Nullable byte[] thumbnail) {
+      this.thumbnail = thumbnail == null ? null : thumbnail.clone();
+      return this;
+    }
+
+    /**
+     * Sets the "scans" property.
+     *
+     * @param scans the new value
+     * @return this builder
+     */
+    @JsonProperty("scans")
+    public Builder scans(@Nullable List<byte[]> scans) {
+      this.scans =
+          scans == null
+              ? null
+              : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(scans));
+      return this;
+    }
+
+    /**
+     * Sets the "issuedAt" property.
+     *
+     * @param issuedAt the new value
+     * @return this builder
+     */
+    @JsonProperty("issuedAt")
+    public Builder issuedAt(@Nullable OffsetDateTime issuedAt) {
+      this.issuedAt = issuedAt;
+      return this;
+    }
+
+    /**
+     * Sets the "biometricChip" property.
+     *
+     * @param biometricChip the new value
+     * @return this builder
+     */
+    @JsonProperty("biometricChip")
+    public Builder biometricChip(@Nullable byte[] biometricChip) {
+      this.biometricChip = biometricChip == null ? null : biometricChip.clone();
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public PetPassport build() {
+      return new PetPassport(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

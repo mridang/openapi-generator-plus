@@ -9,8 +9,10 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import javax.annotation.Nullable;
 
 /** Reservation. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = Reservation.Builder.class)
 public class Reservation {
 
   /**
@@ -19,7 +21,7 @@ public class Reservation {
    * <p>Example: {@code 31}
    */
   @JsonProperty("reservationId")
-  public Long reservationId;
+  public final Long reservationId;
 
   /**
    * The {@code quantity} property.
@@ -27,20 +29,7 @@ public class Reservation {
    * <p>Example: {@code 4}
    */
   @JsonProperty("quantity")
-  public Integer quantity;
-
-  /* No-arg constructor required by deserialization/test tooling. It
-   * intentionally leaves the @NonNull required fields uninitialized — the
-   * @JsonCreator constructor below populates them on the deserialization path.
-   * NullAway.Init cannot be moved to a global config home without either
-   * excluding every @JsonProperty field from init-checking (which would hide
-   * genuinely-missing initializers across all models) or marking whole classes
-   * unannotated (disabling null-safety on the model entirely); both weaken a
-   * real correctness rule, so the suppression is kept here, scoped to this
-   * single framework-mandated constructor. */
-  /** Creates an empty instance for deserialization; required fields are populated later. */
-  @SuppressWarnings("NullAway.Init")
-  public Reservation() {}
+  public final Integer quantity;
 
   /**
    * Creates an instance with all required properties.
@@ -48,13 +37,93 @@ public class Reservation {
    * @param reservationId the {@code reservationId} property
    * @param quantity the {@code quantity} property
    */
-  @com.fasterxml.jackson.annotation.JsonCreator
-  public Reservation(
-      @JsonProperty(value = "reservationId", required = true) Long reservationId,
-      @JsonProperty(value = "quantity", required = true) Integer quantity) {
+  public Reservation(Long reservationId, Integer quantity) {
+    this(new Builder().reservationId(reservationId).quantity(quantity));
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private Reservation(Builder builder) {
+    builder.requireNullableProperties();
     this.reservationId =
-        java.util.Objects.requireNonNull(reservationId, "reservationId is required");
-    this.quantity = java.util.Objects.requireNonNull(quantity, "quantity is required");
+        java.util.Objects.requireNonNull(builder.reservationId, "reservationId is required");
+    this.quantity = java.util.Objects.requireNonNull(builder.quantity, "quantity is required");
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.reservationId = this.reservationId;
+    builder.quantity = this.quantity;
+    return builder;
+  }
+
+  /** Builds Reservation instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Long reservationId;
+    @Nullable private Integer quantity;
+
+    private Builder() {}
+
+    /**
+     * Sets the "reservationId" property.
+     *
+     * @param reservationId the new value
+     * @return this builder
+     */
+    @JsonProperty("reservationId")
+    public Builder reservationId(Long reservationId) {
+      this.reservationId = reservationId;
+      return this;
+    }
+
+    /**
+     * Sets the "quantity" property.
+     *
+     * @param quantity the new value
+     * @return this builder
+     */
+    @JsonProperty("quantity")
+    public Builder quantity(Integer quantity) {
+      this.quantity = quantity;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public Reservation build() {
+      return new Reservation(this);
+    }
   }
 
   /* Value-equality based on all declared fields. Generated so model

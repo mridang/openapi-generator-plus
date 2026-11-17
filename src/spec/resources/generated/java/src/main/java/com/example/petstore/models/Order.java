@@ -16,6 +16,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 /** Order. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = Order.Builder.class)
 public class Order {
 
   /** Allowed values for the {@code status} property. */
@@ -78,7 +79,7 @@ public class Order {
    */
   @JsonProperty("id")
   @Nullable
-  public Long id;
+  public final Long id;
 
   /**
    * The {@code petId} property.
@@ -87,7 +88,7 @@ public class Order {
    */
   @JsonProperty("petId")
   @Nullable
-  public Long petId;
+  public final Long petId;
 
   /**
    * The {@code quantity} property.
@@ -96,17 +97,17 @@ public class Order {
    */
   @JsonProperty("quantity")
   @Nullable
-  public Integer quantity;
+  public final Integer quantity;
 
   /** The {@code trackingId} property. */
   @JsonProperty("trackingId")
   @Nullable
-  public UUID trackingId;
+  public final UUID trackingId;
 
   /** The {@code shipDate} property. */
   @JsonProperty("shipDate")
   @Nullable
-  public OffsetDateTime shipDate;
+  public final OffsetDateTime shipDate;
 
   /**
    * Order Status
@@ -115,15 +116,176 @@ public class Order {
    */
   @JsonProperty("status")
   @Nullable
-  public StatusEnum status = StatusEnum.PLACED;
+  public final StatusEnum status;
 
   /** The {@code complete} property. */
   @JsonProperty("complete")
   @Nullable
-  public Boolean complete;
+  public final Boolean complete;
 
-  /** Creates an empty instance. */
-  public Order() {}
+  /** Creates an instance with every property at its default. */
+  public Order() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private Order(Builder builder) {
+    builder.requireNullableProperties();
+    this.id = builder.id;
+    this.petId = builder.petId;
+    this.quantity = builder.quantity;
+    this.trackingId = builder.trackingId;
+    this.shipDate = builder.shipDate;
+    this.status = builder.status;
+    this.complete = builder.complete;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.id = this.id;
+    builder.petId = this.petId;
+    builder.quantity = this.quantity;
+    builder.trackingId = this.trackingId;
+    builder.shipDate = this.shipDate;
+    builder.status = this.status;
+    builder.complete = this.complete;
+    return builder;
+  }
+
+  /** Builds Order instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Long id;
+    @Nullable private Long petId;
+    @Nullable private Integer quantity;
+    @Nullable private UUID trackingId;
+    @Nullable private OffsetDateTime shipDate;
+    @Nullable private StatusEnum status = StatusEnum.PLACED;
+    @Nullable private Boolean complete;
+
+    private Builder() {}
+
+    /**
+     * Sets the "id" property.
+     *
+     * @param id the new value
+     * @return this builder
+     */
+    @JsonProperty("id")
+    public Builder id(@Nullable Long id) {
+      this.id = id;
+      return this;
+    }
+
+    /**
+     * Sets the "petId" property.
+     *
+     * @param petId the new value
+     * @return this builder
+     */
+    @JsonProperty("petId")
+    public Builder petId(@Nullable Long petId) {
+      this.petId = petId;
+      return this;
+    }
+
+    /**
+     * Sets the "quantity" property.
+     *
+     * @param quantity the new value
+     * @return this builder
+     */
+    @JsonProperty("quantity")
+    public Builder quantity(@Nullable Integer quantity) {
+      this.quantity = quantity;
+      return this;
+    }
+
+    /**
+     * Sets the "trackingId" property.
+     *
+     * @param trackingId the new value
+     * @return this builder
+     */
+    @JsonProperty("trackingId")
+    public Builder trackingId(@Nullable UUID trackingId) {
+      this.trackingId = trackingId;
+      return this;
+    }
+
+    /**
+     * Sets the "shipDate" property.
+     *
+     * @param shipDate the new value
+     * @return this builder
+     */
+    @JsonProperty("shipDate")
+    public Builder shipDate(@Nullable OffsetDateTime shipDate) {
+      this.shipDate = shipDate;
+      return this;
+    }
+
+    /**
+     * Sets the "status" property.
+     *
+     * @param status the new value
+     * @return this builder
+     */
+    @JsonProperty("status")
+    public Builder status(@Nullable StatusEnum status) {
+      this.status = status;
+      return this;
+    }
+
+    /**
+     * Sets the "complete" property.
+     *
+     * @param complete the new value
+     * @return this builder
+     */
+    @JsonProperty("complete")
+    public Builder complete(@Nullable Boolean complete) {
+      this.complete = complete;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public Order build() {
+      return new Order(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.
