@@ -12,6 +12,10 @@ defmodule {{moduleName}}.SchemeAuthenticatorTest do
 {{/perSchemeAuthEntries}}
   ]
 
+  # The basic schemes are the ones whose credentials are exactly a username and a password.
+  @basic_schemes for {module, [{"username", user_env}, {"password", pass_env}]} <- @schemes,
+                     do: {module, user_env, pass_env}
+
   setup do
     names = for {_module, vars} <- @schemes, {_arg, env} <- vars, do: env
     saved = Map.new(names, fn name -> {name, System.get_env(name)} end)
@@ -74,7 +78,7 @@ defmodule {{moduleName}}.SchemeAuthenticatorTest do
       @module module
       @vars vars
 
-      test "builds from its environment variables alone" do
+      test "bhv authscheme 001 builds from its environment variables alone" do
         Enum.each(@vars, fn {arg, env} -> System.put_env(env, "from-env-" <> arg) end)
 
         auth = build(@module, [@host])
@@ -138,6 +142,23 @@ defmodule {{moduleName}}.SchemeAuthenticatorTest do
             build(@module, [@host])
           end
         end
+      end
+    end
+  end
+
+  describe "generated basic scheme wrappers" do
+    test "bhv authbasic 002 generated scheme wrapper emits a basic header and masks the password" do
+      refute @basic_schemes == []
+
+      for {module, user_env, pass_env} <- @basic_schemes do
+        System.put_env(user_env, "from-env-user")
+        System.put_env(pass_env, "from-env-pass")
+
+        auth = apply(module, :new, [@host])
+        expected = "Basic " <> Base.encode64("from-env-user:from-env-pass")
+
+        assert {{moduleName}}.Auth.BasicAuthenticator.auth_headers(auth)["Authorization"] == expected
+        refute inspect(auth) =~ "from-env-pass"
       end
     end
   end
