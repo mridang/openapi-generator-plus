@@ -14,7 +14,7 @@ namespace Test;
 public class ApiResultTest
 {
     [Fact]
-    public void ExposesStatusCodeDataRawBodyAndHeaders()
+    public void BhvResults003ExposesStatusCodeDataRawBodyAndHeaders()
     {
         var headers = new Dictionary<string, string>
         {
@@ -32,7 +32,7 @@ public class ApiResultTest
     }
 
     [Fact]
-    public void DataIsNullForVoidResponses()
+    public void BhvResults001DataIsNullForVoidResponses()
     {
         var result = new ApiResult<string>(
             204,
@@ -48,7 +48,7 @@ public class ApiResultTest
     }
 
     [Fact]
-    public void HeadersAreReadOnly()
+    public void BhvResults002HeadersAreReadOnly()
     {
         var source = new Dictionary<string, string> { ["X-Key"] = "value" };
         var result = new ApiResult<int>(200, 42, "42", source);

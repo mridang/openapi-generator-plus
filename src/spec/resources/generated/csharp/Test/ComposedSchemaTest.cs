@@ -20,7 +20,7 @@ public class ComposedSchemaTest
     // -- oneOf with discriminator: PetFood --
 
     [Fact]
-    public void OneOfDeserializesDryFood()
+    public void BhvUnions012OneOfDeserializesDryFood()
     {
         var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
         var result = _serializer.Deserialize<PetFood>(json);
@@ -30,7 +30,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void OneOfDeserializesWetFood()
+    public void BhvUnions013OneOfDeserializesWetFood()
     {
         var json = "{\"foodType\":\"wet\",\"volumeMl\":400}";
         var result = _serializer.Deserialize<PetFood>(json);
@@ -40,7 +40,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void OneOfUnknownDiscriminatorThrows()
+    public void BhvUnions016OneOfUnknownDiscriminatorThrows()
     {
         /* Gap L: union with an unmapped discriminator value now throws
          * instead of silently returning null. Aligns C# with Python /
@@ -51,14 +51,14 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void OneOfMissingDiscriminatorThrows()
+    public void BhvUnions015OneOfMissingDiscriminatorThrows()
     {
         var json = "{\"weightKg\":2.5}";
         Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
     }
 
     [Fact]
-    public void OneOfEmptyDiscriminatorThrows()
+    public void BhvUnions024OneOfEmptyDiscriminatorThrows()
     {
         // An empty discriminator value matches no listed subtype and must be
         // rejected rather than silently routed.
@@ -90,7 +90,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void OneOfUnknownDiscriminatorErrorNamesValue()
+    public void BhvUnions026OneOfUnknownDiscriminatorErrorNamesValue()
     {
         // The failure message must surface the offending discriminator value
         // so callers can diagnose server/spec drift. The native JsonException
@@ -105,7 +105,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void OneOfSerializesDryFood()
+    public void BhvUnions020OneOfSerializesDryFood()
     {
         var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
         var result = _serializer.Deserialize<PetFood>(json);
@@ -118,7 +118,7 @@ public class ComposedSchemaTest
     // -- anyOf without discriminator: PetTreatment --
 
     [Fact]
-    public void AnyOfDeserializesMedication()
+    public void BhvUnions014AnyOfDeserializesMedication()
     {
         var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
         var result = _serializer.Deserialize<PetTreatment>(json);
@@ -129,7 +129,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnyOfDeserializesSurgery()
+    public void BhvUnions006AnyOfDeserializesSurgery()
     {
         var json = "{\"procedureName\":\"Spay\",\"durationMinutes\":45}";
         var result = _serializer.Deserialize<PetTreatment>(json);
@@ -139,7 +139,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnyOfSerializeRoundTrip()
+    public void BhvUnions008AnyOfSerializeRoundTrip()
     {
         var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
         var result = _serializer.Deserialize<PetTreatment>(json);
@@ -150,7 +150,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnyOfRetainsAllMatchingVariantsLosslessly()
+    public void BhvUnions009AnyOfRetainsAllMatchingVariantsLosslessly()
     {
         // PetTreatment is a non-discriminated anyOf of Medication and Surgery,
         // documented as matching a medication, a surgery, OR BOTH. A payload
@@ -178,7 +178,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnyOfSharedPropertyCollisionLastWins()
+    public void BhvUnions010AnyOfSharedPropertyCollisionLastWins()
     {
         // anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
         // When a PetTreatment retains both members with DIFFERENT `notes` values,
@@ -206,7 +206,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnyOfRetainsVariantsInDeclarationOrderSoTheFirstDeclaredIsTheActualInstance()
+    public void BhvUnions025AnyOfRetainsVariantsInDeclarationOrderSoTheFirstDeclaredIsTheActualInstance()
     {
         // TreatmentRecord declares Surgery then Medication, the reverse of
         // PetTreatment, so the same payload retains the variants in the other order.
@@ -225,7 +225,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnyOfSharedPropertyCollisionTheLaterDeclaredVariantWinsInTheOtherOrder()
+    public void BhvUnions002AnyOfSharedPropertyCollisionTheLaterDeclaredVariantWinsInTheOtherOrder()
     {
         // In TreatmentRecord Medication is declared last, so its `notes` wins.
         var surgery = _serializer
@@ -249,7 +249,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnyOfNoMatchThrows()
+    public void BhvUnions007AnyOfNoMatchThrows()
     {
         // oneof-nondiscriminator-no-match-silent: a payload matching neither
         // Medication nor Surgery must surface as a deserialize error rather
@@ -260,7 +260,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void ATypedFactoryWrapsAVariantAndTheAccessorsReadItBack()
+    public void BhvUnions001ATypedFactoryWrapsAVariantAndTheAccessorsReadItBack()
     {
         byte[] bytes = [1, 2, 3];
 
@@ -318,7 +318,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64()
+    public void BhvUnions023SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64()
     {
         // Canonical regression (findings C2/R1/H12): the format:byte marker must
         // survive inside the oneOf union wrapper. Both variants travel on the
@@ -374,7 +374,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnyOfWrappersHaveValueEquality()
+    public void BhvUnions011AnyOfWrappersHaveValueEquality()
     {
         var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
         var left = _serializer.Deserialize<PetTreatment>(json)!;
@@ -388,7 +388,7 @@ public class ComposedSchemaTest
     // -- allOf: PetWithOwner --
 
     [Fact]
-    public void AllOfDeserializesPetWithOwner()
+    public void BhvUnions004AllOfDeserializesPetWithOwner()
     {
         var json =
             "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
@@ -400,7 +400,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AllOfSerializesPetWithOwner()
+    public void BhvUnions021AllOfSerializesPetWithOwner()
     {
         var json =
             "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"],\"ownerName\":\"John Doe\"}";
@@ -412,7 +412,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AllOfRoundTrip()
+    public void BhvUnions017AllOfRoundTrip()
     {
         var json =
             "{\"name\":\"Buddy\",\"photoUrls\":[\"http://example.com/buddy.jpg\"],\"ownerName\":\"Jane Smith\"}";

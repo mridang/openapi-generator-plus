@@ -34,7 +34,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetInventory()
+    public async Task BhvOperations102TestGetInventory()
     {
         var result = await _api.GetInventoryAsync();
 
@@ -42,7 +42,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestPlaceOrder()
+    public async Task BhvOperations117TestPlaceOrder()
     {
         var order = new Order
         {
@@ -98,7 +98,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetInventoryWithHttpInfo()
+    public async Task BhvOperations103TestGetInventoryWithHttpInfo()
     {
         var result = await _api.GetInventoryWithHttpInfoAsync();
 
@@ -108,7 +108,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestPlaceOrderWithHttpInfo()
+    public async Task BhvOperations119TestPlaceOrderWithHttpInfo()
     {
         var order = new Order
         {
@@ -128,7 +128,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetOrderById()
+    public async Task BhvOperations104TestGetOrderById()
     {
         var result = await _api.GetOrderByIdAsync(1L);
 
@@ -137,7 +137,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetOrderByIdWithHttpInfo()
+    public async Task BhvOperations105TestGetOrderByIdWithHttpInfo()
     {
         var result = await _api.GetOrderByIdWithHttpInfoAsync(1L);
 
@@ -147,7 +147,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestDeleteOrder()
+    public async Task BhvOperations099TestDeleteOrder()
     {
         await _api.DeleteOrderAsync(1L);
         Assert.True(true);
@@ -190,7 +190,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetOrderNotFound()
+    public async Task BhvOperations106TestGetOrderNotFound()
     {
         var mockApi = NewStoreApiForMock(
             404,
@@ -204,7 +204,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestPlaceOrderServerError()
+    public async Task BhvOperations118TestPlaceOrderServerError()
     {
         var mockApi = NewStoreApiForMock(
             500,
@@ -227,7 +227,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestDeleteOrderNotFound()
+    public async Task BhvOperations100TestDeleteOrderNotFound()
     {
         var mockApi = NewStoreApiForMock(
             404,
@@ -241,7 +241,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetGroupedCategoriesDeserializesNestedContainerLeavesAsTypedModels()
+    public async Task BhvOperations101TestGetGroupedCategoriesDeserializesNestedContainerLeavesAsTypedModels()
     {
         // getGroupedCategories returns a nested container: an array of maps of
         // Category (List<Dictionary<string, Category>>). The deserialized
@@ -270,7 +270,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetSwatchReturnsValueTypeEnum()
+    public async Task BhvOperations113TestGetSwatchReturnsValueTypeEnum()
     {
         // getSwatch returns a bare enum (a value type). The convenience wrapper
         // must compile and decode the wire value into the enum — the empty-body
@@ -284,7 +284,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader()
+    public async Task BhvOperations122TestGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader()
     {
         // A named-enum ($ref) parameter must go out as its wire value in each
         // location, not as the language name of the enum member.
@@ -302,7 +302,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetBySwatchOmitsTheOptionalQueryAndHeaderWhenNotSet()
+    public async Task BhvOperations107TestGetBySwatchOmitsTheOptionalQueryAndHeaderWhenNotSet()
     {
         var client = new RequestCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -319,7 +319,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetMatrixDeserializesNestedIntegerArrays()
+    public async Task BhvOperations109TestGetMatrixDeserializesNestedIntegerArrays()
     {
         var mockApi = NewStoreApiForMock(200, "application/json", "[[1,2],[3]]");
 
@@ -331,7 +331,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetSwatchGroupsDeserializesNestedEnumLeaves()
+    public async Task BhvOperations114TestGetSwatchGroupsDeserializesNestedEnumLeaves()
     {
         var mockApi = NewStoreApiForMock(
             200,
@@ -346,7 +346,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetTimestampGroupsDeserializesNestedTimestampLeaves()
+    public async Task BhvOperations115TestGetTimestampGroupsDeserializesNestedTimestampLeaves()
     {
         var mockApi = NewStoreApiForMock(
             200,
@@ -360,7 +360,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetTreeDeserializesTheRecursiveChild()
+    public async Task BhvOperations116TestGetTreeDeserializesTheRecursiveChild()
     {
         var mockApi = NewStoreApiForMock(
             200,
@@ -376,7 +376,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetDefaultsAppliesTheSchemaDefaultsForAbsentFields()
+    public async Task BhvOperations123TestGetDefaultsAppliesTheSchemaDefaultsForAbsentFields()
     {
         var mockApi = NewStoreApiForMock(200, "application/json", "{}");
 
@@ -517,7 +517,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task SearchStoreContentHeaderUsesTheSdkSerializer()
+    public async Task BhvOperations121SearchStoreContentHeaderUsesTheSdkSerializer()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -530,7 +530,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task SearchStoreContentQueryUsesTheSdkSerializer()
+    public async Task BhvOperations097SearchStoreContentQueryUsesTheSdkSerializer()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -586,7 +586,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task GetOrderByTrackingIdPutsTheLowercaseUuidInThePath()
+    public async Task BhvOperations124GetOrderByTrackingIdPutsTheLowercaseUuidInThePath()
     {
         var client = new RequestCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -601,7 +601,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task CreateAccountSendsTheWriteOnlyPasswordAndDecodesTheReadOnlyId()
+    public async Task BhvOperations098CreateAccountSendsTheWriteOnlyPasswordAndDecodesTheReadOnlyId()
     {
         var client = new RequestCapturingApiClient
         {
@@ -625,7 +625,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetDepartmentDecodesTheMutuallyReferencingModels()
+    public async Task BhvOperations108TestGetDepartmentDecodesTheMutuallyReferencingModels()
     {
         var api = NewStoreApiForMock(
             200,
@@ -640,7 +640,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestGetStockItemDecodesEnumsAndNestedArrays()
+    public async Task BhvOperations112TestGetStockItemDecodesEnumsAndNestedArrays()
     {
         var api = NewStoreApiForMock(
             200,
@@ -674,7 +674,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task ReserveStockDecodesA201AsTheNewReceipt()
+    public async Task BhvOperations120ReserveStockDecodesA201AsTheNewReceipt()
     {
         var api = NewStoreApiForMock(
             201,
@@ -789,7 +789,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task AnOperationWithNoParametersAndNoSecurityTakesPerCallOptions()
+    public async Task BhvOperations096AnOperationWithNoParametersAndNoSecurityTakesPerCallOptions()
     {
         var client = new CallOptionsApiClient { Body = "{}" };
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());

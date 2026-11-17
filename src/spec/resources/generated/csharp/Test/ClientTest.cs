@@ -27,7 +27,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ConstructWithAuthenticatorOnly()
+    public void BhvLifecycle012ConstructWithAuthenticatorOnly()
     {
         using var client = new Client(_authenticator);
 
@@ -35,7 +35,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ConstructWithAuthenticatorAndNullTransportOptions()
+    public void BhvLifecycle010ConstructWithAuthenticatorAndNullTransportOptions()
     {
         using var client = new Client(_authenticator, null);
 
@@ -43,7 +43,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ConstructWithAuthenticatorAndTransportOptions()
+    public void BhvLifecycle011ConstructWithAuthenticatorAndTransportOptions()
     {
         var transport = TransportOptions.Builder().Build();
 
@@ -68,7 +68,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task ClosedClientRejectsFurtherRequestsAndKeepsTheSuppliedHandlerOpen()
+    public async Task BhvLifecycle008ClosedClientRejectsFurtherRequestsAndKeepsTheSuppliedHandlerOpen()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -85,7 +85,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void TheSchemeConstructorTakesOneOptionalCredentialPerSchemeNamedAfterIt()
+    public void BhvLifecycle015TheSchemeConstructorTakesOneOptionalCredentialPerSchemeNamedAfterIt()
     {
         var constructor = typeof(Client)
             .GetConstructors()
@@ -144,7 +144,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task AClientWithNoCredentialSendsNoAuthenticationHeader()
+    public async Task BhvLifecycle016AClientWithNoCredentialSendsNoAuthenticationHeader()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -210,7 +210,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task FromEnvironmentReadsTheHostAndTokenFromTheEnvironment()
+    public async Task BhvLifecycle014FromEnvironmentReadsTheHostAndTokenFromTheEnvironment()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -286,7 +286,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void FromEnvironmentFailsWhenNoHostIsAvailable()
+    public void BhvLifecycle013FromEnvironmentFailsWhenNoHostIsAvailable()
     {
         WithEnvironment(
             null,
@@ -312,7 +312,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void BearerRejectsEmptyToken()
+    public void BhvLifecycle005BearerRejectsEmptyToken()
     {
         // bearer-no-empty-token-guard: an empty/whitespace token would emit a
         // bare "Authorization: Bearer " header, sending the request
@@ -322,7 +322,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiKeyHeaderRejectsCrlfAndNonAscii()
+    public void BhvLifecycle002ApiKeyHeaderRejectsCrlfAndNonAscii()
     {
         // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
         // ApiKeyAuthenticator's Header location must reject anything
@@ -352,7 +352,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiKeyQueryAcceptsNonAscii()
+    public void BhvLifecycle003ApiKeyQueryAcceptsNonAscii()
     {
         var auth = new ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.Query);
 
@@ -360,7 +360,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiGroupsAreAccessible()
+    public void BhvLifecycle001ApiGroupsAreAccessible()
     {
         using var client = new Client(_authenticator);
 
@@ -374,7 +374,7 @@ public sealed class ClientTest : IDisposable
         new() { [key] = value };
 
     [Fact]
-    public void ApiKeyHeaderWrapperSendsItsKeyInTheSchemeHeader()
+    public void BhvLifecycle004ApiKeyHeaderWrapperSendsItsKeyInTheSchemeHeader()
     {
         var auth = new ApiKeyHeaderAuthenticator(Host, "k");
 

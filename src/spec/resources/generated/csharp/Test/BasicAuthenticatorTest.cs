@@ -14,7 +14,7 @@ namespace Test;
 public class BasicAuthenticatorTest
 {
     [Fact]
-    public void ValidCredentialsProduceBasicHeader()
+    public void BhvAuthbasic011ValidCredentialsProduceBasicHeader()
     {
         var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
         var headers = auth.GetAuthHeaders();
@@ -22,7 +22,24 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void RejectsUsernameWithCrlfAtConstruction()
+    public void BhvAuthbasic003MissingOrEmptyCredentialsFailAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "", "s3cret")
+        );
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", "")
+        );
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", null!, "s3cret")
+        );
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", null!)
+        );
+    }
+
+    [Fact]
+    public void BhvAuthbasic009RejectsUsernameWithCrlfAtConstruction()
     {
         // auth-validation-timing: credentials are validated eagerly at
         // construction (matching the 10-SDK majority), so a malformed username
@@ -33,7 +50,7 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void RejectsPasswordWithNulAtConstruction()
+    public void BhvAuthbasic007RejectsPasswordWithNulAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret")
@@ -41,7 +58,7 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void RejectsUsernameWithColonAtConstruction()
+    public void BhvAuthbasic008RejectsUsernameWithColonAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
@@ -49,7 +66,7 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void PasswordIsNotLeakedInDefaultToString()
+    public void BhvAuthbasic005PasswordIsNotLeakedInDefaultToString()
     {
         // authenticator-secret-in-default-string-repr: the default ToString()
         // must never expose the stored password.
@@ -62,7 +79,7 @@ public class BasicAuthenticatorTest
     /// the masked placeholder present.
     /// </summary>
     [Fact]
-    public void RedactsSecret()
+    public void BhvAuthbasic006RedactsSecret()
     {
         var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
         string repr = auth.ToString();
@@ -71,7 +88,7 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void ReprShowsTheHostAndTheUsername()
+    public void BhvAuthbasic010ReprShowsTheHostAndTheUsername()
     {
         var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
 
@@ -82,7 +99,7 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void NonAsciiCredentialsAreEncodedAsUtf8()
+    public void BhvAuthbasic004NonAsciiCredentialsAreEncodedAsUtf8()
     {
         var auth = new BasicAuthenticator(
             "https://api.example.com",

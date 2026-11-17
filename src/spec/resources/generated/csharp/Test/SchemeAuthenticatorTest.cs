@@ -98,7 +98,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] PetStoreBasicAuthenticatorFields = ["username", "password"];
 
     [Fact]
-    public void PetStoreBasicAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001PetStoreBasicAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(PetStoreBasicAuthenticatorVariables, PetStoreBasicAuthenticatorFields),
@@ -188,7 +188,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] AdminBasicAuthenticatorFields = ["username", "password"];
 
     [Fact]
-    public void AdminBasicAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001AdminBasicAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(AdminBasicAuthenticatorVariables, AdminBasicAuthenticatorFields),
@@ -277,7 +277,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] PetStoreBearerAuthenticatorFields = ["token"];
 
     [Fact]
-    public void PetStoreBearerAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001PetStoreBearerAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(PetStoreBearerAuthenticatorVariables, PetStoreBearerAuthenticatorFields),
@@ -373,7 +373,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBearerAuthenticatorTokenProviderNeedsNoEnvironment()
+    public void BhvAuthscheme002PetStoreBearerAuthenticatorTokenProviderNeedsNoEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -401,7 +401,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] ServiceTokenAuthenticatorFields = ["token"];
 
     [Fact]
-    public void ServiceTokenAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001ServiceTokenAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(ServiceTokenAuthenticatorVariables, ServiceTokenAuthenticatorFields),
@@ -497,7 +497,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ServiceTokenAuthenticatorTokenProviderNeedsNoEnvironment()
+    public void BhvAuthscheme002ServiceTokenAuthenticatorTokenProviderNeedsNoEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -525,7 +525,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] ApiKeyHeaderAuthenticatorFields = ["apiKey"];
 
     [Fact]
-    public void ApiKeyHeaderAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001ApiKeyHeaderAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(ApiKeyHeaderAuthenticatorVariables, ApiKeyHeaderAuthenticatorFields),
@@ -607,7 +607,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] InternalApiKeyAuthenticatorFields = ["apiKey"];
 
     [Fact]
-    public void InternalApiKeyAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001InternalApiKeyAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(InternalApiKeyAuthenticatorVariables, InternalApiKeyAuthenticatorFields),
@@ -689,7 +689,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] ApiKeyQueryAuthenticatorFields = ["apiKey"];
 
     [Fact]
-    public void ApiKeyQueryAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001ApiKeyQueryAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(ApiKeyQueryAuthenticatorVariables, ApiKeyQueryAuthenticatorFields),
@@ -771,7 +771,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] SessionCookieAuthenticatorFields = ["apiKey"];
 
     [Fact]
-    public void SessionCookieAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001SessionCookieAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(SessionCookieAuthenticatorVariables, SessionCookieAuthenticatorFields),
@@ -858,7 +858,7 @@ public sealed class SchemeAuthenticatorTest
     ];
 
     [Fact]
-    public void MachineAuthClientCredentialsAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001MachineAuthClientCredentialsAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(
@@ -970,7 +970,7 @@ public sealed class SchemeAuthenticatorTest
     ];
 
     [Fact]
-    public void LegacyAuthPasswordAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001LegacyAuthPasswordAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(
@@ -1076,7 +1076,7 @@ public sealed class SchemeAuthenticatorTest
     ];
 
     [Fact]
-    public void UserAuthAuthorizationCodeAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001UserAuthAuthorizationCodeAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(
@@ -1176,7 +1176,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] BrowserAuthImplicitAuthenticatorFields = ["clientId"];
 
     [Fact]
-    public void BrowserAuthImplicitAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001BrowserAuthImplicitAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(
@@ -1279,7 +1279,7 @@ public sealed class SchemeAuthenticatorTest
     ];
 
     [Fact]
-    public void SsoAuthAuthenticatorReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001SsoAuthAuthenticatorReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(
             Complete(SsoAuthAuthenticatorVariables, SsoAuthAuthenticatorFields),

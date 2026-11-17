@@ -26,7 +26,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldInjectTraceparentWhenActivityIsActive()
+    public void BhvTracing006ShouldInjectTraceparentWhenActivityIsActive()
     {
         using var listener = new ActivityListener
         {
@@ -54,7 +54,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldIncludeTracestateWhenPresent()
+    public void BhvTracing005ShouldIncludeTracestateWhenPresent()
     {
         using var listener = new ActivityListener
         {
@@ -77,7 +77,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldNotIncludeTracestateWhenEmpty()
+    public void BhvTracing008ShouldNotIncludeTracestateWhenEmpty()
     {
         using var listener = new ActivityListener
         {
@@ -99,7 +99,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldFormatTraceFlagsCorrectly()
+    public void BhvTracing004ShouldFormatTraceFlagsCorrectly()
     {
         using var listener = new ActivityListener
         {
@@ -125,7 +125,7 @@ public class TraceContextUtilTest
     // Universal "no active trace" scenarios — verify existing headers pass through unmodified
 
     [Fact]
-    public void ShouldNotThrowWithEmptyHeadersWhenNoActiveActivity()
+    public void BhvTracing003ShouldNotThrowWithEmptyHeadersWhenNoActiveActivity()
     {
         Activity.Current = null;
 
@@ -137,7 +137,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldNotInjectTraceparentWhenNoActiveActivity()
+    public void BhvTracing001ShouldNotInjectTraceparentWhenNoActiveActivity()
     {
         Activity.Current = null;
 
@@ -148,7 +148,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldNotInjectTracestateWhenNoActiveActivity()
+    public void BhvTracing002ShouldNotInjectTracestateWhenNoActiveActivity()
     {
         Activity.Current = null;
 
@@ -159,7 +159,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldPreserveAuthorizationHeaderWhenNoActiveActivity()
+    public void BhvTracing010ShouldPreserveAuthorizationHeaderWhenNoActiveActivity()
     {
         Activity.Current = null;
 
@@ -170,7 +170,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldPreserveContentTypeHeaderWhenNoActiveActivity()
+    public void BhvTracing011ShouldPreserveContentTypeHeaderWhenNoActiveActivity()
     {
         Activity.Current = null;
 
@@ -181,7 +181,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldPreserveXRequestIdHeaderWhenNoActiveActivity()
+    public void BhvTracing012ShouldPreserveXRequestIdHeaderWhenNoActiveActivity()
     {
         Activity.Current = null;
 
@@ -192,7 +192,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void ShouldPreserveAllExistingHeadersWhenNoActiveActivity()
+    public void BhvTracing009ShouldPreserveAllExistingHeadersWhenNoActiveActivity()
     {
         Activity.Current = null;
 

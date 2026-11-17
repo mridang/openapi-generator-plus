@@ -59,7 +59,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QuerySetExpandsLikeListExploded()
+    public void BhvSerializationparam083QuerySetExpandsLikeListExploded()
     {
         var two = new SortedSet<string> { "blue", "red" };
         Assert.Equal(
@@ -81,43 +81,43 @@ public class ValueSerializerTest
     // -- path location --
 
     [Fact]
-    public void PathNullReturnsEmptyString()
+    public void BhvSerializationparam062PathNullReturnsEmptyString()
     {
         Assert.Equal("", ValueSerializer.Serialize(null, "path", "string"));
     }
 
     [Fact]
-    public void PathStringReturnsUrlEncodedValue()
+    public void BhvSerializationparam100PathStringReturnsUrlEncodedValue()
     {
         Assert.Equal("hello", ValueSerializer.Serialize("hello", "path", "string"));
     }
 
     [Fact]
-    public void PathStringWithSpacesIsUrlEncoded()
+    public void BhvSerializationparam102PathStringWithSpacesIsUrlEncoded()
     {
         Assert.Equal("hello%20world", ValueSerializer.Serialize("hello world", "path", "string"));
     }
 
     [Fact]
-    public void PathStringWithSlashIsUrlEncoded()
+    public void BhvSerializationparam101PathStringWithSlashIsUrlEncoded()
     {
         Assert.Equal("a%2Fb", ValueSerializer.Serialize("a/b", "path", "string"));
     }
 
     [Fact]
-    public void PathIntegerReturnsString()
+    public void BhvSerializationparam044PathIntegerReturnsString()
     {
         Assert.Equal("42", ValueSerializer.Serialize(42, "path", "integer"));
     }
 
     [Fact]
-    public void PathBooleanTrueReturnsTrue()
+    public void BhvSerializationparam021PathBooleanTrueReturnsTrue()
     {
         Assert.Equal("true", ValueSerializer.Serialize(true, "path", "boolean"));
     }
 
     [Fact]
-    public void PathBooleanFalseReturnsFalse()
+    public void BhvSerializationparam018PathBooleanFalseReturnsFalse()
     {
         Assert.Equal("false", ValueSerializer.Serialize(false, "path", "boolean"));
     }
@@ -125,37 +125,37 @@ public class ValueSerializerTest
     // -- query location --
 
     [Fact]
-    public void QueryNullReturnsNull()
+    public void BhvSerializationparam067QueryNullReturnsNull()
     {
         Assert.Null(ValueSerializer.Serialize(null, "query", "string"));
     }
 
     [Fact]
-    public void QueryStringReturnsAsIs()
+    public void BhvSerializationparam096QueryStringReturnsAsIs()
     {
         Assert.Equal("hello", ValueSerializer.Serialize("hello", "query", "string"));
     }
 
     [Fact]
-    public void QueryIntegerReturnsString()
+    public void BhvSerializationparam045QueryIntegerReturnsString()
     {
         Assert.Equal("42", ValueSerializer.Serialize(42, "query", "integer"));
     }
 
     [Fact]
-    public void QueryBooleanTrueReturnsTrue()
+    public void BhvSerializationparam022QueryBooleanTrueReturnsTrue()
     {
         Assert.Equal("true", ValueSerializer.Serialize(true, "query", "boolean"));
     }
 
     [Fact]
-    public void QueryBooleanFalseReturnsFalse()
+    public void BhvSerializationparam019QueryBooleanFalseReturnsFalse()
     {
         Assert.Equal("false", ValueSerializer.Serialize(false, "query", "boolean"));
     }
 
     [Fact]
-    public void QueryArrayJoinsWithCommaByDefault()
+    public void BhvSerializationparam006QueryArrayJoinsWithCommaByDefault()
     {
         Assert.Equal(
             "a,b,c",
@@ -164,7 +164,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryArrayJoinsWithCommaForCsv()
+    public void BhvSerializationparam007QueryArrayJoinsWithCommaForCsv()
     {
         Assert.Equal(
             "a,b,c",
@@ -173,7 +173,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryArrayJoinsWithSpaceForSsv()
+    public void BhvSerializationparam009QueryArrayJoinsWithSpaceForSsv()
     {
         Assert.Equal(
             "a b c",
@@ -182,7 +182,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryArrayJoinsWithTabForTsv()
+    public void BhvSerializationparam010QueryArrayJoinsWithTabForTsv()
     {
         Assert.Equal(
             "a\tb\tc",
@@ -191,7 +191,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryArrayJoinsWithPipeForPipes()
+    public void BhvSerializationparam008QueryArrayJoinsWithPipeForPipes()
     {
         Assert.Equal(
             "a|b|c",
@@ -200,7 +200,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryArrayReturnsListForMulti()
+    public void BhvSerializationparam015QueryArrayReturnsListForMulti()
     {
         var result = ValueSerializer.Serialize(
             new List<object> { "a", "b", "c" },
@@ -216,7 +216,10 @@ public class ValueSerializerTest
     [InlineData("ssv", "1  3")]
     [InlineData("tsv", "1\t\t3")]
     [InlineData("pipes", "1||3")]
-    public void QueryArrayKeepsAnEmptySlotForANullElement(string format, string expected)
+    public void BhvSerializationparam011QueryArrayKeepsAnEmptySlotForANullElement(
+        string format,
+        string expected
+    )
     {
         /* A null element is an empty slot: neither skipped nor spelled out as
            the text "null". */
@@ -239,7 +242,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void HeaderArrayKeepsAnEmptySlotForANullElement()
+    public void BhvSerializationparam001HeaderArrayKeepsAnEmptySlotForANullElement()
     {
         Assert.Equal(
             "1,,3",
@@ -265,26 +268,26 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryEmptyArrayReturnsEmptyStringForCsv()
+    public void BhvSerializationparam032QueryEmptyArrayReturnsEmptyStringForCsv()
     {
         Assert.Equal("", ValueSerializer.Serialize(new List<object>(), "query", "array"));
     }
 
     [Fact]
-    public void QueryEmptyArrayReturnsEmptyListForMulti()
+    public void BhvSerializationparam031QueryEmptyArrayReturnsEmptyListForMulti()
     {
         var result = ValueSerializer.Serialize(new List<object>(), "query", "array", "multi");
         Assert.Equal(new List<string>(), result);
     }
 
     [Fact]
-    public void QuerySingleElementArrayReturnsSingleValue()
+    public void BhvSerializationparam090QuerySingleElementArrayReturnsSingleValue()
     {
         Assert.Equal("a", ValueSerializer.Serialize(new List<object> { "a" }, "query", "array"));
     }
 
     [Fact]
-    public void QueryArrayOfIntegersStringifiesElements()
+    public void BhvSerializationparam014QueryArrayOfIntegersStringifiesElements()
     {
         Assert.Equal(
             "1,2,3",
@@ -293,7 +296,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryArrayOfBooleansStringifiesElements()
+    public void BhvSerializationparam012QueryArrayOfBooleansStringifiesElements()
     {
         Assert.Equal(
             "true,false",
@@ -304,31 +307,31 @@ public class ValueSerializerTest
     // -- header location --
 
     [Fact]
-    public void HeaderNullReturnsEmptyString()
+    public void BhvSerializationparam063HeaderNullReturnsEmptyString()
     {
         Assert.Equal("", ValueSerializer.Serialize(null, "header", "string"));
     }
 
     [Fact]
-    public void HeaderStringReturnsAsIs()
+    public void BhvSerializationparam097HeaderStringReturnsAsIs()
     {
         Assert.Equal("hello", ValueSerializer.Serialize("hello", "header", "string"));
     }
 
     [Fact]
-    public void HeaderIntegerReturnsString()
+    public void BhvSerializationparam046HeaderIntegerReturnsString()
     {
         Assert.Equal("42", ValueSerializer.Serialize(42, "header", "integer"));
     }
 
     [Fact]
-    public void HeaderBooleanTrueReturnsTrue()
+    public void BhvSerializationparam023HeaderBooleanTrueReturnsTrue()
     {
         Assert.Equal("true", ValueSerializer.Serialize(true, "header", "boolean"));
     }
 
     [Fact]
-    public void HeaderArrayJoinsWithComma()
+    public void BhvSerializationparam005HeaderArrayJoinsWithComma()
     {
         Assert.Equal(
             "a,b,c",
@@ -337,13 +340,13 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void HeaderEmptyArrayJoinsToEmptyString()
+    public void BhvSerializationparam030HeaderEmptyArrayJoinsToEmptyString()
     {
         Assert.Equal("", ValueSerializer.Serialize(new List<object>(), "header", "array"));
     }
 
     [Fact]
-    public void HeaderArrayOfIntegersStringifiesAndJoins()
+    public void BhvSerializationparam013HeaderArrayOfIntegersStringifiesAndJoins()
     {
         Assert.Equal(
             "1,2,3",
@@ -354,31 +357,31 @@ public class ValueSerializerTest
     // -- form location --
 
     [Fact]
-    public void FormNullReturnsEmptyString()
+    public void BhvSerializationparam064FormNullReturnsEmptyString()
     {
         Assert.Equal("", ValueSerializer.Serialize(null, "form", "string"));
     }
 
     [Fact]
-    public void FormStringReturnsAsIs()
+    public void BhvSerializationparam098FormStringReturnsAsIs()
     {
         Assert.Equal("hello", ValueSerializer.Serialize("hello", "form", "string"));
     }
 
     [Fact]
-    public void FormIntegerReturnsString()
+    public void BhvSerializationparam047FormIntegerReturnsString()
     {
         Assert.Equal("42", ValueSerializer.Serialize(42, "form", "integer"));
     }
 
     [Fact]
-    public void FormBooleanTrueReturnsTrue()
+    public void BhvSerializationparam024FormBooleanTrueReturnsTrue()
     {
         Assert.Equal("true", ValueSerializer.Serialize(true, "form", "boolean"));
     }
 
     [Fact]
-    public void FormBooleanFalseReturnsFalse()
+    public void BhvSerializationparam020FormBooleanFalseReturnsFalse()
     {
         Assert.Equal("false", ValueSerializer.Serialize(false, "form", "boolean"));
     }
@@ -386,7 +389,7 @@ public class ValueSerializerTest
     // -- serializeStyled: matrix style --
 
     [Fact]
-    public void MatrixScalarReturnsSemicolonPrefixedNameValue()
+    public void BhvSerializationparam058MatrixScalarReturnsSemicolonPrefixedNameValue()
     {
         Assert.Equal(
             ";color=blue",
@@ -395,7 +398,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void MatrixArrayExplodeFalseJoinsWithComma()
+    public void BhvSerializationparam055MatrixArrayExplodeFalseJoinsWithComma()
     {
         Assert.Equal(
             ";color=blue,black",
@@ -412,7 +415,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void MatrixArrayExplodeTrueRepeatsName()
+    public void BhvSerializationparam056MatrixArrayExplodeTrueRepeatsName()
     {
         Assert.Equal(
             ";color=blue;color=black",
@@ -429,7 +432,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void MatrixNullReturnsEmptyString()
+    public void BhvSerializationparam057MatrixNullReturnsEmptyString()
     {
         Assert.Equal(
             "",
@@ -440,7 +443,7 @@ public class ValueSerializerTest
     // -- serializeStyled: label style --
 
     [Fact]
-    public void LabelScalarReturnsDotPrefixedValue()
+    public void BhvSerializationparam052LabelScalarReturnsDotPrefixedValue()
     {
         Assert.Equal(
             ".blue",
@@ -449,7 +452,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void LabelArrayExplodeFalseJoinsWithComma()
+    public void BhvSerializationparam049LabelArrayExplodeFalseJoinsWithComma()
     {
         Assert.Equal(
             ".blue,black",
@@ -466,7 +469,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void LabelArrayExplodeTrueJoinsWithDot()
+    public void BhvSerializationparam050LabelArrayExplodeTrueJoinsWithDot()
     {
         Assert.Equal(
             ".blue.black",
@@ -483,7 +486,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void LabelNullReturnsEmptyString()
+    public void BhvSerializationparam051LabelNullReturnsEmptyString()
     {
         Assert.Equal(
             "",
@@ -494,7 +497,7 @@ public class ValueSerializerTest
     // -- serializeStyled: spaceDelimited style --
 
     [Fact]
-    public void SpaceDelimitedArrayJoinsWithSpace()
+    public void BhvSerializationparam093SpaceDelimitedArrayJoinsWithSpace()
     {
         Assert.Equal(
             "blue black",
@@ -523,7 +526,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void SpaceDelimitedScalarReturnsStringifiedValue()
+    public void BhvSerializationparam095SpaceDelimitedScalarReturnsStringifiedValue()
     {
         Assert.Equal(
             "blue",
@@ -539,10 +542,27 @@ public class ValueSerializerTest
         );
     }
 
+    [Fact]
+    public void BhvSerializationparam094SpaceDelimitedArrayExplodeTrueReturnsList()
+    {
+        Assert.Equal(
+            new List<string> { "blue", "black" },
+            ValueSerializer.SerializeStyled(
+                "color",
+                new List<object> { "blue", "black" },
+                "query",
+                "array",
+                null,
+                "spaceDelimited",
+                true
+            )
+        );
+    }
+
     // -- serializeStyled: pipeDelimited style --
 
     [Fact]
-    public void PipeDelimitedArrayJoinsWithPipe()
+    public void BhvSerializationparam074PipeDelimitedArrayJoinsWithPipe()
     {
         Assert.Equal(
             "blue|black",
@@ -571,7 +591,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void PipeDelimitedScalarReturnsStringifiedValue()
+    public void BhvSerializationparam076PipeDelimitedScalarReturnsStringifiedValue()
     {
         Assert.Equal(
             "blue",
@@ -587,16 +607,33 @@ public class ValueSerializerTest
         );
     }
 
+    [Fact]
+    public void BhvSerializationparam075PipeDelimitedArrayExplodeTrueReturnsList()
+    {
+        Assert.Equal(
+            new List<string> { "blue", "black" },
+            ValueSerializer.SerializeStyled(
+                "color",
+                new List<object> { "blue", "black" },
+                "query",
+                "array",
+                null,
+                "pipeDelimited",
+                true
+            )
+        );
+    }
+
     // -- cookie location --
 
     [Fact]
-    public void CookieStringReturnsAsIs()
+    public void BhvSerializationparam099CookieStringReturnsAsIs()
     {
         Assert.Equal("hello", ValueSerializer.Serialize("hello", "cookie", "string", null));
     }
 
     [Fact]
-    public void CookieNullReturnsEmptyString()
+    public void BhvSerializationparam065CookieNullReturnsEmptyString()
     {
         Assert.Equal("", ValueSerializer.Serialize(null, "cookie", "string", null));
     }
@@ -604,7 +641,7 @@ public class ValueSerializerTest
     // -- serializeStyled: form style with explode --
 
     [Fact]
-    public void FormStyleArrayExplodeFalseJoinsWithComma()
+    public void BhvSerializationparam037FormStyleArrayExplodeFalseJoinsWithComma()
     {
         Assert.Equal(
             "blue,black",
@@ -621,7 +658,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void FormStyleArrayExplodeTrueReturnsList()
+    public void BhvSerializationparam038FormStyleArrayExplodeTrueReturnsList()
     {
         var result = ValueSerializer.SerializeStyled(
             "color",
@@ -636,7 +673,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void FormStyleScalarExplodeTrueReturnsStringNotList()
+    public void BhvSerializationparam041FormStyleScalarExplodeTrueReturnsStringNotList()
     {
         Assert.Equal(
             "blue",
@@ -645,7 +682,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void FormStyleSingleElementArrayExplodeTrueReturnsList()
+    public void BhvSerializationparam042FormStyleSingleElementArrayExplodeTrueReturnsList()
     {
         var result = ValueSerializer.SerializeStyled(
             "color",
@@ -660,7 +697,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void FormStyleNullReturnsNullForQuery()
+    public void BhvSerializationparam040FormStyleNullReturnsNullForQuery()
     {
         Assert.Null(
             ValueSerializer.SerializeStyled("color", null, "query", "string", null, "form", true)
@@ -670,7 +707,7 @@ public class ValueSerializerTest
     // -- serializeStyled: simple style backward compatibility --
 
     [Fact]
-    public void SimpleStyleScalarReturnsStringifiedValue()
+    public void BhvSerializationparam086SimpleStyleScalarReturnsStringifiedValue()
     {
         Assert.Equal(
             "5",
@@ -679,7 +716,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void SimpleStyleArrayJoinsWithComma()
+    public void BhvSerializationparam084SimpleStyleArrayJoinsWithComma()
     {
         Assert.Equal(
             "3,4,5",
@@ -696,7 +733,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void SimpleStyleNullReturnsEmptyString()
+    public void BhvSerializationparam085SimpleStyleNullReturnsEmptyString()
     {
         Assert.Equal(
             "",
@@ -705,7 +742,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void SimpleStyleScalarUrlEncodesPath()
+    public void BhvSerializationparam087SimpleStyleScalarUrlEncodesPath()
     {
         Assert.Equal(
             "hello%20world",
@@ -733,7 +770,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void EmptyStyleFallsBackToLocationDefault()
+    public void BhvSerializationparam035EmptyStyleFallsBackToLocationDefault()
     {
         Assert.Equal(
             "5",
@@ -744,7 +781,7 @@ public class ValueSerializerTest
     // -- SerializeDeepObject --
 
     [Fact]
-    public void DeepObjectBasicMapReturnsBracketedKeys()
+    public void BhvSerializationparam017DeepObjectBasicMapReturnsBracketedKeys()
     {
         var result = ValueSerializer.SerializeDeepObject(
             "filter",
@@ -755,7 +792,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void DeepObjectNullReturnsEmptyDictionary()
+    public void BhvSerializationparam061DeepObjectNullReturnsEmptyDictionary()
     {
         var result = ValueSerializer.SerializeDeepObject("filter", null);
         Assert.Empty(result);
@@ -766,49 +803,49 @@ public class ValueSerializerTest
     // Every SDK must produce identical encoded strings for these inputs.
 
     [Fact]
-    public void PathEncodingParityAsciiSafePassThrough()
+    public void BhvSerializationparam016PathEncodingParityAsciiSafePassThrough()
     {
         Assert.Equal("abc123", ValueSerializer.Serialize("abc123", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParitySpaceEncoded()
+    public void BhvSerializationparam092PathEncodingParitySpaceEncoded()
     {
         Assert.Equal("a%20b", ValueSerializer.Serialize("a b", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParitySlashEncoded()
+    public void BhvSerializationparam091PathEncodingParitySlashEncoded()
     {
         Assert.Equal("a%2Fb", ValueSerializer.Serialize("a/b", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParityQuestionMarkEncoded()
+    public void BhvSerializationparam079PathEncodingParityQuestionMarkEncoded()
     {
         Assert.Equal("a%3Fb", ValueSerializer.Serialize("a?b", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParityHashEncoded()
+    public void BhvSerializationparam043PathEncodingParityHashEncoded()
     {
         Assert.Equal("a%23b", ValueSerializer.Serialize("a#b", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParityCommaPreserved()
+    public void BhvSerializationparam026PathEncodingParityCommaPreserved()
     {
         Assert.Equal("a,b", ValueSerializer.Serialize("a,b", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParityColonPreserved()
+    public void BhvSerializationparam025PathEncodingParityColonPreserved()
     {
         Assert.Equal("a:b", ValueSerializer.Serialize("a:b", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParityPlusPreserved()
+    public void BhvSerializationparam077PathEncodingParityPlusPreserved()
     {
         Assert.Equal("a+b", ValueSerializer.Serialize("a+b", "path", "string"));
     }
@@ -846,7 +883,10 @@ public class ValueSerializerTest
     [InlineData(" ", "%20")]
     [InlineData("%", "%25")]
     [InlineData("\"", "%22")]
-    public void PathSegmentEncodesEachReservedOrUnsafeCharacter(string character, string encoded)
+    public void BhvSerializationparam071PathSegmentEncodesEachReservedOrUnsafeCharacter(
+        string character,
+        string encoded
+    )
     {
         Assert.Equal(
             "a" + encoded + "b",
@@ -855,25 +895,25 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void PathEncodingParityUnicodeEncoded()
+    public void BhvSerializationparam103PathEncodingParityUnicodeEncoded()
     {
         Assert.Equal("%E6%97%A5%E6%9C%AC", ValueSerializer.Serialize("日本", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParityEmptyStringPreserved()
+    public void BhvSerializationparam034PathEncodingParityEmptyStringPreserved()
     {
         Assert.Equal("", ValueSerializer.Serialize("", "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParityNullReturnsEmpty()
+    public void BhvSerializationparam070PathEncodingParityNullReturnsEmpty()
     {
         Assert.Equal("", ValueSerializer.Serialize(null, "path", "string"));
     }
 
     [Fact]
-    public void PathEncodingParitySimpleStyleEncodesValue()
+    public void BhvSerializationparam089PathEncodingParitySimpleStyleEncodesValue()
     {
         Assert.Equal(
             "a%20b",
@@ -882,7 +922,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void PathEncodingParitySimpleStyleArrayEncodesEachItem()
+    public void BhvSerializationparam088PathEncodingParitySimpleStyleArrayEncodesEachItem()
     {
         Assert.Equal(
             "a%20b,c%3Fd",
@@ -899,7 +939,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void PathArrayItemWithReservedCharIsPercentEncoded()
+    public void BhvSerializationparam069PathArrayItemWithReservedCharIsPercentEncoded()
     {
         // Gap W1 regression: every per-item path value in a styled array
         // must be percent-encoded BEFORE being joined with the structural
@@ -920,7 +960,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void PathParamIsEncodedExactlyOnceNotDoubleEncoded()
+    public void BhvSerializationparam073PathParamIsEncodedExactlyOnceNotDoubleEncoded()
     {
         // path-double-encoding regression: the operation method substitutes
         // the *already* path-encoded output of SerializeStyled directly into
@@ -950,7 +990,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void PathEncodingParityMatrixStyleEncodesValue()
+    public void BhvSerializationparam059PathEncodingParityMatrixStyleEncodesValue()
     {
         Assert.Equal(
             ";color=a%20b",
@@ -959,7 +999,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void PathEncodingParityLabelStyleEncodesValue()
+    public void BhvSerializationparam053PathEncodingParityLabelStyleEncodesValue()
     {
         Assert.Equal(
             ".a%20b",
@@ -968,7 +1008,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void PathEncodingParityQueryLocationNotPathEncoded()
+    public void BhvSerializationparam078PathEncodingParityQueryLocationNotPathEncoded()
     {
         Assert.Equal(
             "a b",
@@ -977,7 +1017,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void EmptyStringPathParamThrows()
+    public void BhvSerializationparam033EmptyStringPathParamThrows()
     {
         // Gap W — empty-string path values silently produce malformed
         // URLs like `/resource//details`; reject at serialization time so
@@ -993,14 +1033,14 @@ public class ValueSerializerTest
     // `yyyy-MM-dd`.
 
     [Fact]
-    public void FormatDatePathParamDateOnlyReturnsYyyyMmDd()
+    public void BhvSerializationparam028FormatDatePathParamDateOnlyReturnsYyyyMmDd()
     {
         var date = new DateOnly(2024, 1, 15);
         Assert.Equal("2024-01-15", ValueSerializer.Serialize(date, "path", "string"));
     }
 
     [Fact]
-    public void FormatDatePathParamDateOnlyViaSerializeStyledReturnsYyyyMmDd()
+    public void BhvSerializationparam054FormatDatePathParamDateOnlyViaSerializeStyledReturnsYyyyMmDd()
     {
         var date = new DateOnly(2024, 1, 15);
         Assert.Equal(
@@ -1010,7 +1050,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void FormatDatePathParamDateOnlyBoundaryEmitsDateOnly()
+    public void BhvSerializationparam027FormatDatePathParamDateOnlyBoundaryEmitsDateOnly()
     {
         // UTC/midnight edge: a date on the year boundary must serialise as a
         // bare YYYY-MM-DD with no T00:00:00/offset suffix, matching the
@@ -1022,7 +1062,7 @@ public class ValueSerializerTest
     // -- allowReserved query encoding --
 
     [Fact]
-    public void AllowReservedKeepsReservedCharsLiteralButStillEncodesSpace()
+    public void BhvSerializationparam002AllowReservedKeepsReservedCharsLiteralButStillEncodesSpace()
     {
         Assert.Equal("v1.0/beta:rc1", ValueSerializer.EncodeQueryAllowingReserved("v1.0/beta:rc1"));
         // Space is illegal in a URL and must still be percent-encoded even
@@ -1031,7 +1071,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void AllowReservedEncodesFragmentAndBracketCharacters()
+    public void BhvSerializationparam003AllowReservedEncodesFragmentAndBracketCharacters()
     {
         Assert.Equal(
             "a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u",
@@ -1042,7 +1082,7 @@ public class ValueSerializerTest
     [Theory]
     [InlineData(".")]
     [InlineData("..")]
-    public void SerializeStyledRejectsDotSegmentPathValue(string segment)
+    public void BhvSerializationparam029SerializeStyledRejectsDotSegmentPathValue(string segment)
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             ValueSerializer.SerializeStyled(
@@ -1063,7 +1103,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void SerializeStyledKeepsDotsInsideAPathValue()
+    public void BhvSerializationparam072SerializeStyledKeepsDotsInsideAPathValue()
     {
         Assert.Equal(
             "a..b",
@@ -1093,7 +1133,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void MaybeAllowReservedWrapsOnlyWhenAllowReservedIsTrue()
+    public void BhvSerializationparam060MaybeAllowReservedWrapsOnlyWhenAllowReservedIsTrue()
     {
         Assert.Equal("plain", ValueSerializer.MaybeAllowReserved("plain", false));
         var wrapped = Assert.IsType<ValueSerializer.AllowReservedValue>(

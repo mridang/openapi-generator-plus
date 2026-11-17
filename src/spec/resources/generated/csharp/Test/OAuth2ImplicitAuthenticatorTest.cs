@@ -40,7 +40,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void BuildsAuthorizationUrlWithResponseTypeToken()
+    public void BhvAuthoauthtwoimplicit003BuildsAuthorizationUrlWithResponseTypeToken()
     {
         var auth = CreateAuthenticator();
 
@@ -71,7 +71,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void BuildsAuthorizationUrlWithClientId()
+    public void BhvAuthoauthtwoimplicit002BuildsAuthorizationUrlWithClientId()
     {
         var auth = CreateAuthenticator();
 
@@ -81,7 +81,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void BuildsAuthorizationUrlWithScopes()
+    public void BhvAuthoauthtwoimplicit004BuildsAuthorizationUrlWithScopes()
     {
         var auth = CreateAuthenticator();
 
@@ -91,7 +91,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void BuildsAuthorizationUrlWithState()
+    public void BhvAuthoauthtwoimplicit005BuildsAuthorizationUrlWithState()
     {
         var auth = CreateAuthenticator();
 
@@ -101,7 +101,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void OmitsEmptyStateFromAuthorizationUrl()
+    public void BhvAuthoauthtwoimplicit009OmitsEmptyStateFromAuthorizationUrl()
     {
         var auth = CreateAuthenticator();
 
@@ -112,7 +112,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void ThrowsWhenAccessTokenSetToEmpty()
+    public void BhvAuthoauthtwoimplicit013ThrowsWhenAccessTokenSetToEmpty()
     {
         var auth = CreateAuthenticator();
         auth.SetAccessToken("");
@@ -122,7 +122,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void GetAuthHeadersReturnsBearerAfterSetAccessToken()
+    public void BhvAuthoauthtwoimplicit007GetAuthHeadersReturnsBearerAfterSetAccessToken()
     {
         var auth = CreateAuthenticator();
         auth.SetAccessToken("implicit-tok");
@@ -133,7 +133,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void ThrowsWhenAccessTokenNotSet()
+    public void BhvAuthoauthtwoimplicit012ThrowsWhenAccessTokenNotSet()
     {
         var auth = CreateAuthenticator();
 
@@ -146,7 +146,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void GetHostReturnsConfiguredHost()
+    public void BhvAuthoauthtwoimplicit008GetHostReturnsConfiguredHost()
     {
         var auth = CreateAuthenticator();
 
@@ -158,7 +158,7 @@ public class OAuth2ImplicitAuthenticatorTest
     /// and the masked placeholder present.
     /// </summary>
     [Fact]
-    public void RedactsSecret()
+    public void BhvAuthoauthtwoimplicit010RedactsSecret()
     {
         var auth = CreateAuthenticator();
         auth.SetAccessToken("implicit-tok");
@@ -168,7 +168,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void ReprShowsTheNonSecretFieldsAndWhetherATokenIsSet()
+    public void BhvAuthoauthtwoimplicit011ReprShowsTheNonSecretFieldsAndWhetherATokenIsSet()
     {
         var auth = CreateAuthenticator();
         string prefix =
@@ -182,7 +182,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
+    public void BhvAuthoauthtwoimplicit001AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
     {
         var auth = new OAuth2ImplicitAuthenticator(
             "https://api.example.com",

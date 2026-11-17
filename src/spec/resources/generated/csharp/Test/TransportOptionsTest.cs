@@ -15,70 +15,77 @@ namespace Test;
 public class TransportOptionsTest
 {
     [Fact]
-    public void VerifySslDefaultsToTrue()
+    public void BhvOptions043VerifySslDefaultsToTrue()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.True(opts.VerifySsl);
     }
 
     [Fact]
-    public void CaCertPathDefaultsToNull()
+    public void BhvOptions018CaCertPathDefaultsToNull()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.Null(opts.CaCertPath);
     }
 
     [Fact]
-    public void ProxyDefaultsToNull()
+    public void BhvOptions032ProxyDefaultsToNull()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.Null(opts.Proxy);
     }
 
     [Fact]
-    public void TimeoutDefaultsToTenSeconds()
+    public void BhvOptions038TimeoutDefaultsToTenSeconds()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.Equal(10000, opts.Timeout);
     }
 
     [Fact]
-    public void TimeoutCanBeExplicitlyDisabled()
+    public void BhvOptions039TimeoutDefaultsTo10000Milliseconds()
+    {
+        var opts = TransportOptions.Builder().Build();
+        Assert.Equal(10000, opts.Timeout);
+    }
+
+    [Fact]
+    public void BhvOptions037TimeoutCanBeExplicitlyDisabled()
     {
         var opts = TransportOptions.Builder().Timeout(null).Build();
         Assert.Null(opts.Timeout);
     }
 
     [Fact]
-    public void FollowRedirectsDefaultsToTrue()
+    public void BhvOptions020FollowRedirectsDefaultsToTrue()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.True(opts.FollowRedirects);
     }
 
     [Fact]
-    public void MaxRedirectsDefaultsToNull()
+    public void BhvOptions025MaxRedirectsDefaultsToNull()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.Null(opts.MaxRedirects);
     }
 
     [Fact]
-    public void UserAgentDefaultsToNonEmptyString()
+    public void BhvOptions041UserAgentDefaultsToNonEmptyString()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.Equal("PetstoreClient/1.0.0 (csharp)", opts.UserAgent);
     }
 
     [Fact]
-    public void DefaultHeadersDefaultsToEmpty()
+    public void BhvOptions019DefaultHeadersDefaultsToEmpty()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.Empty(opts.DefaultHeaders);
     }
 
     [Fact]
-    public void MaxRetriesDefaultsToTwoAndZeroDisablesRetrying()
+    public void BhvOptions026MaxRetriesDefaultsToTwoAndZeroDisablesRetrying()
     {
         Assert.Equal(2, TransportOptions.Builder().Build().MaxRetries);
         Assert.Equal(0, TransportOptions.Builder().MaxRetries(0).Build().MaxRetries);
@@ -86,20 +93,20 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void MaxRetriesRejectsANegativeValue()
+    public void BhvOptions007MaxRetriesRejectsANegativeValue()
     {
         Assert.Throws<ArgumentException>(() => TransportOptions.Builder().MaxRetries(-1));
     }
 
     [Fact]
-    public void InjectRequestIdDefaultsToFalse()
+    public void BhvOptions022InjectRequestIdDefaultsToFalse()
     {
         var opts = TransportOptions.Builder().Build();
         Assert.False(opts.InjectRequestId);
     }
 
     [Fact]
-    public void BuilderSetsAllFields()
+    public void BhvOptions017BuilderSetsAllFields()
     {
         var opts = TransportOptions
             .Builder()
@@ -126,7 +133,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void FollowRedirectsDefaultsToTrueWithNullMaxRedirects()
+    public void BhvOptions021FollowRedirectsDefaultsToTrueWithNullMaxRedirects()
     {
         var opts = TransportOptions.Builder().FollowRedirects(true).Build();
 
@@ -141,7 +148,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void RejectsANegativeTimeoutWithTheCanonicalMessage()
+    public void BhvOptions033RejectsANegativeTimeoutWithTheCanonicalMessage()
     {
         // D77. ArgumentException appends the parameter name to Message, so the
         // canonical text is the prefix.
@@ -157,7 +164,7 @@ public class TransportOptionsTest
     [InlineData("socks5://svc:s3cret@proxy:1080")]
     [InlineData("svc:s3cret@proxy:1080 not a url")]
     [InlineData("ftp://svc:s3cret@proxy:1080/path")]
-    public void ProxyErrorsNeverEchoThePassword(string proxy)
+    public void BhvOptions008ProxyErrorsNeverEchoThePassword(string proxy)
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().Proxy(proxy).Build()
@@ -168,7 +175,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void RejectsAZeroTimeoutWithTheCanonicalMessage()
+    public void BhvOptions031RejectsAZeroTimeoutWithTheCanonicalMessage()
     {
         var ex = Assert.Throws<ArgumentException>(() => TransportOptions.Builder().Timeout(0));
         Assert.StartsWith(
@@ -193,7 +200,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void InvalidProxyUrlThrowsException()
+    public void BhvOptions024InvalidProxyUrlThrowsException()
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().Proxy("not a valid url").Build()
@@ -206,7 +213,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void InvalidProxyUrlIsOnlyRejectedAtBuild()
+    public void BhvOptions013InvalidProxyUrlIsOnlyRejectedAtBuild()
     {
         var builder = TransportOptions.Builder().Proxy("not a valid url");
         Assert.Throws<ArgumentException>(() => builder.Build());
@@ -219,7 +226,7 @@ public class TransportOptionsTest
     [InlineData("ftp://proxy.example.com:21", "must use http or https scheme")]
     [InlineData("socks5://proxy.example.com:1080", "must use http or https scheme")]
     [InlineData("file:///tmp/proxy", "must use http or https scheme")]
-    public void InvalidProxyUrlIsRejectedWithItsReason(string proxy, string reason)
+    public void BhvOptions011InvalidProxyUrlIsRejectedWithItsReason(string proxy, string reason)
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().Proxy(proxy).Build()
@@ -229,7 +236,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void ProxyUrlWithAnIpv6LiteralHostIsAccepted()
+    public void BhvOptions009ProxyUrlWithAnIpv6LiteralHostIsAccepted()
     {
         var opts = TransportOptions.Builder().Proxy("http://[::1]:3128").Build();
 
@@ -239,7 +246,7 @@ public class TransportOptionsTest
     [Theory]
     [InlineData("http://[::1:3128")]
     [InlineData("http://user@[::1:3128")]
-    public void ProxyUrlWithAnUnterminatedIpv6LiteralIsRejected(string proxy)
+    public void BhvOptions010ProxyUrlWithAnUnterminatedIpv6LiteralIsRejected(string proxy)
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().Proxy(proxy).Build()
@@ -249,7 +256,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void UpperCaseProxySchemeIsAcceptedAndKeptVerbatim()
+    public void BhvOptions014UpperCaseProxySchemeIsAcceptedAndKeptVerbatim()
     {
         var opts = TransportOptions.Builder().Proxy("HTTP://proxy.example.com:8080").Build();
 
@@ -257,7 +264,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void NullProxyUrlIsAccepted()
+    public void BhvOptions030NullProxyUrlIsAccepted()
     {
         var opts = TransportOptions.Builder().Proxy(null).Build();
 
@@ -265,7 +272,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void BuilderMethodsReturnSameInstance()
+    public void BhvOptions015BuilderMethodsReturnSameInstance()
     {
         var builder = TransportOptions.Builder();
 
@@ -282,7 +289,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void AccumulatesHeadersFromDefaultHeaderCalls()
+    public void BhvOptions012AccumulatesHeadersFromDefaultHeaderCalls()
     {
         var opts = TransportOptions
             .Builder()
@@ -296,7 +303,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void MergesHeadersFromDefaultHeadersCall()
+    public void BhvOptions028MergesHeadersFromDefaultHeadersCall()
     {
         var opts = TransportOptions
             .Builder()
@@ -313,7 +320,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void ModifyingSourceMapDoesNotAffectBuiltOptions()
+    public void BhvOptions029ModifyingSourceMapDoesNotAffectBuiltOptions()
     {
         var headers = new Dictionary<string, string> { { "X-Original", "original" } };
 
@@ -327,7 +334,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void BuilderProducesIndependentInstances()
+    public void BhvOptions016BuilderProducesIndependentInstances()
     {
         var builder = TransportOptions.Builder().VerifySsl(false);
         var first = builder.Build();
@@ -340,14 +347,14 @@ public class TransportOptionsTest
     // TimeoutConfigTests
 
     [Fact]
-    public void SettingTimeoutIsAccessible()
+    public void BhvOptions036SettingTimeoutIsAccessible()
     {
         var opts = TransportOptions.Builder().Timeout(5000).Build();
         Assert.Equal(5000, opts.Timeout);
     }
 
     [Fact]
-    public void TimeoutFieldIsNamedTimeout()
+    public void BhvOptions040TimeoutFieldIsNamedTimeout()
     {
         // Verify via the property that the field is named 'Timeout' (not e.g. 'ConnectionTimeout').
         var opts = TransportOptions.Builder().Timeout(1000).Build();
@@ -358,14 +365,14 @@ public class TransportOptionsTest
     // ProxyConfigTests
 
     [Fact]
-    public void ProxyUrlIsPreservedOnReadBack()
+    public void BhvOptions035ProxyUrlIsPreservedOnReadBack()
     {
         var opts = TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build();
         Assert.Equal("http://proxy.example.com:8080", opts.Proxy);
     }
 
     [Fact]
-    public void SettingProxyIsSupportedOnAllPlatforms()
+    public void BhvOptions034SettingProxyIsSupportedOnAllPlatforms()
     {
         // Proxy configuration must not throw on any .NET platform.
         var exception = Record.Exception(() =>

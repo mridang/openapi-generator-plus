@@ -73,7 +73,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public void BuildsAuthorizationUrlWithRequiredParams()
+    public void BhvAuthoauthtwoauthcode006BuildsAuthorizationUrlWithRequiredParams()
     {
         var auth = CreateAuthenticator();
 
@@ -88,7 +88,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public void BuildsAuthorizationUrlWithState()
+    public void BhvAuthoauthtwoauthcode007BuildsAuthorizationUrlWithState()
     {
         var auth = CreateAuthenticator();
 
@@ -98,7 +98,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public void OmitsEmptyStateFromAuthorizationUrl()
+    public void BhvAuthoauthtwoauthcode018OmitsEmptyStateFromAuthorizationUrl()
     {
         var auth = CreateAuthenticator();
 
@@ -134,7 +134,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task AuthorizationUrlCarriesAPkceS256ChallengeThatTheCodeExchangeProves()
+    public async Task BhvAuthoauthtwoauthcode023AuthorizationUrlCarriesAPkceS256ChallengeThatTheCodeExchangeProves()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -156,7 +156,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task ACodeExchangeWithoutAnAuthorizationUrlSendsNoCodeVerifier()
+    public async Task BhvAuthoauthtwoauthcode001ACodeExchangeWithoutAnAuthorizationUrlSendsNoCodeVerifier()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -169,7 +169,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task EveryAuthorizationUrlGetsAFreshVerifierAndAnExchangeSpendsIt()
+    public async Task BhvAuthoauthtwoauthcode009EveryAuthorizationUrlGetsAFreshVerifierAndAnExchangeSpendsIt()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -196,7 +196,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task InvalidatingTheAccessTokenKeepsTheRefreshTokenAndRefreshesNext()
+    public async Task BhvAuthoauthtwoauthcode016InvalidatingTheAccessTokenKeepsTheRefreshTokenAndRefreshesNext()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -218,7 +218,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task ExchangesCodeWithCorrectGrantType()
+    public async Task BhvAuthoauthtwoauthcode012ExchangesCodeWithCorrectGrantType()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -246,7 +246,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task ExchangeCodeRejectsEmptyCode()
+    public async Task BhvAuthoauthtwoauthcode010ExchangeCodeRejectsEmptyCode()
     {
         // oauth-exchangecode-no-empty-code-guard: an empty/whitespace
         // authorization code is a precondition error and must be rejected
@@ -268,7 +268,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task ExchangeCodeRejectsWhitespaceOnlyCode()
+    public async Task BhvAuthoauthtwoauthcode011ExchangeCodeRejectsWhitespaceOnlyCode()
     {
         // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
         // distinct from the empty-string case and must also be rejected before
@@ -283,7 +283,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task IncludesRefreshTokenOnRefresh()
+    public async Task BhvAuthoauthtwoauthcode015IncludesRefreshTokenOnRefresh()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -303,7 +303,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task ThrowsBeforeExchangeCodeCalled()
+    public async Task BhvAuthoauthtwoauthcode027ThrowsBeforeExchangeCodeCalled()
     {
         var auth = CreateAuthenticator();
 
@@ -314,7 +314,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public void GetHostReturnsConfiguredHost()
+    public void BhvAuthoauthtwoauthcode014GetHostReturnsConfiguredHost()
     {
         var auth = CreateAuthenticator();
 
@@ -322,7 +322,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task AuthHeadersBeforeExchangeReturnsRecoverableError()
+    public async Task BhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError()
     {
         var auth = CreateAuthenticator();
 
@@ -339,7 +339,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public void AuthorizeUrlWithExistingQueryStringUsesAmpSeparator()
+    public void BhvAuthoauthtwoauthcode005AuthorizeUrlWithExistingQueryStringUsesAmpSeparator()
     {
         var auth = new OAuth2AuthorizationCodeAuthenticator(
             "https://api.example.com",
@@ -429,7 +429,10 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         "https://App.Example.com:443/cb",
         "redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcb"
     )]
-    public async Task CodeExchangeSendsRedirectUriVerbatim(string redirect, string expected)
+    public async Task BhvAuthoauthtwoauthcode008CodeExchangeSendsRedirectUriVerbatim(
+        string redirect,
+        string expected
+    )
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -448,7 +451,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     /// and the masked placeholder present.
     /// </summary>
     [Fact]
-    public void RedactsSecret()
+    public void BhvAuthoauthtwoauthcode019RedactsSecret()
     {
         var auth = CreateAuthenticator();
         string repr = auth.ToString();
@@ -457,7 +460,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public void ReprShowsTheNonSecretFields()
+    public void BhvAuthoauthtwoauthcode025ReprShowsTheNonSecretFields()
     {
         var auth = CreateAuthenticator();
         Assert.Equal(
@@ -471,7 +474,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public void AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
+    public void BhvAuthoauthtwoauthcode004AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
     {
         var auth = new OAuth2AuthorizationCodeAuthenticator(
             "https://api.example.com",
@@ -491,7 +494,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task CodeExchangeBodyPercentEncodesEverythingButTheUnreservedSet()
+    public async Task BhvAuthoauthtwoauthcode017CodeExchangeBodyPercentEncodesEverythingButTheUnreservedSet()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -518,7 +521,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
+    public async Task BhvAuthoauthtwoauthcode024RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -560,7 +563,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task RefreshBodyCarriesTheClientCredentials()
+    public async Task BhvAuthoauthtwoauthcode026RefreshBodyCarriesTheClientCredentials()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -578,7 +581,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task RejectedRefreshSurfacesOAuth2ServerExceptionAfterOnePost()
+    public async Task BhvAuthoauthtwoauthcode002RejectedRefreshSurfacesOAuth2ServerExceptionAfterOnePost()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -596,7 +599,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task SecondExchangeCodeSendsTheNewCode()
+    public async Task BhvAuthoauthtwoauthcode021SecondExchangeCodeSendsTheNewCode()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -623,7 +626,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken()
+    public async Task BhvAuthoauthtwoauthcode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -643,7 +646,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task FailedExchangeKeepsThePreviousSession()
+    public async Task BhvAuthoauthtwoauthcode013FailedExchangeKeepsThePreviousSession()
     {
         var client = new FakeApiClient();
         client.Enqueue(

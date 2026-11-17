@@ -57,7 +57,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ExtractsAccessTokenFromResponse()
+    public async Task BhvAuthoauthtwotokenmgr014ExtractsAccessTokenFromResponse()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok123\",\"expires_in\":3600}");
@@ -74,7 +74,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task TokenRequestIsAFormPostThatAcceptsJson()
+    public async Task BhvAuthoauthtwotokenmgr035TokenRequestIsAFormPostThatAcceptsJson()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok123\",\"expires_in\":3600}");
@@ -92,7 +92,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task StoresRefreshToken()
+    public async Task BhvAuthoauthtwotokenmgr028StoresRefreshToken()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -111,7 +111,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ReturnsCachedTokenWhenNotExpired()
+    public async Task BhvAuthoauthtwotokenmgr025ReturnsCachedTokenWhenNotExpired()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -130,7 +130,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task RefetchesTokenWhenExpired()
+    public async Task BhvAuthoauthtwotokenmgr021RefetchesTokenWhenExpired()
     {
         var client = new FakeApiClient();
         // First token with a zero lifetime: stale the moment it arrives
@@ -153,7 +153,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task SetAccessTokenBypassesEndpoint()
+    public async Task BhvAuthoauthtwotokenmgr026SetAccessTokenBypassesEndpoint()
     {
         var manager = new OAuth2TokenManager();
         manager.SetAccessToken("manual-token");
@@ -168,7 +168,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task InvalidateAccessTokenForcesRefetch()
+    public async Task BhvAuthoauthtwotokenmgr018InvalidateAccessTokenForcesRefetch()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -189,7 +189,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ThrowsWhenNoApiClientInjected()
+    public async Task BhvAuthoauthtwotokenmgr030ThrowsWhenNoApiClientInjected()
     {
         var manager = new OAuth2TokenManager();
 
@@ -202,7 +202,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ConcurrentCallersTriggerOnlyOneTokenRequest()
+    public async Task BhvAuthoauthtwotokenmgr027ConcurrentCallersTriggerOnlyOneTokenRequest()
     {
         // Gap G: single-flight refresh. 10 concurrent callers immediately after
         // invalidation must result in exactly ONE HTTP call to the token endpoint.
@@ -259,7 +259,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ExpiresInShortLivedTokenDoesNotStorm()
+    public async Task BhvAuthoauthtwotokenmgr013ExpiresInShortLivedTokenDoesNotStorm()
     {
         // Gap CM: short-lived token (expires_in < 30s buffer) — a single
         // GetAccessTokenAsync call must produce exactly ONE network call.
@@ -278,7 +278,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ExpiresInLongLivedTokenAppliesFullBuffer()
+    public async Task BhvAuthoauthtwotokenmgr010ExpiresInLongLivedTokenAppliesFullBuffer()
     {
         // Gap CM: long-lived token — full 30s buffer applied; second call within
         // the same instant must serve from cache.
@@ -303,7 +303,9 @@ public class OAuth2TokenManagerTest
     [InlineData(60)]
     [InlineData(90)]
     [InlineData(120)]
-    public async Task ShortLivedTokenIsReusedUnderASingleMargin(int expiresIn)
+    public async Task BhvAuthoauthtwotokenmgr004ShortLivedTokenIsReusedUnderASingleMargin(
+        int expiresIn
+    )
     {
         // F854/F895: one margin, capped at half the lifetime, so a token with
         // an expires_in of 90 seconds or less is still served from cache and
@@ -327,7 +329,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task RefreshTokenEmptyStringPreservesExisting()
+    public async Task BhvAuthoauthtwotokenmgr024RefreshTokenEmptyStringPreservesExisting()
     {
         // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
         // MUST NOT clobber the cached refresh_token.
@@ -395,7 +397,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ExpiresInAsJsonStringIsAccepted()
+    public async Task BhvAuthoauthtwotokenmgr009ExpiresInAsJsonStringIsAccepted()
     {
         // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
         // quoted string. The manager must accept it and cache the token; a
@@ -417,7 +419,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ExpiresInAsFloatIsFloored()
+    public async Task BhvAuthoauthtwotokenmgr008ExpiresInAsFloatIsFloored()
     {
         // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
         // The manager must floor it and cache the token.
@@ -441,7 +443,9 @@ public class OAuth2TokenManagerTest
     [InlineData("1e20")]
     [InlineData("9000000000000000000")]
     [InlineData("\"99999999999999999999\"")]
-    public async Task ExpiresInBeyondTheCeilingIsClampedAndCached(string expiresIn)
+    public async Task BhvAuthoauthtwotokenmgr005ExpiresInBeyondTheCeilingIsClampedAndCached(
+        string expiresIn
+    )
     {
         // A server-supplied lifetime past what DateTimeOffset can add must be
         // clamped to one year, not throw; the token is then served from cache.
@@ -489,7 +493,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ExpiresInNegativeSkipsCaching()
+    public async Task BhvAuthoauthtwotokenmgr011ExpiresInNegativeSkipsCaching()
     {
         // D1: a negative expires_in (e.g. -1) must mark the token as
         // immediately stale so the very next call refetches.
@@ -511,7 +515,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ThrowsWhenTokenRequestFails()
+    public async Task BhvAuthoauthtwotokenmgr031ThrowsWhenTokenRequestFails()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"error\":\"invalid_client\"}", statusCode: 401);
@@ -529,7 +533,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task MalformedTokenResponseRaisesOAuth2TokenException()
+    public async Task BhvAuthoauthtwotokenmgr001MalformedTokenResponseRaisesOAuth2TokenException()
     {
         // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException,
         // never a raw JsonException.
@@ -554,7 +558,7 @@ public class OAuth2TokenManagerTest
     [InlineData("\"tok\"", "Token response is not a JSON object")]
     [InlineData("{}", "Token response missing or empty access_token field")]
     [InlineData("{\"access_token\":\"\"}", "Token response missing or empty access_token field")]
-    public async Task UnusableTokenResponseHasTheCanonicalMessageAndNoCause(
+    public async Task BhvAuthoauthtwotokenmgr040UnusableTokenResponseHasTheCanonicalMessageAndNoCause(
         string body,
         string expected
     )
@@ -581,7 +585,7 @@ public class OAuth2TokenManagerTest
     [InlineData("Bearer")]
     [InlineData("bearer")]
     [InlineData("BEARER")]
-    public async Task TokenTypeBearerInAnyCaseIsAccepted(string tokenType)
+    public async Task BhvAuthoauthtwotokenmgr002TokenTypeBearerInAnyCaseIsAccepted(string tokenType)
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"at\",\"token_type\":\"" + tokenType + "\"}");
@@ -601,7 +605,9 @@ public class OAuth2TokenManagerTest
     [InlineData("mac")]
     [InlineData("N_A")]
     [InlineData("")]
-    public async Task TokenTypeOtherThanBearerIsRefusedWithoutEchoingIt(string tokenType)
+    public async Task BhvAuthoauthtwotokenmgr038TokenTypeOtherThanBearerIsRefusedWithoutEchoingIt(
+        string tokenType
+    )
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"at\",\"token_type\":\"" + tokenType + "\"}");
@@ -653,7 +659,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task TokenTransportFailurePropagatesNetworkException()
+    public async Task BhvAuthoauthtwotokenmgr037TokenTransportFailurePropagatesNetworkException()
     {
         // A transport failure on the token POST reaches the caller unchanged.
         var failure = new PetstoreClient.Errors.NetworkException(
@@ -700,7 +706,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task TokenResponseMissingAccessTokenThrowsTypedError()
+    public async Task BhvAuthoauthtwotokenmgr036TokenResponseMissingAccessTokenThrowsTypedError()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"refresh_token\":\"x\"}");
@@ -717,7 +723,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task TokenEndpointErrorResponseParsedToTypedError()
+    public async Task BhvAuthoauthtwotokenmgr032TokenEndpointErrorResponseParsedToTypedError()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -747,7 +753,7 @@ public class OAuth2TokenManagerTest
         new() { ["grant_type"] = "client_credentials" };
 
     [Fact]
-    public async Task TokenWithoutExpiresInIsCachedIndefinitely()
+    public async Task BhvAuthoauthtwotokenmgr039TokenWithoutExpiresInIsCachedIndefinitely()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\"}");
@@ -763,7 +769,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task RefreshResponseWithoutExpiresInClearsTheStaleExpiry()
+    public async Task BhvAuthoauthtwotokenmgr003RefreshResponseWithoutExpiresInClearsTheStaleExpiry()
     {
         /* F896: the first token is stale at once (expires_in of zero). A
            refresh response that omits expires_in carries no expiry, so the new
@@ -785,7 +791,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task NonStringRefreshTokenIsIgnoredNotCoerced()
+    public async Task BhvAuthoauthtwotokenmgr020NonStringRefreshTokenIsIgnoredNotCoerced()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":12345,\"expires_in\":3600}");
@@ -799,7 +805,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task NonStringRefreshTokenDoesNotReplaceTheStoredOne()
+    public async Task BhvAuthoauthtwotokenmgr017NonStringRefreshTokenDoesNotReplaceTheStoredOne()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -865,7 +871,7 @@ public class OAuth2TokenManagerTest
     // ---- 3.2: token POSTs must refuse ALL 3xx redirects ----
 
     [Fact]
-    public async Task TokenRequestSetsNoRedirect()
+    public async Task BhvAuthoauthtwotokenmgr034TokenRequestSetsNoRedirect()
     {
         // The token manager must pass noRedirect=true so the transport
         // does not silently follow a malicious 307 from the token URL.
@@ -893,7 +899,7 @@ public class OAuth2TokenManagerTest
     [InlineData(303)]
     [InlineData(307)]
     [InlineData(308)]
-    public async Task RefusesRedirectFromTokenEndpoint(int statusCode)
+    public async Task BhvAuthoauthtwotokenmgr033RefusesRedirectFromTokenEndpoint(int statusCode)
     {
         var client = new FakeApiClient();
         client.Enqueue("", statusCode: statusCode);
@@ -911,7 +917,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task InvalidateAccessTokenTriggersSingleRefetchUnderConcurrency()
+    public async Task BhvAuthoauthtwotokenmgr019InvalidateAccessTokenTriggersSingleRefetchUnderConcurrency()
     {
         // After invalidation, 10 concurrent callers must coalesce into exactly
         // ONE additional HTTP call (single-flight), all observing the same
@@ -971,7 +977,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task RefreshGoesToTheRefreshUrlWithTheClientCredentials()
+    public async Task BhvAuthoauthtwotokenmgr029RefreshGoesToTheRefreshUrlWithTheClientCredentials()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -999,7 +1005,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task RefreshGrantParametersMakeExactlyOnePost()
+    public async Task BhvAuthoauthtwotokenmgr023RefreshGrantParametersMakeExactlyOnePost()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -1027,7 +1033,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ExchangeBypassesTheCacheAndTheRefreshPath()
+    public async Task BhvAuthoauthtwotokenmgr006ExchangeBypassesTheCacheAndTheRefreshPath()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -1054,7 +1060,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task FailedExchangeRestoresThePreviousSession()
+    public async Task BhvAuthoauthtwotokenmgr015FailedExchangeRestoresThePreviousSession()
     {
         var client = new FakeApiClient();
         client.Enqueue(

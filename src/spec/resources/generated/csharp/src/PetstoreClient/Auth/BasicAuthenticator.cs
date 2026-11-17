@@ -32,6 +32,16 @@ public class BasicAuthenticator : BaseAuthenticator
          * separator) and neither user-id nor password may carry CR/LF/NUL
          * (header-injection / smuggling vectors common when credentials
          * are read from .env files or interactive prompts). */
+        /* Missing or empty credentials are a programmer error, the same in every
+         * SDK: fail here rather than send an empty Authorization value. */
+        if (string.IsNullOrEmpty(username))
+        {
+            throw new ArgumentException("Basic auth username must not be empty", nameof(username));
+        }
+        if (string.IsNullOrEmpty(password))
+        {
+            throw new ArgumentException("Basic auth password must not be empty", nameof(password));
+        }
         if (username != null)
         {
             foreach (char c in username)

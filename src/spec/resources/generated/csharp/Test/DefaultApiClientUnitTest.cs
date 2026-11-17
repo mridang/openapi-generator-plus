@@ -21,7 +21,7 @@ namespace Test;
 public class DefaultApiClientUnitTest
 {
     [Fact]
-    public async Task SendsGetRequestAndReturnsResponse()
+    public async Task BhvTransport054SendsGetRequestAndReturnsResponse()
     {
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"GET\"}");
         var client = new DefaultApiClient(httpClient);
@@ -38,7 +38,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task SendsPostWithJsonBody()
+    public async Task BhvSerializationwire052SendsPostWithJsonBody()
     {
         var httpClient = CreateMockHttpClient(
             HttpStatusCode.OK,
@@ -59,7 +59,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ReturnsResponseHeaders()
+    public async Task BhvTransport051ReturnsResponseHeaders()
     {
         var headers = new Dictionary<string, string> { { "X-Test-Header", "test-value" } };
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "ok", headers);
@@ -78,7 +78,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ReturnsNon2xxStatusCode()
+    public async Task BhvTransport050ReturnsNon2xxStatusCode()
     {
         var httpClient = CreateMockHttpClient(HttpStatusCode.NotFound, "not found");
         var client = new DefaultApiClient(httpClient);
@@ -95,7 +95,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task SendsPutRequest()
+    public async Task BhvTransport055SendsPutRequest()
     {
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"PUT\"}");
         var client = new DefaultApiClient(httpClient);
@@ -112,7 +112,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task SendsDeleteRequest()
+    public async Task BhvTransport053SendsDeleteRequest()
     {
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"DELETE\"}");
         var client = new DefaultApiClient(httpClient);
@@ -129,7 +129,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ReturnsJsonBodyForVendorJsonContentType()
+    public async Task BhvSerializationwire051ReturnsJsonBodyForVendorJsonContentType()
     {
         var httpClient = CreateMockHttpClient(
             HttpStatusCode.OK,
@@ -150,7 +150,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task JoinsMultiValueResponseHeaders()
+    public async Task BhvTransport044JoinsMultiValueResponseHeaders()
     {
         var handler = new MockHandler(
             HttpStatusCode.OK,
@@ -177,7 +177,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task InjectsCustomUserAgent()
+    public async Task BhvTransport041InjectsCustomUserAgent()
     {
         string? capturedUserAgent = null;
         var handler = new CapturingHandler(req =>
@@ -198,7 +198,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task InjectsDefaultUserAgentWhenNotExplicitlySet()
+    public async Task BhvTransport042InjectsDefaultUserAgentWhenNotExplicitlySet()
     {
         string? capturedUserAgent = null;
         var handler = new CapturingHandler(req =>
@@ -218,7 +218,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task InjectsRequestId()
+    public async Task BhvTransport043InjectsRequestId()
     {
         string? capturedRequestId = null;
         var handler = new CapturingHandler(req =>
@@ -244,7 +244,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task DoesNotInjectRequestIdWhenDisabled()
+    public async Task BhvTransport036DoesNotInjectRequestIdWhenDisabled()
     {
         bool requestIdPresent = false;
         var handler = new CapturingHandler(req =>
@@ -265,7 +265,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task AdvertisesGzipDeflateAndBrotliByDefault()
+    public async Task BhvSerializationwire029AdvertisesGzipDeflateAndBrotliByDefault()
     {
         string? acceptEncoding = null;
         var handler = new CapturingHandler(req =>
@@ -284,7 +284,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallerAcceptEncodingReplacesTheDefault()
+    public async Task BhvTransport045CallerAcceptEncodingReplacesTheDefault()
     {
         string? acceptEncoding = null;
         var handler = new CapturingHandler(req =>
@@ -303,7 +303,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task LowerCaseCallerAcceptEncodingIsNotSentAlongsideTheDefault()
+    public async Task BhvTransport026LowerCaseCallerAcceptEncodingIsNotSentAlongsideTheDefault()
     {
         // F905: header names are case-insensitive, so a caller's lower-case
         // accept-encoding replaces the default instead of adding a second value.
@@ -332,7 +332,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallerHeaderReplacesATransportDefaultOfADifferentCasing()
+    public async Task BhvTransport047CallerHeaderReplacesATransportDefaultOfADifferentCasing()
     {
         // F860: the merge is case-insensitive, so one Authorization header is
         // sent and it is the caller's.
@@ -363,7 +363,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task DoesNotOverrideCallerRequestId()
+    public async Task BhvOptions006DoesNotOverrideCallerRequestId()
     {
         string? capturedRequestId = null;
         var handler = new CapturingHandler(req =>
@@ -416,7 +416,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task GeneratesUniqueRequestIds()
+    public async Task BhvTransport038GeneratesUniqueRequestIds()
     {
         var capturedIds = new List<string>();
         var handler = new CapturingHandler(req =>
@@ -447,7 +447,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task IncludesTransportDefaultHeaders()
+    public async Task BhvTransport039IncludesTransportDefaultHeaders()
     {
         string? capturedValue = null;
         var handler = new CapturingHandler(req =>
@@ -510,7 +510,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallerHeadersOverrideDefaults()
+    public async Task BhvOptions005CallerHeadersOverrideDefaults()
     {
         string? capturedAccept = null;
         var handler = new CapturingHandler(req =>
@@ -534,7 +534,7 @@ public class DefaultApiClientUnitTest
     // -- Gap J: per-part MIME sniffing for multipart uploads --
 
     [Fact]
-    public async Task MultipartFileWithPngExtensionSetsImagePngContentType()
+    public async Task BhvSerializationwire039MultipartFileWithPngExtensionSetsImagePngContentType()
     {
         // Serialize the multipart inside the handler — the request is wrapped in
         // `using` in SendRequestAsync, so its Content is disposed once that method
@@ -566,7 +566,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task MultipartFileWithoutExtensionDefaultsToOctetStream()
+    public async Task BhvSerializationwire040MultipartFileWithoutExtensionDefaultsToOctetStream()
     {
         string? wireText = null;
         string? contentTypeHeader = null;
@@ -598,7 +598,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task MultipartRawBytesPartReusesFieldNameAsFilenameAndOctetStream()
+    public async Task BhvSerializationwire049MultipartRawBytesPartReusesFieldNameAsFilenameAndOctetStream()
     {
         // Cross-language contract: a raw-bytes part with NO explicit filename
         // reuses the FIELD NAME as the filename and, since "file" has no
@@ -636,7 +636,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task MultipartFileWithPdfExtensionSetsApplicationPdfContentType()
+    public async Task BhvSerializationwire038MultipartFileWithPdfExtensionSetsApplicationPdfContentType()
     {
         string? wireText = null;
         string? contentTypeHeader = null;
@@ -664,7 +664,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task MultipartAvatarPngFilePartGetsImagePngContentType()
+    public async Task BhvSerializationwire047MultipartAvatarPngFilePartGetsImagePngContentType()
     {
         // Wire-format parity lock: a file part whose name carries a .png
         // extension is given Content-Type image/png, derived from the
@@ -697,7 +697,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task MultipartNonAsciiFieldNamePreservedAsUtf8()
+    public async Task BhvSerializationwire046MultipartNonAsciiFieldNamePreservedAsUtf8()
     {
         // Wire-format parity lock: a multipart field NAME containing non-ASCII
         // characters is preserved verbatim (UTF-8) inside the part's
@@ -727,7 +727,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task RawBinaryBodyStreamsRawBytesWithDeclaredContentType()
+    public async Task BhvSerializationwire037RawBinaryBodyStreamsRawBytesWithDeclaredContentType()
     {
         // Canonical cross-SDK regression (finding C1): a raw-binary request
         // body is type:string format:binary with a declared Content-Type of
@@ -797,7 +797,7 @@ public class DefaultApiClientUnitTest
     // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
 
     [Fact]
-    public void MultipartFilenameNonAsciiEmitsRFC5987()
+    public void BhvSerializationwire044MultipartFilenameNonAsciiEmitsRFC5987()
     {
         string directive = DefaultApiClient.BuildFilenameDirective("日本.pdf");
         Assert.Contains("filename*=UTF-8''", directive, StringComparison.Ordinal);
@@ -811,13 +811,16 @@ public class DefaultApiClientUnitTest
         "filename=\"r_sum_*(1).pdf\"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf"
     )]
     [InlineData("\U0001F600.png", "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png")]
-    public void MultipartFilenameFallbackReplacesEachCodePointOnce(string name, string expected)
+    public void BhvSerializationwire028MultipartFilenameFallbackReplacesEachCodePointOnce(
+        string name,
+        string expected
+    )
     {
         Assert.Equal(expected, DefaultApiClient.BuildFilenameDirective(name));
     }
 
     [Fact]
-    public void MultipartFilenameAsciiOnlyOmitsFilenameStar()
+    public void BhvSerializationwire041MultipartFilenameAsciiOnlyOmitsFilenameStar()
     {
         string directive = DefaultApiClient.BuildFilenameDirective("file.png");
         Assert.Equal("filename=\"file.png\"", directive);
@@ -825,7 +828,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void MultipartFilenameCRLFRejected()
+    public void BhvSerializationwire043MultipartFilenameCRLFRejected()
     {
         Assert.Throws<ArgumentException>(() =>
             DefaultApiClient.ValidateMultipartFilename("a\rb.pdf")
@@ -846,7 +849,7 @@ public class DefaultApiClientUnitTest
     // -- Gap H: response body charset handling --
 
     [Fact]
-    public async Task DecodesResponseBodyUsingDeclaredCharset()
+    public async Task BhvSerializationwire033DecodesResponseBodyUsingDeclaredCharset()
     {
         // Register code-page encodings (ISO-8859-1) on .NET Core/5+
         Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
@@ -868,7 +871,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task DecodesResponseBodyAsUtf8WhenNoCharsetSpecified()
+    public async Task BhvSerializationwire034DecodesResponseBodyAsUtf8WhenNoCharsetSpecified()
     {
         byte[] utf8Bytes = Encoding.UTF8.GetBytes("héllo");
         var handler = new RawByteHandler(HttpStatusCode.OK, utf8Bytes, "text/plain");
@@ -883,7 +886,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task FallsBackToUtf8WhenCharsetIsUnknown()
+    public async Task BhvSerializationwire035FallsBackToUtf8WhenCharsetIsUnknown()
     {
         byte[] utf8Bytes = Encoding.UTF8.GetBytes("héllo");
         var handler = new RawByteHandler(
@@ -953,7 +956,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task DecodesBareUtf16BodyWithBigEndianBomWithoutTheMark()
+    public async Task BhvSerializationwire030DecodesBareUtf16BodyWithBigEndianBomWithoutTheMark()
     {
         byte[] utf16BeBytes = { 0xFE, 0xFF, 0x00, 0x44, 0x00, 0x6F, 0x00, 0x63 };
         var handler = new RawByteHandler(
@@ -974,7 +977,7 @@ public class DefaultApiClientUnitTest
     // ---- 3.1: SensitiveHeaderNames default contents ----
 
     [Fact]
-    public void SensitiveHeaderNamesIncludesUniversalCredentialHeaders()
+    public void BhvTransport057SensitiveHeaderNamesIncludesUniversalCredentialHeaders()
     {
         Assert.Contains("Authorization", DefaultApiClient.SensitiveHeaderNames);
         Assert.Contains("Cookie", DefaultApiClient.SensitiveHeaderNames);
@@ -982,7 +985,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void SensitiveHeaderNamesIsCaseInsensitive()
+    public void BhvSerializationwire036SensitiveHeaderNamesIsCaseInsensitive()
     {
         // RFC 7230 §3.2 — header names are case-insensitive.
         Assert.Contains("authorization", DefaultApiClient.SensitiveHeaderNames);
@@ -992,7 +995,7 @@ public class DefaultApiClientUnitTest
     // ---- 3.1: cross-origin redirect strips sensitive headers ----
 
     [Fact]
-    public async Task CrossOriginRedirectStripsSensitiveHeaders()
+    public async Task BhvRedirects012CrossOriginRedirectStripsSensitiveHeaders()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1017,7 +1020,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task SameOriginRedirectPreservesSensitiveHeaders()
+    public async Task BhvRedirects024SameOriginRedirectPreservesSensitiveHeaders()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1038,7 +1041,9 @@ public class DefaultApiClientUnitTest
     [Theory]
     [InlineData("Cookie")]
     [InlineData("Proxy-Authorization")]
-    public async Task CrossOriginRedirectStripsEachCredentialHeader(string credentialHeader)
+    public async Task BhvRedirects025CrossOriginRedirectStripsEachCredentialHeader(
+        string credentialHeader
+    )
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1146,14 +1151,14 @@ public class DefaultApiClientUnitTest
     // trio is present (see SensitiveHeaderNamesIncludesUniversalCredentialHeaders).
 
     [Fact]
-    public void SpecDeclaredApiKeyHeaderNamesAreSensitive()
+    public void BhvTransport056SpecDeclaredApiKeyHeaderNamesAreSensitive()
     {
         Assert.Contains("X-API-Key", DefaultApiClient.SensitiveHeaderNames);
         Assert.Contains("X-Internal-Key", DefaultApiClient.SensitiveHeaderNames);
     }
 
     [Fact]
-    public async Task ApiKeyHeaderStrippedOnCrossOriginRedirect()
+    public async Task BhvRedirects011ApiKeyHeaderStrippedOnCrossOriginRedirect()
     {
         // Use the first spec-declared API-key header for the assertion.
         string[] apiKeyHeaderNames = ["X-API-Key", "X-Internal-Key"];
@@ -1326,7 +1331,7 @@ public class DefaultApiClientUnitTest
     // ---- 3.2: noRedirect=true skips the redirect loop ----
 
     [Fact]
-    public async Task NoRedirectSurfaces307Verbatim()
+    public async Task BhvRedirects021NoRedirectSurfaces307Verbatim()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1346,7 +1351,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task NoRedirectFalseFollowsRedirects()
+    public async Task BhvRedirects014NoRedirectFalseFollowsRedirects()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1368,7 +1373,7 @@ public class DefaultApiClientUnitTest
     // ---- 3.3: HTTPS->HTTP body replay guard ----
 
     [Fact]
-    public async Task RefusesBodyReplayOnHttpsToHttpDowngrade()
+    public async Task BhvRetries017RefusesBodyReplayOnHttpsToHttpDowngrade()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1404,7 +1409,7 @@ public class DefaultApiClientUnitTest
     // ---- T-D3: non-http(s) redirect target is refused with a typed error ----
 
     [Fact]
-    public async Task RefusesRedirectToNonHttpScheme()
+    public async Task BhvRedirects020RefusesRedirectToNonHttpScheme()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.Redirect,
@@ -1458,7 +1463,7 @@ public class DefaultApiClientUnitTest
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    public async Task ReturnsAFinalRedirectWithoutLocationUnchanged(int maxRedirects)
+    public async Task BhvRedirects023ReturnsAFinalRedirectWithoutLocationUnchanged(int maxRedirects)
     {
         // D70: the budget is only "exhausted" when a Location is present. A
         // 3xx that offers nowhere to go is returned to the caller, however
@@ -1487,7 +1492,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ReturnsARedirectWithAnUnparseableLocationUnchanged()
+    public async Task BhvRedirects010ReturnsARedirectWithAnUnparseableLocationUnchanged()
     {
         /* D71: a Location that cannot be parsed is not a place to go, so the
            3xx comes back to the caller as the response, never as an exception. */
@@ -1506,7 +1511,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ThrowsWhenAZeroRedirectBudgetMeetsARedirectWithLocation()
+    public async Task BhvRedirects026ThrowsWhenAZeroRedirectBudgetMeetsARedirectWithLocation()
     {
         var handler = new ScriptedRedirectHandler([
             (HttpStatusCode.Redirect, new Uri("http://origin.example.com/a")),
@@ -1527,7 +1532,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task AnIntermediateRedirectResponseIsReleasedWhenTheRedirectIsFollowed()
+    public async Task BhvRedirects017AnIntermediateRedirectResponseIsReleasedWhenTheRedirectIsFollowed()
     {
         var handler = new ReleaseTrackingRedirectHandler([
             (HttpStatusCode.Redirect, new Uri("http://origin.example.com/next")),
@@ -1566,7 +1571,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task EveryRedirectResponseIsReleasedWhenTheBudgetIsExhausted()
+    public async Task BhvRetries019EveryRedirectResponseIsReleasedWhenTheBudgetIsExhausted()
     {
         var handler = new ReleaseTrackingRedirectHandler([
             (HttpStatusCode.Redirect, new Uri("http://origin.example.com/a")),
@@ -1642,7 +1647,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task AllowsBodyReplayOnHttpsToHttpsRedirect()
+    public async Task BhvRetries016AllowsBodyReplayOnHttpsToHttpsRedirect()
     {
         // No downgrade — both legs are HTTPS. Body replay is allowed
         // on 307 because the wire is still encrypted end-to-end.
@@ -1665,7 +1670,7 @@ public class DefaultApiClientUnitTest
     // ---- response-body-read-error-not-wrapped ----
 
     [Fact]
-    public async Task WrapsBodyReadFailureInNetworkException()
+    public async Task BhvErrors043WrapsBodyReadFailureInNetworkException()
     {
         // A failure that happens AFTER headers (during body read) must surface
         // as NetworkException, not the raw IOException leaked by HttpClient —
@@ -1700,7 +1705,7 @@ public class DefaultApiClientUnitTest
     // ---- Gap AL: Content-Encoding lie surfaces as ApiException ----
 
     [Fact]
-    public async Task LyingGzipContentEncodingSurfacesApiException()
+    public async Task BhvTransport030LyingGzipContentEncodingSurfacesApiException()
     {
         // Canonical scenario AL: the server sets Content-Encoding: gzip but the
         // body is plain (non-gzip) bytes. The client MUST surface the SDK's
@@ -1740,7 +1745,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task UnknownContentEncodingSurfacesApiException()
+    public async Task BhvErrors042UnknownContentEncodingSurfacesApiException()
     {
         // An unrecognised Content-Encoding the client cannot decode throws
         // NotSupportedException from the decoder's default branch, wrapped as
@@ -1773,7 +1778,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task IdentityContentEncodingPassesTheBodyThroughUndecoded()
+    public async Task BhvTransport033IdentityContentEncodingPassesTheBodyThroughUndecoded()
     {
         /* identity is the no-op coding (RFC 9110 section 8.4.1): the body is already
            the payload, so it is returned as sent and is not refused as unsupported. */
@@ -1797,7 +1802,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task EmptyGzipBodyPassesThroughAsEmpty()
+    public async Task BhvTransport037EmptyGzipBodyPassesThroughAsEmpty()
     {
         // A zero-byte body still declared Content-Encoding: gzip has nothing to
         // inflate. The decode guard must return the empty body unchanged rather
@@ -1822,7 +1827,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ZlibWrappedDeflateBodyIsDecoded()
+    public async Task BhvTransport035ZlibWrappedDeflateBodyIsDecoded()
     {
         /* HTTP deflate is the zlib format (RFC 1950): the body must be decoded
            by the client when the runtime left the Content-Encoding in place. */
@@ -1858,7 +1863,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task RawDeflateBodySurfacesApiException()
+    public async Task BhvTransport049RawDeflateBodySurfacesApiException()
     {
         /* A headerless RFC 1951 stream is not the HTTP deflate format and must
            raise the SDK's ApiException with the real status, never be decoded
@@ -1909,7 +1914,7 @@ public class DefaultApiClientUnitTest
     // ---- close-lifecycle-three-way: use-after-close throws the state error ----
 
     [Fact]
-    public async Task UseAfterCloseThrowsInvalidOperationException()
+    public async Task BhvLifecycle023UseAfterCloseThrowsInvalidOperationException()
     {
         var client = new DefaultApiClient(CreateMockHttpClient(HttpStatusCode.OK, "{}"));
         client.Dispose();
@@ -1933,7 +1938,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ClosingTheClientLetsARunningRequestFinish()
+    public async Task BhvLifecycle021ClosingTheClientLetsARunningRequestFinish()
     {
         // F1078: Dispose marks the client closed and returns; a request that
         // already started is not cut off, and a new one fails with the one
@@ -1989,7 +1994,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void NonexistentCaCertPathThrowsArgumentExceptionAtConstruction()
+    public void BhvErrors041NonexistentCaCertPathThrowsArgumentExceptionAtConstruction()
     {
         // ca-cert-fail-fast: an explicitly configured CA certificate path that
         // cannot be read or parsed must fail fast at construction rather than
@@ -2010,7 +2015,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void NonexistentCaCertPathIsRejectedEvenWhenVerifySslIsFalse()
+    public void BhvTransport048NonexistentCaCertPathIsRejectedEvenWhenVerifySslIsFalse()
     {
         var transport = TransportOptions
             .Builder()
@@ -2023,7 +2028,9 @@ public class DefaultApiClientUnitTest
     [Theory]
     [InlineData("this is not a certificate")]
     [InlineData("-----BEGIN CERTIFICATE-----\nbm90LWEtY2VydA==\n-----END CERTIFICATE-----\n")]
-    public void GarbagePemCaCertPathThrowsArgumentExceptionAtConstruction(string contents)
+    public void BhvErrors039GarbagePemCaCertPathThrowsArgumentExceptionAtConstruction(
+        string contents
+    )
     {
         /* The file exists and is readable but holds no usable certificate: a
            configuration mistake, raised at construction like a missing file. */
@@ -2062,7 +2069,7 @@ public class DefaultApiClientUnitTest
     // ---- network failures: no HTTP response ----
 
     [Fact]
-    public async Task ConnectionRefusedRaisesNetworkException()
+    public async Task BhvTransport032ConnectionRefusedRaisesNetworkException()
     {
         var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
@@ -2080,7 +2087,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task RequestTimeoutRaisesNetworkTimeoutException()
+    public async Task BhvTransport058RequestTimeoutRaisesNetworkTimeoutException()
     {
         var httpClient = new HttpClient(new HangingHandler())
         {
@@ -2220,7 +2227,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task InjectedHttpClientReceivesTheRequestWithSdkDefaultsApplied()
+    public async Task BhvTransport040InjectedHttpClientReceivesTheRequestWithSdkDefaultsApplied()
     {
         HttpRequestMessage? seen = null;
         var injected = new HttpClient(
@@ -2344,7 +2351,7 @@ public class DefaultApiClientUnitTest
     // ---- H6 / cross-cutting: multipart MODEL part uses the configured serializer ----
 
     [Fact]
-    public async Task MultipartModelPartUsesConfiguredSerializerWireKeysAndDateTimeFormat()
+    public async Task BhvSerializationwire045MultipartModelPartUsesConfiguredSerializerWireKeysAndDateTimeFormat()
     {
         // Cross-language parity lock for the multipart MODEL-part path. A
         // multipart/form-data body that carries a model object must
@@ -2405,7 +2412,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task MultipartPrimitivePartsAreCanonicalTextPartsAndOnlyModelsAreJson()
+    public async Task BhvSerializationwire048MultipartPrimitivePartsAreCanonicalTextPartsAndOnlyModelsAreJson()
     {
         string? wireText = null;
         var handler = new CapturingHandler(async req =>
@@ -2830,7 +2837,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ARetryableStatusIsRetriedUpToMaxRetriesAndThenReturned()
+    public async Task BhvRetries024ARetryableStatusIsRetriedUpToMaxRetriesAndThenReturned()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(
@@ -2851,7 +2858,9 @@ public class DefaultApiClientUnitTest
     [InlineData(500)]
     [InlineData(502)]
     [InlineData(599)]
-    public async Task TheRetryableStatusesAreRetriedAndALaterSuccessIsReturned(int status)
+    public async Task BhvRetries021TheRetryableStatusesAreRetriedAndALaterSuccessIsReturned(
+        int status
+    )
     {
         var handler = new SequenceHandler(n => n == 0 ? Respond(status) : Respond(200, null));
         var client = new DefaultApiClient(
@@ -2884,7 +2893,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task MaxRetriesZeroSendsTheRequestOnce()
+    public async Task BhvRetries018MaxRetriesZeroSendsTheRequestOnce()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(
@@ -2933,7 +2942,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task APerCallMaxRetriesOfZeroTurnsTheTransportsRetriesOff()
+    public async Task BhvRetries014APerCallMaxRetriesOfZeroTurnsTheTransportsRetriesOff()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(
@@ -2948,7 +2957,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task APerCallTimeoutReplacesTheTransportsForThatCall()
+    public async Task BhvTransport028APerCallTimeoutReplacesTheTransportsForThatCall()
     {
         var client = new DefaultApiClient(
             new HttpClient(new HangingHandler()),
@@ -2961,7 +2970,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ANetworkErrorBeforeAResponseIsRetried()
+    public async Task BhvRetries013ANetworkErrorBeforeAResponseIsRetried()
     {
         var handler = new SequenceHandler(n =>
             n == 0 ? throw new HttpRequestException("connection reset") : Respond(200, null)
@@ -3067,7 +3076,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ARetryAfterBeyondTheTimeoutBudgetReturnsTheResponseWithoutWaiting()
+    public async Task BhvRetries025ARetryAfterBeyondTheTimeoutBudgetReturnsTheResponseWithoutWaiting()
     {
         var handler = new SequenceHandler(_ => Respond(503, "5"));
         var client = new DefaultApiClient(
@@ -3126,7 +3135,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void RetryAfterInSecondsOrAsADateIsHonouredAndCappedAtSixtySeconds()
+    public void BhvRetries023RetryAfterInSecondsOrAsADateIsHonouredAndCappedAtSixtySeconds()
     {
         var wall = DateTimeOffset.UtcNow;
         var now = new DateTimeOffset(

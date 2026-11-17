@@ -86,7 +86,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task BuildsAuthorizationUrlFromDiscovery()
+    public async Task BhvAuthoidc002BuildsAuthorizationUrlFromDiscovery()
     {
         var client = new FakeApiClient();
         // Discovery document response
@@ -108,7 +108,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task OmitsEmptyStateFromAuthorizationUrl()
+    public async Task BhvAuthoidc018OmitsEmptyStateFromAuthorizationUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -125,7 +125,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task FetchesDiscoveryDocument()
+    public async Task BhvAuthoidc010FetchesDiscoveryDocument()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -146,7 +146,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task ObtainsTokenAfterCodeExchange()
+    public async Task BhvAuthoidc017ObtainsTokenAfterCodeExchange()
     {
         var client = new FakeApiClient();
         // Discovery document
@@ -171,7 +171,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task GetAuthHeadersReturnsBearerAfterExchange()
+    public async Task BhvAuthoidc013GetAuthHeadersReturnsBearerAfterExchange()
     {
         var client = new FakeApiClient();
         // Discovery document
@@ -194,7 +194,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task ThrowsWhenNoApiClientInjected()
+    public async Task BhvAuthoidc028ThrowsWhenNoApiClientInjected()
     {
         var auth = CreateAuthenticator();
 
@@ -204,7 +204,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task ThrowsWhenDiscoveryMissingAuthorizationEndpoint()
+    public async Task BhvAuthoidc025ThrowsWhenDiscoveryMissingAuthorizationEndpoint()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"token_endpoint\":\"https://auth.example.com/token\"}");
@@ -223,7 +223,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task ThrowsWhenDiscoveryMissingTokenEndpoint()
+    public async Task BhvAuthoidc026ThrowsWhenDiscoveryMissingTokenEndpoint()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}");
@@ -235,7 +235,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task RejectsADiscoveryDocumentWhoseIssuerDiffersFromTheDiscoveryUrl()
+    public async Task BhvAuthoidc024RejectsADiscoveryDocumentWhoseIssuerDiffersFromTheDiscoveryUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -254,7 +254,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task AcceptsAnIssuerWithATrailingSlash()
+    public async Task BhvAuthoidc004AcceptsAnIssuerWithATrailingSlash()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -322,7 +322,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task MalformedDiscoveryDocumentRaisesSerializationException()
+    public async Task BhvAuthoidc016MalformedDiscoveryDocumentRaisesSerializationException()
     {
         var client = new FakeApiClient();
         client.Enqueue("{not json");
@@ -337,7 +337,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task Discovery404RaisesNotFoundException()
+    public async Task BhvAuthoidc007Discovery404RaisesNotFoundException()
     {
         var client = new FakeApiClient();
         client.Enqueue("not found", statusCode: 404);
@@ -395,7 +395,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task DiscoveryDoesNotSendTheTransportDefaultHeaders()
+    public async Task BhvAuthoidc008DiscoveryDoesNotSendTheTransportDefaultHeaders()
     {
         using var handler = new HeaderRecordingHandler();
         var transport = TransportOptions
@@ -415,7 +415,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task DiscoveryTransportFailurePropagatesNetworkException()
+    public async Task BhvAuthoidc006DiscoveryTransportFailurePropagatesNetworkException()
     {
         // Discovery is an HTTP call like any other: a transport failure from
         // the ApiClient must reach the caller unchanged, not rewrapped.
@@ -433,7 +433,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public void GetHostReturnsConfiguredHost()
+    public void BhvAuthoidc014GetHostReturnsConfiguredHost()
     {
         var auth = CreateAuthenticator();
 
@@ -441,7 +441,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task ThrowsWhenDiscoveryReturnsNon2xxStatus()
+    public async Task BhvAuthoidc027ThrowsWhenDiscoveryReturnsNon2xxStatus()
     {
         var client = new FakeApiClient();
         // A non-2xx discovery response (e.g. a 500 HTML error page) must
@@ -460,7 +460,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task FetchesDiscoveryDocumentOnlyOnce()
+    public async Task BhvAuthoidc011FetchesDiscoveryDocumentOnlyOnce()
     {
         var client = new CountingApiClient();
         client.Enqueue(
@@ -483,7 +483,7 @@ public class OpenIdConnectAuthenticatorTest
     /// and the masked placeholder present.
     /// </summary>
     [Fact]
-    public void RedactsSecret()
+    public void BhvAuthoidc019RedactsSecret()
     {
         var auth = CreateAuthenticator();
         string repr = auth.ToString();
@@ -492,7 +492,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public void ReprShowsTheNonSecretFields()
+    public void BhvAuthoidc023ReprShowsTheNonSecretFields()
     {
         Assert.Equal(
             "OpenIdConnectAuthenticator(Host=https://api.example.com, "
@@ -508,7 +508,7 @@ public class OpenIdConnectAuthenticatorTest
     [InlineData("no-store", 1)]
     [InlineData("max-age=9000000000000000000", 1)]
     [InlineData("max-age=99999999999999999999", 1)]
-    public async Task DiscoveryIsReusedOnlyWhileItsMaxAgeHolds(
+    public async Task BhvAuthoidc003DiscoveryIsReusedOnlyWhileItsMaxAgeHolds(
         string cacheControl,
         int expectedFetches
     )
@@ -530,7 +530,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task RediscoveryAfterExpiryKeepsTheExchangedSession()
+    public async Task BhvAuthoidc020RediscoveryAfterExpiryKeepsTheExchangedSession()
     {
         /* max-age=0 expires the cached document at once, so the call after the code
            exchange fetches it again; the exchange made before must still count. */
@@ -544,7 +544,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task RediscoveryKeepsThePkceVerifierOfTheBuiltAuthorizationUrl()
+    public async Task BhvAuthoidc021RediscoveryKeepsThePkceVerifierOfTheBuiltAuthorizationUrl()
     {
         /* Every discovery names a different token endpoint, so the second one
            builds a new delegate around the previous session; the verifier of
@@ -581,7 +581,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task InvalidatingTheAccessTokenRefreshesWithTheHeldRefreshToken()
+    public async Task BhvAuthoidc015InvalidatingTheAccessTokenRefreshesWithTheHeldRefreshToken()
     {
         var client = new RotatingDiscoveryApiClient();
         var auth = CreateAuthenticator();

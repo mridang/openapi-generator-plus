@@ -190,7 +190,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AnApiErrorNamesTheRequestMethodAndPathWithoutTheQuery()
+    public async Task BhvErrors036AnApiErrorNamesTheRequestMethodAndPathWithoutTheQuery()
     {
         var client = new StatusSequenceApiClient(404);
         var api = new TestableApi(client, "http://localhost");
@@ -214,7 +214,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AnApiErrorKeepsTheBasePathOfTheServer()
+    public async Task BhvErrors027AnApiErrorKeepsTheBasePathOfTheServer()
     {
         var api = new TestableApi(new StatusSequenceApiClient(500), "http://localhost/v2/");
 
@@ -235,7 +235,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task PerCallOptionsReachTheTransportAndTheRequestHeaders()
+    public async Task BhvRetries009PerCallOptionsReachTheTransportAndTheRequestHeaders()
     {
         var client = new CallOptionsApiClient(200, "{}");
         var api = new TestableApi(client, "http://localhost");
@@ -254,7 +254,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task PerCallHeadersReplaceAHeaderOfTheSameNameWhateverItsCasing()
+    public async Task BhvOperations001PerCallHeadersReplaceAHeaderOfTheSameNameWhateverItsCasing()
     {
         var client = new CallOptionsApiClient(200, "{}");
         var api = new TestableApi(client, "http://localhost");
@@ -281,7 +281,10 @@ public class BaseApiTest
     [InlineData(0, null)]
     [InlineData(-5, null)]
     [InlineData(null, -1)]
-    public async Task InvalidPerCallOptionsAreRejectedBeforeSending(int? timeout, int? maxRetries)
+    public async Task BhvAuthintegration011InvalidPerCallOptionsAreRejectedBeforeSending(
+        int? timeout,
+        int? maxRetries
+    )
     {
         var api = new TestableApi(new CallOptionsApiClient(200, "{}"), "http://localhost");
 
@@ -407,7 +410,7 @@ public class BaseApiTest
 
     [Theory]
     [MemberData(nameof(StatusToException))]
-    public async Task ThrowsCorrectException(int status, Type expectedType)
+    public async Task BhvErrors037ThrowsCorrectException(int status, Type expectedType)
     {
         try
         {
@@ -433,7 +436,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ParsesJsonErrorBody()
+    public async Task BhvErrors034ParsesJsonErrorBody()
     {
         var ex = await Assert.ThrowsAsync<BadRequestException>(() =>
             Api()
@@ -451,7 +454,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task NotFoundHierarchy()
+    public async Task BhvErrors033NotFoundHierarchy()
     {
         var ex = await Assert.ThrowsAsync<NotFoundException>(() =>
             Api()
@@ -471,7 +474,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task InternalServerErrorHierarchy()
+    public async Task BhvErrors031InternalServerErrorHierarchy()
     {
         var ex = await Assert.ThrowsAsync<InternalServerErrorException>(() =>
             Api()
@@ -491,7 +494,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task DeserializesJsonResponse()
+    public async Task BhvSerializationwire004DeserializesJsonResponse()
     {
         var result = await Api()
             .CallAsync<JsonNode>(
@@ -509,7 +512,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ApiResultExposesResponseHeadersAsReadOnly()
+    public async Task BhvOperations006ApiResultExposesResponseHeadersAsReadOnly()
     {
         var client = new CapturingApiClient();
         var api = new TestableApi(client, "https://example.test");
@@ -528,7 +531,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ReturnsNullWhenReturnTypeIsNull()
+    public async Task BhvOperations015ReturnsNullWhenReturnTypeIsNull()
     {
         var result = await Api()
             .CallAsyncWithNullReturnType(
@@ -544,7 +547,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ReturnsRawStringForNonJson()
+    public async Task BhvSerializationwire019ReturnsRawStringForNonJson()
     {
         var result = await Api()
             .CallAsync<string>(
@@ -561,7 +564,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task SkipsDeserializationForNonJsonContentType()
+    public async Task BhvSerializationwire025SkipsDeserializationForNonJsonContentType()
     {
         var textClient = new TextPlainApiClient();
         var textApi = new TestableApi(textClient, "http://localhost");
@@ -579,7 +582,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task RejectsNonJsonContentTypeForNonStringReturn()
+    public async Task BhvErrors035RejectsNonJsonContentTypeForNonStringReturn()
     {
         var textApi = new TestableApi(new TextPlainApiClient(), "http://localhost");
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
@@ -636,7 +639,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task DeserializesVendorJsonMimeTypes()
+    public async Task BhvSerializationwire005DeserializesVendorJsonMimeTypes()
     {
         var vendorJsonClient = new VendorJsonApiClient();
         var testApi = new TestableApi(vendorJsonClient, "http://localhost");
@@ -676,7 +679,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AppendsQueryParams()
+    public async Task BhvSerializationwire002AppendsQueryParams()
     {
         await Api()
             .CallAsync<object>(
@@ -691,7 +694,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ForwardsAuthHeaders()
+    public async Task BhvAuthintegration010ForwardsAuthHeaders()
     {
         var auth = new TestAuthenticator(
             headers: new Dictionary<string, string> { { "X-Custom", "auth-value" } }
@@ -713,7 +716,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task SetsCookieHeader()
+    public async Task BhvAuthintegration017SetsCookieHeader()
     {
         var auth = new TestAuthenticator(
             cookies: new Dictionary<string, string> { { "session", "abc123" } }
@@ -734,7 +737,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task InjectsItsClientIntoAPerCallHttpAwareAuthenticator()
+    public async Task BhvAuthintegration002InjectsItsClientIntoAPerCallHttpAwareAuthenticator()
     {
         var capturing = new CapturingApiClient();
         var api = new TestableApi(capturing, "http://localhost");
@@ -816,7 +819,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task A401OnAnOAuthCallInvalidatesTheTokenAndReplaysTheRequestOnceWithFreshHeaders()
+    public async Task BhvRetries001A401OnAnOAuthCallInvalidatesTheTokenAndReplaysTheRequestOnceWithFreshHeaders()
     {
         var client = new StatusSequenceApiClient(401, 200);
         var auth = new RefreshableAuthenticator();
@@ -830,7 +833,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ASecond401IsReportedAsUnauthorized()
+    public async Task BhvRetries008ASecond401IsReportedAsUnauthorized()
     {
         var client = new StatusSequenceApiClient(401);
         var auth = new RefreshableAuthenticator();
@@ -842,7 +845,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AnAuthenticatorWithoutATokenCacheNeverReplaysA401()
+    public async Task BhvRetries002AnAuthenticatorWithoutATokenCacheNeverReplaysA401()
     {
         var client = new StatusSequenceApiClient(401, 200);
         var auth = new TestAuthenticator(new Dictionary<string, string> { ["X-Api-Key"] = "k" });
@@ -867,7 +870,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AMultipartBodyIsNotReplayedAfterA401()
+    public async Task BhvRetries006AMultipartBodyIsNotReplayedAfterA401()
     {
         var client = new StatusSequenceApiClient(401, 200);
         var auth = new RefreshableAuthenticator();
@@ -886,7 +889,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task JoinsSeveralAuthCookiesWithASemicolon()
+    public async Task BhvAuthintegration004JoinsSeveralAuthCookiesWithASemicolon()
     {
         var auth = new TestAuthenticator(
             cookies: new Dictionary<string, string> { { "session", "abc123" }, { "theme", "dark" } }
@@ -910,7 +913,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task SerializesJsonBody()
+    public async Task BhvSerializationwire022SerializesJsonBody()
     {
         var result = await Api()
             .CallAsync<JsonNode>(
@@ -931,7 +934,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task SendsNoBodyWhenNull()
+    public async Task BhvOperations016SendsNoBodyWhenNull()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -948,7 +951,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task IncludesEmptyValueParamInQueryString()
+    public async Task BhvSerializationwire016IncludesEmptyValueParamInQueryString()
     {
         await Api()
             .CallAsync<object>(
@@ -963,7 +966,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ExpandsArrayQueryParams()
+    public async Task BhvSerializationwire009ExpandsArrayQueryParams()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -986,7 +989,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task SerializesBooleanQueryParams()
+    public async Task BhvSerializationwire020SerializesBooleanQueryParams()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1003,7 +1006,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task SerializesNumberQueryParams()
+    public async Task BhvSerializationwire023SerializesNumberQueryParams()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1025,7 +1028,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task HandlesEmptyQueryParams()
+    public async Task BhvSerializationwire015HandlesEmptyQueryParams()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1042,7 +1045,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task CollapsesDoubleSlashWhenBaseUrlHasTrailingSlash()
+    public async Task BhvOperations007CollapsesDoubleSlashWhenBaseUrlHasTrailingSlash()
     {
         // baseUrl='http://host/' + path='/v1/thing' must produce
         // 'http://host/v1/thing', not 'http://host//v1/thing' which most
@@ -1062,7 +1065,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AllowEmptyValueParamOmittedWithDefaultOptions()
+    public async Task BhvSerializationwire001AllowEmptyValueParamOmittedWithDefaultOptions()
     {
         var client = new CapturingApiClient();
         var config = new Configuration("http://localhost");
@@ -1099,7 +1102,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AllowEmptyValueParamIncludedWhenEmpty()
+    public async Task BhvOperations003AllowEmptyValueParamIncludedWhenEmpty()
     {
         var client = new CapturingApiClient();
         var config = new Configuration("http://localhost");
@@ -1116,7 +1119,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void ServerVariableOverridesResolveInBaseUrl()
+    public void BhvOptions003ServerVariableOverridesResolveInBaseUrl()
     {
         var config = Configuration
             .Builder()
@@ -1129,14 +1132,14 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void DefaultServerVariablesProduceCorrectBaseUrl()
+    public void BhvOperations009DefaultServerVariablesProduceCorrectBaseUrl()
     {
         var config = Configuration.Builder().Server(Servers.Server1).Build();
         Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
     }
 
     [Fact]
-    public void InvalidEnumValueThrowsError()
+    public void BhvErrors032InvalidEnumValueThrowsError()
     {
         Assert.Throws<ArgumentException>(() =>
             Configuration
@@ -1150,7 +1153,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void ApiRequestUsesResolvedServerUrl()
+    public void BhvOperations005ApiRequestUsesResolvedServerUrl()
     {
         var config = Configuration
             .Builder()
@@ -1163,7 +1166,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task SerializesTextPlainBody()
+    public async Task BhvSerializationwire024SerializesTextPlainBody()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1181,7 +1184,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task SerializesFormUrlencodedBody()
+    public async Task BhvSerializationwire021SerializesFormUrlencodedBody()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1199,7 +1202,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task RejectsFormUrlencodedFieldHoldingAMap()
+    public async Task BhvSerializationwire014RejectsFormUrlencodedFieldHoldingAMap()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1228,7 +1231,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task FormUrlencodedBodyEncodesSpaceAsPlusNotPercent20()
+    public async Task BhvSerializationwire012FormUrlencodedBodyEncodesSpaceAsPlusNotPercent20()
     {
         // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
         // is defined by the WHATWG/HTML form-encoding standard, which mandates
@@ -1252,7 +1255,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task PassesBinaryBodyAsIs()
+    public async Task BhvOperations014PassesBinaryBodyAsIs()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1269,7 +1272,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task EmptyContentTypeDefaultsToJson()
+    public async Task BhvSerializationwire007EmptyContentTypeDefaultsToJson()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1286,7 +1289,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AllHeadersFromSelectorFlowThrough()
+    public async Task BhvOperations002AllHeadersFromSelectorFlowThrough()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1311,7 +1314,7 @@ public class BaseApiTest
     // python, elixir). A config default Accept of application/xml therefore
     // overrides an operation whose negotiated Accept is application/json.
     [Fact]
-    public async Task ConfigDefaultHeaderAcceptWinsOverOperationNegotiatedAccept()
+    public async Task BhvOperations008ConfigDefaultHeaderAcceptWinsOverOperationNegotiatedAccept()
     {
         var client = new CapturingApiClient();
         var config = Configuration
@@ -1333,7 +1336,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ConfigDefaultCustomHeaderPropagatesToRequest()
+    public async Task BhvOptions001ConfigDefaultCustomHeaderPropagatesToRequest()
     {
         var client = new CapturingApiClient();
         var config = Configuration
@@ -1355,7 +1358,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task HeaderParamsAcceptWinsOverConfigDefaultAndComputedAccept()
+    public async Task BhvOperations004HeaderParamsAcceptWinsOverConfigDefaultAndComputedAccept()
     {
         var client = new CapturingApiClient();
         var config = Configuration
@@ -1401,7 +1404,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BinaryResponseOctetStreamBase64DecodesToCorrectBytes()
+    public async Task BhvSerializationwire018BinaryResponseOctetStreamBase64DecodesToCorrectBytes()
     {
         // AP9C is base64 for [0x00, 0xFF, 0x42] — values that would mangle under UTF-8
         byte[] original = new byte[] { 0x00, 0xFF, 0x42 };
@@ -1426,7 +1429,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BinaryResponseImagePngBodyRepresentsBytes()
+    public async Task BhvOperations012BinaryResponseImagePngBodyRepresentsBytes()
     {
         var client = new BinaryResponseApiClient
         {
@@ -1445,7 +1448,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BinaryResponseApplicationJsonParsesObject()
+    public async Task BhvSerializationwire003BinaryResponseApplicationJsonParsesObject()
     {
         var vendorClient = new VendorJsonApiClient();
         var testApi = new TestableApi(vendorClient, "http://localhost");
@@ -1463,7 +1466,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BinaryResponseTextPlainReturnsString()
+    public async Task BhvOperations017BinaryResponseTextPlainReturnsString()
     {
         var textClient = new TextPlainApiClient();
         var testApi = new TestableApi(textClient, "http://localhost");
@@ -1481,7 +1484,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BinaryResponseOctetStreamEmptyBodyYieldsEmpty()
+    public async Task BhvOperations010BinaryResponseOctetStreamEmptyBodyYieldsEmpty()
     {
         var client = new BinaryResponseApiClient
         {
@@ -1500,7 +1503,7 @@ public class BaseApiTest
     // ── Null body Content-Type tests (Gap 11) ──
 
     [Fact]
-    public async Task NullBodyPostDoesNotSendContentType()
+    public async Task BhvOperations013NullBodyPostDoesNotSendContentType()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1520,7 +1523,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task EmptyStringBodyPostSendsContentType()
+    public async Task BhvOperations011EmptyStringBodyPostSendsContentType()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1540,7 +1543,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task EmptyJsonObjectBodyPostSendsContentTypeAndCorrectBody()
+    public async Task BhvSerializationwire008EmptyJsonObjectBodyPostSendsContentTypeAndCorrectBody()
     {
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -1566,7 +1569,7 @@ public class BaseApiTest
     // credentials, so a success through it proves the credentials embedded in
     // the proxy URL (RFC 3986 userinfo) reached the proxy.
     [Fact]
-    public async Task ProxyAuthenticationCredentialsAreSentToProxy()
+    public async Task BhvTransport001ProxyAuthenticationCredentialsAreSentToProxy()
     {
         var proxyUri = new Uri(_fixture.AuthProxyUrl);
         var proxyWithAuth =
@@ -1602,7 +1605,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyDeserializesRawBody()
+    public void BhvErrors029GetTypedErrorBodyDeserializesRawBody()
     {
         var ex = new BadRequestException(
             "boom",
@@ -1617,14 +1620,14 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
+    public void BhvErrors030GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
     {
         var ex = new BadRequestException("boom", new Dictionary<string, string>(), "", null);
         Assert.Null(ex.GetTypedErrorBody<PetstoreClient.Models.Category>());
     }
 
     [Fact]
-    public async Task FallsBackToClientLevelAuthenticator()
+    public async Task BhvAuthintegration009FallsBackToClientLevelAuthenticator()
     {
         var client = new CapturingApiClient();
         var clientAuth = new TestAuthenticator(
@@ -1644,7 +1647,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task PerCallAuthOverridesClientLevelAuthenticator()
+    public async Task BhvAuthintegration013PerCallAuthOverridesClientLevelAuthenticator()
     {
         var client = new CapturingApiClient();
         var clientAuth = new TestAuthenticator(
@@ -1678,7 +1681,7 @@ public class BaseApiTest
     // `security: []` in the spec, so the api method passes the NoAuth sentinel
     // and BaseApi suppresses the client-level authenticator entirely.
     [Fact]
-    public async Task SecurityNoneOperationSuppressesClientAuthenticator()
+    public async Task BhvAuthintegration005SecurityNoneOperationSuppressesClientAuthenticator()
     {
         var client = new CapturingApiClient();
         var clientAuth = new TestAuthenticator(
@@ -1726,7 +1729,7 @@ public class BaseApiTest
     // A configured client credential MUST reach the wire — the regression that
     // silently dropped auth on every inherited-security operation.
     [Fact]
-    public async Task InheritedGlobalSecurityOperationAppliesClientAuthenticator()
+    public async Task BhvAuthintegration012InheritedGlobalSecurityOperationAppliesClientAuthenticator()
     {
         var client = new CapturingApiClient();
         var clientAuth = new TestAuthenticator(
@@ -1793,7 +1796,7 @@ public class BaseApiTest
     // The NoAuth sentinel is distinct from null and from any real authenticator,
     // is identity-comparable, and never contributes a credential.
     [Fact]
-    public void NoAuthSentinelIsSingletonAndCarriesNoCredential()
+    public void BhvAuthintegration015NoAuthSentinelIsSingletonAndCarriesNoCredential()
     {
         Assert.Same(NoAuth.Instance, NoAuth.Instance);
         // GetQueryParams/GetCookieParams are default interface methods, callable
