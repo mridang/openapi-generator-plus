@@ -74,14 +74,6 @@ public class PetTreatment : IEquatable<PetTreatment>
         MatchedInstances = matchedInstances;
     }
 
-    /// <summary>Wraps a <c>Medication</c> value as this union.</summary>
-    /// <param name="value">The variant value.</param>
-    /// <returns>A union holding <paramref name="value"/>.</returns>
-    public static PetTreatment FromMedication(Medication value)
-    {
-        return new PetTreatment(value);
-    }
-
     /// <summary>Whether a retained variant is a <c>Medication</c>.</summary>
     /// <returns>True when one is.</returns>
     public bool IsMedication()
@@ -94,14 +86,6 @@ public class PetTreatment : IEquatable<PetTreatment>
     public Medication? AsMedication()
     {
         return MatchedInstances.OfType<Medication>().FirstOrDefault();
-    }
-
-    /// <summary>Wraps a <c>Surgery</c> value as this union.</summary>
-    /// <param name="value">The variant value.</param>
-    /// <returns>A union holding <paramref name="value"/>.</returns>
-    public static PetTreatment FromSurgery(Surgery value)
-    {
-        return new PetTreatment(value);
     }
 
     /// <summary>Whether a retained variant is a <c>Surgery</c>.</summary>

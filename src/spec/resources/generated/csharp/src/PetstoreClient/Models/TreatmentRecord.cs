@@ -74,14 +74,6 @@ public class TreatmentRecord : IEquatable<TreatmentRecord>
         MatchedInstances = matchedInstances;
     }
 
-    /// <summary>Wraps a <c>Surgery</c> value as this union.</summary>
-    /// <param name="value">The variant value.</param>
-    /// <returns>A union holding <paramref name="value"/>.</returns>
-    public static TreatmentRecord FromSurgery(Surgery value)
-    {
-        return new TreatmentRecord(value);
-    }
-
     /// <summary>Whether a retained variant is a <c>Surgery</c>.</summary>
     /// <returns>True when one is.</returns>
     public bool IsSurgery()
@@ -94,14 +86,6 @@ public class TreatmentRecord : IEquatable<TreatmentRecord>
     public Surgery? AsSurgery()
     {
         return MatchedInstances.OfType<Surgery>().FirstOrDefault();
-    }
-
-    /// <summary>Wraps a <c>Medication</c> value as this union.</summary>
-    /// <param name="value">The variant value.</param>
-    /// <returns>A union holding <paramref name="value"/>.</returns>
-    public static TreatmentRecord FromMedication(Medication value)
-    {
-        return new TreatmentRecord(value);
     }
 
     /// <summary>Whether a retained variant is a <c>Medication</c>.</summary>
