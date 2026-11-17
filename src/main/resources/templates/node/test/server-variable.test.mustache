@@ -10,6 +10,18 @@ describe('ServerVariable', () => {
     expect(variable.enumValues).toEqual(['prod', 'staging']);
   });
 
+  it('bhv servers 018 exposes the enum values for validation', () => {
+    const variable = new ServerVariable('prod', 'deployment environment', ['prod', 'staging']);
+    expect(variable.enumValues).toEqual(['prod', 'staging']);
+    expect(variable.enumValues).toContain('prod');
+    expect(variable.enumValues).toContain('staging');
+  });
+
+  it('bhv servers 019 the enum does not contain a value outside the allowed set', () => {
+    const variable = new ServerVariable('prod', null, ['prod', 'staging']);
+    expect(variable.enumValues).not.toContain('dev');
+  });
+
   it('bhv servers 015 allows a null description and an empty enum (any value accepted)', () => {
     const variable = new ServerVariable('1', null, []);
     expect(variable.description).toBeNull();

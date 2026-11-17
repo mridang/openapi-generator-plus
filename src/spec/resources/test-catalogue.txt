@@ -1021,7 +1021,7 @@ errors046 | Oauth2 server exception message has three forms
 serializationobject184 | Iso8601 duration string rejected
 serializationobject185 | Deserialize: canonical padded base64 is accepted
 serializationobject186 | Request JSON escapes only the quote, the backslash and controls
-lifecycle024 | A supplied psr18 client conflicts with sdk proxy and tls settings
+lifecycle024 | A supplied HTTP client conflicts with sdk proxy and tls settings
 errors047 | Name is ApiError
 serializationobject187 | An explicit key wins over the environment | multi
 lifecycle024 | A supplied HTTP client conflicts with sdk proxy and tls settings

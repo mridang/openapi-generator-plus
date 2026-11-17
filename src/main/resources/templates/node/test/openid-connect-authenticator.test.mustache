@@ -516,7 +516,7 @@ describe('OpenIdConnectAuthenticator', () => {
       expect(mockClient.callCount).toBe(4);
     });
 
-    test('concurrent callers on a cold authenticator share one discovery request', async () => {
+    test('bhv authoidc 029 concurrent callers on a cold authenticator share one discovery request', async () => {
       let open: () => void = () => undefined;
       const gate = new Promise<void>((resolve) => {
         open = resolve;

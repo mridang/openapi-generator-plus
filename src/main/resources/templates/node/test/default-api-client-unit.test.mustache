@@ -846,7 +846,7 @@ describe('DefaultApiClient.mimeTypeForFilename per-part MIME sniffing', () => {
     expect(DefaultApiClient.mimeTypeForFilename('PHOTO.PNG')).toBe('image/png');
   });
 
-  it('falls back to application/octet-stream when extension is unknown', () => {
+  it('bhv serializationwire 056 falls back to application/octet-stream when extension is unknown', () => {
     expect(DefaultApiClient.mimeTypeForFilename('blob.unknownext')).toBe('application/octet-stream');
   });
 
@@ -2330,7 +2330,7 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     expect(delays).toEqual([60_000]);
   });
 
-  it('falls back to the backoff when Retry-After is not understood', async () => {
+  it('bhv retries 029 falls back to the backoff when Retry-After is not understood', async () => {
     await send(clientPlaying([reply(503, { 'Retry-After': 'soon' }), reply(200)]));
 
     expect(delays).toHaveLength(1);

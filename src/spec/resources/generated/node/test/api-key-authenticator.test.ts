@@ -440,7 +440,7 @@ describe("ApiKeyAuthenticator", () => {
       expect(auth.getAuthHeaders()).toEqual({ "X-Api-Key": "from-env" });
     });
 
-    it("an explicit key wins over the environment", () => {
+    it("bhv serializationobject 187 an explicit key wins over the environment", () => {
       process.env[variable] = "from-env";
       const auth = new ApiKeyAuthenticator(
         "https://api.example.com",

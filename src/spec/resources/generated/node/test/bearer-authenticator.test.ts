@@ -168,7 +168,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("an explicit token wins over the environment", () => {
+    it("bhv authbearer 018 an explicit token wins over the environment", () => {
       process.env[variable] = "from-env";
       const auth = new BearerAuthenticator(
         "https://api.example.com",
@@ -179,7 +179,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("reads the environment once, when the authenticator is built", () => {
+    it("bhv lifecycle 025 reads the environment once, when the authenticator is built", () => {
       process.env[variable] = "first";
       const auth = new BearerAuthenticator("https://api.example.com");
       process.env[variable] = "second";
