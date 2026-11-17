@@ -133,7 +133,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("bhvServers014 bhvServers016 getUrl applies a free-form variable with no enum constraint")
+    @DisplayName("bhvServers014 getUrl applies a free-form variable with no enum constraint")
     fun getUrlAcceptsUnconstrainedVariable() {
         val server =
             ServerConfiguration(

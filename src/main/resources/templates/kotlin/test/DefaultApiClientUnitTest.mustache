@@ -509,9 +509,9 @@ class DefaultApiClientUnitTest {
             val apiClient = DefaultApiClient(client)
             val order =
                 kotlinx.serialization.json.buildJsonObject {
-                    put("ownerId", 198772L)
-                    put("quantity", 7)
-                    put("at", "2024-01-15T10:30:00Z")
+                    put("ownerId", kotlinx.serialization.json.JsonPrimitive(198772L))
+                    put("quantity", kotlinx.serialization.json.JsonPrimitive(7))
+                    put("at", kotlinx.serialization.json.JsonPrimitive("2024-01-15T10:30:00Z"))
                 }
             runBlocking {
                 apiClient.sendRequest(

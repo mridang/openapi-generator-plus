@@ -64,7 +64,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject107 bhvSerializationobject116 datetime with +05:30 offset preserves offset in " +
+            "bhvSerializationobject107 datetime with +05:30 offset preserves offset in " +
                 "serialized string",
         )
         fun positiveOffsetPreserved() {
@@ -105,7 +105,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject150 bhvSerializationobject151 serialized datetime has a numeric offset, never Z")
+        @DisplayName("bhvSerializationobject150 serialized datetime has a numeric offset, never Z")
         fun serializedDateTimeHasOffset() {
             val dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
@@ -152,7 +152,7 @@ class ObjectSerializerTest {
     @DisplayName("DeserializationErrorWrappingTests")
     inner class DeserializationErrorWrappingTests {
         @Test
-        @DisplayName("bhvSerializationobject170 bhvSerializationobject089 truncated JSON throws SerializationException not raw parse error")
+        @DisplayName("bhvSerializationobject170 truncated JSON throws SerializationException not raw parse error")
         fun truncatedJsonThrowsSerializationException() {
             // Fully qualified: the SDK type, never kotlinx's SerializationException.
             val ex =
@@ -179,7 +179,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject172 bhvSerializationobject024 bhvSerializationobject121 unknown enum value " +
+            "bhvSerializationobject172 unknown enum value " +
                 "throws SerializationException",
         )
         fun unknownEnumValueThrowsSerializationException() {
@@ -494,7 +494,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject086 bhvSerializationobject084 Gap AJ: null on required non-nullable field throws")
+        @DisplayName("bhvSerializationobject086 Gap AJ: null on required non-nullable field throws")
         fun nullOnRequiredFieldThrows() {
             val json = "{\"name\":null,\"photoUrls\":[\"x\"]}"
             assertThrows(SerializationException::class.java) {
@@ -540,7 +540,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject053 bhvSerializationobject050 deserialize applies schema default for absent field")
+        @DisplayName("bhvSerializationobject053 deserialize applies schema default for absent field")
         fun deserializeAppliesSchemaDefaultForAbsentField() {
             // The Order.status field declares `default: placed` in the schema, so
             // a payload that omits "status" must populate it with the enum default
@@ -553,8 +553,8 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject025 bhvSerializationobject049 bhvSerializationobject056 " +
-                "bhvSerializationobject111 bhvSerializationobject122 schema defaults apply only when the property is " +
+            "bhvSerializationobject025 " +
+                "schema defaults apply only when the property is " +
                 "absent, not on explicit null",
         )
         fun deserializeAppliesDefaultsOnlyWhenAbsent() {
@@ -895,8 +895,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject013 bhvSerializationobject081 Duration returns a protobuf-JSON duration string")
-        @DisplayName("bhvSerializationobject013 bhvSerializationobject158 Duration returns a protobuf-JSON duration string")
+        @DisplayName("bhvSerializationobject013 Duration returns a protobuf-JSON duration string")
         fun durationReturnsProtobufJsonString() {
             assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
             assertEquals("-1.500s", serializer.stringify(java.time.Duration.ofMillis(-1500)))
@@ -921,13 +920,13 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject114 bhvSerializationobject159 string passes through unchanged")
+        @DisplayName("bhvSerializationobject114 string passes through unchanged")
         fun stringPassesThrough() {
             assertEquals("hello", serializer.stringify("hello"))
         }
 
         @Test
-        @DisplayName("bhvSerializationobject157 bhvSerializationobject179 OffsetDateTime returns ISO 8601 string")
+        @DisplayName("bhvSerializationobject157 OffsetDateTime returns ISO 8601 string")
         fun offsetDateTimeReturnsIso8601() {
             val dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
@@ -1008,7 +1007,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject139 bhvSerializationobject167 returns the string for a string value")
+        @DisplayName("bhvSerializationobject139 returns the string for a string value")
         fun returnsStringForStringValue() {
             assertEquals("hello", serializer.toQueryValue("hello", null))
         }
@@ -1021,14 +1020,14 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject098 bhvSerializationobject168 joins collection with comma for csv")
+        @DisplayName("bhvSerializationobject098 joins collection with comma for csv")
         fun joinsWithCommaForCsv() {
             val list = listOf("a", "b", "c")
             assertEquals("a,b,c", serializer.toQueryValue(list, "csv"))
         }
 
         @Test
-        @DisplayName("bhvSerializationobject100 bhvSerializationobject169 joins collection with space for ssv")
+        @DisplayName("bhvSerializationobject100 joins collection with space for ssv")
         fun joinsWithSpaceForSsv() {
             val list = listOf("a", "b", "c")
             assertEquals("a b c", serializer.toQueryValue(list, "ssv"))
@@ -1318,7 +1317,6 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject064 EdgeCases.cutoff (format time) encodes as partial-time and decodes back")
         @DisplayName("bhvSerializationobject163 EdgeCases.cutoff (format time) encodes as partial-time and decodes back")
         fun timePropertyRoundTrips() {
             val json =
@@ -1339,7 +1337,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject093 bhvSerializationobject092 integer-backed enum (Priority) round-trips as a " +
+            "bhvSerializationobject093 integer-backed enum (Priority) round-trips as a " +
                 "JSON NUMBER, not a string",
         )
         fun integerBackedEnumSerializesAsNumber() {
@@ -1362,7 +1360,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject171 bhvSerializationobject177 type:number Decimal is an UNQUOTED number, round-trips")
+        @DisplayName("bhvSerializationobject171 type:number Decimal is an UNQUOTED number, round-trips")
         fun decimalNumberFieldSerializesAsUnquotedNumber() {
             // weightKg is a bare `type: number` (no format) property modelled
             // as java.math.BigDecimal with the contextual BigDecimalSerializer.
@@ -1505,7 +1503,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject016 bhvSerializationobject048 a uuid property (Order.trackingId) is written " +
+            "bhvSerializationobject016 a uuid property (Order.trackingId) is written " +
                 "lowercase, read from uppercase and malformed is rejected",
         )
         fun uuidPropertyIsCanonicalLowercase() {
@@ -1599,7 +1597,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject032 bhvSerializationobject010 constraint keywords are not enforced: slug, " +
+            "bhvSerializationobject032 constraint keywords are not enforced: slug, " +
                 "nickname and quantity decode as given",
         )
         fun constraintKeywordsAreNotEnforced() {
@@ -1850,10 +1848,6 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName(
-            "bhvSerializationobject073 bhvSerializationobject105 bhvSerializationobject113 format:duration " +
-                "round-trips, including a negative and a sub-0.0001s magnitude",
-        )
         @DisplayName("bhvSerializationobject145 format:duration round-trips, including a negative and a sub-0.0001s magnitude")
         fun durationRoundTripsNegativeAndSmallMagnitude() {
             // EdgeCases.retryAfter is format:duration, wire-encoded as a
@@ -1968,7 +1962,7 @@ class ObjectSerializerTest {
     inner class StrictModuleTests {
         @Test
         @DisplayName(
-            "bhvSerializationobject058 bhvSerializationobject047 deserialize rejects an undeclared key on an " +
+            "bhvSerializationobject058 deserialize rejects an undeclared key on an " +
                 "unevaluatedProperties:false model",
         )
         fun deserializeRejectsUndeclaredKey() {
@@ -2287,7 +2281,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject008 bhvSerializationobject173 uri accepts absolute URIs, uri-reference accepts relative")
+        @DisplayName("bhvSerializationobject008 uri accepts absolute URIs, uri-reference accepts relative")
         fun uriFieldRequiresAnAbsoluteUri() {
             val good = listOf("urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/items/1")
             for (uri in good) {
@@ -2311,7 +2305,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject017 bhvSerializationobject014 bhvSerializationobject018 readOnly and writeOnly " +
+            "bhvSerializationobject017 readOnly and writeOnly " +
                 "properties are decoded and encoded like any other",
         )
         fun readOnlyAndWriteOnlyPropertiesHaveNoWireEffect() {
@@ -2365,7 +2359,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject004 bhvSerializationobject066 a malformed document is reported as Failed to " +
+            "bhvSerializationobject004 a malformed document is reported as Failed to " +
                 "deserialize JSON with the detail",
         )
         fun malformedDocumentMessage() {
