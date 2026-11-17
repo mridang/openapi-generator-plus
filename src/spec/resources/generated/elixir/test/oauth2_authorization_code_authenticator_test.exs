@@ -624,7 +624,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
     end
 
-    test "bhv authoauthtwoauthcode 008 bhv authoauthtwoauthcode 009 each authorization URL has its own challenge and the exchange proves the last one" do
+    test "bhv authoauthtwoauthcode 008 code exchange proves the challenge of the authorization url" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -641,6 +641,27 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
           fake_client
         )
 
+      params =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth
+        )
+        |> query_params()
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+        auth,
+        "the-code"
+      )
+
+      verifier =
+        FakeApiClient.last_body(fake_client) |> URI.decode_query() |> Map.fetch!("code_verifier")
+
+      assert params["code_challenge"] ==
+               Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
+    end
+
+    test "bhv authoauthtwoauthcode 009 every authorization URL starts a new verifier" do
+      auth = create_authenticator()
+
       first =
         PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
           auth
@@ -654,17 +675,6 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
         |> query_params()
 
       assert first["code_challenge"] != second["code_challenge"]
-
-      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
-        auth,
-        "the-code"
-      )
-
-      verifier =
-        FakeApiClient.last_body(fake_client) |> URI.decode_query() |> Map.fetch!("code_verifier")
-
-      assert second["code_challenge"] ==
-               Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
     end
 
     test "bhv authoauthtwoauthcode 001 a code exchange without a built authorization URL sends no code verifier" do

@@ -15,14 +15,19 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert metadata != nil
     end
 
-    test "bhv models 004 bhv models 009 deserializes additional string properties and keeps them strings" do
+    test "bhv models 004 deserializes additional string properties" do
       json = ~s({"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"})
       metadata = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
 
-      assert metadata != nil
       assert %PetstoreClient.Models.Metadata{} = metadata
-      assert is_binary(metadata.additional_properties["customField"])
       assert metadata.additional_properties["customField"] == "hello"
+    end
+
+    test "bhv models 009 additional properties are typed as string" do
+      json = ~s({"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"})
+      metadata = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
+
+      assert is_binary(metadata.additional_properties["customField"])
     end
 
     test "bhv models 011 round-trip preserves known properties" do

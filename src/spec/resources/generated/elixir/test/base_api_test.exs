@@ -1436,7 +1436,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert is_binary(result)
   end
 
-  test "bhv serializationwire 006 bhv operations 010 empty body returns nil" do
+  test "bhv serializationwire 006 empty body returns nil" do
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: EmptyBinaryApiClient}
 
@@ -1451,6 +1451,35 @@ defmodule PetstoreClient.Api.BaseApiTest do
                ["application/octet-stream"],
                "application/octet-stream",
                nil
+             )
+  end
+
+  defmodule EmptyJsonApiClient do
+    # A module-style api_client: BaseApi calls send_request/4 on it directly.
+    def send_request(_method, _url, _headers, _body) do
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
+    end
+  end
+
+  test "bhv operations 010 empty body yields nil for a model return type" do
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: EmptyJsonApiClient}
+
+    assert {:ok, nil} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Category"
              )
   end
 
@@ -2276,6 +2305,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert PetstoreClient.Errors.ApiError.typed_error_body(err, "Category") == nil
   end
 
+  test "bhv errors 030 typed_error_body returns nil for an error response that carried no body" do
+    err = PetstoreClient.Errors.ApiError.from_response(500, %{}, nil)
+
+    assert PetstoreClient.Errors.ApiError.typed_error_body(err, "Category") == nil
+  end
+
   # Proxy authentication (item #29)
 
   test "bhv transport 001 proxy with basic authentication forwards Proxy-Authorization header" do
@@ -3042,7 +3077,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "bhv errors 026 bhv errors 036 an error response names the request, without its query string" do
+  test "bhv errors 026 the request method and path are rendered on their own line, never the query string" do
+    state = retry_state([404])
+
+    assert {:error, %PetstoreClient.Errors.NotFoundError{} = error} =
+             get_thing_with(state, [], [{"key", "abc123"}])
+
+    assert Exception.message(error) =~ "\nRequest: GET /things"
+    refute Exception.message(error) =~ "abc123"
+  end
+
+  test "bhv errors 036 the error carries the method and the path without the query string" do
     state = retry_state([404])
 
     assert {:error, %PetstoreClient.Errors.NotFoundError{} = error} =
@@ -3050,8 +3095,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert error.request_method == "GET"
     assert error.request_path == "/things"
-    assert Exception.message(error) =~ "\nRequest: GET /things"
-    refute Exception.message(error) =~ "abc123"
+    refute error.request_path =~ "abc123"
   end
 
   test "an error without a response names the request too" do

@@ -118,11 +118,23 @@ describe("ObjectSerializer", () => {
       expect(result).toBe("2024-01-01T00:00:00.000+00:00");
     });
 
-    test("bhv serializationobject 149 bhv serializationobject 150 serialized datetime string ends with an offset", () => {
+    test("bhv serializationobject 149 serialized datetime string contains offset", () => {
       const date = new Date("2024-01-01T12:30:45.000Z");
       const result = ObjectSerializer.stringify(date);
       expect(result).toMatch(/[+-]\d{2}:\d{2}$/);
       expect(result).not.toMatch(/Z$/);
+    });
+
+    test("bhv serializationobject 150 serialized datetime string ends with a numeric offset, never Z", () => {
+      for (const iso of [
+        "2024-01-01T00:00:00.000Z",
+        "2024-02-29T12:00:00.000Z",
+        "2024-12-31T23:59:59.999Z",
+      ]) {
+        const result = ObjectSerializer.stringify(new Date(iso));
+        expect(result).toMatch(/[+-]\d{2}:\d{2}$/);
+        expect(result).not.toMatch(/Z$/);
+      }
     });
 
     test("bhv serializationobject 134 date formatted as ISO 8601 date-time contains T separator", () => {
@@ -258,11 +270,16 @@ describe("ObjectSerializer", () => {
       expect(ObjectSerializer.toPathValue(42)).toBe("42");
     });
 
-    test('bhv serializationobject 043 bhv serializationobject 166 converts true to "true"', () => {
+    test('bhv serializationobject 043 converts true to "true"', () => {
       expect(ObjectSerializer.toPathValue(true)).toBe("true");
     });
 
-    test('bhv serializationobject 033 bhv serializationobject 166 converts false to "false"', () => {
+    test('bhv serializationobject 033 converts false to "false"', () => {
+      expect(ObjectSerializer.toPathValue(false)).toBe("false");
+    });
+
+    test("bhv serializationobject 166 renders a boolean as its lower-case word in a path", () => {
+      expect(ObjectSerializer.toPathValue(true)).toBe("true");
       expect(ObjectSerializer.toPathValue(false)).toBe("false");
     });
   });
@@ -292,15 +309,27 @@ describe("ObjectSerializer", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"])).toBe("a,b,c");
     });
 
-    test("bhv serializationobject 098 bhv serializationobject 168 joins array with comma for csv", () => {
+    test("bhv serializationobject 098 joins array with comma for csv", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "csv")).toBe(
         "a,b,c",
       );
     });
 
-    test("bhv serializationobject 100 bhv serializationobject 169 joins array with space for ssv", () => {
+    test("bhv serializationobject 168 keeps an empty slot for a null element in csv", () => {
+      expect(ObjectSerializer.toQueryValue(["a", null, "c"], "csv")).toBe(
+        "a,,c",
+      );
+    });
+
+    test("bhv serializationobject 100 joins array with space for ssv", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "ssv")).toBe(
         "a b c",
+      );
+    });
+
+    test("bhv serializationobject 169 keeps an empty slot for a null element in ssv", () => {
+      expect(ObjectSerializer.toQueryValue(["a", null, "c"], "ssv")).toBe(
+        "a  c",
       );
     });
 
@@ -636,7 +665,16 @@ describe("ObjectSerializer", () => {
     expect(order!.status).toBe(OrderStatusEnum.Placed);
   });
 
-  test("bhv serializationobject 025 bhv serializationobject 111 Defaults: absent fields take the schema default, explicit null is preserved", () => {
+  test("bhv serializationobject 111 numeric schema defaults are exact typed values", () => {
+    const defaults = ObjectSerializer.deserialize({}, Defaults);
+    expect(defaults!.retries).toStrictEqual(3);
+    expect(defaults!.scale).toStrictEqual(0.25);
+    expect(defaults!.weight).toStrictEqual(2);
+    expect(defaults!.ceiling).toStrictEqual(9000000000);
+    expect(typeof defaults!.ceiling).toBe("number");
+  });
+
+  test("bhv serializationobject 025 Defaults: absent fields take the schema default, explicit null is preserved", () => {
     // default-vs-explicit-null contract: a schema `default` applies ONLY when
     // the property is ABSENT from the payload. An explicit JSON null is a
     // provided value and must be PRESERVED (the field stays null), not
@@ -2125,7 +2163,7 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("bhv serializationobject 176 bhv serializationobject 109 round-trip preserves the member through serialize then deserialize", () => {
+    test("bhv serializationobject 176 round-trip preserves the member through serialize then deserialize", () => {
       const original = new StockItem({
         priority: Priority.Number2,
         availability: Availability.OnHold,
@@ -2138,6 +2176,22 @@ describe("ObjectSerializer", () => {
       expect(
         JSON.parse(ObjectSerializer.serialize(original)).availability,
       ).toBe("on-hold");
+    });
+
+    test("bhv serializationobject 109 round-trip keeps the wire casing of every Availability member", () => {
+      for (const member of Object.values(Availability)) {
+        const item = new StockItem({
+          priority: Priority.Number1,
+          availability: member,
+        });
+        const wire = JSON.parse(ObjectSerializer.serialize(item)).availability;
+        expect(wire).toBe(member);
+        const restored = ObjectSerializer.deserialize(
+          JSON.parse(ObjectSerializer.serialize(item)),
+          StockItem,
+        );
+        expect(restored!.availability).toBe(member);
+      }
     });
   });
 

@@ -53,7 +53,7 @@ defmodule PetstoreClient.ApiErrorTest do
            ) == default <> "\nHTTP status code: 500"
   end
 
-  test "bhv errors 022 bhv errors 024 the message lists the status, headers and body, and leaves out what is empty" do
+  test "bhv errors 024 the message renders the message, status, headers and body" do
     full =
       PetstoreClient.Errors.ApiError.exception(
         message: "boom",
@@ -73,7 +73,9 @@ defmodule PetstoreClient.ApiErrorTest do
 
     assert PetstoreClient.Errors.ApiError.message(sorted) ==
              ~s(boom\nResponse headers: {"a":"1","b":"2"})
+  end
 
+  test "bhv errors 022 the message omits an empty status, headers and body" do
     bare =
       PetstoreClient.Errors.ApiError.exception(
         message: "boom",
@@ -325,7 +327,7 @@ defmodule PetstoreClient.ApiErrorTest do
     assert body.name == "Dogs"
   end
 
-  test "bhv errors 016 bhv errors 030 bhv errors 015 typed_error_body returns nil when there is no response body" do
+  test "bhv errors 016 typed_error_body returns nil for an empty response body" do
     err =
       PetstoreClient.Errors.ApiError.exception(
         status_code: 500,
@@ -334,8 +336,17 @@ defmodule PetstoreClient.ApiErrorTest do
       )
 
     assert PetstoreClient.Errors.ApiError.typed_error_body(err, "Category") == nil
-    no_body = %{err | response_body: nil}
-    assert PetstoreClient.Errors.ApiError.typed_error_body(no_body, "Category") == nil
+  end
+
+  test "bhv errors 015 typed_error_body returns nil when there is no response body" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        status_code: 500,
+        response_body: nil,
+        response_headers: %{}
+      )
+
+    assert PetstoreClient.Errors.ApiError.typed_error_body(err, "Category") == nil
   end
 
   test "bhv errors 014 typed_error_body ignores extraneous fields not on the model" do

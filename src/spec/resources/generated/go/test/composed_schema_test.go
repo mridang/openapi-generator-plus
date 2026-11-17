@@ -11,6 +11,7 @@ package petstore_test
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -183,6 +184,21 @@ func TestComposedSchema_PetFood_DiscriminatorKeyMatchesCaseSensitively(t *testin
 }
 
 // ── anyOf without discriminator: PetTreatment ──
+
+func TestBhvUnions003_ComposedSchema_PetTreatment_SingleMatchedVariantIsTheActualInstance(t *testing.T) {
+	t.Parallel()
+	var treatment models.PetTreatment
+	if err := json.Unmarshal([]byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`), &treatment); err != nil {
+		t.Fatalf("failed to deserialize PetTreatment as Medication: %v", err)
+	}
+	matched := treatment.MatchedInstances()
+	if len(matched) != 1 {
+		t.Fatalf("expected exactly one matched variant, got %d", len(matched))
+	}
+	if !reflect.DeepEqual(treatment.ActualInstance(), matched[0]) {
+		t.Errorf("expected the actual instance %#v to be the matched instance %#v", treatment.ActualInstance(), matched[0])
+	}
+}
 
 func TestBhvUnions014_ComposedSchema_PetTreatment_DeserializeMedication(t *testing.T) {
 	t.Parallel()

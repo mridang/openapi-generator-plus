@@ -15,6 +15,7 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\ClientAuthMethod;
+use PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator;
 use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
 test('bhv authoauthtwoclientcred 010 sends client credentials grant type', function (): void {
@@ -345,4 +346,21 @@ test('bhv authoauthtwoclientcred 005 invalidate access token drops the cached to
     expect($first['Authorization'])->toBe('Bearer cc-token-1');
     expect($second['Authorization'])->toBe('Bearer cc-token-2');
     expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('bhv authoauthtwoclientcred 009 scheme wrapper sends the spec scopes to the spec token url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'cc-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new MachineAuthClientCredentialsAuthenticator('https://api.example.com', 'my-client-id', 'my-client-secret');
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests)->toHaveCount(1);
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/oauth/token');
+    expect($client->capturedRequests[0]['body'] ?? '')->toContain('scope=' . str_replace('%20', '+', rawurlencode(implode(' ', ['pets:read', 'pets:write']))));
 });

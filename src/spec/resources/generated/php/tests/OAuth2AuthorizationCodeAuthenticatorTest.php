@@ -15,6 +15,7 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
+use PetstoreClient\Auth\OAuth\UserAuthAuthorizationCodeAuthenticator;
 use PetstoreClient\Errors\OAuth2ServerException;
 
 function makeOAuth2AuthCodeMockClient(
@@ -707,4 +708,13 @@ test('bhv authoauthtwoauthcode 016 invalidate access token drops the access toke
     expect($refreshRequest['body'] ?? '')->toContain('grant_type=refresh_token');
     expect($refreshRequest['body'] ?? '')->toContain('refresh_token=refresh1');
     expect($headers['Authorization'])->toBe('Bearer access2');
+});
+
+test('bhv authoauthtwoauthcode 020 scheme wrapper sends the spec scopes and urls', function (): void {
+    $authenticator = new UserAuthAuthorizationCodeAuthenticator('https://api.example.com', 'my-client-id', 'my-client-secret', 'https://app.example.com/callback');
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toStartWith('https://auth.example.com/authorize' . '?');
+    expect($url)->toContain('scope=' . rawurlencode(implode(' ', ['pets:read', 'pets:write'])));
 });

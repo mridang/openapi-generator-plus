@@ -154,7 +154,7 @@ func requireSchemeAdminBasicAuthenticatorCredentials(t *testing.T, a *auth.Admin
 	}
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewAdminBasicAuthenticator(schemeHost, "", "")

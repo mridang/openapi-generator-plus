@@ -15,6 +15,7 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\ClientAuthMethod;
+use PetstoreClient\Auth\OAuth\LegacyAuthPasswordAuthenticator;
 use PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator;
 
 test('bhv authoauthtwopassword 014 sends password grant type', function (): void {
@@ -544,4 +545,22 @@ test('bhv authoauthtwopassword 017 the first grant goes to the token url and the
     expect($client->capturedRequests[0]['body'] ?? '')->toContain('grant_type=password');
     expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
     expect($client->capturedRequests[1]['body'] ?? '')->toContain('grant_type=refresh_token');
+});
+
+test('bhv authoauthtwopassword 012 scheme wrapper sends the spec scopes and urls', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new LegacyAuthPasswordAuthenticator('https://api.example.com', 'my-client-id', 'my-client-secret', 'testuser', 'testpass');
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests)->toHaveCount(1);
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/oauth/token');
+    expect($client->capturedRequests[0]['body'] ?? '')->toContain('grant_type=password');
+    expect($client->capturedRequests[0]['body'] ?? '')->toContain('scope=' . str_replace('%20', '+', rawurlencode(implode(' ', ['read']))));
 });

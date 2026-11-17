@@ -114,6 +114,16 @@ test('injected api client is wired into every api group', function (): void {
     expect($property->getValue($client->store))->toBe($stub);
 });
 
+test('bhv lifecycle 017 a token provider in place of the token builds a client', function (): void {
+    /* The facade's withToken() takes a static string; a rotating token goes
+     * through a provider on the bearer authenticator handed to withAuthenticator(). */
+    $authenticator = new BearerAuthenticator('/api/v3', null, fn (): string => 'rotating-token');
+
+    $client = Client::withAuthenticator($authenticator);
+
+    expect($client)->toBeInstanceOf(Client::class);
+});
+
 test('bhv lifecycle 007 close on a client with a supplied transport leaves that transport usable', function (): void {
     $stub = new class implements ApiClient {
         public int $sent = 0;

@@ -286,7 +286,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["accept-encoding"]).toBe("identity");
   });
 
-  it("bhv transport 043 bhv transport 013 injects X-Request-ID when enabled", async () => {
+  it("bhv transport 043 injects X-Request-ID when enabled", async () => {
     const transport = TransportOptions.builder().injectRequestId(true).build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -302,6 +302,20 @@ describe("DefaultApiClient unit", () => {
     expect(requestId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
+  });
+
+  it("bhv transport 013 injects a request id header when injectRequestId is set", async () => {
+    const transport = TransportOptions.builder().injectRequestId(true).build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${baseUrl}/echo-headers`,
+      {},
+      null,
+    );
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body["x-request-id"]).toEqual(expect.any(String));
   });
 
   it("bhv transport 036 does not inject X-Request-ID when disabled", async () => {
@@ -332,7 +346,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["x-request-id"]).toBe("caller-provided-id");
   });
 
-  it("bhv transport 038 bhv transport 007 generates unique X-Request-ID per request", async () => {
+  it("bhv transport 038 generates unique X-Request-ID per request", async () => {
     const transport = TransportOptions.builder().injectRequestId(true).build();
     const client = new DefaultApiClient(transport);
     const response1 = await client.sendRequest(
@@ -352,7 +366,23 @@ describe("DefaultApiClient unit", () => {
     expect(id1).not.toBe(id2);
   });
 
-  it("bhv transport 039 bhv transport 010 includes transport-level default headers", async () => {
+  it("bhv transport 007 generates unique request ids across three calls", async () => {
+    const transport = TransportOptions.builder().injectRequestId(true).build();
+    const client = new DefaultApiClient(transport);
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const response = await client.sendRequest(
+        "GET",
+        `${baseUrl}/echo-headers`,
+        {},
+        null,
+      );
+      ids.push(JSON.parse(response.body)["x-request-id"]);
+    }
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it("bhv transport 039 includes transport-level default headers", async () => {
     const transport = TransportOptions.builder()
       .defaultHeader("X-Custom", "custom-value")
       .build();
@@ -366,6 +396,24 @@ describe("DefaultApiClient unit", () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body["x-custom"]).toBe("custom-value");
+  });
+
+  it("bhv transport 010 includes transport default headers", async () => {
+    const transport = TransportOptions.builder()
+      .defaultHeader("X-First", "one")
+      .defaultHeader("X-Second", "two")
+      .build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${baseUrl}/echo-headers`,
+      {},
+      null,
+    );
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body["x-first"]).toBe("one");
+    expect(body["x-second"]).toBe("two");
   });
 
   it("bhv options 005 caller headers override transport default headers", async () => {
@@ -846,7 +894,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     });
   }
 
-  it("bhv serializationwire 037 #4 file part Content-Type is derived from the filename extension", async () => {
+  it("bhv serializationwire 037 file part Content-Type is derived from the filename extension", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
       const client = new DefaultApiClient();
@@ -954,7 +1002,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     }
   });
 
-  it("bhv serializationwire 049 #4 raw-bytes part with no extension reuses the field name as filename and falls back to application/octet-stream", async () => {
+  it("bhv serializationwire 049 raw-bytes part with no extension reuses the field name as filename and falls back to application/octet-stream", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
       const client = new DefaultApiClient();
@@ -996,7 +1044,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     }
   });
 
-  it("bhv serializationwire 046 #5 non-ASCII field name is preserved as UTF-8 in the part header", async () => {
+  it("bhv serializationwire 046 non-ASCII field name is preserved as UTF-8 in the part header", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
       const client = new DefaultApiClient();
@@ -2504,7 +2552,7 @@ describe("the client keeps no ambient state between requests", () => {
     ).not.toContain("cookie");
   });
 
-  it("bhv transport 046 bhv transport 009 ambient proxy variables are ignored; only TransportOptions.proxy is a proxy source", async () => {
+  it("bhv transport 046 ambient proxy variables are ignored; only TransportOptions.proxy is a proxy source", async () => {
     for (const name of proxyVariables) {
       savedEnvironment.set(name, process.env[name]);
       process.env[name] = "http://127.0.0.1:9";
@@ -2522,6 +2570,31 @@ describe("the client keeps no ambient state between requests", () => {
       null,
     );
 
+    expect(seenInit).toBeDefined();
+    expect(seenInit!["dispatcher"]).toBeUndefined();
+  });
+
+  it("bhv transport 009 ignores ambient proxy environment variables when no proxy is configured", async () => {
+    for (const name of proxyVariables) {
+      savedEnvironment.set(name, process.env[name]);
+      process.env[name] = "http://127.0.0.1:9";
+    }
+    const urls: string[] = [];
+    let seenInit: Record<string, unknown> | undefined;
+    global.fetch = (async (url: unknown, init: Record<string, unknown>) => {
+      urls.push(String(url));
+      seenInit = init;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await new DefaultApiClient().sendRequest(
+      "GET",
+      "http://api.example/x",
+      {},
+      null,
+    );
+
+    expect(urls).toEqual(["http://api.example/x"]);
     expect(seenInit).toBeDefined();
     expect(seenInit!["dispatcher"]).toBeUndefined();
   });

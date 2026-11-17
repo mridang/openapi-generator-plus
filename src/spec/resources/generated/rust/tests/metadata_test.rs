@@ -112,6 +112,7 @@ fn test_bhv_serializationobject_020_metadata_additional_properties_round_trip_pr
     }
 }
 
+#[test]
 fn test_bhv_models_001_metadata_additional_properties_round_trip_preserves_free_form_json() {
     /* FIX 3 (no serde_json in public fields): `additional_properties` is a
      * HashMap<String, JsonValue> where JsonValue is the SDK-owned wrapper.

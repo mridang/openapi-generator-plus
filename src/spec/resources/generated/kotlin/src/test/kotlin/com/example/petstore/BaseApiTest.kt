@@ -262,6 +262,23 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("bhvRetries005 a retry asks the authenticator for the headers again")
+    fun aRetryAsksTheAuthenticatorForFreshHeaders() {
+        val client = ScriptedApiClient(listOf(401, 200))
+        val auth = RotatingOAuthAuthenticator()
+        val api =
+            object : com.example.petstore.api.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+                suspend fun call() =
+                    invokeApi("GET", "/items", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+            }
+
+        runBlocking { api.call() }
+
+        assertEquals(2, auth.issued)
+        assertEquals(listOf("Bearer t1", "Bearer t2"), client.sentHeaders.map { it["Authorization"] })
+    }
+
+    @Test
     @DisplayName("bhvRetries008 F855: a second 401 is reported as Unauthorized and the request is not sent a third time")
     fun aSecondUnauthorizedAnswerIsReported() {
         val client = ScriptedApiClient(listOf(401))
