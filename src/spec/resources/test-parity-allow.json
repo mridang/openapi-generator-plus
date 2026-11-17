@@ -296,55 +296,6 @@
         }
       ]
     },
-    "kotlin": {
-      "missingTests": [
-        {
-          "reason": "tracked in #118",
-          "keys": [
-            "baseapi::nullbodypostdoesnotsendcontenttype",
-            "configuration::builderproducesindependentinstances",
-            "configuration::buildersetsbaseurl",
-            "configuration::buildersetsmultipledefaultheaders",
-            "defaultapiclient::closereleasesunderlyingclient",
-            "petapi::addpet",
-            "petapi::addpetphotos",
-            "petapi::addpetwithhttpinfo",
-            "petapi::deletepet",
-            "petapi::deletepetwithhttpinfo",
-            "petapi::downloadbinarymock",
-            "petapi::downloadpetdocument",
-            "petapi::errorhandlingnotfound",
-            "petapi::findpetsbystatus",
-            "petapi::findpetsbystatuswithhttpinfo",
-            "petapi::getpetavatar",
-            "petapi::getpetavatarthumbnail",
-            "petapi::getpetbyid",
-            "petapi::getpetbyidwithhttpinfo",
-            "petapi::getpetpassport",
-            "petapi::getpetpassportwithhttpinfo",
-            "petapi::getpetphoto",
-            "petapi::setpetavatar",
-            "petapi::setpetavatarthumbnail",
-            "petapi::updatepet",
-            "petapi::updatepetwithhttpinfo",
-            "petapi::uploadmultipartmock",
-            "petapi::uploadpetcertificate",
-            "petapi::uploadpetdocument",
-            "storeapi::deleteorder",
-            "storeapi::deleteordernotfound",
-            "storeapi::getinventory",
-            "storeapi::getinventorywithhttpinfo",
-            "storeapi::getorderbyid",
-            "storeapi::getorderbyidwithhttpinfo",
-            "storeapi::getordernotfound",
-            "storeapi::placeorder",
-            "storeapi::placeorderservererror",
-            "storeapi::placeorderwithhttpinfo",
-            "transportoptions::invalidproxyurlthrowserror"
-          ]
-        }
-      ]
-    },
     "node": {
       "missingGroups": [
         {

@@ -1234,7 +1234,7 @@ class DefaultApiClientTest {
     @DisplayName("client lifecycle (Gap T6)")
     inner class ClientLifecycle {
         @Test
-        @DisplayName("close releases underlying client and blocks new requests")
+        @DisplayName("close releases underlying client")
         fun closeReleasesUnderlyingClient() {
             val client = DefaultApiClient()
             client.close()

@@ -115,7 +115,7 @@ class PetApiTest {
         private val api: PetApi get() = sharedApi
 
         @Test
-        @DisplayName("addPet creates a new pet")
+        @DisplayName("addPet")
         fun testAddPet() {
             val pet =
                 Pet(
@@ -149,7 +149,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("addPet with HttpInfo returns status and headers")
+        @DisplayName("addPet with HttpInfo")
         fun testAddPetWithHttpInfo() {
             val pet =
                 Pet(
@@ -165,7 +165,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetById returns a pet")
+        @DisplayName("getPetById")
         fun testGetPetById() {
             val result = runBlocking { api.getPetById(1L) }
 
@@ -175,7 +175,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetById with HttpInfo returns status and headers")
+        @DisplayName("getPetById with HttpInfo")
         fun testGetPetByIdWithHttpInfo() {
             val result = runBlocking { api.getPetByIdWithHttpInfo(1L) }
 
@@ -185,7 +185,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("updatePet updates an existing pet")
+        @DisplayName("updatePet")
         fun testUpdatePet() {
             val pet =
                 Pet(
@@ -199,7 +199,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("updatePet with HttpInfo returns status")
+        @DisplayName("updatePet with HttpInfo")
         fun testUpdatePetWithHttpInfo() {
             val pet =
                 Pet(
@@ -214,13 +214,13 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("deletePet deletes a pet")
+        @DisplayName("deletePet")
         fun testDeletePet() {
             assertDoesNotThrow { runBlocking { sharedSchemeApi.deletePet(1L) } }
         }
 
         @Test
-        @DisplayName("deletePet with HttpInfo returns status")
+        @DisplayName("deletePet with HttpInfo")
         fun testDeletePetWithHttpInfo() {
             val result = runBlocking { sharedSchemeApi.deletePetWithHttpInfo(1L) }
 
@@ -229,7 +229,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("findPetsByStatus returns a list of pets")
+        @DisplayName("findPetsByStatus")
         fun testFindPetsByStatus() {
             val result =
                 runBlocking {
@@ -243,7 +243,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("findPetsByStatus with HttpInfo returns status")
+        @DisplayName("findPetsByStatus with HttpInfo")
         fun testFindPetsByStatusWithHttpInfo() {
             val result =
                 runBlocking {
@@ -257,7 +257,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetPassport returns passport with embedded fields")
+        @DisplayName("getPetPassport")
         fun testGetPetPassport() {
             val result = runBlocking { api.getPetPassport(1L) }
 
@@ -269,7 +269,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetPassport with HttpInfo returns status")
+        @DisplayName("getPetPassport with HttpInfo")
         fun testGetPetPassportWithHttpInfo() {
             val result = runBlocking { api.getPetPassportWithHttpInfo(1L) }
 
@@ -278,7 +278,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("setPetAvatar sends binary body")
+        @DisplayName("setPetAvatar")
         fun testSetPetAvatar() {
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
 
@@ -305,7 +305,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetAvatar returns binary data")
+        @DisplayName("getPetAvatar")
         fun testGetPetAvatar() {
             val result = runBlocking { api.getPetAvatar(1L) }
 
@@ -313,7 +313,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetAvatarThumbnail returns binary data")
+        @DisplayName("getPetAvatarThumbnail")
         fun testGetPetAvatarThumbnail() {
             val result = runBlocking { api.getPetAvatarThumbnail(1L) }
 
@@ -321,7 +321,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("setPetAvatarThumbnail accepts base64 payload")
+        @DisplayName("setPetAvatarThumbnail")
         fun testSetPetAvatarThumbnail() {
             val request = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47))
 
@@ -329,7 +329,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("uploadPetCertificate uploads a single file")
+        @DisplayName("uploadPetCertificate")
         fun testUploadPetCertificate() {
             val fileBytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
             val result = runBlocking { api.uploadPetCertificate(1L, UploadPetCertificateOptions(fileBytes)) }
@@ -338,7 +338,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("uploadPetDocument uploads with classification fields")
+        @DisplayName("uploadPetDocument")
         fun testUploadPetDocument() {
             val fileBytes = "fake-doc-data".toByteArray()
             val options =
@@ -353,14 +353,14 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("addPetPhotos uploads photos with metadata via multipart")
+        @DisplayName("addPetPhotos")
         fun testAddPetPhotos() {
             val files = listOf(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()))
             runBlocking { api.addPetPhotos(1L, AddPetPhotosOptions(files, PhotoMetadata())) }
         }
 
         @Test
-        @DisplayName("downloadPetDocument returns binary data")
+        @DisplayName("downloadPetDocument")
         fun testDownloadPetDocument() {
             val result = runBlocking { api.downloadPetDocument(1L, 1L) }
 
@@ -368,7 +368,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetPhoto returns a photo via content negotiation")
+        @DisplayName("getPetPhoto")
         fun testGetPetPhoto() {
             val result = runBlocking { api.getPetPhoto(1L, 1L) }
 
@@ -539,7 +539,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("upload multipart sends correct request")
+        @DisplayName("uploadMultipartMock")
         fun testUploadMultipart() {
             var capturedMethod: String? = null
             var capturedPath: String? = null
@@ -747,7 +747,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("404 response throws NotFoundException")
+        @DisplayName("error handling not found")
         fun testErrorHandlingNotFound() {
             val engine =
                 MockEngine { _ ->
@@ -1486,7 +1486,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("binary download returns data from mock")
+        @DisplayName("downloadBinaryMock")
         fun testDownloadBinaryMock() {
             val engine =
                 MockEngine { _ ->
