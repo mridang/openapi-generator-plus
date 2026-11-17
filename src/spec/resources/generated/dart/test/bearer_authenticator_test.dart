@@ -10,6 +10,20 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('BearerAuthenticator', () {
+    test(
+      'bhv authscheme 009 a credential passed explicitly wins over its environment variable',
+      () {
+        final auth = BearerAuthenticator(
+          host: '/api/v3',
+          token: 'explicit',
+          environmentVariable: 'OTHER_TOKEN',
+          environment: {'OTHER_TOKEN': 'fromenv'},
+        );
+
+        expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
+      },
+    );
+
     test('bhv authbearer 018 an explicit token wins over the environment', () {
       final auth = BearerAuthenticator(
         host: '/api/v3',
@@ -49,21 +63,24 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals('Bearer other'));
     });
 
-    test('an empty environment value counts as unset', () {
-      expect(
-        () => BearerAuthenticator(
-          host: '/api/v3',
-          environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
-        ),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e.message,
-            'message',
-            contains(BearerAuthenticator.defaultEnvironmentVariable),
+    test(
+      'bhv authscheme 010 an empty environment value counts as unset and fails naming the variable',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: '/api/v3',
+            environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(BearerAuthenticator.defaultEnvironmentVariable),
+            ),
+          ),
+        );
+      },
+    );
 
     test('no token anywhere fails when the authenticator is built', () {
       expect(

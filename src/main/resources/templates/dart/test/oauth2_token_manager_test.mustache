@@ -633,6 +633,88 @@ void main() {
       );
     });
 
+    test('bhv authoauthtwotokenmgr 042 a token error response names the status, the code and the description', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"error":"invalid_grant","error_description":"refresh token expired"}',
+        statusCode: 400,
+      );
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await expectLater(
+        manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(isA<OAuth2ServerException>().having(
+            (e) => e.message,
+            'message',
+            equals(
+                'Token request failed with status 400: invalid_grant -- refresh token expired'))),
+      );
+    });
+
+    test('bhv authoauthtwotokenmgr 043 the token request body is serialised in the fixed shared key order', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","expires_in":3600}');
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await manager.getAccessToken(
+        'https://auth.example.com/token',
+        {
+          'zeta': 'z',
+          'scope': 's',
+          'redirect_uri': 'r',
+          'client_secret': 'cs',
+          'client_id': 'ci',
+          'password': 'p',
+          'username': 'u',
+          'refresh_token': 'rt',
+          'code': 'c',
+          'alpha': 'a',
+          'grant_type': 'g',
+        },
+      );
+
+      expect(
+        client.lastBody,
+        equals(
+            'grant_type=g&code=c&refresh_token=rt&username=u&password=p&client_id=ci&client_secret=cs&redirect_uri=r&scope=s&alpha=a&zeta=z'),
+      );
+    });
+
+    test('bhv authoauthtwotokenmgr 045 a padded decimal expires_in with a fraction is accepted so the token is cached', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"pad1","expires_in":" 3600.5\\n"}');
+      client.enqueue('{"access_token":"pad2","expires_in":3600}');
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+      final params = {'grant_type': 'client_credentials'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      expect(await manager.getAccessToken(tokenUrl, params), equals('pad1'));
+      expect(await manager.getAccessToken(tokenUrl, params), equals('pad1'));
+      expect(client.requestCount, equals(1));
+    });
+
+    test('bhv authoauthtwotokenmgr 046 a string expires_in outside the decimal grammar leaves the token stale', () async {
+      for (final raw in <String>['-5', 'NaN', '1_000', '3600d']) {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"first","expires_in":"$raw"}');
+        client.enqueue('{"access_token":"second","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
+
+        expect(await manager.getAccessToken(tokenUrl, params), equals('first'), reason: raw);
+        expect(await manager.getAccessToken(tokenUrl, params), equals('second'), reason: raw);
+        expect(client.requestCount, equals(2), reason: raw);
+      }
+    });
+
     test('bhv authoauthtwotokenmgr 035 the token request is a form post accepting json', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok","expires_in":3600}');
@@ -960,7 +1042,7 @@ void main() {
       );
     });
 
-    test('with an error code it names the code', () {
+    test('bhv errors 049 with an error code it names the code', () {
       final err = OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
 
       expect(

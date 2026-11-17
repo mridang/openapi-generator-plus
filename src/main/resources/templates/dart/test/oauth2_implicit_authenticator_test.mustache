@@ -55,6 +55,14 @@ void main() {
       expect(url, contains('state=my-state'));
     });
 
+    test('bhv authoauthtwoimplicit 016 an implicit access token may contain a tab', () {
+      final auth = _createAuthenticator();
+
+      auth.setAccessToken('tab\tinside');
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer tab\tinside'));
+    });
+
     test('bhv authoauthtwoimplicit 007 getAuthHeaders returns Bearer after setAccessToken', () {
       final auth = _createAuthenticator();
       auth.setAccessToken('implicit-tok');

@@ -120,6 +120,26 @@ void main() {
     );
 
     test(
+      'bhv authoauthtwoauthcode 032 the code exchange body uses a fixed parameter order',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.exchangeCode('C');
+
+        expect(
+          client.lastBody,
+          startsWith(
+            'grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback',
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv authoauthtwoauthcode 012 exchanges code with correct grant type',
       () async {
         final client = _FakeApiClient();
@@ -166,19 +186,22 @@ void main() {
       },
     );
 
-    test('authHeaders before exchangeCode names the precondition', () {
-      final auth = _createAuthenticator();
-      expect(
-        () => auth.authHeaders(),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            'Must call exchangeCode() before making API requests',
+    test(
+      'bhv authoauthtwoauthcode 030 authHeaders before exchangeCode names the precondition',
+      () {
+        final auth = _createAuthenticator();
+        expect(
+          () => auth.authHeaders(),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'Must call exchangeCode() before making API requests',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwoauthcode 011 exchangeCode rejects whitespace-only code',
