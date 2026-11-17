@@ -9,3 +9,4 @@ swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentTy
 swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
 swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
 elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in
+csharp | errors040 | SendRequestAsync takes a System.Uri, so a malformed request URL fails in the caller new Uri(...) with UriFormatException before the SDK runs and no SDK path receives one
