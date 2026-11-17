@@ -291,8 +291,9 @@ class BaseApiTest {
   class UnauthorizedReplay {
 
     @Test
-    @DisplayName("a 401 drops the token and the request is replayed once with fresh headers")
-    void unauthorizedReplaysOnceWithFreshHeaders() throws ApiException {
+    @DisplayName(
+        "bhvRetries001 a 401 drops the token and the request is replayed once with fresh headers")
+    void bhvRetries001UnauthorizedReplaysOnceWithFreshHeaders() throws ApiException {
       var client = new ScriptedApiClient(401, 200);
       var auth = new RotatingTokenAuthenticator(true);
       callWith(client, auth, "{}", "application/json");
@@ -303,8 +304,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("a second 401 is reported as Unauthorized after exactly one replay")
-    void secondUnauthorizedIsReported() {
+    @DisplayName("bhvRetries008 a second 401 is reported as Unauthorized after exactly one replay")
+    void bhvRetries008SecondUnauthorizedIsReported() {
       var client = new ScriptedApiClient(401);
       var auth = new RotatingTokenAuthenticator(true);
       assertThrowsExactly(
@@ -330,8 +331,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("a multipart body is not replayed")
-    void multipartBodyIsNotReplayed() {
+    @DisplayName("bhvRetries006 a multipart body is not replayed")
+    void bhvRetries006MultipartBodyIsNotReplayed() {
       var client = new ScriptedApiClient(401, 200);
       var auth = new RotatingTokenAuthenticator(true);
       assertThrowsExactly(
@@ -351,8 +352,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("a bearer authenticator never replays")
-    void bearerAuthenticatorNeverReplays() {
+    @DisplayName("bhvRetries002 a bearer authenticator never replays")
+    void bhvRetries002BearerAuthenticatorNeverReplays() {
       var client = new ScriptedApiClient(401, 200);
       var auth = new BearerAuthenticator("http://localhost", "static-token");
       assertThrowsExactly(
@@ -394,8 +395,8 @@ class BaseApiTest {
 
     @ParameterizedTest
     @MethodSource("statusToException")
-    @DisplayName("throws correct exception for status code")
-    void throwsCorrectException(int status, Class<? extends ApiException> expected) {
+    @DisplayName("bhvErrors037 throws correct exception for status code")
+    void bhvErrors037ThrowsCorrectException(int status, Class<? extends ApiException> expected) {
       var ex =
           assertThrowsExactly(
               expected,
@@ -422,8 +423,8 @@ class BaseApiTest {
   class ExceptionHierarchy {
 
     @Test
-    @DisplayName("NotFoundException is ClientException is ApiException")
-    void notFoundHierarchy() {
+    @DisplayName("bhvErrors033 NotFoundException is ClientException is ApiException")
+    void bhvErrors033NotFoundHierarchy() {
       var ex =
           assertThrowsExactly(
               NotFoundException.class,
@@ -445,8 +446,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("InternalServerErrorException is ServerException is ApiException")
-    void internalServerErrorHierarchy() {
+    @DisplayName("bhvErrors031 InternalServerErrorException is ServerException is ApiException")
+    void bhvErrors031InternalServerErrorHierarchy() {
       var ex =
           assertThrowsExactly(
               InternalServerErrorException.class,
@@ -473,8 +474,8 @@ class BaseApiTest {
   class ErrorBodyParsing {
 
     @Test
-    @DisplayName("parses JSON error body")
-    void parsesJsonErrorBody() {
+    @DisplayName("bhvErrors034 parses JSON error body")
+    void bhvErrors034ParsesJsonErrorBody() {
       var ex =
           assertThrows(
               BadRequestException.class,
@@ -499,8 +500,8 @@ class BaseApiTest {
   class SuccessDeserialization {
 
     @Test
-    @DisplayName("deserializes JSON response")
-    void deserializesJsonResponse() throws ApiException {
+    @DisplayName("bhvSerializationWire004 deserializes JSON response")
+    void bhvSerializationWire004DeserializesJsonResponse() throws ApiException {
       JsonNode result =
           api()
               .call(
@@ -518,8 +519,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("returns raw string for non-JSON response")
-    void returnsRawStringForNonJson() throws ApiException {
+    @DisplayName("bhvSerializationWire019 returns raw string for non-JSON response")
+    void bhvSerializationWire019ReturnsRawStringForNonJson() throws ApiException {
       String result =
           api()
               .call(
@@ -537,8 +538,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("ApiResult.rawBody is never null")
-    void apiResultRawBodyIsNonNull() throws ApiException {
+    @DisplayName("bhvOperations006 ApiResult.rawBody is never null")
+    void bhvOperations006ApiResultRawBodyIsNonNull() throws ApiException {
       com.example.petstore.ApiResult<JsonNode> result =
           api()
               .callForResult(
@@ -558,8 +559,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("returns null when returnType is null")
-    void returnsNullWhenReturnTypeIsNull() throws ApiException {
+    @DisplayName("bhvOperations015 returns null when returnType is null")
+    void bhvOperations015ReturnsNullWhenReturnTypeIsNull() throws ApiException {
       Object result =
           api()
               .call(
@@ -581,8 +582,8 @@ class BaseApiTest {
   class QueryParameters {
 
     @Test
-    @DisplayName("appends query params to URL")
-    void appendsQueryParams() throws ApiException {
+    @DisplayName("bhvSerializationWire002 appends query params to URL")
+    void bhvSerializationWire002AppendsQueryParams() throws ApiException {
       Map<String, Object> queryParams = new HashMap<>();
       queryParams.put("foo", "bar");
       Object result =
@@ -601,8 +602,10 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("includes empty value param in query string when value is empty string")
-    void includesEmptyValueParam() throws ApiException {
+    @DisplayName(
+        "bhvSerializationWire016 includes empty value param in query string when value is empty"
+            + " string")
+    void bhvSerializationWire016IncludesEmptyValueParam() throws ApiException {
       Map<String, Object> queryParams = new HashMap<>();
       queryParams.put("filter", "");
       Object result =
@@ -621,8 +624,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("expands array query params")
-    void expandsArrayQueryParams() throws ApiException {
+    @DisplayName("bhvSerializationWire009 expands array query params")
+    void bhvSerializationWire009ExpandsArrayQueryParams() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       Map<String, Object> queryParams = new HashMap<>();
@@ -664,8 +667,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("serializes boolean query params")
-    void serializesBooleanQueryParams() throws ApiException {
+    @DisplayName("bhvSerializationWire020 serializes boolean query params")
+    void bhvSerializationWire020SerializesBooleanQueryParams() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       Map<String, Object> queryParams = new HashMap<>();
@@ -686,8 +689,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("serializes number query params")
-    void serializesNumberQueryParams() throws ApiException {
+    @DisplayName("bhvSerializationWire023 serializes number query params")
+    void bhvSerializationWire023SerializesNumberQueryParams() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       Map<String, Object> queryParams = new HashMap<>();
@@ -711,8 +714,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("handles empty query params")
-    void handlesEmptyQueryParams() throws ApiException {
+    @DisplayName("bhvSerializationWire015 handles empty query params")
+    void bhvSerializationWire015HandlesEmptyQueryParams() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       testApi.call(
@@ -731,8 +734,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("collapses double-slash when baseUrl has trailing slash")
-    void collapsesDoubleSlashWhenBaseUrlHasTrailingSlash() throws ApiException {
+    @DisplayName("bhvOperations007 collapses double-slash when baseUrl has trailing slash")
+    void bhvOperations007CollapsesDoubleSlashWhenBaseUrlHasTrailingSlash() throws ApiException {
       // baseUrl='http://x/' + path='/v1/thing' must produce
       // 'http://x/v1/thing', not 'http://x//v1/thing' which most
       // servers route to 404.
@@ -786,8 +789,9 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("allowEmptyValue param omitted when value is null in options")
-    void allowEmptyValueOmittedWhenNull() {
+    @DisplayName(
+        "bhvSerializationWire001 allowEmptyValue param omitted when value is null in options")
+    void bhvSerializationWire001AllowEmptyValueOmittedWhenNull() {
       var client = new CapturingApiClient();
       var config = new Configuration("http://localhost", Map.of());
       var api = new PetApi(client, config);
@@ -805,8 +809,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("allowEmptyValue param included when value is empty string")
-    void allowEmptyValueIncludedWhenEmpty() {
+    @DisplayName("bhvOperations003 allowEmptyValue param included when value is empty string")
+    void bhvOperations003AllowEmptyValueIncludedWhenEmpty() {
       var client = new CapturingApiClient();
       var config = new Configuration("http://localhost", Map.of());
       var api = new PetApi(client, config);
@@ -852,8 +856,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("timeout and maxRetries reach the transport")
-    void timeoutAndRetriesReachTheTransport() {
+    @DisplayName("bhvRetries009 timeout and maxRetries reach the transport")
+    void bhvRetries009TimeoutAndRetriesReachTheTransport() {
       var client = new OverrideCapturingClient();
       try {
         apiOver(client).findPetsByStatus(new FindPetsByStatusOptions().timeout(1500).maxRetries(0));
@@ -891,8 +895,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("a per-call header replaces a default header of the same name")
-    void perCallHeaderReplacesADefault() {
+    @DisplayName("bhvOperations001 a per-call header replaces a default header of the same name")
+    void bhvOperations001PerCallHeaderReplacesADefault() {
       var client = new CapturingApiClient();
       var api =
           new PetApi(client, new Configuration("http://localhost", Map.of("X-Trace", "default")));
@@ -925,8 +929,10 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("an operation with no parameters and no security still works without options")
-    void anOperationWithNothingElseWorksWithoutOptions() {
+    @DisplayName(
+        "bhvAuthIntegration011 an operation with no parameters and no security still works without"
+            + " options")
+    void bhvAuthIntegration011AnOperationWithNothingElseWorksWithoutOptions() {
       var client = new OverrideCapturingClient();
       var api = new StoreApi(client, new Configuration("http://localhost", Map.of()));
       try {
@@ -953,8 +959,8 @@ class BaseApiTest {
   class ServerVariableOverrides {
 
     @Test
-    @DisplayName("server variable overrides resolve in base URL")
-    void serverVariableOverridesResolve() {
+    @DisplayName("bhvOptions003 server variable overrides resolve in base URL")
+    void bhvOptions003ServerVariableOverridesResolve() {
       Configuration config =
           Configuration.builder()
               .server(Servers.SERVER_1, Map.of("environment", "staging"))
@@ -963,15 +969,15 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("default server variables produce correct base URL")
-    void defaultServerVariablesResolve() {
+    @DisplayName("bhvOperations009 default server variables produce correct base URL")
+    void bhvOperations009DefaultServerVariablesResolve() {
       Configuration config = Configuration.builder().server(Servers.SERVER_1).build();
       assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
     }
 
     @Test
-    @DisplayName("invalid enum value throws error")
-    void invalidEnumValueThrows() {
+    @DisplayName("bhvErrors032 invalid enum value throws error")
+    void bhvErrors032InvalidEnumValueThrows() {
       assertThrows(
           IllegalArgumentException.class,
           () ->
@@ -981,8 +987,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("API request uses resolved server URL")
-    void apiRequestUsesResolvedServerUrl() {
+    @DisplayName("bhvOperations005 API request uses resolved server URL")
+    void bhvOperations005ApiRequestUsesResolvedServerUrl() {
       Configuration config =
           Configuration.builder()
               .server(Servers.SERVER_1, Map.of("environment", "staging"))
@@ -998,8 +1004,8 @@ class BaseApiTest {
   class AuthInjection {
 
     @Test
-    @DisplayName("forwards auth headers")
-    void forwardsAuthHeaders() throws Exception {
+    @DisplayName("bhvAuthIntegration010 forwards auth headers")
+    void bhvAuthIntegration010ForwardsAuthHeaders() throws Exception {
       var auth = new TestAuthenticator(Map.of("X-Custom", "auth-value"), Map.of(), Map.of());
       JsonNode result =
           api()
@@ -1018,8 +1024,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("sets Cookie header from auth cookies")
-    void setsCookieHeader() throws Exception {
+    @DisplayName("bhvAuthIntegration017 sets Cookie header from auth cookies")
+    void bhvAuthIntegration017SetsCookieHeader() throws Exception {
       var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "abc123"));
       JsonNode result =
           api()
@@ -1038,8 +1044,10 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("falls back to client-level authenticator when no per-call auth is supplied")
-    void fallsBackToClientLevelAuthenticator() throws ApiException {
+    @DisplayName(
+        "bhvAuthIntegration009 falls back to client-level authenticator when no per-call auth is"
+            + " supplied")
+    void bhvAuthIntegration009FallsBackToClientLevelAuthenticator() throws ApiException {
       var client = new CapturingApiClient();
       var clientAuth =
           new TestAuthenticator(Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
@@ -1058,8 +1066,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("per-call auth overrides the client-level authenticator")
-    void perCallAuthOverridesClientLevel() throws ApiException {
+    @DisplayName("bhvAuthIntegration013 per-call auth overrides the client-level authenticator")
+    void bhvAuthIntegration013PerCallAuthOverridesClientLevel() throws ApiException {
       var client = new CapturingApiClient();
       var clientAuth =
           new TestAuthenticator(Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
@@ -1080,8 +1088,9 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("a per-call HTTP-aware authenticator is given the API's client")
-    void perCallHttpAwareAuthenticatorReceivesTheClient() throws ApiException {
+    @DisplayName(
+        "bhvAuthIntegration002 a per-call HTTP-aware authenticator is given the API's client")
+    void bhvAuthIntegration002PerCallHttpAwareAuthenticatorReceivesTheClient() throws ApiException {
       var client = new CapturingApiClient();
       var injected = new java.util.concurrent.atomic.AtomicReference<ApiClient>();
       var perCallAuth = new HttpAwareTestAuthenticator(injected);
@@ -1112,8 +1121,10 @@ class BaseApiTest {
      */
 
     @Test
-    @DisplayName("a client-configured Bearer authenticator is applied to the outbound request")
-    void appliesConfiguredBearerAuthenticator() throws Exception {
+    @DisplayName(
+        "bhvAuthIntegration006 a client-configured Bearer authenticator is applied to the outbound"
+            + " request")
+    void bhvAuthIntegration006AppliesConfiguredBearerAuthenticator() throws Exception {
       BearerAuthenticator auth = new BearerAuthenticator(ChasmContainer.getBaseUrl(), "secret-jwt");
       TestableApi configured =
           new TestableApi(new DefaultApiClient(), ChasmContainer.getBaseUrl(), auth);
@@ -1170,8 +1181,9 @@ class BaseApiTest {
 
     @Test
     @DisplayName(
-        "NO_AUTH sentinel suppresses the client-level authenticator's header, query, and cookie")
-    void noAuthSentinelSuppressesClientAuthenticator() throws ApiException {
+        "bhvAuthIntegration015 NO_AUTH sentinel suppresses the client-level authenticator's header,"
+            + " query, and cookie")
+    void bhvAuthIntegration015NoAuthSentinelSuppressesClientAuthenticator() throws ApiException {
       var client = new CapturingApiClient();
       var clientAuth =
           new TestAuthenticator(
@@ -1205,9 +1217,9 @@ class BaseApiTest {
 
     @Test
     @DisplayName(
-        "a security:[] operation sends no credential even though the client is configured"
-            + " (end-to-end)")
-    void securityNoneOperationSendsNoCredentialEndToEnd() {
+        "bhvAuthIntegration016 a security:[] operation sends no credential even though the client"
+            + " is configured (end-to-end)")
+    void bhvAuthIntegration016SecurityNoneOperationSendsNoCredentialEndToEnd() {
       // Build a client WITH a real authenticator that injects a header, a
       // query param, AND a cookie, then invoke the generated security:[]
       // operation getInventory. The operation passes NO_AUTH, so none of
@@ -1249,8 +1261,9 @@ class BaseApiTest {
 
     @Test
     @DisplayName(
-        "an inherited-security operation applies the configured client authenticator (end-to-end)")
-    void inheritedSecurityOperationAppliesClientAuthenticatorEndToEnd() {
+        "bhvAuthIntegration012 an inherited-security operation applies the configured client"
+            + " authenticator (end-to-end)")
+    void bhvAuthIntegration012InheritedSecurityOperationAppliesClientAuthenticatorEndToEnd() {
       // getPetById declares no security of its own, so it inherits the
       // global requirement. This generator strips the inherited auth
       // methods off such an operation, so the generated method passes null
@@ -1292,8 +1305,8 @@ class BaseApiTest {
   class BodySerialization {
 
     @Test
-    @DisplayName("serializes JSON body for POST")
-    void serializesJsonBody() throws Exception {
+    @DisplayName("bhvSerializationWire022 serializes JSON body for POST")
+    void bhvSerializationWire022SerializesJsonBody() throws Exception {
       Map<String, String> body = Map.of("key", "value");
       JsonNode result =
           api()
@@ -1315,8 +1328,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("sends no body when body is null")
-    void sendsNoBodyWhenNull() throws ApiException {
+    @DisplayName("bhvOperations016 sends no body when body is null")
+    void bhvOperations016SendsNoBodyWhenNull() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       testApi.call(
@@ -1341,8 +1354,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("serializes text/plain body")
-    void serializesTextPlainBody() throws ApiException {
+    @DisplayName("bhvSerializationWire024 serializes text/plain body")
+    void bhvSerializationWire024SerializesTextPlainBody() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       testApi.call(
@@ -1360,8 +1373,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("serializes form-urlencoded body")
-    void serializesFormUrlencodedBody() throws ApiException {
+    @DisplayName("bhvSerializationWire021 serializes form-urlencoded body")
+    void bhvSerializationWire021SerializesFormUrlencodedBody() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       Map<String, String> formParams = new java.util.LinkedHashMap<>();
@@ -1381,8 +1394,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("form-urlencoded body encodes space as + not %20")
-    void formUrlencodedBodyEncodesSpaceAsPlus() throws ApiException {
+    @DisplayName("bhvSerializationWire012 form-urlencoded body encodes space as + not %20")
+    void bhvSerializationWire012FormUrlencodedBodyEncodesSpaceAsPlus() throws ApiException {
       // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
       // is defined by the WHATWG/HTML form-encoding standard, which mandates
       // '+' for a space (not RFC-3986 '%20'). URLEncoder.encode emits '+',
@@ -1428,8 +1441,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("form-urlencoded body rejects a nested object field")
-    void formUrlencodedBodyRejectsANestedObjectField() {
+    @DisplayName("bhvSerializationWire014 form-urlencoded body rejects a nested object field")
+    void bhvSerializationWire014FormUrlencodedBodyRejectsANestedObjectField() {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       Map<String, Object> formParams = new java.util.LinkedHashMap<>();
@@ -1454,8 +1467,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("passes binary body as-is")
-    void passesBinaryBody() throws ApiException {
+    @DisplayName("bhvOperations014 passes binary body as-is")
+    void bhvOperations014PassesBinaryBody() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       byte[] binaryData = new byte[] {0x01, 0x02, 0x03};
@@ -1478,8 +1491,8 @@ class BaseApiTest {
   class ContentTypeHandling {
 
     @Test
-    @DisplayName("skips JSON deserialization for text/plain response")
-    void skipsDeserializationForTextPlain() throws ApiException {
+    @DisplayName("bhvSerializationWire025 skips JSON deserialization for text/plain response")
+    void bhvSerializationWire025SkipsDeserializationForTextPlain() throws ApiException {
       var client =
           new CapturingApiClient() {
             @Override
@@ -1547,8 +1560,9 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
-    void deserializesVendorJsonMimeType() throws ApiException {
+    @DisplayName(
+        "bhvSerializationWire005 deserializes vendor JSON MIME types like application/problem+json")
+    void bhvSerializationWire005DeserializesVendorJsonMimeType() throws ApiException {
       var client =
           new CapturingApiClient() {
             @Override
@@ -1585,8 +1599,8 @@ class BaseApiTest {
   class HeaderFlowThrough {
 
     @Test
-    @DisplayName("empty content-type defaults to application/json")
-    void emptyContentTypeDefaultsToJson() throws ApiException {
+    @DisplayName("bhvSerializationWire007 empty content-type defaults to application/json")
+    void bhvSerializationWire007EmptyContentTypeDefaultsToJson() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       testApi.call(
@@ -1603,8 +1617,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("all headers from selector flow through to request")
-    void allHeadersFlowThrough() throws ApiException {
+    @DisplayName("bhvOperations002 all headers from selector flow through to request")
+    void bhvOperations002AllHeadersFlowThrough() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       testApi.call(
@@ -1622,8 +1636,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("config default header overrides operation-negotiated Accept")
-    void configDefaultHeaderOverridesNegotiatedAccept() throws ApiException {
+    @DisplayName("bhvOptions001 config default header overrides operation-negotiated Accept")
+    void bhvOptions001ConfigDefaultHeaderOverridesNegotiatedAccept() throws ApiException {
       // R5-1: a caller-supplied config default header must win over the
       // operation's content-negotiated Accept. Here the operation
       // negotiates Accept: application/json, but the config default sets
@@ -1649,7 +1663,8 @@ class BaseApiTest {
     }
 
     @Test
-    void headerParamAcceptWinsOverTheConfigDefaultAndTheNegotiatedAccept() throws ApiException {
+    void bhvOperations008HeaderParamAcceptWinsOverTheConfigDefaultAndTheNegotiatedAccept()
+        throws ApiException {
       var client = new CapturingApiClient();
       var config = new Configuration("http://localhost", Map.of("Accept", "application/xml"));
       var testApi = new TestableApi(client, config);
@@ -1680,8 +1695,8 @@ class BaseApiTest {
   class BinaryResponseTests {
 
     @Test
-    @DisplayName("octet-stream body roundtrips bytes exactly via API call")
-    void octetStreamRoundtripsBytesExactlyViaApi() throws ApiException {
+    @DisplayName("bhvSerializationWire017 octet-stream body roundtrips bytes exactly via API call")
+    void bhvSerializationWire017OctetStreamRoundtripsBytesExactlyViaApi() throws ApiException {
       byte[] original = new byte[] {0x00, (byte) 0xFF, 0x42};
       String encoded = java.util.Base64.getEncoder().encodeToString(original);
       var client =
@@ -1711,8 +1726,11 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("binary return type with no Content-Type reads the text body as bytes")
-    void binaryReturnTypeWithoutContentTypeReadsTextBody() throws ApiException {
+    @DisplayName(
+        "bhvSerializationWire006 binary return type with no Content-Type reads the text body as"
+            + " bytes")
+    void bhvSerializationWire006BinaryReturnTypeWithoutContentTypeReadsTextBody()
+        throws ApiException {
       var client =
           new CapturingApiClient() {
             @Override
@@ -1737,8 +1755,10 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("octet-stream base64 body decodes to correct bytes (transport-level)")
-    void octetStreamBase64DecodesToCorrectBytes() throws ApiException {
+    @DisplayName(
+        "bhvSerializationWire018 octet-stream base64 body decodes to correct bytes"
+            + " (transport-level)")
+    void bhvSerializationWire018OctetStreamBase64DecodesToCorrectBytes() throws ApiException {
       // AP9C is base64 for [0x00, 0xFF, 0x42]
       var client =
           new CapturingApiClient() {
@@ -1758,8 +1778,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("image/png response body is byte array not string")
-    void imagePngResponseIsBytes() throws ApiException {
+    @DisplayName("bhvOperations012 image/png response body is byte array not string")
+    void bhvOperations012ImagePngResponseIsBytes() throws ApiException {
       var client =
           new CapturingApiClient() {
             @Override
@@ -1777,8 +1797,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("application/json response parses to object")
-    void jsonResponseParsesToObject() throws ApiException {
+    @DisplayName("bhvSerializationWire003 application/json response parses to object")
+    void bhvSerializationWire003JsonResponseParsesToObject() throws ApiException {
       var client =
           new CapturingApiClient() {
             @Override
@@ -1805,8 +1825,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("text/plain response returns string")
-    void textPlainResponseReturnsString() throws ApiException {
+    @DisplayName("bhvOperations017 text/plain response returns string")
+    void bhvOperations017TextPlainResponseReturnsString() throws ApiException {
       var client =
           new CapturingApiClient() {
             @Override
@@ -1832,8 +1852,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("octet-stream with empty body yields empty byte array")
-    void octetStreamEmptyBodyYieldsEmptyByteArray() {
+    @DisplayName("bhvOperations010 octet-stream with empty body yields empty byte array")
+    void bhvOperations010OctetStreamEmptyBodyYieldsEmptyByteArray() {
       var client =
           new CapturingApiClient() {
             @Override
@@ -1976,8 +1996,9 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("bytes with no filename hint fall back to application/octet-stream")
-    void noHintFallsBackToOctetStream() {
+    @DisplayName(
+        "bhvAuthIntegration008 bytes with no filename hint fall back to application/octet-stream")
+    void bhvAuthIntegration008NoHintFallsBackToOctetStream() {
       assertEquals("application/octet-stream", DefaultApiClient.guessMimeTypeFromName(null));
       assertEquals("application/octet-stream", DefaultApiClient.guessMimeTypeFromName(""));
       assertEquals(
@@ -2021,8 +2042,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("POST with empty string body sends Content-Type")
-    void postWithEmptyStringBodySendsContentType() throws ApiException {
+    @DisplayName("bhvOperations011 POST with empty string body sends Content-Type")
+    void bhvOperations011PostWithEmptyStringBodySendsContentType() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       testApi.call(
@@ -2041,8 +2062,10 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("POST with empty JSON object body sends Content-Type and correct body")
-    void postWithEmptyJsonBodySendsContentTypeAndBody() throws ApiException {
+    @DisplayName(
+        "bhvSerializationWire008 POST with empty JSON object body sends Content-Type and correct"
+            + " body")
+    void bhvSerializationWire008PostWithEmptyJsonBodySendsContentTypeAndBody() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       testApi.call(
@@ -2068,8 +2091,9 @@ class BaseApiTest {
   class ProxyAuthenticationTests {
 
     @Test
-    @DisplayName("proxy URL with userinfo sends Proxy-Authorization through the proxy")
-    void proxyUrlWithUserinfoSendsProxyAuthorization() throws ApiException {
+    @DisplayName(
+        "bhvTransport001 proxy URL with userinfo sends Proxy-Authorization through the proxy")
+    void bhvTransport001ProxyUrlWithUserinfoSendsProxyAuthorization() throws ApiException {
       String chasmUrl = ChasmContainer.getInternalHttpUrl();
       java.net.URI uri = java.net.URI.create(SquidContainer.getAuthProxyUrl());
       String proxyUrlWithAuth =
@@ -2104,8 +2128,8 @@ class BaseApiTest {
   class TypedErrorBodyTests {
 
     @Test
-    @DisplayName("getTypedErrorBody deserializes the raw body into the requested type")
-    void deserializesRawBody() {
+    @DisplayName("bhvErrors029 getTypedErrorBody deserializes the raw body into the requested type")
+    void bhvErrors029DeserializesRawBody() {
       var ex = new BadRequestException("boom", Map.of(), "{\"id\":42,\"name\":\"Dogs\"}", null);
       com.example.petstore.models.Category typed =
           ex.getTypedErrorBody(com.example.petstore.models.Category.class);
@@ -2115,8 +2139,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("getTypedErrorBody returns null when there is no response body")
-    void returnsNullWhenThereIsNoResponseBody() {
+    @DisplayName("bhvErrors030 getTypedErrorBody returns null when there is no response body")
+    void bhvErrors030ReturnsNullWhenThereIsNoResponseBody() {
       var ex = new BadRequestException("boom", Map.of(), "", null);
       assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category.class));
     }

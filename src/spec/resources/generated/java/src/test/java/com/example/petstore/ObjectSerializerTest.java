@@ -22,11 +22,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.SerializationException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -41,53 +43,53 @@ class ObjectSerializerTest {
   class StringifyTests {
 
     @Test
-    @DisplayName("null returns empty string")
-    void nullReturnsEmptyString() {
+    @DisplayName("bhvSerializationObject110 null returns empty string")
+    void bhvSerializationObject110NullReturnsEmptyString() {
       assertEquals("", ObjectSerializer.stringify(null));
     }
 
     @Test
-    @DisplayName("bytes return standard padded base64")
-    void bytesReturnStandardPaddedBase64() {
+    @DisplayName("bhvSerializationObject156 bytes return standard padded base64")
+    void bhvSerializationObject156BytesReturnStandardPaddedBase64() {
       assertEquals("aGk=", ObjectSerializer.stringify(new byte[] {0x68, 0x69}));
       assertEquals("+/8=", ObjectSerializer.stringify(new byte[] {(byte) 0xFB, (byte) 0xFF}));
     }
 
     @Test
-    @DisplayName("boolean true returns \"true\"")
-    void booleanTrueReturnsTrue() {
+    @DisplayName("bhvSerializationObject028 boolean true returns \"true\"")
+    void bhvSerializationObject028BooleanTrueReturnsTrue() {
       assertEquals("true", ObjectSerializer.stringify(true));
     }
 
     @Test
-    @DisplayName("boolean false returns \"false\"")
-    void booleanFalseReturnsFalse() {
+    @DisplayName("bhvSerializationObject027 boolean false returns \"false\"")
+    void bhvSerializationObject027BooleanFalseReturnsFalse() {
       assertEquals("false", ObjectSerializer.stringify(false));
     }
 
     @Test
-    @DisplayName("integer returns string representation")
-    void integerReturnsStringRepresentation() {
+    @DisplayName("bhvSerializationObject091 integer returns string representation")
+    void bhvSerializationObject091IntegerReturnsStringRepresentation() {
       assertEquals("42", ObjectSerializer.stringify(42));
     }
 
     @Test
-    @DisplayName("date-time returns ISO 8601 string")
-    void dateTimeReturnsIso8601String() {
+    @DisplayName("bhvSerializationObject157 date-time returns ISO 8601 string")
+    void bhvSerializationObject157DateTimeReturnsIso8601String() {
       OffsetDateTime dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC);
       String result = ObjectSerializer.stringify(dt);
       assertEquals("2024-01-15T10:30:00.000+00:00", result);
     }
 
     @Test
-    @DisplayName("plain string passes through unchanged")
-    void plainStringPassesThrough() {
+    @DisplayName("bhvSerializationObject114 plain string passes through unchanged")
+    void bhvSerializationObject114PlainStringPassesThrough() {
       assertEquals("hello", ObjectSerializer.stringify("hello"));
     }
 
     @Test
-    @DisplayName("double returns string representation")
-    void doubleReturnsStringRepresentation() {
+    @DisplayName("bhvSerializationObject078 double returns string representation")
+    void bhvSerializationObject078DoubleReturnsStringRepresentation() {
       assertEquals("3.14", ObjectSerializer.stringify(3.14));
     }
 
@@ -98,15 +100,15 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("UUID returns string representation")
-    void uuidReturnsStringRepresentation() {
+    @DisplayName("bhvSerializationObject175 UUID returns string representation")
+    void bhvSerializationObject175UuidReturnsStringRepresentation() {
       UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
       assertEquals("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.stringify(uuid));
     }
 
     @Test
-    @DisplayName("LocalDate returns ISO 8601 date string")
-    void localDateReturnsIso8601DateString() {
+    @DisplayName("bhvSerializationObject134 LocalDate returns ISO 8601 date string")
+    void bhvSerializationObject134LocalDateReturnsIso8601DateString() {
       LocalDate date = LocalDate.of(2024, 1, 15);
       assertEquals("2024-01-15", ObjectSerializer.stringify(date));
     }
@@ -117,32 +119,32 @@ class ObjectSerializerTest {
   class ToPathValueTests {
 
     @Test
-    @DisplayName("returns empty string for null")
-    void returnsEmptyStringForNull() {
+    @DisplayName("bhvSerializationObject130 returns empty string for null")
+    void bhvSerializationObject130ReturnsEmptyStringForNull() {
       assertEquals("", ObjectSerializer.toPathValue(null));
     }
 
     @Test
-    @DisplayName("returns the string for a string value")
-    void returnsStringForStringValue() {
+    @DisplayName("bhvSerializationObject141 returns the string for a string value")
+    void bhvSerializationObject141ReturnsStringForStringValue() {
       assertEquals("hello", ObjectSerializer.toPathValue("hello"));
     }
 
     @Test
-    @DisplayName("converts integer to string")
-    void convertsIntegerToString() {
+    @DisplayName("bhvSerializationObject036 converts integer to string")
+    void bhvSerializationObject036ConvertsIntegerToString() {
       assertEquals("42", ObjectSerializer.toPathValue(42));
     }
 
     @Test
-    @DisplayName("converts true to \"true\"")
-    void convertsTrueToString() {
+    @DisplayName("bhvSerializationObject043 converts true to \"true\"")
+    void bhvSerializationObject043ConvertsTrueToString() {
       assertEquals("true", ObjectSerializer.toPathValue(true));
     }
 
     @Test
-    @DisplayName("converts false to \"false\"")
-    void convertsFalseToString() {
+    @DisplayName("bhvSerializationObject033 converts false to \"false\"")
+    void bhvSerializationObject033ConvertsFalseToString() {
       assertEquals("false", ObjectSerializer.toPathValue(false));
     }
   }
@@ -152,73 +154,73 @@ class ObjectSerializerTest {
   class ToQueryValueTests {
 
     @Test
-    @DisplayName("returns null for null")
-    void returnsNullForNull() {
+    @DisplayName("bhvSerializationObject137 returns null for null")
+    void bhvSerializationObject137ReturnsNullForNull() {
       assertNull(ObjectSerializer.toQueryValue(null, null));
     }
 
     @Test
-    @DisplayName("returns the string for a string value")
-    void returnsStringForStringValue() {
+    @DisplayName("bhvSerializationObject139 returns the string for a string value")
+    void bhvSerializationObject139ReturnsStringForStringValue() {
       assertEquals("hello", ObjectSerializer.toQueryValue("hello", null));
     }
 
     @Test
-    @DisplayName("converts integer to string")
-    void convertsIntegerToString() {
+    @DisplayName("bhvSerializationObject037 converts integer to string")
+    void bhvSerializationObject037ConvertsIntegerToString() {
       assertEquals("42", ObjectSerializer.toQueryValue(42, null));
     }
 
     @Test
-    @DisplayName("converts true to \"true\"")
-    void convertsTrueToString() {
+    @DisplayName("bhvSerializationObject041 converts true to \"true\"")
+    void bhvSerializationObject041ConvertsTrueToString() {
       assertEquals("true", ObjectSerializer.toQueryValue(true, null));
     }
 
     @Test
-    @DisplayName("converts false to \"false\"")
-    void convertsFalseToString() {
+    @DisplayName("bhvSerializationObject034 converts false to \"false\"")
+    void bhvSerializationObject034ConvertsFalseToString() {
       assertEquals("false", ObjectSerializer.toQueryValue(false, null));
     }
 
     @Test
-    @DisplayName("joins array with comma by default")
-    void joinsArrayWithCommaByDefault() {
+    @DisplayName("bhvSerializationObject097 joins array with comma by default")
+    void bhvSerializationObject097JoinsArrayWithCommaByDefault() {
       List<String> list = Arrays.asList("a", "b", "c");
       assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, null));
     }
 
     @Test
-    @DisplayName("joins array with comma for csv")
-    void joinsArrayWithCommaForCsv() {
+    @DisplayName("bhvSerializationObject098 joins array with comma for csv")
+    void bhvSerializationObject098JoinsArrayWithCommaForCsv() {
       List<String> list = Arrays.asList("a", "b", "c");
       assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, "csv"));
     }
 
     @Test
-    @DisplayName("joins array with space for ssv")
-    void joinsArrayWithSpaceForSsv() {
+    @DisplayName("bhvSerializationObject100 joins array with space for ssv")
+    void bhvSerializationObject100JoinsArrayWithSpaceForSsv() {
       List<String> list = Arrays.asList("a", "b", "c");
       assertEquals("a b c", ObjectSerializer.toQueryValue(list, "ssv"));
     }
 
     @Test
-    @DisplayName("joins array with tab for tsv")
-    void joinsArrayWithTabForTsv() {
+    @DisplayName("bhvSerializationObject101 joins array with tab for tsv")
+    void bhvSerializationObject101JoinsArrayWithTabForTsv() {
       List<String> list = Arrays.asList("a", "b", "c");
       assertEquals("a\tb\tc", ObjectSerializer.toQueryValue(list, "tsv"));
     }
 
     @Test
-    @DisplayName("joins array with pipe for pipes")
-    void joinsArrayWithPipeForPipes() {
+    @DisplayName("bhvSerializationObject099 joins array with pipe for pipes")
+    void bhvSerializationObject099JoinsArrayWithPipeForPipes() {
       List<String> list = Arrays.asList("a", "b", "c");
       assertEquals("a|b|c", ObjectSerializer.toQueryValue(list, "pipes"));
     }
 
     @Test
-    @DisplayName("returns array as-is for multi")
-    void returnsArrayForMulti() {
+    @DisplayName("bhvSerializationObject135 returns array as-is for multi")
+    void bhvSerializationObject135ReturnsArrayForMulti() {
       List<String> list = Arrays.asList("a", "b", "c");
       assertEquals(list, ObjectSerializer.toQueryValue(list, "multi"));
     }
@@ -229,26 +231,26 @@ class ObjectSerializerTest {
   class ToHeaderValueTests {
 
     @Test
-    @DisplayName("returns empty string for null")
-    void returnsEmptyStringForNull() {
+    @DisplayName("bhvSerializationObject131 returns empty string for null")
+    void bhvSerializationObject131ReturnsEmptyStringForNull() {
       assertEquals("", ObjectSerializer.toHeaderValue(null));
     }
 
     @Test
-    @DisplayName("returns the string for a string value")
-    void returnsStringForStringValue() {
+    @DisplayName("bhvSerializationObject142 returns the string for a string value")
+    void bhvSerializationObject142ReturnsStringForStringValue() {
       assertEquals("hello", ObjectSerializer.toHeaderValue("hello"));
     }
 
     @Test
-    @DisplayName("converts integer to string")
-    void convertsIntegerToString() {
+    @DisplayName("bhvSerializationObject038 converts integer to string")
+    void bhvSerializationObject038ConvertsIntegerToString() {
       assertEquals("42", ObjectSerializer.toHeaderValue(42));
     }
 
     @Test
-    @DisplayName("joins array with comma")
-    void joinsArrayWithComma() {
+    @DisplayName("bhvSerializationObject096 joins array with comma")
+    void bhvSerializationObject096JoinsArrayWithComma() {
       List<String> list = Arrays.asList("a", "b", "c");
       assertEquals("a,b,c", ObjectSerializer.toHeaderValue(list));
     }
@@ -259,32 +261,32 @@ class ObjectSerializerTest {
   class ToFormValueTests {
 
     @Test
-    @DisplayName("returns empty string for null")
-    void returnsEmptyStringForNull() {
+    @DisplayName("bhvSerializationObject132 returns empty string for null")
+    void bhvSerializationObject132ReturnsEmptyStringForNull() {
       assertEquals("", ObjectSerializer.toFormValue(null));
     }
 
     @Test
-    @DisplayName("returns the string for a string value")
-    void returnsStringForStringValue() {
+    @DisplayName("bhvSerializationObject140 returns the string for a string value")
+    void bhvSerializationObject140ReturnsStringForStringValue() {
       assertEquals("hello", ObjectSerializer.toFormValue("hello"));
     }
 
     @Test
-    @DisplayName("converts integer to string")
-    void convertsIntegerToString() {
+    @DisplayName("bhvSerializationObject039 converts integer to string")
+    void bhvSerializationObject039ConvertsIntegerToString() {
       assertEquals("42", ObjectSerializer.toFormValue(42));
     }
 
     @Test
-    @DisplayName("converts true to \"true\"")
-    void convertsTrueToString() {
+    @DisplayName("bhvSerializationObject042 converts true to \"true\"")
+    void bhvSerializationObject042ConvertsTrueToString() {
       assertEquals("true", ObjectSerializer.toFormValue(true));
     }
 
     @Test
-    @DisplayName("converts false to \"false\"")
-    void convertsFalseToString() {
+    @DisplayName("bhvSerializationObject035 converts false to \"false\"")
+    void bhvSerializationObject035ConvertsFalseToString() {
       assertEquals("false", ObjectSerializer.toFormValue(false));
     }
   }
@@ -294,20 +296,20 @@ class ObjectSerializerTest {
   class ToCookieValueTests {
 
     @Test
-    @DisplayName("returns empty string for null")
-    void returnsEmptyStringForNull() {
+    @DisplayName("bhvSerializationObject133 returns empty string for null")
+    void bhvSerializationObject133ReturnsEmptyStringForNull() {
       assertEquals("", ObjectSerializer.toCookieValue(null));
     }
 
     @Test
-    @DisplayName("returns the string for a string value")
-    void returnsStringForStringValue() {
+    @DisplayName("bhvSerializationObject143 returns the string for a string value")
+    void bhvSerializationObject143ReturnsStringForStringValue() {
       assertEquals("hello", ObjectSerializer.toCookieValue("hello"));
     }
 
     @Test
-    @DisplayName("converts integer to string")
-    void convertsIntegerToString() {
+    @DisplayName("bhvSerializationObject040 converts integer to string")
+    void bhvSerializationObject040ConvertsIntegerToString() {
       assertEquals("42", ObjectSerializer.toCookieValue(42));
     }
   }
@@ -317,32 +319,37 @@ class ObjectSerializerTest {
   class DateTimeOffsetPreservationTests {
 
     @Test
-    @DisplayName("UTC datetime serializes containing date-time and offset")
-    void utcDateTimeSerializesWithOffset() {
+    @DisplayName(
+        "bhvSerializationObject174 UTC datetime serializes containing date-time and offset")
+    void bhvSerializationObject174UtcDateTimeSerializesWithOffset() {
       OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+00:00");
       String result = ObjectSerializer.stringify(dt);
       assertEquals("2024-01-01T12:30:45.000+00:00", result);
     }
 
     @Test
-    @DisplayName("datetime with +05:30 offset preserves offset in serialized string")
-    void positivOffsetPreserved() {
+    @DisplayName(
+        "bhvSerializationObject107 datetime with +05:30 offset preserves offset in serialized"
+            + " string")
+    void bhvSerializationObject107PositivOffsetPreserved() {
       OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
       String result = ObjectSerializer.stringify(dt);
       assertTrue(result.contains("+05:30"), "should contain +05:30 offset: " + result);
     }
 
     @Test
-    @DisplayName("datetime with -08:00 offset preserves offset in serialized string")
-    void negativeOffsetPreserved() {
+    @DisplayName(
+        "bhvSerializationObject149 datetime with -08:00 offset preserves offset in serialized"
+            + " string")
+    void bhvSerializationObject149NegativeOffsetPreserved() {
       OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00");
       String result = ObjectSerializer.stringify(dt);
       assertTrue(result.contains("-08:00"), "should contain -08:00 offset: " + result);
     }
 
     @Test
-    @DisplayName("date-time serialization preserves sub-second precision")
-    void subsecondsPreserved() {
+    @DisplayName("bhvSerializationObject046 date-time serialization preserves sub-second precision")
+    void bhvSerializationObject046SubsecondsPreserved() {
       // The decoder (JavaTimeModule) accepts a fractional second, so the
       // parameter-path encoder must emit it too — truncating .123 to whole
       // seconds is a lossy, asymmetric round-trip. Milliseconds (3 digits)
@@ -356,24 +363,28 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("date-only serializes as ISO 8601 date without time component")
-    void dateOnlySerializesAsDate() {
+    @DisplayName(
+        "bhvSerializationObject044 date-only serializes as ISO 8601 date without time component")
+    void bhvSerializationObject044DateOnlySerializesAsDate() {
       java.time.LocalDate date = java.time.LocalDate.parse("2024-01-01");
       String result = ObjectSerializer.stringify(date);
       assertEquals("2024-01-01", result);
     }
 
     @Test
-    @DisplayName("serialized datetime string ends with a numeric offset, never Z")
-    void serializedDateTimeHasOffset() {
+    @DisplayName(
+        "bhvSerializationObject150 serialized datetime string ends with a numeric offset, never Z")
+    void bhvSerializationObject150SerializedDateTimeHasOffset() {
       OffsetDateTime dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC);
       String result = ObjectSerializer.stringify(dt);
       assertEquals("2024-01-01T12:30:45.000+00:00", result);
     }
 
     @Test
-    @DisplayName("JSON body serializes date-time in the canonical offset form, never Z")
-    void bodyDateTimeUsesCanonicalOffsetForm() {
+    @DisplayName(
+        "bhvSerializationObject151 JSON body serializes date-time in the canonical offset form,"
+            + " never Z")
+    void bhvSerializationObject151BodyDateTimeUsesCanonicalOffsetForm() {
       // The JSON-body path (objectMapper.writeValueAsString) must emit the
       // SAME canonical shape as the parameter path: a fixed three-digit
       // millisecond fraction and a numeric offset, never the "Z" form.
@@ -386,8 +397,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("decoded date-time keeps the offset it carried on the wire")
-    void decodedDateTimeKeepsOffset() {
+    @DisplayName(
+        "bhvSerializationObject064 decoded date-time keeps the offset it carried on the wire")
+    void bhvSerializationObject064DecodedDateTimeKeepsOffset() {
       com.example.petstore.models.Order order =
           serializer.deserialize(
               "{\"shipDate\":\"2024-01-01T10:00:00+05:30\"}",
@@ -409,8 +421,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("boolean date-time is rejected")
-    void booleanDateTimeThrows() {
+    @DisplayName("bhvSerializationObject011 boolean date-time is rejected")
+    void bhvSerializationObject011BooleanDateTimeThrows() {
       assertDateTimeRejected("{\"shipDate\":true}");
     }
 
@@ -435,8 +447,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("time stringifies as HH:mm:ss, with .SSS only for a non-zero millisecond part")
-    void timeStringifiesAsPartialTime() {
+    @DisplayName(
+        "bhvSerializationObject164 time stringifies as HH:mm:ss, with .SSS only for a non-zero"
+            + " millisecond part")
+    void bhvSerializationObject164TimeStringifiesAsPartialTime() {
       assertEquals("10:30:00", ObjectSerializer.stringify(java.time.LocalTime.of(10, 30)));
       assertEquals(
           "10:30:00.123",
@@ -447,8 +461,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("time body property uses the partial-time form and round-trips")
-    void bodyTimeUsesPartialTimeAndRoundTrips() {
+    @DisplayName(
+        "bhvSerializationObject163 time body property uses the partial-time form and round-trips")
+    void bhvSerializationObject163BodyTimeUsesPartialTimeAndRoundTrips() {
       com.example.petstore.models.EdgeCases edge =
           com.example.petstore.models.EdgeCases.builder()
               .cutoff(java.time.LocalTime.of(10, 30, 0, 123_456_789))
@@ -467,8 +482,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a schema named Result keeps its own name and Error is prefixed")
-    void resultKeepsNameAndErrorIsPrefixed() {
+    @DisplayName(
+        "bhvSerializationObject104 a schema named Result keeps its own name and Error is prefixed")
+    void bhvSerializationObject104ResultKeepsNameAndErrorIsPrefixed() {
       com.example.petstore.models.EdgeCases edge =
           java.util.Objects.requireNonNull(
               serializer.deserialize(
@@ -490,8 +506,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("unevaluatedProperties:false rejects an undeclared key while deserializing")
-    void strictModelRejectsUnknownKey() {
+    @DisplayName(
+        "bhvSerializationObject058 unevaluatedProperties:false rejects an undeclared key while"
+            + " deserializing")
+    void bhvSerializationObject058StrictModelRejectsUnknownKey() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -516,8 +534,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
-    void roundTripDateTime() {
+    @DisplayName(
+        "bhvSerializationObject144 round-trip: serialize then deserialize yields equivalent"
+            + " datetime")
+    void bhvSerializationObject144RoundTripDateTime() {
       OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
       String serialized = ObjectSerializer.stringify(original);
       OffsetDateTime parsed = OffsetDateTime.parse(serialized);
@@ -531,8 +551,10 @@ class ObjectSerializerTest {
   class NonAsciiSerializationTests {
 
     @Test
-    @DisplayName("string with accented character serializes without unicode escape")
-    void accentedCharacterNotEscaped() throws Exception {
+    @DisplayName(
+        "bhvSerializationObject019 string with accented character serializes without unicode"
+            + " escape")
+    void bhvSerializationObject019AccentedCharacterNotEscaped() throws Exception {
       String acuteE = Character.toString(0xE9);
       String result = serializer.serialize("caf" + acuteE);
       assertTrue(
@@ -540,15 +562,17 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("string with CJK characters serializes without unicode escape")
-    void cjkCharactersNotEscaped() throws Exception {
+    @DisplayName(
+        "bhvSerializationObject031 string with CJK characters serializes without unicode escape")
+    void bhvSerializationObject031CjkCharactersNotEscaped() throws Exception {
       String result = serializer.serialize("日本");
       assertTrue(result.contains("日本"), "should contain literal CJK chars, got: " + result);
     }
 
     @Test
-    @DisplayName("string with tab character serializes as JSON \\t escape")
-    void tabCharacterEscapedProperly() throws Exception {
+    @DisplayName(
+        "bhvSerializationObject160 string with tab character serializes as JSON \\t escape")
+    void bhvSerializationObject160TabCharacterEscapedProperly() throws Exception {
       String result = serializer.serialize("a\tb");
       assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: " + result);
     }
@@ -559,8 +583,10 @@ class ObjectSerializerTest {
   class DeserializationErrorWrappingTests {
 
     @Test
-    @DisplayName("truncated JSON throws SerializationException not raw parse error")
-    void truncatedJsonThrowsSerializationException() {
+    @DisplayName(
+        "bhvSerializationObject170 truncated JSON throws SerializationException not raw parse"
+            + " error")
+    void bhvSerializationObject170TruncatedJsonThrowsSerializationException() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -573,8 +599,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("type mismatch JSON throws SerializationException")
-    void typeMismatchThrowsSerializationException() {
+    @DisplayName("bhvSerializationObject095 type mismatch JSON throws SerializationException")
+    void bhvSerializationObject095TypeMismatchThrowsSerializationException() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -587,8 +613,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("thrown SerializationException has cause referencing original error")
-    void serializationExceptionHasCause() {
+    @DisplayName(
+        "bhvSerializationObject162 thrown SerializationException has cause referencing original"
+            + " error")
+    void bhvSerializationObject162SerializationExceptionHasCause() {
       SerializationException ex =
           assertThrows(
               SerializationException.class,
@@ -601,8 +629,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("null element in an array of models throws SerializationException")
-    void nullElementInModelArrayThrows() {
+    @DisplayName(
+        "bhvSerializationObject121 null element in an array of models throws"
+            + " SerializationException")
+    void bhvSerializationObject121NullElementInModelArrayThrows() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -615,8 +645,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("null value in a map of models throws SerializationException")
-    void nullValueInModelMapThrows() {
+    @DisplayName(
+        "bhvSerializationObject123 null value in a map of models throws SerializationException")
+    void bhvSerializationObject123NullValueInModelMapThrows() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -636,8 +667,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("required nullable property keeps an explicit null and writes the key")
-    void requiredNullableKeepsExplicitNull() {
+    @DisplayName(
+        "bhvSerializationObject125 required nullable property keeps an explicit null and writes the"
+            + " key")
+    void bhvSerializationObject125RequiredNullableKeepsExplicitNull() {
       com.example.petstore.models.RequiredNullable decoded =
           java.util.Objects.requireNonNull(
               serializer.deserialize(
@@ -647,16 +680,17 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("required nullable property rejects a missing key")
-    void requiredNullableRejectsMissingKey() {
+    @DisplayName("bhvSerializationObject126 required nullable property rejects a missing key")
+    void bhvSerializationObject126RequiredNullableRejectsMissingKey() {
       assertThrows(
           SerializationException.class,
           () -> serializer.deserialize("{}", com.example.petstore.models.RequiredNullable.class));
     }
 
     @Test
-    @DisplayName("null value in a map of integers throws SerializationException")
-    void nullValueInIntegerMapThrows() {
+    @DisplayName(
+        "bhvSerializationObject089 null value in a map of integers throws SerializationException")
+    void bhvSerializationObject089NullValueInIntegerMapThrows() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -712,8 +746,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a format: password field is redacted in the model's string form")
-    void passwordFieldIsRedactedInToString() {
+    @DisplayName(
+        "bhvSerializationObject007 a format: password field is redacted in the model's string form")
+    void bhvSerializationObject007PasswordFieldIsRedactedInToString() {
       com.example.petstore.models.Account account =
           new com.example.petstore.models.Account("someone")
               .toBuilder().password("hunter2").build();
@@ -723,8 +758,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("unknown enum value throws SerializationException")
-    void unknownEnumValueThrowsSerializationException() {
+    @DisplayName("bhvSerializationObject172 unknown enum value throws SerializationException")
+    void bhvSerializationObject172UnknownEnumValueThrowsSerializationException() {
       // Parity regression: deserializing a payload whose enum field holds a
       // value the schema never declared (status="banana") must fail loudly
       // with the SDK's (de)serialization exception, not be silently coerced
@@ -741,8 +776,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("missing required field throws SerializationException")
-    void missingRequiredFieldThrowsSerializationException() {
+    @DisplayName("bhvSerializationObject063 missing required field throws SerializationException")
+    void bhvSerializationObject063MissingRequiredFieldThrowsSerializationException() {
       // Pet.name and Pet.photoUrls are required: a payload that omits
       // them must fail with the SDK's SerializationException.
       SerializationException ex =
@@ -757,8 +792,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("building a model never validates the values it is given")
-    void constructionNeverValidatesTheValuesItIsGiven() {
+    @DisplayName(
+        "bhvSerializationObject029 building a model never validates the values it is given")
+    void bhvSerializationObject029ConstructionNeverValidatesTheValuesItIsGiven() {
       // F316: the bounds on Order.quantity and the pattern on Pet.nickname are the
       // server's to enforce, so a model built in code accepts any value of its type.
       assertDoesNotThrow(
@@ -777,8 +813,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("building a model accepts every declared enum constant")
-    void constructionAcceptsEveryDeclaredEnumConstant() {
+    @DisplayName("bhvSerializationObject052 building a model accepts every declared enum constant")
+    void bhvSerializationObject052ConstructionAcceptsEveryDeclaredEnumConstant() {
       for (com.example.petstore.models.Order.StatusEnum status :
           com.example.petstore.models.Order.StatusEnum.values()) {
         com.example.petstore.models.Order order =
@@ -788,8 +824,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("decoding a value of the wrong type throws SerializationException")
-    void decodingAWrongTypedValueFailsLoudly() {
+    @DisplayName(
+        "bhvSerializationObject180 decoding a value of the wrong type throws"
+            + " SerializationException")
+    void bhvSerializationObject180DecodingAWrongTypedValueFailsLoudly() {
       // F316: validation happens at decode. A string where an integer is declared is
       // refused with the SDK's exception, never coerced.
       assertThrowsExactly(
@@ -817,8 +855,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("malformed date-time throws SerializationException")
-    void malformedDateTimeThrowsSerializationException() {
+    @DisplayName("bhvSerializationObject102 malformed date-time throws SerializationException")
+    void bhvSerializationObject102MalformedDateTimeThrowsSerializationException() {
       // Order.shipDate is format: date-time; a value that is not an
       // RFC 3339 timestamp must fail with the SDK's SerializationException.
       SerializationException ex =
@@ -833,8 +871,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("leading UTF-8 BOM is stripped before parse")
-    void leadingBomIsStripped() {
+    @DisplayName("bhvSerializationObject060 leading UTF-8 BOM is stripped before parse")
+    void bhvSerializationObject060LeadingBomIsStripped() {
       // Parity regression: a leading UTF-8 BOM (U+FEFF) must be stripped
       // before JSON parsing. Jackson's defaults do not strip it from a
       // String, so without an explicit trim the very first token fails.
@@ -883,8 +921,9 @@ class ObjectSerializerTest {
           "ftp://x.org/f",
           "https://example.com/a/b"
         })
-    @DisplayName("format: uri accepts any absolute URI and re-encodes it verbatim")
-    void uriFieldAcceptsAbsoluteUris(String uri) {
+    @DisplayName(
+        "bhvSerializationObject021 format: uri accepts any absolute URI and re-encodes it verbatim")
+    void bhvSerializationObject021UriFieldAcceptsAbsoluteUris(String uri) {
       String json = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"" + uri + "\"}";
       com.example.petstore.models.Pet pet =
           serializer.deserialize(json, com.example.petstore.models.Pet.class);
@@ -895,8 +934,10 @@ class ObjectSerializerTest {
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {"/relative", "not a uri", ""})
-    @DisplayName("format: uri rejects relative, whitespace-bearing and empty values")
-    void uriFieldRejectsNonAbsoluteValues(String uri) {
+    @DisplayName(
+        "bhvSerializationObject008 format: uri rejects relative, whitespace-bearing and empty"
+            + " values")
+    void bhvSerializationObject008UriFieldRejectsNonAbsoluteValues(String uri) {
       assertThrowsExactly(
           SerializationException.class,
           () ->
@@ -906,8 +947,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("format: uri-reference stays a plain string")
-    void uriReferenceFieldAcceptsARelativeReference() {
+    @DisplayName("bhvSerializationObject173 format: uri-reference stays a plain string")
+    void bhvSerializationObject173UriReferenceFieldAcceptsARelativeReference() {
       com.example.petstore.models.Pet pet =
           serializer.deserialize(
               "{\"name\":\"n\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb.png\"}",
@@ -917,8 +958,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a readOnly property is populated on decode")
-    void readOnlyPropertyIsPopulatedOnDecode() {
+    @DisplayName("bhvSerializationObject014 a readOnly property is populated on decode")
+    void bhvSerializationObject014ReadOnlyPropertyIsPopulatedOnDecode() {
       com.example.petstore.models.Account account =
           serializer.deserialize(
               "{\"id\":7,\"username\":\"u\"}", com.example.petstore.models.Account.class);
@@ -927,8 +968,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a writeOnly property is written on encode and kept on decode")
-    void writeOnlyPropertyIsWrittenAndDecoded() {
+    @DisplayName(
+        "bhvSerializationObject018 a writeOnly property is written on encode and kept on decode")
+    void bhvSerializationObject018WriteOnlyPropertyIsWrittenAndDecoded() {
       com.example.petstore.models.Account account =
           com.example.petstore.models.Account.builder().username("u").password("p").build();
       assertTrue(serializer.serialize(account).contains("\"password\":\"p\""));
@@ -957,8 +999,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("numeric for a boolean field throws (no scalar coercion)")
-    void numericForBooleanFieldThrows() {
+    @DisplayName(
+        "bhvSerializationObject166 numeric for a boolean field throws (no scalar coercion)")
+    void bhvSerializationObject166NumericForBooleanFieldThrows() {
       assertThrows(
           SerializationException.class,
           () ->
@@ -982,8 +1025,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("fractional number for an integer field throws instead of truncating")
-    void fractionalNumberForLongFieldThrows() {
+    @DisplayName(
+        "bhvSerializationObject120 fractional number for an integer field throws instead of"
+            + " truncating")
+    void bhvSerializationObject120FractionalNumberForLongFieldThrows() {
       assertCoercionRejected(
           "{\"id\":1.9}", com.example.petstore.models.Order.class, "Floating-point value (1.9)");
     }
@@ -1026,8 +1071,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("boolean for a string field throws instead of becoming text")
-    void booleanForStringFieldThrows() {
+    @DisplayName(
+        "bhvSerializationObject155 boolean for a string field throws instead of becoming text")
+    void bhvSerializationObject155BooleanForStringFieldThrows() {
       assertCoercionRejected(
           "{\"name\":true}", com.example.petstore.models.Category.class, "Boolean value (true)");
     }
@@ -1048,8 +1094,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("JSON null on a required non-nullable field throws (Gap AJ)")
-    void nullOnRequiredFieldThrows() {
+    @DisplayName(
+        "bhvSerializationObject086 JSON null on a required non-nullable field throws (Gap AJ)")
+    void bhvSerializationObject086NullOnRequiredFieldThrows() {
       // Gap AJ: a malformed/hostile server sending JSON null for a
       // required, non-nullable property ({"name": null} where name is
       // required) must fail loudly with the SDK's (de)serialization
@@ -1073,8 +1120,8 @@ class ObjectSerializerTest {
   class SerializeTests {
 
     @Test
-    @DisplayName("serializes a model to valid JSON")
-    void serializesModelToValidJson() {
+    @DisplayName("bhvSerializationObject152 serializes a model to valid JSON")
+    void bhvSerializationObject152SerializesModelToValidJson() {
       com.example.petstore.models.Category category =
           com.example.petstore.models.Category.builder().id(1L).name("Dogs").build();
       String json = serializer.serialize(category);
@@ -1083,15 +1130,15 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("handles null")
-    void handlesNull() {
+    @DisplayName("bhvSerializationObject087 handles null")
+    void bhvSerializationObject087HandlesNull() {
       String json = serializer.serialize(null);
       assertEquals("null", json);
     }
 
     @Test
-    @DisplayName("includes fields explicitly set to default values")
-    void includesFieldsSetToDefaultValues() {
+    @DisplayName("bhvSerializationObject088 includes fields explicitly set to default values")
+    void bhvSerializationObject088IncludesFieldsSetToDefaultValues() {
       com.example.petstore.models.Category category =
           com.example.petstore.models.Category.builder().id(0L).name("").build();
       String json = serializer.serialize(category);
@@ -1113,8 +1160,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("uniqueItems array of scalars keeps the set's insertion order (S6)")
-    void uniqueScalarArrayKeepsInsertionOrder() {
+    @DisplayName(
+        "bhvSerializationObject015 uniqueItems array of scalars keeps the set's insertion order"
+            + " (S6)")
+    void bhvSerializationObject015UniqueScalarArrayKeepsInsertionOrder() {
       com.example.petstore.models.Pet pet =
           new com.example.petstore.models.Pet(
               "item", new java.util.LinkedHashSet<>(List.of("c", "a", "b")));
@@ -1187,8 +1236,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("deserializes JSON to typed model")
-    void deserializesJsonToTypedModel() {
+    @DisplayName("bhvSerializationObject070 deserializes JSON to typed model")
+    void bhvSerializationObject070DeserializesJsonToTypedModel() {
       String json = "{\"id\":1,\"name\":\"Dogs\"}";
       com.example.petstore.models.Category category =
           serializer.deserialize(
@@ -1201,8 +1250,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("deserializes a self-referential model preserving nesting")
-    void deserializesSelfReferentialModel() {
+    @DisplayName(
+        "bhvSerializationObject068 deserializes a self-referential model preserving nesting")
+    void bhvSerializationObject068DeserializesSelfReferentialModel() {
       // A self-referential ($ref to itself) schema must decode its nested
       // child as a typed TreeNode instance, not a raw map, all the way down.
       String json = "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}";
@@ -1222,8 +1272,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("returns null for empty input")
-    void returnsNullForEmptyInput() {
+    @DisplayName("bhvSerializationObject136 returns null for empty input")
+    void bhvSerializationObject136ReturnsNullForEmptyInput() {
       assertNull(
           serializer.deserialize(
               "",
@@ -1232,8 +1282,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("returns null for null input")
-    void returnsNullForNullInput() {
+    @DisplayName("bhvSerializationObject138 returns null for null input")
+    void bhvSerializationObject138ReturnsNullForNullInput() {
       assertNull(
           serializer.deserialize(
               null,
@@ -1242,8 +1292,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("deserialize applies schema default for absent field")
-    void deserializeAppliesSchemaDefaultForAbsentField() {
+    @DisplayName("bhvSerializationObject053 deserialize applies schema default for absent field")
+    void bhvSerializationObject053DeserializeAppliesSchemaDefaultForAbsentField() {
       // The Order.status property declares `default: placed` in the spec.
       // When the JSON omits status entirely, deserialization must populate
       // it with the schema default (StatusEnum.PLACED) rather than leaving
@@ -1260,8 +1310,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("applies defaults for absent fields but preserves explicit null")
-    void deserializeDefaultsAbsentVsExplicitNull() {
+    @DisplayName(
+        "bhvSerializationObject025 applies defaults for absent fields but preserves explicit null")
+    void bhvSerializationObject025DeserializeDefaultsAbsentVsExplicitNull() {
       // absent-vs-null contract: a schema `default` fills a field only when
       // the key is ABSENT from the payload. An explicit JSON null is a
       // provided value and is PRESERVED as null, never replaced by the
@@ -1294,8 +1345,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("ignores unknown properties in JSON input")
-    void ignoresUnknownPropertiesInJsonInput() {
+    @DisplayName("bhvSerializationObject082 ignores unknown properties in JSON input")
+    void bhvSerializationObject082IgnoresUnknownPropertiesInJsonInput() {
       // Gap #14: extras must be discarded on deserialize (FAIL_ON_UNKNOWN_PROPERTIES=false).
       String json =
           "{\"id\":42,\"name\":\"Dogs\",\"unexpectedField\":\"surprise\"," + "\"another\":123}";
@@ -1319,15 +1370,15 @@ class ObjectSerializerTest {
   class DurationSerializationTests {
 
     @Test
-    @DisplayName("whole-second Duration stringifies as protobuf seconds")
-    void durationStringifiesAsProtobufSeconds() {
+    @DisplayName("bhvSerializationObject112 whole-second Duration stringifies as protobuf seconds")
+    void bhvSerializationObject112DurationStringifiesAsProtobufSeconds() {
       java.time.Duration d = java.time.Duration.ofHours(1).plusMinutes(30);
       assertEquals("5400s", ObjectSerializer.stringify(d));
     }
 
     @Test
-    @DisplayName("zero Duration stringifies as 0s")
-    void zeroDurationStringifies() {
+    @DisplayName("bhvSerializationObject181 zero Duration stringifies as 0s")
+    void bhvSerializationObject181ZeroDurationStringifies() {
       assertEquals("0s", ObjectSerializer.stringify(java.time.Duration.ZERO));
     }
 
@@ -1353,15 +1404,16 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("negative Duration carries the sign on the whole value")
-    void negativeDurationSigned() {
+    @DisplayName("bhvSerializationObject105 negative Duration carries the sign on the whole value")
+    void bhvSerializationObject105NegativeDurationSigned() {
       java.time.Duration d = java.time.Duration.ofSeconds(-1, -500_000_000);
       assertEquals("-1.500s", ObjectSerializer.stringify(d));
     }
 
     @Test
-    @DisplayName("Duration field serializes as protobuf string in a model body")
-    void durationFieldSerializesInModelBody() throws Exception {
+    @DisplayName(
+        "bhvSerializationObject081 Duration field serializes as protobuf string in a model body")
+    void bhvSerializationObject081DurationFieldSerializesInModelBody() throws Exception {
       DurationHolder holder = new DurationHolder(java.time.Duration.ofSeconds(3600, 1));
       String json = serializer.serialize(holder);
       assertTrue(
@@ -1370,8 +1422,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("protobuf Duration string deserializes within a model body")
-    void durationFieldDeserializesInModelBody() {
+    @DisplayName(
+        "bhvSerializationObject146 protobuf Duration string deserializes within a model body")
+    void bhvSerializationObject146DurationFieldDeserializesInModelBody() {
       DurationHolder holder =
           serializer.deserialize(
               "{\"ttl\":\"3600.000000001s\"}",
@@ -1381,8 +1434,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("Duration round-trips through a model body")
-    void durationRoundTripsInModelBody() {
+    @DisplayName("bhvSerializationObject073 Duration round-trips through a model body")
+    void bhvSerializationObject073DurationRoundTripsInModelBody() {
       DurationHolder original = new DurationHolder(java.time.Duration.ofSeconds(90, 123_456_789));
       String json = serializer.serialize(original);
       DurationHolder decoded =
@@ -1408,8 +1461,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a JSON object where a Duration is expected is a SerializationException")
-    void objectTokenRejectedAsSerializationException() {
+    @DisplayName(
+        "bhvSerializationObject080 a JSON object where a Duration is expected is a"
+            + " SerializationException")
+    void bhvSerializationObject080ObjectTokenRejectedAsSerializationException() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -1445,8 +1500,10 @@ class ObjectSerializerTest {
   class DiscriminatorAutoInjectionTests {
 
     @Test
-    @DisplayName("dry subtype serialization includes discriminator without caller setting it")
-    void drySubtypeAutoEmitsDiscriminator() {
+    @DisplayName(
+        "bhvSerializationObject072 dry subtype serialization includes discriminator without caller"
+            + " setting it")
+    void bhvSerializationObject072DrySubtypeAutoEmitsDiscriminator() {
       com.example.petstore.models.DryFood dry = new com.example.petstore.models.DryFood(2.5);
       String json = serializer.serialize(dry);
       assertTrue(
@@ -1456,8 +1513,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("wet subtype defaults discriminator to its mapping name")
-    void wetSubtypeAutoEmitsDiscriminator() {
+    @DisplayName("bhvSerializationObject178 wet subtype defaults discriminator to its mapping name")
+    void bhvSerializationObject178WetSubtypeAutoEmitsDiscriminator() {
       com.example.petstore.models.WetFood wet = new com.example.petstore.models.WetFood(350);
       String json = serializer.serialize(wet);
       assertTrue(
@@ -1466,8 +1523,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("deserializing the oneOf parent routes to the subtype by discriminator")
-    void deserializeParentRoutesToSubtype() {
+    @DisplayName(
+        "bhvSerializationObject055 deserializing the oneOf parent routes to the subtype by"
+            + " discriminator")
+    void bhvSerializationObject055DeserializeParentRoutesToSubtype() {
       // A discriminator-tagged payload deserialized against the parent
       // PetFood type must come back as the concrete DryFood subtype via
       // Jackson @JsonSubTypes routing on foodType="dry".
@@ -1485,8 +1544,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("missing discriminator property throws (Gap AU-residual)")
-    void missingDiscriminatorThrows() {
+    @DisplayName(
+        "bhvSerializationObject085 missing discriminator property throws (Gap AU-residual)")
+    void bhvSerializationObject085MissingDiscriminatorThrows() {
       // Gap AU-residual: a PetFood payload missing the foodType
       // discriminator property ({"weightKg":5.0}) must throw rather than
       // be silently wrapped as a raw dict in a union container. With no
@@ -1508,8 +1568,10 @@ class ObjectSerializerTest {
   class DecimalNumberSerializationTests {
 
     @Test
-    @DisplayName("type:number BigDecimal field serializes as an unquoted JSON number")
-    void decimalWeightSerializesAsNumber() {
+    @DisplayName(
+        "bhvSerializationObject171 type:number BigDecimal field serializes as an unquoted JSON"
+            + " number")
+    void bhvSerializationObject171DecimalWeightSerializesAsNumber() {
       com.example.petstore.models.Pet pet =
           new com.example.petstore.models.Pet("Rex", java.util.Set.of("http://example.com/p.png"))
               .toBuilder().weightKg(new java.math.BigDecimal("1.5")).build();
@@ -1522,8 +1584,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("type:number BigDecimal field round-trips as a number")
-    void decimalWeightRoundTrips() {
+    @DisplayName("bhvSerializationObject177 type:number BigDecimal field round-trips as a number")
+    void bhvSerializationObject177DecimalWeightRoundTrips() {
       com.example.petstore.models.Pet pet =
           new com.example.petstore.models.Pet("Rex", java.util.Set.of("http://example.com/p.png"))
               .toBuilder().weightKg(new java.math.BigDecimal("1.5")).build();
@@ -1571,8 +1633,8 @@ class ObjectSerializerTest {
   class UuidSerializationTests {
 
     @Test
-    @DisplayName("UUID field round-trips within a model object")
-    void uuidFieldRoundTripsWithinModel() {
+    @DisplayName("bhvSerializationObject065 UUID field round-trips within a model object")
+    void bhvSerializationObject065UuidFieldRoundTripsWithinModel() {
       UuidHolder holder = new UuidHolder(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"));
       String json = serializer.serialize(holder);
       assertTrue(
@@ -1586,8 +1648,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("malformed UUID string fails to deserialize within a model object")
-    void malformedUuidFailsWithinModel() {
+    @DisplayName(
+        "bhvSerializationObject103 malformed UUID string fails to deserialize within a model"
+            + " object")
+    void bhvSerializationObject103MalformedUuidFailsWithinModel() {
       assertThrows(
           SerializationException.class,
           () ->
@@ -1612,8 +1676,8 @@ class ObjectSerializerTest {
   class OneOfNoMatch {
 
     @Test
-    @DisplayName("resolveOneOf returns the first matching variant")
-    void resolveOneOfReturnsFirstMatch() {
+    @DisplayName("bhvSerializationObject128 resolveOneOf returns the first matching variant")
+    void bhvSerializationObject128ResolveOneOfReturnsFirstMatch() {
       List<java.util.function.Function<String, String>> candidates =
           Arrays.asList(
               json -> {
@@ -1624,8 +1688,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("resolveOneOf throws when no variant matches")
-    void resolveOneOfThrowsOnNoMatch() {
+    @DisplayName("bhvSerializationObject129 resolveOneOf throws when no variant matches")
+    void bhvSerializationObject129ResolveOneOfThrowsOnNoMatch() {
       // A payload matching none of the declared variants is a contract
       // violation and must fail loudly rather than be silently returned as null.
       List<java.util.function.Function<String, String>> candidates =
@@ -1642,8 +1706,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("resolveAnyOf throws when no variant matches")
-    void resolveAnyOfThrowsOnNoMatch() {
+    @DisplayName("bhvSerializationObject127 resolveAnyOf throws when no variant matches")
+    void bhvSerializationObject127ResolveAnyOfThrowsOnNoMatch() {
       List<java.util.function.Function<String, String>> candidates = Arrays.asList(json -> null);
       assertThrows(SerializationException.class, () -> serializer.resolveAnyOf("{}", candidates));
     }
@@ -1654,8 +1718,9 @@ class ObjectSerializerTest {
   class EnumRoundTripTests {
 
     @Test
-    @DisplayName("integer-backed enum serializes as a JSON number, not a string")
-    void integerEnumSerializesAsNumber() {
+    @DisplayName(
+        "bhvSerializationObject093 integer-backed enum serializes as a JSON number, not a string")
+    void bhvSerializationObject093IntegerEnumSerializesAsNumber() {
       com.example.petstore.models.StockItem item =
           new com.example.petstore.models.StockItem(com.example.petstore.models.Priority.NUMBER_2);
       String json = serializer.serialize(item);
@@ -1668,8 +1733,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("integer-backed enum deserializes from a JSON number to the member")
-    void integerEnumDeserializesFromNumber() {
+    @DisplayName(
+        "bhvSerializationObject092 integer-backed enum deserializes from a JSON number to the"
+            + " member")
+    void bhvSerializationObject092IntegerEnumDeserializesFromNumber() {
       com.example.petstore.models.StockItem item =
           serializer.deserialize(
               "{\"priority\":2}",
@@ -1680,8 +1747,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a $ref property with a sibling default starts at that default")
-    void refPropertyWithSiblingDefaultStartsAtTheDefault() {
+    @DisplayName(
+        "bhvSerializationObject001 a $ref property with a sibling default starts at that default")
+    void bhvSerializationObject001RefPropertyWithSiblingDefaultStartsAtTheDefault() {
       com.example.petstore.models.StockItem built =
           new com.example.petstore.models.StockItem(com.example.petstore.models.Priority.NUMBER_1);
       assertEquals(com.example.petstore.models.Availability.ON_HOLD, built.availability);
@@ -1704,8 +1772,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("non-lowercase string enum preserves wire casing on round-trip")
-    void stringEnumPreservesWireCasing() {
+    @DisplayName(
+        "bhvSerializationObject109 non-lowercase string enum preserves wire casing on round-trip")
+    void bhvSerializationObject109StringEnumPreservesWireCasing() {
       com.example.petstore.models.StockItem item =
           new com.example.petstore.models.StockItem(com.example.petstore.models.Priority.NUMBER_1)
               .toBuilder().availability(com.example.petstore.models.Availability.ON_HOLD).build();
@@ -1724,8 +1793,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("referenced enum field rejects an unknown wire value")
-    void referencedEnumRejectsUnknownValue() {
+    @DisplayName("bhvSerializationObject119 referenced enum field rejects an unknown wire value")
+    void bhvSerializationObject119ReferencedEnumRejectsUnknownValue() {
       assertThrows(
           SerializationException.class,
           () ->
@@ -1741,8 +1810,8 @@ class ObjectSerializerTest {
   class ByteArrayRoundTripTests {
 
     @Test
-    @DisplayName("array-of-byte field round-trips through base64")
-    void byteArrayFieldRoundTrips() {
+    @DisplayName("bhvSerializationObject026 array-of-byte field round-trips through base64")
+    void bhvSerializationObject026ByteArrayFieldRoundTrips() {
       com.example.petstore.models.PetPassport passport =
           com.example.petstore.models.PetPassport.builder()
               .thumbnail("thumb".getBytes(java.nio.charset.StandardCharsets.UTF_8))
@@ -1784,8 +1853,9 @@ class ObjectSerializerTest {
   class DateTimeSubSecondTests {
 
     @Test
-    @DisplayName("date-time field serialization preserves sub-second precision")
-    void dateTimeFieldPreservesSubSeconds() {
+    @DisplayName(
+        "bhvSerializationObject045 date-time field serialization preserves sub-second precision")
+    void bhvSerializationObject045DateTimeFieldPreservesSubSeconds() {
       com.example.petstore.models.PhotoMetadata metadata =
           com.example.petstore.models.PhotoMetadata.builder()
               .takenAt(OffsetDateTime.parse("2020-01-02T03:04:05.123Z"))
@@ -1814,8 +1884,8 @@ class ObjectSerializerTest {
   class NumberFromIntegralTests {
 
     @Test
-    @DisplayName("double field deserializes from an integral JSON value")
-    void doubleFieldFromIntegralValue() {
+    @DisplayName("bhvSerializationObject071 double field deserializes from an integral JSON value")
+    void bhvSerializationObject071DoubleFieldFromIntegralValue() {
       com.example.petstore.models.PhotoMetadataLocation loc =
           serializer.deserialize(
               "{\"lat\":5,\"lng\":-3}",
@@ -1862,8 +1932,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("instances holding equal content are equal though every array is distinct")
-    void equalContentDistinctArraysCompareEqual() {
+    @DisplayName(
+        "bhvSerializationObject090 instances holding equal content are equal though every array is"
+            + " distinct")
+    void bhvSerializationObject090EqualContentDistinctArraysCompareEqual() {
       com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
       com.example.petstore.models.BinaryVault right = vaultWithFreshArrays();
 
@@ -1880,8 +1952,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a differing byte in the bare array makes them unequal")
-    void differingBareArrayCompareUnequal() {
+    @DisplayName("bhvSerializationObject075 a differing byte in the bare array makes them unequal")
+    void bhvSerializationObject075DifferingBareArrayCompareUnequal() {
       com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
       com.example.petstore.models.BinaryVault right =
           vaultWithFreshArrays().toBuilder().seal(new byte[] {1, 2, 4}).build();
@@ -1890,8 +1962,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a differing byte inside the list makes them unequal")
-    void differingListElementCompareUnequal() {
+    @DisplayName("bhvSerializationObject009 a differing byte inside the list makes them unequal")
+    void bhvSerializationObject009DifferingListElementCompareUnequal() {
       com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
       com.example.petstore.models.BinaryVault right =
           vaultWithFreshArrays().toBuilder()
@@ -1902,8 +1974,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a differing byte inside a map VALUE makes them unequal")
-    void differingMapValueCompareUnequal() {
+    @DisplayName("bhvSerializationObject005 a differing byte inside a map VALUE makes them unequal")
+    void bhvSerializationObject005DifferingMapValueCompareUnequal() {
       com.example.petstore.models.BinaryVault left = vaultWithFreshArrays();
       com.example.petstore.models.BinaryVault right =
           vaultWithFreshArrays().toBuilder()
@@ -1938,8 +2010,9 @@ class ObjectSerializerTest {
     // would emit the quoted strings "NaN"/"Infinity"; the serializer rejects them
     // instead, matching python (allow_nan=False), go, node, rust and the rest.
     @Test
-    @DisplayName("serializing a non-finite double throws SerializationException")
-    void nonFiniteDoubleThrowsOnSerialize() {
+    @DisplayName(
+        "bhvSerializationObject153 serializing a non-finite double throws SerializationException")
+    void bhvSerializationObject153NonFiniteDoubleThrowsOnSerialize() {
       assertThrows(SerializationException.class, () -> serializer.serialize(Double.NaN));
       assertThrows(
           SerializationException.class, () -> serializer.serialize(Double.POSITIVE_INFINITY));
@@ -1948,8 +2021,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("an overflowing float or double literal throws SerializationException")
-    void overflowingNumberLiteralIsRejected() {
+    @DisplayName(
+        "bhvSerializationObject057 an overflowing float or double literal throws"
+            + " SerializationException")
+    void bhvSerializationObject057OverflowingNumberLiteralIsRejected() {
       for (String body : new String[] {"1e400", "-1e400"}) {
         assertThrows(
             SerializationException.class, () -> serializer.deserialize(body, Double.class), body);
@@ -1968,8 +2043,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a wrong-typed value in a map of integers throws SerializationException")
-    void wrongTypedMapValueThrows() {
+    @DisplayName(
+        "bhvSerializationObject122 a wrong-typed value in a map of integers throws"
+            + " SerializationException")
+    void bhvSerializationObject122WrongTypedMapValueThrows() {
       for (String body : new String[] {"{\"a\":2.5}", "{\"a\":\"2\"}", "{\"a\":3000000000}"}) {
         assertThrows(
             SerializationException.class,
@@ -1985,8 +2062,8 @@ class ObjectSerializerTest {
     // A bare JSON null body decoded to a model type returns null, not a
     // partial object or an error.
     @Test
-    @DisplayName("a literal null body deserializes to null")
-    void literalNullBodyDeserializesToNull() {
+    @DisplayName("bhvSerializationObject067 a literal null body deserializes to null")
+    void bhvSerializationObject067LiteralNullBodyDeserializesToNull() {
       assertNull(
           serializer.deserialize(
               "null",
@@ -1999,8 +2076,9 @@ class ObjectSerializerTest {
     // throws rather than silently truncating, and ObjectSerializer surfaces
     // it as the SDK's SerializationException.
     @Test
-    @DisplayName("invalid base64 in a byte field throws SerializationException")
-    void invalidBase64ByteFieldThrowsSerializationException() {
+    @DisplayName(
+        "bhvSerializationObject094 invalid base64 in a byte field throws SerializationException")
+    void bhvSerializationObject094InvalidBase64ByteFieldThrowsSerializationException() {
       assertThrows(
           SerializationException.class,
           () ->
@@ -2014,8 +2092,9 @@ class ObjectSerializerTest {
     // maxNestingDepth cap and is rejected (Jackson StreamReadConstraints,
     // surfaced as the SDK's SerializationException).
     @Test
-    @DisplayName("deep JSON within the depth cap decodes; past it is rejected")
-    void deepJsonDepthCap() {
+    @DisplayName(
+        "bhvSerializationObject051 deep JSON within the depth cap decodes; past it is rejected")
+    void bhvSerializationObject051DeepJsonDepthCap() {
       java.lang.reflect.Type objectType =
           new com.fasterxml.jackson.core.type.TypeReference<Object>() {}.getType();
       assertNotNull(serializer.deserialize("[".repeat(600) + "]".repeat(600), objectType));
@@ -2027,8 +2106,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("malformed JSON reports the canonical deserialize message")
-    void malformedJsonReportsTheCanonicalMessage() {
+    @DisplayName(
+        "bhvSerializationObject004 malformed JSON reports the canonical deserialize message")
+    void bhvSerializationObject004MalformedJsonReportsTheCanonicalMessage() {
       java.lang.reflect.Type objectType =
           new com.fasterxml.jackson.core.type.TypeReference<Object>() {}.getType();
       SerializationException ex =
@@ -2057,8 +2137,10 @@ class ObjectSerializerTest {
   class FixtureWireValueTests {
 
     @Test
-    @DisplayName("an inline enum with non-identifier wire values round-trips every member")
-    void inlinePhaseEnumRoundTrips() {
+    @DisplayName(
+        "bhvSerializationObject022 an inline enum with non-identifier wire values round-trips every"
+            + " member")
+    void bhvSerializationObject022InlinePhaseEnumRoundTrips() {
       for (String wire : new String[] {"In-Stock", "on-hold", "OUT_OF_STOCK"}) {
         String json = "{\"phase\":\"" + wire + "\"}";
         com.example.petstore.models.EdgeCases edge =
@@ -2070,8 +2152,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("every Availability member, hostile ones included, round-trips its wire value")
-    void availabilityMembersRoundTrip() {
+    @DisplayName(
+        "bhvSerializationObject076 every Availability member, hostile ones included, round-trips"
+            + " its wire value")
+    void bhvSerializationObject076AvailabilityMembersRoundTrip() {
       for (com.example.petstore.models.Availability member :
           com.example.petstore.models.Availability.values()) {
         String json = serializer.serialize(member);
@@ -2086,8 +2170,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("every Separator member decodes to a distinct constant and re-encodes")
-    void separatorMembersRoundTrip() {
+    @DisplayName(
+        "bhvSerializationObject161 every Separator member decodes to a distinct constant and"
+            + " re-encodes")
+    void bhvSerializationObject161SeparatorMembersRoundTrip() {
       java.util.Set<com.example.petstore.models.Separator> seen = new java.util.HashSet<>();
       for (String wire : new String[] {" ", "@@", "a-b", "a_b"}) {
         String json = "\"" + wire + "\"";
@@ -2102,8 +2188,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a uuid property is written lowercase and decoded from uppercase")
-    void uuidPropertyIsWrittenLowercaseAndDecodedFromUppercase() {
+    @DisplayName(
+        "bhvSerializationObject016 a uuid property is written lowercase and decoded from uppercase")
+    void bhvSerializationObject016UuidPropertyIsWrittenLowercaseAndDecodedFromUppercase() {
       com.example.petstore.models.Order decoded =
           java.util.Objects.requireNonNull(
               serializer.deserialize(
@@ -2124,8 +2211,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("properties named after keywords and literals keep their wire keys")
-    void keywordNamedPropertiesKeepTheirWireKeys() {
+    @DisplayName(
+        "bhvSerializationObject117 properties named after keywords and literals keep their wire"
+            + " keys")
+    void bhvSerializationObject117KeywordNamedPropertiesKeepTheirWireKeys() {
       String json =
           "{\"and\":true,\"or\":false,\"not\":true,\"class\":\"c\",\"return\":\"r\","
               + "\"null\":\"n\",\"true\":true,\"false\":false}";
@@ -2144,8 +2233,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("numeric schema defaults are exact typed values")
-    void numericDefaultsAreExactTypedValues() {
+    @DisplayName("bhvSerializationObject111 numeric schema defaults are exact typed values")
+    void bhvSerializationObject111NumericDefaultsAreExactTypedValues() {
       com.example.petstore.models.Defaults defaults =
           java.util.Objects.requireNonNull(
               serializer.deserialize("{}", com.example.petstore.models.Defaults.class));
@@ -2156,8 +2245,10 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a contentEncoding base64 property is a byte array on the wire as base64")
-    void contentEncodedPropertyIsBase64() {
+    @DisplayName(
+        "bhvSerializationObject115 a contentEncoding base64 property is a byte array on the wire as"
+            + " base64")
+    void bhvSerializationObject115ContentEncodedPropertyIsBase64() {
       com.example.petstore.models.PetPassport passport =
           java.util.Objects.requireNonNull(
               serializer.deserialize(
@@ -2172,8 +2263,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a protobuf-JSON duration property round-trips")
-    void durationPropertyRoundTrips() {
+    @DisplayName("bhvSerializationObject013 a protobuf-JSON duration property round-trips")
+    void bhvSerializationObject013DurationPropertyRoundTrips() {
       for (String wire : new String[] {"3600s", "-90s", "3600.500s", "0.000000001s"}) {
         String json = "{\"retryAfter\":\"" + wire + "\"}";
         com.example.petstore.models.EdgeCases edge =
@@ -2190,8 +2281,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a prefixItems tuple is a heterogeneous list that round-trips")
-    void tupleLocationRoundTrips() {
+    @DisplayName(
+        "bhvSerializationObject012 a prefixItems tuple is a heterogeneous list that round-trips")
+    void bhvSerializationObject012TupleLocationRoundTrips() {
       com.example.petstore.models.Pet pet =
           java.util.Objects.requireNonNull(
               serializer.deserialize(
@@ -2205,8 +2297,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a bare type: number is exact and written in plain notation")
-    void decimalIsExactAndPlain() {
+    @DisplayName(
+        "bhvSerializationObject002 a bare type: number is exact and written in plain notation")
+    void bhvSerializationObject002DecimalIsExactAndPlain() {
       com.example.petstore.models.Pet pet =
           java.util.Objects.requireNonNull(
               serializer.deserialize(
@@ -2221,8 +2314,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a date-time without an offset is rejected")
-    void dateTimeWithoutAnOffsetIsRejected() {
+    @DisplayName("bhvSerializationObject003 a date-time without an offset is rejected")
+    void bhvSerializationObject003DateTimeWithoutAnOffsetIsRejected() {
       assertThrows(
           SerializationException.class,
           () ->
@@ -2235,8 +2328,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("a duplicate object key resolves to the last value")
-    void duplicateKeyKeepsTheLastValue() {
+    @DisplayName("bhvSerializationObject006 a duplicate object key resolves to the last value")
+    void bhvSerializationObject006DuplicateKeyKeepsTheLastValue() {
       com.example.petstore.models.EdgeCases edge =
           java.util.Objects.requireNonNull(
               serializer.deserialize(
@@ -2247,9 +2340,9 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName(
-        "request JSON writes U+2028, U+2029 and DEL literally and escapes only quote, backslash and"
-            + " controls")
-    void requestJsonEscapesOnlyWhatItMust() {
+        "bhvSerializationObject124 request JSON writes U+2028, U+2029 and DEL literally and escapes"
+            + " only quote, backslash and controls")
+    void bhvSerializationObject124RequestJsonEscapesOnlyWhatItMust() {
       String raw =
           "a"
               + Character.toString(0x2028)
@@ -2266,8 +2359,9 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName(
-        "constraint keywords are not enforced: slug, nickname and quantity decode as given")
-    void constraintKeywordsAreNotEnforced() {
+        "bhvSerializationObject032 constraint keywords are not enforced: slug, nickname and"
+            + " quantity decode as given")
+    void bhvSerializationObject032ConstraintKeywordsAreNotEnforced() {
       com.example.petstore.models.EdgeCases edge =
           java.util.Objects.requireNonNull(
               serializer.deserialize(
@@ -2286,5 +2380,60 @@ class ObjectSerializerTest {
                   "{\"quantity\":500}", com.example.petstore.models.Order.class));
       assertEquals(Integer.valueOf(500), order.quantity);
     }
+  }
+
+  @Test
+  void bhvSerializationObject147SerializeWritesAMapAsAJsonObject() {
+    assertEquals("{\"a\":1}", new ObjectSerializer().serialize(Map.of("a", 1)));
+  }
+
+  @Test
+  void bhvSerializationObject148SerializeWritesAUuidInLowercase() {
+    UUID uuid = UUID.fromString("550E8400-E29B-41D4-A716-446655440000");
+    assertEquals(
+        "\"550e8400-e29b-41d4-a716-446655440000\"", new ObjectSerializer().serialize(uuid));
+  }
+
+  @Test
+  void bhvSerializationObject176UuidRoundTripPreservesIdentity() {
+    ObjectSerializer serializer = new ObjectSerializer();
+    UUID uuid = UUID.randomUUID();
+    assertEquals(uuid, serializer.deserialize(serializer.serialize(uuid), UUID.class));
+  }
+
+  @Test
+  void bhvSerializationObject113ParsesNegativeDurations() {
+    assertEquals(
+        Duration.ofMillis(-1500), new ObjectSerializer().deserialize("\"-1.5s\"", Duration.class));
+  }
+
+  @Test
+  void bhvSerializationObject054DeserializeParsesFractionalProtobufSeconds() {
+    assertEquals(
+        Duration.ofMillis(1500), new ObjectSerializer().deserialize("\"1.5s\"", Duration.class));
+  }
+
+  @Test
+  void bhvSerializationObject158StringifyEmitsTheCanonicalProtobufDuration() {
+    assertEquals("1.500s", ObjectSerializer.stringify(Duration.ofMillis(1500)));
+  }
+
+  @Test
+  void bhvSerializationObject106StringifyEmitsANegativeFractionalDuration() {
+    assertEquals("-1.500s", ObjectSerializer.stringify(Duration.ofMillis(-1500)));
+  }
+
+  @Test
+  void bhvSerializationObject145DurationRoundTripYieldsAnEquivalentValue() {
+    ObjectSerializer serializer = new ObjectSerializer();
+    Duration duration = Duration.ofSeconds(90);
+    assertEquals(duration, serializer.deserialize(serializer.serialize(duration), Duration.class));
+  }
+
+  @Test
+  void bhvSerializationObject116PositiveOffsetIsPreservedInTheSerializedString() {
+    OffsetDateTime dt =
+        OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.ofHoursMinutes(5, 30));
+    assertTrue(ObjectSerializer.stringify(dt).endsWith("+05:30"));
   }
 }

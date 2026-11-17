@@ -35,8 +35,8 @@ class DefaultApiClientTest {
   class TlsVerificationDisabled {
 
     @Test
-    @DisplayName("makes HTTPS request with verifySsl=false")
-    void makesHttpsRequestWithVerifySslFalse() throws Exception {
+    @DisplayName("bhvTransport018 makes HTTPS request with verifySsl=false")
+    void bhvTransport018MakesHttpsRequestWithVerifySslFalse() throws Exception {
       String chasmUrl = ChasmContainer.getHttpsBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
@@ -68,8 +68,9 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName(
-        "verifySsl=true rejects hostname mismatch (cert is for localhost, request is to 127.0.0.1)")
-    void verifySslTrueRejectsHostnameMismatch() throws ApiException {
+        "bhvTransport025 verifySsl=true rejects hostname mismatch (cert is for localhost, request"
+            + " is to 127.0.0.1)")
+    void bhvTransport025VerifySslTrueRejectsHostnameMismatch() throws ApiException {
       int httpsPort = java.net.URI.create(ChasmContainer.getHttpsBaseUrl()).getPort();
       String chasmUrl = "https://127.0.0.1:" + httpsPort;
 
@@ -109,8 +110,8 @@ class DefaultApiClientTest {
   class CustomCaBundle {
 
     @Test
-    @DisplayName("makes HTTPS request with custom CA cert")
-    void makesHttpsRequestWithCustomCaCert() throws Exception {
+    @DisplayName("bhvTransport017 makes HTTPS request with custom CA cert")
+    void bhvTransport017MakesHttpsRequestWithCustomCaCert() throws Exception {
       String chasmUrl = ChasmContainer.getHttpsBaseUrl();
 
       TransportOptions transport =
@@ -131,8 +132,8 @@ class DefaultApiClientTest {
   class HttpProxy {
 
     @Test
-    @DisplayName("makes HTTP request through proxy")
-    void makesHttpRequestThroughProxy() throws ApiException {
+    @DisplayName("bhvTransport015 makes HTTP request through proxy")
+    void bhvTransport015MakesHttpRequestThroughProxy() throws ApiException {
       String chasmUrl = ChasmContainer.getInternalHttpUrl();
       String proxyUrl = SquidContainer.getProxyUrl();
 
@@ -153,8 +154,8 @@ class DefaultApiClientTest {
   class AmbientProxySettings {
 
     @Test
-    @DisplayName("ignores the JVM proxy properties when no proxy is configured")
-    void ignoresAmbientJvmProxyProperties() throws ApiException {
+    @DisplayName("bhvTransport009 ignores the JVM proxy properties when no proxy is configured")
+    void bhvTransport009IgnoresAmbientJvmProxyProperties() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
       String[] keys = {
         "http.proxyHost",
@@ -207,8 +208,8 @@ class DefaultApiClientTest {
      * extracted `alice:s3cret` into a Basic Proxy-Authorization header.
      */
     @Test
-    @DisplayName("proxy_with_credentials_injects_basic_authorization")
-    void proxyWithCredentialsInjectsBasicAuthorization() throws Exception {
+    @DisplayName("bhvTransport021 proxy_with_credentials_injects_basic_authorization")
+    void bhvTransport021ProxyWithCredentialsInjectsBasicAuthorization() throws Exception {
       TransportOptions transport =
           TransportOptions.builder().proxy("http://alice:s3cret@127.0.0.1:3128").build();
       DefaultApiClient client = new DefaultApiClient(transport);
@@ -230,8 +231,8 @@ class DefaultApiClientTest {
      * for AK; this asserts the credentials are now carried.
      */
     @Test
-    @DisplayName("proxy_userinfo_carried_as_basic_proxy_authorization")
-    void proxyUserInfoCarriedAsBasicProxyAuthorization() throws Exception {
+    @DisplayName("bhvTransport020 proxy_userinfo_carried_as_basic_proxy_authorization")
+    void bhvTransport020ProxyUserInfoCarriedAsBasicProxyAuthorization() throws Exception {
       TransportOptions transport =
           TransportOptions.builder().proxy("http://user:pass@127.0.0.1:3128").build();
       DefaultApiClient client = new DefaultApiClient(transport);
@@ -251,8 +252,8 @@ class DefaultApiClientTest {
   class HttpProxyWithTls {
 
     @Test
-    @DisplayName("makes HTTPS request through proxy with verifySsl=false")
-    void makesHttpsRequestThroughProxyWithVerifySslFalse() throws ApiException {
+    @DisplayName("bhvTransport016 makes HTTPS request through proxy with verifySsl=false")
+    void bhvTransport016MakesHttpsRequestThroughProxyWithVerifySslFalse() throws ApiException {
       String chasmUrl = ChasmContainer.getInternalHttpsUrl();
       String proxyUrl = SquidContainer.getProxyUrl();
 
@@ -273,8 +274,8 @@ class DefaultApiClientTest {
   class RequestTimeout {
 
     @Test
-    @DisplayName("times out on slow endpoint")
-    void timesOutOnSlowEndpoint() throws ApiException {
+    @DisplayName("bhvTransport024 times out on slow endpoint")
+    void bhvTransport024TimesOutOnSlowEndpoint() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().timeout(1000).build();
@@ -290,8 +291,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("one timeout covers the whole redirect chain")
-    void timeoutCoversTheWholeRedirectChain() {
+    @DisplayName("bhvRedirects009 one timeout covers the whole redirect chain")
+    void bhvRedirects009TimeoutCoversTheWholeRedirectChain() {
       String chasmUrl = ChasmContainer.getBaseUrl();
       DefaultApiClient client =
           new DefaultApiClient(
@@ -304,8 +305,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("a redirect chain inside the budget completes")
-    void redirectChainInsideTheBudgetCompletes() {
+    @DisplayName("bhvRedirects002 a redirect chain inside the budget completes")
+    void bhvRedirects002RedirectChainInsideTheBudgetCompletes() {
       String chasmUrl = ChasmContainer.getBaseUrl();
       DefaultApiClient client =
           new DefaultApiClient(
@@ -323,8 +324,8 @@ class DefaultApiClientTest {
   class ResponseHeaderFixtures {
 
     @Test
-    @DisplayName("a response header reaches the caller lower-cased")
-    void responseHeaderReachesTheCaller() {
+    @DisplayName("bhvTransport003 a response header reaches the caller lower-cased")
+    void bhvTransport003ResponseHeaderReachesTheCaller() {
       DefaultApiClient client = new DefaultApiClient();
       ApiHttpResponse response =
           client.sendRequest(
@@ -340,8 +341,8 @@ class DefaultApiClientTest {
   class UserAgentHeader {
 
     @Test
-    @DisplayName("injects custom User-Agent header")
-    void injectsCustomUserAgentHeader() throws Exception {
+    @DisplayName("bhvTransport012 injects custom User-Agent header")
+    void bhvTransport012InjectsCustomUserAgentHeader() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
@@ -361,8 +362,8 @@ class DefaultApiClientTest {
   class RequestIdInjection {
 
     @Test
-    @DisplayName("injects X-Request-ID header with UUID format")
-    void injectsRequestIdHeader() throws Exception {
+    @DisplayName("bhvTransport014 injects X-Request-ID header with UUID format")
+    void bhvTransport014InjectsRequestIdHeader() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
@@ -380,8 +381,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("generates unique X-Request-ID per request")
-    void generatesUniqueRequestIds() throws Exception {
+    @DisplayName("bhvTransport008 generates unique X-Request-ID per request")
+    void bhvTransport008GeneratesUniqueRequestIds() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
@@ -408,8 +409,8 @@ class DefaultApiClientTest {
   class DefaultHeaders {
 
     @Test
-    @DisplayName("includes transport-level default headers")
-    void includesTransportDefaultHeaders() throws Exception {
+    @DisplayName("bhvTransport011 includes transport-level default headers")
+    void bhvTransport011IncludesTransportDefaultHeaders() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
@@ -425,8 +426,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("caller headers override transport default headers")
-    void callerHeadersOverrideTransportDefaults() throws Exception {
+    @DisplayName("bhvOptions004 caller headers override transport default headers")
+    void bhvOptions004CallerHeadersOverrideTransportDefaults() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
@@ -449,8 +450,8 @@ class DefaultApiClientTest {
   class RedirectHandling {
 
     @Test
-    @DisplayName("follows redirects when enabled")
-    void followsRedirectsWhenEnabled() throws ApiException {
+    @DisplayName("bhvRedirects004 follows redirects when enabled")
+    void bhvRedirects004FollowsRedirectsWhenEnabled() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
@@ -482,8 +483,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("returns redirect response when disabled")
-    void returnsRedirectWhenDisabled() throws ApiException {
+    @DisplayName("bhvRedirects007 returns redirect response when disabled")
+    void bhvRedirects007ReturnsRedirectWhenDisabled() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().followRedirects(false).build();
@@ -496,8 +497,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("303 switches to GET and drops body (Gap T3)")
-    void redirect303SwitchesToGetAndDropsBody() throws Exception {
+    @DisplayName("bhvRedirects005 303 switches to GET and drops body (Gap T3)")
+    void bhvRedirects005Redirect303SwitchesToGetAndDropsBody() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
@@ -521,8 +522,8 @@ class DefaultApiClientTest {
      * form parts.
      */
     @Test
-    @DisplayName("307 replays multipart body to redirected location (T-new-3)")
-    void multipartBodyReplayedOn307Redirect() throws Exception {
+    @DisplayName("bhvRetries012 307 replays multipart body to redirected location (T-new-3)")
+    void bhvRetries012MultipartBodyReplayedOn307Redirect() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
@@ -565,8 +566,8 @@ class DefaultApiClientTest {
      * returns its own 200.
      */
     @Test
-    @DisplayName("concurrent requests do not share redirect budget (Wave E)")
-    void concurrentRequestsDoNotShareRedirectBudget() throws Exception {
+    @DisplayName("bhvRedirects003 concurrent requests do not share redirect budget (Wave E)")
+    void bhvRedirects003ConcurrentRequestsDoNotShareRedirectBudget() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       // maxRedirects(1): a single-hop 302 is allowed, but there is no
@@ -711,8 +712,8 @@ class DefaultApiClientTest {
   @DisplayName("max redirects")
   class MaxRedirects {
     @Test
-    @DisplayName("respects maxRedirects limit")
-    void respectsMaxRedirectsLimit() throws ApiException {
+    @DisplayName("bhvRedirects006 respects maxRedirects limit")
+    void bhvRedirects006RespectsMaxRedirectsLimit() throws ApiException {
       TransportOptions transport =
           TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
 
@@ -750,8 +751,8 @@ class DefaultApiClientTest {
   @DisplayName("multipart body")
   class MultipartBody {
     @Test
-    @DisplayName("sends multipart form data")
-    void sendsMultipartFormData() throws ApiException {
+    @DisplayName("bhvSerializationWire027 sends multipart form data")
+    void bhvSerializationWire027SendsMultipartFormData() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       Map<String, Object> formFields = new HashMap<>();
@@ -772,8 +773,8 @@ class DefaultApiClientTest {
      * test uses a String value so it exercises the non-binary branch.
      */
     @Test
-    @DisplayName("multipart_field_name_with_crlf_rejected_on_string_value")
-    void multipartFieldNameWithCrlfRejectedOnStringValue() {
+    @DisplayName("bhvSerializationWire026 multipart_field_name_with_crlf_rejected_on_string_value")
+    void bhvSerializationWire026MultipartFieldNameWithCrlfRejectedOnStringValue() {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       DefaultApiClient client = new DefaultApiClient();
@@ -790,8 +791,8 @@ class DefaultApiClientTest {
   @DisplayName("client lifecycle (Gap T6)")
   class ClientLifecycle {
     @Test
-    @DisplayName("close releases underlying client and blocks new requests")
-    void closeReleasesUnderlyingClient() {
+    @DisplayName("bhvLifecycle018 close releases underlying client and blocks new requests")
+    void bhvLifecycle018CloseReleasesUnderlyingClient() {
       DefaultApiClient client = new DefaultApiClient();
       client.close();
       // Calling close again is idempotent.
@@ -813,8 +814,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("decompresses gzip response")
-    void decompressesGzipResponse() throws ApiException {
+    @DisplayName("bhvTransport005 decompresses gzip response")
+    void bhvTransport005DecompressesGzipResponse() throws ApiException {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "gzip");
@@ -825,8 +826,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("decompresses brotli response")
-    void decompressesBrotliResponse() throws ApiException {
+    @DisplayName("bhvTransport004 decompresses brotli response")
+    void bhvTransport004DecompressesBrotliResponse() throws ApiException {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "br");
@@ -837,8 +838,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("decompresses zstd response")
-    void decompressesZstdResponse() throws ApiException {
+    @DisplayName("bhvTransport006 decompresses zstd response")
+    void bhvTransport006DecompressesZstdResponse() throws ApiException {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "zstd");
@@ -946,8 +947,8 @@ class DefaultApiClientTest {
      * so the exact status matrix is locked.
      */
     @Test
-    @DisplayName("302_https_to_http_with_body_proceeds_but_307_308_throw")
-    void redirect302ProceedsWhile307And308Throw() {
+    @DisplayName("bhvRedirects001 302_https_to_http_with_body_proceeds_but_307_308_throw")
+    void bhvRedirects001Redirect302ProceedsWhile307And308Throw() {
       java.net.URI origin = java.net.URI.create("https://api.example.com/secret");
       java.net.URI target = java.net.URI.create("http://api.example.com/landed");
 
@@ -980,8 +981,8 @@ class DefaultApiClientTest {
      * emits the header for us — assert it lands on the wire.
      */
     @Test
-    @DisplayName("post_with_null_body_sends_content_length_zero")
-    void postWithNullBodySendsContentLengthZero() throws Exception {
+    @DisplayName("bhvTransport019 post_with_null_body_sends_content_length_zero")
+    void bhvTransport019PostWithNullBodySendsContentLengthZero() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       DefaultApiClient client = new DefaultApiClient();

@@ -20,14 +20,14 @@ import org.junit.jupiter.api.Test;
 class BasicAuthenticatorTest {
 
   @Test
-  void validCredentialsProduceBasicHeader() {
+  void bhvAuthBasic011ValidCredentialsProduceBasicHeader() {
     BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
     Map<String, String> headers = auth.getAuthHeaders();
     assertEquals("Basic YWxpY2U6czNjcmV0", headers.get("Authorization"));
   }
 
   @Test
-  void nonAsciiCredentialsAreEncodedAsUtf8() {
+  void bhvAuthBasic004NonAsciiCredentialsAreEncodedAsUtf8() {
     BasicAuthenticator auth =
         new BasicAuthenticator("https://api.example.com", "ünïcødé", "pässwörd");
     assertEquals(
@@ -35,28 +35,28 @@ class BasicAuthenticatorTest {
   }
 
   @Test
-  void rejectsUsernameWithCrlfAtConstruction() {
+  void bhvAuthBasic009RejectsUsernameWithCrlfAtConstruction() {
     assertThrows(
         IllegalArgumentException.class,
         () -> new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret"));
   }
 
   @Test
-  void rejectsPasswordWithNulAtConstruction() {
+  void bhvAuthBasic007RejectsPasswordWithNulAtConstruction() {
     assertThrows(
         IllegalArgumentException.class,
         () -> new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"));
   }
 
   @Test
-  void rejectsUsernameWithColonAtConstruction() {
+  void bhvAuthBasic008RejectsUsernameWithColonAtConstruction() {
     assertThrows(
         IllegalArgumentException.class,
         () -> new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
   }
 
   @Test
-  void passwordIsNotLeakedInDefaultToString() {
+  void bhvAuthBasic005PasswordIsNotLeakedInDefaultToString() {
     // authenticator-secret-in-default-string-repr: the default toString()
     // must never expose the stored password.
     BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
@@ -68,12 +68,19 @@ class BasicAuthenticatorTest {
    * and a redaction marker present.
    */
   @Test
-  @DisplayName("toString() redacts the password")
-  void redactsSecret() {
+  @DisplayName("bhvAuthBasic006 toString() redacts the password")
+  void bhvAuthBasic006RedactsSecret() {
     BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
     String repr = auth.toString();
     assertFalse(repr.contains("s3cret"));
     assertTrue(repr.contains("***"));
+    assertEquals(
+        "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", repr);
+  }
+
+  @Test
+  void bhvAuthBasic010ReprShowsHostAndUsernameAndMasksThePassword() {
+    String repr = new BasicAuthenticator("https://api.example.com", "alice", "s3cret").toString();
     assertEquals(
         "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", repr);
   }

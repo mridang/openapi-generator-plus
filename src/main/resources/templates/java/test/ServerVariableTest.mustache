@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 class ServerVariableTest {
 
     @Test
-    void exposesDefaultValueWhenNoOverrideIsApplied() {
+    void bhvServers017ExposesDefaultValueWhenNoOverrideIsApplied() {
         // The default value is what ServerConfiguration falls back to when a
         // variable is left unset, so it must be carried through verbatim.
         ServerVariable var = new ServerVariable("v1", "API version", List.of());
@@ -22,7 +22,7 @@ class ServerVariableTest {
     }
 
     @Test
-    void emptyEnumValuesMeansAnyValueAllowed() {
+    void bhvServers016EmptyEnumValuesMeansAnyValueAllowed() {
         // enumValues is non-null by contract (empty list = any value allowed);
         // a null description is permitted (it is @Nullable).
         ServerVariable var = new ServerVariable("prod", null, List.of());

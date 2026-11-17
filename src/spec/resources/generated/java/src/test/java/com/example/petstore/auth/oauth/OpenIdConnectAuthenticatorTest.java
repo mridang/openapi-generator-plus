@@ -46,7 +46,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void buildsAuthorizationUrlFromDiscovery() {
+  void bhvAuthOidc002BuildsAuthorizationUrlFromDiscovery() {
     AtomicReference<String> capturedUrl = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -67,7 +67,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void omitsAnEmptyStateFromTheAuthorizationUrl() {
+  void bhvAuthOidc018OmitsAnEmptyStateFromTheAuthorizationUrl() {
     ApiClient client =
         (method, url, headers, body) -> new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
     OpenIdConnectAuthenticator auth = createAuthenticator();
@@ -83,7 +83,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void fetchesDiscoveryDocument() {
+  void bhvAuthOidc010FetchesDiscoveryDocument() {
     AtomicReference<String> capturedMethod = new AtomicReference<>();
     AtomicReference<String> capturedUrl = new AtomicReference<>();
     ApiClient client =
@@ -103,7 +103,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void discoveryKeepsTheTransportsDefaultHeadersOffTheIdentityProvider() {
+  void bhvAuthOidc008DiscoveryKeepsTheTransportsDefaultHeadersOffTheIdentityProvider() {
     AtomicReference<Boolean> noDefaultHeaders = new AtomicReference<>();
     ApiClient client =
         new ApiClient() {
@@ -152,7 +152,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void obtainsTokenAfterCodeExchange() {
+  void bhvAuthOidc017ObtainsTokenAfterCodeExchange() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     var calls =
         new Object() {
@@ -181,7 +181,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void getAuthHeadersReturnsBearerAfterExchange() {
+  void bhvAuthOidc013GetAuthHeadersReturnsBearerAfterExchange() {
     var calls =
         new Object() {
           int count = 0;
@@ -206,21 +206,21 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void throwsWhenNoApiClientInjected() {
+  void bhvAuthOidc028ThrowsWhenNoApiClientInjected() {
     OpenIdConnectAuthenticator auth = createAuthenticator();
 
     assertThrowsExactly(IllegalStateException.class, () -> auth.buildAuthorizationUrl(null));
   }
 
   @Test
-  void getHostReturnsConfiguredHost() {
+  void bhvAuthOidc014GetHostReturnsConfiguredHost() {
     OpenIdConnectAuthenticator auth = createAuthenticator();
 
     assertEquals("https://api.example.com", auth.getHost());
   }
 
   @Test
-  void throwsWhenDiscoveryReturnsNon2xxStatus() {
+  void bhvAuthOidc027ThrowsWhenDiscoveryReturnsNon2xxStatus() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(500, "<html>internal server error</html>", Map.of());
@@ -239,7 +239,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void discovery404RaisesNotFoundException() {
+  void bhvAuthOidc007Discovery404RaisesNotFoundException() {
     ApiClient client =
         (method, url, headers, body) -> new ApiHttpResponse(404, "not found", Map.of());
 
@@ -252,7 +252,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void discoveryTransportFailurePropagatesNetworkException() {
+  void bhvAuthOidc006DiscoveryTransportFailurePropagatesNetworkException() {
     // Discovery is an HTTP call like any other: a transport failure from
     // the ApiClient must reach the caller unchanged, not rewrapped.
     NetworkException failure =
@@ -271,7 +271,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void discoveryRejectsAnIssuerThatDoesNotMatchTheDiscoveryUrl() {
+  void bhvAuthOidc024DiscoveryRejectsAnIssuerThatDoesNotMatchTheDiscoveryUrl() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -290,7 +290,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void discoveryAcceptsAMatchingIssuerWithATrailingSlash() {
+  void bhvAuthOidc004DiscoveryAcceptsAMatchingIssuerWithATrailingSlash() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -324,7 +324,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void discoveryAllowsALoopbackHttpEndpoint() {
+  void bhvAuthOidc005DiscoveryAllowsALoopbackHttpEndpoint() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -339,7 +339,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void malformedDiscoveryDocumentRaisesSerializationException() {
+  void bhvAuthOidc016MalformedDiscoveryDocumentRaisesSerializationException() {
     ApiClient client =
         (method, url, headers, body) -> new ApiHttpResponse(200, "{not json", Map.of());
 
@@ -352,7 +352,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void throwsWhenDiscoveryMissingAuthorizationEndpoint() {
+  void bhvAuthOidc025ThrowsWhenDiscoveryMissingAuthorizationEndpoint() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -371,7 +371,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void throwsWhenDiscoveryMissingTokenEndpoint() {
+  void bhvAuthOidc026ThrowsWhenDiscoveryMissingTokenEndpoint() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -386,7 +386,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void fetchesDiscoveryDocumentOnlyOnce() {
+  void bhvAuthOidc011FetchesDiscoveryDocumentOnlyOnce() {
     var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {
@@ -407,7 +407,8 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperDiscoversFromTheSpecUrlAndSendsTheOpenIdScopeWhenTheSpecHasNone() {
+  void
+      bhvAuthOidc012SchemeWrapperDiscoversFromTheSpecUrlAndSendsTheOpenIdScopeWhenTheSpecHasNone() {
     AtomicReference<String> capturedUrl = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -508,7 +509,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void rediscoveryWithNewEndpointsKeepsTheExchangedSession() {
+  void bhvAuthOidc020RediscoveryWithNewEndpointsKeepsTheExchangedSession() {
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     var posts = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =
@@ -543,7 +544,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void failedRediscoveryKeepsTheOldDelegate() {
+  void bhvAuthOidc009FailedRediscoveryKeepsTheOldDelegate() {
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     var posts = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =
@@ -618,8 +619,8 @@ class OpenIdConnectAuthenticatorTest {
    * absent and a {@code ***} redaction marker present.
    */
   @Test
-  @DisplayName("toString() redacts the client secret and shows ***")
-  void redactsSecret() {
+  @DisplayName("bhvAuthOidc019 toString() redacts the client secret and shows ***")
+  void bhvAuthOidc019RedactsSecret() {
     OpenIdConnectAuthenticator auth = createAuthenticator();
     String repr = auth.toString();
     assertFalse(repr.contains("my-client-secret"));
@@ -644,7 +645,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void rediscoveryKeepsThePkceVerifierOfTheAuthorizationUrl() {
+  void bhvAuthOidc021RediscoveryKeepsThePkceVerifierOfTheAuthorizationUrl() {
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     AtomicReference<String> exchangeBody = new AtomicReference<>();
     ApiClient client =
@@ -683,7 +684,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void invalidatingTheTokenKeepsTheRefreshTokenAndNeedsNoDiscovery() {
+  void bhvAuthOidc015InvalidatingTheTokenKeepsTheRefreshTokenAndNeedsNoDiscovery() {
     java.util.List<String> posts = new java.util.ArrayList<>();
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =

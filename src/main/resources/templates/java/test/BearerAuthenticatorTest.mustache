@@ -14,35 +14,35 @@ import org.junit.jupiter.api.Test;
 class BearerAuthenticatorTest {
 
     @Test
-    void rawTokenIsPrefixedWithBearer() {
+    void bhvAuthBearer009RawTokenIsPrefixedWithBearer() {
         BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "xyz");
         Map<String, String> headers = auth.getAuthHeaders();
         assertEquals("Bearer xyz", headers.get("Authorization"));
     }
 
     @Test
-    void alreadyPrefixedTokenIsNotDoubled() {
+    void bhvAuthBearer003AlreadyPrefixedTokenIsNotDoubled() {
         BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "Bearer xyz");
         Map<String, String> headers = auth.getAuthHeaders();
         assertEquals("Bearer xyz", headers.get("Authorization"));
     }
 
     @Test
-    void lowercaseBearerPrefixIsStripped() {
+    void bhvAuthBearer007LowercaseBearerPrefixIsStripped() {
         BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "bearer xyz");
         Map<String, String> headers = auth.getAuthHeaders();
         assertEquals("Bearer xyz", headers.get("Authorization"));
     }
 
     @Test
-    void mixedCaseBearerPrefixIsStripped() {
+    void bhvAuthBearer008MixedCaseBearerPrefixIsStripped() {
         BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "BeArEr xyz");
         Map<String, String> headers = auth.getAuthHeaders();
         assertEquals("Bearer xyz", headers.get("Authorization"));
     }
 
     @Test
-    void emptyTokenIsRejectedAtConstruction() {
+    void bhvAuthBearer005EmptyTokenIsRejectedAtConstruction() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                 new BearerAuthenticator("https://api.example.com", ""));
         assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains("Bearer token must not be empty"));
@@ -54,7 +54,7 @@ class BearerAuthenticatorTest {
     // exercise the runtime guard.
 
     @Test
-    void whitespaceOnlyTokenIsRejectedAtConstruction() {
+    void bhvAuthBearer017WhitespaceOnlyTokenIsRejectedAtConstruction() {
         assertThrows(IllegalArgumentException.class, () ->
                 new BearerAuthenticator("https://api.example.com", "   "));
     }
@@ -88,7 +88,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    void unicodeSpaceIsNotBlankSoThePrintableAsciiCheckRejectsIt() {
+    void bhvAuthBearer016UnicodeSpaceIsNotBlankSoThePrintableAsciiCheckRejectsIt() {
         for (char space : new char[] {(char) 0xA0, (char) 0x2003}) {
             String token = String.valueOf(space);
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
@@ -100,13 +100,13 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    void tokenThatMerelyBeginsWithTheWordBearerIsKeptWhole() {
+    void bhvAuthBearer015TokenThatMerelyBeginsWithTheWordBearerIsKeptWhole() {
         BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "bearerxyz");
         assertEquals("Bearer bearerxyz", auth.getAuthHeaders().get("Authorization"));
     }
 
     @Test
-    void doubledBearerPrefixIsStrippedOnlyOnce() {
+    void bhvAuthBearer004DoubledBearerPrefixIsStrippedOnlyOnce() {
         BearerAuthenticator auth =
                 new BearerAuthenticator("https://api.example.com", "Bearer Bearer xyz");
         assertEquals("Bearer Bearer xyz", auth.getAuthHeaders().get("Authorization"));
@@ -117,8 +117,8 @@ class BearerAuthenticatorTest {
      * value must be absent and a {@code ***} redaction marker present.
      */
     @Test
-    @DisplayName("toString() redacts the token and shows ***")
-    void redactsSecret() {
+    @DisplayName("bhvAuthBearer011 toString() redacts the token and shows ***")
+    void bhvAuthBearer011RedactsSecret() {
         BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "xyz");
         String repr = auth.toString();
         assertFalse(repr.contains("token=xyz"));
@@ -129,7 +129,7 @@ class BearerAuthenticatorTest {
     private static final String HOST = "https://api.example.com";
 
     @Test
-    void tokenProviderIsCalledForEveryRequest() {
+    void bhvAuthBearer014TokenProviderIsCalledForEveryRequest() {
         java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
         BearerAuthenticator auth =
                 new BearerAuthenticator(HOST, null, () -> "rotating-" + calls.incrementAndGet());
@@ -141,7 +141,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    void tokenProviderResultIsValidatedAtRequestTime() {
+    void bhvAuthBearer002TokenProviderResultIsValidatedAtRequestTime() {
         BearerAuthenticator blank = new BearerAuthenticator(HOST, null, () -> "  ");
         IllegalArgumentException empty =
                 assertThrows(IllegalArgumentException.class, blank::getAuthHeaders);
@@ -170,5 +170,23 @@ class BearerAuthenticatorTest {
                 new BearerAuthenticator(HOST, null, null));
         assertEquals("Bearer token must not be empty", ex.getMessage());
     }
+    @Test
+    void bhvAuthBearer012RejectsCrLfAndNonAscii() {
+        for (String token : new String[] {"abc\r\ndef", "abc\rdef", "töken"}) {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new BearerAuthenticator("https://api.example.com", token));
+            assertTrue(java.util.Objects.requireNonNull(ex.getMessage())
+                    .contains("printable ASCII characters (RFC 7230 §3.2.6)"));
+        }
+    }
+
+    @Test
+    void bhvAuthBearer013ReprShowsTheHostAndMasksTheToken() {
+        String repr = new BearerAuthenticator("https://api.example.com", "s3cr3t-value").toString();
+        assertTrue(repr.contains("host=https://api.example.com"));
+        assertFalse(repr.contains("s3cr3t-value"));
+        assertTrue(repr.contains("token=***"));
+    }
+
 
 }

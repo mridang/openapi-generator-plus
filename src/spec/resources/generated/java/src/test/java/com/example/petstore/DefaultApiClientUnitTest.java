@@ -502,7 +502,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void injectedHttpClientReceivesTheRequestWithSdkDefaultsApplied() {
+  void bhvTransport040InjectedHttpClientReceivesTheRequestWithSdkDefaultsApplied() {
     RecordingHttpClient transport = new RecordingHttpClient();
     DefaultApiClient client =
         new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
@@ -562,7 +562,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void sendsGetRequestAndReturnsResponse() throws Exception {
+  void bhvTransport054SendsGetRequestAndReturnsResponse() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -570,7 +570,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void sendsPostWithJsonBody() throws Exception {
+  void bhvSerializationWire052SendsPostWithJsonBody() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     Map<String, String> headers = new HashMap<>();
     headers.put("Content-Type", "application/json");
@@ -582,7 +582,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void returnsResponseHeaders() throws Exception {
+  void bhvTransport051ReturnsResponseHeaders() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
     assertNotNull(response.headers());
@@ -597,7 +597,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void returnsNon2xxStatusCode() throws Exception {
+  void bhvTransport050ReturnsNon2xxStatusCode() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/not-found", Map.of(), null);
     assertEquals(404, response.statusCode());
@@ -605,7 +605,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void sendsPutRequest() throws Exception {
+  void bhvTransport055SendsPutRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("PUT", baseUrl + "/echo", Map.of(), "update");
     assertEquals(200, response.statusCode());
@@ -613,7 +613,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void sendsDeleteRequest() throws Exception {
+  void bhvTransport053SendsDeleteRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("DELETE", baseUrl + "/echo", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -621,7 +621,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void returnsJsonBodyForVendorJsonContentType() throws Exception {
+  void bhvSerializationWire051ReturnsJsonBodyForVendorJsonContentType() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/vendor-json", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -629,7 +629,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void joinsMultiValueResponseHeaders() throws Exception {
+  void bhvTransport044JoinsMultiValueResponseHeaders() throws Exception {
     server.createContext(
         "/multi-header",
         exchange -> {
@@ -654,7 +654,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void injectsCustomUserAgent() throws Exception {
+  void bhvTransport041InjectsCustomUserAgent() throws Exception {
     TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
@@ -663,7 +663,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void injectsDefaultUserAgentWhenNotExplicitlySet() throws Exception {
+  void bhvTransport042InjectsDefaultUserAgentWhenNotExplicitlySet() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -671,7 +671,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void injectsRequestId() throws Exception {
+  void bhvTransport043InjectsRequestId() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
@@ -686,7 +686,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void doesNotInjectRequestIdWhenDisabled() throws Exception {
+  void bhvTransport036DoesNotInjectRequestIdWhenDisabled() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(false).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
@@ -695,7 +695,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void doesNotOverrideCallerRequestId() throws Exception {
+  void bhvOptions006DoesNotOverrideCallerRequestId() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     Map<String, String> headers = new HashMap<>();
@@ -723,7 +723,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void generatesUniqueRequestIds() throws Exception {
+  void bhvTransport038GeneratesUniqueRequestIds() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiHttpResponse response1 =
@@ -741,7 +741,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void includesTransportDefaultHeaders() throws Exception {
+  void bhvTransport039IncludesTransportDefaultHeaders() throws Exception {
     TransportOptions transport =
         TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -751,7 +751,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void responseCookieIsNeverReplayedOnTheNextRequest() throws Exception {
+  void bhvRetries015ResponseCookieIsNeverReplayedOnTheNextRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     client.sendRequest("GET", baseUrl + "/set-cookie", Map.of(), null);
     ApiHttpResponse echoed = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
@@ -809,7 +809,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void leavesProxyAuthHeaderNullWhenProxyHasNoUserInfo() throws Exception {
+  void bhvRedirects016LeavesProxyAuthHeaderNullWhenProxyHasNoUserInfo() throws Exception {
     TransportOptions transport = TransportOptions.builder().proxy("http://127.0.0.1:9999").build();
     DefaultApiClient client = new DefaultApiClient(transport);
 
@@ -819,7 +819,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void leavesProxyAuthHeaderNullWhenNoProxyConfigured() throws Exception {
+  void bhvTransport046LeavesProxyAuthHeaderNullWhenNoProxyConfigured() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
 
     Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
@@ -828,7 +828,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void callerHeadersOverrideDefaults() throws Exception {
+  void bhvOptions005CallerHeadersOverrideDefaults() throws Exception {
     TransportOptions transport =
         TransportOptions.builder().defaultHeader("Accept", "text/plain").build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -846,7 +846,7 @@ class DefaultApiClientUnitTest {
    * schemes, their names (lowercased) are added at codegen time.
    */
   @Test
-  void sensitiveHeaderNamesIncludesStaticTriple() {
+  void bhvTransport057SensitiveHeaderNamesIncludesStaticTriple() {
     assertTrue(DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("authorization"));
     assertTrue(DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("cookie"));
     assertTrue(DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("proxy-authorization"));
@@ -869,7 +869,7 @@ class DefaultApiClientUnitTest {
    * request bodies to attacker-controlled redirect targets.
    */
   @Test
-  void noRedirectReturns307Response() throws Exception {
+  void bhvRedirects015NoRedirectReturns307Response() throws Exception {
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiHttpResponse response =
@@ -881,7 +881,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void noRedirectFalseFollowsRedirectsAsBefore() throws Exception {
+  void bhvRedirects014NoRedirectFalseFollowsRedirectsAsBefore() throws Exception {
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiHttpResponse response =
@@ -891,7 +891,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void defaultSendRequestOverloadFollowsRedirects() throws Exception {
+  void bhvRedirects017DefaultSendRequestOverloadFollowsRedirects() throws Exception {
     // The 4-arg overload (no noRedirect flag) must keep the historical
     // behaviour of honouring TransportOptions.followRedirects().
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
@@ -910,7 +910,7 @@ class DefaultApiClientUnitTest {
    * Chasm HTTPS server.
    */
   @Test
-  void httpsToHttpBodyReplayGuardFiresOn307() {
+  void bhvRetries020HttpsToHttpBodyReplayGuardFiresOn307() {
     java.net.URI original = java.net.URI.create("https://api.example.com/secret");
     java.net.URI target = java.net.URI.create("http://attacker.example/take");
     assertTrue(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 307, true));
@@ -918,7 +918,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void httpsToHttpBodyReplayGuardIgnoredWhenNoBody() {
+  void bhvRetries016HttpsToHttpBodyReplayGuardIgnoredWhenNoBody() {
     java.net.URI original = java.net.URI.create("https://api.example.com/secret");
     java.net.URI target = java.net.URI.create("http://attacker.example/take");
     assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 307, false));
@@ -936,7 +936,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void transportFailureRaisesNetworkExceptionPreservingCause() {
+  void bhvTransport032TransportFailureRaisesNetworkExceptionPreservingCause() {
     // A send-phase transport failure (connection refused on a closed port)
     // must surface as a NetworkException (an ApiException with status 0)
     // whose getCause() is the underlying IOException.
@@ -958,7 +958,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void connectDeadlineRaisesNetworkTimeoutException() {
+  void bhvTransport031ConnectDeadlineRaisesNetworkTimeoutException() {
     // The `timeout` option arms two deadlines: the connect timeout on the
     // HttpClient and the read timeout on the HttpRequest. Both expire on the
     // same configured budget, so both must classify as NetworkTimeoutException
@@ -979,7 +979,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void stalledResponseBodyRaisesNetworkTimeoutException() {
+  void bhvTransport029StalledResponseBodyRaisesNetworkTimeoutException() {
     // The request timeout is documented as end-to-end, so a server that sends
     // the headers and then stalls the body must time out, not block until it
     // gives up (the JDK stops its own request timer once headers arrive).
@@ -1013,7 +1013,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void nonexistentCaCertPathFailsFast() {
+  void bhvErrors041NonexistentCaCertPathFailsFast() {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction rather than
     // silently falling back to the system trust store (security theater).
@@ -1035,14 +1035,14 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void nonexistentCaCertPathFailsEvenWhenVerifySslIsFalse() {
+  void bhvTransport048NonexistentCaCertPathFailsEvenWhenVerifySslIsFalse() {
     TransportOptions transport =
         TransportOptions.builder().verifySsl(false).caCertPath("/nonexistent/ca.pem").build();
     assertThrowsExactly(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
   }
 
   @Test
-  void garbagePemCaCertPathThrowsIllegalArgumentException() throws Exception {
+  void bhvErrors039GarbagePemCaCertPathThrowsIllegalArgumentException() throws Exception {
     // A CA cert file that exists but contains invalid/garbage PEM content
     // must also fail as IllegalArgumentException, never a leaked
     // IOException/CertificateException.
@@ -1113,17 +1113,17 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartFileWithPngExtensionSetsImagePngContentType() {
+  void bhvSerializationWire039MultipartFileWithPngExtensionSetsImagePngContentType() {
     assertEquals("image/png", DefaultApiClient.guessMimeTypeFromName("image.png"));
   }
 
   @Test
-  void multipartFileWithPdfExtensionSetsApplicationPdfContentType() {
+  void bhvSerializationWire038MultipartFileWithPdfExtensionSetsApplicationPdfContentType() {
     assertEquals("application/pdf", DefaultApiClient.guessMimeTypeFromName("doc.pdf"));
   }
 
   @Test
-  void multipartFileWithoutExtensionDefaultsToOctetStream() {
+  void bhvSerializationWire040MultipartFileWithoutExtensionDefaultsToOctetStream() {
     assertEquals("application/octet-stream", DefaultApiClient.guessMimeTypeFromName("blob"));
   }
 
@@ -1143,7 +1143,8 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartRawBytesPartDerivesContentTypeFromFilenameExtension() throws Exception {
+  void bhvSerializationWire037MultipartRawBytesPartDerivesContentTypeFromFilenameExtension()
+      throws Exception {
     byte[] raw = new byte[] {(byte) 0x89, 'P', 'N', 'G'};
     String part = renderMultipartPart("avatar.png", raw);
     assertTrue(
@@ -1180,7 +1181,8 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartRawBytesPartReusesFieldNameAsFilenameWithOctetStream() throws Exception {
+  void bhvSerializationWire049MultipartRawBytesPartReusesFieldNameAsFilenameWithOctetStream()
+      throws Exception {
     String part = renderMultipartPart("file", new byte[] {0x00, 0x01, 0x02});
     assertTrue(
         part.contains("name=\"file\""),
@@ -1194,7 +1196,8 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartPrimitivePartsArePlainTextInTheCanonicalForm() throws Exception {
+  void bhvSerializationWire048MultipartPrimitivePartsArePlainTextInTheCanonicalForm()
+      throws Exception {
     assertEquals(
         "--BOUNDARY\r\nContent-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n",
         renderMultipartPart("flag", true));
@@ -1222,7 +1225,8 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartModelPartUsesWirePropertyNamesAndDateTimeFormat() throws Exception {
+  void bhvSerializationWire045MultipartModelPartUsesWirePropertyNamesAndDateTimeFormat()
+      throws Exception {
     MultipartModelPart metadata = new MultipartModelPart();
     metadata.isEnabled = true;
     metadata.recordedAt = java.time.OffsetDateTime.parse("2020-01-02T03:04:05.123Z");
@@ -1249,7 +1253,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartNonAsciiFieldNamePreservedAsUtf8() throws Exception {
+  void bhvSerializationWire046MultipartNonAsciiFieldNamePreservedAsUtf8() throws Exception {
     String fieldName = "imágé";
     String part = renderMultipartPart(fieldName, "value");
     assertTrue(
@@ -1258,7 +1262,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartFilenameNonAsciiEmitsRFC5987() {
+  void bhvSerializationWire044MultipartFilenameNonAsciiEmitsRFC5987() {
     String directive = DefaultApiClient.buildFilenameDirective("日本.pdf");
     assertTrue(directive.contains("filename*=UTF-8''"));
     assertTrue(directive.contains("%E6%97%A5%E6%9C%AC"));
@@ -1273,14 +1277,14 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartFilenameAsciiOnlyOmitsFilenameStar() {
+  void bhvSerializationWire041MultipartFilenameAsciiOnlyOmitsFilenameStar() {
     String directive = DefaultApiClient.buildFilenameDirective("file.png");
     assertEquals("filename=\"file.png\"", directive);
     assertFalse(directive.contains("filename*="));
   }
 
   @Test
-  void multipartFilenameBackslashEscapesQuotes() {
+  void bhvSerializationWire042MultipartFilenameBackslashEscapesQuotes() {
     String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
     assertTrue(directive.contains("a\\\"b.txt"));
   }
@@ -1359,7 +1363,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartFilenameCRLFRejected() {
+  void bhvSerializationWire043MultipartFilenameCRLFRejected() {
     assertThrows(
         IllegalArgumentException.class,
         () -> DefaultApiClient.validateMultipartFilename("a\rb.pdf"));
@@ -1374,14 +1378,14 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartFilenameNulRejected() {
+  void bhvSerializationWire050MultipartFilenameNulRejected() {
     assertThrows(
         IllegalArgumentException.class,
         () -> DefaultApiClient.validateMultipartFilename("a\0b.pdf"));
   }
 
   @Test
-  void sensitiveHeaderNamesIncludesApiKeyHeaderNames() {
+  void bhvTransport056SensitiveHeaderNamesIncludesApiKeyHeaderNames() {
     assertTrue(
         DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("x-api-key"),
         "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header 'x-api-key'");
@@ -1391,7 +1395,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void apiKeyHeaderStrippedOnCrossOriginRedirect() throws Exception {
+  void bhvRedirects011ApiKeyHeaderStrippedOnCrossOriginRedirect() throws Exception {
     // A spec-declared apiKey-in-header credential must be dropped when the
     // manual redirect loop follows a cross-origin 307. Use the first harvested
     // apiKey header name for the assertion.
@@ -1440,7 +1444,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void noRedirectReturns308Response() throws Exception {
+  void bhvRedirects022NoRedirectReturns308Response() throws Exception {
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiHttpResponse response =
@@ -1452,7 +1456,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirectWithoutLocationReturnsTheRedirectResponse() throws Exception {
+  void bhvRedirects023RedirectWithoutLocationReturnsTheRedirectResponse() throws Exception {
     // A 3xx with no Location header leaves the loop with budget to spare: it
     // is a terminal response, not an exhausted redirect budget.
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
@@ -1476,7 +1480,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirectLoopExhaustsTheBudgetAndThrows() throws Exception {
+  void bhvRedirects018RedirectLoopExhaustsTheBudgetAndThrows() throws Exception {
     TransportOptions transport =
         TransportOptions.builder().followRedirects(true).maxRedirects(2).build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -1490,7 +1494,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirectThatDowngradesHttpsToHttpRefusesToReplayTheBody() {
+  void bhvRetries017RedirectThatDowngradesHttpsToHttpRefusesToReplayTheBody() {
     // D16: a 307 from https to http would send the body in cleartext.
     RecordingHttpClient transport = new RecordingHttpClient();
     transport.scripted =
@@ -1528,7 +1532,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirectWithLocationExhaustsAZeroBudget() throws Exception {
+  void bhvRedirects026RedirectWithLocationExhaustsAZeroBudget() throws Exception {
     TransportOptions transport =
         TransportOptions.builder().followRedirects(true).maxRedirects(0).build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -1540,7 +1544,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirectToNonHttpSchemeThrows() throws ApiException {
+  void bhvRedirects020RedirectToNonHttpSchemeThrows() throws ApiException {
     // A refused redirect is a response that arrived but could not be used:
     // ApiException carrying the redirect's real status, never NetworkException.
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
@@ -1586,7 +1590,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void useAfterCloseThrowsIllegalStateException() throws Exception {
+  void bhvLifecycle023UseAfterCloseThrowsIllegalStateException() throws Exception {
     // Using a client after close() is a wrong call order: the built-in
     // invalid-state error, not an SDK error.
     DefaultApiClient client = new DefaultApiClient();
@@ -1644,7 +1648,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void callerAcceptEncodingInAnyCaseIsKeptAlone() throws Exception {
+  void bhvTransport045CallerAcceptEncodingInAnyCaseIsKeptAlone() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response =
         client.sendRequest(
@@ -1655,21 +1659,21 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void decodesResponseBodyUsingDeclaredCharset() throws Exception {
+  void bhvSerializationWire033DecodesResponseBodyUsingDeclaredCharset() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/latin1", Map.of(), null);
     assertEquals("é", response.body());
   }
 
   @Test
-  void decodesResponseBodyAsUtf8WhenNoCharsetSpecified() throws Exception {
+  void bhvSerializationWire034DecodesResponseBodyAsUtf8WhenNoCharsetSpecified() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf8-default", Map.of(), null);
     assertEquals("héllo", response.body());
   }
 
   @Test
-  void fallsBackToUtf8WhenCharsetIsUnknown() throws Exception {
+  void bhvSerializationWire035FallsBackToUtf8WhenCharsetIsUnknown() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     // Must not throw despite the unknown charset.
     ApiHttpResponse response =
@@ -1693,7 +1697,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void contentEncodingLieSurfacesApiException() {
+  void bhvTransport030ContentEncodingLieSurfacesApiException() {
     // Gap AL: a response that advertises `Content-Encoding: gzip` but carries
     // non-gzip plain bytes must surface a typed ApiException — never crash
     // unconditionally and never silently hand back corrupted/garbage bytes.
@@ -1720,7 +1724,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void unknownContentEncodingSurfacesApiException() {
+  void bhvErrors042UnknownContentEncodingSurfacesApiException() {
     // An unrecognised Content-Encoding the client cannot decode must surface a
     // typed ApiException (carrying the real status 200), not hand back the body
     // still encoded. Matches csharp/elixir and the documented ApiException
@@ -1803,7 +1807,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void zlibWrappedDeflateBodyIsDecompressed() throws Exception {
+  void bhvTransport035ZlibWrappedDeflateBodyIsDecompressed() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response =
         client.sendRequest("GET", baseUrl + "/content-encoding-deflate", Map.of(), null);
@@ -1814,7 +1818,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void rawDeflateBodyRaisesAnApiExceptionWithTheRealStatus() {
+  void bhvTransport049RawDeflateBodyRaisesAnApiExceptionWithTheRealStatus() {
     DefaultApiClient client = new DefaultApiClient();
     ApiException ex =
         assertThrowsExactly(
@@ -1829,7 +1833,8 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void defaultAcceptEncodingAdvertisesTheCodecsTheClientCanDecode() throws Exception {
+  void bhvSerializationWire029DefaultAcceptEncodingAdvertisesTheCodecsTheClientCanDecode()
+      throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -1926,7 +1931,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void emptyGzipBodyPassesThroughAsEmpty() throws Exception {
+  void bhvTransport037EmptyGzipBodyPassesThroughAsEmpty() throws Exception {
     // Gap AL: a zero-byte body declared `Content-Encoding: gzip` has nothing to
     // inflate. The decompressor must return the empty body unchanged, never
     // raise on the absent gzip stream.
@@ -1938,7 +1943,8 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void identityEncodedBodyPassesThroughUndecodedAndKeepsItsHeaders() throws Exception {
+  void bhvTransport033IdentityEncodedBodyPassesThroughUndecodedAndKeepsItsHeaders()
+      throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response =
         client.sendRequest("GET", baseUrl + "/content-encoding-identity", Map.of(), null);
@@ -1949,7 +1955,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void crossOriginRedirectStripsSensitiveHeaders() throws Exception {
+  void bhvRedirects012CrossOriginRedirectStripsSensitiveHeaders() throws Exception {
     // A second server on a different port is a different origin, so the
     // manual redirect loop must drop every credential header but keep
     // non-sensitive headers when following the 307 to it.
@@ -2004,7 +2010,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void sameOriginRedirectKeepsSensitiveHeaders() throws Exception {
+  void bhvRedirects024SameOriginRedirectKeepsSensitiveHeaders() throws Exception {
     final Map<String, String> seen = new java.util.concurrent.ConcurrentHashMap<>();
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -2135,7 +2141,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void stopsAfterMaxRetriesAndReturnsTheLastResponse() throws Exception {
+  void bhvRetries024StopsAfterMaxRetriesAndReturnsTheLastResponse() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
     try {
@@ -2149,7 +2155,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void maxRetriesZeroSendsTheRequestOnce() throws Exception {
+  void bhvRetries018MaxRetriesZeroSendsTheRequestOnce() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
     try {
@@ -2163,7 +2169,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void retriesExactlyTheRetryableStatuses() throws Exception {
+  void bhvRetries021RetriesExactlyTheRetryableStatuses() throws Exception {
     for (int status : new int[] {408, 409, 429, 500, 502, 503, 504, 599}) {
       var hits = new java.util.concurrent.atomic.AtomicInteger();
       HttpServer scripted =
@@ -2210,7 +2216,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void retryAfterIsParsedAsSecondsOrAnHttpDateAndCappedAtSixtySeconds() {
+  void bhvRetries023RetryAfterIsParsedAsSecondsOrAnHttpDateAndCappedAtSixtySeconds() {
     java.time.Instant now = java.time.Instant.parse("2026-01-01T00:00:00Z");
     assertEquals(0L, DefaultApiClient.retryAfterMillis("0", now));
     assertEquals(7000L, DefaultApiClient.retryAfterMillis(" 7 ", now));
@@ -2237,7 +2243,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void retryAfterBeyondTheRemainingBudgetNeverExtendsTheTimeout() throws Exception {
+  void bhvRetries025RetryAfterBeyondTheRemainingBudgetNeverExtendsTheTimeout() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "30"), hits);
     try {
@@ -2254,7 +2260,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void retriesSpendTheSameTimeoutBudgetAsTheFirstAttempt() throws Exception {
+  void bhvRetries019RetriesSpendTheSameTimeoutBudgetAsTheFirstAttempt() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "1"), hits);
     try {
@@ -2271,7 +2277,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void networkErrorBeforeAnyResponseIsRetriedEvenForPost() throws Exception {
+  void bhvRetries013NetworkErrorBeforeAnyResponseIsRetriedEvenForPost() throws Exception {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
       String url = "http://127.0.0.1:" + silent.getLocalPort() + "/create";
@@ -2395,7 +2401,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void perCallRetryCountCanRaiseWhatTheTransportSet() throws Exception {
+  void bhvRetries014PerCallRetryCountCanRaiseWhatTheTransportSet() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
     try {
@@ -2410,7 +2416,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void perCallTimeoutAppliesWhenTheTransportHasNone() throws Exception {
+  void bhvTransport028PerCallTimeoutAppliesWhenTheTransportHasNone() throws Exception {
     HttpServer slow = HttpServer.create(new InetSocketAddress(0), 0);
     slow.createContext(
         "/",
@@ -2461,7 +2467,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void closingTheClientLetsARunningRequestFinish() throws Exception {
+  void bhvLifecycle021ClosingTheClientLetsARunningRequestFinish() throws Exception {
     var entered = new java.util.concurrent.CountDownLatch(1);
     var release = new java.util.concurrent.CountDownLatch(1);
     HttpServer slow = HttpServer.create(new InetSocketAddress(0), 0);
@@ -2511,7 +2517,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void closingTwiceIsANoOpAndReleasesTheTransportOnce() {
+  void bhvLifecycle022ClosingTwiceIsANoOpAndReleasesTheTransportOnce() {
     DefaultApiClient client = new DefaultApiClient();
     assertFalse(client.isTransportReleased());
 
@@ -2523,7 +2529,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void closingNeverReleasesACallerSuppliedTransport() throws Exception {
+  void bhvLifecycle020ClosingNeverReleasesACallerSuppliedTransport() throws Exception {
     java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
     try {
       DefaultApiClient client =

@@ -39,58 +39,58 @@ class HeaderSelectorTest {
   class IsJsonMimeTests {
 
     @Test
-    @DisplayName("should return true for application/json")
-    void shouldReturnTrueForApplicationJson() {
+    @DisplayName("bhvHeaders019 should return true for application/json")
+    void bhvHeaders019ShouldReturnTrueForApplicationJson() {
       assertTrue(headerSelector.isJsonMime("application/json"));
     }
 
     @Test
-    @DisplayName("should return true for application/json with charset")
-    void shouldReturnTrueForApplicationJsonWithCharset() {
+    @DisplayName("bhvHeaders020 should return true for application/json with charset")
+    void bhvHeaders020ShouldReturnTrueForApplicationJsonWithCharset() {
       assertTrue(headerSelector.isJsonMime("application/json; charset=UTF-8"));
     }
 
     @Test
-    @DisplayName("should return true for APPLICATION/JSON (case insensitive)")
-    void shouldReturnTrueForUppercaseApplicationJson() {
+    @DisplayName("bhvHeaders021 should return true for APPLICATION/JSON (case insensitive)")
+    void bhvHeaders021ShouldReturnTrueForUppercaseApplicationJson() {
       assertTrue(headerSelector.isJsonMime("APPLICATION/JSON"));
     }
 
     @Test
-    @DisplayName("should return true for vendor JSON types")
-    void shouldReturnTrueForVendorJsonTypes() {
+    @DisplayName("bhvHeaders022 should return true for vendor JSON types")
+    void bhvHeaders022ShouldReturnTrueForVendorJsonTypes() {
       assertTrue(headerSelector.isJsonMime("application/vnd.api+json"));
       assertTrue(headerSelector.isJsonMime("application/vnd.company+json"));
       assertTrue(headerSelector.isJsonMime("application/hal+json"));
     }
 
     @Test
-    @DisplayName("should return false for text/html")
-    void shouldReturnFalseForTextHtml() {
+    @DisplayName("bhvHeaders016 should return false for text/html")
+    void bhvHeaders016ShouldReturnFalseForTextHtml() {
       assertFalse(headerSelector.isJsonMime("text/html"));
     }
 
     @Test
-    @DisplayName("should return false for application/xml")
-    void shouldReturnFalseForApplicationXml() {
+    @DisplayName("bhvHeaders013 should return false for application/xml")
+    void bhvHeaders013ShouldReturnFalseForApplicationXml() {
       assertFalse(headerSelector.isJsonMime("application/xml"));
     }
 
     @Test
-    @DisplayName("should return false for application/octet-stream")
-    void shouldReturnFalseForApplicationOctetStream() {
+    @DisplayName("bhvHeaders012 should return false for application/octet-stream")
+    void bhvHeaders012ShouldReturnFalseForApplicationOctetStream() {
       assertFalse(headerSelector.isJsonMime("application/octet-stream"));
     }
 
     @Test
-    @DisplayName("should return false for null")
-    void shouldReturnFalseForNull() {
+    @DisplayName("bhvHeaders015 should return false for null")
+    void bhvHeaders015ShouldReturnFalseForNull() {
       assertFalse(headerSelector.isJsonMime(null));
     }
 
     @Test
-    @DisplayName("should return false for empty string")
-    void shouldReturnFalseForEmptyString() {
+    @DisplayName("bhvHeaders014 should return false for empty string")
+    void bhvHeaders014ShouldReturnFalseForEmptyString() {
       assertFalse(headerSelector.isJsonMime(""));
     }
   }
@@ -100,8 +100,8 @@ class HeaderSelectorTest {
   class SelectHeadersTests {
 
     @Test
-    @DisplayName("should set Accept header when accepts provided")
-    void shouldSetAcceptHeaderWhenAcceptsProvided() {
+    @DisplayName("bhvHeaders024 should set Accept header when accepts provided")
+    void bhvHeaders024ShouldSetAcceptHeaderWhenAcceptsProvided() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"application/json"}, "application/json", false);
@@ -109,16 +109,16 @@ class HeaderSelectorTest {
     }
 
     @Test
-    @DisplayName("should not set Accept header when accepts empty")
-    void shouldNotSetAcceptHeaderWhenAcceptsEmpty() {
+    @DisplayName("bhvHeaders004 should not set Accept header when accepts empty")
+    void bhvHeaders004ShouldNotSetAcceptHeaderWhenAcceptsEmpty() {
       Map<String, String> headers =
           headerSelector.selectHeaders(new String[] {}, "application/json", false);
       assertNull(headers.get("Accept"));
     }
 
     @Test
-    @DisplayName("should set Content-Type header when not multipart")
-    void shouldSetContentTypeHeaderWhenNotMultipart() {
+    @DisplayName("bhvHeaders025 should set Content-Type header when not multipart")
+    void bhvHeaders025ShouldSetContentTypeHeaderWhenNotMultipart() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"application/json"}, "application/json", false);
@@ -126,32 +126,32 @@ class HeaderSelectorTest {
     }
 
     @Test
-    @DisplayName("should not set Content-Type header when multipart")
-    void shouldNotSetContentTypeHeaderWhenMultipart() {
+    @DisplayName("bhvHeaders007 should not set Content-Type header when multipart")
+    void bhvHeaders007ShouldNotSetContentTypeHeaderWhenMultipart() {
       Map<String, String> headers =
           headerSelector.selectHeaders(new String[] {"application/json"}, "application/json", true);
       assertNull(headers.get("Content-Type"));
     }
 
     @Test
-    @DisplayName("should default Content-Type to application/json when empty")
-    void shouldDefaultContentTypeToApplicationJsonWhenEmpty() {
+    @DisplayName("bhvHeaders001 should default Content-Type to application/json when empty")
+    void bhvHeaders001ShouldDefaultContentTypeToApplicationJsonWhenEmpty() {
       Map<String, String> headers =
           headerSelector.selectHeaders(new String[] {"application/json"}, "", false);
       assertEquals("application/json", headers.get("Content-Type"));
     }
 
     @Test
-    @DisplayName("should default Content-Type to application/json when null")
-    void shouldDefaultContentTypeToApplicationJsonWhenNull() {
+    @DisplayName("bhvHeaders002 should default Content-Type to application/json when null")
+    void bhvHeaders002ShouldDefaultContentTypeToApplicationJsonWhenNull() {
       Map<String, String> headers =
           headerSelector.selectHeaders(new String[] {"application/json"}, null, false);
       assertEquals("application/json", headers.get("Content-Type"));
     }
 
     @Test
-    @DisplayName("should return single accept as-is")
-    void shouldReturnSingleAcceptAsIs() {
+    @DisplayName("bhvHeaders017 should return single accept as-is")
+    void bhvHeaders017ShouldReturnSingleAcceptAsIs() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"application/json"}, "application/json", false);
@@ -159,16 +159,16 @@ class HeaderSelectorTest {
     }
 
     @Test
-    @DisplayName("should return single non-JSON accept as-is")
-    void shouldReturnSingleNonJsonAcceptAsIs() {
+    @DisplayName("bhvHeaders018 should return single non-JSON accept as-is")
+    void bhvHeaders018ShouldReturnSingleNonJsonAcceptAsIs() {
       Map<String, String> headers =
           headerSelector.selectHeaders(new String[] {"text/html"}, "application/json", false);
       assertEquals("text/html", headers.get("Accept"));
     }
 
     @Test
-    @DisplayName("should join multiple types in declaration order")
-    void shouldJoinMultipleTypesInDeclarationOrder() {
+    @DisplayName("bhvHeaders011 should join multiple types in declaration order")
+    void bhvHeaders011ShouldJoinMultipleTypesInDeclarationOrder() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"image/jpeg", "image/png", "application/json"},
@@ -178,8 +178,8 @@ class HeaderSelectorTest {
     }
 
     @Test
-    @DisplayName("should not reorder or weight JSON types")
-    void shouldNotReorderOrWeightJsonTypes() {
+    @DisplayName("bhvHeaders003 should not reorder or weight JSON types")
+    void bhvHeaders003ShouldNotReorderOrWeightJsonTypes() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"text/html", "application/vnd.api+json", "application/json"},
@@ -189,8 +189,8 @@ class HeaderSelectorTest {
     }
 
     @Test
-    @DisplayName("should join non-JSON types in declaration order")
-    void shouldJoinNonJsonTypesInDeclarationOrder() {
+    @DisplayName("bhvHeaders026 should join non-JSON types in declaration order")
+    void bhvHeaders026ShouldJoinNonJsonTypesInDeclarationOrder() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"text/html", "text/plain"}, "application/json", false);
@@ -198,8 +198,8 @@ class HeaderSelectorTest {
     }
 
     @Test
-    @DisplayName("should filter out null and blank entries before joining")
-    void shouldFilterOutNullAndBlankEntries() {
+    @DisplayName("bhvHeaders009 should filter out null and blank entries before joining")
+    void bhvHeaders009ShouldFilterOutNullAndBlankEntries() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"", "image/png", null, "   ", "application/json"},
@@ -209,8 +209,8 @@ class HeaderSelectorTest {
     }
 
     @Test
-    @DisplayName("should drop whitespace-only entries before joining")
-    void shouldDropWhitespaceOnlyEntries() {
+    @DisplayName("bhvHeaders008 should drop whitespace-only entries before joining")
+    void bhvHeaders008ShouldDropWhitespaceOnlyEntries() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"   ", "application/json"}, "application/json", false);
@@ -218,16 +218,16 @@ class HeaderSelectorTest {
     }
 
     @Test
-    @DisplayName("should not set Accept header when all entries are blank")
-    void shouldNotSetAcceptHeaderWhenAllEntriesBlank() {
+    @DisplayName("bhvHeaders006 should not set Accept header when all entries are blank")
+    void bhvHeaders006ShouldNotSetAcceptHeaderWhenAllEntriesBlank() {
       Map<String, String> headers =
           headerSelector.selectHeaders(new String[] {"", null, "   "}, "application/json", false);
       assertNull(headers.get("Accept"));
     }
 
     @Test
-    @DisplayName("should not set Accept header when accepts null")
-    void shouldNotSetAcceptHeaderWhenAcceptsNull() {
+    @DisplayName("bhvHeaders005 should not set Accept header when accepts null")
+    void bhvHeaders005ShouldNotSetAcceptHeaderWhenAcceptsNull() {
       Map<String, String> headers = headerSelector.selectHeaders(null, "application/json", false);
       assertNull(headers.get("Accept"));
     }

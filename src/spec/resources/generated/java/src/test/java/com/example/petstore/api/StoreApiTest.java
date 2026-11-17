@@ -55,13 +55,13 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetInventory() throws Exception {
+  void bhvOperations102TestGetInventory() throws Exception {
     Map<String, Integer> result = api.getInventory();
     assertNotNull(result);
   }
 
   @Test
-  void testPlaceOrder() throws Exception {
+  void bhvOperations117TestPlaceOrder() throws Exception {
     Order order =
         Order.builder()
             .id(1L)
@@ -79,7 +79,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetInventoryWithHttpInfo() throws Exception {
+  void bhvOperations103TestGetInventoryWithHttpInfo() throws Exception {
     ApiResult<Map<String, Integer>> result = api.getInventoryWithHttpInfo();
     assertNotNull(result);
     assertThat(result.statusCode()).isBetween(200, 299);
@@ -87,7 +87,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testPlaceOrderWithHttpInfo() throws Exception {
+  void bhvOperations119TestPlaceOrderWithHttpInfo() throws Exception {
     Order order =
         Order.builder()
             .id(1L)
@@ -105,7 +105,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetOrderById() throws Exception {
+  void bhvOperations104TestGetOrderById() throws Exception {
     Order result = api.getOrderById(1L);
     assertNotNull(result);
 
@@ -113,7 +113,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetOrderByIdWithHttpInfo() throws Exception {
+  void bhvOperations105TestGetOrderByIdWithHttpInfo() throws Exception {
     ApiResult<Order> result = api.getOrderByIdWithHttpInfo(1L);
     assertNotNull(result);
     assertThat(result.statusCode()).isBetween(200, 299);
@@ -121,7 +121,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testDeleteOrder() throws Exception {
+  void bhvOperations099TestDeleteOrder() throws Exception {
     api.deleteOrder(1L);
 
     assertThat(true).isTrue();
@@ -146,7 +146,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetOrderNotFound() throws Exception {
+  void bhvOperations106TestGetOrderNotFound() throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
@@ -159,7 +159,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testPlaceOrderServerError() throws Exception {
+  void bhvOperations118TestPlaceOrderServerError() throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
 
@@ -181,7 +181,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testDeleteOrderNotFound() throws Exception {
+  void bhvOperations100TestDeleteOrderNotFound() throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
@@ -194,7 +194,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetGroupedCategoriesDeserializesNestedContainer() throws Exception {
+  void bhvOperations101TestGetGroupedCategoriesDeserializesNestedContainer() throws Exception {
     // A nested generic container (array of map of model) must decode its
     // leaves into typed Category instances, not leave them as raw maps.
     StoreApi mockApi =
@@ -217,7 +217,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader() throws Exception {
+  void bhvOperations122TestGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader() throws Exception {
     // A named enum ($ref) parameter must ride the wire as its value
     // ("red"), never as the language's enum constant name ("RED").
     String[] capturedUrl = new String[1];
@@ -241,7 +241,8 @@ class StoreApiTest {
   }
 
   @Test
-  void testCreateAccountSendsAndReceivesReadOnlyAndWriteOnlyProperties() throws Exception {
+  void bhvOperations098TestCreateAccountSendsAndReceivesReadOnlyAndWriteOnlyProperties()
+      throws Exception {
     // readOnly/writeOnly have no wire effect: the writeOnly password is
     // sent, and the readOnly id in the response is decoded.
     Object[] capturedBody = new Object[1];
@@ -287,7 +288,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetTreeDeserializesTheRecursiveModel() throws Exception {
+  void bhvOperations116TestGetTreeDeserializesTheRecursiveModel() throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(
             200, "application/json", "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}");
@@ -300,7 +301,8 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetDepartmentDeserializesTheMutuallyReferencingModels() throws Exception {
+  void bhvOperations108TestGetDepartmentDeserializesTheMutuallyReferencingModels()
+      throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(
             200, "application/json", "{\"name\":\"ops\",\"lead\":{\"name\":\"ann\"}}");
@@ -312,7 +314,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetDefaultsAppliesTheSchemaDefaultsToMissingFields() throws Exception {
+  void bhvOperations123TestGetDefaultsAppliesTheSchemaDefaultsToMissingFields() throws Exception {
     StoreApi mockApi = newStoreApiForMock(200, "application/json", "{\"retries\":5}");
 
     Defaults defaults = mockApi.getDefaults();
@@ -323,7 +325,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetStockItemDeserializesEnumsAndNestedArrays() throws Exception {
+  void bhvOperations112TestGetStockItemDeserializesEnumsAndNestedArrays() throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(
             200,
@@ -338,21 +340,21 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetMatrixDeserializesNestedIntegerArrays() throws Exception {
+  void bhvOperations109TestGetMatrixDeserializesNestedIntegerArrays() throws Exception {
     StoreApi mockApi = newStoreApiForMock(200, "application/json", "[[1,2],[3]]");
 
     assertThat(mockApi.getMatrix()).isEqualTo(List.of(List.of(1, 2), List.of(3)));
   }
 
   @Test
-  void testGetSwatchDecodesTheEnumWireValue() throws Exception {
+  void bhvOperations113TestGetSwatchDecodesTheEnumWireValue() throws Exception {
     StoreApi mockApi = newStoreApiForMock(200, "application/json", "\"green\"");
 
     assertThat(mockApi.getSwatch()).isEqualTo(Swatch.GREEN);
   }
 
   @Test
-  void testGetSwatchGroupsDecodesEnumLeavesInNestedContainers() throws Exception {
+  void bhvOperations114TestGetSwatchGroupsDecodesEnumLeavesInNestedContainers() throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(200, "application/json", "[{\"a\":\"red\"},{\"b\":\"blue\"}]");
 
@@ -363,7 +365,8 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetTimestampGroupsDecodesDateTimeLeavesInNestedContainers() throws Exception {
+  void bhvOperations115TestGetTimestampGroupsDecodesDateTimeLeavesInNestedContainers()
+      throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(200, "application/json", "[{\"a\":\"2024-01-02T03:04:05Z\"}]");
 
@@ -374,7 +377,8 @@ class StoreApiTest {
   }
 
   @Test
-  void testSearchStoreSendsTheContentQueryTheHeaderTheSetAndTheTime() throws Exception {
+  void bhvOperations121TestSearchStoreSendsTheContentQueryTheHeaderTheSetAndTheTime()
+      throws Exception {
     String[] capturedUrl = new String[1];
     Map<String, String> capturedHeaders = new java.util.HashMap<>();
     ApiClient recording =
@@ -406,7 +410,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetOrderByTrackingIdPutsTheLowercaseUuidInThePath() throws Exception {
+  void bhvOperations124TestGetOrderByTrackingIdPutsTheLowercaseUuidInThePath() throws Exception {
     String[] capturedUrl = new String[1];
     ApiClient recording =
         (method, url, headers, body) -> {
@@ -424,7 +428,8 @@ class StoreApiTest {
   }
 
   @Test
-  void testGetOrderByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes() throws Exception {
+  void bhvOperations110TestGetOrderByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes()
+      throws Exception {
     Object[][] table = {
       {400, com.example.petstore.errors.BadRequestException.class},
       {401, com.example.petstore.errors.UnauthorizedException.class},
@@ -449,7 +454,8 @@ class StoreApiTest {
   }
 
   @Test
-  void testReserveStockDecodesTheBodyAsTheSchemaOfTheStatusThatArrived() throws Exception {
+  void bhvOperations120TestReserveStockDecodesTheBodyAsTheSchemaOfTheStatusThatArrived()
+      throws Exception {
     String both =
         "{\"reservationId\":1,\"quantity\":2,\"receiptCode\":\"rcpt-1\","
             + "\"expiresAt\":\"2030-01-01T00:00:00Z\"}";

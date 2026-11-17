@@ -26,14 +26,14 @@ class ClientTest {
       new BearerAuthenticator("/api/v3", "test-token");
 
   @Test
-  void constructWithAuthenticatorOnly() throws ApiException {
+  void bhvLifecycle012ConstructWithAuthenticatorOnly() throws ApiException {
     Client client = new Client(authenticator);
 
     assertNotNull(client);
   }
 
   @Test
-  void closedClientRejectsFurtherRequests() {
+  void bhvLifecycle008ClosedClientRejectsFurtherRequests() {
     Client client = new Client(authenticator);
     client.close();
     client.close();
@@ -49,7 +49,7 @@ class ClientTest {
   }
 
   @Test
-  void closingTheClientLeavesASuppliedHttpClientOpen() {
+  void bhvLifecycle007ClosingTheClientLeavesASuppliedHttpClientOpen() {
     java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
     Client client =
         new Client(authenticator, TransportOptions.builder().httpClient(supplied).build());
@@ -60,7 +60,7 @@ class ClientTest {
   }
 
   @Test
-  void builderTakesOneSetterPerSecuritySchemeNamedAfterIt() {
+  void bhvLifecycle015BuilderTakesOneSetterPerSecuritySchemeNamedAfterIt() {
     java.util.List<String> setters =
         java.util.Arrays.stream(Client.Builder.class.getDeclaredMethods())
             .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers()))
@@ -106,7 +106,7 @@ class ClientTest {
   }
 
   @Test
-  void closingTheClientLeavesASuppliedHttpClientOpenWhenBuiltFromTheBuilder() {
+  void bhvLifecycle009ClosingTheClientLeavesASuppliedHttpClientOpenWhenBuiltFromTheBuilder() {
     java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
     Client client =
         Client.builder("/api/v3")
@@ -134,7 +134,7 @@ class ClientTest {
   }
 
   @Test
-  void constructWithAuthenticatorAndTransportOptions() throws ApiException {
+  void bhvLifecycle011ConstructWithAuthenticatorAndTransportOptions() throws ApiException {
     TransportOptions transport = TransportOptions.builder().build();
 
     Client client = new Client(authenticator, transport);
@@ -157,7 +157,7 @@ class ClientTest {
   }
 
   @Test
-  void bearerRejectsEmptyToken() {
+  void bhvLifecycle005BearerRejectsEmptyToken() {
     // bearer-no-empty-token-guard: an empty or whitespace-only token would
     // emit a bare "Authorization: Bearer " header and send the request
     // unauthenticated. It must be rejected, like the api-key empty guard.
@@ -172,7 +172,7 @@ class ClientTest {
   }
 
   @Test
-  void apiKeyHeaderRejectsCrlfAndNonAscii() {
+  void bhvLifecycle002ApiKeyHeaderRejectsCrlfAndNonAscii() {
     // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     // ApiKeyAuthenticator's HEADER location must reject any value
     // outside printable ASCII + TAB to prevent both header injection
@@ -198,7 +198,7 @@ class ClientTest {
   }
 
   @Test
-  void apiKeyQueryAcceptsNonAscii() {
+  void bhvLifecycle003ApiKeyQueryAcceptsNonAscii() {
     // The QUERY location is URL-encoded downstream, so it must accept a
     // non-ASCII key value verbatim and surface it through getQueryParams.
     assertEquals(
@@ -224,10 +224,51 @@ class ClientTest {
   }
 
   @Test
-  void apiGroupsAreAccessible() throws ApiException {
+  void bhvLifecycle001ApiGroupsAreAccessible() throws ApiException {
     Client client = new Client(authenticator);
 
     assertNotNull(client.pet);
     assertNotNull(client.store);
+  }
+
+  @Test
+  void bhvLifecycle010ConstructWithAuthenticatorAndNullTransportOptionsUsesDefaults() {
+    try (Client client = Client.withToken("/api/v3", "test-token", null)) {
+      assertNotNull(client);
+    }
+  }
+
+  @Test
+  void bhvLifecycle013WithTokenRefusesABlankTokenWhenNoVariableGivesOne() {
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", "   "));
+    assertEquals("Bearer token must not be empty", ex.getMessage());
+  }
+
+  @Test
+  void bhvLifecycle016WithTokenRefusesAnEmptyTokenInsteadOfSendingNoAuthentication() {
+    assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", ""));
+  }
+
+  @Test
+  void bhvLifecycle017ATokenProviderIsUsedInPlaceOfAStaticToken() {
+    BearerAuthenticator provided = new BearerAuthenticator("/api/v3", () -> "provided-token");
+    assertEquals("Bearer provided-token", provided.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvLifecycle004ApiKeyHeaderRejectsCrLfAndNonAscii() {
+    for (String key : new String[] {"abc\r\ndef", "töken"}) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new ApiKeyAuthenticator("/api/v3", "X-API-Key", key, ApiKeyLocation.HEADER));
+    }
+  }
+
+  @Test
+  void bhvLifecycle006BearerRejectsCrLfAndNonAscii() {
+    for (String token : new String[] {"abc\r\ndef", "töken"}) {
+      assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator("/api/v3", token));
+    }
   }
 }

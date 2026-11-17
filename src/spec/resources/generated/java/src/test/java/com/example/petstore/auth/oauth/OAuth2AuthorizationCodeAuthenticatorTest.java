@@ -44,7 +44,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void buildsAuthorizationUrlWithRequiredParams() {
+  void bhvAuthOauthTwoAuthCode006BuildsAuthorizationUrlWithRequiredParams() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl(null);
@@ -58,7 +58,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void buildsAuthorizationUrlWithState() {
+  void bhvAuthOauthTwoAuthCode007BuildsAuthorizationUrlWithState() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl("csrf-state-123");
@@ -67,7 +67,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void omitsAnEmptyStateFromTheAuthorizationUrl() {
+  void bhvAuthOauthTwoAuthCode018OmitsAnEmptyStateFromTheAuthorizationUrl() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl("");
@@ -77,7 +77,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl() {
+  void bhvAuthOauthTwoAuthCode004KeepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl() {
     // RFC 3986 unreserved '-._~' stays literal; '*!'()' and a space are
     // percent-encoded (the space as %20, never '+').
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
@@ -88,7 +88,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void keepsTheRfc3986UnreservedSetLiteralInTheTokenBody() {
+  void bhvAuthOauthTwoAuthCode017KeepsTheRfc3986UnreservedSetLiteralInTheTokenBody() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -106,7 +106,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void sendsTheCodeToTokenUrlAndTheRefreshGrantToRefreshUrl() {
+  void bhvAuthOauthTwoAuthCode024SendsTheCodeToTokenUrlAndTheRefreshGrantToRefreshUrl() {
     List<String> urls = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -140,7 +140,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperSendsTheSpecScopesAndUrls() {
+  void bhvAuthOauthTwoAuthCode020SchemeWrapperSendsTheSpecScopesAndUrls() {
     List<String> urls = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -199,7 +199,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void exchangesCodeWithCorrectGrantType() {
+  void bhvAuthOauthTwoAuthCode012ExchangesCodeWithCorrectGrantType() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -224,7 +224,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void includesRefreshTokenOnRefresh() {
+  void bhvAuthOauthTwoAuthCode015IncludesRefreshTokenOnRefresh() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     var calls =
         new Object() {
@@ -258,7 +258,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void expiredTokenWithoutRefreshTokenSurfacesTheServerError() {
+  void bhvAuthOauthTwoAuthCode002ExpiredTokenWithoutRefreshTokenSurfacesTheServerError() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     var calls =
         new Object() {
@@ -287,21 +287,21 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void throwsBeforeExchangeCodeCalled() {
+  void bhvAuthOauthTwoAuthCode027ThrowsBeforeExchangeCodeCalled() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
     assertThrowsExactly(IllegalStateException.class, () -> auth.getAuthHeaders());
   }
 
   @Test
-  void getHostReturnsConfiguredHost() {
+  void bhvAuthOauthTwoAuthCode014GetHostReturnsConfiguredHost() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
     assertEquals("https://api.example.com", auth.getHost());
   }
 
   @Test
-  void exchangeCodeRejectsEmptyCode() {
+  void bhvAuthOauthTwoAuthCode010ExchangeCodeRejectsEmptyCode() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
     auth.setApiClient(
         (method, url, headers, body) ->
@@ -317,7 +317,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void exchangeCodeRejectsWhitespaceOnlyCode() {
+  void bhvAuthOauthTwoAuthCode011ExchangeCodeRejectsWhitespaceOnlyCode() {
     // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
     // distinct from the empty-string case and must also be rejected before
     // any token POST is issued (trim().isEmpty() guard).
@@ -330,7 +330,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void authHeadersBeforeExchangeReturnsRecoverableError() {
+  void bhvAuthOauthTwoAuthCode003AuthHeadersBeforeExchangeReturnsRecoverableError() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
     // Calling getAuthHeaders before exchangeCode is a precondition
@@ -349,7 +349,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void authorizeUrlWithExistingQueryStringUsesAmpSeparator() {
+  void bhvAuthOauthTwoAuthCode005AuthorizeUrlWithExistingQueryStringUsesAmpSeparator() {
     // RFC 6749 §3.1: the authorization endpoint URI MAY already include a
     // query component (e.g. tenant-scoped Auth0 URLs that bake `audience`
     // into the configured authorization_url). The builder must use '&' as
@@ -379,8 +379,8 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
    * absent and a {@code ***} redaction marker present.
    */
   @Test
-  @DisplayName("toString() redacts the client secret and shows ***")
-  void redactsSecret() {
+  @DisplayName("bhvAuthOauthTwoAuthCode019 toString() redacts the client secret and shows ***")
+  void bhvAuthOauthTwoAuthCode019RedactsSecret() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
     String repr = auth.toString();
     assertFalse(repr.contains("my-client-secret"));
@@ -418,7 +418,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void refreshCarriesTheClientCredentialsAndARejectionIsPostedOnce() {
+  void bhvAuthOauthTwoAuthCode026RefreshCarriesTheClientCredentialsAndARejectionIsPostedOnce() {
     List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -447,7 +447,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void secondExchangeCodeSendsTheNewCode() {
+  void bhvAuthOauthTwoAuthCode021SecondExchangeCodeSendsTheNewCode() {
     List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -470,7 +470,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void secondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() {
+  void bhvAuthOauthTwoAuthCode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() {
     List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -498,7 +498,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void failedExchangeKeepsThePreviousSession() {
+  void bhvAuthOauthTwoAuthCode013FailedExchangeKeepsThePreviousSession() {
     ApiClient client =
         (method, url, headers, body) -> {
           String sent = body != null ? body.toString() : "";
@@ -552,7 +552,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void authorizationUrlCarriesAnS256ChallengeAndNoNonce() {
+  void bhvAuthOauthTwoAuthCode023AuthorizationUrlCarriesAnS256ChallengeAndNoNonce() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl("s");
@@ -566,7 +566,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void codeExchangeProvesTheChallengeOfTheAuthorizationUrl() {
+  void bhvAuthOauthTwoAuthCode008CodeExchangeProvesTheChallengeOfTheAuthorizationUrl() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -590,7 +590,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void codeExchangeWithoutAnAuthorizationUrlSendsNoVerifier() {
+  void bhvAuthOauthTwoAuthCode001CodeExchangeWithoutAnAuthorizationUrlSendsNoVerifier() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -607,7 +607,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void theVerifierIsSingleUse() {
+  void bhvAuthOauthTwoAuthCode009TheVerifierIsSingleUse() {
     java.util.List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -627,7 +627,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void invalidatingTheTokenKeepsTheRefreshTokenForTheNextRequest() {
+  void bhvAuthOauthTwoAuthCode016InvalidatingTheTokenKeepsTheRefreshTokenForTheNextRequest() {
     java.util.List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {

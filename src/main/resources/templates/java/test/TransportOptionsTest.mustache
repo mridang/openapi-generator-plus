@@ -52,96 +52,96 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("verifySsl defaults to true")
-    void verifySslDefaultsToTrue() {
+    @DisplayName("bhvOptions043 verifySsl defaults to true")
+    void bhvOptions043VerifySslDefaultsToTrue() {
         TransportOptions opts = TransportOptions.builder().build();
         assertTrue(opts.isVerifySsl());
     }
 
     @Test
-    @DisplayName("caCertPath defaults to null")
-    void caCertPathDefaultsToNull() {
+    @DisplayName("bhvOptions018 caCertPath defaults to null")
+    void bhvOptions018CaCertPathDefaultsToNull() {
         TransportOptions opts = TransportOptions.builder().build();
         assertNull(opts.getCaCertPath());
     }
 
     @Test
-    @DisplayName("proxy defaults to null")
-    void proxyDefaultsToNull() {
+    @DisplayName("bhvOptions032 proxy defaults to null")
+    void bhvOptions032ProxyDefaultsToNull() {
         TransportOptions opts = TransportOptions.builder().build();
         assertNull(opts.getProxy());
     }
 
     @Test
-    @DisplayName("timeout defaults to 10000 ms (10 seconds)")
-    void timeoutDefaultsTo10Seconds() {
+    @DisplayName("bhvOptions038 timeout defaults to 10000 ms (10 seconds)")
+    void bhvOptions038TimeoutDefaultsTo10Seconds() {
         TransportOptions opts = TransportOptions.builder().build();
         assertNotNull(opts.getTimeout());
         assertEquals(10000, opts.getTimeout());
     }
 
     @Test
-    @DisplayName("followRedirects defaults to true")
-    void followRedirectsDefaultsToTrue() {
+    @DisplayName("bhvOptions020 followRedirects defaults to true")
+    void bhvOptions020FollowRedirectsDefaultsToTrue() {
         TransportOptions opts = TransportOptions.builder().build();
         assertTrue(opts.isFollowRedirects());
     }
 
     @Test
-    @DisplayName("maxRedirects defaults to null")
-    void maxRedirectsDefaultsToNull() {
+    @DisplayName("bhvOptions025 maxRedirects defaults to null")
+    void bhvOptions025MaxRedirectsDefaultsToNull() {
         TransportOptions opts = TransportOptions.builder().build();
         assertNull(opts.getMaxRedirects());
     }
 
     @Test
-    @DisplayName("maxRetries defaults to 2 and 0 disables retries")
-    void maxRetriesDefaultsToTwo() {
+    @DisplayName("bhvOptions026 maxRetries defaults to 2 and 0 disables retries")
+    void bhvOptions026MaxRetriesDefaultsToTwo() {
         assertEquals(2, TransportOptions.builder().build().getMaxRetries());
         assertEquals(0, TransportOptions.builder().maxRetries(0).build().getMaxRetries());
         assertEquals(5, TransportOptions.builder().maxRetries(5).build().getMaxRetries());
     }
 
     @Test
-    @DisplayName("a negative maxRetries is rejected")
-    void negativeMaxRetriesIsRejected() {
+    @DisplayName("bhvOptions007 a negative maxRetries is rejected")
+    void bhvOptions007NegativeMaxRetriesIsRejected() {
         IllegalArgumentException ex = assertThrowsExactly(
                 IllegalArgumentException.class, () -> TransportOptions.builder().maxRetries(-1));
         assertEquals("Invalid maxRetries: must not be negative (got -1)", ex.getMessage());
     }
 
     @Test
-    @DisplayName("userAgent defaults to non-empty string")
-    void userAgentDefaultsToNonEmptyString() {
+    @DisplayName("bhvOptions041 userAgent defaults to non-empty string")
+    void bhvOptions041UserAgentDefaultsToNonEmptyString() {
         TransportOptions opts = TransportOptions.builder().build();
         assertNotNull(opts.getUserAgent());
         assertFalse(opts.getUserAgent().isEmpty());
     }
 
     @Test
-    @DisplayName("userAgent defaults to the published artifact name")
-    void userAgentDefaultsToThePublishedArtifactName() {
+    @DisplayName("bhvOptions042 userAgent defaults to the published artifact name")
+    void bhvOptions042UserAgentDefaultsToThePublishedArtifactName() {
         TransportOptions opts = TransportOptions.builder().build();
         assertEquals("{{artifactId}}/{{artifactVersion}} (java)", opts.getUserAgent());
     }
 
     @Test
-    @DisplayName("defaultHeaders defaults to empty map")
-    void defaultHeadersDefaultsToEmpty() {
+    @DisplayName("bhvOptions019 defaultHeaders defaults to empty map")
+    void bhvOptions019DefaultHeadersDefaultsToEmpty() {
         TransportOptions opts = TransportOptions.builder().build();
         assertTrue(opts.getDefaultHeaders().isEmpty());
     }
 
     @Test
-    @DisplayName("injectRequestId defaults to false")
-    void injectRequestIdDefaultsToFalse() {
+    @DisplayName("bhvOptions022 injectRequestId defaults to false")
+    void bhvOptions022InjectRequestIdDefaultsToFalse() {
         TransportOptions opts = TransportOptions.builder().build();
         assertFalse(opts.isInjectRequestId());
     }
 
     @Test
-    @DisplayName("builder sets all fields")
-    void builderSetsAllFields() {
+    @DisplayName("bhvOptions017 builder sets all fields")
+    void bhvOptions017BuilderSetsAllFields() {
         TransportOptions opts = TransportOptions.builder()
                 .verifySsl(false)
                 .caCertPath("/path/to/ca.pem")
@@ -166,8 +166,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("follow redirects defaults to true with null max redirects")
-    void followRedirectsDefaultsToTrueWithNullMaxRedirects() {
+    @DisplayName("bhvOptions021 follow redirects defaults to true with null max redirects")
+    void bhvOptions021FollowRedirectsDefaultsToTrueWithNullMaxRedirects() {
         TransportOptions opts = TransportOptions.builder()
                 .followRedirects(true)
                 .build();
@@ -178,8 +178,8 @@ class TransportOptionsTest {
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(ints = {-1, 0})
-    @DisplayName("a non-positive timeout is rejected with the canonical message")
-    void nonPositiveTimeoutIsRejected(int timeout) {
+    @DisplayName("bhvOptions033 a non-positive timeout is rejected with the canonical message")
+    void bhvOptions033NonPositiveTimeoutIsRejected(int timeout) {
         IllegalArgumentException ex = assertThrowsExactly(
                 IllegalArgumentException.class, () -> TransportOptions.builder().timeout(timeout));
         assertEquals(
@@ -199,8 +199,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("invalid proxy URL throws IllegalArgumentException")
-    void invalidProxyUrlThrowsException() {
+    @DisplayName("bhvOptions024 invalid proxy URL throws IllegalArgumentException")
+    void bhvOptions024InvalidProxyUrlThrowsException() {
         IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
                 TransportOptions.builder().proxy("not a valid url ^%$"));
         // A bad proxy URL is a configuration mistake, not an SDK error.
@@ -228,16 +228,16 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("an empty proxy URL is rejected as a missing scheme")
-    void emptyProxyUrlIsRejected() {
+    @DisplayName("bhvOptions031 an empty proxy URL is rejected as a missing scheme")
+    void bhvOptions031EmptyProxyUrlIsRejected() {
         IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
                 TransportOptions.builder().proxy(""));
         assertEquals("Invalid proxy URL (must use http or https scheme): ", ex.getMessage());
     }
 
     @Test
-    @DisplayName("an upper-case http or https proxy scheme is accepted")
-    void upperCaseProxySchemeIsAccepted() {
+    @DisplayName("bhvOptions014 an upper-case http or https proxy scheme is accepted")
+    void bhvOptions014UpperCaseProxySchemeIsAccepted() {
         assertEquals("HTTP://proxy.example.com:8080",
                 TransportOptions.builder().proxy("HTTP://proxy.example.com:8080").build().getProxy());
         assertEquals("HTTPS://proxy.example.com:8443",
@@ -245,8 +245,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("a proxy URL with an IPv6 literal host is accepted and kept verbatim")
-    void ipv6LiteralProxyUrlIsAcceptedAndKeptVerbatim() {
+    @DisplayName("bhvOptions009 a proxy URL with an IPv6 literal host is accepted and kept verbatim")
+    void bhvOptions009Ipv6LiteralProxyUrlIsAcceptedAndKeptVerbatim() {
         assertEquals("http://[::1]:3128",
                 TransportOptions.builder().proxy("http://[::1]:3128").build().getProxy());
         assertEquals("https://[2001:db8::1]:8443/",
@@ -254,15 +254,15 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("null proxy URL is accepted")
-    void nullProxyUrlIsAccepted() {
+    @DisplayName("bhvOptions030 null proxy URL is accepted")
+    void bhvOptions030NullProxyUrlIsAccepted() {
         TransportOptions opts = TransportOptions.builder().proxy(null).build();
         assertNull(opts.getProxy());
     }
 
     @Test
-    @DisplayName("builder methods return the same builder instance")
-    void builderMethodsReturnSameInstance() {
+    @DisplayName("bhvOptions015 builder methods return the same builder instance")
+    void bhvOptions015BuilderMethodsReturnSameInstance() {
         TransportOptions.Builder builder = TransportOptions.builder();
 
         assertSame(builder, builder.verifySsl(true));
@@ -279,8 +279,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("accumulates headers from defaultHeader calls")
-    void accumulatesHeadersFromDefaultHeaderCalls() {
+    @DisplayName("bhvOptions012 accumulates headers from defaultHeader calls")
+    void bhvOptions012AccumulatesHeadersFromDefaultHeaderCalls() {
         TransportOptions opts = TransportOptions.builder()
                 .defaultHeader("X-First", "one")
                 .defaultHeader("X-Second", "two")
@@ -292,8 +292,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("merges headers from defaultHeaders call")
-    void mergesHeadersFromDefaultHeadersCall() {
+    @DisplayName("bhvOptions028 merges headers from defaultHeaders call")
+    void bhvOptions028MergesHeadersFromDefaultHeadersCall() {
         TransportOptions opts = TransportOptions.builder()
                 .defaultHeader("X-First", "one")
                 .defaultHeaders(Map.of("X-Second", "two", "X-Third", "three"))
@@ -306,8 +306,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("modifying source map does not affect built options")
-    void modifyingSourceMapDoesNotAffectBuiltOptions() {
+    @DisplayName("bhvOptions029 modifying source map does not affect built options")
+    void bhvOptions029ModifyingSourceMapDoesNotAffectBuiltOptions() {
         Map<String, String> headers = new HashMap<>();
         headers.put("X-Original", "original");
 
@@ -323,8 +323,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("builder produces independent instances")
-    void builderProducesIndependentInstances() {
+    @DisplayName("bhvOptions016 builder produces independent instances")
+    void bhvOptions016BuilderProducesIndependentInstances() {
         TransportOptions.Builder builder = TransportOptions.builder().verifySsl(false);
         TransportOptions first = builder.build();
         TransportOptions second = builder.build();
@@ -336,8 +336,8 @@ class TransportOptionsTest {
     // TimeoutConfigTests
 
     @Test
-    @DisplayName("timeout defaults to 10000 ms (10 seconds)")
-    void timeoutDefaultsTo10SecondsInTimeoutGroup() {
+    @DisplayName("bhvOptions039 timeout defaults to 10000 ms (10 seconds)")
+    void bhvOptions039TimeoutDefaultsTo10SecondsInTimeoutGroup() {
         // Default TransportOptions has a 10s timeout; matches cross-language parity.
         TransportOptions opts = TransportOptions.builder().build();
         assertNotNull(opts.getTimeout());
@@ -345,15 +345,15 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("setting timeout to 5000 is accessible")
-    void settingTimeoutIsAccessible() {
+    @DisplayName("bhvOptions036 setting timeout to 5000 is accessible")
+    void bhvOptions036SettingTimeoutIsAccessible() {
         TransportOptions opts = TransportOptions.builder().timeout(5000).build();
         assertEquals(5000, opts.getTimeout());
     }
 
     @Test
-    @DisplayName("timeout field is named exactly 'timeout'")
-    void timeoutFieldIsNamedTimeout() {
+    @DisplayName("bhvOptions040 timeout field is named exactly 'timeout'")
+    void bhvOptions040TimeoutFieldIsNamedTimeout() {
         // Verify via the getter that the field is named 'timeout' (not e.g. 'connectionTimeout').
         TransportOptions opts = TransportOptions.builder().timeout(1000).build();
         assertNotNull(opts.getTimeout());
@@ -361,8 +361,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("explicitly setting timeout to null disables timeout")
-    void timeoutCanBeExplicitlyDisabled() {
+    @DisplayName("bhvOptions037 explicitly setting timeout to null disables timeout")
+    void bhvOptions037TimeoutCanBeExplicitlyDisabled() {
         TransportOptions opts = TransportOptions.builder().timeout(null).build();
         assertNull(opts.getTimeout());
     }
@@ -370,8 +370,8 @@ class TransportOptionsTest {
     // ProxyConfigTests
 
     @Test
-    @DisplayName("setting proxy URL is preserved on read-back")
-    void proxyUrlIsPreservedOnReadBack() {
+    @DisplayName("bhvOptions035 setting proxy URL is preserved on read-back")
+    void bhvOptions035ProxyUrlIsPreservedOnReadBack() {
         TransportOptions opts = TransportOptions.builder()
                 .proxy("http://proxy.example.com:8080")
                 .build();
@@ -379,8 +379,8 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("setting proxy is supported on all platforms")
-    void settingProxyIsSupportedOnAllPlatforms() {
+    @DisplayName("bhvOptions034 setting proxy is supported on all platforms")
+    void bhvOptions034SettingProxyIsSupportedOnAllPlatforms() {
         // Proxy configuration must not throw on any JVM platform.
         assertDoesNotThrow(() ->
                 TransportOptions.builder().proxy("http://proxy.example.com:8080").build());

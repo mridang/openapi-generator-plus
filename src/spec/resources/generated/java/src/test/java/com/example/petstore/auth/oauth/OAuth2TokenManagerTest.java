@@ -37,7 +37,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void extractsAccessTokenFromResponse() {
+  void bhvAuthOauthTwoTokenMgr014ExtractsAccessTokenFromResponse() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(fakeClient("{\"access_token\":\"my-token\",\"expires_in\":3600}"));
 
@@ -49,7 +49,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void storesRefreshToken() {
+  void bhvAuthOauthTwoTokenMgr028StoresRefreshToken() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(
         fakeClient("{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}"));
@@ -62,7 +62,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void ignoresNonStringRefreshToken() {
+  void bhvAuthOauthTwoTokenMgr017IgnoresNonStringRefreshToken() {
     // A numeric (non-string) refresh_token must be ignored, not coerced to a
     // string — matching the other SDKs, which require a JSON string.
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -77,7 +77,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void returnsCachedTokenWhenNotExpired() {
+  void bhvAuthOauthTwoTokenMgr025ReturnsCachedTokenWhenNotExpired() {
     AtomicInteger callCount = new AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {
@@ -101,7 +101,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void refetchesTokenWhenExpired() {
+  void bhvAuthOauthTwoTokenMgr021RefetchesTokenWhenExpired() {
     var responses =
         new Object() {
           int call = 0;
@@ -131,7 +131,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void setAccessTokenBypassesEndpoint() {
+  void bhvAuthOauthTwoTokenMgr026SetAccessTokenBypassesEndpoint() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setAccessToken("manual-token");
 
@@ -143,7 +143,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void invalidateAccessTokenForcesRefetch() {
+  void bhvAuthOauthTwoTokenMgr018InvalidateAccessTokenForcesRefetch() {
     AtomicInteger callCount = new AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {
@@ -168,7 +168,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void throwsWhenNoApiClientInjected() {
+  void bhvAuthOauthTwoTokenMgr030ThrowsWhenNoApiClientInjected() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
 
     Map<String, String> params = new HashMap<>();
@@ -180,7 +180,8 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void singleFlightRefreshCoalescesConcurrentCallers() throws InterruptedException {
+  void bhvAuthOauthTwoTokenMgr027SingleFlightRefreshCoalescesConcurrentCallers()
+      throws InterruptedException {
     // 10 threads all see no cached token and race into getAccessToken.
     // The synchronized method + double-checked cache must coalesce them
     // into exactly one network round-trip to the token endpoint.
@@ -229,7 +230,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void tokenRequestCarriesTheFormContentTypeAndTheJsonAccept() {
+  void bhvAuthOauthTwoTokenMgr035TokenRequestCarriesTheFormContentTypeAndTheJsonAccept() {
     Map<String, String> captured = new HashMap<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -248,7 +249,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void expiresInShortLivedTokenDoesNotStorm() {
+  void bhvAuthOauthTwoTokenMgr013ExpiresInShortLivedTokenDoesNotStorm() {
     // Gap CM: short-lived tokens (expires_in < safety buffer) must not
     // trigger a refresh storm — a single getAccessToken call must
     // produce exactly ONE network request, no inner retry loop.
@@ -272,7 +273,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void expiresInLongLivedTokenAppliesFullBuffer() {
+  void bhvAuthOauthTwoTokenMgr010ExpiresInLongLivedTokenAppliesFullBuffer() {
     // Gap CM: long-lived tokens get one safety margin of at most 60 s
     // (half the lifetime at most). With expires_in=3600 the token must remain
     // valid (cached) on a second call within the same instant.
@@ -299,7 +300,8 @@ class OAuth2TokenManagerTest {
 
   @org.junit.jupiter.params.ParameterizedTest
   @org.junit.jupiter.params.provider.CsvSource({"1,2", "0,2", "30,1", "60,1", "90,1", "120,1"})
-  void expiresInAppliesOneMarginCappedAtHalfTheLifetime(int expiresIn, int expectedFetches) {
+  void bhvAuthOauthTwoTokenMgr007ExpiresInAppliesOneMarginCappedAtHalfTheLifetime(
+      int expiresIn, int expectedFetches) {
     /* One margin, min(60 s, half the lifetime, rounded up): a token of 30 to
      * 120 s is cached for part of its life instead of being refetched on
      * every call; a 1 s or 0 s token is never reused. */
@@ -332,7 +334,8 @@ class OAuth2TokenManagerTest {
     "DPoP,false",
     "N_A,false"
   })
-  void tokenTypeOtherThanBearerIsRejected(String tokenType, boolean accepted) {
+  void bhvAuthOauthTwoTokenMgr038TokenTypeOtherThanBearerIsRejected(
+      String tokenType, boolean accepted) {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(
         fakeClient("{\"access_token\":\"at\",\"token_type\":\"" + tokenType + "\"}"));
@@ -351,7 +354,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void refreshResponseWithoutExpiresInKeepsNoExpiry() {
+  void bhvAuthOauthTwoTokenMgr003RefreshResponseWithoutExpiresInKeepsNoExpiry() {
     /* A refresh answer without expires_in must not keep the lapsed expiry of
      * the first grant, or every following call would refresh again. */
     AtomicInteger callCount = new AtomicInteger(0);
@@ -380,7 +383,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void refreshTokenEmptyStringPreservesExisting() {
+  void bhvAuthOauthTwoTokenMgr024RefreshTokenEmptyStringPreservesExisting() {
     // Gap A3 (RFC 6749 §6): when the refresh response omits or returns an
     // empty refresh_token, the cached refresh_token MUST be preserved.
     var responses =
@@ -425,7 +428,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void expiresInAsJsonStringIsAccepted() {
+  void bhvAuthOauthTwoTokenMgr009ExpiresInAsJsonStringIsAccepted() {
     // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
     // quoted string. The manager must accept it and cache the token; a
     // second call within the buffer window must serve from cache.
@@ -527,7 +530,8 @@ class OAuth2TokenManagerTest {
         "{}|Token response missing or empty access_token field",
         "{\"access_token\":\"\"}|Token response missing or empty access_token field"
       })
-  void unusableTokenResponseHasTheCanonicalMessageAndNoCause(String body, String expected) {
+  void bhvAuthOauthTwoTokenMgr040UnusableTokenResponseHasTheCanonicalMessageAndNoCause(
+      String body, String expected) {
     // D07: the message is byte-identical across the SDKs, with no parser
     // detail appended and no cause that could quote the response body.
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -545,7 +549,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void expiresInAsFloatIsFloored() {
+  void bhvAuthOauthTwoTokenMgr008ExpiresInAsFloatIsFloored() {
     // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
     // The manager must floor it and cache the token; a second call within
     // the buffer window must serve from cache.
@@ -582,7 +586,8 @@ class OAuth2TokenManagerTest {
         "\"Infinity\"|2",
         "\"1e400\"|2"
       })
-  void expiresInBeyondTheCeilingIsClampedNotAnOverflow(String expiresIn, int expectedFetches) {
+  void bhvAuthOauthTwoTokenMgr005ExpiresInBeyondTheCeilingIsClampedNotAnOverflow(
+      String expiresIn, int expectedFetches) {
     /* A server-supplied lifetime too large for Instant arithmetic is
      * clamped to one year and cached; a non-numeric one stays stale.
      * Neither escapes as an ArithmeticException or DateTimeException. */
@@ -606,7 +611,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void expiresInNegativeSkipsCaching() {
+  void bhvAuthOauthTwoTokenMgr011ExpiresInNegativeSkipsCaching() {
     // D1: a negative expires_in (e.g. -1) must not produce a future expiry
     // via underflow. The manager must mark the token as immediately stale
     // so the very next call refetches.
@@ -633,7 +638,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void throwsWhenTokenRequestFails() {
+  void bhvAuthOauthTwoTokenMgr031ThrowsWhenTokenRequestFails() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(fakeClient(401, "{\"error\":\"invalid_client\"}"));
 
@@ -649,7 +654,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void malformedTokenResponseRaisesOAuth2TokenException() {
+  void bhvAuthOauthTwoTokenMgr001MalformedTokenResponseRaisesOAuth2TokenException() {
     // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException,
     // never a raw parser exception or a wrapping RuntimeException.
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -664,7 +669,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void tokenTransportFailurePropagatesNetworkException() {
+  void bhvAuthOauthTwoTokenMgr037TokenTransportFailurePropagatesNetworkException() {
     // A transport failure on the token POST reaches the caller unchanged.
     com.example.petstore.errors.NetworkException failure =
         new com.example.petstore.errors.NetworkException(
@@ -686,7 +691,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void tokenResponseMissingAccessTokenThrowsTypedError() {
+  void bhvAuthOauthTwoTokenMgr036TokenResponseMissingAccessTokenThrowsTypedError() {
     // A 2xx response whose body omits access_token (e.g. only refresh_token)
     // must surface as the typed OAuth2TokenException, not silently cache an
     // empty/null token. The typed error extends the branded
@@ -705,7 +710,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void tokenEndpointErrorResponseParsedToTypedError() {
+  void bhvAuthOauthTwoTokenMgr032TokenEndpointErrorResponseParsedToTypedError() {
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
     // as a typed OAuth2ServerException carrying code/description/uri so callers
     // can branch on the OAuth2 error code without re-parsing the body.
@@ -744,7 +749,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void refreshGrantCarriesTheRefreshTokenAndTheClientCredentialsOnly() {
+  void bhvAuthOauthTwoTokenMgr022RefreshGrantCarriesTheRefreshTokenAndTheClientCredentialsOnly() {
     // RFC 6749 §6: the refresh grant sends grant_type and the cached
     // refresh_token, plus the client credentials; nothing else from the
     // original grant (here the one-time code) is replayed.
@@ -789,7 +794,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void refreshGrantGoesToTheRefreshUrlInTheCanonicalOrder() {
+  void bhvAuthOauthTwoTokenMgr029RefreshGrantGoesToTheRefreshUrlInTheCanonicalOrder() {
     java.util.List<String> urls = new java.util.ArrayList<>();
     java.util.List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
@@ -830,7 +835,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void refreshGrantInTheParamsIsPostedExactlyOnce() {
+  void bhvAuthOauthTwoTokenMgr023RefreshGrantInTheParamsIsPostedExactlyOnce() {
     AtomicInteger calls = new AtomicInteger();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -859,7 +864,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void exchangeBypassesTheCacheAndTheRefreshGrant() {
+  void bhvAuthOauthTwoTokenMgr006ExchangeBypassesTheCacheAndTheRefreshGrant() {
     java.util.List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -889,7 +894,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void failedExchangeRestoresThePreviousSession() {
+  void bhvAuthOauthTwoTokenMgr015FailedExchangeRestoresThePreviousSession() {
     AtomicInteger calls = new AtomicInteger();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -918,7 +923,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void failedRefreshFallsBackToTheOriginalGrant() {
+  void bhvAuthOauthTwoTokenMgr016FailedRefreshFallsBackToTheOriginalGrant() {
     // A rejected refresh token (revoked, expired) must not strand the
     // caller: the manager re-runs the original grant with the original
     // parameters, in the third request.
@@ -985,7 +990,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void tokenWithoutExpiresInIsCachedIndefinitely() {
+  void bhvAuthOauthTwoTokenMgr039TokenWithoutExpiresInIsCachedIndefinitely() {
     AtomicInteger callCount = new AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {
@@ -1008,7 +1013,7 @@ class OAuth2TokenManagerTest {
    * We capture the boolean flag on a fake client to assert the contract.
    */
   @Test
-  void tokenPostInvokesNoRedirectOverload() {
+  void bhvAuthOauthTwoTokenMgr034TokenPostInvokesNoRedirectOverload() {
     java.util.concurrent.atomic.AtomicReference<Boolean> seenFlag =
         new java.util.concurrent.atomic.AtomicReference<>(null);
     ApiClient client =
@@ -1053,7 +1058,7 @@ class OAuth2TokenManagerTest {
    */
   @org.junit.jupiter.params.ParameterizedTest
   @org.junit.jupiter.params.provider.ValueSource(ints = {301, 302, 303, 307, 308})
-  void tokenEndpointRedirectIsRejected(int status) {
+  void bhvAuthOauthTwoTokenMgr033TokenEndpointRedirectIsRejected(int status) {
     ApiClient client =
         new ApiClient() {
           @Override
@@ -1090,7 +1095,8 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void invalidateAccessTokenTriggersSingleRefetchUnderConcurrency() throws InterruptedException {
+  void bhvAuthOauthTwoTokenMgr019InvalidateAccessTokenTriggersSingleRefetchUnderConcurrency()
+      throws InterruptedException {
     // After invalidation, 10 concurrent callers must coalesce into exactly
     // ONE additional network round-trip (single-flight), all observing the
     // same freshly fetched token.

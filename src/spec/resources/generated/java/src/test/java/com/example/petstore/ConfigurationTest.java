@@ -30,21 +30,21 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderReturnsConfigurationBuilderInstance() {
+  void bhvConfig007BuilderReturnsConfigurationBuilderInstance() {
     Configuration.Builder builder = Configuration.builder();
 
     assertNotNull(builder);
   }
 
   @Test
-  void builderSetsBaseUrl() {
+  void bhvConfig011BuilderSetsBaseUrl() {
     Configuration config = Configuration.builder().baseUrl("https://custom.example.com").build();
 
     assertEquals("https://custom.example.com", config.getBaseUrl());
   }
 
   @Test
-  void builderSetsSingleDefaultHeader() {
+  void bhvConfig013BuilderSetsSingleDefaultHeader() {
     Configuration config =
         Configuration.builder().defaultHeader("Authorization", "Bearer token123").build();
 
@@ -52,7 +52,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderSetsMultipleDefaultHeaders() {
+  void bhvConfig012BuilderSetsMultipleDefaultHeaders() {
     Configuration config =
         Configuration.builder()
             .defaultHeaders(
@@ -66,7 +66,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderAccumulatesHeaders() {
+  void bhvConfig002BuilderAccumulatesHeaders() {
     Configuration config =
         Configuration.builder()
             .defaultHeader("X-First", "one")
@@ -81,7 +81,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderSetsAllFields() {
+  void bhvConfig010BuilderSetsAllFields() {
     Configuration config =
         Configuration.builder()
             .baseUrl("https://api.example.com")
@@ -95,7 +95,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderServerResolvesUrl() {
+  void bhvConfig008BuilderServerResolvesUrl() {
     ServerConfiguration server =
         new ServerConfiguration(
             "https://{env}.example.com/api/{version}",
@@ -110,7 +110,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderServerWithVariableOverrides() {
+  void bhvConfig009BuilderServerWithVariableOverrides() {
     ServerConfiguration server =
         new ServerConfiguration(
             "https://{env}.example.com/api/{version}",
@@ -126,7 +126,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void invalidEnumValueThrows() {
+  void bhvConfig016InvalidEnumValueThrows() {
     ServerConfiguration server =
         new ServerConfiguration(
             "https://{env}.example.com",
@@ -139,7 +139,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderBaseUrlOverridesServer() {
+  void bhvConfig001BuilderBaseUrlOverridesServer() {
     ServerConfiguration server = new ServerConfiguration("https://api.example.com", null, Map.of());
 
     Configuration config =
@@ -158,7 +158,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void defaultConfigurationIsStateless() {
+  void bhvConfig014DefaultConfigurationIsStateless() {
     // There is no settable process-wide default: every call hands back a
     // fresh instance, so one caller cannot change what another gets.
     Configuration first = Configuration.defaultConfiguration();
@@ -178,7 +178,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderProducesIndependentInstances() {
+  void bhvConfig006BuilderProducesIndependentInstances() {
     Configuration.Builder builder = Configuration.builder().baseUrl("https://example.com");
     Configuration first = builder.build();
     Configuration second = builder.build();
@@ -188,7 +188,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void builderIsFluent() {
+  void bhvConfig003BuilderIsFluent() {
     Configuration.Builder builder = Configuration.builder();
 
     assertSame(builder, builder.baseUrl("https://example.com"));

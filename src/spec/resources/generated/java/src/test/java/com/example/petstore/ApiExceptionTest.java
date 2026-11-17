@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 class ApiExceptionTest {
 
   @Test
-  void exposesStatusCodeMessageBodyHeadersErrorBody() {
+  void bhvErrors004ExposesStatusCodeMessageBodyHeadersErrorBody() {
     ApiException ex =
         new ApiException(
             404,
@@ -42,7 +42,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void nullHeadersAndBodyMarkTransportNoResponse() {
+  void bhvErrors021NullHeadersAndBodyMarkTransportNoResponse() {
     // apierror-responsebody-headers-nullable-split: null is distinct from an
     // empty header map / empty body so a pre-response transport failure can
     // be encoded.
@@ -53,7 +53,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void isAnUncheckedExceptionWithStatusInItsStringForm() {
+  void bhvErrors019IsAnUncheckedExceptionWithStatusInItsStringForm() {
     // Unified hierarchy: ApiException extends the branded root
     // OpenAPIException, which extends RuntimeException — so the whole SDK
     // error tree is unchecked and a single catch on OpenAPIException covers
@@ -84,7 +84,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void renderedFormMasksCredentialHeaders() {
+  void bhvErrors023RenderedFormMasksCredentialHeaders() {
     ApiException ex =
         new ApiException(
             401,
@@ -134,7 +134,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void renderedBodyEscapesTabsAndOtherControlCharacters() {
+  void bhvErrors001RenderedBodyEscapesTabsAndOtherControlCharacters() {
     ApiException ex = new ApiException(500, "boom", Map.of(), "a\tb\1c\177d");
 
     assertEquals(
@@ -157,7 +157,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void getTypedErrorBodyDeserializesTheBodyIntoTheGivenClass() {
+  void bhvErrors013GetTypedErrorBodyDeserializesTheBodyIntoTheGivenClass() {
     // Built through fromResponse, the way a real response reaches a caller:
     // the typed body must come out of the raw body, not out of whatever the
     // generic parse happened to leave behind.
@@ -171,14 +171,14 @@ class ApiExceptionTest {
   }
 
   @Test
-  void getTypedErrorBodyReturnsNullWhenThereIsNoResponseBody() {
+  void bhvErrors015GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody() {
     ApiException ex = ApiException.fromResponse(500, Map.of(), null);
 
     assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category.class));
   }
 
   @Test
-  void getTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel() {
+  void bhvErrors014GetTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel() {
     ApiException ex =
         ApiException.fromResponse(
             422, Map.of(), "{\"id\":1,\"name\":\"Cat\",\"extra\":\"drop-me\"}");
@@ -245,7 +245,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void networkExceptionsExtendApiExceptionWithStatusZero() {
+  void bhvErrors020NetworkExceptionsExtendApiExceptionWithStatusZero() {
     // No HTTP response arrived, so the status is 0 and the transport
     // failure is kept as the cause. Both sit under ApiException so an
     // existing catch on ApiException keeps catching them.
@@ -265,7 +265,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void statusSpecificExceptionsAcceptAnOptionalCause() {
+  void bhvErrors003StatusSpecificExceptionsAcceptAnOptionalCause() {
     java.io.IOException cause = new java.io.IOException("root cause");
     assertEquals(
         cause,
@@ -345,7 +345,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void serializationExceptionExtendsTheSdkRoot() {
+  void bhvErrors018SerializationExceptionExtendsTheSdkRoot() {
     // The serializer's failure type lives under the same branded root, so a
     // single catch on OpenAPIException covers serialization errors too.
     SerializationException ex = new SerializationException("bad json");
@@ -355,7 +355,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void fromResponseMapsEveryStatusToItsException() {
+  void bhvErrors006FromResponseMapsEveryStatusToItsException() {
     // 302 is below the client range and 600 above the server range: neither
     // is a ClientException or a ServerException, both are the base type.
     Map<Integer, Class<? extends ApiException>> expected =
@@ -386,7 +386,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void fromResponseRefusesADeeplyNestedBodyButKeepsTheRawBody() {
+  void bhvErrors009FromResponseRefusesADeeplyNestedBodyButKeepsTheRawBody() {
     // A nesting-depth cap stops a hostile error payload from recursing
     // through the call stack: the structured error body is dropped, the
     // exception for the status and the raw body are kept.
@@ -401,20 +401,20 @@ class ApiExceptionTest {
   }
 
   @Test
-  void fromResponseDecodesAScalarJsonBody() {
+  void bhvErrors010FromResponseDecodesAScalarJsonBody() {
     assertEquals("denied", ApiException.fromResponse(403, Map.of(), "\"denied\"").getErrorBody());
     assertEquals(42, ApiException.fromResponse(403, Map.of(), "42").getErrorBody());
   }
 
   @Test
-  void getTypedErrorBodyRaisesSerializationExceptionForABodyOfTheWrongShape() {
+  void bhvErrors017GetTypedErrorBodyRaisesSerializationExceptionForABodyOfTheWrongShape() {
     ApiException ex = ApiException.fromResponse(400, Map.of(), "<html>bad request</html>");
 
     assertThrows(SerializationException.class, () -> ex.getTypedErrorBody(Map.class));
   }
 
   @Test
-  void fromResponseRecordsTheRequestMethodAndPathWithoutTheQueryString() {
+  void bhvErrors007FromResponseRecordsTheRequestMethodAndPathWithoutTheQueryString() {
     ApiException ex =
         ApiException.fromResponse("GET", "/items/7?token=secret#top", 404, Map.of(), "");
 
@@ -425,7 +425,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void everyStatusExceptionCarriesTheRequestContext() {
+  void bhvErrors002EveryStatusExceptionCarriesTheRequestContext() {
     for (int status : new int[] {400, 401, 403, 404, 409, 422, 429, 418, 500, 503, 302}) {
       ApiException ex = ApiException.fromResponse("DELETE", "/things", status, Map.of(), "");
 
@@ -435,7 +435,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void anAbsoluteRequestUrlIsReducedToItsPath() {
+  void bhvErrors026AnAbsoluteRequestUrlIsReducedToItsPath() {
     assertEquals(
         "/v2/items",
         ApiException.fromResponse(
@@ -484,7 +484,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void anErrorWithoutARequestRendersNoRequestLine() {
+  void bhvErrors012AnErrorWithoutARequestRendersNoRequestLine() {
     ApiException ex = ApiException.fromResponse(500, Map.of(), "");
 
     assertNull(ex.getRequestMethod());
@@ -493,7 +493,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void anEmptyBodyAndEmptyHeadersAreOmittedFromTheStringForm() {
+  void bhvErrors022AnEmptyBodyAndEmptyHeadersAreOmittedFromTheStringForm() {
     ApiException ex = new ApiException(500, "boom", Map.of(), "");
 
     assertEquals("boom\nHTTP status code: 500", ex.toString());
@@ -527,7 +527,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void fromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
+  void bhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
     ApiException ex = ApiException.fromResponse(502, Map.of(), "<html>bad gateway</html>");
 
     assertEquals(com.example.petstore.errors.ServerException.class, ex.getClass());
@@ -561,5 +561,50 @@ class ApiExceptionTest {
       assertNull(error.getEnclosingClass(), error.getName());
       assertTrue(OpenAPIException.class.isAssignableFrom(error), error.getName());
     }
+  }
+
+  @Test
+  void bhvErrors025SerializationExceptionIsAnOpenApiException() {
+    assertInstanceOf(OpenAPIException.class, new SerializationException("bad"));
+  }
+
+  @Test
+  void bhvErrors036ErrorCarriesTheMethodAndPathWithoutTheQueryString() {
+    ApiException ex = ApiException.fromResponse("GET", "/pets/1?limit=2", 404, null, null);
+    assertEquals("GET", ex.getRequestMethod());
+    assertEquals("/pets/1", ex.getRequestPath());
+  }
+
+  @Test
+  void bhvErrors024RenderedFormPutsStatusThenHeadersThenBody() {
+    ApiException ex = ApiException.fromResponse(500, Map.of("X-Trace", "t1"), "oops");
+    String rendered = ex.toString();
+    assertTrue(rendered.indexOf("HTTP status code") < rendered.indexOf("Response headers"));
+    assertTrue(rendered.indexOf("Response headers") < rendered.indexOf("Response body"));
+  }
+
+  @Test
+  void bhvErrors011RenderedFormNamesTheRequestAfterTheStatus() {
+    ApiException ex = ApiException.fromResponse("POST", "/pets", 500, null, null);
+    String rendered = ex.toString();
+    assertTrue(rendered.indexOf("HTTP status code") < rendered.indexOf("Request: POST /pets"));
+  }
+
+  @Test
+  void bhvErrors008FromResponseParsesABomPrefixedErrorBody() {
+    ApiException ex = ApiException.fromResponse(400, null, "﻿{\"code\":7}");
+    assertNotNull(ex.getErrorBody());
+  }
+
+  @Test
+  void bhvErrors016GetTypedErrorBodyIsNullForAnEmptyResponseBody() {
+    ApiException ex = ApiException.fromResponse(400, null, "");
+    assertNull(ex.getTypedErrorBody(Map.class));
+  }
+
+  @Test
+  void bhvErrors028GetTypedErrorBodyIsNullForANullBody() {
+    ApiException ex = ApiException.fromResponse(400, null, null);
+    assertNull(ex.getTypedErrorBody(Map.class));
   }
 }

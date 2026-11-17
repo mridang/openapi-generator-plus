@@ -53,8 +53,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("an anyOf union is built from one variant and reads it back typed")
-    void anyOfFactoryAndAccessors() {
+    @DisplayName("bhvUnions001 an anyOf union is built from one variant and reads it back typed")
+    void bhvUnions001AnyOfFactoryAndAccessors() {
       Medication medication = new Medication("aspirin");
 
       PetTreatment union = PetTreatment.ofMedication(medication);
@@ -83,8 +83,8 @@ class ComposedSchemaTest {
   class PetFoodTests {
 
     @Test
-    @DisplayName("deserializes DryFood via discriminator")
-    void testDeserializeDryFood() {
+    @DisplayName("bhvUnions012 deserializes DryFood via discriminator")
+    void bhvUnions012TestDeserializeDryFood() {
       String json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
       Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
 
@@ -93,8 +93,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("deserializes WetFood via discriminator")
-    void testDeserializeWetFood() {
+    @DisplayName("bhvUnions013 deserializes WetFood via discriminator")
+    void bhvUnions013TestDeserializeWetFood() {
       String json = "{\"foodType\":\"wet\",\"volumeMl\":400}";
       Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
 
@@ -103,8 +103,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("throws for unknown discriminator value")
-    void testUnknownDiscriminator() {
+    @DisplayName("bhvUnions016 throws for unknown discriminator value")
+    void bhvUnions016TestUnknownDiscriminator() {
       // An unknown discriminator matches no listed subtype and must be
       // rejected (FAIL_ON_INVALID_SUBTYPE), matching the other 11 SDKs.
       String json = "{\"foodType\":\"raw\",\"calories\":300}";
@@ -113,8 +113,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("serializes DryFood back to JSON")
-    void testSerializeDryFood() {
+    @DisplayName("bhvUnions020 serializes DryFood back to JSON")
+    void bhvUnions020TestSerializeDryFood() {
       String json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
       Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
 
@@ -125,8 +125,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("throws when discriminator field is missing")
-    void testMissingDiscriminatorThrows() {
+    @DisplayName("bhvUnions015 throws when discriminator field is missing")
+    void bhvUnions015TestMissingDiscriminatorThrows() {
       // A payload omitting the discriminator property entirely cannot
       // route to any subtype; Jackson's EXISTING_PROPERTY type resolution
       // fails. Aligns Java with Python / Swift / PHP / Ruby / Dart / Rust.
@@ -136,8 +136,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("throws when discriminator value is empty")
-    void testEmptyDiscriminatorThrows() {
+    @DisplayName("bhvUnions024 throws when discriminator value is empty")
+    void bhvUnions024TestEmptyDiscriminatorThrows() {
       // An empty discriminator value matches no listed subtype and must
       // be rejected rather than silently routed.
       String json = "{\"foodType\":\"\",\"weightKg\":2.5}";
@@ -146,8 +146,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("unknown discriminator error names the offending value")
-    void testUnknownDiscriminatorErrorNamesValue() {
+    @DisplayName("bhvUnions026 unknown discriminator error names the offending value")
+    void bhvUnions026TestUnknownDiscriminatorErrorNamesValue() {
       // The deserialization failure must surface the offending
       // discriminator value so callers can diagnose server/spec drift.
       // Jackson reports the unresolved type id in the root cause message.
@@ -171,8 +171,8 @@ class ComposedSchemaTest {
   class PetTreatmentTests {
 
     @Test
-    @DisplayName("deserializes Medication from anyOf")
-    void testDeserializeMedication() {
+    @DisplayName("bhvUnions014 deserializes Medication from anyOf")
+    void bhvUnions014TestDeserializeMedication() {
       String json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
       PetTreatment result =
           Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
@@ -196,8 +196,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("deserializes Surgery from anyOf")
-    void testDeserializeSurgery() {
+    @DisplayName("bhvUnions006 deserializes Surgery from anyOf")
+    void bhvUnions006TestDeserializeSurgery() {
       String json = "{\"procedureName\":\"Spay\",\"durationMinutes\":45}";
       PetTreatment result =
           Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
@@ -206,8 +206,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("serializes round-trip for anyOf")
-    void testSerializeRoundTrip() {
+    @DisplayName("bhvUnions008 serializes round-trip for anyOf")
+    void bhvUnions008TestSerializeRoundTrip() {
       String json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
       PetTreatment result =
           Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
@@ -217,8 +217,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("anyOf with a single matching variant has one matched instance")
-    void testSingleMatchedInstance() {
+    @DisplayName("bhvUnions003 anyOf with a single matching variant has one matched instance")
+    void bhvUnions003TestSingleMatchedInstance() {
       String json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
       PetTreatment result =
           Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
@@ -229,8 +229,9 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("anyOf retains all matching variants (medication and surgery) losslessly")
-    void testRetainsAllMatchingVariants() {
+    @DisplayName(
+        "bhvUnions009 anyOf retains all matching variants (medication and surgery) losslessly")
+    void bhvUnions009TestRetainsAllMatchingVariants() {
       // anyOf is inclusive: PetTreatment is documented as matching a
       // medication, a surgery, OR BOTH. A payload that satisfies both
       // variants at once must retain every variant — not just the first
@@ -279,8 +280,9 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("shared-property collision keeps the last variant's value, emitted once")
-    void testSharedPropertyCollisionLastWins() {
+    @DisplayName(
+        "bhvUnions010 shared-property collision keeps the last variant's value, emitted once")
+    void bhvUnions010TestSharedPropertyCollisionLastWins() {
       // Both members declare `notes`. When a PetTreatment retains a
       // Medication AND a Surgery that each set `notes` to a different
       // value, the merged encoding keeps the LAST-declared member's value
@@ -317,8 +319,9 @@ class ComposedSchemaTest {
 
     @Test
     @DisplayName(
-        "tries the variants in declaration order and retains the first as the actual instance")
-    void testVariantsAreTriedInDeclarationOrder() {
+        "bhvUnions025 tries the variants in declaration order and retains the first as the actual"
+            + " instance")
+    void bhvUnions025TestVariantsAreTriedInDeclarationOrder() {
       String json = "{\"drugName\":\"a\",\"procedureName\":\"b\"}";
       TreatmentRecord result =
           Objects.requireNonNull(serializer.deserialize(json, TREATMENT_RECORD_TYPE));
@@ -330,8 +333,10 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("a shared property keeps the value of the later declared variant, emitted once")
-    void testSharedPropertyCollisionKeepsTheLaterDeclaredVariant() {
+    @DisplayName(
+        "bhvUnions002 a shared property keeps the value of the later declared variant, emitted"
+            + " once")
+    void bhvUnions002TestSharedPropertyCollisionKeepsTheLaterDeclaredVariant() {
       TreatmentRecord medication =
           Objects.requireNonNull(
               serializer.deserialize(
@@ -360,8 +365,8 @@ class ComposedSchemaTest {
   class OneOfNoDiscriminatorTests {
 
     @Test
-    @DisplayName("deserializes the single base64 (byte[]) variant")
-    void testDeserializeByteVariant() {
+    @DisplayName("bhvUnions019 deserializes the single base64 (byte[]) variant")
+    void bhvUnions019TestDeserializeByteVariant() {
       String json = "\"aGVsbG8=\"";
       SetPetAvatarThumbnailRequest result =
           Objects.requireNonNull(serializer.deserialize(json, ONE_OF_NO_DISCRIMINATOR_TYPE));
@@ -398,8 +403,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("setPetAvatarThumbnail byte oneOf round-trips through base64")
-    void setPetAvatarThumbnailByteOneOfRoundTripsThroughBase64() {
+    @DisplayName("bhvUnions023 setPetAvatarThumbnail byte oneOf round-trips through base64")
+    void bhvUnions023SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64() {
       byte[] payload = new byte[] {0x01, 0x02, 0x03, 0x04};
       SetPetAvatarThumbnailRequest request = new SetPetAvatarThumbnailRequest(payload);
 
@@ -422,8 +427,9 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("setPetAvatarThumbnail byte-array oneOf round-trips through base64 array")
-    void setPetAvatarThumbnailByteArrayOneOfRoundTripsThroughBase64Array() {
+    @DisplayName(
+        "bhvUnions022 setPetAvatarThumbnail byte-array oneOf round-trips through base64 array")
+    void bhvUnions022SetPetAvatarThumbnailByteArrayOneOfRoundTripsThroughBase64Array() {
       byte[] first = new byte[] {0x01, 0x02, 0x03, 0x04};
       byte[] second = new byte[] {0x05, 0x06};
       SetPetAvatarThumbnailRequest request =
@@ -444,8 +450,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("scalar base64 string resolves to the scalar variant, not a list")
-    void scalarBase64StringResolvesToScalarVariantNotList() {
+    @DisplayName("bhvUnions018 scalar base64 string resolves to the scalar variant, not a list")
+    void bhvUnions018ScalarBase64StringResolvesToScalarVariantNotList() {
       String json = "\"AQIDBA==\"";
       SetPetAvatarThumbnailRequest result =
           Objects.requireNonNull(serializer.deserialize(json, ONE_OF_NO_DISCRIMINATOR_TYPE));
@@ -472,8 +478,8 @@ class ComposedSchemaTest {
   class PetWithOwnerTests {
 
     @Test
-    @DisplayName("deserializes all properties from allOf composition")
-    void testDeserialize() {
+    @DisplayName("bhvUnions004 deserializes all properties from allOf composition")
+    void bhvUnions004TestDeserialize() {
       String json =
           "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
       PetWithOwner result =
@@ -485,8 +491,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("serializes PetWithOwner to JSON")
-    void testSerialize() {
+    @DisplayName("bhvUnions021 serializes PetWithOwner to JSON")
+    void bhvUnions021TestSerialize() {
       String json =
           "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"],\"ownerName\":\"John"
               + " Doe\"}";
@@ -500,8 +506,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("round-trip preserves all fields")
-    void testRoundTrip() {
+    @DisplayName("bhvUnions017 round-trip preserves all fields")
+    void bhvUnions017TestRoundTrip() {
       String json =
           "{\"name\":\"Buddy\",\"photoUrls\":[\"http://example.com/buddy.jpg\"],\"ownerName\":\"Jane"
               + " Smith\"}";
