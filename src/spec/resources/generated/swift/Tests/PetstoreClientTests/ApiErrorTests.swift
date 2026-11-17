@@ -299,6 +299,13 @@ import Testing
 
   /* The OAuth2 errors sit under the branded root, not under ApiError: they are
    * not HTTP errors of the API, so an ApiError catch never sees them. */
+  @Test func testBhvErrors049OAuth2ServerErrorMessageNamesTheStatusAndTheErrorCode() {
+    let error = OAuth2ServerError(
+      statusCode: 400, code: "invalid_grant", description: nil, uri: nil, rawBody: "{}")
+
+    #expect(error.localizedDescription == "Token request failed with status 400: invalid_grant")
+  }
+
   @Test func testBhvErrors045OAuth2ErrorsDeriveFromTheBrandedRoot() {
     let tokenError: any Error = OAuth2TokenError.missingAccessToken("missing access_token")
     let serverError: any Error = OAuth2ServerError(

@@ -83,7 +83,7 @@ import Testing
     #expect(bodyString.contains("client_secret=my-client-secret"))
   }
 
-  @Test func testTokenBodyUsesFixedParameterOrder() async throws {
+  @Test func testBhvAuthoauthtwoclientcred016TokenBodyUsesFixedParameterOrder() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 

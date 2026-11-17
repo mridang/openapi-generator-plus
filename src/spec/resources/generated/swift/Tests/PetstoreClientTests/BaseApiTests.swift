@@ -829,7 +829,7 @@ import Testing
 
   /* An authenticator cookie holding characters RFC 6265 forbids is a caller
    * mistake: ConfigurationError.invalidArgument before any request is sent. */
-  @Test func testInvalidAuthCookieThrowsInvalidArgument() async throws {
+  @Test func testBhvAuthintegration019InvalidAuthCookieThrowsInvalidArgument() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let auth = MockAuth(cookies: ["session": "a;b"])
@@ -1119,6 +1119,13 @@ import Testing
 
   // Without the marker (allowReserved: false / absent) reserved characters
   // are still percent-encoded exactly as before.
+  @Test func testBhvSerializationparam107QueryValueKeepsOnlyTheUnreservedSetLiteral() {
+    let encoded = BaseApi.buildQueryString(["k": "a~b*c!d'e(f)g h"])
+    #expect(
+      encoded == "k=a~b%2Ac%21d%27e%28f%29g%20h",
+      "only A-Za-z0-9-._~ stays literal in a query value, got: \(encoded)")
+  }
+
   @Test func testUnmarkedQueryValueEncodesReservedCharacters() {
     let encoded = BaseApi.buildQueryString(["revision": "v1.0/beta:rc1"])
     #expect(
@@ -1510,6 +1517,26 @@ import Testing
    * assert the credential landed in the outbound headers. This is the
    * regression guard for the Elixir bug where a configured authenticator
    * was silently dropped. */
+  @Test func testBhvAuthintegration018ConfiguredClientAuthenticatorIsAppliedToSecuredOperation()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let auth = MockAuth(headers: ["X-API-Key": "secret-key"])
+    let api = BaseApi(apiClient: mockClient, config: config, authenticator: auth)
+    let params = BaseApi.InvokeAPIParams(
+      method: "GET", path: "/items", queryParams: [:],
+      headerParams: [:], body: nil,
+      accepts: ["application/json"], contentType: "application/json",
+      returnType: "String", auth: nil)
+
+    _ = try await api.invokeAPI(params)
+
+    #expect(
+      mockClient.lastHeaders["X-API-Key"] == "secret-key",
+      "the configured client authenticator must reach the outbound request")
+  }
+
   @Test func testBhvAuthintegration006ConfiguredBearerAuthenticatorIsAppliedToSecuredRequest()
     async throws
   {

@@ -738,10 +738,29 @@ import Testing
     #expect(second == "str-tok")
   }
 
+  /* A padded decimal expires_in is a lifetime: the trailing newline is trimmed and the token is cached. */
+  @Test func testBhvAuthoauthtwotokenmgr045PaddedDecimalExpiresInIsAcceptedAndCached() async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"pad1\",\"expires_in\":\"3600\\n\"}"))
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"pad2\",\"expires_in\":\"3600\"}"))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+    let tokenURL = "https://auth.example.com/token"
+    let params = ["grant_type": "client_credentials"]
+
+    #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "pad1")
+    #expect(
+      try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "pad1",
+      "a padded decimal lifetime is accepted, so the token is cached")
+  }
+
   /* A quoted expires_in is read as plain decimal digits, so a hex string is
      not a lifetime (0x1000 would otherwise be 4096 seconds and cached) and
      trailing newlines are trimmed like any other whitespace. */
-  @Test func testExpiresInStringUsesPlainDecimalGrammar() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr046ExpiresInStringUsesPlainDecimalGrammar() async throws {
     let hex = MockApiClient()
     hex.responses.append(
       makeResponse(body: "{\"access_token\":\"hex1\",\"expires_in\":\"0x1000\"}"))
@@ -1067,6 +1086,31 @@ import Testing
 
   /// RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
   /// typed OAuth2ServerError carrying code/description/uri.
+  @Test func testBhvAuthoauthtwotokenmgr042ServerErrorMessageNamesTheStatusCodeAndDescription()
+    async
+  {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body: "{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\"}",
+        statusCode: 400
+      ))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    do {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"]
+      )
+      Issue.record("Expected OAuth2ServerError when token request fails")
+    } catch {
+      #expect(
+        error.localizedDescription
+          == "Token request failed with status 400: invalid_grant -- refresh token expired")
+    }
+  }
+
   @Test func testBhvAuthoauthtwotokenmgr032TokenEndpointErrorResponseParsedToTypedError() async {
     let client = MockApiClient()
     client.responses.append(
@@ -1222,7 +1266,7 @@ import Testing
 
   /* The token body is emitted in the fixed cross-SDK key order, then any
    * other key sorted. */
-  @Test func testTokenBodyUsesFixedKeyOrder() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr043TokenBodyUsesFixedKeyOrder() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
     let manager = OAuth2TokenManager()

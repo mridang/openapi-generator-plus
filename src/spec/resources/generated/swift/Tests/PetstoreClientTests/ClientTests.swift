@@ -271,6 +271,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   // MARK: - Credentials of the scheme authenticators
 
+  @Test func testBhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsEnvironmentVariable() throws
+  {
+    let value = try BaseAuthenticator.credential(
+      "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+      environment: ["EXAMPLE_TOKEN": "env-value"])
+    #expect(value == "explicit-value")
+  }
+
   @Test func testBhvAuthbasic013AnExplicitCredentialWinsOverTheEnvironment() throws {
     let value = try BaseAuthenticator.credential(
       "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
@@ -456,7 +464,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testPetStoreBearerAuthenticatorTreatsAnEmptyVariableAsUnset() {
+  @Test func testBhvAuthscheme010PetStoreBearerAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN environment variable"
     )

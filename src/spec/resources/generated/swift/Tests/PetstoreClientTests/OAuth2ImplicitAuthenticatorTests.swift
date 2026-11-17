@@ -121,6 +121,15 @@ import Testing
     #expect(headers["Authorization"] == "Bearer implicit-tok")
   }
 
+  @Test func testBhvAuthoauthtwoimplicit016AnImplicitAccessTokenMayContainATab() async throws {
+    let auth = createAuthenticator()
+    try auth.setAccessToken("tok\tvalue")
+
+    let headers = try await auth.authHeaders()
+
+    #expect(headers["Authorization"] == "Bearer tok\tvalue")
+  }
+
   /* A request made before setAccessToken is a wrong call order: authHeaders
    * throws ConfigurationError.invalidState, never a trap. */
   @Test func testBhvAuthoauthtwoimplicit012ThrowsWhenAccessTokenNotSet() async {
