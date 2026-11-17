@@ -1331,7 +1331,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "bhv serializationwire 017 bhv serializationwire 018 octet-stream binary response roundtrips exactly via base64 decode" do
+  test "bhv serializationwire 017 octet-stream binary response roundtrips exactly via base64 decode" do
     original = <<0x00, 0xFF, 0x42>>
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: OctetStreamApiClient}
@@ -1351,6 +1351,27 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert {:ok, decoded} = Base.decode64(result)
     assert decoded == original
+  end
+
+  test "bhv serializationwire 018 an octet-stream response is returned as the base64 of its bytes" do
+    original = <<0x00, 0xFF, 0x42>>
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: OctetStreamApiClient}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/octet-stream"],
+               "application/octet-stream",
+               "String"
+             )
+
+    assert result == Base.encode64(original)
   end
 
   test "bhv operations 012 image/png binary response roundtrips exactly via base64 decode" do
@@ -2487,12 +2508,26 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # Behavior #4: a multipart file part derives its Content-Type from the
   # filename extension (.png -> image/png), falling back to
   # application/octet-stream for an unknown/extension-less filename.
-  test "bhv serializationwire 037 bhv serializationwire 039 bhv serializationwire 047 multipart file part Content-Type is derived from the filename extension" do
+  test "bhv serializationwire 037 multipart file part Content-Type is derived from the filename extension" do
     body = %{"file" => {:file, "avatar.png", <<1, 2, 3>>}}
     serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
     assert String.contains?(serialized, "Content-Type: image/png"),
            "Expected image/png for .png file, got: #{serialized}"
+  end
+
+  test "bhv serializationwire 039 a file with a dotted name and a png extension is image/png" do
+    body = %{"file" => {:file, "my.avatar.png", <<1, 2, 3>>}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: image/png")
+  end
+
+  test "bhv serializationwire 047 a png file part carries image/png under its own disposition" do
+    body = %{"file" => {:file, "avatar.png", <<1, 2, 3>>}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "filename=\"avatar.png\"\r\nContent-Type: image/png")
   end
 
   test "bhv serializationwire 038 a pdf file part is application/pdf" do
@@ -2509,12 +2544,22 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert String.contains?(serialized, "Content-Type: image/png")
   end
 
-  test "bhv authintegration 008 bhv serializationwire 040 multipart file part falls back to application/octet-stream for unknown extension" do
+  test "bhv authintegration 008 multipart file part falls back to application/octet-stream for unknown extension" do
     body = %{"file" => {:file, "blob", <<1, 2, 3>>}}
     serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
     assert String.contains?(serialized, "Content-Type: application/octet-stream"),
            "Expected octet-stream fallback for extension-less file, got: #{serialized}"
+  end
+
+  test "bhv serializationwire 040 a file part whose name has no extension is application/octet-stream" do
+    body = %{"file" => {:file, "blob", <<1, 2, 3>>}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(
+             serialized,
+             "filename=\"blob\"\r\nContent-Type: application/octet-stream"
+           )
   end
 
   # Behavior #4b: a raw-bytes part (binary content, no explicit filename)
@@ -2918,11 +2963,15 @@ defmodule PetstoreClient.Api.BaseApiTest do
     )
   end
 
-  test "bhv retries 014 bhv retries 004 a per-call max_retries replaces the transport's for that call only" do
+  test "bhv retries 014 a per-call max_retries of 0 disables the retries the transport allows" do
     state = retry_state([{500, [{"retry-after", "0"}]}])
 
     assert {:error, _} = get_thing_with(state, max_retries: 0)
     assert length(attempts()) == 1
+  end
+
+  test "bhv retries 004 a per-call max_retries replaces the transport's for that call only" do
+    state = retry_state([{500, [{"retry-after", "0"}]}])
 
     assert {:error, _} = get_thing_with(state, max_retries: 3)
     assert length(attempts()) == 4
@@ -3066,15 +3115,19 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert {:ok, %PetstoreClient.Models.Tag{}} = decode_as(return_type, 201)
   end
 
-  test "bhv retries 022 bhv retries 023 bhv retries 007 the retry policy: statuses, backoff and Retry-After" do
-    for status <- [408, 409, 429, 500, 502, 503, 599] do
-      assert PetstoreClient.Api.BaseApi.retryable_status?(status)
-    end
-
+  test "bhv retries 007 a status outside the retry set is not replayed" do
     for status <- [200, 301, 400, 401, 404, 422, 501, 600] do
       refute PetstoreClient.Api.BaseApi.retryable_status?(status)
     end
+  end
 
+  test "the retryable statuses are 408, 409, 429 and 5xx other than 501" do
+    for status <- [408, 409, 429, 500, 502, 503, 599] do
+      assert PetstoreClient.Api.BaseApi.retryable_status?(status)
+    end
+  end
+
+  test "backoff doubles to 8 seconds, and a Retry-After in seconds is read" do
     # 0.5 s doubling to 8 s, less up to 25% jitter.
     assert Enum.map(1..6, &PetstoreClient.Api.BaseApi.backoff_delay(&1, 0.0)) ==
              [500, 1_000, 2_000, 4_000, 8_000, 8_000]
@@ -3087,12 +3140,24 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert retry_after.(%{"retry-after" => "5"}) == 5_000
     assert retry_after.(%{"Retry-After" => " 0 "}) == 0
-    assert retry_after.(%{"retry-after" => "120"}) == 60_000
-    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 08:49:37 GMT"}) == 37_000
-    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 08:48:00 GMT"}) == 0
-    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 18:49:37 GMT"}) == 60_000
     assert retry_after.(%{"retry-after" => "soon"}) == nil
     assert retry_after.(%{"x-other" => "1"}) == nil
     assert retry_after.(nil) == nil
+  end
+
+  test "bhv retries 022 Retry-After as an HTTP date is honoured" do
+    now = ~U[1994-11-06 08:49:00Z]
+    retry_after = &PetstoreClient.Api.BaseApi.retry_after_ms(&1, now)
+
+    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 08:49:37 GMT"}) == 37_000
+    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 08:48:00 GMT"}) == 0
+  end
+
+  test "bhv retries 023 Retry-After is capped at 60 seconds" do
+    now = ~U[1994-11-06 08:49:00Z]
+    retry_after = &PetstoreClient.Api.BaseApi.retry_after_ms(&1, now)
+
+    assert retry_after.(%{"retry-after" => "120"}) == 60_000
+    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 18:49:37 GMT"}) == 60_000
   end
 end

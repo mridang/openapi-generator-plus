@@ -832,7 +832,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     "http://127.0.0.1:#{port}"
   end
 
-  test "bhv redirects 013 3.1: keeps Authorization and Cookie on a same-origin redirect" do
+  test "bhv redirects 013 keeps Authorization and Cookie on a same-origin redirect" do
     base_url = start_same_origin_redirect_server()
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -906,7 +906,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
            "API-key header #{api_key_header} leaked on cross-origin redirect"
   end
 
-  test "bhv retries 017 3.3: downgrade? predicate flags HTTPS->HTTP only" do
+  test "the downgrade? predicate flags HTTPS to HTTP only" do
     # Direct unit test against the predicate. TLS endpoints aren't practical
     # to stand up in a hermetic unit test, so we drive the predicate that
     # the redirect loop uses to make the abort decision.
@@ -937,21 +937,39 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
            )
   end
 
-  test "bhv retries 011 3.3: body replay is refused only for a real body on a 307/308 downgrade" do
+  test "bhv retries 011 a 308 from HTTPS to HTTP refuses the replay of a real body" do
+    https = "https://api.example.com/x"
+    http = "http://api.example.com/y"
+
+    assert PetstoreClient.DefaultApiClient.refuse_body_replay?(308, https, http, ~s({"a":1}))
+
+    # No body to leak: the empty string is sent to force Content-Length: 0.
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(308, https, http, "")
+
+    # A 302 drops the body, so there is nothing to refuse.
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(302, https, http, "x")
+  end
+
+  test "bhv retries 017 a 307 from HTTPS to HTTP refuses the replay of a real body" do
     https = "https://api.example.com/x"
     http = "http://api.example.com/y"
 
     assert PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, ~s({"a":1}))
-    assert PetstoreClient.DefaultApiClient.refuse_body_replay?(308, https, http, ~s({"a":1}))
 
     # No body to leak: absent, or the empty string sent to force Content-Length: 0.
     refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, nil)
     refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, "")
-    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(308, https, http, "")
+  end
 
-    # The body is dropped on these statuses, and https->https is no downgrade.
-    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(302, https, http, "x")
-    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, https, "x")
+  test "bhv retries 016 HTTPS to HTTPS is no downgrade, so a 307 body is not refused" do
+    https = "https://api.example.com/x"
+
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(
+             307,
+             https,
+             "https://api.example.com/y",
+             ~s({"a":1})
+           )
   end
 
   test "decode_text_body honours a little-endian BOM on a bare utf-16 label" do
@@ -987,7 +1005,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
-  test "bhv retries 016 3.3: HTTP->HTTP 307 replay is permitted (no downgrade)" do
+  test "a 307 over plain HTTP replays the body to the target" do
     # Sanity check: the guard is strictly HTTPS->HTTP. Pure-HTTP 307 chains
     # must continue to round-trip the body untouched.
     {target_url, _} = start_header_capture_server()
@@ -1438,7 +1456,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute Keyword.has_key?(opts, :finch)
   end
 
-  test "bhv redirects 015 3.2: send_request/6 with no_redirect: true returns the raw 302 response" do
+  test "bhv redirects 015 send_request/6 with no_redirect: true returns the raw 302 response" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
 
@@ -1459,7 +1477,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute_receive {:captured_headers, _}, 200
   end
 
-  test "bhv redirects 022 3.2: send_request/6 with no_redirect: true returns the raw 308 response" do
+  test "bhv redirects 022 send_request/6 with no_redirect: true returns the raw 308 response" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(308, "#{target_url}/echo")
 
@@ -1479,7 +1497,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute_receive {:captured_headers, _}, 200
   end
 
-  test "bhv redirects 014 3.2: no_redirect: false follows the redirect to completion" do
+  test "bhv redirects 014 no_redirect: false follows the redirect to completion" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(307, "#{target_url}/echo")
 
