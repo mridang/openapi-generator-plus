@@ -75,3 +75,5 @@ go | options027 | Go builds TransportOptions only through NewTransportOptionsBui
 go | operations111 | The trackingId parameter is typed uuid.UUID, so a malformed value cannot be passed to GetOrderByTrackingId; a malformed wire value is refused by the decoder
 go | transport031 | net/http has one client Timeout covering connect, headers and body and no connect-only deadline, so the one deadline is the one bhv transport 058 tests
 go | serializationobject164 | Go maps format time to string (typeMapping time to string), so there is no time-of-day type or HH:mm:ss formatter to test
+rust | serializationobject009 | Rust types a list of byte arrays (Vec<Vec<u8>>) and a map of byte arrays (HashMap<String, Vec<u8>>) as different types with no equality between them, so they cannot be compared for equality at all
+rust | unions011 | rust models derive PartialEq but never Hash, and a member model can hold a format: number field (f64, D83) which has no Eq or Hash, so a matching hash cannot be derived for every anyOf wrapper
