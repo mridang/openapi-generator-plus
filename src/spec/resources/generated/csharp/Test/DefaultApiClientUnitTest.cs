@@ -906,7 +906,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallerSuppliedStreamsAreLeftOpen()
+    public async Task BhvTransport061CallerSuppliedStreamsAreLeftOpen()
     {
         var handler = new CapturingHandler(async req =>
         {
@@ -1276,7 +1276,7 @@ public class DefaultApiClientUnitTest
     [InlineData("http://origin.example.com/start", "http://origin.example.com:80/landed")]
     [InlineData("https://origin.example.com/start", "https://origin.example.com:443/landed")]
     [InlineData("http://origin.example.com:80/start", "http://origin.example.com/landed")]
-    public async Task RedirectToExplicitDefaultPortPreservesAuthorization(
+    public async Task BhvRedirects037RedirectToExplicitDefaultPortPreservesAuthorization(
         string start,
         string landed
     )
@@ -1864,7 +1864,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task AnIntermediateRedirectResponseIsReleasedWhenTheRedirectIsRefused()
+    public async Task BhvTransport064AnIntermediateRedirectResponseIsReleasedWhenTheRedirectIsRefused()
     {
         var handler = new ReleaseTrackingRedirectHandler([
             (HttpStatusCode.Redirect, new Uri("ftp://origin.example.com/next")),
@@ -3471,6 +3471,25 @@ public class DefaultApiClientUnitTest
         await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
             SendWithCallOptions(client, 50, null)
         );
+    }
+
+    [Fact]
+    public async Task BhvRetries042ATimeoutIsNotRetried()
+    {
+        /* A timeout raised by the transport carries a TimeoutException inside the
+           cancellation. It must surface as NetworkTimeoutException after one request. */
+        var handler = new SequenceHandler(_ =>
+            throw new TaskCanceledException("timed out", new TimeoutException())
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(3).Build()
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
+            SendGet(client)
+        );
+        Assert.Single(handler.Requests);
     }
 
     [Fact]

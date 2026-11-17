@@ -67,6 +67,53 @@ public class ComposedSchemaTest
     }
 
     [Theory]
+    [InlineData("{\"foodType\":\"raw\",\"calories\":300}")]
+    [InlineData("{\"weightKg\":2.5}")]
+    [InlineData("{\"foodType\":\"\",\"weightKg\":2.5}")]
+    public void BhvUnions033AnUnknownMissingOrEmptyDiscriminatorFailsWithTheSerializationError(
+        string json
+    )
+    {
+        _ = Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
+    public void BhvUnions035ADiscriminatorValueNotListedInTheMappingFailsToDeserialize()
+    {
+        var json = "{\"foodType\":\"semi-moist\",\"weightKg\":2.5}";
+        _ = Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
+    public void BhvUnions030ASubtypeWhoseDiscriminatorKeyIsAbsentIsFilledWithTheMappingDefault()
+    {
+        var food = _serializer.Deserialize<DryFood>("{\"weightKg\":2.5}");
+
+        Assert.NotNull(food);
+        Assert.Equal("dry", food!.FoodType);
+    }
+
+    [Fact]
+    public void BhvUnions032AVariantHeldAsAOneOfSerializesWithItsDiscriminator()
+    {
+        PetFood food = new DryFood(2.5);
+
+        Assert.IsType<DryFood>(food);
+        var serialized = _serializer.Serialize(food);
+        using var document = System.Text.Json.JsonDocument.Parse(serialized);
+        Assert.Equal("dry", document.RootElement.GetProperty("foodType").GetString());
+    }
+
+    [Fact]
+    public void BhvUnions034AHeldVariantIsReturnedByItsTypedAccessorAndTheOtherVariantIsNull()
+    {
+        PetFood food = new DryFood(2.5);
+
+        Assert.NotNull(food as DryFood);
+        Assert.Null(food as WetFood);
+    }
+
+    [Theory]
     [InlineData("1", "Number")]
     [InlineData("true", "True")]
     [InlineData("{\"a\":1}", "Object")]
@@ -431,7 +478,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void OneOfWrappersHaveValueEquality()
+    public void BhvUnions029OneOfWrappersHaveValueEquality()
     {
         var left = _serializer.Deserialize<SetPetAvatarThumbnailRequest>("\"AQIDBA==\"")!;
         var right = _serializer.Deserialize<SetPetAvatarThumbnailRequest>("\"AQIDBA==\"")!;

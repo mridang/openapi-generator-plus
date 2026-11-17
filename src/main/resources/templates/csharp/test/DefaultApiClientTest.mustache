@@ -58,6 +58,30 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task BhvTransport062WithVerifySslFalseACertificateThatDoesNotNameTheAddressIsAccepted()
+    {
+        /* Reach the mock server by an IP address, which its certificate does not
+           name, so the host name check would fail if it ran. */
+        var httpsUri = new Uri(_fixture.HttpsBaseUrl);
+        var addresses = await Dns.GetHostAddressesAsync(httpsUri.Host);
+        var address = addresses[0].AddressFamily == AddressFamily.InterNetworkV6
+            ? "[" + addresses[0] + "]"
+            : addresses[0].ToString();
+        var transport = TransportOptions.Builder().VerifySsl(false).Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://" + address + ":" + httpsUri.Port + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BhvTransport022RepeatedResponseHeadersArriveJoinedInOrderUnderTheirLowerCasedNames()
     {
         var client = new DefaultApiClient();
@@ -146,6 +170,45 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport066ACaBundleFileTrustsEveryCertificateInIt()
+    {
+        /* The bundle holds an unrelated CA first and the CA that signed the
+           mock server second. Only the second one can anchor the server's chain,
+           so a bundle that kept only its first certificate would refuse this. */
+        using var unrelatedKey = RSA.Create(2048);
+        var unrelatedRequest = new CertificateRequest(
+            "CN=unrelated-bundle-ca", unrelatedKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        unrelatedRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        using var unrelated = unrelatedRequest.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+        var caPem = File.ReadAllText(
+            Path.Combine(Directory.GetCurrentDirectory(), "Test", "Resources", "certs", "ca.pem"));
+        var bundlePath = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(bundlePath, unrelated.ExportCertificatePem() + caPem);
+            var transport = TransportOptions.Builder()
+                .VerifySsl(true)
+                .CaCertPath(bundlePath)
+                .Build();
+
+            var client = new DefaultApiClient(transport);
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            );
+
+            Assert.Equal(200, response.StatusCode);
+        }
+        finally
+        {
+            File.Delete(bundlePath);
+        }
     }
 
     [Fact]
@@ -386,7 +449,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CancellingTheCallTokenAbortsTheSlowEndpoint()
+    public async Task BhvTransport060CancellingTheCallTokenAbortsTheSlowEndpoint()
     {
         var client = new DefaultApiClient(TransportOptions.Builder().Timeout(30000).Build());
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
