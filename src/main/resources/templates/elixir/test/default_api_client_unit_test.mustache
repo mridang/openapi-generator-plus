@@ -1412,7 +1412,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
 
     # A NEGATIVE duration must serialize with a leading minus and round-trip
     # back to the same signed total — the protobuf-JSON grammar allows `-?`.
-    test "negative duration round-trips with a leading minus sign" do
+    test "bhv serializationobject 105 negative duration carries the sign and round-trips" do
       d = Duration.new!(second: -90)
       pb = {{moduleName}}.ObjectSerializer.stringify(d)
       assert pb == "-90s"
