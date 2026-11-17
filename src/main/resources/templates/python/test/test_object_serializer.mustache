@@ -636,10 +636,17 @@ class TestSerialize:
 
 
 class TestUuidRoundtrip:
-    def test_bhv_serializationobject_148_bhv_serializationobject_175_serializes_uuid_to_string(self) -> None:
+    def test_bhv_serializationobject_148_serializes_uuid_to_string(self) -> None:
         import uuid
         u = uuid.UUID('12345678-1234-5678-1234-567812345678')
         assert ObjectSerializer.stringify(u) == '12345678-1234-5678-1234-567812345678'
+
+    def test_bhv_serializationobject_175_uuid_returns_string_representation(self) -> None:
+        import uuid
+        u = uuid.UUID('550e8400-e29b-41d4-a716-446655440000')
+        result = ObjectSerializer.stringify(u)
+        assert isinstance(result, str)
+        assert result == '550e8400-e29b-41d4-a716-446655440000'
 
     def test_bhv_serializationobject_065_deserializes_uuid_string(self) -> None:
         import uuid
