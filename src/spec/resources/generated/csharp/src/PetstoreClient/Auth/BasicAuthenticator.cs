@@ -70,8 +70,8 @@ public class BasicAuthenticator : BaseAuthenticator
             }
         }
         _host = host;
-        _username = username ?? string.Empty;
-        _password = password ?? string.Empty;
+        _username = username;
+        _password = password;
     }
 
     /// <inheritdoc/>
