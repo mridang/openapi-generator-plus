@@ -618,16 +618,17 @@ namespace PetstoreClient\Models {
      * A stand-in model for the parameter-style tests: declared here rather than taken from the
      * generated models so the tests hold for every spec this SDK is generated from.
      */
-    final class SerializerProbe implements \JsonSerializable
+    final class SerializerProbe
     {
-        public function __construct(public readonly string $breed, public readonly int $minAge)
-        {
-        }
+        public readonly string $breed;
 
-        /** @return array<string, string|int> */
-        public function jsonSerialize(): array
+        #[\Symfony\Component\Serializer\Attribute\SerializedName('min_age')]
+        public readonly int $minAge;
+
+        public function __construct(string $breed, int $minAge)
         {
-            return ['breed' => $this->breed, 'min_age' => $this->minAge];
+            $this->breed = $breed;
+            $this->minAge = $minAge;
         }
     }
 }
