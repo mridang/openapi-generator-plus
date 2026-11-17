@@ -57,7 +57,7 @@ fn test_bhv_models_011_metadata_round_trip() {
 }
 
 #[test]
-fn test_metadata_additional_properties_round_trip_preserves_free_form_json() {
+fn test_bhv_models_001_metadata_additional_properties_round_trip_preserves_free_form_json() {
     /* FIX 3 (no serde_json in public fields): `additional_properties` is a
      * HashMap<String, JsonValue> where JsonValue is the SDK-owned wrapper.
      * Free-form JSON in unknown fields must round-trip losslessly. */
@@ -365,4 +365,15 @@ fn test_bhv_models_010_metadata_declared_property_wins_over_a_colliding_addition
     let data = serde_json::to_string(&metadata).expect("failed to serialize Metadata");
 
     assert_eq!(data, r#"{"createdAt":"2024-01-15T10:30:00.000+00:00"}"#);
+}
+
+/// The crate header (the `//!` lines of lib.rs) prints the info description with
+/// its quotes as written, never with a backslash before each one.
+#[test]
+fn test_bhv_models_006_file_header_prints_the_info_description_without_escaped_quotes() {
+    let lib = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs"))
+        .expect("failed to read src/lib.rs");
+    let header: Vec<&str> = lib.lines().filter(|line| line.starts_with("//!")).collect();
+    assert!(header.iter().any(|line| line.contains("\"quoted\" text")), "{:?}", header);
+    assert!(!header.iter().any(|line| line.contains("\\\"")), "{:?}", header);
 }
