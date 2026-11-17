@@ -63,14 +63,14 @@ mod {{module}} {
     }
 
     #[test]
-    fn test_explicit_arguments_need_no_environment() {
+    fn test_bhv_authscheme_002_explicit_arguments_need_no_environment() {
         with_variables(&unset_all(), || {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
         });
     }
 
     #[test]
-    fn test_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
             assert!(text.contains("{{firstEnvName}}"), "{}", text);

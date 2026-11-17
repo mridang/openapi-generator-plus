@@ -37,7 +37,7 @@ fn server_with_vars() -> ServerConfiguration {
 }
 
 #[test]
-fn test_url_substitutes_overrides() {
+fn test_bhv_servers_010_url_substitutes_overrides() {
     let server = server_with_vars();
 
     let mut overrides = HashMap::new();
@@ -48,7 +48,7 @@ fn test_url_substitutes_overrides() {
 }
 
 #[test]
-fn test_url_uses_defaults_when_no_overrides() {
+fn test_bhv_servers_009_url_uses_defaults_when_no_overrides() {
     let server = server_with_vars();
 
     let url = server.url(&HashMap::new()).expect("defaults resolve");
@@ -56,7 +56,7 @@ fn test_url_uses_defaults_when_no_overrides() {
 }
 
 #[test]
-fn test_url_rejects_value_outside_enum() {
+fn test_bhv_servers_008_url_rejects_value_outside_enum() {
     let server = server_with_vars();
 
     let mut overrides = HashMap::new();
@@ -84,7 +84,7 @@ fn test_server_configuration_accessors() {
 }
 
 #[test]
-fn test_unconstrained_variable_accepts_any_override() {
+fn test_bhv_servers_003_unconstrained_variable_accepts_any_override() {
     let mut variables = HashMap::new();
     variables.insert(
         "tenant".to_string(),
@@ -106,7 +106,8 @@ fn test_unconstrained_variable_accepts_any_override() {
 }
 
 #[test]
-fn test_url_rejection_message_names_the_value_the_variable_and_the_allowed_values() {
+fn test_bhv_servers_012_url_rejection_message_names_the_value_the_variable_and_the_allowed_values()
+{
     let server = server_with_vars();
 
     let mut overrides = HashMap::new();
@@ -122,7 +123,7 @@ fn test_url_rejection_message_names_the_value_the_variable_and_the_allowed_value
 }
 
 #[test]
-fn test_default_outside_the_enum_is_rejected() {
+fn test_bhv_servers_004_default_outside_the_enum_is_rejected() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
@@ -148,7 +149,7 @@ fn test_default_outside_the_enum_is_rejected() {
 }
 
 #[test]
-fn test_template_without_variables_is_returned_unchanged() {
+fn test_bhv_servers_011_template_without_variables_is_returned_unchanged() {
     let server = ServerConfiguration::new(
         "https://api.example.com/v1".to_string(),
         "Fixed server".to_string(),
@@ -212,7 +213,7 @@ fn test_url_substitutes_every_occurrence_and_keeps_unknown_placeholders() {
 /// F1124: the third global server keeps its hostile text unchanged: the
 /// description, the variable default and description, and the enum values.
 #[test]
-fn test_the_third_global_server_keeps_its_hostile_text_unchanged() {
+fn test_bhv_servers_013_the_third_global_server_keeps_its_hostile_text_unchanged() {
     let server = petstore::servers::server_2();
 
     assert_eq!("https://{tenant}.example.com/api", server.url_template());

@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_select_headers_with_single_accept() {
+    fn test_bhv_headers_023_header_selector_select_headers_with_single_accept() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_select_headers_with_multiple_accepts() {
+    fn test_bhv_headers_024_header_selector_select_headers_with_multiple_accepts() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_select_headers_with_empty_accepts() {
+    fn test_bhv_headers_004_header_selector_select_headers_with_empty_accepts() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(&[], "application/json", false);
@@ -153,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_multipart_omits_content_type() {
+    fn test_bhv_headers_007_header_selector_multipart_omits_content_type() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
@@ -169,7 +169,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_default_content_type() {
+    fn test_bhv_headers_001_header_selector_default_content_type() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(&["application/json"], "", false);
@@ -178,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_joins_in_declaration_order() {
+    fn test_bhv_headers_011_header_selector_joins_in_declaration_order() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
@@ -194,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_single_element() {
+    fn test_bhv_headers_017_header_selector_single_element() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(&["application/json"], "application/json", false);
@@ -203,7 +203,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_does_not_reorder_or_weight() {
+    fn test_bhv_headers_003_header_selector_does_not_reorder_or_weight() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
@@ -219,14 +219,14 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_is_json_mime_case_insensitive() {
+    fn test_bhv_headers_021_header_selector_is_json_mime_case_insensitive() {
         let hs = HeaderSelector::new();
 
         assert!(hs.is_json_mime("APPLICATION/JSON"));
     }
 
     #[test]
-    fn test_header_selector_single_non_json_accept_as_is() {
+    fn test_bhv_headers_018_header_selector_single_non_json_accept_as_is() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(&["text/html"], "application/json", false);
@@ -244,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_filters_out_empty_entries() {
+    fn test_bhv_headers_010_header_selector_filters_out_empty_entries() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
@@ -260,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_drops_whitespace_only_entries() {
+    fn test_bhv_headers_008_header_selector_drops_whitespace_only_entries() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(&["   ", "application/json"], "application/json", false);
@@ -269,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_all_empty_omits_accept() {
+    fn test_bhv_headers_006_header_selector_all_empty_omits_accept() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(&["", ""], "application/json", false);

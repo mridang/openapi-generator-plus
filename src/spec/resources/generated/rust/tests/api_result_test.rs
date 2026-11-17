@@ -18,7 +18,7 @@ fn sample_headers() -> HashMap<String, String> {
 }
 
 #[test]
-fn test_exposes_status_code() {
+fn test_bhv_results_003_exposes_status_code() {
     let result: ApiResult<String> = ApiResult::new(
         200,
         Some("ok".to_string()),
@@ -40,7 +40,7 @@ fn test_exposes_data() {
 }
 
 #[test]
-fn test_data_is_none_for_no_content() {
+fn test_bhv_results_001_data_is_none_for_no_content() {
     let result: ApiResult<String> = ApiResult::new(204, None, String::new(), HashMap::new());
     assert!(result.data().is_none());
 }
@@ -68,7 +68,7 @@ fn test_exposes_raw_body() {
 }
 
 #[test]
-fn test_exposes_headers() {
+fn test_bhv_results_002_exposes_headers() {
     let result: ApiResult<String> = ApiResult::new(
         200,
         Some("ok".to_string()),

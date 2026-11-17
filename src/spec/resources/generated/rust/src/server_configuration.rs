@@ -200,7 +200,7 @@ mod tests {
      * variable's placeholder in the template is still substituted, in either
      * order of the values. */
     #[test]
-    fn test_a_value_that_carries_a_placeholder_is_not_expanded_again() {
+    fn test_bhv_servers_005_a_value_that_carries_a_placeholder_is_not_expanded_again() {
         let template = "https://{region}.example.com/{channel}/v1";
         for values in [
             [("region", "{channel}"), ("channel", "stable")],
@@ -214,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn test_an_unknown_placeholder_and_a_stray_brace_stay_as_written() {
+    fn test_bhv_servers_007_an_unknown_placeholder_and_a_stray_brace_stay_as_written() {
         assert_eq!(
             "https://a.example.com/{other}/{ x/{",
             expand_placeholders("https://{host}.example.com/{other}/{ x/{", &[("host", "a")])

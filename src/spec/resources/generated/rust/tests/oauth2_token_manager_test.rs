@@ -145,7 +145,7 @@ fn pairs_of(expected: &[(&str, &str)]) -> Vec<(String, String)> {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_extracts_access_token_from_response() {
+async fn test_bhv_authoauthtwotokenmgr_014_extracts_access_token_from_response() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok123","expires_in":3600}"#, 200);
 
@@ -164,7 +164,7 @@ async fn test_extracts_access_token_from_response() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_stores_refresh_token() {
+async fn test_bhv_authoauthtwotokenmgr_028_stores_refresh_token() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
@@ -186,7 +186,7 @@ async fn test_stores_refresh_token() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_returns_cached_token_when_not_expired() {
+async fn test_bhv_authoauthtwotokenmgr_025_returns_cached_token_when_not_expired() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
 
@@ -210,7 +210,7 @@ async fn test_returns_cached_token_when_not_expired() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refetches_token_when_expired() {
+async fn test_bhv_authoauthtwotokenmgr_021_refetches_token_when_expired() {
     let client = Arc::new(FakeApiClient::new());
     // First token with a zero lifetime (stale at once, so the next call refetches)
     client.enqueue(r#"{"access_token":"tok1","expires_in":0}"#, 200);
@@ -236,7 +236,7 @@ async fn test_refetches_token_when_expired() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_set_access_token_bypasses_endpoint() {
+async fn test_bhv_authoauthtwotokenmgr_026_set_access_token_bypasses_endpoint() {
     let manager = OAuth2TokenManager::new();
     manager.set_access_token("manual-token").await;
 
@@ -251,7 +251,7 @@ async fn test_set_access_token_bypasses_endpoint() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_invalidate_access_token_forces_refetch() {
+async fn test_bhv_authoauthtwotokenmgr_018_invalidate_access_token_forces_refetch() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
     client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
@@ -279,7 +279,7 @@ async fn test_invalidate_access_token_forces_refetch() {
 /// A token requested before the ApiClient is injected is a wrong call order:
 /// `ConfigurationError::InvalidState`, never a panic.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_throws_when_no_api_client_injected() {
+async fn test_bhv_authoauthtwotokenmgr_030_throws_when_no_api_client_injected() {
     let manager = OAuth2TokenManager::new();
 
     let mut params = HashMap::new();
@@ -305,7 +305,7 @@ async fn test_throws_when_no_api_client_injected() {
 /// non-2xx answer an `OAuth2ServerError`, and a transport failure passes
 /// through as the `NetworkError` / `NetworkTimeoutError` it already is.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_endpoint_failures_are_typed() {
+async fn test_bhv_authoauthtwotokenmgr_037_token_endpoint_failures_are_typed() {
     let mut params = HashMap::new();
     params.insert("grant_type".to_string(), "client_credentials".to_string());
 
@@ -423,7 +423,7 @@ impl ApiClient for CountingApiClient {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_concurrent_refresh_is_single_flight() {
+async fn test_bhv_authoauthtwotokenmgr_027_concurrent_refresh_is_single_flight() {
     let client = Arc::new(CountingApiClient::new(
         r#"{"access_token":"single-flight","expires_in":3600}"#,
         100,
@@ -458,7 +458,7 @@ async fn test_concurrent_refresh_is_single_flight() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_expires_in_short_lived_token_does_not_storm() {
+async fn test_bhv_authoauthtwotokenmgr_013_expires_in_short_lived_token_does_not_storm() {
     // Gap CM: a short-lived token (expires_in < buffer) must produce exactly
     // ONE network call from a single get_access_token invocation.
     let client = Arc::new(FakeApiClient::new());
@@ -484,7 +484,7 @@ async fn test_expires_in_short_lived_token_does_not_storm() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_expires_in_long_lived_token_applies_full_buffer() {
+async fn test_bhv_authoauthtwotokenmgr_010_expires_in_long_lived_token_applies_full_buffer() {
     // Gap CM: long-lived token gets the capped margin; second call uses cache.
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"long","expires_in":3600}"#, 200);
@@ -545,7 +545,7 @@ async fn test_expires_in_within_the_old_stacked_margins_is_still_cached() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_token_empty_string_preserves_existing() {
+async fn test_bhv_authoauthtwotokenmgr_024_refresh_token_empty_string_preserves_existing() {
     // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
     // MUST NOT clobber the cached refresh_token.
     let client = Arc::new(FakeApiClient::new());
@@ -584,7 +584,7 @@ async fn test_refresh_token_empty_string_preserves_existing() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_expires_in_as_json_string_is_accepted() {
+async fn test_bhv_authoauthtwotokenmgr_009_expires_in_as_json_string_is_accepted() {
     // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
     // quoted string. The manager must accept it and cache the token; a
     // second call within the buffer window must serve from cache.
@@ -613,7 +613,7 @@ async fn test_expires_in_as_json_string_is_accepted() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_expires_in_as_float_is_floored() {
+async fn test_bhv_authoauthtwotokenmgr_008_expires_in_as_float_is_floored() {
     // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
     // The manager must floor it and cache the token.
     let client = Arc::new(FakeApiClient::new());
@@ -639,7 +639,7 @@ async fn test_expires_in_as_float_is_floored() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_expires_in_negative_skips_caching() {
+async fn test_bhv_authoauthtwotokenmgr_011_expires_in_negative_skips_caching() {
     // D1: a negative expires_in (e.g. -1) must mark the token as
     // immediately stale so the very next call refetches.
     let client = Arc::new(FakeApiClient::new());
@@ -666,7 +666,7 @@ async fn test_expires_in_negative_skips_caching() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_expires_in_huge_number_is_clamped_not_a_panic() {
+async fn test_bhv_authoauthtwotokenmgr_005_expires_in_huge_number_is_clamped_not_a_panic() {
     // A server-supplied lifetime beyond what Instant arithmetic can add must
     // be clamped, not overflow; the token is then cached for the clamped span.
     let client = Arc::new(FakeApiClient::new());
@@ -722,7 +722,7 @@ async fn test_expires_in_huge_string_is_clamped_not_a_panic() {
 /// from the IdP cannot replay the credentialed body (client_secret /
 /// refresh_token / authorization code) to an attacker-chosen URL.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_post_uses_no_redirect() {
+async fn test_bhv_authoauthtwotokenmgr_034_token_post_uses_no_redirect() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok","expires_in":3600}"#, 200);
 
@@ -753,7 +753,7 @@ async fn test_token_post_uses_no_redirect() {
 /// to the redirect target. Like any non-2xx answer, the refusal is an
 /// OAuth2ServerError carrying that status.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_endpoint_redirect_is_rejected() {
+async fn test_bhv_authoauthtwotokenmgr_033_token_endpoint_redirect_is_rejected() {
     for status in [301u16, 302, 303, 307, 308] {
         let client = Arc::new(FakeApiClient::new());
         client.enqueue("", status);
@@ -777,7 +777,7 @@ async fn test_token_endpoint_redirect_is_rejected() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_throws_when_token_request_fails() {
+async fn test_bhv_authoauthtwotokenmgr_031_throws_when_token_request_fails() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"error":"invalid_client"}"#, 401);
 
@@ -799,7 +799,8 @@ async fn test_throws_when_token_request_fails() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_response_missing_access_token_throws_typed_error() {
+async fn test_bhv_authoauthtwotokenmgr_036_token_response_missing_access_token_throws_typed_error()
+{
     // A 2xx response whose body omits access_token must surface as the typed
     // OAuth2TokenError, not silently cache an empty token.
     let client = Arc::new(FakeApiClient::new());
@@ -828,7 +829,7 @@ async fn test_token_response_missing_access_token_throws_typed_error() {
  * sent as `Authorization: Bearer`; an absent, null or any-case "bearer" type is
  * accepted. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_a_token_type_other_than_bearer_is_refused() {
+async fn test_bhv_authoauthtwotokenmgr_038_a_token_type_other_than_bearer_is_refused() {
     for (token_type, accepted) in [
         (r#""token_type":"Bearer","#, true),
         (r#""token_type":"bEaReR","#, true),
@@ -880,7 +881,8 @@ async fn test_a_token_type_other_than_bearer_is_refused() {
 /* D07 (F926, F1105): a 2xx token body the SDK cannot use is an
  * OAuth2TokenError with the canonical text, no parser detail and no cause. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_unusable_token_response_bodies_use_the_canonical_messages() {
+async fn test_bhv_authoauthtwotokenmgr_040_unusable_token_response_bodies_use_the_canonical_messages(
+) {
     for (body, expected) in [
         ("not json", "Token response is not valid JSON"),
         ("", "Token response is not valid JSON"),
@@ -917,7 +919,7 @@ async fn test_unusable_token_response_bodies_use_the_canonical_messages() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_endpoint_error_response_parsed_to_typed_error() {
+async fn test_bhv_authoauthtwotokenmgr_032_token_endpoint_error_response_parsed_to_typed_error() {
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
     // typed OAuth2ServerError carrying code/description/uri.
     let client = Arc::new(FakeApiClient::new());
@@ -949,7 +951,7 @@ async fn test_token_endpoint_error_response_parsed_to_typed_error() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_invalidate_triggers_single_refetch_under_concurrency() {
+async fn test_bhv_authoauthtwotokenmgr_019_invalidate_triggers_single_refetch_under_concurrency() {
     // After invalidation, 10 concurrent callers must coalesce into exactly ONE
     // additional token request (single-flight), all observing the refreshed
     // token. The manager holds its inner mutex across the network call so only
@@ -1024,7 +1026,8 @@ fn authorization_code_params() -> HashMap<String, String> {
 /// A stale token is renewed with the refresh grant: the cached refresh token
 /// plus the client credentials, and nothing of the original grant.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_request_carries_the_refresh_token_and_the_client_credentials() {
+async fn test_bhv_authoauthtwotokenmgr_022_refresh_request_carries_the_refresh_token_and_the_client_credentials(
+) {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#,
@@ -1071,7 +1074,7 @@ async fn test_refresh_request_carries_the_refresh_token_and_the_client_credentia
 /// grant instead of surfacing the refresh failure, and keeps the new refresh
 /// token that grant returns.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_failed_refresh_falls_back_to_the_original_grant() {
+async fn test_bhv_authoauthtwotokenmgr_016_failed_refresh_falls_back_to_the_original_grant() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#,
@@ -1142,7 +1145,7 @@ async fn test_refresh_transport_failure_falls_back_to_the_original_grant() {
 /// A token response without `expires_in` is cached indefinitely: the second
 /// call makes no second request.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_without_expires_in_is_cached_indefinitely() {
+async fn test_bhv_authoauthtwotokenmgr_039_token_without_expires_in_is_cached_indefinitely() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"forever"}"#, 200);
     let manager = OAuth2TokenManager::new();
@@ -1166,7 +1169,7 @@ async fn test_token_without_expires_in_is_cached_indefinitely() {
 /// first fetch and the exchange do, so the next call reuses it instead of
 /// running another refresh grant (F1045).
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_without_expires_in_clears_the_stale_expiry() {
+async fn test_bhv_authoauthtwotokenmgr_003_refresh_without_expires_in_clears_the_stale_expiry() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"t1","refresh_token":"ref1","expires_in":0}"#,
@@ -1196,7 +1199,7 @@ async fn test_refresh_without_expires_in_clears_the_stale_expiry() {
 
 /// A `refresh_token` that is not a string is ignored rather than coerced.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_non_string_refresh_token_is_ignored() {
+async fn test_bhv_authoauthtwotokenmgr_020_non_string_refresh_token_is_ignored() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"t1","refresh_token":12345,"expires_in":3600}"#,
@@ -1249,7 +1252,8 @@ async fn test_token_body_percent_encodes_everything_but_the_unreserved_set() {
 /// The internal refresh goes to the refresh URL when one is given; the
 /// fallback to the original grant goes to the token URL.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_goes_to_the_refresh_url_and_the_fallback_to_the_token_url() {
+async fn test_bhv_authoauthtwotokenmgr_029_refresh_goes_to_the_refresh_url_and_the_fallback_to_the_token_url(
+) {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#,
@@ -1288,7 +1292,7 @@ async fn test_refresh_goes_to_the_refresh_url_and_the_fallback_to_the_token_url(
 /// Params that already are a refresh grant are POSTed once: no internal
 /// refresh attempt and no duplicate fallback.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_grant_params_are_sent_exactly_once() {
+async fn test_bhv_authoauthtwotokenmgr_023_refresh_grant_params_are_sent_exactly_once() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#,
@@ -1324,7 +1328,7 @@ async fn test_refresh_grant_params_are_sent_exactly_once() {
 /// `exchange` always POSTs, even with a valid cached token, replaces the whole
 /// session with the response, and marks the session exchanged.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_exchange_bypasses_the_cache_and_replaces_the_session() {
+async fn test_bhv_authoauthtwotokenmgr_006_exchange_bypasses_the_cache_and_replaces_the_session() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"one","refresh_token":"ref1","expires_in":3600}"#,
@@ -1354,7 +1358,7 @@ async fn test_exchange_bypasses_the_cache_and_replaces_the_session() {
 
 /// A failed `exchange` restores the previous session.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_failed_exchange_restores_the_previous_session() {
+async fn test_bhv_authoauthtwotokenmgr_015_failed_exchange_restores_the_previous_session() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"one","refresh_token":"ref1","expires_in":3600}"#,

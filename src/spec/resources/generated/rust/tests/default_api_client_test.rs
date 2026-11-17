@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use petstore::*;
 
 #[tokio::test]
-async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
+async fn test_bhv_transport_018_default_api_client_makes_https_request_with_verify_ssl_false() {
     let chasm_url = testcontainers_helper::chasm_https_url();
     let transport = TransportOptionsBuilder::new()
         .verify_ssl(false)
@@ -35,7 +35,7 @@ async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
+async fn test_bhv_transport_017_default_api_client_makes_https_request_with_custom_ca_cert() {
     let chasm_url = testcontainers_helper::chasm_https_url();
     let ca_cert = testcontainers_helper::ca_cert_path();
     let transport = TransportOptionsBuilder::new()
@@ -59,7 +59,7 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
  * refuse the handshake with a NetworkError (status 0), not return the response.
  * A transport that ignored `verify_ssl` would succeed here. */
 #[tokio::test]
-async fn test_default_api_client_rejects_an_untrusted_certificate_by_default() {
+async fn test_bhv_transport_023_default_api_client_rejects_an_untrusted_certificate_by_default() {
     let chasm_url = testcontainers_helper::chasm_https_url();
     let explicit = TransportOptionsBuilder::new()
         .verify_ssl(true)
@@ -90,7 +90,7 @@ async fn test_default_api_client_rejects_an_untrusted_certificate_by_default() {
  * handshake must be refused. An unreachable host fails the test rather than
  * skipping it, so the sole-anchor coverage never silently disappears. */
 #[tokio::test]
-async fn test_custom_ca_cert_replaces_the_system_trust_store() {
+async fn test_bhv_transport_025_custom_ca_cert_replaces_the_system_trust_store() {
     use std::net::ToSocketAddrs;
     let reachable = "example.com:443"
         .to_socket_addrs()
@@ -126,7 +126,7 @@ async fn test_custom_ca_cert_replaces_the_system_trust_store() {
 /* F1161: the mock's `/test/response-headers` answers with repeated Link and
  * Set-Cookie headers; they arrive joined, in order, under lower-cased names. */
 #[tokio::test]
-async fn test_default_api_client_joins_the_repeated_headers_the_mock_sends() {
+async fn test_bhv_transport_022_default_api_client_joins_the_repeated_headers_the_mock_sends() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let resp = DefaultApiClient::new(None)
         .send_request(
@@ -164,7 +164,7 @@ async fn test_default_api_client_joins_the_repeated_headers_the_mock_sends() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_makes_http_request_through_proxy() {
+async fn test_bhv_transport_015_default_api_client_makes_http_request_through_proxy() {
     let chasm_url = testcontainers_helper::chasm_internal_http_url();
     let proxy = testcontainers_helper::proxy_url();
     let transport = TransportOptionsBuilder::new()
@@ -187,7 +187,8 @@ async fn test_default_api_client_makes_http_request_through_proxy() {
 // credentials: without them it answers 407, with them it forwards the request
 // to the mock server.
 #[tokio::test]
-async fn test_default_api_client_proxy_with_credentials_injects_basic_authorization() {
+async fn test_bhv_transport_021_default_api_client_proxy_with_credentials_injects_basic_authorization(
+) {
     let chasm_url = testcontainers_helper::chasm_internal_http_url();
     let auth_proxy = testcontainers_helper::auth_proxy_url();
     let send = |proxy: String| async move {
@@ -223,7 +224,7 @@ async fn test_default_api_client_proxy_with_credentials_injects_basic_authorizat
 // userinfo). java was the buggy SDK; Rust is already correct, so this asserts
 // GREEN. Input matches the AUDIT.md canonical exactly.
 #[tokio::test]
-async fn test_proxy_url_with_userinfo_preserves_credentials() {
+async fn test_bhv_transport_020_proxy_url_with_userinfo_preserves_credentials() {
     use base64::{engine::general_purpose::STANDARD, Engine as _};
     use reqwest::Url;
 
@@ -258,7 +259,8 @@ async fn test_proxy_url_with_userinfo_preserves_credentials() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_makes_https_request_through_proxy_with_verify_ssl_false() {
+async fn test_bhv_transport_016_default_api_client_makes_https_request_through_proxy_with_verify_ssl_false(
+) {
     let chasm_url = testcontainers_helper::chasm_internal_https_url();
     let proxy = testcontainers_helper::proxy_url();
     let transport = TransportOptionsBuilder::new()
@@ -278,7 +280,7 @@ async fn test_default_api_client_makes_https_request_through_proxy_with_verify_s
 }
 
 #[tokio::test]
-async fn test_default_api_client_times_out_on_slow_endpoint() {
+async fn test_bhv_transport_024_default_api_client_times_out_on_slow_endpoint() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .timeout(Some(1000))
@@ -299,7 +301,7 @@ async fn test_default_api_client_times_out_on_slow_endpoint() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_injects_custom_user_agent_header() {
+async fn test_bhv_transport_012_default_api_client_injects_custom_user_agent_header() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .user_agent("MyApp/1.0")
@@ -324,7 +326,7 @@ async fn test_default_api_client_injects_custom_user_agent_header() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_injects_request_id_header() {
+async fn test_bhv_transport_013_default_api_client_injects_request_id_header() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .inject_request_id(true)
@@ -353,7 +355,7 @@ async fn test_default_api_client_injects_request_id_header() {
  * execution and added no coverage, so it was removed rather than ignored. */
 
 #[tokio::test]
-async fn test_default_api_client_includes_transport_default_headers() {
+async fn test_bhv_transport_010_default_api_client_includes_transport_default_headers() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .default_header("X-Custom", "custom-value")
@@ -376,7 +378,7 @@ async fn test_default_api_client_includes_transport_default_headers() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_caller_headers_override_transport_defaults() {
+async fn test_bhv_options_004_default_api_client_caller_headers_override_transport_defaults() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .default_header("Accept", "text/plain")
@@ -400,7 +402,7 @@ async fn test_default_api_client_caller_headers_override_transport_defaults() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_follows_redirects_when_enabled() {
+async fn test_bhv_redirects_004_default_api_client_follows_redirects_when_enabled() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -425,7 +427,7 @@ async fn test_default_api_client_follows_redirects_when_enabled() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_returns_redirect_when_disabled() {
+async fn test_bhv_redirects_008_default_api_client_returns_redirect_when_disabled() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(false)
@@ -448,7 +450,7 @@ async fn test_default_api_client_returns_redirect_when_disabled() {
 
 /// Gap T3: 303 forces follow-up to GET and drops the body per RFC 7231 §6.4.4.
 #[tokio::test]
-async fn test_default_api_client_redirect_303_switches_to_get_and_drops_body() {
+async fn test_bhv_redirects_005_default_api_client_redirect_303_switches_to_get_and_drops_body() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -511,7 +513,7 @@ async fn test_default_api_client_redirect_303_switches_to_get_and_drops_body() {
 /// assert that for a 302 the guard returns false (the request proceeds / is not
 /// refused).
 #[tokio::test]
-async fn test_n1_redirect_302_with_body_is_not_refused() {
+async fn test_bhv_redirects_001_n1_redirect_302_with_body_is_not_refused() {
     use reqwest::Url;
 
     let https = Url::parse("https://example.com/x").expect("valid https url");
@@ -546,7 +548,7 @@ async fn test_n1_redirect_302_with_body_is_not_refused() {
 /// preserves the body (307/308) AND there is a body AND the hop downgrades
 /// https -> http.
 #[tokio::test]
-async fn test_n1_https_to_http_body_replay_refused_for_307_308_only() {
+async fn test_bhv_retries_010_n1_https_to_http_body_replay_refused_for_307_308_only() {
     use reqwest::Url;
 
     let https = Url::parse("https://example.com/x").expect("valid https url");
@@ -608,7 +610,7 @@ async fn test_n1_https_to_http_body_replay_refused_for_307_308_only() {
 /// Rust client pre-serialized only `RequestBody::Bytes`, so multipart
 /// uploads that hit a 307 were silently re-sent without a body.
 #[tokio::test]
-async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
+async fn test_bhv_retries_012_default_api_client_multipart_body_replayed_on_307_redirect() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -657,7 +659,7 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_respects_max_redirects_limit() {
+async fn test_bhv_redirects_006_default_api_client_respects_max_redirects_limit() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -705,7 +707,7 @@ async fn test_default_api_client_respects_max_redirects_limit() {
 // echo envelope); there is no multi-hop chain endpoint, so the limit case is
 // exercised deterministically with a zero-hop cap.
 #[tokio::test]
-async fn test_default_api_client_redirect_state_is_per_request_not_shared() {
+async fn test_bhv_redirects_003_default_api_client_redirect_state_is_per_request_not_shared() {
     let chasm_url = testcontainers_helper::chasm_http_url();
 
     // Scenario A: one redirect-following request + one plain request, on ONE
@@ -779,7 +781,7 @@ async fn test_default_api_client_redirect_state_is_per_request_not_shared() {
 /// test asserts only that calling close() and then dropping the client does
 /// not crash.
 #[tokio::test]
-async fn test_default_api_client_close_releases_underlying_client() {
+async fn test_bhv_lifecycle_018_default_api_client_close_releases_underlying_client() {
     let client = DefaultApiClient::new(None);
     client.close();
     client.close();
@@ -793,7 +795,7 @@ async fn test_default_api_client_close_releases_underlying_client() {
 // `default_api_client` module.
 
 #[tokio::test]
-async fn test_default_api_client_sends_multipart_form_data() {
+async fn test_bhv_serializationwire_027_default_api_client_sends_multipart_form_data() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let form_data = serde_json::json!({
         "description": "A test file",
@@ -820,7 +822,7 @@ async fn test_default_api_client_sends_multipart_form_data() {
 // assertion that the decoded body contains "userId" proves reqwest's
 // decompression code path ran end-to-end.
 #[tokio::test]
-async fn test_default_api_client_decompresses_gzip_response() {
+async fn test_bhv_transport_005_default_api_client_decompresses_gzip_response() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
@@ -846,7 +848,7 @@ async fn test_default_api_client_decompresses_gzip_response() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_decompresses_brotli_response() {
+async fn test_bhv_transport_004_default_api_client_decompresses_brotli_response() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
@@ -871,7 +873,7 @@ async fn test_default_api_client_decompresses_brotli_response() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_decompresses_zstd_response() {
+async fn test_bhv_transport_006_default_api_client_decompresses_zstd_response() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
@@ -900,7 +902,7 @@ async fn test_default_api_client_decompresses_zstd_response() {
 // with no Content-Length (411 Length Required). The client attaches an
 // empty Vec<u8> on body-bearing verbs so reqwest emits the header.
 #[tokio::test]
-async fn test_default_api_client_post_with_null_body_sends_content_length_zero() {
+async fn test_bhv_transport_019_default_api_client_post_with_null_body_sends_content_length_zero() {
     let chasm_url = testcontainers_helper::chasm_http_url();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();

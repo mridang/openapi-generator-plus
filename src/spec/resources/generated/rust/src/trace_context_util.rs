@@ -78,7 +78,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[test]
-    fn test_inject_trace_context_no_op_without_tracer() {
+    fn test_bhv_tracing_007_inject_trace_context_no_op_without_tracer() {
         let mut headers = HashMap::new();
         headers.insert("X-Existing".to_string(), "value".to_string());
 
@@ -90,7 +90,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inject_trace_context_empty_headers_do_not_cause_exception() {
+    fn test_bhv_tracing_003_inject_trace_context_empty_headers_do_not_cause_exception() {
         let mut headers = HashMap::new();
 
         /* Should not panic with empty headers map */
@@ -98,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inject_trace_context_does_not_inject_traceparent_without_otel() {
+    fn test_bhv_tracing_001_inject_trace_context_does_not_inject_traceparent_without_otel() {
         let mut headers = HashMap::new();
 
         inject_trace_context(&mut headers);
@@ -110,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inject_trace_context_does_not_inject_tracestate_without_otel() {
+    fn test_bhv_tracing_002_inject_trace_context_does_not_inject_tracestate_without_otel() {
         let mut headers = HashMap::new();
 
         inject_trace_context(&mut headers);
@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inject_trace_context_preserves_authorization_header() {
+    fn test_bhv_tracing_010_inject_trace_context_preserves_authorization_header() {
         let mut headers = HashMap::new();
         headers.insert("Authorization".to_string(), "Bearer token123".to_string());
 
@@ -132,7 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inject_trace_context_preserves_content_type_header() {
+    fn test_bhv_tracing_011_inject_trace_context_preserves_content_type_header() {
         let mut headers = HashMap::new();
         headers.insert("Content-Type".to_string(), "application/json".to_string());
 
@@ -142,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inject_trace_context_preserves_x_request_id_header() {
+    fn test_bhv_tracing_012_inject_trace_context_preserves_x_request_id_header() {
         let mut headers = HashMap::new();
         headers.insert("X-Request-ID".to_string(), "req-12345".to_string());
 
@@ -152,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inject_trace_context_preserves_all_existing_headers() {
+    fn test_bhv_tracing_009_inject_trace_context_preserves_all_existing_headers() {
         let mut headers = HashMap::new();
         headers.insert("Authorization".to_string(), "Bearer token".to_string());
         headers.insert("Content-Type".to_string(), "application/json".to_string());
@@ -219,7 +219,7 @@ mod tests {
         }
 
         #[test]
-        fn test_inject_trace_context_injects_traceparent_when_span_active() {
+        fn test_bhv_tracing_006_inject_trace_context_injects_traceparent_when_span_active() {
             let (headers, span_context, exported) =
                 inject_with_span(Sampler::AlwaysOn, Context::new());
 
@@ -231,7 +231,7 @@ mod tests {
         }
 
         #[test]
-        fn test_inject_trace_context_includes_tracestate_when_present() {
+        fn test_bhv_tracing_005_inject_trace_context_includes_tracestate_when_present() {
             let parent = Context::new().with_remote_span_context(SpanContext::new(
                 TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap(),
                 SpanId::from_hex("00f067aa0ba902b7").unwrap(),
@@ -248,7 +248,7 @@ mod tests {
         }
 
         #[test]
-        fn test_inject_trace_context_omits_tracestate_when_empty() {
+        fn test_bhv_tracing_008_inject_trace_context_omits_tracestate_when_empty() {
             let (headers, _, _) = inject_with_span(Sampler::AlwaysOn, Context::new());
 
             assert!(headers.contains_key("traceparent"));
@@ -256,7 +256,7 @@ mod tests {
         }
 
         #[test]
-        fn test_inject_trace_context_formats_trace_flags_correctly() {
+        fn test_bhv_tracing_004_inject_trace_context_formats_trace_flags_correctly() {
             let (sampled, sampled_context, _) = inject_with_span(Sampler::AlwaysOn, Context::new());
             let (unsampled, unsampled_context, _) =
                 inject_with_span(Sampler::AlwaysOff, Context::new());

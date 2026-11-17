@@ -23,7 +23,7 @@ use petstore::SerializationError;
 use petstore::{OAuth2AuthorizationCodeError, OAuth2ServerError, OAuth2TokenError};
 
 #[test]
-fn test_api_error_exposes_status_message_body_headers() {
+fn test_bhv_errors_004_api_error_exposes_status_message_body_headers() {
     let mut headers = HashMap::new();
     headers.insert("content-type".to_string(), "application/json".to_string());
 
@@ -52,7 +52,7 @@ fn test_api_error_exposes_status_message_body_headers() {
 }
 
 #[test]
-fn test_api_error_none_headers_and_body_mark_transport_no_response() {
+fn test_bhv_errors_021_api_error_none_headers_and_body_mark_transport_no_response() {
     // apierror-responsebody-headers-nullable-split: None is distinct from an
     // empty header map / empty body so a pre-response transport failure can
     // be encoded.
@@ -73,7 +73,7 @@ fn test_api_error_implements_std_error_and_display() {
 /// The text is the message followed by one labelled line for each piece of
 /// response context that was captured.
 #[test]
-fn test_api_error_display_renders_status_headers_and_body() {
+fn test_bhv_errors_024_api_error_display_renders_status_headers_and_body() {
     let mut headers = HashMap::new();
     headers.insert("x-trace".to_string(), "abc".to_string());
     let err = ApiError::new(
@@ -109,7 +109,7 @@ fn test_api_error_display_sorts_the_response_headers() {
  * credential-bearing header value; the full body and headers stay on the
  * error's accessors. */
 #[test]
-fn test_api_error_display_caps_the_body_and_escapes_control_characters() {
+fn test_bhv_errors_001_api_error_display_caps_the_body_and_escapes_control_characters() {
     let body = format!("{}\r\nforged: line", "a".repeat(1024));
     let err = ApiError::new(500, "boom".to_string(), None, Some(body.clone()));
     let text = err.to_string();
@@ -140,7 +140,7 @@ fn test_api_error_display_caps_the_body_and_escapes_control_characters() {
 }
 
 #[test]
-fn test_api_error_display_masks_credential_bearing_response_headers() {
+fn test_bhv_errors_023_api_error_display_masks_credential_bearing_response_headers() {
     let mut headers = HashMap::new();
     headers.insert("set-cookie".to_string(), "sid=abc".to_string());
     headers.insert("www-authenticate".to_string(), "Bearer realm=x".to_string());
@@ -162,7 +162,7 @@ fn test_api_error_display_masks_credential_bearing_response_headers() {
 /// An empty header map and an empty body add no lines, a transport failure
 /// (status 0) adds no status line, and an empty message gets the default text.
 #[test]
-fn test_api_error_display_omits_empty_parts() {
+fn test_bhv_errors_022_api_error_display_omits_empty_parts() {
     let empty = ApiError::new(
         500,
         "boom".to_string(),
@@ -218,7 +218,7 @@ fn test_oauth2_server_error_message_has_three_forms() {
 
 /// A JSON body that is a scalar rather than an object is still a parsed body.
 #[test]
-fn test_api_error_scalar_json_body_parses() {
+fn test_bhv_errors_010_api_error_scalar_json_body_parses() {
     let text = ApiError::new(
         500,
         "boom".to_string(),
@@ -234,7 +234,7 @@ fn test_api_error_scalar_json_body_parses() {
 }
 
 #[test]
-fn test_api_error_typed_error_body_deserializes_body() {
+fn test_bhv_errors_013_api_error_typed_error_body_deserializes_body() {
     let err = ApiError::new(
         400,
         "bad request".to_string(),
@@ -251,7 +251,7 @@ fn test_api_error_typed_error_body_deserializes_body() {
 }
 
 #[test]
-fn test_api_error_typed_error_body_returns_none_when_no_body() {
+fn test_bhv_errors_015_api_error_typed_error_body_returns_none_when_no_body() {
     let err = ApiError::new(500, "oops".to_string(), None, None);
 
     let typed: Option<Category> = err.typed_error_body().expect("empty body should not error");
@@ -259,7 +259,7 @@ fn test_api_error_typed_error_body_returns_none_when_no_body() {
 }
 
 #[test]
-fn test_api_error_typed_error_body_ignores_extraneous_fields() {
+fn test_bhv_errors_014_api_error_typed_error_body_ignores_extraneous_fields() {
     let err = ApiError::new(
         422,
         "unprocessable".to_string(),
@@ -296,7 +296,7 @@ fn test_api_error_body_nested_beyond_serde_default_limit_still_parses() {
 }
 
 #[test]
-fn test_api_error_body_nested_beyond_shared_cap_is_rejected() {
+fn test_bhv_errors_009_api_error_body_nested_beyond_shared_cap_is_rejected() {
     let err = ApiError::new(400, "bad".to_string(), None, Some(nested_array(1001)));
 
     assert!(
@@ -315,7 +315,7 @@ fn test_api_error_body_nested_beyond_shared_cap_is_rejected() {
 /* D15 (F933): a malformed error body is a SerializationError whose message
  * names the parse failure and which keeps the parser error as its source. */
 #[test]
-fn test_api_error_malformed_body_is_a_serialization_error_with_the_parse_message() {
+fn test_bhv_errors_017_api_error_malformed_body_is_a_serialization_error_with_the_parse_message() {
     let err = ApiError::new(400, "bad".to_string(), None, Some(r#"{"id":"#.to_string()));
 
     assert!(
@@ -339,7 +339,7 @@ fn test_api_error_malformed_body_is_a_serialization_error_with_the_parse_message
 }
 
 #[test]
-fn test_api_error_body_with_leading_bom_parses() {
+fn test_bhv_errors_008_api_error_body_with_leading_bom_parses() {
     let err = ApiError::new(
         400,
         "bad".to_string(),
@@ -378,7 +378,7 @@ fn test_api_error_exposes_parsed_error_body() {
 }
 
 #[test]
-fn test_api_error_error_body_is_none_without_json() {
+fn test_bhv_errors_005_api_error_error_body_is_none_without_json() {
     let no_body = ApiError::new(500, "boom".to_string(), None, None);
     assert!(no_body.error_body().is_none());
 
@@ -447,7 +447,7 @@ fn server_chain(status: u16, message: &str) -> ServerError {
 }
 
 #[test]
-fn test_api_error_is_open_api_error() {
+fn test_bhv_errors_018_api_error_is_open_api_error() {
     let err = ApiError::new(404, "not found".to_string(), None, None);
     let branded = assert_is_open_api_error(&err);
     // Supertrait gives Display and source() for free.
@@ -621,7 +621,7 @@ fn test_named_errors_accept_only_their_own_status() {
 }
 
 #[test]
-fn test_serialization_error_is_open_api_error() {
+fn test_bhv_errors_025_serialization_error_is_open_api_error() {
     // The (de)serialization branch of the hierarchy is equally a OpenAPIError.
     let err = SerializationError::new("failed to parse".to_string(), None);
     let branded = assert_is_open_api_error(&err);
@@ -685,7 +685,7 @@ fn test_network_errors_are_open_api_errors() {
 }
 
 #[test]
-fn test_network_errors_wrap_a_status_zero_api_error() {
+fn test_bhv_errors_020_network_errors_wrap_a_status_zero_api_error() {
     let network = NetworkError::try_from(ApiError::new(0, "refused".to_string(), None, None))
         .expect("status 0");
     assert_eq!(network.api_error().status_code(), 0);
@@ -724,7 +724,7 @@ fn is_a<T: std::error::Error + 'static>(err: &(dyn std::error::Error + 'static))
 type IsExpectedType = fn(&(dyn std::error::Error + 'static)) -> bool;
 
 #[test]
-fn test_from_response_maps_every_status_to_its_type() {
+fn test_bhv_errors_006_from_response_maps_every_status_to_its_type() {
     let mut headers = HashMap::new();
     headers.insert("x-request-id".to_string(), "abc".to_string());
     let cases: [(u16, IsExpectedType); 12] = [
@@ -777,7 +777,7 @@ fn test_from_response_maps_every_status_to_its_type() {
 /* F830: the error names the request it belongs to, without the query string, in
  * the message and on the accessors of the root and of every status wrapper. */
 #[test]
-fn test_from_response_carries_the_request_method_and_path_without_the_query() {
+fn test_bhv_errors_007_from_response_carries_the_request_method_and_path_without_the_query() {
     let headers = HashMap::new();
     for status in [400u16, 401, 403, 404, 409, 418, 422, 429, 500, 503, 302] {
         let err = ApiError::from_response(
@@ -814,7 +814,7 @@ fn test_from_response_carries_the_request_method_and_path_without_the_query() {
 }
 
 #[test]
-fn test_from_response_without_a_request_keeps_the_plain_message() {
+fn test_bhv_errors_012_from_response_without_a_request_keeps_the_plain_message() {
     let err = ApiError::from_response(404, &HashMap::new(), "", None, None);
     let api_error = std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| {
         e.source()
@@ -829,7 +829,7 @@ fn test_from_response_without_a_request_keeps_the_plain_message() {
 }
 
 #[test]
-fn test_with_request_cuts_the_path_at_the_query_and_reaches_the_kind_fields() {
+fn test_bhv_errors_026_with_request_cuts_the_path_at_the_query_and_reaches_the_kind_fields() {
     let err =
         ApiError::new(500, "boom".to_string(), None, None).with_request("POST", "/orders?id=1");
     assert_eq!(err.request_method(), Some("POST"));

@@ -12,7 +12,7 @@ use petstore::auth::{BearerAuthenticator, ServiceTokenAuthenticator};
 use petstore::ConfigurationError;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_raw_token_is_prefixed_with_bearer() {
+async fn test_bhv_authbearer_009_raw_token_is_prefixed_with_bearer() {
     let auth = BearerAuthenticator::new("https://api.example.com", "xyz").unwrap();
     let headers = auth.auth_headers().await;
     assert_eq!(
@@ -22,7 +22,7 @@ async fn test_raw_token_is_prefixed_with_bearer() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_already_prefixed_token_is_not_doubled() {
+async fn test_bhv_authbearer_003_already_prefixed_token_is_not_doubled() {
     let auth = BearerAuthenticator::new("https://api.example.com", "Bearer xyz").unwrap();
     let headers = auth.auth_headers().await;
     assert_eq!(
@@ -32,7 +32,7 @@ async fn test_already_prefixed_token_is_not_doubled() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_lowercase_bearer_prefix_is_stripped() {
+async fn test_bhv_authbearer_007_lowercase_bearer_prefix_is_stripped() {
     let auth = BearerAuthenticator::new("https://api.example.com", "bearer xyz").unwrap();
     let headers = auth.auth_headers().await;
     assert_eq!(
@@ -42,7 +42,7 @@ async fn test_lowercase_bearer_prefix_is_stripped() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_mixed_case_bearer_prefix_is_stripped() {
+async fn test_bhv_authbearer_008_mixed_case_bearer_prefix_is_stripped() {
     let auth = BearerAuthenticator::new("https://api.example.com", "BeArEr xyz").unwrap();
     let headers = auth.auth_headers().await;
     assert_eq!(
@@ -57,7 +57,7 @@ async fn test_mixed_case_bearer_prefix_is_stripped() {
 /// (bearer-no-empty-token-guard). All fail closed with
 /// `ConfigurationError::InvalidArgument`, never a panic.
 #[test]
-fn test_bearer_rejects_invalid_tokens() {
+fn test_bhv_authbearer_005_bearer_rejects_invalid_tokens() {
     for (token, expected) in [
         ("tok\r\nInjected: yes", "printable ASCII"),
         ("ñoño", "printable ASCII"),
@@ -79,7 +79,7 @@ fn test_bearer_rejects_invalid_tokens() {
 /// A token made only of Unicode spaces is not "empty" (the empty rule covers
 /// ASCII whitespace); the printable-ASCII rule rejects it instead.
 #[test]
-fn test_unicode_space_only_token_is_rejected_by_the_printable_ascii_rule() {
+fn test_bhv_authbearer_016_unicode_space_only_token_is_rejected_by_the_printable_ascii_rule() {
     for token in ["\u{00A0}", "\u{2003}", " \u{00A0} "] {
         match BearerAuthenticator::new("https://api.example.com", token) {
             Err(ConfigurationError::InvalidArgument(reason)) => {
@@ -97,7 +97,7 @@ fn test_unicode_space_only_token_is_rejected_by_the_printable_ascii_rule() {
 /// The `Bearer ` prefix is removed once and only as a whole word: a token that
 /// merely starts with the letters is kept whole.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_prefix_is_stripped_once_and_only_as_a_whole_word() {
+async fn test_bhv_authbearer_004_prefix_is_stripped_once_and_only_as_a_whole_word() {
     let twice = BearerAuthenticator::new("https://api.example.com", "Bearer Bearer xyz").unwrap();
     assert_eq!(
         twice
@@ -121,7 +121,7 @@ async fn test_prefix_is_stripped_once_and_only_as_a_whole_word() {
 /// The default Debug representation must mask the stored token: the secret
 /// value must be absent and a `***` redaction marker present.
 #[test]
-fn test_redacts_secret() {
+fn test_bhv_authbearer_011_redacts_secret() {
     let auth = BearerAuthenticator::new("https://api.example.com", "xyz").unwrap();
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("token: \"xyz\""));
@@ -129,7 +129,7 @@ fn test_redacts_secret() {
 }
 
 #[test]
-fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_token() {
+fn test_bhv_authbearer_001_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_token() {
     let auth =
         ServiceTokenAuthenticator::new("https://api.example.com", Some("wrapper-tok")).unwrap();
     let debug = format!("{:?}", auth);
@@ -140,7 +140,7 @@ fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_token() {
 
 /// The redacted representation shows the host and masks only the token.
 #[test]
-fn test_redacted_representation_shows_the_host() {
+fn test_bhv_authbearer_013_redacted_representation_shows_the_host() {
     let auth = BearerAuthenticator::new("https://api.example.com", "xyz").unwrap();
     assert_eq!(
         "BearerAuthenticator { host: \"https://api.example.com\", token: \"***\" }",
@@ -151,7 +151,7 @@ fn test_redacted_representation_shows_the_host() {
 /// The scheme wrapper emits the same header as the authenticator it wraps and
 /// validates the token as eagerly.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_scheme_wrapper_emits_the_bearer_header_and_validates_eagerly() {
+async fn test_bhv_authbearer_006_scheme_wrapper_emits_the_bearer_header_and_validates_eagerly() {
     let host = "https://api.example.com";
     let service = ServiceTokenAuthenticator::new(host, Some("bEaReR xyz")).unwrap();
     assert_eq!(
@@ -175,7 +175,7 @@ async fn test_scheme_wrapper_emits_the_bearer_header_and_validates_eagerly() {
 /* F862: a token provider is called for every request, so a renewed token is
  * picked up, and a token it returns that is not usable fails that request. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_provider_is_called_for_every_request() {
+async fn test_bhv_authbearer_014_token_provider_is_called_for_every_request() {
     let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let counter = calls.clone();
     let provider: petstore::auth::TokenProvider = std::sync::Arc::new(move || {
