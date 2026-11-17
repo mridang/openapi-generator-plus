@@ -124,7 +124,11 @@ type invokeApiParams struct {
 	ctx          context.Context   // per-call context; cancelling it aborts the request (nil means Background)
 	order        []string          // spec declaration order of the query and form parameter names
 	settings     *callSettings     // per-call options (timeout, headers, retries); nil means the client's own
+	errorFactories map[string]errorFactory // the error factory of each error response the operation declares, by status, range or default; nil when it declares none
 }
+
+// errorFactory builds the error of one declared error schema for a response.
+type errorFactory = errors_pkg.ErrorFactory
 
 // invokeApiForResult invokes an API operation and returns the full response,
 // including the status code, headers, and raw body.
@@ -381,7 +385,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		if response.StatusCode >= 200 && response.StatusCode < 300 {
 			return response, nil
 		}
-		failure := throwAPIError(response, params.method, requestPath)
+		failure := throwAPIError(response, params.method, requestPath, params.errorFactories)
 		if response.StatusCode == http.StatusUnauthorized && canReplay && !replayed {
 			invalidator.InvalidateAccessToken()
 			replayed = true
@@ -427,14 +431,7 @@ type retryPolicyProvider interface {
 
 // isRetryableStatus reports whether a response status is worth retrying.
 func isRetryableStatus(status int) bool {
-	switch status {
-	case http.StatusRequestTimeout, http.StatusConflict, http.StatusTooManyRequests:
-		return true
-	case http.StatusNotImplemented:
-		return false
-	default:
-		return status >= 500 && status <= 599
-	}
+	return errors_pkg.IsRetryableStatus(status)
 }
 
 // isRetryableTransportError reports whether a send failure is a network error
@@ -1057,10 +1054,21 @@ func newEmptyBodyError(operationID string, statusCode int, rawBody string, heade
 // throwAPIError converts a non-2xx response into the matching typed error via
 // the one status-to-error mapping, errors_pkg.FromResponse, and records the
 // request it answers.
-func throwAPIError(response *ApiHttpResponse, method, path string) error {
-	failure := errors_pkg.FromResponse(response.StatusCode, response.Headers, response.Body)
+func throwAPIError(response *ApiHttpResponse, method, path string, factories map[string]errorFactory) error {
+	failure := errors_pkg.FromResponseWith(method, path, response.StatusCode, response.Headers, response.Body, factories)
 	attachRequestContext(failure, method, path)
 	return failure
+}
+
+// attachResponseContext records the response and the request on a
+// *SerializationError raised while decoding a response body, so the caller can
+// see which response could not be decoded. Any other error is returned as it is.
+func attachResponseContext(err error, response *ApiHttpResponse, method, path string) error {
+	var serErr *errors_pkg.SerializationError
+	if errors.As(err, &serErr) {
+		serErr.AttachResponse(response.StatusCode, response.Headers, response.Body, method, requestPathOf(path))
+	}
+	return err
 }
 
 // attachRequestContext records the method and path of the request on an API

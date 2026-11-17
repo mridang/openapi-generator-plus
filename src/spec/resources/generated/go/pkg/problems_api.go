@@ -59,6 +59,9 @@ var _ ProblemsApiInterface = (*ProblemsApi)(nil)
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 //
+// Declared errors:
+//   - HTTP default: *UnexpectedFailureError, whose Body is a UnexpectedFailure
+//
 // GET /fallbacks/{fallbackId}
 func (a *ProblemsApi) GetFallback(ctx context.Context, fallbackId string, callOptions ...RequestOption) (*Result, error) {
 	result, err := a.GetFallbackWithHTTPInfo(ctx, fallbackId, callOptions...)
@@ -111,6 +114,9 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		errorFactories: map[string]errorFactory{
+			"default": NewUnexpectedFailureErrorFromResponse,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -146,7 +152,7 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -154,7 +160,7 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -165,7 +171,7 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetFallback: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetFallback: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -182,6 +188,9 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *MemberNotFoundError, whose Body is a MemberNotFound
 //
 // GET /members/{memberId}
 func (a *ProblemsApi) GetMember(ctx context.Context, memberId string, callOptions ...RequestOption) (*Result, error) {
@@ -235,6 +244,9 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		errorFactories: map[string]errorFactory{
+			"404": NewMemberNotFoundErrorFromResponse,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -270,7 +282,7 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -278,7 +290,7 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -289,7 +301,7 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetMember: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetMember: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -306,6 +318,9 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *ProjectNotFoundError, whose Body is a ProjectNotFound
 //
 // GET /projects/{projectId}
 func (a *ProblemsApi) GetProject(ctx context.Context, projectId string, callOptions ...RequestOption) (*Result, error) {
@@ -359,6 +374,9 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		errorFactories: map[string]errorFactory{
+			"404": NewProjectNotFoundErrorFromResponse,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -394,7 +412,7 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -402,7 +420,7 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -413,7 +431,7 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetProject: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetProject: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -430,6 +448,9 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 4XX: *RejectedRequestError, whose Body is a RejectedRequest
 //
 // GET /ranges/{rangeId}
 func (a *ProblemsApi) GetRange(ctx context.Context, rangeId string, callOptions ...RequestOption) (*Result, error) {
@@ -483,6 +504,9 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		errorFactories: map[string]errorFactory{
+			"4XX": NewRejectedRequestErrorFromResponse,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -518,7 +542,7 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -526,7 +550,7 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -537,7 +561,7 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetRange: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetRange: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -554,6 +578,9 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 5XX: *UpstreamFailureError, whose Body is a UpstreamFailure
 //
 // GET /upstreams/{upstreamId}
 func (a *ProblemsApi) GetUpstream(ctx context.Context, upstreamId string, callOptions ...RequestOption) (*Result, error) {
@@ -607,6 +634,9 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		errorFactories: map[string]errorFactory{
+			"5XX": NewUpstreamFailureErrorFromResponse,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -642,7 +672,7 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -650,7 +680,7 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -661,7 +691,7 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetUpstream: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.GetUpstream: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -678,6 +708,10 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 409: *StateConflictError, whose Body is a StateConflict
+//   - HTTP 423: *StateConflictError, whose Body is a StateConflict
 //
 // PUT /locks/{lockId}
 func (a *ProblemsApi) TakeLock(ctx context.Context, lockId string, callOptions ...RequestOption) (*Result, error) {
@@ -731,6 +765,10 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		errorFactories: map[string]errorFactory{
+			"409": NewStateConflictErrorFromResponse,
+			"423": NewStateConflictErrorFromResponse,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -766,7 +804,7 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "PUT", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -774,7 +812,7 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "PUT", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -785,7 +823,7 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.TakeLock: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for ProblemsApi.TakeLock: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "PUT", path)
 		}
 		dataPtr = &data
 	}

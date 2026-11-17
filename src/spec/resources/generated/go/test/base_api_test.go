@@ -210,6 +210,45 @@ func TestBhvErrors031_BaseApi_InternalServerErrorIsServerError(t *testing.T) {
 	_ = ise
 }
 
+// ── Decode failure ──
+
+func TestBhvErrors205_BaseApi_ADecodeFailureOfAResponseCarriesTheStatusTheHeadersAndTheRawBody(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Trace", "t-1")
+		_, _ = w.Write([]byte(`{"id": [1, 2`))
+	}))
+	defer server.Close()
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil, petstore.Credentials{})
+
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
+
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected a *SerializationError, got %T: %v", err, err)
+	}
+	if serErr.StatusCode() != 200 {
+		t.Errorf("expected status 200, got %d", serErr.StatusCode())
+	}
+	if serErr.ResponseBody() != `{"id": [1, 2` {
+		t.Errorf("expected the raw body, got %q", serErr.ResponseBody())
+	}
+	if serErr.ResponseHeaders()["x-trace"] != "t-1" {
+		t.Errorf("expected the response headers, got %v", serErr.ResponseHeaders())
+	}
+	if serErr.RequestMethod() != "GET" || serErr.RequestPath() != "/pet/1" {
+		t.Errorf("expected GET /pet/1, got %s %s", serErr.RequestMethod(), serErr.RequestPath())
+	}
+
+	cut := apierrors.NewSerializationError("bad", nil)
+	cut.AttachResponse(200, nil, "{", "GET", "/items?q=1#top")
+	if cut.RequestPath() != "/items" {
+		t.Errorf("expected the path without its query, got %q", cut.RequestPath())
+	}
+}
+
 // ── JSON response deserialization ──
 
 func TestBhvSerializationwire004_BaseApi_DeserializesJSONResponse(t *testing.T) {

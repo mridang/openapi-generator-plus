@@ -30,6 +30,7 @@
 | Topic | What go does | Why |
 |---|---|---|
 | Errors | caller mistakes are exported sentinels matched with `errors.Is` (`ErrMissingRequiredParameter`, `ErrInvalidPathParameter`, `ErrInvalidProxyURL`, `ErrInvalidTimeout`, `ErrInvalidCACertificate`, `ErrTransportConflict`, `ErrInvalidServerVariable`, `ErrClientClosed`, ...); SDK errors implement `Error`, `Unwrap` and `As` | no exceptions; the error protocol is the unwrap chain |
+| Typed errors | one struct per declared error schema in `pkg/errors` (`<Model>Error`) embedding the status struct it subclasses; `Unwrap` returns that embedded struct so `errors.As` matches at every level; `Body()` returns the decoded model; operations pass a `map[string]errorFactory` to `FromResponseWith`; `IsRetryable()` and `RequestID()` are on `ApiError` | no generics on the base error and no covariant returns; embedding with `Unwrap` is the Go form of subclassing |
 | Messages | error strings start lower case (`missing the required parameter`, `too many redirects`) | staticcheck ST1005 forbids a capitalised error string |
 | Cancellation | `ctx context.Context` is the first parameter of every operation (S7) | Go convention, the one deliberate shape difference |
 | Builders | package-level `NewConfigurationBuilder()` and `NewTransportOptionsBuilder()`, setters named `val` | no static methods |

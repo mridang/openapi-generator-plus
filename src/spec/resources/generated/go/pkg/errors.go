@@ -71,7 +71,41 @@ type (
 	OAuth2ServerError = errors_pkg.OAuth2ServerError
 	// OAuth2TokenError is a 2xx answer from the OAuth2 token endpoint that could not be used.
 	OAuth2TokenError = errors_pkg.OAuth2TokenError
+	// ErrorFactory builds the error of one declared error schema for a response.
+	ErrorFactory = errors_pkg.ErrorFactory
+	// UnexpectedFailureError is the error for a response whose body is a UnexpectedFailure.
+	UnexpectedFailureError = errors_pkg.UnexpectedFailureError
+	// MemberNotFoundError is the error for a response whose body is a MemberNotFound.
+	MemberNotFoundError = errors_pkg.MemberNotFoundError
+	// ProjectNotFoundError is the error for a response whose body is a ProjectNotFound.
+	ProjectNotFoundError = errors_pkg.ProjectNotFoundError
+	// RejectedRequestError is the error for a response whose body is a RejectedRequest.
+	RejectedRequestError = errors_pkg.RejectedRequestError
+	// UpstreamFailureError is the error for a response whose body is a UpstreamFailure.
+	UpstreamFailureError = errors_pkg.UpstreamFailureError
+	// StateConflictError is the error for a response whose body is a StateConflict.
+	StateConflictError = errors_pkg.StateConflictError
 )
+
+// The factories of the error schemas the operations declare, one per schema.
+var (
+	// NewUnexpectedFailureErrorFromResponse builds a UnexpectedFailureError from a response, or the status error when the body does not match.
+	NewUnexpectedFailureErrorFromResponse = errors_pkg.NewUnexpectedFailureErrorFromResponse
+	// NewMemberNotFoundErrorFromResponse builds a MemberNotFoundError from a response, or the status error when the body does not match.
+	NewMemberNotFoundErrorFromResponse = errors_pkg.NewMemberNotFoundErrorFromResponse
+	// NewProjectNotFoundErrorFromResponse builds a ProjectNotFoundError from a response, or the status error when the body does not match.
+	NewProjectNotFoundErrorFromResponse = errors_pkg.NewProjectNotFoundErrorFromResponse
+	// NewRejectedRequestErrorFromResponse builds a RejectedRequestError from a response, or the status error when the body does not match.
+	NewRejectedRequestErrorFromResponse = errors_pkg.NewRejectedRequestErrorFromResponse
+	// NewUpstreamFailureErrorFromResponse builds a UpstreamFailureError from a response, or the status error when the body does not match.
+	NewUpstreamFailureErrorFromResponse = errors_pkg.NewUpstreamFailureErrorFromResponse
+	// NewStateConflictErrorFromResponse builds a StateConflictError from a response, or the status error when the body does not match.
+	NewStateConflictErrorFromResponse = errors_pkg.NewStateConflictErrorFromResponse
+)
+
+// FromResponseWith is FromResponse for an operation that declares error
+// responses: it picks the factory for the status that arrived.
+var FromResponseWith = errors_pkg.FromResponseWith
 
 // FromResponse is the one status-to-error mapping, re-exported so the whole
 // error surface — the types above and the factory that builds them — can be

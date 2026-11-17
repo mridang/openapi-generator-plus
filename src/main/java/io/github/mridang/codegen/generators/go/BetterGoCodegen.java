@@ -49,6 +49,21 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return "Error";
     }
 
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(
+                        outputFolder,
+                        "pkg",
+                        "errors",
+                        org.openapitools.codegen.utils.StringUtils.underscore(className) + ".go")
+                .toString();
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterGoCodegen.class);
 
     /**

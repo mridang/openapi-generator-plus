@@ -63,7 +63,28 @@ type (
 	OAuth2ServerError = errors_pkg.OAuth2ServerError
 	// OAuth2TokenError is a 2xx answer from the OAuth2 token endpoint that could not be used.
 	OAuth2TokenError = errors_pkg.OAuth2TokenError
+	// ErrorFactory builds the error of one declared error schema for a response.
+	ErrorFactory = errors_pkg.ErrorFactory
+{{#errorSchemas}}
+	// {{className}} is the error for a response whose body is a {{schemaName}}.
+	{{className}} = errors_pkg.{{className}}
+{{/errorSchemas}}
 )
+
+{{#hasErrorSchemas}}
+// The factories of the error schemas the operations declare, one per schema.
+var (
+{{#errorSchemas}}
+	// New{{className}}FromResponse builds a {{className}} from a response, or the status error when the body does not match.
+	New{{className}}FromResponse = errors_pkg.New{{className}}FromResponse
+{{/errorSchemas}}
+)
+
+{{/hasErrorSchemas}}
+// FromResponseWith is FromResponse for an operation that declares error
+// responses: it picks the factory for the status that arrived.
+var FromResponseWith = errors_pkg.FromResponseWith
+
 
 // FromResponse is the one status-to-error mapping, re-exported so the whole
 // error surface — the types above and the factory that builds them — can be
