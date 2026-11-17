@@ -184,6 +184,12 @@ abstract class AbstractApiClient implements ApiClient
             throw new \LogicException(ClientLifecycle::CLOSED_MESSAGE);
         }
 
+        /* A malformed request URL is a caller mistake, not a network failure:
+         * refuse it before any header is merged or the transport is touched. */
+        if (!self::isUsableWebUrl($url)) {
+            throw new \InvalidArgumentException('Malformed request URL: ' . $this->loggableUrl($url));
+        }
+
         /* An SDK token request (RFC 6749 section 3.2) or OpenID Connect
          * discovery goes to the identity provider, a different origin, so the
          * caller's default headers (an Authorization or API key meant for the
@@ -840,6 +846,43 @@ abstract class AbstractApiClient implements ApiClient
     }
 
     /**
+     * An absolute http or https URL with a usable host. Anything else handed to
+     * sendRequest() is a caller mistake.
+     */
+    protected static function isUsableWebUrl(string $url): bool
+    {
+        $parsed = parse_url($url);
+
+        return $parsed !== false
+            && in_array(strtolower($parsed['scheme'] ?? ''), ['http', 'https'], true)
+            && self::hasUsableHost($parsed);
+    }
+
+    /**
+     * parse_url() is lenient: it accepts an unterminated or invalid IP literal
+     * such as http://[bad, so a web URL's host is checked here as well.
+     *
+     * @param array<string, string|int> $parsed
+     */
+    private static function hasUsableHost(array $parsed): bool
+    {
+        $host = $parsed['host'] ?? '';
+        $literal = str_starts_with((string) $host, '[') || str_ends_with((string) $host, ']');
+
+        return $host !== ''
+            && (!$literal || filter_var(trim((string) $host, '[]'), FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false);
+    }
+
+    /**
+     * The URL for an error message: no query, and any userinfo replaced by
+     * `***@`, so a credential never reaches a log.
+     */
+    private function loggableUrl(string $url): string
+    {
+        return preg_replace('~^([a-z][a-z0-9+.-]*://)[^/?#]*@~i', '$1***@', self::withoutQuery($url)) ?? '';
+    }
+
+    /**
      * Resolve a (possibly relative) Location header against the previous URL.
      */
     protected static function resolveUrl(string $base, string $location): ?string
@@ -849,17 +892,8 @@ abstract class AbstractApiClient implements ApiClient
             return null;
         }
         if (isset($parsed['scheme'])) {
-            /* parse_url() is lenient: it accepts an unterminated or invalid IP
-             * literal such as http://[bad. A web URL needs a usable host. */
-            if (in_array(strtolower($parsed['scheme']), ['http', 'https'], true)) {
-                $host = $parsed['host'] ?? '';
-                $literal = str_starts_with($host, '[') || str_ends_with($host, ']');
-                if (
-                    $host === ''
-                    || ($literal && filter_var(trim($host, '[]'), FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false)
-                ) {
-                    return null;
-                }
+            if (in_array(strtolower($parsed['scheme']), ['http', 'https'], true) && !self::hasUsableHost($parsed)) {
+                return null;
             }
 
             return $location;

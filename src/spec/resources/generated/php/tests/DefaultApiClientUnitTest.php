@@ -1336,11 +1336,14 @@ test('bhv errors 041 non-existent caCertPath throws invalid argument exception a
 });
 
 test('bhv errors 040 malformed request URL raises invalid argument exception', function (): void {
-    /* parse_url() rejects an unterminated IPv6 literal, and the transport refuses the URL before any
-     * connection is attempted; it is a caller mistake, so the type is \InvalidArgumentException. */
+    /* parse_url() accepts an unterminated IPv6 literal, so the SDK checks the host itself and refuses
+     * the URL before any connection is attempted; a URL with no scheme is refused the same way. It is a
+     * caller mistake, so the type is \InvalidArgumentException. */
     $client = new DefaultApiClient();
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://[bad', [], null))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn (): mixed => $client->sendRequest('GET', 'not a url', [], null))
         ->toThrow(\InvalidArgumentException::class);
 });
 
