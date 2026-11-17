@@ -1011,6 +1011,11 @@ describe Petstore::Client::ObjectSerializer do
       _(restored.blob).must_equal(raw)
     end
 
+    it 'bhv_serializationobject_185 accepts canonical padded standard base64 for a byte field' do
+      result = Petstore::Client::ObjectSerializer.deserialize('{"blob":"dGVzdA==","note":"x"}', 'TestFormatModel')
+      _(result.blob).must_equal('test'.b)
+    end
+
     it 'bhv_serializationobject_094 raises SerializationError on invalid base64 input' do
       json = '{"blob":"not valid base64!!!"}'
       _(proc {
@@ -1324,7 +1329,7 @@ describe Petstore::Client::ObjectSerializer do
       _(json).must_equal("{\"note\":\"/<>&\u00E9\"}")
     end
 
-    it 'escapes the quote, the backslash and controls below U+0020' do
+    it 'bhv_serializationobject_186 escapes the quote, the backslash and controls below U+0020' do
       json = Petstore::Client::ObjectSerializer.serialize({ 'note' => "\"\\\u0001" })
       _(json).must_equal('{"note":"\\"\\\\\\u0001"}')
     end
@@ -1496,6 +1501,12 @@ describe Petstore::Client::ObjectSerializer do
       _(serialized).must_equal('93784s')
       parsed = Petstore::Client::ObjectSerializer.convert_to_type(serialized, 'ISO8601::Duration')
       _(parsed.to_seconds).must_equal(original.to_seconds)
+    end
+
+    it 'bhv_serializationobject_184 rejects an ISO-8601 duration string' do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.convert_to_type('PT1H', 'ISO8601::Duration')
+      end
     end
 
     it 'convert_to_type raises on malformed duration string' do

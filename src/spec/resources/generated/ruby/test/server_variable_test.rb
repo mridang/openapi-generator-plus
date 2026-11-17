@@ -29,9 +29,14 @@ describe Petstore::Client::ServerVariable do
     _(var.description).must_equal 'deployment environment'
   end
 
-  it 'exposes the enum values when provided' do
+  it 'bhv_servers_018 exposes the enum values when provided' do
     var = Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging dev])
     _(var.enum_values).must_equal %w[prod staging dev]
+  end
+
+  it 'bhv_servers_019 enum does not contain a value outside the allowed set' do
+    var = Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+    _(var.enum_values).wont_include 'dev'
   end
 
   it 'is immutable and freezes its enum values' do

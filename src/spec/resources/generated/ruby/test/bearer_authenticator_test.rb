@@ -121,7 +121,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer from-env'
     end
 
-    it 'prefers the token given to the environment variable' do
+    it 'bhv_authbearer_018 prefers the token given to the environment variable' do
       auth = Petstore::Client::Auth::BearerAuthenticator.new(
         'https://api.example.com', 'explicit', env: { "#{prefix}_TOKEN" => 'from-env' }
       )

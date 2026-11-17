@@ -320,6 +320,11 @@ describe Petstore::Client::ValueSerializer do
         _(result).must_be_nil
       end
 
+      it 'bhv_serializationparam_105 a form scalar serializes as the plain value' do
+        result = Petstore::Client::ValueSerializer.serialize_styled('color', 'blue', :query, 'string', nil, 'form', true)
+        _(result).must_equal('blue')
+      end
+
       it 'a Set with explode false joins its elements like an array' do
         result = Petstore::Client::ValueSerializer.serialize_styled(
           'color', Set['red', 'blue'], :query, 'array', nil, 'form', false
@@ -362,7 +367,7 @@ describe Petstore::Client::ValueSerializer do
     end
 
     describe 'null style falls back to location default' do
-      it 'path with null style behaves like simple' do
+      it 'bhv_serializationparam_106 path with null style behaves like simple' do
         result = Petstore::Client::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
         _(result).must_equal('5')
       end

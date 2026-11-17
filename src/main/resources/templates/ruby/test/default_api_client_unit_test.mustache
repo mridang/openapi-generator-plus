@@ -772,6 +772,25 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_serializationwire_056 falls back to application/octet-stream when the name has no extension' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new("\x00\x01\x02".b)
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'blob' => io })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::ASCII_8BIT)
+    _(body_str).must_include 'Content-Type: application/octet-stream'
+    stubs.verify_stubbed_calls
+  end
+
   # A raw-bytes part with no explicit filename reuses the FIELD NAME as the
   # filename and, since that name has no/unknown extension, falls back to
   # Content-Type: application/octet-stream. For a field named "file" the part
@@ -2141,7 +2160,7 @@ describe 'DefaultApiClientUnit' do
     _(delays.first).must_be_within_delta 30, 1.5
   end
 
-  it 'falls back to the backoff when Retry-After cannot be read' do
+  it 'bhv_retries_029 falls back to the backoff when Retry-After cannot be read' do
     _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'retry-after' => 'soon' }, 'later']))
 
     _(delays.first).must_be :<=, 0.5
