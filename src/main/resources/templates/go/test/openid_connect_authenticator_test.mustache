@@ -71,6 +71,59 @@ func createOpenIdConnectAuthenticator() *oauth.OpenIdConnectAuthenticator {
 	)
 }
 
+// A max-age beyond one year is clamped, so the document is still reused as
+// cacheable instead of being refetched on every call.
+func TestBhvAuthoidc001_OpenIdConnectAuthenticator_MaxAgeBeyondOneYearIsClampedToOneYear(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=31536001"),
+		oidcDiscoveryResponse("max-age=31536001"),
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	for i := 0; i < 2; i++ {
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if got := client.requestCount(); got != 1 {
+		t.Errorf("expected one discovery request for a clamped max-age, got %d", got)
+	}
+}
+
+// The issuer may differ from the discovery URL only by a trailing slash.
+func TestBhvAuthoidc004_OpenIdConnectAuthenticator_DiscoveryAcceptsAMatchingIssuerWithATrailingSlash(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `{"issuer":"https://auth.example.com/","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+		t.Fatalf("expected the matching issuer with a trailing slash to be accepted, got %v", err)
+	}
+}
+
+// An empty state is left out of the authorization URL.
+func TestBhvAuthoidc018_OpenIdConnectAuthenticator_OmitsAnEmptyStateFromTheAuthorizationUrl(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	got, err := authObj.BuildAuthorizationURL("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(got, "state=") {
+		t.Errorf("expected no state parameter for an empty state, got %q", got)
+	}
+}
+
 func TestBhvAuthoidc002_OpenIdConnectAuthenticator_BuildsAuthorizationUrlFromDiscovery(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{

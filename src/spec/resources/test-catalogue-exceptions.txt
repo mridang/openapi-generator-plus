@@ -30,3 +30,5 @@ go | errors003 | status-specific errors are built only by FromResponse, which ta
 ||||||| 4610d9ef3
 go | authintegration002 | go has no per-call authenticator: no Options struct carries one (authintegration011) and the spec picks the scheme, so no per-call HTTP-aware authenticator is handed the client
 go | authintegration013 | go has no per-call auth override: a call cannot replace the scheme's credential, the spec and the Credentials struct decide it
+||||||| 4610d9ef3
+go | options027 | Go has no constructor that takes maxRetries: TransportOptions is built only through NewTransportOptionsBuilder, so there is no second construction path to test; the builder path and the MaxRetries(0) disabling are bhv options 026

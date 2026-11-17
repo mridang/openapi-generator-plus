@@ -618,6 +618,65 @@ func TestTransportOptions_EmptyCaCertFileAndDirectoryGetTheirOwnMessages(t *test
 	}
 }
 
+// A proxy URL error never shows the user-info: the password is masked.
+func TestBhvOptions008_TransportOptions_ProxyUrlErrorNeverCarriesTheUserInfo(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"socks5://svc:s3cret@proxy.example.com:1080", "http://svc:s3cret@"} {
+		_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if err == nil {
+			t.Fatalf("expected an error for %q", proxy)
+		}
+		if strings.Contains(err.Error(), "s3cret") || strings.Contains(err.Error(), "svc:") {
+			t.Errorf("expected the user-info to be masked in %q, got %q", proxy, err.Error())
+		}
+	}
+}
+
+// A bracketed IPv6 literal proxy host is accepted and read back verbatim.
+func TestBhvOptions009_TransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndKeptVerbatim(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"http://[::1]:3128", "http://[2001:db8::1]:8080"} {
+		opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if err != nil {
+			t.Fatalf("expected the IPv6 proxy %q to be accepted, got %v", proxy, err)
+		}
+		if opts.Proxy() == nil || opts.Proxy().String() != proxy {
+			t.Errorf("expected proxy %q kept verbatim, got %v", proxy, opts.Proxy())
+		}
+	}
+}
+
+// A proxy URL with no host is rejected as an invalid proxy URL.
+func TestBhvOptions011_TransportOptions_ProxyUrlWithNoHostIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"http://", "https:///only-a-path"} {
+		_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+			t.Errorf("%q: expected ErrInvalidProxyURL, got %v", proxy, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "missing host") {
+			t.Errorf("%q: expected a missing host message, got %q", proxy, err.Error())
+		}
+	}
+}
+
+// The proxy setter only records the value; the URL is checked by Build.
+func TestBhvOptions013_TransportOptions_InvalidProxyUrlIsRejectedAtBuildNotInTheSetter(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewTransportOptionsBuilder().Proxy("not-a-valid-url")
+	if builder == nil {
+		t.Fatal("expected the setter to return the builder")
+	}
+	opts, err := builder.Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL from Build, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected nil TransportOptions from Build")
+	}
+}
+
 // A bracketed IPv6 literal host is accepted and read back verbatim, and an
 // unterminated one is refused.
 func TestBhvOptions010_TransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndAnUnterminatedOneRefused(t *testing.T) {

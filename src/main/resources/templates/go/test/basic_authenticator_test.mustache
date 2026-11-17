@@ -87,6 +87,18 @@ func TestBhvAuthbasic004_BasicAuthenticator_NonAsciiCredentialsAreEncodedAsUtf8(
 	}
 }
 
+// The password is masked in every default string form, including the value form.
+func TestBhvAuthbasic005_BasicAuthenticator_PasswordIsNotLeakedInDefaultToString(t *testing.T) {
+	t.Parallel()
+	a := mustBasic(t, "https://api.example.com", "alice", "s3cret")
+
+	for _, s := range []string{a.String(), fmt.Sprint(a), fmt.Sprint(*a)} {
+		if strings.Contains(s, "s3cret") {
+			t.Errorf("expected the password not to appear in the default string form, got %q", s)
+		}
+	}
+}
+
 // The printed form shows the non-secret fields, host and username, and masks
 // only the password.
 func TestBhvAuthbasic010_BasicAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
