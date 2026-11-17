@@ -27,22 +27,22 @@ public struct PetTreatment: Codable, @unchecked Sendable {
     self._values = values
   }
 
-  /// Whether any retained variant is a ``Medication``.
+  /// Whether any retained variant is a `Medication`.
   public var isMedication: Bool {
     return _values.contains { $0 is Medication }
   }
 
-  /// The first retained variant that is a ``Medication``, or nil when none is.
+  /// The first retained variant that is a `Medication`, or nil when none is.
   public var asMedication: Medication? {
     return _values.lazy.compactMap { $0 as? Medication }.first
   }
 
-  /// Whether any retained variant is a ``Surgery``.
+  /// Whether any retained variant is a `Surgery`.
   public var isSurgery: Bool {
     return _values.contains { $0 is Surgery }
   }
 
-  /// The first retained variant that is a ``Surgery``, or nil when none is.
+  /// The first retained variant that is a `Surgery`, or nil when none is.
   public var asSurgery: Surgery? {
     return _values.lazy.compactMap { $0 as? Surgery }.first
   }

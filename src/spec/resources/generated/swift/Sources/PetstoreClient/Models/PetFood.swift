@@ -11,44 +11,44 @@ import Foundation
 public struct PetFood: Codable, @unchecked Sendable {
   private let _value: Any
 
-  /// Wraps a ``DryFood`` as this union's value, so a request body can be
+  /// Wraps a `DryFood` as this union's value, so a request body can be
   /// built in code and not only decoded from JSON.
   public init(_ value: DryFood) {
     self._value = value
   }
 
-  /// Wraps a ``WetFood`` as this union's value, so a request body can be
+  /// Wraps a `WetFood` as this union's value, so a request body can be
   /// built in code and not only decoded from JSON.
   public init(_ value: WetFood) {
     self._value = value
   }
 
-  /// Wraps a ``DryFood`` as this union's value; the named form of ``init(_:)``.
+  /// Wraps a `DryFood` as this union's value; the named form of `init(_:)`.
   public static func fromDryFood(_ value: DryFood) -> PetFood {
     return PetFood(value)
   }
 
-  /// Whether this union holds a ``DryFood``.
+  /// Whether this union holds a `DryFood`.
   public var isDryFood: Bool {
     return _value is DryFood
   }
 
-  /// The held value as a ``DryFood``, or nil when this union holds another variant.
+  /// The held value as a `DryFood`, or nil when this union holds another variant.
   public var asDryFood: DryFood? {
     return _value as? DryFood
   }
 
-  /// Wraps a ``WetFood`` as this union's value; the named form of ``init(_:)``.
+  /// Wraps a `WetFood` as this union's value; the named form of `init(_:)`.
   public static func fromWetFood(_ value: WetFood) -> PetFood {
     return PetFood(value)
   }
 
-  /// Whether this union holds a ``WetFood``.
+  /// Whether this union holds a `WetFood`.
   public var isWetFood: Bool {
     return _value is WetFood
   }
 
-  /// The held value as a ``WetFood``, or nil when this union holds another variant.
+  /// The held value as a `WetFood`, or nil when this union holds another variant.
   public var asWetFood: WetFood? {
     return _value as? WetFood
   }

@@ -82,9 +82,12 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 {{#allParams}}
-{{#description}}
-    ///   - {{paramName}}: {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
-{{/description}}
+{{#isPathParam}}
+    ///   - {{paramName}}: {{#description}}{{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}{{/description}}{{^description}}The {{paramName}} path parameter.{{/description}}
+{{/isPathParam}}
+{{#isBodyParam}}
+    ///   - {{paramName}}: {{#description}}{{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}{{/description}}{{^description}}The request body.{{/description}}
+{{/isBodyParam}}
 {{/allParams}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}

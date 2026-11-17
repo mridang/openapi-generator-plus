@@ -23,6 +23,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Create an account
   ///
   /// - Parameters:
+  ///   - account: The request body.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func createAccount(account: Account, options: CreateAccountOptions? = nil) async throws
     -> Account
@@ -119,6 +120,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Echoes a swatch supplied via path, query and header parameters.
   ///
   /// - Parameters:
+  ///   - pathSwatch: The pathSwatch path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions? = nil) async throws
     -> Category
@@ -484,6 +486,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Find purchase order by tracking id
   ///
   /// - Parameters:
+  ///   - trackingId: The trackingId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getOrderByTrackingId(trackingId: UUID, options: GetOrderByTrackingIdOptions? = nil)
     async throws -> Order
@@ -542,7 +545,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
   ///
   /// - Parameters:
-  ///   - asOf: Only consider stock as of this instant
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getStockItem(options: GetStockItemOptions? = nil) async throws -> StockItem {
     let result = try await getStockItemWithHTTPInfo(options: options)
@@ -793,6 +795,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Place an order for a pet
   ///
   /// - Parameters:
+  ///   - order: The request body.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func placeOrder(order: Order? = nil, options: PlaceOrderOptions? = nil) async throws
     -> Order
@@ -905,7 +908,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
   ///
   /// - Parameters:
-  ///   - q: JSON-encoded query parameter (OAS `content`, not `schema`)
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func searchStore(options: SearchStoreOptions? = nil) async throws -> [Order] {
     let result = try await searchStoreWithHTTPInfo(options: options)
