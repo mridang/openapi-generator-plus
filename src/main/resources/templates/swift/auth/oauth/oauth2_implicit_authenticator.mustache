@@ -82,16 +82,27 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Preserve existing query items instead of
          * overwriting them. */
-        var items: [URLQueryItem] = components.queryItems ?? []
-        items.append(URLQueryItem(name: "response_type", value: "token"))
-        items.append(URLQueryItem(name: "client_id", value: clientID))
+        var parameters: [(name: String, value: String)] = [
+            ("response_type", "token"),
+            ("client_id", clientID),
+        ]
         if !scopes.isEmpty {
-            items.append(URLQueryItem(name: "scope", value: scopes.joined(separator: " ")))
+            parameters.append(("scope", scopes.joined(separator: " ")))
         }
         if !state.isEmpty {
-            items.append(URLQueryItem(name: "state", value: state))
+            parameters.append(("state", state))
         }
-        components.queryItems = items
+        /* The RFC 3986 unreserved set stays literal and everything else is
+         * percent-encoded (`* ! ' ( )` included, a space as %20), the same
+         * canonical set the token body and the Basic header use. */
+        let unreserved = CharacterSet(
+            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        func encode(_ text: String) -> String {
+            text.addingPercentEncoding(withAllowedCharacters: unreserved) ?? text
+        }
+        let added = parameters.map { "\(encode($0.name))=\(encode($0.value))" }
+        let existing = components.percentEncodedQuery.map { [$0] } ?? []
+        components.percentEncodedQuery = (existing + added).filter { !$0.isEmpty }.joined(separator: "&")
         guard let url = components.url else {
             throw ConfigurationError.invalidArgument("malformed authorization URL: \(authorizationURL)")
         }

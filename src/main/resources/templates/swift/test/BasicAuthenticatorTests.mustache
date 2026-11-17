@@ -162,6 +162,17 @@ import Testing
         #expect(try await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
     }
 
+    /* A credential passed by neither route, or an empty variable (unset), fails when the
+     * authenticator is built, before any request. */
+    @Test func testBhvAuthbasic003{{className}}MissingOrEmptyCredentialsFailAtConstruction() throws {
+        #expect(throws: ConfigurationError.self) {
+            _ = try {{className}}(host: "https://api.example.com", username: nil, password: nil, environment: [:])
+        }
+        #expect(throws: ConfigurationError.self) {
+            _ = try {{className}}(host: "https://api.example.com", username: nil, password: nil, environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
+        }
+    }
+
 {{/isBasicScheme}}
 {{/perSchemeAuthEntries}}
     private static func schemeWrapper(_ scheme: String, username: String, password: String) throws -> BasicAuthenticator {

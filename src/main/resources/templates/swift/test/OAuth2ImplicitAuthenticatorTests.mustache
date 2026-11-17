@@ -77,6 +77,30 @@ import Testing
         #expect(url.contains("state=my-state"))
     }
 
+    /* RFC 3986 unreserved set: the tilde stays literal, while * ! ' ( ) are
+     * percent-encoded in the client id and the state alike. */
+    @Test func testBhvAuthoauthtwoimplicit001AuthorizationUrlEncodesSubDelimitersAndKeepsTilde() throws {
+        let auth = OAuth2ImplicitAuthenticator(
+            host: "https://api.example.com",
+            clientID: "id~*!'()",
+            authorizationURL: "https://auth.example.com/authorize"
+        )
+
+        let url = try auth.buildAuthorizationURL(state: "st~*!'()")
+
+        #expect(url.contains("client_id=id~%2A%21%27%28%29&"))
+        #expect(url.contains("state=st~%2A%21%27%28%29"))
+    }
+
+    /* An empty state is left out of the authorize URL altogether. */
+    @Test func testBhvAuthoauthtwoimplicit009OmitsAnEmptyStateFromTheAuthorizationUrl() throws {
+        let auth = createAuthenticator()
+
+        let url = try auth.buildAuthorizationURL()
+
+        #expect(!url.contains("state"))
+    }
+
     @Test func testBhvAuthoauthtwoimplicit007GetAuthHeadersReturnsBearerAfterSetAccessToken() async throws {
         let auth = createAuthenticator()
         try auth.setAccessToken("implicit-tok")

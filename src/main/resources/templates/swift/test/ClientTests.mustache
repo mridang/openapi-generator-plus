@@ -56,7 +56,8 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
     }
 
-    @Test func testBhvLifecycle007CloseLeavesASuppliedSessionOpen() async throws {
+    /* Closing the client never invalidates a session the caller supplied. */
+    @Test func testBhvLifecycle007BhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
         let probe = InvalidationProbe()
         let session = URLSession(configuration: .ephemeral, delegate: probe, delegateQueue: nil)
         let transport = try TransportOptionsBuilder().session(session).build()
@@ -267,11 +268,13 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
 
 {{#perSchemeAuthEntries}}
-    @Test func testBhvLifecycle002{{className}}ReadsItsCredentialsFromTheEnvironment() throws {
+    @Test func testBhvAuthscheme001{{className}}ReadsItsCredentialsFromTheEnvironment() throws {
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-value", {{/envVars}}])
     }
 
-    @Test func test{{className}}PrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws {
+    /* One optional keyword credential per scheme, named after it, and an explicit one
+     * needs no environment at all. */
+    @Test func testBhvLifecycle015BhvAuthscheme002{{className}}PrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws {
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-value", {{/envVars}}environment: [:])
     }
 

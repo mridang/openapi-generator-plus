@@ -25,6 +25,21 @@ import Testing
         #expect(config.baseURL == "https://custom.example.com")
     }
 
+    /* Inspecting a configuration shows credential-bearing default headers as *** and
+     * every other header as it is. */
+    @Test func testBhvConfig015InspectMasksSensitiveDefaultHeaders() {
+        let config = ConfigurationBuilder()
+            .defaultHeader(name: "Authorization", value: "Bearer secret-token-value")
+            .defaultHeader(name: "X-Api-Key", value: "api-key-value")
+            .defaultHeader(name: "X-Trace", value: "visible-value")
+            .build()
+
+        #expect(!String(describing: config).contains("secret-token-value"))
+        #expect(!String(reflecting: config).contains("api-key-value"))
+        #expect(String(describing: config).contains("visible-value"))
+        #expect(String(describing: config).contains("***"))
+    }
+
     @Test func testBhvConfig013BuilderSetsDefaultHeader() {
         let config = ConfigurationBuilder()
             .defaultHeader(name: "X-Custom", value: "value")
