@@ -220,6 +220,41 @@ defmodule {{moduleName}}.Api.StoreApiTest do
     end
   end
 
+  test "bhv operations 018 with_http_info variant returns ApiResult with status, data, headers, and raw_body", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.StoreApi.get_inventory_with_http_info(api)
+    assert result.status_code >= 200 and result.status_code < 300
+    assert result.data != nil
+    assert is_map(result.headers)
+    assert is_binary(result.raw_body)
+  end
+
+  test "bhv operations 097 content json query param is the object serializer output" do
+    {:ok, name} = StubApiClient.start("")
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    photo = %{{moduleName}}.Models.PhotoMetadata{caption: "a<b", taken_at: ~U[2024-01-15 10:30:00Z]}
+    options = %{{moduleName}}.Api.Options.SearchStoreOptions{q: photo}
+
+    _result = {{moduleName}}.Api.StoreApi.search_store(api, options)
+
+    captured = StubApiClient.captured(name)
+    query = captured.url |> String.split("?") |> List.last() |> URI.decode_query()
+    assert query["q"] == {{moduleName}}.ObjectSerializer.serialize(photo)
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 109 get_matrix decodes an array of integer arrays" do
+    {:ok, name} = StubApiClient.start("[[1,2],[3]]")
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, [[1, 2], [3]]} = {{moduleName}}.Api.StoreApi.get_matrix(api)
+
+    Agent.stop(name)
+  end
+
   # A named-enum ($ref) parameter goes on the wire as its declared value in a
   # path, a query string and a header, never as the atom's debug form.
   test "bhv operations 122 get_by_swatch sends the named enum's wire value in path, query and header" do
@@ -317,7 +352,7 @@ defmodule {{moduleName}}.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_by_swatch without options sends only the path value" do
+  test "bhv operations 107 get_by_swatch omits the optional query parameter and header when they are not set" do
     {:ok, name} = StubApiClient.start(~s({"id":1,"name":"sample"}))
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
