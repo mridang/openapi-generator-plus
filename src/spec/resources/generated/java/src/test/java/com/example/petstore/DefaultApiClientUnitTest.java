@@ -1285,7 +1285,8 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartRawBytesPartWithoutExtensionFallsBackToOctetStream() throws Exception {
+  void bhvSerializationWire056MultipartRawBytesPartWithoutExtensionFallsBackToOctetStream()
+      throws Exception {
     String part = renderMultipartPart("blob", new byte[] {1, 2, 3});
     assertTrue(
         part.contains("Content-Type: application/octet-stream"),
@@ -2589,6 +2590,25 @@ class DefaultApiClientUnitTest {
       assertEquals(200, response.statusCode());
       assertTrue(elapsedMillis >= 900, "waited the Retry-After second, took " + elapsedMillis);
       assertTrue(elapsedMillis < 4000, "did not fall back to a longer wait: " + elapsedMillis);
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRetries029FallsBackToTheBackoffWhenRetryAfterIsNotUnderstood() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(503, "soon") : new Reply(200, ""), hits);
+    try {
+      long startedNanos = System.nanoTime();
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
+      assertEquals(200, response.statusCode());
+      assertEquals(2, hits.get(), "the unreadable Retry-After is retried once");
+      assertTrue(elapsedMillis >= 375, "waited the backoff, took " + elapsedMillis);
+      assertTrue(elapsedMillis < 3000, "did not wait for a longer delay: " + elapsedMillis);
     } finally {
       scripted.stop(0);
     }

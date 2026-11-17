@@ -28,8 +28,9 @@ class TransportOptionsTest {
 
   @Test
   @DisplayName(
-      "a caller-supplied HttpClient conflicts with proxy, CA certificate and verifySsl(false)")
-  void suppliedHttpClientConflictsWithSdkProxyAndTlsSettings() {
+      "bhvLifecycle024 a caller-supplied HttpClient conflicts with proxy, CA certificate and"
+          + " verifySsl(false)")
+  void bhvLifecycle024SuppliedHttpClientConflictsWithSdkProxyAndTlsSettings() {
     java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
     try {
       org.junit.jupiter.api.Assertions.assertThrows(

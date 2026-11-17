@@ -450,6 +450,27 @@ class BaseApiTest {
       assertNotNull(ex.getResponseBody());
       assertFalse(ex.getResponseBody().isEmpty());
     }
+
+    @Test
+    @DisplayName("bhvErrors048 418 throws ClientException")
+    void bhvErrors048Status418ThrowsClientException() {
+      var ex =
+          assertThrowsExactly(
+              ClientException.class,
+              () ->
+                  api()
+                      .call(
+                          "GET",
+                          "/test/status/418",
+                          new HashMap<>(),
+                          new HashMap<>(),
+                          null,
+                          new String[] {"application/json"},
+                          "application/json",
+                          null,
+                          null));
+      assertEquals(418, ex.getStatusCode());
+    }
   }
 
   @Nested
@@ -2449,8 +2470,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("proxy that requires credentials answers 407 when none are sent")
-    void proxyWithoutCredentialsIsRefused() throws ApiException {
+    @DisplayName("bhvTransport059 proxy that requires credentials answers 407 when none are sent")
+    void bhvTransport059ProxyWithoutCredentialsIsRefused() throws ApiException {
       String chasmUrl = ChasmContainer.getInternalHttpUrl();
 
       DefaultApiClient client =
