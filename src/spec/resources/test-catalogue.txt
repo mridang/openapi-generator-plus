@@ -1093,7 +1093,7 @@ authscheme014 | An empty environment variable for the password scheme credential
 authscheme015 | An empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable
 authscheme016 | An empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable
 config018 | A default constructed or built configuration uses the base URL from the spec
-config019 | The default configuration factory returns the spec base URL and no default headers
+config019 | The default configuration factory returns the spec base URL
 config020 | A configuration builder chain sets the base URL and default headers in one configuration
 config021 | A server URL template resolves its variables to their defaults
 config022 | Mutating the returned default headers does not change the configuration

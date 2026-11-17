@@ -1898,6 +1898,37 @@ class BaseApiTest {
 
     @Test
     @DisplayName(
+        "bhvErrors054 names the operation, not the HTTP verb, in an unexpected Content-Type error")
+    void bhvErrors054UnexpectedContentTypeNamesTheOperationNotTheVerb() {
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              return new ApiHttpResponse(200, "<p>hi</p>", Map.of("Content-Type", "text/html"));
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      com.example.petstore.errors.SerializationException ex =
+          assertThrowsExactly(
+              com.example.petstore.errors.SerializationException.class,
+              () ->
+                  testApi.call(
+                      "GET",
+                      "/test/echo",
+                      new HashMap<>(),
+                      new HashMap<>(),
+                      null,
+                      new String[] {"text/html"},
+                      "application/json",
+                      JSON_NODE_TYPE,
+                      null));
+      assertTrue(String.valueOf(ex.getMessage()).contains("TestableApi.echoOperation"));
+      assertFalse(String.valueOf(ex.getMessage()).contains("GET"));
+    }
+
+    @Test
+    @DisplayName(
         "bhvSerializationWire005 deserializes vendor JSON MIME types like application/problem+json")
     void bhvSerializationWire005DeserializesVendorJsonMimeType() throws ApiException {
       var client =

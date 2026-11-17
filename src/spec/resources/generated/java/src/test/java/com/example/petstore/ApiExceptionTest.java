@@ -17,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.BadRequestException;
+import com.example.petstore.errors.ConflictException;
 import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.SerializationException;
 import java.util.Map;
@@ -75,7 +77,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void responseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
+  void bhvErrors050ResponseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
     ApiException ex =
         new ApiException(
             502, "bad", new java.util.LinkedHashMap<>(Map.of("b", "x/y", "a", "1")), null);
@@ -192,7 +194,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void typedErrorsExtendApiExceptionSoBaseCatchWorks() {
+  void bhvErrors052TypedErrorsExtendApiExceptionSoBaseCatchWorks() {
     // #5: typed HTTP errors must extend the common ApiException base so a
     // single catch / assertThrows(ApiException) catches every concrete
     // subtype. The full chain for a 4xx leaf is:
@@ -216,7 +218,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void statusErrorConstructorsDefaultTheResponseContextToNull() {
+  void bhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull() {
     com.example.petstore.errors.BadRequestException badRequest =
         new com.example.petstore.errors.BadRequestException();
     assertEquals(400, badRequest.getStatusCode());
@@ -501,7 +503,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void anEmptyMessageFallsBackToTheGenericLine() {
+  void bhvErrors051AnEmptyMessageFallsBackToTheGenericLine() {
     ApiException ex = new ApiException(0, "", null, null);
 
     assertEquals("Error message: the server returns an error", ex.toString());
@@ -620,5 +622,17 @@ class ApiExceptionTest {
   void bhvErrors028GetTypedErrorBodyIsNullForANullBody() {
     ApiException ex = ApiException.fromResponse(400, null, null);
     assertNull(ex.getTypedErrorBody(Map.class));
+  }
+
+  @Test
+  void bhvErrors053EachNamedErrorPinsItsOwnStatusCode() {
+    assertEquals(400, new BadRequestException().getStatusCode());
+    assertEquals(409, new ConflictException().getStatusCode());
+  }
+
+  @Test
+  void bhvErrors056AStatusAtOrAbove600IsTheBaseErrorAndNotAServerError() {
+    ApiException ex = ApiException.fromResponse(600, Map.of(), null);
+    assertEquals(ApiException.class, ex.getClass());
   }
 }

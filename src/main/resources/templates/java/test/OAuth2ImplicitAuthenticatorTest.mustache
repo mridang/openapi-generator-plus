@@ -187,4 +187,13 @@ class OAuth2ImplicitAuthenticatorTest {
         assertTrue(java.lang.reflect.Modifier.isVolatile(
                 OAuth2ImplicitAuthenticator.class.getDeclaredField("accessToken").getModifiers()));
     }
+
+    @Test
+    void bhvAuthScheme016AnEmptyClientIdVariableIsUnsetAndNamesIt() {
+        Map<String, String> environment = Map.of("{{envVarPrefix}}_BROWSER_AUTH_CLIENT_ID", "");
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                new BrowserAuthImplicitAuthenticator("https://api.example.com", null, environment));
+        assertTrue(java.util.Objects.requireNonNull(ex.getMessage())
+                .contains("{{envVarPrefix}}_BROWSER_AUTH_CLIENT_ID"), ex.getMessage());
+    }
 }
