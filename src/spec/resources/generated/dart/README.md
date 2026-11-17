@@ -179,6 +179,10 @@ final client = Client.withToken(
 );
 ```
 
+### Credentials per security scheme
+
+Client takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Each operation uses the credential of the scheme its spec names; there is no per-call override. An optional `authenticator` serves any operation no scheme credential matches. The client is refused when it gets no credential at all.
+
 ### Copying models
 
 Models are immutable: every field is `final`. `copyWith` returns a changed copy

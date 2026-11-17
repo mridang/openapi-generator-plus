@@ -273,6 +273,10 @@ Future<void> addPetOrReport(Client client, Pet pet, AddPetOptions? options) asyn
 }
 ```
 
+### Credentials per security scheme
+
+Client takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Each operation uses the credential of the scheme its spec names; there is no per-call override. An optional `authenticator` serves any operation no scheme credential matches. The client is refused when it gets no credential at all.
+
 ## Per-call options
 
 Every operation takes an options object as its trailing argument, `null` when nothing is set. Besides any query, header, form or cookie parameters it carries `timeout` (milliseconds, end to end), `headers` (replace a header already set) and `maxRetries` (`0` turns retries off) for that call only.

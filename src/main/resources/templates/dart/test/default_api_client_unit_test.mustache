@@ -1280,6 +1280,32 @@ void main() {
       );
     });
 
+    /* F1078: close is graceful. A request that started before close() runs
+     * to the end, a request that starts after it raises the StateError, and
+     * closing twice changes nothing. */
+    test('close lets an in-flight request finish and refuses a new one', () async {
+      final gate = Completer<void>();
+      final custom = MockClient((_) async {
+        await gate.future;
+        return http.Response('done', 200);
+      });
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().httpClient(custom).build(),
+      );
+
+      final inFlight = client.sendRequest('GET', 'http://custom.test/slow', {}, null);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      client.close();
+      client.close();
+      await expectLater(
+        client.sendRequest('GET', 'http://custom.test/new', {}, null),
+        throwsA(isA<StateError>()),
+      );
+      gate.complete();
+
+      expect((await inFlight).statusCode, equals(200));
+    });
+
     /* A malformed request URL or a header value with CR/LF is a caller
      * mistake: an ArgumentError, never a NetworkException. */
     test('throws ArgumentError for a malformed request URL', () async {

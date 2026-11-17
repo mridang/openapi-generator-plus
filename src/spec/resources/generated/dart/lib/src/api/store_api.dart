@@ -44,7 +44,12 @@ import 'options/search_store_options.dart';
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
 class StoreApi extends BaseApi {
-  StoreApi({super.apiClient, super.config, super.authenticator});
+  StoreApi({
+    super.apiClient,
+    super.config,
+    super.authenticator,
+    super.schemeAuthenticators,
+  });
 
   /// Create an account
   /// `options` options carrying the per-call timeout, headers and retry budget

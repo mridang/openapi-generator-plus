@@ -52,41 +52,78 @@ class {{clientClassName}} {
   final DefaultApiClient _apiClient;
 
   {{clientClassName}}._({
-    required Authenticator authenticator,
+    required Authenticator host,
+    Authenticator? authenticator,
+    required Map<String, Authenticator> schemes,
     required DefaultApiClient apiClient,
   }) : _apiClient = apiClient,
-       {{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}} = _create{{classname}}(authenticator, apiClient){{^-last}},
+       {{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}} = _create{{classname}}(host, authenticator, schemes, apiClient){{^-last}},
        {{/-last}}{{#-last}};{{/-last}}{{/operations}}{{/apis}}{{/apiInfo}}
 
-  /// Creates a new client with the given authenticator and transport options.
+  /// Creates a new client from its credentials and transport options.
   ///
-  /// If the authenticator implements [HttpAwareAuthenticator], the shared
+  /// Each security scheme of the API has one optional credential, named after
+  /// the scheme{{#clientSchemes}}{{#-first}} (`{{/-first}}{{paramName}}{{^-last}}`, `{{/-last}}{{#-last}}`){{/-last}}{{/clientSchemes}}. An operation uses the credential
+  /// of the scheme its spec requires, and there is no per-call override. When
+  /// no scheme you configured matches, the operation uses [authenticator] if
+  /// one is given and otherwise fails before a request is sent. The base URL
+  /// comes from the first credential given, [authenticator] first.
+  ///
+  /// If a credential implements [HttpAwareAuthenticator], the shared
   /// `ApiClient` is injected so that token exchange and discovery requests
   /// use the same proxy, TLS, and timeout settings.
   ///
   /// Parameters:
-  ///   - [authenticator]: provides host URL and auth headers
+  ///   - [authenticator]: default credential, used by an operation that no
+  ///     scheme credential matches
   ///   - [transportOptions]: HTTP transport configuration (proxy, TLS,
   ///     timeouts, etc.)
   factory {{clientClassName}}({
-    required Authenticator authenticator,
+    Authenticator? authenticator,
+{{#clientSchemes}}
+    Authenticator? {{paramName}},
+{{/clientSchemes}}
     TransportOptions? transportOptions,
   }) {
-    final apiClient = DefaultApiClient(transportOptions: transportOptions);
-    if (authenticator is HttpAwareAuthenticator) {
-      authenticator.setApiClient(apiClient);
+    final schemes = <String, Authenticator>{
+{{#clientSchemes}}
+      if ({{paramName}} != null) '{{schemeName}}': {{paramName}},
+{{/clientSchemes}}
+    };
+    final host = authenticator ?? (schemes.isEmpty ? null : schemes.values.first);
+    if (host == null) {
+      throw ArgumentError('At least one credential is required');
     }
-    return {{clientClassName}}._(authenticator: authenticator, apiClient: apiClient);
+    final apiClient = DefaultApiClient(transportOptions: transportOptions);
+    for (final credential in [if (authenticator != null) authenticator, ...schemes.values]) {
+      if (credential is HttpAwareAuthenticator) {
+        credential.setApiClient(apiClient);
+      }
+    }
+    return {{clientClassName}}._(
+      host: host,
+      authenticator: authenticator,
+      schemes: schemes,
+      apiClient: apiClient,
+    );
   }
 
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-  static {{classname}} _create{{classname}}(Authenticator authenticator, DefaultApiClient apiClient) {
-    final config = ConfigurationBuilder()
-        .baseUrl(authenticator.host())
-        .build();
-    return {{classname}}(apiClient: apiClient, config: config, authenticator: authenticator);
+  static {{classname}} _create{{classname}}(
+    Authenticator host,
+    Authenticator? authenticator,
+    Map<String, Authenticator> schemes,
+    DefaultApiClient apiClient,
+  ) {
+    final config = ConfigurationBuilder().baseUrl(host.host()).build();
+    return {{classname}}(
+      apiClient: apiClient,
+      config: config,
+      authenticator: authenticator,
+      schemeAuthenticators: schemes,
+    );
   }
 {{/operations}}
 {{/apis}}

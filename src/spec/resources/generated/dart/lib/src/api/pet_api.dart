@@ -226,11 +226,16 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
 /// See <https://example.com/docs/pets> Find out more about pets (it's */ here)
 /// on two lines
 class PetApi extends BaseApi {
-  PetApi({super.apiClient, super.config, super.authenticator});
+  PetApi({
+    super.apiClient,
+    super.config,
+    super.authenticator,
+    super.schemeAuthenticators,
+  });
 
   /// Add a new pet to the store
   /// `pet` Create a new pet in the store
-  /// `options` options carrying an optional per-call authenticator
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<Pet> addPet(Pet pet, AddPetOptions? options) async {
     final result = await addPetWithHttpInfo(pet, options);
     final data = result.data;
@@ -255,7 +260,10 @@ class PetApi extends BaseApi {
     Pet pet,
     AddPetOptions? options,
   ) async {
-    final Authenticator? auth = options?.auth;
+    final Authenticator? auth = schemeAuthenticator(const [
+      'petStoreBearer',
+      'apiKeyHeader',
+    ]);
 
     var path = '/pet';
 
@@ -382,7 +390,7 @@ class PetApi extends BaseApi {
   }
 
   /// Record a treatment for a pet
-  /// `options` options carrying an optional per-call authenticator
+  /// `options` options carrying the per-call timeout, headers and retry budget
   Future<PetTreatment> addPetTreatment(
     int petId,
     PetTreatment petTreatment,
@@ -417,7 +425,10 @@ class PetApi extends BaseApi {
     PetTreatment petTreatment,
     AddPetTreatmentOptions? options,
   ) async {
-    final Authenticator? auth = options?.auth;
+    final Authenticator? auth = schemeAuthenticator(const [
+      'petStoreBasic',
+      'petStoreBearer',
+    ]);
 
     var path = '/pet/{petId}/treatment';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -471,7 +482,7 @@ class PetApi extends BaseApi {
   /// Deletes a pet
   /// `petId` Pet id to delete
   /// `apiKey` Session cookie used for authentication
-  /// `options` options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+  /// `options` options for query, header, form, and cookie parameters
   Future<void> deletePet(int petId, DeletePetOptions? options) async {
     await deletePetWithHttpInfo(petId, options);
   }
@@ -481,7 +492,10 @@ class PetApi extends BaseApi {
     int petId,
     DeletePetOptions? options,
   ) async {
-    final Authenticator? auth = options?.auth;
+    final Authenticator? auth = schemeAuthenticator(const [
+      'machineAuth',
+      'adminBasic',
+    ]);
 
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already

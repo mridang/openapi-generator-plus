@@ -187,6 +187,10 @@ final client = {{clientClassName}}.withToken(
 );
 ```
 
+### Credentials per security scheme
+
+{{clientClassName}} takes one optional credential for each security scheme of the API, named after the scheme{{#clientSchemes}}{{#-first}}: `{{/-first}}{{paramName}}{{^-last}}`, `{{/-last}}{{#-last}}`{{/-last}}{{/clientSchemes}}. Each operation uses the credential of the scheme its spec names; there is no per-call override. An optional `authenticator` serves any operation no scheme credential matches. The client is refused when it gets no credential at all.
+
 ### Copying models
 
 Models are immutable: every field is `final`. `copyWith` returns a changed copy

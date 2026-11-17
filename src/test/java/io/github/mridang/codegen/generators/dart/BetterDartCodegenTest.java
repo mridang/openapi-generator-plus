@@ -214,4 +214,29 @@ class BetterDartCodegenTest {
         .containsEntry("firstVariable", "P_PET_BASIC_USERNAME");
     assertThat(schemes.get(1)).containsEntry("className", "SvcAuthenticator");
   }
+
+  @Test
+  void theClientTakesOneCredentialPerSchemeNamedAfterIt() {
+    final OpenAPI api = new OpenAPI();
+    final Map<String, SecurityScheme> schemes = new LinkedHashMap<>();
+    schemes.put("petStoreBearer", new SecurityScheme().type(SecurityScheme.Type.HTTP));
+    schemes.put("admin-basic", new SecurityScheme().type(SecurityScheme.Type.HTTP));
+    api.setComponents(new Components().securitySchemes(schemes));
+
+    assertThat(BetterDartCodegen.clientSchemes(api))
+        .extracting(e -> e.get("schemeName") + "=" + e.get("paramName"))
+        .containsExactly("petStoreBearer=petStoreBearer", "admin-basic=adminBasic");
+    assertThat(BetterDartCodegen.clientSchemes(new OpenAPI())).isEmpty();
+  }
+
+  @Test
+  void anOptionsObjectNeverCarriesAnAuthenticator() {
+    final org.openapitools.codegen.CodegenOperation op = new org.openapitools.codegen.CodegenOperation();
+    op.operationId = "addThing";
+    op.hasAuthMethods = true;
+
+    final String source = new BetterDartCodegen().generateOptionsFileContent(op, List.of(), "AddThingOptions");
+
+    assertThat(source).doesNotContain("Authenticator").contains("final int? timeout;");
+  }
 }

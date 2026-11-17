@@ -57,6 +57,10 @@ abstract class AbstractApiClient implements RetryingApiClient {
    * "Client is already closed" ClientException. */
   bool _closed = false;
 
+  /* Requests that started and have not finished; close() waits for them. */
+  int _inFlight = 0;
+  bool _released = false;
+
   /* True when the SDK built the [http.Client] itself; a caller-supplied client
    * (TransportOptions.httpClient) stays open because the caller owns it. */
   final bool _ownsClient;
@@ -150,6 +154,36 @@ abstract class AbstractApiClient implements RetryingApiClient {
         'ApiClient has been closed and can no longer send requests',
       );
     }
+    /* A request that started before close() finishes: the transport is
+     * released only when the last one is done. */
+    _inFlight++;
+    try {
+      return await _send(
+        method,
+        url,
+        headers,
+        body,
+        noRedirect,
+        timeout,
+        noDefaultHeaders,
+      );
+    } finally {
+      _inFlight--;
+      if (_closed && _inFlight == 0) {
+        _release();
+      }
+    }
+  }
+
+  Future<ApiHttpResponse> _send(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body,
+    bool noRedirect,
+    int? timeout,
+    bool noDefaultHeaders,
+  ) async {
     final merged = <String, String>{};
 
     /* A call header replaces a default header of the same name whatever the
@@ -725,12 +759,23 @@ abstract class AbstractApiClient implements RetryingApiClient {
     }
   }
 
-  /// Closes the underlying HTTP client, unless the caller supplied it through
-  /// [TransportOptions.httpClient]: the caller owns that one. After this call any further
-  /// [sendRequest] raises a typed [ApiException] rather than the underlying
-  /// `http` package's closed-client exception. Idempotent.
+  /// Marks the client closed and releases the HTTP client this SDK built, unless
+  /// the caller supplied it through [TransportOptions.httpClient]: the caller
+  /// owns that one and it is never closed. Requests already in flight finish
+  /// first (the transport is released when the last one completes); a request
+  /// started after this call raises a [StateError]. Idempotent.
   void close() {
     _closed = true;
+    if (_inFlight == 0) {
+      _release();
+    }
+  }
+
+  void _release() {
+    if (_released) {
+      return;
+    }
+    _released = true;
     if (_ownsClient) {
       _httpClient.close();
     }

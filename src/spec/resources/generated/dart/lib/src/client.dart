@@ -50,54 +50,113 @@ class Client {
   final DefaultApiClient _apiClient;
 
   Client._({
-    required Authenticator authenticator,
+    required Authenticator host,
+    Authenticator? authenticator,
+    required Map<String, Authenticator> schemes,
     required DefaultApiClient apiClient,
   }) : _apiClient = apiClient,
-       pet = _createPetApi(authenticator, apiClient),
-       store = _createStoreApi(authenticator, apiClient);
+       pet = _createPetApi(host, authenticator, schemes, apiClient),
+       store = _createStoreApi(host, authenticator, schemes, apiClient);
 
-  /// Creates a new client with the given authenticator and transport options.
+  /// Creates a new client from its credentials and transport options.
   ///
-  /// If the authenticator implements [HttpAwareAuthenticator], the shared
+  /// Each security scheme of the API has one optional credential, named after
+  /// the scheme (`petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`). An operation uses the credential
+  /// of the scheme its spec requires, and there is no per-call override. When
+  /// no scheme you configured matches, the operation uses [authenticator] if
+  /// one is given and otherwise fails before a request is sent. The base URL
+  /// comes from the first credential given, [authenticator] first.
+  ///
+  /// If a credential implements [HttpAwareAuthenticator], the shared
   /// `ApiClient` is injected so that token exchange and discovery requests
   /// use the same proxy, TLS, and timeout settings.
   ///
   /// Parameters:
-  ///   - [authenticator]: provides host URL and auth headers
+  ///   - [authenticator]: default credential, used by an operation that no
+  ///     scheme credential matches
   ///   - [transportOptions]: HTTP transport configuration (proxy, TLS,
   ///     timeouts, etc.)
   factory Client({
-    required Authenticator authenticator,
+    Authenticator? authenticator,
+    Authenticator? petStoreBasic,
+    Authenticator? adminBasic,
+    Authenticator? petStoreBearer,
+    Authenticator? serviceToken,
+    Authenticator? apiKeyHeader,
+    Authenticator? internalApiKey,
+    Authenticator? apiKeyQuery,
+    Authenticator? sessionCookie,
+    Authenticator? machineAuth,
+    Authenticator? legacyAuth,
+    Authenticator? userAuth,
+    Authenticator? browserAuth,
+    Authenticator? ssoAuth,
     TransportOptions? transportOptions,
   }) {
-    final apiClient = DefaultApiClient(transportOptions: transportOptions);
-    if (authenticator is HttpAwareAuthenticator) {
-      authenticator.setApiClient(apiClient);
+    final schemes = <String, Authenticator>{
+      if (petStoreBasic != null) 'petStoreBasic': petStoreBasic,
+      if (adminBasic != null) 'adminBasic': adminBasic,
+      if (petStoreBearer != null) 'petStoreBearer': petStoreBearer,
+      if (serviceToken != null) 'serviceToken': serviceToken,
+      if (apiKeyHeader != null) 'apiKeyHeader': apiKeyHeader,
+      if (internalApiKey != null) 'internalApiKey': internalApiKey,
+      if (apiKeyQuery != null) 'apiKeyQuery': apiKeyQuery,
+      if (sessionCookie != null) 'sessionCookie': sessionCookie,
+      if (machineAuth != null) 'machineAuth': machineAuth,
+      if (legacyAuth != null) 'legacyAuth': legacyAuth,
+      if (userAuth != null) 'userAuth': userAuth,
+      if (browserAuth != null) 'browserAuth': browserAuth,
+      if (ssoAuth != null) 'ssoAuth': ssoAuth,
+    };
+    final host =
+        authenticator ?? (schemes.isEmpty ? null : schemes.values.first);
+    if (host == null) {
+      throw ArgumentError('At least one credential is required');
     }
-    return Client._(authenticator: authenticator, apiClient: apiClient);
+    final apiClient = DefaultApiClient(transportOptions: transportOptions);
+    for (final credential in [
+      if (authenticator != null) authenticator,
+      ...schemes.values,
+    ]) {
+      if (credential is HttpAwareAuthenticator) {
+        credential.setApiClient(apiClient);
+      }
+    }
+    return Client._(
+      host: host,
+      authenticator: authenticator,
+      schemes: schemes,
+      apiClient: apiClient,
+    );
   }
 
   static PetApi _createPetApi(
-    Authenticator authenticator,
+    Authenticator host,
+    Authenticator? authenticator,
+    Map<String, Authenticator> schemes,
     DefaultApiClient apiClient,
   ) {
-    final config = ConfigurationBuilder().baseUrl(authenticator.host()).build();
+    final config = ConfigurationBuilder().baseUrl(host.host()).build();
     return PetApi(
       apiClient: apiClient,
       config: config,
       authenticator: authenticator,
+      schemeAuthenticators: schemes,
     );
   }
 
   static StoreApi _createStoreApi(
-    Authenticator authenticator,
+    Authenticator host,
+    Authenticator? authenticator,
+    Map<String, Authenticator> schemes,
     DefaultApiClient apiClient,
   ) {
-    final config = ConfigurationBuilder().baseUrl(authenticator.host()).build();
+    final config = ConfigurationBuilder().baseUrl(host.host()).build();
     return StoreApi(
       apiClient: apiClient,
       config: config,
       authenticator: authenticator,
+      schemeAuthenticators: schemes,
     );
   }
 

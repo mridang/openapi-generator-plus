@@ -1,12 +1,5 @@
-import '../../auth/authenticator.dart';
-
 /// Options for the addPet operation.
 class AddPetOptions {
-  /// Per-operation authenticator. When non-null it overrides the client's
-  /// configured credentials for this call only; null falls back to the
-  /// configured authenticator.
-  final Authenticator? auth;
-
   /// End-to-end timeout in milliseconds for this call only. When non-null it
   /// replaces the transport's timeout; null keeps it. Must not be negative.
   final int? timeout;
@@ -20,5 +13,5 @@ class AddPetOptions {
   /// the transport's value.
   final int? maxRetries;
 
-  const AddPetOptions({this.auth, this.timeout, this.headers, this.maxRetries});
+  const AddPetOptions({this.timeout, this.headers, this.maxRetries});
 }

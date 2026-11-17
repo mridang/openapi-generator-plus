@@ -2008,6 +2008,29 @@
   },
   {
    "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so dart's Options objects carry no per-call authenticator; the other eleven drop the field in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "baseapi.schemeauthenticator"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "value": "extra*",
+   "reason": "F857: the helper the generated API classes call to pick the credential of the scheme an operation names; dart has no protected visibility across libraries, so it is public like the other BaseApi helpers"
+  },
+  {
+   "element": [
     "apiclient.sendrequest",
     "abstractapiclient.sendrequest",
     "defaultapiclient.sendrequest"

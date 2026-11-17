@@ -9,6 +9,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
 import 'package:petstore_client/src/api/base_api.dart';
@@ -186,9 +188,13 @@ class _CountingAuth extends BaseAuthenticator {
   }
 }
 
-PetApi _chasmApi() {
+PetApi _chasmApi({Map<String, Authenticator>? schemes}) {
   final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
-  return PetApi(apiClient: DefaultApiClient(), config: config);
+  return PetApi(
+    apiClient: DefaultApiClient(),
+    config: config,
+    schemeAuthenticators: schemes,
+  );
 }
 
 void main() {
@@ -336,14 +342,11 @@ void main() {
       final auth = _BaseApiAuth(
         headers: {'Authorization': 'Bearer test-token'},
       );
-      final api = _chasmApi();
+      final api = _chasmApi(schemes: {'petStoreBearer': auth});
 
       // Exercise auth headers through the API layer
       try {
-        await api.addPet(
-          Pet(name: 'Test', photoUrls: <String>{}),
-          AddPetOptions(auth: auth),
-        );
+        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), null);
       } catch (_) {}
 
       // Verify via echo endpoint
@@ -373,12 +376,13 @@ void main() {
             .baseUrl('http://localhost:${server.port}')
             .build();
         final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
-        await api.addPet(
-          Pet(name: 'Test', photoUrls: <String>{}),
-          AddPetOptions(auth: auth),
+        final api = PetApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          schemeAuthenticators: {'petStoreBearer': auth},
         );
+
+        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), null);
         expect(receivedCookie, equals('session=abc123'));
       } finally {
         await server.close();
@@ -523,13 +527,16 @@ void main() {
     // -- OptionalAuthParamTests --
 
     test(
-      'a per-call HTTP-aware authenticator receives the API transport',
+      'a scheme HTTP-aware authenticator receives the API transport',
       () async {
         final transport = _CapturingApiClient();
         final recorder = _ClientRecordingAuth();
-        final api = PetApi(apiClient: transport);
+        final api = PetApi(
+          apiClient: transport,
+          schemeAuthenticators: {'adminBasic': recorder},
+        );
 
-        await api.deletePet(1, DeletePetOptions(auth: recorder));
+        await api.deletePet(1, null);
         expect(identical(recorder.injected, transport), isTrue);
       },
     );
@@ -597,12 +604,10 @@ void main() {
           apiClient: DefaultApiClient(),
           config: config,
           authenticator: clientAuth,
+          schemeAuthenticators: {'petStoreBearer': opAuth},
         );
 
-        await api.addPet(
-          Pet(name: 'Fido', photoUrls: <String>{}),
-          AddPetOptions(auth: opAuth),
-        );
+        await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}), null);
         expect(receivedAuth, equals('Bearer op-level'));
       } finally {
         await server.close();
@@ -1287,12 +1292,13 @@ void main() {
             .baseUrl('http://localhost:${server.port}')
             .build();
         final auth = _BaseApiAuth();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
-        await api.addPet(
-          Pet(name: 'TestPet', photoUrls: <String>{}),
-          AddPetOptions(auth: auth),
+        final api = PetApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          schemeAuthenticators: {'petStoreBearer': auth},
         );
+
+        await api.addPet(Pet(name: 'TestPet', photoUrls: <String>{}), null);
         expect(receivedBody, contains('TestPet'));
       } finally {
         await server.close();
@@ -2066,11 +2072,14 @@ void main() {
         final config = ConfigurationBuilder()
             .baseUrl('http://localhost:${server.port}')
             .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
         final auth = _BaseApiAuth();
+        final api = PetApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          schemeAuthenticators: {'adminBasic': auth},
+        );
         try {
-          await api.deletePet(1, DeletePetOptions(auth: auth));
+          await api.deletePet(1, null);
         } catch (_) {}
       } finally {
         await server.close();
@@ -3119,6 +3128,88 @@ void main() {
         expect(client.sentHeaders.last.containsKey('X-Call'), isFalse);
       },
     );
+  });
+
+  group('Security scheme credentials (F857)', () {
+    /* One optional credential per security scheme, named after the scheme;
+     * each operation uses the credential of the scheme its spec requires. */
+    test('each operation sends the credential of its own scheme', () async {
+      final seen = <String, String?>{};
+      final transport = MockClient((request) async {
+        seen['${request.method} ${request.url.path}'] =
+            request.headers['authorization'];
+        return http.Response(
+          '{"id":1,"name":"x","photoUrls":[]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final client = Client(
+        petStoreBearer: BearerAuthenticator(
+          host: 'http://api.test',
+          token: 'b-token',
+        ),
+        adminBasic: BasicAuthenticator(
+          host: 'http://api.test',
+          username: 'admin',
+          password: 'pw',
+        ),
+        transportOptions: TransportOptionsBuilder()
+            .httpClient(transport)
+            .build(),
+      );
+
+      await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+      await client.pet.deletePet(1, null);
+
+      expect(seen['POST /pet'], equals('Bearer b-token'));
+      expect(seen['DELETE /pet/1'], startsWith('Basic '));
+    });
+
+    test(
+      'the default authenticator serves an operation no scheme matches',
+      () async {
+        String? sent;
+        final transport = MockClient((request) async {
+          sent = request.headers['authorization'];
+          return http.Response(
+            '{"id":1,"name":"x","photoUrls":[]}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://api.test',
+            token: 'fallback',
+          ),
+          adminBasic: BasicAuthenticator(
+            host: 'http://api.test',
+            username: 'admin',
+            password: 'pw',
+          ),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(transport)
+              .build(),
+        );
+
+        await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+
+        expect(sent, equals('Bearer fallback'));
+      },
+    );
+
+    test('a client with no credential at all is refused', () {
+      expect(() => Client(), throwsArgumentError);
+    });
+
+    test('the options object carries no authenticator', () {
+      final source = File(
+        'lib/src/api/options/add_pet_options.dart',
+      ).readAsStringSync();
+
+      expect(source, isNot(contains('Authenticator')));
+    });
   });
 
   group('Multiple 2xx responses', () {

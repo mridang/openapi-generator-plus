@@ -994,6 +994,30 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         additionalProperties.put("credentialEnvVars", read);
         additionalProperties.put("hasCredentialEnvVars", !read.isEmpty());
         additionalProperties.put("credentialSchemes", credentialSchemes(read));
+        additionalProperties.put("clientSchemes", clientSchemes(openAPI));
+    }
+
+    /**
+     * Lists the credentials the client accepts (F857): one per distinct security scheme, named
+     * after the scheme, as {@code schemeName} (the key in the spec) and {@code paramName} (the
+     * Dart argument).
+     *
+     * @param openAPI the parsed document
+     * @return the schemes the generator builds an authenticator for, in declaration order
+     */
+    static List<Map<String, Object>> clientSchemes(final OpenAPI openAPI) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return out;
+        }
+        for (final String name : openAPI.getComponents().getSecuritySchemes().keySet()) {
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("schemeName", name);
+            entry.put("paramName", NamingConvention.CAMEL_CASE.apply(name));
+            out.add(entry);
+        }
+        return out;
     }
 
     /**
@@ -1426,6 +1450,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         context.put("dartImports", optionsImports);
         context.put("hasDartImports", !optionsImports.isEmpty());
         injectAuthFieldContext(op, context);
+        /* F857: an operation uses the credential of the scheme its spec names, set on the
+         * client; there is no per-call authenticator. */
+        context.put("hasAuthField", false);
         // Relative import from lib/src/api/options/ up to the generic
         // Authenticator at lib/src/auth/authenticator.dart, mirroring how
         // model imports are formed (../../models/<file>.dart).

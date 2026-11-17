@@ -392,6 +392,8 @@ Implemented, in dart's idiom:
 - File header (F1156): the barrel's library doc unescapes and wraps the info description. Test: `metadata_test`.
 - README (F834, F835, F836, F837, F828, F889): sections on per-call options, errors, credentials, copying models, several success responses, response compression, logging and versioning, and caveats for optional-versus-nullable, unknown enum or discriminator values, the joined response-header map, no streaming and `Configuration` versus `TransportOptions`. Test: `metadata_test`.
 - F1124: the out-of-pattern `nickname` row (`ZZZZZZZZZZ`) round-trips unchanged because dart enforces no constraint (S3). Test: `object_serializer_test`.
+- Owner decisions of 2026-11-17: F857 the client takes one optional credential per scheme (`clientSchemes`, `BaseApi.schemeAuthenticator`, no `auth` on Options; test `base_api_test` `Security scheme credentials`); F840 cookies are raw when every character is an RFC 6265 cookie-octet, else `ArgumentError` before sending (test `pet_api_test` `cookie parameters`); F1078 `AbstractApiClient.close()` is graceful through an in-flight counter (test `default_api_client_unit_test`); F316 constructors never validate (test `object_serializer_test`).
+- F1085 (test TLS keys) is not done: the local TLS tests use `test/fixtures/certs/*-key.pem` from the shared fixtures, and Dart's standard library cannot generate X.509 keys; it needs a shared change.
 
 Recorded, not implemented here:
 

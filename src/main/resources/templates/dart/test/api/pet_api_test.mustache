@@ -42,13 +42,14 @@ class _MockGetExternalPetInfoServer extends GetExternalPetInfoServer {
   String getUrl() => chasmUrl;
 }
 
-PetApi _newPetApiForIntegration() {
+PetApi _newPetApiForIntegration({Map<String, Authenticator>? schemes}) {
   final config = ConfigurationBuilder()
       .baseUrl(chasmUrl)
       .defaultHeader('Authorization', 'Bearer test-token')
       .build();
   final client = DefaultApiClient();
-  return PetApi(apiClient: client, config: config);
+  return PetApi(
+      apiClient: client, config: config, schemeAuthenticators: schemes);
 }
 
 void main() {
@@ -62,18 +63,16 @@ void main() {
 
   group('PetApi', () {
     test('addPet', () async {
-      final api = _newPetApiForIntegration();
-      final auth = _TestAuth();
+      final api = _newPetApiForIntegration(schemes: {'petStoreBearer': _TestAuth()});
 
-      final result = await api.addPet(Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}), AddPetOptions(auth: auth));
+      final result = await api.addPet(Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}), null);
       expect(result, isNotNull);
     });
 
     test('addPetWithHttpInfo', () async {
-      final api = _newPetApiForIntegration();
-      final auth = _TestAuth();
+      final api = _newPetApiForIntegration(schemes: {'petStoreBearer': _TestAuth()});
 
-      final result = await api.addPetWithHttpInfo(Pet(name: 'Buddy', photoUrls: <String>{'http://example.com/buddy.jpg'}), AddPetOptions(auth: auth));
+      final result = await api.addPetWithHttpInfo(Pet(name: 'Buddy', photoUrls: <String>{'http://example.com/buddy.jpg'}), null);
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -126,17 +125,15 @@ void main() {
     });
 
     test('deletePet', () async {
-      final api = _newPetApiForIntegration();
-      final auth = _TestAuth();
+      final api = _newPetApiForIntegration(schemes: {'adminBasic': _TestAuth()});
 
-      await api.deletePet(1, DeletePetOptions(auth: auth));
+      await api.deletePet(1, null);
     });
 
     test('deletePetWithHttpInfo', () async {
-      final api = _newPetApiForIntegration();
-      final auth = _TestAuth();
+      final api = _newPetApiForIntegration(schemes: {'adminBasic': _TestAuth()});
 
-      final result = await api.deletePetWithHttpInfo(1, DeletePetOptions(auth: auth));
+      final result = await api.deletePetWithHttpInfo(1, null);
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
     });
@@ -788,11 +785,11 @@ void main() {
       }
     });
 
-    /* per-call-auth-override: an Authenticator passed to the BASE operation
-     * method (not just WithHttpInfo) must be applied to the outgoing request.
-     * The default header carries one token; the per-call authenticator carries
-     * a different one and must win on the wire. */
-    test('addPet per-call auth override', () async {
+    /* The credential configured for the scheme of the BASE operation method
+     * (not just WithHttpInfo) is applied to the outgoing request. The default
+     * header carries one token, the scheme credential another, and the scheme
+     * credential wins on the wire. */
+    test('addPet applies the credential of its scheme', () async {
       String? capturedAuth;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -809,10 +806,12 @@ void main() {
             .baseUrl('http://localhost:${server.port}')
             .defaultHeader('Authorization', 'Bearer default-token')
             .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-        final auth = _PerCallAuth();
+        final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'petStoreBearer': _PerCallAuth()});
 
-        await api.addPet(Pet(name: 'OverrideDog', photoUrls: <String>{'http://example.com/p.jpg'}), AddPetOptions(auth: auth));
+        await api.addPet(Pet(name: 'OverrideDog', photoUrls: <String>{'http://example.com/p.jpg'}), null);
 
         expect(capturedAuth, equals('Bearer per-call-token'));
       } finally {
@@ -820,11 +819,10 @@ void main() {
       }
     });
 
-    /* auth-in-options-applied: an Authenticator supplied via the Options
-     * object (AddPetOptions(auth: ...)) must be threaded onto the outgoing
-     * request, overriding the client's default header. This is the folded
-     * replacement for the removed standalone `auth:` parameter. */
-    test('addPet auth supplied via Options is applied', () async {
+    /* F857: the credential configured for the scheme an operation's spec
+     * names (schemeAuthenticators) is applied to the outgoing request,
+     * overriding the client's default header. There is no per-call override. */
+    test('addPet auth supplied for its scheme is applied', () async {
       String? capturedAuth;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -841,12 +839,14 @@ void main() {
             .baseUrl('http://localhost:${server.port}')
             .defaultHeader('Authorization', 'Bearer default-token')
             .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-        final auth = _PerCallAuth();
+        final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'petStoreBearer': _PerCallAuth()});
 
         await api.addPet(
           Pet(name: 'OptDog', photoUrls: <String>{'http://example.com/p.jpg'}),
-          AddPetOptions(auth: auth),
+          null,
         );
 
         expect(capturedAuth, equals('Bearer per-call-token'));
@@ -1378,6 +1378,57 @@ void main() {
     });
   });
 
+  group('cookie parameters (F840)', () {
+    /* A value made only of RFC 6265 cookie-octets goes out raw; any other
+     * value fails with an ArgumentError before a request is sent. */
+    Future<(String?, Object?)> callWithSession(String session) async {
+      String? capturedCookie;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedCookie = request.headers.value('cookie');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('hello')
+          ..close();
+      });
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          await api.getPetSummary(
+            1,
+            DateTime.utc(2024, 1, 15),
+            GetPetSummaryOptions(session: session),
+          );
+        } on Object catch (e) {
+          return (capturedCookie, e);
+        }
+        return (capturedCookie, null);
+      } finally {
+        await server.close();
+      }
+    }
+
+    test('a value of legal cookie-octets is sent raw', () async {
+      final (cookie, error) = await callWithSession('a=b/c%20d');
+
+      expect(error, isNull);
+      expect(cookie, equals('session=a=b/c%20d'));
+    });
+
+    test('a value with a space, semicolon, comma, quote or backslash fails before sending', () async {
+      for (final value in ['a b', 'a;b', 'a,b', 'a"b', r'a\b', 'caf\u00e9']) {
+        final (cookie, error) = await callWithSession(value);
+
+        expect(error, isA<ArgumentError>(), reason: value);
+        expect(cookie, isNull, reason: value);
+      }
+    });
+  });
+
   group('operation doc comments', () {
     final source =
         File('${Directory.current.path}/lib/src/api/pet_api.dart').readAsStringSync();
@@ -1423,21 +1474,19 @@ void main() {
     });
 
     /* The `options` argument is documented on every operation that takes
-     * it: the authenticator clause appears only where the Options class
-     * carries one, and an auth-only Options says just that. */
+     * it, by what the Options class carries (no authenticator: F857). */
     test('document the options argument by what it carries', () {
       expect(
         source,
         contains(
-          '  /// `options` options carrying an optional per-call authenticator\n'
+          '  /// `options` options carrying the per-call timeout, headers and retry budget\n'
           '  Future<Pet> addPet(',
         ),
       );
       expect(
         source,
         contains(
-          '  /// `options` options for query, header, form, and cookie parameters, '
-          'plus an optional per-call authenticator\n'
+          '  /// `options` options for query, header, form, and cookie parameters\n'
           '  Future<void> deletePet(',
         ),
       );
