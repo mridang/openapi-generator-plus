@@ -1743,7 +1743,10 @@ class PetApiTest {
         @DisplayName("bhvOperations060 getPetTag uses the matrix path style for petId and the label path style for tagName")
         fun bhvOperations060GetPetTagUsesTheMatrixAndLabelPathStyles() {
             var path: String? = null
-            val api = capturingPetApi("""{"id":1,"name":"Rex","photoUrls":[]}""") { request, _ -> path = request.url.encodedPath }
+            val api =
+                capturingPetApi("""{"id":1,"name":"Rex","photoUrls":[]}""") { request, _ ->
+                    path = request.url.encodedPath
+                }
 
             runBlocking { api.getPetTag(7L, "cute") }
 

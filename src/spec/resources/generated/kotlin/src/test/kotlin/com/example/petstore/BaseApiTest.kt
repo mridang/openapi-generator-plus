@@ -241,7 +241,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("bhvRetries005 bhvRetries001 F855: a 401 drops the cached token and replays the request once with a fresh one")
+    @DisplayName("bhvRetries005 F855: a 401 drops the cached token and replays the request once with a fresh one")
     fun unauthorizedAnswerReplaysTheRequestOnceWithAFreshToken() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = RotatingOAuthAuthenticator()
@@ -279,7 +279,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("bhvRetries003 bhvRetries006 F855: a multipart body is not replayed after a 401")
+    @DisplayName("bhvRetries003 F855: a multipart body is not replayed after a 401")
     fun aMultipartBodyIsNotReplayed() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = RotatingOAuthAuthenticator()
@@ -1647,7 +1647,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("bhvOptions001 bhvOperations008 R5-1: config default Accept wins over the operation-negotiated Accept")
+        @DisplayName("bhvOptions001 R5-1: config default Accept wins over the operation-negotiated Accept")
         fun configDefaultAcceptWinsOverNegotiated() {
             // The operation negotiates Accept=application/json, but a client
             // config default header of Accept=application/xml must win: the
