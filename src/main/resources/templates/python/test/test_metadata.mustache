@@ -276,7 +276,7 @@ class TestReadmeAndSkillsText:
             assert 'cancels every request' not in text
             assert 'cookie-octet' in text
 
-    def test_readme_socks_note_names_the_builder_setter(self) -> None:
+    def test_bhv_options_044_readme_socks_note_names_the_builder_setter(self) -> None:
         readme = self._read('README.md')
         assert (
             '`TransportOptions.builder().proxy()` accepts only `http://` and `https://` URLs.'
@@ -432,6 +432,14 @@ class TestMetadataEquality:
         raw = '{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}'
 
         assert self._decode(raw) == self._decode(raw)
+
+    def test_bhv_models_012_to_string_dumps_the_fields_and_the_additional_properties_map(self) -> None:
+        from {{packageName}}.models import Metadata
+
+        metadata = Metadata(additional_properties={'customField': 'hello'})
+
+        assert 'created_at=None' in repr(metadata)
+        assert "additional_properties={'customField': 'hello'}" in repr(metadata)
 
     def test_instances_differing_only_in_additional_properties_are_not_equal(
         self,

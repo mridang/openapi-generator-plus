@@ -212,7 +212,7 @@ class TestDefaultConfiguration:
 
 
 class TestConfigurationImmutability:
-    def test_default_headers_is_immutable(self) -> None:
+    def test_bhv_config_017_default_headers_is_immutable(self) -> None:
         config = Configuration.builder().default_header("X-Key", "value").build()
 
         assert isinstance(config.default_headers, MappingProxyType)

@@ -169,7 +169,7 @@ class TestCause:
 
 
 class TestErrorTreeExports:
-    def test_every_error_lives_in_the_errors_package(self) -> None:
+    def test_bhv_errors_044_every_error_lives_in_the_errors_package(self) -> None:
         for name in ERROR_TREE:
             assert name in {{packageName}}.errors.__all__
             assert getattr({{packageName}}.errors, name).__module__.startswith('{{packageName}}.errors')

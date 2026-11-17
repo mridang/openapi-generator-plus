@@ -1464,6 +1464,21 @@ class TestBodySerialization:
         )
         assert client.captured_body is None
 
+    async def test_bhv_serializationobject_183_a_null_body_is_sent_and_the_echo_answers_200(
+        self, api: Any
+    ) -> None:
+        result = await api.call_result(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert result.status_code == 200
+
     async def test_bhv_serializationwire_024_serializes_text_plain_body(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
@@ -1537,7 +1552,9 @@ class TestBodySerialization:
         assert wire == "full+name=Ada+Lovelace"
         assert "%20" not in wire
 
-    async def test_form_array_field_serializes_as_repeated_keys(self) -> None:
+    async def test_bhv_serializationwire_053_form_array_field_serializes_as_repeated_keys(
+        self,
+    ) -> None:
         # form-array-repeated-keys: an array form field must serialize as
         # repeated keys (`tags=a&tags=b`), NOT a single key whose value is the
         # Python list repr (`tags=['a', 'b']`). All 12 SDKs converge here.
@@ -2840,7 +2857,9 @@ class TestAutomaticRetries:
         # 0.5 s with up to 25% jitter taken off.
         assert 0.35 <= time.monotonic() - started < 3
 
-    async def test_retry_after_seconds_is_honoured(self, scripted: Any) -> None:
+    async def test_bhv_retries_026_retry_after_seconds_is_honoured(
+        self, scripted: Any
+    ) -> None:
         server = scripted((429, {"Retry-After": "1"}, "{}"), _OK)
         started = time.monotonic()
 
@@ -2982,7 +3001,7 @@ class TestAutomaticRetries:
 
         assert len(server.requests) == 1
 
-    async def test_cancelling_during_the_wait_ends_the_call(
+    async def test_bhv_retries_028_cancelling_during_the_wait_ends_the_call(
         self, scripted: Any
     ) -> None:
         server = scripted((503, {"Retry-After": "30"}, "{}"), _OK)

@@ -58,7 +58,7 @@ class TestSelectAcceptHeader:
     def test_bhv_headers_005_should_return_empty_string_for_none_input(self, header_selector: Any) -> None:
         assert header_selector._select_accept_header(None) == ''
 
-    def test_should_return_empty_string_for_empty_list(self, header_selector: Any) -> None:
+    def test_bhv_headers_027_should_return_empty_string_for_empty_list(self, header_selector: Any) -> None:
         assert header_selector._select_accept_header([]) == ''
 
     def test_should_return_empty_string_when_all_entries_filtered_out(self, header_selector: Any) -> None:

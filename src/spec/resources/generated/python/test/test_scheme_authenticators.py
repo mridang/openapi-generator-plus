@@ -213,7 +213,7 @@ class TestSchemeAuthenticatorEnvironment:
         with pytest.raises(ValueError, match=variables[0][1]):
             _scheme_class(module, name)(HOST)
 
-    def test_an_empty_variable_counts_as_unset(
+    def test_bhv_authbasic_012_an_empty_variable_counts_as_unset(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,

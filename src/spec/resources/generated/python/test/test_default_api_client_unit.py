@@ -506,7 +506,7 @@ class TestCharsetDecoding:
         # which proves the big-endian choice is the one being applied.
         assert big_endian.decode("utf-16-le") != "Log"
 
-    def test_utf16_honors_little_endian_bom(self) -> None:
+    def test_bhv_serializationwire_054_utf16_honors_little_endian_bom(self) -> None:
         # When a little-endian BOM (FF FE) is present it must still be honored
         # and stripped, so BOM-driven detection is not broken by the no-BOM
         # big-endian default.
@@ -2433,7 +2433,7 @@ class TestRetryPolicy:
         ("attempt", "expected"),
         [(0, 0.5), (1, 1.0), (2, 2.0), (3, 4.0), (4, 8.0), (5, 8.0), (40, 8.0)],
     )
-    def test_the_backoff_doubles_from_half_a_second_up_to_eight(
+    def test_bhv_retries_027_the_backoff_doubles_from_half_a_second_up_to_eight(
         self, attempt: int, expected: float
     ) -> None:
         assert _retry_delay(attempt, jitter=0.0) == expected

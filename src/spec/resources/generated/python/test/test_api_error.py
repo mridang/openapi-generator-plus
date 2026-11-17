@@ -180,7 +180,7 @@ class TestCause:
 
 
 class TestErrorTreeExports:
-    def test_every_error_lives_in_the_errors_package(self) -> None:
+    def test_bhv_errors_044_every_error_lives_in_the_errors_package(self) -> None:
         for name in ERROR_TREE:
             assert name in petstore_client.errors.__all__
             assert getattr(petstore_client.errors, name).__module__.startswith(

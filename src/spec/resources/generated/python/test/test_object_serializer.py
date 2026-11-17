@@ -1162,7 +1162,9 @@ class TestUnknownEnumRejection:
     back to a silent default or an 'unknown' member. All 12 SDKs converge here.
     """
 
-    def test_unknown_enum_value_on_scalar_raises(self) -> None:
+    def test_bhv_serializationobject_182_unknown_enum_value_on_scalar_raises(
+        self,
+    ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('"teleported"', OrderStatusEnum)
 

@@ -1200,6 +1200,21 @@ class TestPetApiErrorHandling:
                 "Fido", GetPetByNameOptions(category="", x_correlation_id="r")
             )
 
+    async def test_bhv_operations_125_get_pet_by_name_raises_when_the_required_query_param_is_none(
+        self,
+    ) -> None:
+        api = PetApi(
+            config=Configuration.builder().base_url("http://localhost").build()
+        )
+        missing: Any = None
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
+        ):
+            await api.get_pet_by_name(
+                "Fido", GetPetByNameOptions(category=missing, x_correlation_id="r")
+            )
+
     async def test_bhv_operations_034_download_binary_mock(self) -> None:
         api, server = _create_mock_server(
             200, "application/octet-stream", "FAKE_BINARY_DATA"

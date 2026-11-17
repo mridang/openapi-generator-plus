@@ -148,7 +148,7 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.COOKIE,
             )
 
-    def test_header_rejects_crlf(self) -> None:
+    def test_bhv_authapikey_018_header_rejects_crlf(self) -> None:
         # RFC 7230 §3.2.6 — HEADER location must reject anything outside
         # printable ASCII + TAB to prevent header injection (\r\n).
         with pytest.raises(ValueError):
@@ -301,7 +301,7 @@ class TestApiKeySchemeWrappers:
         assert auth.get_host() == "https://api.example.com"
 
     @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
-    def test_wrapper_rejects_an_empty_key_at_construction(
+    def test_bhv_authapikey_019_wrapper_rejects_an_empty_key_at_construction(
         self, module: str, name: str, key_name: str, where: str
     ) -> None:
         with pytest.raises(
@@ -310,7 +310,7 @@ class TestApiKeySchemeWrappers:
             _api_key_wrapper(module, name)("https://api.example.com", "")
 
     @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
-    def test_wrapper_masks_the_key_in_its_repr(
+    def test_bhv_authapikey_020_wrapper_masks_the_key_in_its_repr(
         self, module: str, name: str, key_name: str, where: str
     ) -> None:
         auth = _api_key_wrapper(module, name)("https://api.example.com", "topsecret")

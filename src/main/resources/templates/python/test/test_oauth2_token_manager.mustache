@@ -531,6 +531,26 @@ class TestOAuth2TokenManager:
             )
         assert str(exc_info.value) == message
 
+    def test_bhv_authoauthtwotokenmgr_041_a_non_json_token_body_is_not_echoed_into_the_error_message(self) -> None:
+        # A form-encoded 2xx answer carries the token itself; the error must
+        # carry the canonical text alone, with no parser detail quoting it.
+        secret = 'gho_' + 'SECRET123'
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=f'access_token={secret}&token_type=bearer',
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2TokenException) as exc_info:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+        assert str(exc_info.value) == 'Token response is not valid JSON'
+
     def test_bhv_authoauthtwotokenmgr_038_a_token_type_other_than_bearer_is_refused_without_echoing_it(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
