@@ -126,6 +126,27 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()['Authorization'] == 'Bearer first'
 
+    def test_bhv_authbearer_023_wrapper_emits_a_bearer_header_and_keeps_its_own_name(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], 'xyz')
+        base = _scheme_class('{{packageName}}.auth.bearer_authenticator', 'BearerAuthenticator')(HOST, 'xyz')
+
+        auth = _scheme_class(module, name)(HOST)
+
+        assert auth.get_auth_headers() == base.get_auth_headers()
+        assert repr(auth).startswith(name + '(')
+
+    def test_bhv_authbearer_025_the_environment_variable_is_read_once_at_construction(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], 'first')
+        authenticator = _scheme_class(module, name)(HOST)
+
+        monkeypatch.setenv(variables[0][1], 'second')
+
+        assert authenticator.get_auth_headers()['Authorization'] == 'Bearer first'
+
     def test_a_token_provider_wins_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
@@ -183,6 +204,19 @@ class TestBasicSchemeAuthenticator:
         assert authenticator.password == 'value-' + variables[1][1]
 
 
+    def test_bhv_authbasic_019_wrapper_emits_the_same_basic_header_as_the_base_authenticator(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _set_all(monkeypatch, variables)
+        base = _scheme_class('{{packageName}}.auth.basic_authenticator', 'BasicAuthenticator')(
+            HOST, 'alice', 's3cret'
+        )
+
+        auth = _scheme_class(module, name)(HOST, 'alice', 's3cret')
+
+        assert auth.get_auth_headers() == base.get_auth_headers()
+
+
 @pytest.mark.parametrize('module,name,variables', API_KEY_SCHEMES)
 class TestApiKeySchemeAuthenticator:
 
@@ -203,3 +237,13 @@ class TestApiKeySchemeAuthenticator:
         authenticator = _scheme_class(module, name)(HOST)
 
         assert authenticator.api_key == 'from-environment'
+
+
+    def test_bhv_authapikey_021_the_key_is_read_from_the_environment_when_none_is_passed(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], 'from-environment')
+
+        assert _scheme_class(module, name)(HOST).api_key == 'from-environment'
+        assert _scheme_class(module, name)(HOST, 'explicit').api_key == 'explicit'

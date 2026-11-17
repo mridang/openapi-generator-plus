@@ -141,7 +141,7 @@ class TestClientCredentials:
 
         assert _authorization(client) == "Bearer first"
 
-    def test_an_empty_environment_value_counts_as_unset(
+    def test_bhv_authbearer_019_an_empty_environment_value_counts_as_unset(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "")

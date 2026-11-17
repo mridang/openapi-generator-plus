@@ -41,6 +41,13 @@ class TestBasicAuthenticator:
                 host="https://api.example.com", username="ali:ce", password="s3cret"
             )
 
+    def test_bhv_authbasic_018_password_may_contain_a_colon(self) -> None:
+        auth = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="p:ss"
+        )
+
+        assert auth.get_auth_headers() == {"Authorization": "Basic YWxpY2U6cDpzcw=="}
+
     def test_bhv_authbasic_005_password_is_not_leaked_in_repr(self) -> None:
         # The default repr/str must never expose the secret.
         auth = BasicAuthenticator(
@@ -81,7 +88,7 @@ class TestBearerAuthenticator:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="")
 
-    def test_rejects_whitespace_only_token(self) -> None:
+    def test_bhv_authbearer_027_rejects_whitespace_only_token(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="   ")
 
@@ -92,7 +99,7 @@ class TestBearerAuthenticator:
 
 
 class TestApiKeyAuthenticatorRedaction:
-    def test_api_key_is_not_leaked_in_repr(self) -> None:
+    def test_bhv_authapikey_026_api_key_is_not_leaked_in_repr(self) -> None:
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",
             key_param_name="X-API-Key",
@@ -128,6 +135,15 @@ class TestBasicRedactedRepr:
             "BasicAuthenticator(host='https://api.example.com', "
             "username='alice', password='***')"
         )
+
+    def test_bhv_authbasic_020_password_is_masked_in_debug_output(self) -> None:
+        auth = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="s3cret"
+        )
+
+        assert "s3cret" not in repr(auth)
+        assert "s3cret" not in str(auth)
+        assert "password='***'" in str(auth)
 
 
 class TestBasicSchemeWrappers:
