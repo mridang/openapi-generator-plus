@@ -794,7 +794,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "serializes text/plain body as string", %{state: state} do
+  test "serializes text plain body", %{state: state} do
     body = "hello world"
 
     result =
@@ -918,7 +918,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Auth header injection
 
-  test "forwards auth headers via echo endpoint", %{state: state} do
+  test "forwards auth headers", %{state: state} do
     assert {:ok, result} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -2058,7 +2058,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
-  test "non-empty array query param is included" do
+  test "expands array query params" do
     {:ok, name} = UrlCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: UrlCapturingApiClient}

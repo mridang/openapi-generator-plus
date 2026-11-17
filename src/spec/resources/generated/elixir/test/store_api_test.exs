@@ -15,12 +15,12 @@ defmodule PetstoreClient.Api.StoreApiTest do
     %{api: api}
   end
 
-  test "get_inventory returns inventory", %{api: api} do
+  test "get_inventory", %{api: api} do
     assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory(api)
     assert is_map(result)
   end
 
-  test "place_order places an order", %{api: api} do
+  test "place_order", %{api: api} do
     order = %PetstoreClient.Models.Order{
       id: :rand.uniform(1_000_000_000),
       pet_id: :rand.uniform(1_000_000_000),
@@ -35,13 +35,13 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert result.id != nil
   end
 
-  test "get_inventory_with_http_info returns status and data", %{api: api} do
+  test "get_inventory_with_http_info", %{api: api} do
     assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory_with_http_info(api)
     assert result.status_code >= 200 and result.status_code < 300
     assert result.data != nil
   end
 
-  test "place_order_with_http_info returns status and data", %{api: api} do
+  test "place_order_with_http_info", %{api: api} do
     order = %PetstoreClient.Models.Order{
       id: :rand.uniform(1_000_000_000),
       pet_id: :rand.uniform(1_000_000_000),
@@ -56,7 +56,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert result.data != nil
   end
 
-  test "get_order_by_id returns an order by id", %{api: api} do
+  test "get_order_by_id", %{api: api} do
     assert {:ok, result} =
              PetstoreClient.Api.StoreApi.get_order_by_id(api, :rand.uniform(1_000_000_000))
 
@@ -64,7 +64,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert result.id != nil
   end
 
-  test "get_order_by_id_with_http_info returns status and data", %{api: api} do
+  test "get_order_by_id_with_http_info", %{api: api} do
     assert {:ok, result} =
              PetstoreClient.Api.StoreApi.get_order_by_id_with_http_info(
                api,
@@ -75,7 +75,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert result.data != nil
   end
 
-  test "delete_order deletes an order", %{api: api} do
+  test "delete_order", %{api: api} do
     assert {:ok, _result} =
              PetstoreClient.Api.StoreApi.delete_order(api, :rand.uniform(1_000_000_000))
   end
@@ -109,14 +109,14 @@ defmodule PetstoreClient.Api.StoreApiTest do
     PetstoreClient.Api.StoreApi.new(client, config)
   end
 
-  test "get_order_by_id 404 returns error" do
+  test "get_order_not_found" do
     api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
 
     assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =
              PetstoreClient.Api.StoreApi.get_order_by_id(api, 99_999)
   end
 
-  test "place_order 500 returns error" do
+  test "place_order_server_error" do
     api = new_store_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
 
     order = %PetstoreClient.Models.Order{
@@ -195,7 +195,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     end
   end
 
-  test "delete_order 404 returns error" do
+  test "delete_order_not_found" do
     api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
 
     assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =

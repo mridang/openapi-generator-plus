@@ -1059,6 +1059,43 @@ defmodule PetstoreClient.ValueSerializerTest do
     end
   end
 
+  test "path array item with reserved char is percent encoded" do
+    items = ["a/b", "c"]
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "name",
+             items,
+             :path,
+             "array",
+             nil,
+             "simple",
+             false
+           ) ==
+             "a%2Fb,c"
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "name",
+             items,
+             :path,
+             "array",
+             nil,
+             "label",
+             true
+           ) ==
+             ".a%2Fb.c"
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "name",
+             items,
+             :path,
+             "array",
+             nil,
+             "matrix",
+             false
+           ) ==
+             ";name=a%2Fb,c"
+  end
+
   describe "content cookie bytes" do
     test "JSON is percent-encoded keeping only the unreserved set literal" do
       json = PetstoreClient.ObjectSerializer.serialize(%{"k" => "a b~*\u00E9"})
