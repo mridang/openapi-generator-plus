@@ -5,13 +5,19 @@ import datetime
 import pytest
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Any, Dict, List, cast
+from typing import Any, Callable, Dict, List, Optional, cast
 from urllib.parse import unquote
 from {{packageName}}.api.pet_api import (
     GetExternalPetInfoServer,
     GetMultiServerPetInfoServerChannel,
     GetMultiServerPetInfoServerMirror,
     GetMultiServerPetInfoServerMirrorRegion,
+    GetMultiServerPetInfoServerPrimary,
+    GetMultiServerPetInfoServerRegional,
+    GetMultiServerPetInfoServerRegionalRegion,
+    GetStagingPetInfoServerEnvironment,
+    GetStagingPetInfoServerStagingServer,
+    GetStagingPetInfoServerVersion,
     PetApi,
 )
 from {{packageName}}.api.options.add_pet_options import AddPetOptions
@@ -33,7 +39,9 @@ from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.transport_options import TransportOptions
 from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
 from {{packageName}}.errors.not_found_exception import NotFoundException
+from {{packageName}}.errors.serialization_exception import SerializationException
 from {{packageName}}.models.api_response import ApiResponse
+from {{packageName}}.models.tag import Tag
 from {{packageName}}.models.medication import Medication
 from {{packageName}}.models.pet import Pet, PetStatusEnum
 from {{packageName}}.models.swatch import Swatch
@@ -51,18 +59,22 @@ class _RecordingApiClient:
         self.calls = 0
         self.headers: Dict[str, str] = {}
         self.body: Any = None
+        self.url = ''
+        self.reply = '{}'
 
     def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
         self.calls += 1
         self.headers = headers
         self.body = body
-        return ApiHttpResponse(status_code=200, body='{}', headers={'content-type': 'application/json'})
+        self.url = url
+        return ApiHttpResponse(status_code=200, body=self.reply, headers={'content-type': 'application/json'})
 
 
 async def _capture_get(
     call: Any,
     content_type: str = 'application/json',
     reply: bytes = b'{"id":1,"name":"x","photoUrls":[]}',
+    scheme_authenticators: Optional[Callable[[str], Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Run ``call(api)`` against a one-shot local listener and return the raw
     request target and headers the server received."""
@@ -91,8 +103,9 @@ async def _capture_get(
     thread.daemon = True
     thread.start()
     config = Configuration.builder().base_url(f'http://127.0.0.1:{port}').build()
+    auth = scheme_authenticators(f'http://127.0.0.1:{port}') if scheme_authenticators is not None else None
     try:
-        captured['result'] = await call(PetApi(config=config))
+        captured['result'] = await call(PetApi(config=config, scheme_authenticators=auth))
     finally:
         server.server_close()
     return captured
@@ -751,6 +764,147 @@ class TestPetApi:
 
         assert result is not None
 
+    async def test_bhv_operations_019_date_only_form_field_serializes_as_yyyy_mm_dd(self) -> None:
+        client = _RecordingApiClient()
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        await api.set_pet_preferences(1, SetPetPreferencesOptions(nickname='Rex', renewal_date=datetime.date(2024, 1, 1)))
+        body = str(client.body)
+        assert 'renewalDate=2024-01-01' in body
+        assert 'T13' not in body
+        assert '%3A' not in body
+
+    async def test_bhv_operations_028_delete_pet_cookie_outside_cookie_octet_fails_before_sending(self) -> None:
+        client = _RecordingApiClient()
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        with pytest.raises(ValueError, match='cookie-octet'):
+            await api.delete_pet(1, DeletePetOptions(api_key='a b'))
+        assert client.calls == 0
+
+    async def test_bhv_operations_029_delete_pet_cookie_with_crlf_fails_closed(self) -> None:
+        client = _RecordingApiClient()
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        with pytest.raises(ValueError, match='cookie-octet'):
+            await api.delete_pet(1, DeletePetOptions(api_key='abc\r\nInjected: yes'))
+        assert client.calls == 0
+
+    async def test_bhv_operations_030_delete_pet_sends_a_legal_cookie_value_raw(self) -> None:
+        client = _RecordingApiClient()
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        await api.delete_pet(1, DeletePetOptions(api_key='session-abc123'))
+        assert client.headers.get('Cookie') == 'api_key=session-abc123'
+
+    def test_bhv_operations_032_deprecated_operations_parameters_and_models_carry_the_deprecation_marker(self) -> None:
+        import inspect
+
+        assert '.. deprecated::' in (inspect.getdoc(PetApi.find_pets_by_status) or '')
+        assert '.. deprecated::' in (Tag.__doc__ or '')
+        assert Pet.model_fields['status'].deprecated is not None
+        assert 'deprecated' in inspect.getsource(FindPetsByStatusOptions)
+
+    def test_bhv_operations_033_deprecation_markers_sit_on_every_variant_of_a_deprecated_operation(self) -> None:
+        import inspect
+
+        for method in (PetApi.find_pets_by_status, PetApi.find_pets_by_status_with_http_info):
+            assert '.. deprecated::' in (inspect.getdoc(method) or ''), method.__name__
+
+    async def test_bhv_operations_043_find_pets_born_on_serializes_the_date_path_parameter_as_yyyy_mm_dd(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.find_pets_born_on(datetime.date(2024, 1, 5)),
+            'application/json',
+            b'[]',
+        )
+        assert '/pet/born-on/2024-01-05' in captured['path']
+        assert '%3A' not in captured['path']
+
+    async def test_bhv_operations_052_get_pet_by_name_throws_when_required_path_param_is_empty(self) -> None:
+        api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'name' when calling PetApi.get_pet_by_name",
+        ):
+            await api.get_pet_by_name('', GetPetByNameOptions(category='c', x_correlation_id='r'))
+
+    async def test_bhv_operations_062_get_pet_avatar_thumbnail_decodes_a_json_string_literal_as_base64(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_avatar_thumbnail(1),
+            'application/json',
+            b'"iVBORw=="',
+        )
+        assert captured['result'] == b'\x89PNG'
+
+    async def test_bhv_operations_063_get_pet_avatar_thumbnail_rejects_malformed_base64_with_a_serialization_error(self) -> None:
+        with pytest.raises(SerializationException):
+            await _capture_get(
+                lambda api: api.get_pet_avatar_thumbnail(1),
+                'application/json',
+                b'"!!not*base64??"',
+            )
+
+    async def test_bhv_operations_065_get_pet_by_name_sends_the_required_query_param_on_the_wire(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_by_name('Fido', GetPetByNameOptions(category='c', x_correlation_id='r')),
+        )
+        assert 'category=c' in captured['path']
+
+    async def test_bhv_operations_069_serializes_format_date_query_and_header_parameters_as_yyyy_mm_dd(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.find_pets_by_status(
+                FindPetsByStatusOptions(
+                    born_after=datetime.date(2024, 1, 5),
+                    report_date=datetime.date(2024, 2, 6),
+                )
+            ),
+            'application/json',
+            b'[]',
+        )
+        assert 'bornAfter=2024-01-05' in captured['path']
+        sent = {name.lower(): value for name, value in captured['headers'].items()}
+        assert sent['report-date'] == '2024-02-06'
+
+    async def test_bhv_operations_083_the_generated_staging_server_variant_resolves_its_variables_into_the_request_url(self) -> None:
+        client = _RecordingApiClient()
+        client.reply = '{"id":1,"name":"x","photoUrls":[]}'
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        await api.get_staging_pet_info(
+            1,
+            GetStagingPetInfoServerStagingServer(
+                GetStagingPetInfoServerEnvironment.STAGING,
+                GetStagingPetInfoServerVersion.V2,
+            ),
+        )
+        assert client.url == 'https://staging.example.com/api/v2/pet/1/staging'
+
+    async def test_bhv_operations_085_the_multi_server_operation_offers_a_fixed_and_a_templated_server(self) -> None:
+        client = _RecordingApiClient()
+        client.reply = '{"id":1,"name":"x","photoUrls":[]}'
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        await api.get_multi_server_pet_info(1, GetMultiServerPetInfoServerPrimary())
+        assert client.url == 'https://primary.example.com/v1/pet/1/multi'
+        await api.get_multi_server_pet_info(
+            1,
+            GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.EU),
+        )
+        assert client.url == 'https://eu.example.com/v1/pet/1/multi'
+
+    async def test_bhv_operations_092_upload_pet_document_octet_stream_selection_sends_raw_bytes_not_multipart(self) -> None:
+        client = _RecordingApiClient()
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        file_bytes = b'\x00\x01PDF\xff'
+        await api.upload_pet_document(
+            1,
+            UploadPetDocumentOptions(file=file_bytes, document_type='x', notes='y'),
+            request_content_type='application/octet-stream',
+        )
+        assert client.body == file_bytes
+        assert client.headers.get('Content-Type') == 'application/octet-stream'
+
+    async def test_bhv_operations_094_upload_pet_document_default_selection_still_sends_a_multipart_body(self) -> None:
+        client = _RecordingApiClient()
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        await api.upload_pet_document(1, UploadPetDocumentOptions(file=b'doc-data', document_type='x', notes='y'))
+        assert (client.headers.get('Content-Type') or '').startswith('multipart/form-data')
+        assert isinstance(client.body, dict)
+
 
 def _create_mock_server(status: int, content_type: str, body: str) -> tuple[PetApi, HTTPServer]:
     class Handler(BaseHTTPRequestHandler):
@@ -950,6 +1104,83 @@ class TestPetApiErrorHandling:
         await api.add_pet(pet)
 
         assert captured.get('Authorization') == 'Bearer config-default-token'
+
+    async def test_bhv_operations_079_an_operation_uses_the_credential_of_the_scheme_its_spec_names(self) -> None:
+        pet = Pet(id=1, name='BearerDog', photoUrls={'http://example.com/b.jpg'})
+        captured = await _capture_get(
+            lambda api: api.add_pet(pet),
+            scheme_authenticators=lambda host: {'petStoreBearer': BearerAuthenticator(host, 'bearer-token')},
+        )
+        sent = {name.lower(): value for name, value in captured['headers'].items()}
+        assert sent.get('authorization') == 'Bearer bearer-token'
+
+    async def test_bhv_operations_080_an_operation_uses_the_first_scheme_of_its_own_list_that_the_client_holds(self) -> None:
+        pet = Pet(id=1, name='FirstSchemeDog', photoUrls={'http://example.com/f.jpg'})
+        captured = await _capture_get(
+            lambda api: api.add_pet(pet),
+            scheme_authenticators=lambda host: {
+                'petStoreBearer': BearerAuthenticator(host, 'bearer-token'),
+                'apiKeyHeader': ApiKeyAuthenticator(
+                    host=host,
+                    key_param_name='X-API-Key',
+                    api_key='key-token',
+                    location=ApiKeyLocation.HEADER,
+                ),
+            },
+        )
+        sent = {name.lower(): value for name, value in captured['headers'].items()}
+        assert sent.get('x-api-key') == 'key-token'
+        assert 'authorization' not in sent
+
+    async def test_bhv_operations_020_a_credential_held_for_a_scheme_the_operation_does_not_name_is_never_sent(self) -> None:
+        pet = Pet(id=1, name='UnnamedSchemeDog', photoUrls={'http://example.com/u.jpg'})
+        captured = await _capture_get(
+            lambda api: api.add_pet(pet),
+            scheme_authenticators=lambda host: {
+                'adminBasic': ApiKeyAuthenticator(
+                    host=host,
+                    key_param_name='X-API-Key',
+                    api_key='unused-key',
+                    location=ApiKeyLocation.HEADER,
+                ),
+            },
+        )
+        sent = {name.lower(): value for name, value in captured['headers'].items()}
+        assert 'x-api-key' not in sent
+        assert 'authorization' not in sent
+
+    async def test_bhv_operations_081_add_pet_uses_the_client_level_configured_authenticator(self) -> None:
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key.lower()] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder().base_url(base_url).build()
+        api = PetApi(config=config, authenticator=BearerAuthenticator(base_url, 'configured-token'))
+
+        pet = Pet(id=1, name='ConfiguredDog', photoUrls={'http://example.com/c.jpg'})
+        try:
+            await api.add_pet(pet)
+        finally:
+            server.server_close()
+
+        assert captured.get('authorization') == 'Bearer configured-token'
 
     @pytest.mark.parametrize(
         'module, name',
