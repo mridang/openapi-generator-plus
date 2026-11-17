@@ -252,7 +252,7 @@ func (m *OAuth2TokenManager) fetchToken(ctx context.Context, tokenURL string, pa
 	 * Apigee deployments) or as a JSON float. See parseExpiresIn below. */
 	var parsed struct {
 		AccessToken  string          `json:"access_token"`
-		RefreshToken string          `json:"refresh_token"`
+		RefreshToken json.RawMessage `json:"refresh_token"`
 		ExpiresIn    json.RawMessage `json:"expires_in"`
 		TokenType    json.RawMessage `json:"token_type"`
 	}
@@ -282,8 +282,11 @@ func (m *OAuth2TokenManager) fetchToken(ctx context.Context, tokenURL string, pa
 		}
 	}
 	m.accessToken = parsed.AccessToken
-	if parsed.RefreshToken != "" {
-		m.refreshToken = parsed.RefreshToken
+	/* A refresh_token that is not a string is ignored, as in the other SDKs,
+	 * rather than failing the whole response. */
+	var refreshToken string
+	if len(parsed.RefreshToken) > 0 && json.Unmarshal(parsed.RefreshToken, &refreshToken) == nil && refreshToken != "" {
+		m.refreshToken = refreshToken
 	}
 	/* A grant response without expires_in leaves the token no expiry (RFC 6749
 	 * section 5.1 makes it RECOMMENDED): it is cached until it is invalidated.

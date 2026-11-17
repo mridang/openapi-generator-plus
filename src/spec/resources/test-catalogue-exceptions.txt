@@ -9,3 +9,5 @@ swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentTy
 swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
 swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
 elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in
+go | authintegration002 | go has no per-call authenticator: no Options struct carries one (authintegration011) and the spec picks the scheme, so no per-call HTTP-aware authenticator is handed the client
+go | authintegration013 | go has no per-call auth override: a call cannot replace the scheme's credential, the spec and the Credentials struct decide it
