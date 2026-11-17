@@ -213,7 +213,8 @@ class MetadataTest {
         // F1155: reflection, so the test itself does not call a deprecated member.
         val api = Class.forName("{{apiPackage}}.PetApi")
         for (name in listOf("findPetsByStatus", "getPetById")) {
-            val variants = api.declaredMethods.filter { it.name.startsWith("${name}WithHttpInfo") }
+            // The compiler's default-argument bridge (name$default) is synthetic and carries no source annotation.
+            val variants = api.declaredMethods.filter { it.name.startsWith("${name}WithHttpInfo") && !it.isSynthetic }
             assertTrue(variants.isNotEmpty(), "PetApi.${name}WithHttpInfo must exist")
             assertTrue(
                 variants.all { it.isAnnotationPresent(Deprecated::class.java) },

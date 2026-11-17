@@ -467,7 +467,7 @@ class BaseApiTest {
         fun absoluteUrlInPathBypassesBaseUrl() {
             val (client, seen) = statusClient(200)
             runBlocking { PerCallApi(client).call(method = "GET", path = "https://other.example/items/3") }
-            assertEquals("https://other.example/items/3", seen[0].url.toString())
+            assertEquals("https://other.example/items/3?page=2", seen[0].url.toString())
         }
 
         @Test

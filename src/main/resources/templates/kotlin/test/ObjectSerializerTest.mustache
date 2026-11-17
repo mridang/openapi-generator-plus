@@ -357,6 +357,32 @@ class ObjectSerializerTest {
             assertTrue(json.contains("\"foodType\":\"dry\""), "discriminator must be written, got: $json")
             assertTrue(json.contains("\"weightKg\":2.5"), "got: $json")
         }
+
+        @Test
+        @DisplayName("a bare byte array is written as its base64 string")
+        fun bareByteArrayIsWrittenAsBase64() {
+            val json = serializer.serialize(byteArrayOf(1, 2, 3, 4))
+            assertEquals("\"AQIDBA==\"", json)
+        }
+
+        @Test
+        @DisplayName("a list of byte arrays is written as base64 strings")
+        fun listOfByteArraysIsWrittenAsBase64() {
+            val json = serializer.serialize(listOf(byteArrayOf(1, 2, 3, 4)))
+            assertEquals("[\"AQIDBA==\"]", json)
+        }
+
+        @Test
+        @DisplayName("a free-form JsonObject is written with its members unchanged")
+        fun jsonObjectValueIsWrittenUnchanged() {
+            val payload =
+                kotlinx.serialization.json.buildJsonObject {
+                    put("ownerId", kotlinx.serialization.json.JsonPrimitive(198772L))
+                    put("at", kotlinx.serialization.json.JsonPrimitive("2024-01-15T10:30:00Z"))
+                }
+            val json = serializer.serialize(payload)
+            assertEquals("{\"ownerId\":198772,\"at\":\"2024-01-15T10:30:00Z\"}", json)
+        }
     }
 
     @Nested
