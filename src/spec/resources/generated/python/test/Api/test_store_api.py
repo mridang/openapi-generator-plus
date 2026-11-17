@@ -6,7 +6,8 @@ import threading
 from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlsplit
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Any
+from typing import Any, Dict
+from petstore_client.api_http_response import ApiHttpResponse
 from pydantic import SecretStr
 from petstore_client.api.options.get_by_swatch_options import GetBySwatchOptions
 from petstore_client.api.options.search_store_options import SearchStoreOptions
@@ -73,6 +74,18 @@ class TestStoreApi:
         assert result is not None
         assert result.id is not None
 
+    async def test_bhv_operations_126_place_order_without_an_order_sends_no_body(
+        self,
+    ) -> None:
+        client = _RecordingApiClient()
+        api = StoreApi(
+            api_client=client,
+            config=Configuration.builder().base_url("http://localhost").build(),
+        )
+        await api.place_order_with_http_info()
+        assert client.body is None
+        assert "Content-Type" not in client.headers
+
     async def test_bhv_operations_103_get_inventory_with_http_info(self) -> None:
         result = await self.api.get_inventory_with_http_info()
 
@@ -113,6 +126,31 @@ class TestStoreApi:
         await self.api.delete_order(1)
 
         assert True
+
+
+class _RecordingApiClient:
+    """In-memory transport that records the outbound request."""
+
+    def __init__(self) -> None:
+        self.headers: Dict[str, str] = {}
+        self.body: Any = None
+        self.reply = "{}"
+
+    def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+    ) -> ApiHttpResponse:
+        self.headers = headers
+        self.body = body
+        return ApiHttpResponse(
+            status_code=200,
+            body=self.reply,
+            headers={"content-type": "application/json"},
+        )
 
 
 def _create_mock_server(

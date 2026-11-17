@@ -306,7 +306,7 @@ class TestAuthorizationCodeRefreshUrlRouting:
             "https://auth.example.com/oauth/refresh",
         ]
 
-    def test_refresh_falls_back_to_the_token_url_without_a_refresh_url(self) -> None:
+    def test_bhv_authoauthtwopassword_020_refresh_falls_back_to_the_token_url_without_a_refresh_url(self) -> None:
         assert self._urls_of_exchange_then_refresh(None) == [
             "https://auth.example.com/token",
             "https://auth.example.com/token",

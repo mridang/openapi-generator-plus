@@ -159,7 +159,9 @@ class TestSetAccessTokenValidation:
         "token",
         ["abc\r\nInjected: yes", "abc\ndef", "abc\x00def", "abc\x7fdef", "töken"],
     )
-    def test_a_token_outside_printable_ascii_is_rejected(self, token: str) -> None:
+    def test_bhv_authoauthtwoimplicit_014_a_token_outside_printable_ascii_is_rejected(
+        self, token: str
+    ) -> None:
         auth = _create_authenticator()
         auth.set_access_token("kept")
 
