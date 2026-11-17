@@ -53,7 +53,6 @@ beforeEach(function (): void {
         ->defaultHeader('Authorization', 'Bearer test-token')
         ->build();
     $this->api = new PetApi(config: $config);
-    $this->auth = new BearerAuthenticator($baseUrl, 'test-token');
 });
 
 function newPetApiForMock(int $statusCode, string $requestContentType, string $body): PetApi
@@ -78,17 +77,17 @@ test('data methods declare a native return type', function (string $method, stri
     ['deletePet', 'void'],
 ]);
 
-test('the options parameter doc names the authenticator only where the options carry one', function (string $method, string $expected): void {
+test('the options parameter doc names no per-operation authenticator', function (string $method, string $expected): void {
     $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
     expect($doc)->toBeString();
     assert(is_string($doc));
     expect($doc)->toContain($expected);
-    expect(substr_count($doc, 'authenticator') > 0)->toBe(str_contains($expected, 'authenticator'));
+    expect($doc)->not->toContain('authenticator');
 })->with([
-    ['addPet', '$options Options carrying an optional per-operation authenticator'],
-    ['addPetWithHttpInfo', '$options Options carrying an optional per-operation authenticator'],
-    ['deletePet', 'cookie parameters, and an optional per-operation authenticator'],
-    ['deletePetWithHttpInfo', 'cookie parameters, and an optional per-operation authenticator'],
+    ['addPet', '$options Options carrying the per-call timeout, headers and retry count'],
+    ['addPetWithHttpInfo', '$options Options carrying the per-call timeout, headers and retry count'],
+    ['deletePet', '$options Options for query, header, form, and cookie parameters' . "\n"],
+    ['deletePetWithHttpInfo', '$options Options for query, header, form, and cookie parameters' . "\n"],
     ['getPetByName', '$options Options for query, header, form, and cookie parameters' . "\n"],
     ['getPetByNameWithHttpInfo', '$options Options for query, header, form, and cookie parameters' . "\n"],
 ]);
@@ -107,7 +106,7 @@ test('add pet', function (): void {
     $pet = new Pet(name: 'TestDog', photoUrls: new \Ds\Set(['http://example.com/photo.jpg']));
     $pet = $pet->withId(12345)->withStatus(PetStatusEnum::AVAILABLE);
 
-    $result = $this->api->addPet($pet, new AddPetOptions(auth: $this->auth));
+    $result = $this->api->addPet($pet, new AddPetOptions());
 
     expect($result)->toBeInstanceOf(Pet::class);
 });
@@ -116,7 +115,7 @@ test('add pet with http info exposes status and headers', function (): void {
     $pet = new Pet(name: 'TestDog', photoUrls: new \Ds\Set(['http://example.com/photo.jpg']));
     $pet = $pet->withId(67890)->withStatus(PetStatusEnum::AVAILABLE);
 
-    $result = $this->api->addPetWithHttpInfo($pet, new AddPetOptions(auth: $this->auth));
+    $result = $this->api->addPetWithHttpInfo($pet, new AddPetOptions());
 
     expect($result->statusCode)->toBe(200);
     expect($result->data)->toBeInstanceOf(Pet::class);
@@ -147,7 +146,7 @@ test('update pet with http info exposes status', function (): void {
 });
 
 test('delete pet with http info exposes status', function (): void {
-    $result = $this->api->deletePetWithHttpInfo(1, new DeletePetOptions(auth: $this->auth));
+    $result = $this->api->deletePetWithHttpInfo(1, new DeletePetOptions());
 
     expect($result->statusCode)->toBeGreaterThanOrEqual(200);
     expect($result->statusCode)->toBeLessThan(300);
@@ -194,7 +193,7 @@ test('update pet', function (): void {
 });
 
 test('delete pet', function (): void {
-    $this->api->deletePet(1, new DeletePetOptions(auth: $this->auth));
+    $this->api->deletePet(1, new DeletePetOptions());
 
     expect(true)->toBeTrue();
 });
@@ -1032,6 +1031,30 @@ test('delete pet cookie param with a clean value is sent on the wire', function 
     expect($captured->headers['Cookie'] ?? '')->toContain('api_key=session-token-123');
 });
 
+test('delete pet cookie param with a character outside cookie-octet fails before sending', function (string $value): void {
+    [$api, $captured] = newHeaderCapturingPetApi();
+    $captured->headers = [];
+
+    expect(fn () => $api->deletePet(1, new DeletePetOptions(apiKey: $value)))
+        ->toThrow(\InvalidArgumentException::class, "Cookie value for 'api_key' contains characters forbidden by RFC 6265");
+    expect($captured->headers)->toBe([]);
+})->with([
+    'space' => ['a b'],
+    'comma' => ['a,b'],
+    'semicolon' => ['a;b'],
+    'double quote' => ['a"b'],
+    'backslash' => ['a\\b'],
+    'non ascii' => ["caf\u{00E9}"],
+]);
+
+test('delete pet cookie param the caller pre-encoded is sent raw', function (): void {
+    [$api, $captured] = newHeaderCapturingPetApi();
+
+    $api->deletePet(1, new DeletePetOptions(apiKey: 'a%20b%3Dc'));
+
+    expect($captured->headers['Cookie'] ?? '')->toContain('api_key=a%20b%3Dc');
+});
+
 // -- Mock-based error handling tests --
 
 test('error handling not found', function (): void {
@@ -1176,18 +1199,41 @@ function newHeaderCapturingPetApi(): array
     return [new PetApi(apiClient: $client, config: $config), $captured];
 }
 
-test('auth supplied inside options wins on the wire', function (): void {
-    // The per-operation authenticator now travels inside the Options object.
-    // The default header carries one token; the Options-borne authenticator
-    // carries a different one and must win on the outgoing request.
-    [$api, $captured] = newHeaderCapturingPetApi();
-    $perCallAuth = new BearerAuthenticator('http://localhost:9999', 'per-call-token');
+test('the credential of the scheme the operation requires is sent', function (): void {
+    /* addPet accepts the apiKeyHeader scheme or the petStoreBearer scheme; only the
+     * bearer credential is configured here, so it is the one that reaches the wire. */
+    $captured = new \stdClass();
+    $captured->headers = [];
+    $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
+        {
+        }
 
-    $pet = new Pet(name: 'OverrideDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
-    $pet = $pet->withId(1);
-    $api->addPet($pet, new AddPetOptions(auth: $perCallAuth));
+        public function close(): void
+        {
+        }
 
-    expect($captured->headers['Authorization'] ?? null)->toBe('Bearer per-call-token');
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \{{invokerPackage}}\ApiHttpResponse
+        {
+            $this->captured->headers = $headers;
+            return new \{{invokerPackage}}\ApiHttpResponse(
+                200,
+                '{"id":1,"name":"x","photoUrls":[]}',
+                ['Content-Type' => 'application/json']
+            );
+        }
+    };
+    $config = Configuration::builder()->baseUrl('http://localhost:9999')->build();
+    $bearer = new BearerAuthenticator('http://localhost:9999', 'scheme-token');
+    $api = new PetApi($client, $config, null, ['petStoreBearer' => $bearer]);
+
+    $api->addPet(new Pet(name: 'SchemeDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg'])));
+
+    expect($captured->headers['Authorization'] ?? null)->toBe('Bearer scheme-token');
+});
+
+test('an operation takes no per call authenticator', function (): void {
+    expect((new \ReflectionClass(AddPetOptions::class))->hasProperty('auth'))->toBeFalse();
 });
 
 test('per call headers are sent and win over a configured header of the same name', function (): void {
@@ -1229,31 +1275,17 @@ test('unsecured operation options has no auth field', function (): void {
     expect($unsecured->hasProperty('timeout'))->toBeTrue();
     expect($unsecured->hasProperty('headers'))->toBeTrue();
     expect($unsecured->hasProperty('maxRetries'))->toBeTrue();
-
-    // The authed addPet operation, by contrast, mints an all-optional Options
-    // class that DOES expose a nullable auth property.
-    $reflection = new \ReflectionClass(AddPetOptions::class);
-    expect($reflection->hasProperty('auth'))->toBeTrue();
-    $authProp = $reflection->getProperty('auth');
-    $type = $authProp->getType();
-    expect($type)->toBeInstanceOf(\ReflectionNamedType::class);
-    /** @var \ReflectionNamedType $type */
-    expect($type->allowsNull())->toBeTrue();
 });
 
 test('options class is immutable: construction works but property writes throw', function (): void {
-    // The per-operation Options classes are immutable value objects:
-    // properties are constructor-promoted public readonly. Construction with
-    // an auth credential works, the value is readable, but any attempt to
-    // mutate a readonly property after construction must throw \Error.
-    $auth = new BearerAuthenticator('http://localhost:9999', 'token');
-    $opts = new AddPetOptions(auth: $auth);
-    expect($opts->auth)->toBe($auth);
+    /* The per-operation Options classes are immutable value objects: properties are
+     * constructor-promoted public readonly, so a write after construction throws. */
+    $opts = new AddPetOptions(timeout: 500);
+    expect($opts->timeout)->toBe(500);
 
     /* Assigning the read-only property is what this test proves fails. */
     /** @phpstan-ignore-next-line */
-    expect(fn () => $opts->auth = new BearerAuthenticator('http://localhost:9999', 'other'))
-        ->toThrow(\Error::class);
+    expect(fn () => $opts->timeout = 900)->toThrow(\Error::class);
 });
 
 // -- Required nested-parameter validation (#6) --

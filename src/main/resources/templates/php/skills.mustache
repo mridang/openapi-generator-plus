@@ -18,6 +18,10 @@ $client = {{clientClassName}}::withToken('https://api.example.com', 'your-token'
 
 ## Authentication
 
+{{#hasSchemeCredentials}}
+Configure one optional credential per security scheme on the client, by name: {{#schemeCredentials}}`{{param}}`{{^-last}}, {{/-last}}{{/schemeCredentials}} (`new {{clientClassName}}({{#schemeCredentials}}{{#-first}}{{param}}: $credential{{/-first}}{{/schemeCredentials}})`). Each operation uses the scheme its security requirement names; there is no per-call authenticator.
+
+{{/hasSchemeCredentials}}
 All authentication is handled via `Authenticator` implementations passed to the client constructor.
 
 ### Bearer Token

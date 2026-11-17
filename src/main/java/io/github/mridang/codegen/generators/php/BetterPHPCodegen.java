@@ -4,7 +4,12 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -233,6 +238,89 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Computes the client's credential parameters (F857): one optional parameter per distinct
+     * security scheme of the document, named after the scheme, as {@code schemeCredentials}
+     * (each entry has {@code param}, the PHP parameter name, and {@code scheme}, the scheme id
+     * that an operation's requirement names).
+     */
+    @Override
+    public void processOpenAPI(OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final List<Map<String, Object>> credentials = new ArrayList<>();
+        if (openAPI.getComponents() != null && openAPI.getComponents().getSecuritySchemes() != null) {
+            final Set<String> taken = new HashSet<>(Set.of("authenticator", "transportOptions", "apiClient"));
+            for (final Map.Entry<String, SecurityScheme> entry :
+                    openAPI.getComponents().getSecuritySchemes().entrySet()) {
+                if (buildSchemeAuthSpec(entry.getKey(), entry.getValue()) == null) {
+                    continue;
+                }
+                String param = NamingConvention.CAMEL_CASE.apply(entry.getKey());
+                while (!taken.add(param)) {
+                    param = param + "Scheme";
+                }
+                final Map<String, Object> credential = new HashMap<>();
+                credential.put("param", param);
+                credential.put("scheme", entry.getKey());
+                credential.put("schemeLiteral", toPhpStringLiteral(entry.getKey()));
+                credentials.add(credential);
+            }
+        }
+        additionalProperties.put("schemeCredentials", credentials);
+        additionalProperties.put("hasSchemeCredentials", !credentials.isEmpty());
+    }
+
+    /**
+     * Adds the security requirement of the operation as a PHP array literal
+     * ({@code phpSecurityRequirements}): the alternatives, each the list of scheme ids that must
+     * all be configured. The operation's own requirement wins, else the document's; an empty
+     * requirement gives {@code []}.
+     */
+    @Override
+    public CodegenOperation fromOperation(
+            String path, String httpMethod, Operation operation, List<Server> servers) {
+        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        final List<SecurityRequirement> requirements =
+                operation.getSecurity() != null
+                        ? operation.getSecurity()
+                        : (openAPI == null ? null : openAPI.getSecurity());
+        op.vendorExtensions.put("phpSecurityRequirements", securityRequirementsLiteral(requirements));
+        return op;
+    }
+
+    /**
+     * The PHP array literal of a security requirement list: {@code [['a'], ['b', 'c']]}.
+     *
+     * @param requirements the requirement alternatives, or {@code null} for none
+     * @return the literal, {@code []} when there is no alternative
+     */
+    static String securityRequirementsLiteral(@Nullable List<SecurityRequirement> requirements) {
+        if (requirements == null) {
+            return "[]";
+        }
+        final List<String> alternatives = new ArrayList<>();
+        for (final SecurityRequirement requirement : requirements) {
+            final List<String> names = new ArrayList<>();
+            for (final String name : requirement.keySet()) {
+                names.add(toPhpStringLiteral(name));
+            }
+            if (!names.isEmpty()) {
+                alternatives.add("[" + String.join(", ", names) + "]");
+            }
+        }
+        return "[" + String.join(", ", alternatives) + "]";
+    }
+
+    /**
+     * An operation takes no per-call authenticator (F857): the credential of each scheme is set
+     * once on the client, so the options object has no {@code auth} field.
+     */
+    @Override
+    protected void injectAuthFieldContext(CodegenOperation op, Map<String, Object> context) {
+        context.put("hasAuthField", false);
+        context.put("authFieldType", getAuthenticatorTypeName());
+    }
+
+    /**
      * Every operation gets an options object, so each call can carry its own timeout, headers and
      * retry count even when it has no query, header, form or cookie parameter and no security.
      */
@@ -336,6 +424,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.php"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.php"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.php"),
+            new SupportingFileSpec("client_lifecycle.mustache", invokerFolder, "ClientLifecycle.php"),
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
             new SupportingFileSpec("abstract_api_client.mustache", invokerFolder, "AbstractApiClient.php"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.php"),
@@ -348,6 +437,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("base_api.mustache", apiFolder, "BaseApi.php"),
             new SupportingFileSpec("authenticator.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "Authenticator.php"),
             new SupportingFileSpec("auth/no_auth.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "NoAuth.php"),
+            new SupportingFileSpec("auth/composite_authenticator.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "CompositeAuthenticator.php"),
             new SupportingFileSpec("composer.mustache", "", "composer.json"),
             new SupportingFileSpec("phpstan_neon.mustache", "", "phpstan.neon"),
             new SupportingFileSpec("rector.mustache", "", "rector.php"),
@@ -682,6 +772,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/TransportOptionsTest.mustache",
                             "tests",
                             "TransportOptionsTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/CompositeAuthenticatorTest.mustache",
+                            "tests",
+                            "CompositeAuthenticatorTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/TraceContextUtilTest.mustache",

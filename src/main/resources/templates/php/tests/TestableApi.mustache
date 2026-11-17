@@ -37,4 +37,26 @@ class TestableApi extends BaseApi
             $auth
         );
     }
+
+    /**
+     * Sends a request the way a generated operation does, with the security requirement of
+     * the operation, so a test can see which scheme credential is applied.
+     *
+     * @param array<string> $accepts
+     * @param list<list<string>> $securityRequirements
+     */
+    public function callWithRequirements(array $accepts, array $securityRequirements): mixed
+    {
+        return $this->invokeApiForResult(
+            'GET',
+            '/test/echo',
+            [],
+            [],
+            null,
+            $accepts,
+            'application/json',
+            null,
+            securityRequirements: $securityRequirements
+        )->data;
+    }
 }

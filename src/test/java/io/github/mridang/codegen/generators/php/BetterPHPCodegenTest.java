@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 
@@ -211,6 +212,39 @@ class BetterPHPCodegenTest {
         assertNull(BetterPHPCodegen.siblingDefaultLiteral(model));
         assertNull(BetterPHPCodegen.siblingDefaultLiteral(count));
         assertNull(BetterPHPCodegen.siblingDefaultLiteral(plain));
+    }
+
+    @Test
+    void writesTheSecurityRequirementOfAnOperationAsAlternativesOfSchemeIds() {
+        final SecurityRequirement either = new SecurityRequirement();
+        either.addList("apiKey");
+        final SecurityRequirement both = new SecurityRequirement();
+        both.addList("bearer");
+        both.addList("it's");
+
+        assertEquals(
+                "[['apiKey'], ['bearer', 'it\\'s']]",
+                BetterPHPCodegen.securityRequirementsLiteral(List.of(either, both)));
+    }
+
+    @Test
+    void writesNoSecurityRequirementForAnOperationWithoutOne() {
+        assertEquals("[]", BetterPHPCodegen.securityRequirementsLiteral(null));
+        assertEquals("[]", BetterPHPCodegen.securityRequirementsLiteral(List.of()));
+        assertEquals(
+                "[]", BetterPHPCodegen.securityRequirementsLiteral(List.of(new SecurityRequirement())));
+    }
+
+    @Test
+    void givesNoOperationAPerCallAuthenticatorField() {
+        final Map<String, Object> context = new HashMap<>();
+        final org.openapitools.codegen.CodegenOperation operation =
+                new org.openapitools.codegen.CodegenOperation();
+        operation.hasAuthMethods = true;
+
+        new BetterPHPCodegen().injectAuthFieldContext(operation, context);
+
+        assertEquals(false, context.get("hasAuthField"));
     }
 
     private static Map<String, Object> envVar(String field, String envName) {
