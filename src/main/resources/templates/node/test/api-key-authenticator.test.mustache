@@ -102,7 +102,7 @@ describe('ApiKeyAuthenticator', () => {
   });
 
   describe('credential resolution', () => {
-    const variable = '{{envPrefix}}_API_KEY';
+    const variable = '{{envVarPrefix}}_API_KEY';
     const saved = process.env[variable];
     afterEach(() => {
       if (saved === undefined) {
@@ -133,16 +133,6 @@ describe('ApiKeyAuthenticator', () => {
       expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', undefined, ApiKeyLocation.HEADER)).toThrow(
         new TypeError(`API key for 'X-Api-Key' is required: pass it explicitly or set ${variable}`)
       );
-    });
-
-    it('reads the field a scheme-specific authenticator names', () => {
-      process.env['{{envPrefix}}_OTHER_API_KEY'] = 'other-key';
-      try {
-        const auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', undefined, ApiKeyLocation.QUERY, 'OTHER_API_KEY');
-        expect(auth.getQueryParams()).toEqual({ api_key: 'other-key' });
-      } finally {
-        delete process.env['{{envPrefix}}_OTHER_API_KEY'];
-      }
     });
   });
 });

@@ -109,8 +109,8 @@ describe("BasicAuthenticator", () => {
   });
 
   describe("credential resolution", () => {
-    const userVariable = "PETSTORE_CLIENT_USERNAME";
-    const secretVariable = "PETSTORE_CLIENT_PASSWORD";
+    const userVariable = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME";
+    const secretVariable = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD";
     const savedUser = process.env[userVariable];
     const savedSecret = process.env[secretVariable];
     const restore = (name: string, value: string | undefined): void => {
@@ -184,24 +184,25 @@ describe("BasicAuthenticator", () => {
       );
     });
 
-    it("reads the fields a scheme-specific authenticator names", () => {
-      process.env["PETSTORE_CLIENT_ADMIN_USERNAME"] = "admin";
-      process.env["PETSTORE_CLIENT_ADMIN_PASSWORD"] = "admin-pw";
-      try {
-        const auth = new BasicAuthenticator(
-          "https://api.example.com",
-          undefined,
-          undefined,
-          "ADMIN_",
+    it.each([userVariable, secretVariable])(
+      "an empty %s counts as unset",
+      (empty) => {
+        process.env[userVariable] = "alice";
+        process.env[secretVariable] = "x";
+        process.env[empty] = "";
+        expect(
+          () =>
+            new BasicAuthenticator(
+              "https://api.example.com",
+              undefined,
+              undefined,
+            ),
+        ).toThrow(
+          new TypeError(
+            `${empty === userVariable ? "Basic auth username" : "Basic auth password"} is required: pass it explicitly or set ${empty}`,
+          ),
         );
-        expect(auth.getAuthHeaders()).toEqual({
-          Authorization:
-            "Basic " + Buffer.from("admin:admin-pw").toString("base64"),
-        });
-      } finally {
-        delete process.env["PETSTORE_CLIENT_ADMIN_USERNAME"];
-        delete process.env["PETSTORE_CLIENT_ADMIN_PASSWORD"];
-      }
-    });
+      },
+    );
   });
 });

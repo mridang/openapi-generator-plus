@@ -12,30 +12,17 @@
  */
 export type CredentialProvider = () => string | Promise<string>;
 
-/** Prefix of the environment variables the authenticators read: `PETSTORE_CLIENT_<FIELD>`. */
-const ENV_PREFIX = "PETSTORE_CLIENT";
-
-/**
- * The name of the environment variable holding a credential field.
- *
- * @param field the field, for example `TOKEN`
- * @returns the variable name, for example `PETSTORE_CLIENT_TOKEN`
- */
-export function envVarName(field: string): string {
-  return `${ENV_PREFIX}_${field}`;
-}
-
 /**
  * Read a credential from the environment, once, when an authenticator is
  * built. An empty variable counts as unset, and so does a runtime with no
  * `process.env`.
  *
- * @param field the field, for example `TOKEN`
+ * @param name the full variable name, for example `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`
  * @returns the value, or `undefined` when the variable is unset or empty
  */
-export function readEnvCredential(field: string): string | undefined {
+export function readEnvCredential(name: string): string | undefined {
   const env = typeof process !== "undefined" ? process.env : undefined;
-  const value = env?.[envVarName(field)];
+  const value = env?.[name];
   return value === undefined || value === "" ? undefined : value;
 }
 
@@ -43,20 +30,20 @@ export function readEnvCredential(field: string): string | undefined {
  * Resolve a credential: the explicit value wins, then the environment.
  *
  * @param explicit the value the caller passed, if any
- * @param field the environment field to fall back to
+ * @param name the full name of the environment variable to fall back to
  * @param what a name for the credential in the error message
  * @returns the credential
  * @throws TypeError if neither the caller nor the environment supplies it
  */
 export function resolveCredential(
   explicit: string | undefined,
-  field: string,
+  name: string,
   what: string,
 ): string {
-  const resolved = explicit ?? readEnvCredential(field);
+  const resolved = explicit ?? readEnvCredential(name);
   if (resolved === undefined) {
     throw new TypeError(
-      `${what} is required: pass it explicitly or set ${envVarName(field)}`,
+      `${what} is required: pass it explicitly or set ${name}`,
     );
   }
   return resolved;

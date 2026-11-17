@@ -7,6 +7,7 @@
 
 import { ApiKeyAuthenticator } from "./api-key-authenticator.js";
 import { ApiKeyLocation } from "./api-key-location.js";
+import { resolveCredential } from "./credentials.js";
 
 /**
  * Scheme-specific authenticator for the sessionCookie security scheme.
@@ -16,9 +17,12 @@ export class SessionCookieAuthenticator extends ApiKeyAuthenticator {
     super(
       host,
       "SESSION_ID",
-      apiKey,
+      resolveCredential(
+        apiKey,
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY",
+        "API key for 'SESSION_ID'",
+      ),
       ApiKeyLocation.COOKIE,
-      "SESSION_COOKIE_API_KEY",
     );
   }
 }

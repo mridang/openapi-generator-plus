@@ -138,11 +138,23 @@ await client.pet.addPet(new Pet(), {
 ### Credentials
 
 An authenticator takes its credential from the argument you pass. When you pass none, it
-reads the environment variable `PETSTORE_CLIENT_<FIELD>` once, when it is built (an empty
-variable counts as unset): `PETSTORE_CLIENT_TOKEN` for `Client.withToken` and
-`BearerAuthenticator`, `PETSTORE_CLIENT_API_KEY` for `ApiKeyAuthenticator`, and
-`PETSTORE_CLIENT_USERNAME` with `PETSTORE_CLIENT_PASSWORD` for `BasicAuthenticator`. A scheme-specific
-authenticator reads `PETSTORE_CLIENT_<SCHEME>_<FIELD>`, so two schemes never share a variable. A
+reads an environment variable once, when it is built (an empty variable counts as unset):
+`SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` for `Client.withToken` and `BearerAuthenticator`,
+`SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY` for `ApiKeyAuthenticator`, and `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` with
+`SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` for `BasicAuthenticator`. The authenticator of a security scheme
+reads the variable named for that scheme, so two schemes with a field of the same name never
+share a variable:
+
+- `PetStoreBasicAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD`
+- `AdminBasicAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD`
+- `PetStoreBearerAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN`
+- `ServiceTokenAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN`
+- `ApiKeyHeaderAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY`
+- `InternalApiKeyAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY`
+- `ApiKeyQueryAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY`
+- `SessionCookieAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY`
+
+The OAuth 2.0 and OpenID Connect authenticators take their credentials as arguments only. A
 credential that is missing from both throws a `TypeError` when the authenticator (and so the client)
 is built, never at the first call. `BearerAuthenticator` and `withToken` also take a function in place
 of the token; it is called for every request, so a token that rotates is always current:

@@ -7,6 +7,7 @@
 
 import { ApiKeyAuthenticator } from "./api-key-authenticator.js";
 import { ApiKeyLocation } from "./api-key-location.js";
+import { resolveCredential } from "./credentials.js";
 
 /**
  * Scheme-specific authenticator for the internalApiKey security scheme.
@@ -16,9 +17,12 @@ export class InternalApiKeyAuthenticator extends ApiKeyAuthenticator {
     super(
       host,
       "X-Internal-Key",
-      apiKey,
+      resolveCredential(
+        apiKey,
+        "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY",
+        "API key for 'X-Internal-Key'",
+      ),
       ApiKeyLocation.HEADER,
-      "INTERNAL_API_KEY_API_KEY",
     );
   }
 }

@@ -292,6 +292,16 @@ describe('PetApi', () => {
     expect((error as Error).name).toBe('AbortError');
   });
 
+  test('an operation without an Options object takes the per-call settings', async () => {
+    const result = await api.getPetPassport(1, {
+      timeout: 5000,
+      maxRetries: 0,
+      headers: { 'X-Trace-Id': 'abc' },
+    });
+
+    expect(result.pet).toBeDefined();
+  });
+
   test('getPetPassport', async () => {
     const result = await api.getPetPassport(1);
 

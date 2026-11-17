@@ -8,13 +8,17 @@
 import { BaseAuthenticator } from "./base-authenticator.js";
 import { resolveCredential } from "./credentials.js";
 
+/** The environment variables read when no user name or password is passed. */
+const USERNAME_VARIABLE = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME";
+const PASSWORD_VARIABLE = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD";
+
 /**
  * Authenticator for HTTP Basic authentication.
  *
  * Each of the user name and the password is the explicit argument, or else
- * the environment variable `PETSTORE_CLIENT_<FIELDPREFIX>USERNAME` or
- * `PETSTORE_CLIENT_<FIELDPREFIX>PASSWORD`, read once here. A missing value fails
- * here, when the authenticator is built.
+ * the environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` or
+ * `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD`, read once here (an empty variable counts as unset).
+ * A missing value fails here, when the authenticator is built.
  */
 export class BasicAuthenticator extends BaseAuthenticator {
   private readonly host: string;
@@ -25,24 +29,22 @@ export class BasicAuthenticator extends BaseAuthenticator {
    * @param host API base URL
    * @param username the user name, or `undefined` to read it from the environment
    * @param password the password, or `undefined` to read it from the environment
-   * @param fieldPrefix the prefix of the environment fields (empty for `USERNAME` and `PASSWORD`)
    * @throws TypeError if a value is missing or malformed
    */
   constructor(
     host: string,
     username: string | undefined,
     password: string | undefined,
-    fieldPrefix = "",
   ) {
     super();
     const resolvedUsername = resolveCredential(
       username,
-      `${fieldPrefix}USERNAME`,
+      USERNAME_VARIABLE,
       "Basic auth username",
     );
     const resolvedPassword = resolveCredential(
       password,
-      `${fieldPrefix}PASSWORD`,
+      PASSWORD_VARIABLE,
       "Basic auth password",
     );
     /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field

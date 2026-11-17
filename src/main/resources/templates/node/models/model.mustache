@@ -631,7 +631,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isMap}}
 {{/isDate}}
 {{/isDateTime}}
-  readonly {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#required}}{{#isNullable}} | null{{/isNullable}}{{/required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+  readonly {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}{{^vendorExtensions.siblingDefaultIsEnum}}!{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#required}}{{#isNullable}} | null{{/isNullable}}{{/required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}};
 {{^-last}}
 {{/-last}}
 {{/vars}}
@@ -747,6 +747,13 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} === undefined) {
       this.{{name}} = {{{defaultValue}}};
     }
+{{/defaultValue}}
+{{^defaultValue}}
+{{#vendorExtensions.siblingDefaultIsEnum}}
+    if (this.{{name}} === undefined) {
+      this.{{name}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}};
+    }
+{{/vendorExtensions.siblingDefaultIsEnum}}
 {{/defaultValue}}
 {{/vars}}
 {{! Divergence #10: a REQUIRED, non-nullable field that is missing

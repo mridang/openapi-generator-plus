@@ -146,7 +146,7 @@ export class {{clientClassName}} {
   /**
    * Creates a client authenticated with a Bearer token.
    *
-   * The token is the argument, or else the `{{envPrefix}}_TOKEN` environment
+   * The token is the argument, or else the `{{envVarPrefix}}_TOKEN` environment
    * variable (an empty variable counts as unset), read once here. A provider
    * function in its place is called for every request, so a token that
    * rotates is always current. A missing token throws here, when the client is

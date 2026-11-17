@@ -93,79 +93,135 @@ describe("per-scheme authenticators", () => {
   );
 
   const environmentSchemes: Array<
-    [string, new (host: string) => unknown, string[]]
+    [string, new (host: string, ...credentials: string[]) => unknown, string[]]
   > = [
     [
       "PetStoreBasicAuthenticator",
       PetStoreBasicAuthenticator,
       [
-        "PETSTORE_CLIENT_PET_STORE_BASIC_USERNAME",
-        "PETSTORE_CLIENT_PET_STORE_BASIC_PASSWORD",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD",
       ],
     ],
     [
       "AdminBasicAuthenticator",
       AdminBasicAuthenticator,
       [
-        "PETSTORE_CLIENT_ADMIN_BASIC_USERNAME",
-        "PETSTORE_CLIENT_ADMIN_BASIC_PASSWORD",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD",
       ],
     ],
     [
       "PetStoreBearerAuthenticator",
       PetStoreBearerAuthenticator,
-      ["PETSTORE_CLIENT_PET_STORE_BEARER_TOKEN"],
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"],
     ],
     [
       "ServiceTokenAuthenticator",
       ServiceTokenAuthenticator,
-      ["PETSTORE_CLIENT_SERVICE_TOKEN_TOKEN"],
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"],
     ],
     [
       "ApiKeyHeaderAuthenticator",
       ApiKeyHeaderAuthenticator,
-      ["PETSTORE_CLIENT_API_KEY_HEADER_API_KEY"],
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY"],
     ],
     [
       "InternalApiKeyAuthenticator",
       InternalApiKeyAuthenticator,
-      ["PETSTORE_CLIENT_INTERNAL_API_KEY_API_KEY"],
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"],
     ],
     [
       "ApiKeyQueryAuthenticator",
       ApiKeyQueryAuthenticator,
-      ["PETSTORE_CLIENT_API_KEY_QUERY_API_KEY"],
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY"],
     ],
     [
       "SessionCookieAuthenticator",
       SessionCookieAuthenticator,
-      ["PETSTORE_CLIENT_SESSION_COOKIE_API_KEY"],
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"],
     ],
   ];
 
+  const withVariables = (
+    variables: string[],
+    values: Array<string | undefined>,
+    body: () => void,
+  ): void => {
+    const saved = variables.map((variable) => process.env[variable]);
+    try {
+      variables.forEach((variable, index) => {
+        const value = values[index];
+        if (value === undefined) {
+          delete process.env[variable];
+        } else {
+          process.env[variable] = value;
+        }
+      });
+      body();
+    } finally {
+      variables.forEach((variable, index) => {
+        const value = saved[index];
+        if (value === undefined) {
+          delete process.env[variable];
+        } else {
+          process.env[variable] = value;
+        }
+      });
+    }
+  };
+
   for (const [name, cls, variables] of environmentSchemes) {
     it(`${name} reads its own credential variables from the environment`, () => {
-      const saved = variables.map((variable) => process.env[variable]);
-      try {
-        variables.forEach((variable) => {
-          process.env[variable] = `value-${variable}`;
-        });
-        expect(() => new cls("https://api.example.com")).not.toThrow();
+      withVariables(
+        variables,
+        variables.map((variable) => `value-${variable}`),
+        () => {
+          expect(() => new cls("https://api.example.com")).not.toThrow();
+        },
+      );
+    });
 
-        variables.forEach((variable) => {
-          delete process.env[variable];
-        });
-        expect(() => new cls("https://api.example.com")).toThrow(variables[0]);
-      } finally {
-        variables.forEach((variable, index) => {
-          const value = saved[index];
-          if (value === undefined) {
-            delete process.env[variable];
-          } else {
-            process.env[variable] = value;
-          }
-        });
-      }
+    it(`${name} fails when it is built and a variable is unset`, () => {
+      withVariables(
+        variables,
+        variables.map(() => undefined),
+        () => {
+          expect(() => new cls("https://api.example.com")).toThrow(
+            variables[0],
+          );
+        },
+      );
+    });
+
+    it(`${name} treats an empty variable as unset`, () => {
+      withVariables(
+        variables,
+        variables.map(() => ""),
+        () => {
+          expect(() => new cls("https://api.example.com")).toThrow(
+            variables[0],
+          );
+        },
+      );
+    });
+
+    it(`${name} prefers the explicit credential over the variables`, () => {
+      const invalid = "bad\r\nvalue";
+      withVariables(
+        variables,
+        variables.map(() => invalid),
+        () => {
+          expect(() => new cls("https://api.example.com")).toThrow(TypeError);
+          expect(
+            () =>
+              new cls(
+                "https://api.example.com",
+                ...variables.map(() => "explicit"),
+              ),
+          ).not.toThrow();
+        },
+      );
     });
   }
 });

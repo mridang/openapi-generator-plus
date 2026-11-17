@@ -153,9 +153,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 "URL of the documentation, written to the README."));
         cliOptions.add(CliOption.newString("issueTrackerUrl",
                 "URL of the issue tracker, written to the package manifest and the README."));
-        cliOptions.add(CliOption.newString("envPrefix",
-                "Prefix of the environment variables the authenticators read when no credential is "
-                        + "passed (default: the npm package name in upper snake case)."));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated npm package (default: 1.0.0).").defaultValue("1.0.0"));
     }
@@ -404,7 +401,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         final String npmName = getPropertyOrDefault("npmName", "openapi-typescript-client");
         additionalProperties.put(
                 "userAgentDefault", npmName + "/" + packageVersion + " (node)");
-        additionalProperties.put("envPrefix", envPrefix(npmName));
 
         // Only set apiPackage default when the caller did not override it.
         if (this.apiPackage == null || this.apiPackage.isEmpty() || "openapitools".equals(this.apiPackage)) {
@@ -1346,8 +1342,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
         final Map<String, Object> ctx = baseSchemeContext(spec);
-        recordSchemeAuthenticator(spec, String.valueOf(ctx.get("className")));
-        ctx.put("imports", buildNodeImports(spec));
+        final Map<String, String> envNames = envNamesByField(ctx);
+        recordSchemeAuthenticator(spec, String.valueOf(ctx.get("className")), envNames);
+        final List<Map<String, String>> imports = new ArrayList<>(buildNodeImports(spec));
+        if (hasEnvCredentials(spec)) {
+            imports.add(imp("resolveCredential", "./credentials"));
+        }
+        ctx.put("imports", imports);
         final boolean credentialed = hasEnvCredentials(spec);
         final List<Map<String, String>> constructorParams = new ArrayList<>();
         for (final String name : spec.paramNames()) {
@@ -1364,7 +1365,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             constructorParams.add(param);
         }
         ctx.put("constructorParams", constructorParams);
-        ctx.put("superArgs", buildNodeSuperArgs(spec));
+        ctx.put("superArgs", buildNodeSuperArgs(spec, envNames));
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             ctx.put("typeImports", List.of(imp("CredentialProvider", "./credentials")));
         }
@@ -1375,7 +1376,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * Remembers a generated per-scheme authenticator so the package entry
      * point re-exports it and its unit test covers it.
      */
-    private void recordSchemeAuthenticator(SchemeAuthSpec spec, String className) {
+    private void recordSchemeAuthenticator(
+            SchemeAuthSpec spec, String className, Map<String, String> envNames) {
         if (BASE_AUTHENTICATORS.contains(className)) {
             return;
         }
@@ -1386,9 +1388,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, String> entry = new HashMap<>();
         entry.put("className", className);
         entry.put("baseClass", spec.baseClass());
-        final String envVars = schemeEnvVars(spec);
+        final String envVars = schemeEnvVars(spec, envNames);
         if (!envVars.isEmpty()) {
             entry.put("envVars", envVars);
+            entry.put("envVarsText", envVars.replace("'", "`"));
         }
         perSchemeAuthEntries.add(entry);
         for (final String name : List.of(className, spec.baseClass())) {
@@ -1450,17 +1453,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 .replace("\n", "\\n").replace("\r", "\\r") + "'";
     }
 
-    /**
-     * The prefix of the environment variables the authenticators read: the
-     * {@code envPrefix} option when given, else the package name in upper snake case
-     * ({@code @acme/pet-client} gives {@code ACME_PET_CLIENT}).
-     */
-    private String envPrefix(String npmName) {
-        final Object configured = additionalProperties.get("envPrefix");
-        return envPrefixFor(
-                configured != null && !configured.toString().isBlank() ? configured.toString() : npmName);
-    }
-
     /** The text as a JSON string body: backslash, quote and control characters escaped. */
     static String jsonEscape(String text) {
         final StringBuilder out = new StringBuilder();
@@ -1493,13 +1485,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return out.toString();
     }
 
-    /** Upper snake case of a name, led by {@code SDK_} when it would start with a digit. */
-    static String envPrefixFor(String source) {
-        final String prefix = source.replaceAll("[^A-Za-z0-9]+", "_").replaceAll("^_+|_+$", "")
-                .toUpperCase(Locale.ROOT);
-        return prefix.isEmpty() || Character.isDigit(prefix.charAt(0)) ? "SDK_" + prefix : prefix;
-    }
-
     /** Whether the scheme's authenticator reads its credential from the environment when none is passed. */
     private static boolean hasEnvCredentials(SchemeAuthSpec spec) {
         return "BasicAuthenticator".equals(spec.baseClass())
@@ -1508,43 +1493,68 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
-     * The environment field of a scheme's credential: the scheme name in upper snake case,
-     * then the field, so two schemes of one kind never share a variable.
+     * The environment variable of each credential field of a scheme, by field name, as the shared
+     * generator computed them (F862); the per-scheme authenticator reads exactly this name.
      */
-    private static String schemeEnvField(SchemeAuthSpec spec, String field) {
-        return NamingConvention.SNAKE_CASE.apply(spec.schemeName()).toUpperCase(Locale.ROOT) + field;
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> envNamesByField(Map<String, Object> ctx) {
+        final Map<String, String> byField = new HashMap<>();
+        final Object envVars = ctx.get("envVars");
+        if (envVars instanceof List) {
+            for (final Object entry : (List<Object>) envVars) {
+                final Map<String, Object> e = (Map<String, Object>) entry;
+                byField.put(String.valueOf(e.get("field")), String.valueOf(e.get("envName")));
+            }
+        }
+        return byField;
+    }
+
+    /** The environment variable of a credential field; a scheme the shared pass did not name has none. */
+    private static String envName(Map<String, String> envNames, String field) {
+        return Objects.requireNonNull(envNames.get(field), "no environment variable for " + field);
     }
 
     /**
      * The environment variables a scheme's authenticator reads, as the quoted list the unit test
-     * puts in an array literal ({@code 'PREFIX_X_TOKEN'}); empty for an authenticator that
-     * takes no environment fallback.
+     * puts in an array literal ({@code 'PREFIX_TOKEN'}); empty for an authenticator that takes no
+     * environment fallback.
      */
-    private String schemeEnvVars(SchemeAuthSpec spec) {
-        final String prefix = String.valueOf(additionalProperties.get("envPrefix")) + "_";
+    private static String schemeEnvVars(SchemeAuthSpec spec, Map<String, String> envNames) {
+        final List<String> fields = new ArrayList<>();
         if ("BasicAuthenticator".equals(spec.baseClass())) {
-            return quoteSingle(prefix + schemeEnvField(spec, "_USERNAME")) + ", "
-                    + quoteSingle(prefix + schemeEnvField(spec, "_PASSWORD"));
+            fields.add("username");
+            fields.add("password");
+        } else if ("BearerAuthenticator".equals(spec.baseClass())) {
+            fields.add("token");
+        } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            fields.add("apiKey");
         }
-        if ("BearerAuthenticator".equals(spec.baseClass())) {
-            return quoteSingle(prefix + schemeEnvField(spec, "_TOKEN"));
+        final List<String> quoted = new ArrayList<>();
+        for (final String field : fields) {
+            quoted.add(quoteSingle(envName(envNames, field)));
         }
-        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            return quoteSingle(prefix + schemeEnvField(spec, "_API_KEY"));
-        }
-        return "";
+        return String.join(", ", quoted);
     }
 
-    private List<String> buildNodeSuperArgs(SchemeAuthSpec spec) {
+    private List<String> buildNodeSuperArgs(SchemeAuthSpec spec, Map<String, String> envNames) {
         if ("BasicAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "username", "password", quoteSingle(schemeEnvField(spec, "_")));
+            return List.of("host",
+                    "resolveCredential(username, " + quoteSingle(envName(envNames, "username"))
+                            + ", 'Basic auth username')",
+                    "resolveCredential(password, " + quoteSingle(envName(envNames, "password"))
+                            + ", 'Basic auth password')");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "token", quoteSingle(schemeEnvField(spec, "_TOKEN")));
+            return List.of("host",
+                    "typeof token === 'function' ? token : resolveCredential(token, "
+                            + quoteSingle(envName(envNames, "token")) + ", 'Bearer token')");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", quoteSingle(java.util.Objects.toString(spec.keyParamName(), "")), "apiKey",
-                    "ApiKeyLocation." + spec.keyIn(), quoteSingle(schemeEnvField(spec, "_API_KEY")));
+            final String keyName = java.util.Objects.toString(spec.keyParamName(), "");
+            return List.of("host", quoteSingle(keyName),
+                    "resolveCredential(apiKey, " + quoteSingle(envName(envNames, "apiKey")) + ", "
+                            + quoteSingle("API key for '" + keyName + "'") + ")",
+                    "ApiKeyLocation." + spec.keyIn());
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId", "clientSecret",

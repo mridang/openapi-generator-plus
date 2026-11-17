@@ -134,11 +134,20 @@ await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName
 ### Credentials
 
 An authenticator takes its credential from the argument you pass. When you pass none, it
-reads the environment variable `{{envPrefix}}_<FIELD>` once, when it is built (an empty
-variable counts as unset): `{{envPrefix}}_TOKEN` for `{{clientClassName}}.withToken` and
-`BearerAuthenticator`, `{{envPrefix}}_API_KEY` for `ApiKeyAuthenticator`, and
-`{{envPrefix}}_USERNAME` with `{{envPrefix}}_PASSWORD` for `BasicAuthenticator`. A scheme-specific
-authenticator reads `{{envPrefix}}_<SCHEME>_<FIELD>`, so two schemes never share a variable. A
+reads an environment variable once, when it is built (an empty variable counts as unset):
+`{{envVarPrefix}}_TOKEN` for `{{clientClassName}}.withToken` and `BearerAuthenticator`,
+`{{envVarPrefix}}_API_KEY` for `ApiKeyAuthenticator`, and `{{envVarPrefix}}_USERNAME` with
+`{{envVarPrefix}}_PASSWORD` for `BasicAuthenticator`. The authenticator of a security scheme
+reads the variable named for that scheme, so two schemes with a field of the same name never
+share a variable:
+
+{{#perSchemeAuthEntries}}
+{{#envVarsText}}
+- `{{className}}`: {{{envVarsText}}}
+{{/envVarsText}}
+{{/perSchemeAuthEntries}}
+
+The OAuth 2.0 and OpenID Connect authenticators take their credentials as arguments only. A
 credential that is missing from both throws a `TypeError` when the authenticator (and so the client)
 is built, never at the first call. `BearerAuthenticator` and `withToken` also take a function in place
 of the token; it is called for every request, so a token that rotates is always current:

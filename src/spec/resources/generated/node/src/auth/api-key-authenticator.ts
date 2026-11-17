@@ -9,13 +9,16 @@ import { BaseAuthenticator } from "./base-authenticator.js";
 import { ApiKeyLocation } from "./api-key-location.js";
 import { resolveCredential } from "./credentials.js";
 
+/** The environment variable read when no key is passed. */
+const API_KEY_VARIABLE = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY";
+
 /**
  * Authenticator for API key authentication. Supports sending the key
  * as a header, query parameter, or cookie.
  *
- * The key is the explicit argument, or else the environment variable named by
- * `envField` (`PETSTORE_CLIENT_API_KEY` by default), read once here. A missing
- * key fails here, when the authenticator is built.
+ * The key is the explicit argument, or else the environment variable
+ * `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`, read once here (an empty variable counts as unset). A
+ * missing key fails here, when the authenticator is built.
  */
 export class ApiKeyAuthenticator extends BaseAuthenticator {
   private readonly host: string;
@@ -28,7 +31,6 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
    * @param keyParamName the header, query parameter or cookie name
    * @param apiKey the key, or `undefined` to read it from the environment
    * @param location where the key is sent
-   * @param envField the environment field read when no key is passed
    * @throws TypeError if no key is supplied or the key is malformed
    */
   constructor(
@@ -36,12 +38,11 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
     keyParamName: string,
     apiKey: string | undefined,
     location: ApiKeyLocation,
-    envField = "API_KEY",
   ) {
     super();
     const resolvedKey = resolveCredential(
       apiKey,
-      envField,
+      API_KEY_VARIABLE,
       `API key for '${keyParamName}'`,
     );
     /* Validation applies to ALL locations: empty/whitespace API keys
