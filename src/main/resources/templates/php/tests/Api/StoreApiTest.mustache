@@ -525,6 +525,15 @@ test('bhv operations 123 get defaults keeps the schema defaults for absent field
     expect($defaults->label)->toBe('untitled');
 });
 
+test('bhv operations 109 get matrix decodes an array of integer arrays', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '[[1,2],[3]]');
+
+    $matrix = $api->getMatrix();
+
+    expect($matrix->toArray()[0]->toArray())->toBe([1, 2]);
+    expect($matrix->toArray()[1]->toArray())->toBe([3]);
+});
+
 test('bhv operations 112 get stock item decodes the integer backed enum and the nested arrays', function (): void {
     $api = newStoreApiForMock(
         200,
