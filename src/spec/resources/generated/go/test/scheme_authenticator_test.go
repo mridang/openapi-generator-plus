@@ -115,7 +115,7 @@ func TestBhvAuthbasic001_SchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEve
 	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_PetStoreBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvAuthbasic013_SchemeAuthenticator_PetStoreBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
@@ -245,7 +245,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ReadsEveryCredentialFro
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvAuthbearer018_SchemeAuthenticator_PetStoreBearerAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, schemeArgValue("token"))
@@ -302,6 +302,19 @@ func TestBhvAuthscheme002_SchemeAuthenticator_PetStoreBearerAuthenticator_WithPr
 	if got, want := a.AuthHeaders()["Authorization"], "Bearer provider-token"; got != want {
 		t.Errorf("expected %q, got %q", want, got)
 	}
+}
+
+func TestBhvLifecycle025_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
+
+	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Setenv(schemePetStoreBearerAuthenticatorVariables[0], "changed-after-build")
+
+	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
 func TestSchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
@@ -396,6 +409,19 @@ func TestBhvAuthscheme002_SchemeAuthenticator_ServiceTokenAuthenticator_WithProv
 	}
 }
 
+func TestSchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
+
+	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Setenv(schemeServiceTokenAuthenticatorVariables[0], "changed-after-build")
+
+	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
 func TestSchemeAuthenticator_ServiceTokenAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
 	a, err := auth.NewServiceTokenAuthenticatorWithProvider(schemeHost, nil)
 
@@ -429,7 +455,7 @@ func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsEveryCredentialFromI
 	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvSerializationobject187_SchemeAuthenticator_ApiKeyHeaderAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, schemeArgValue("apiKey"))

@@ -1009,7 +1009,7 @@ func TestBhvOperations051_BaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
 
 // ── 418 Teapot (unrecognized status) ──
 
-func TestBaseApi_418TeapotThrowsClientError(t *testing.T) {
+func TestBhvErrors048_BaseApi_418TeapotThrowsClientError(t *testing.T) {
 	t.Parallel()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/418").Build()
 	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil, {{packageName}}.Credentials{})
@@ -1167,6 +1167,25 @@ func TestBhvSerializationwire012_BaseApi_FormUrlencodedBodyEncodesSpaceAsPlus(t 
 	}
 	if string(body) != "nickname=good+boy" {
 		t.Errorf("expected a space encoded as '+', got %q", string(body))
+	}
+}
+
+func TestBhvSerializationwire055_BaseApi_FormSpaceInAValueEncodesAsPlus(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	note := "very fast"
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{Nickname: "good boy", Note: &note})
+	body, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected a serialized []byte body, got %T", client.capturedBody)
+	}
+	if !strings.Contains(string(body), "nickname=good+boy") || !strings.Contains(string(body), "note=very+fast") {
+		t.Errorf("expected a space in a form value encoded as '+', got %q", string(body))
+	}
+	if strings.Contains(string(body), "%20") {
+		t.Errorf("expected no %%20 in a form body, got %q", string(body))
 	}
 }
 

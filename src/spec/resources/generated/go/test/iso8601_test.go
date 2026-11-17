@@ -109,7 +109,7 @@ func TestIso8601_UnmarshalDurationProtoJSON_Negative(t *testing.T) {
 	}
 }
 
-func TestIso8601_UnmarshalDurationProtoJSON_RejectsISO8601(t *testing.T) {
+func TestBhvSerializationobject184_Iso8601_UnmarshalDurationProtoJSON_RejectsISO8601(t *testing.T) {
 	t.Parallel()
 	if _, err := petstore.UnmarshalDurationProtoJSON("PT1H"); err == nil {
 		t.Fatal("expected error for ISO-8601 duration")

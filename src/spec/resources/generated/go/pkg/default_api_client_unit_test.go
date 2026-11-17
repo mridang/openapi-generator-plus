@@ -1843,6 +1843,16 @@ func TestBhvSerializationwire037_DefaultApiClientUnit_MimeTypeForFilename_Extens
 	}
 }
 
+// A file name with no extension this table knows falls back to application/octet-stream.
+func TestBhvSerializationwire056_DefaultApiClientUnit_MimeTypeForFilenameFallsBackToOctetStreamForUnknownExtension(t *testing.T) {
+	t.Parallel()
+	for _, filename := range []string{"blob.unknownext", "noext"} {
+		if got := mimeTypeForFilename(filename); got != "application/octet-stream" {
+			t.Errorf("mimeTypeForFilename(%q) = %q, want application/octet-stream", filename, got)
+		}
+	}
+}
+
 // buildHTTPClient sets the standard idle and handshake timeouts, so idle sockets
 // expire and a stalled TLS handshake cannot hang forever, while the proxy stays
 // opt-in.
@@ -2489,6 +2499,18 @@ func TestBhvRetries023_DefaultApiClientUnit_RetryAfterDelay_ReadsSecondsAndDates
 	}
 	if _, ok := retryAfterDelay(nil, now); ok {
 		t.Error("expected no delay without headers")
+	}
+}
+
+// A Retry-After that cannot be read is ignored, so the wait is the first backoff step.
+func TestBhvRetries029_DefaultApiClientUnit_UnreadableRetryAfterFallsBackToTheBackoff(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
+	for i := 0; i < 50; i++ {
+		got := retryDelay(0, map[string]string{"Retry-After": "soon"}, now)
+		if got > 500*time.Millisecond || got < 375*time.Millisecond {
+			t.Fatalf("expected the first backoff in [375ms, 500ms], got %v", got)
+		}
 	}
 }
 

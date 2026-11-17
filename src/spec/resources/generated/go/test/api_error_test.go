@@ -468,12 +468,12 @@ func TestBhvErrors018_ApiError_SatisfiesOpenAPIError(t *testing.T) {
 	}
 }
 
-// TestApiError_TypedError_SatisfiesOpenAPIErrorAndApiError confirms a typed 4xx/5xx error
+// TestBhvErrors047_ApiError_TypedError_SatisfiesOpenAPIErrorAndApiError confirms a typed 4xx/5xx error
 // is matchable as OpenAPIError and as the specific typed error through
 // errors.As, and — because it embeds ApiError — promotes the ApiError getters.
 // This preserves how consumers currently narrow typed errors while adding the
 // branded root.
-func TestApiError_TypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
+func TestBhvErrors047_ApiError_TypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
 	t.Parallel()
 	err := apierrors.FromResponse(404, nil, `{"k":"v"}`)
 
@@ -496,6 +496,45 @@ func TestApiError_TypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
 	type statusReader interface{ StatusCode() int }
 	if sr, ok := err.(statusReader); !ok || sr.StatusCode() != 404 {
 		t.Errorf("expected typed error to promote ApiError.StatusCode() == 404, got %T", err)
+	}
+}
+
+// TestBhvErrors045 pins that the OAuth2 errors hang off the branded root alone:
+// they satisfy OpenAPIError but are not an *ApiError, so a caller that
+// narrows on ApiError never mistakes a token failure for an HTTP status error.
+func TestBhvErrors045_ApiError_OAuth2ErrorsAreRootedAtTheBrandedBaseNotApiError(t *testing.T) {
+	t.Parallel()
+	errs := []error{
+		apierrors.NewOAuth2ServerError(400, "invalid_grant", "", "", "{}"),
+		apierrors.NewOAuth2TokenError("no access_token"),
+	}
+	for _, err := range errs {
+		if _, ok := err.(apierrors.OpenAPIError); !ok {
+			t.Errorf("expected %T to satisfy OpenAPIError", err)
+		}
+		var apiErr *apierrors.ApiError
+		if errors.As(err, &apiErr) {
+			t.Errorf("expected errors.As not to match %T against *ApiError", err)
+		}
+	}
+}
+
+// TestBhvErrors046 pins the three forms of the OAuth2 server error message: a raw
+// body when there is no code, the code alone, and the code with its description.
+func TestBhvErrors046_ApiError_OAuth2ServerErrorMessageHasThreeForms(t *testing.T) {
+	t.Parallel()
+	raw := apierrors.NewOAuth2ServerError(502, "", "", "", "<html>bad gateway</html>")
+	code := apierrors.NewOAuth2ServerError(400, "invalid_grant", "", "", "{}")
+	described := apierrors.NewOAuth2ServerError(400, "invalid_grant", "refresh token expired", "", "{}")
+
+	if got, want := raw.Error(), "Token request failed with status 502: <html>bad gateway</html>"; got != want {
+		t.Errorf("raw form: expected %q, got %q", want, got)
+	}
+	if got, want := code.Error(), "Token request failed with status 400: invalid_grant"; got != want {
+		t.Errorf("code form: expected %q, got %q", want, got)
+	}
+	if got, want := described.Error(), "Token request failed with status 400: invalid_grant -- refresh token expired"; got != want {
+		t.Errorf("described form: expected %q, got %q", want, got)
 	}
 }
 

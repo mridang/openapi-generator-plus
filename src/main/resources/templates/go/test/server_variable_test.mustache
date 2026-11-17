@@ -76,3 +76,26 @@ func TestBhvServers017_ServerVariable_ExposesDefaultValueDescriptionAndEnumValue
 		t.Errorf("EnumValues = %v, want [v2 v3]", enum)
 	}
 }
+
+// The enum values are exposed so a caller can validate a value against them.
+func TestBhvServers018_ServerVariable_EnumValuesAreExposedForValidation(t *testing.T) {
+	t.Parallel()
+	v := {{packageName}}.NewServerVariable("prod", "", []string{"prod", "staging"})
+
+	enum := v.EnumValues()
+	if len(enum) != 2 || enum[0] != "prod" || enum[1] != "staging" {
+		t.Errorf("EnumValues = %v, want [prod staging]", enum)
+	}
+}
+
+// A value outside the allowed set is absent from the enum values.
+func TestBhvServers019_ServerVariable_EnumDoesNotContainAValueOutsideTheAllowedSet(t *testing.T) {
+	t.Parallel()
+	v := {{packageName}}.NewServerVariable("prod", "", []string{"prod", "staging"})
+
+	for _, value := range v.EnumValues() {
+		if value == "dev" {
+			t.Errorf("EnumValues = %v must not contain %q", v.EnumValues(), "dev")
+		}
+	}
+}
