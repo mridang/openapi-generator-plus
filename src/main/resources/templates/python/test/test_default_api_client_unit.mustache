@@ -1984,7 +1984,7 @@ class TestRetryPolicy:
         ("header", "expected"),
         [("0", 0.0), ("3", 3.0), ("1.5", 1.5), (" 7 ", 7.0), ("120", 60.0)],
     )
-    def test_retry_after_seconds_replaces_the_backoff_and_is_capped_at_a_minute(
+    def test_bhv_retries_023_retry_after_seconds_replaces_the_backoff_and_is_capped_at_a_minute(
         self, header: str, expected: float
     ) -> None:
         assert _retry_delay(0, header, jitter=0.0) == expected

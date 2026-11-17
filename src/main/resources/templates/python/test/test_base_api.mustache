@@ -263,7 +263,7 @@ class TestPerCallOptions:
         assert 'X-Tenant' not in client.sent[0]
         assert client.sent[0]['X-Keep'] == 'yes'
 
-    async def test_bhv_retries_004_per_call_max_retries_overrides_the_transport_budget(self) -> None:
+    async def test_bhv_retries_004_bhv_retries_009_per_call_max_retries_overrides_the_transport_budget(self) -> None:
         client = _ScriptedApiClient(_json(503, '{}', **{'retry-after': '0'}), _json(200, '{}'))
         api = StubApi(api_client=client, config=Configuration(base_url='https://example.test'))
 
@@ -1804,12 +1804,13 @@ class TestAutomaticRetries:
         assert excinfo.value.status_code == status
         assert len(server.requests) == 1
 
-    async def test_two_retries_are_made_by_default(self, scripted: Any) -> None:
+    async def test_bhv_retries_024_stops_after_max_retries_and_raises_the_last_status(self, scripted: Any) -> None:
         server = scripted((503, _SOON, '{}'))
 
-        with pytest.raises(ServerException):
+        with pytest.raises(ServerException) as excinfo:
             await _get(_retry_api(server))
 
+        assert excinfo.value.status_code == 503
         assert len(server.requests) == 3
 
     async def test_max_retries_sets_the_number_of_retries(self, scripted: Any) -> None:
@@ -1820,7 +1821,7 @@ class TestAutomaticRetries:
 
         assert len(server.requests) == 5
 
-    async def test_zero_max_retries_disables_retries(self, scripted: Any) -> None:
+    async def test_bhv_retries_018_zero_max_retries_disables_retries(self, scripted: Any) -> None:
         server = scripted((503, _SOON, '{}'), _OK)
 
         with pytest.raises(ServerException):
@@ -1856,7 +1857,7 @@ class TestAutomaticRetries:
         assert time.monotonic() - started >= 0.9
         assert len(server.requests) == 2
 
-    async def test_a_wait_longer_than_the_timeout_budget_ends_the_retries(
+    async def test_bhv_retries_025_a_wait_longer_than_the_timeout_budget_ends_the_retries(
         self, scripted: Any
     ) -> None:
         server = scripted((503, {'Retry-After': '30'}, '{}'), _OK)
@@ -1868,7 +1869,7 @@ class TestAutomaticRetries:
         assert time.monotonic() - started < 1.4
         assert len(server.requests) == 1
 
-    async def test_a_dropped_connection_is_retried(self, scripted: Any) -> None:
+    async def test_bhv_retries_013_a_dropped_connection_is_retried(self, scripted: Any) -> None:
         server = scripted(None, _OK)
 
         await _get(_retry_api(server))
@@ -1884,6 +1885,18 @@ class TestAutomaticRetries:
             await _get(_retry_api(server, max_retries=1))
 
         assert len(server.requests) == 2
+
+    async def test_bhv_retries_014_per_call_max_retries_zero_disables_the_retries_the_transport_allows(self, scripted: Any) -> None:
+        server = scripted((503, _SOON, '{}'), _OK)
+        api = _retry_api(server, max_retries=3)
+
+        with pytest.raises(ServerException):
+            await api.call_result(
+                'GET', '/x', {}, {}, None, ['application/json'], 'application/json', None,
+                request_options=FindPetsByStatusOptions(max_retries=0),
+            )
+
+        assert len(server.requests) == 1
 
     async def test_bhv_retries_005_a_retry_builds_the_authentication_headers_again(self, scripted: Any) -> None:
         class CountingAuthenticator(StubAuthenticator):
