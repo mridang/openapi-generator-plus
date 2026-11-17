@@ -48,6 +48,15 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
                  * both (curl for the fetch, CA certs for its TLS verify). */
                 "apt-get update -qq && apt-get install -y -qq --no-install-recommends"
                         + " curl ca-certificates",
+                /* The rust image is Debian and ships without make, which the SDK's own
+                 * docs target needs. Installed once with the shared container, with
+                 * retries because the package mirror is flaky on CI runners. */
+                "for i in 1 2 3 4 5; do (apt-get update -qq && apt-get install -y -qq"
+                        + " --no-install-recommends make)"
+                        + " > /dev/null 2>&1 && break;"
+                        + " echo \"apt attempt $i failed; retrying\" >&2; sleep 3; done;"
+                        + " command -v make > /dev/null"
+                        + " || { echo \"make missing after retries\" >&2; exit 1; }",
                 "rustup component add rustfmt clippy",
                 "mkdir -p $CARGO_HOME/bin && curl -fLsS --retry 5 --retry-delay 2"
                         + " --retry-all-errors"
