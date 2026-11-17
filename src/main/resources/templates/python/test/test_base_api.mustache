@@ -995,6 +995,16 @@ class TestBodySerialization:
         assert 'note' not in wire
         assert wire == 'nickname=rex&tags=a&tags=b'
 
+    async def test_bhv_serializationwire_013_form_urlencoded_body_keeps_a_well_formed_surrogate_pair(self) -> None:
+        # An astral code point is one character in Python; it must be encoded
+        # as its complete UTF-8 sequence, never as two lone surrogates.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, {'emoji': '\U0001F600'},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        assert str(client.captured_body) == 'emoji=%F0%9F%98%80'
+
     async def test_form_bool_field_serializes_lowercase(self) -> None:
         # Form scalars route through ObjectSerializer.stringify so a bool
         # renders as `true`/`false` (the JSON/wire form), not Python's `True`.
