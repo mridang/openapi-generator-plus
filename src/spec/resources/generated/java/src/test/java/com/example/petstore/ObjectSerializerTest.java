@@ -975,8 +975,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("format: byte accepts padded standard base64")
-    void byteFieldAcceptsPaddedStandardBase64() {
+    @DisplayName("bhvSerializationObject185 format: byte accepts padded standard base64")
+    void bhvSerializationObject185ByteFieldAcceptsPaddedStandardBase64() {
       com.example.petstore.models.PetPassport passport =
           serializer.deserialize(
               "{\"thumbnail\":\"dGVzdA==\"}", com.example.petstore.models.PetPassport.class);
@@ -1524,8 +1524,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("ISO-8601 Duration string fails to deserialize")
-    void iso8601DurationStringRejected() {
+    @DisplayName("bhvSerializationObject184 ISO-8601 Duration string fails to deserialize")
+    void bhvSerializationObject184Iso8601DurationStringRejected() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -2432,6 +2432,13 @@ class ObjectSerializerTest {
       String acuteE = Character.toString(0xE9);
       assertEquals("\"/<>&" + acuteE + "\"", serializer.serialize("/<>&" + acuteE));
       assertEquals("\"q\\\"b\\\\c\\n\\u0001\"", serializer.serialize("q\"b\\c\n\u0001"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject186 request JSON escapes only the quote, the backslash and controls")
+    void bhvSerializationObject186RequestJsonEscapesOnlyTheQuoteTheBackslashAndControls() {
+      assertEquals("\"q\\\"b\\\\n\\n\"", serializer.serialize("q\"b\\n\n"));
     }
 
     @Test

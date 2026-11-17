@@ -819,6 +819,14 @@ class ValueSerializerTest {
     }
 
     @Test
+    @DisplayName("bhvSerializationParam105 SerializeStyled form scalar")
+    void bhvSerializationParam105SerializeStyledFormScalar() {
+      assertEquals(
+          "blue",
+          ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true));
+    }
+
+    @Test
     @DisplayName("bhvSerializationParam042 single-element array with explode true returns list")
     void bhvSerializationParam042SingleElementArrayExplodeTrueReturnsList() {
       assertEquals(
@@ -918,8 +926,8 @@ class ValueSerializerTest {
   class NullStyleFallbackTests {
 
     @Test
-    @DisplayName("path with null style behaves like simple")
-    void pathWithNullStyleBehavesLikeSimple() {
+    @DisplayName("bhvSerializationParam106 path with null style behaves like simple")
+    void bhvSerializationParam106PathWithNullStyleBehavesLikeSimple() {
       assertEquals(
           "5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false));
     }

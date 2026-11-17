@@ -575,7 +575,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void concurrentCallsOnAColdAuthenticatorDiscoverOnce() throws Exception {
+  void bhvAuthOidc029ConcurrentCallsOnAColdAuthenticatorDiscoverOnce() throws Exception {
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {

@@ -9,6 +9,7 @@
 package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -507,7 +508,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void oauth2ServerExceptionMessageHasThreeForms() {
+  void bhvErrors046OAuth2ServerExceptionMessageHasThreeForms() {
     com.example.petstore.errors.OAuth2ServerException raw =
         new com.example.petstore.errors.OAuth2ServerException(
             502, null, null, null, "<html>bad gateway</html>");
@@ -566,6 +567,19 @@ class ApiExceptionTest {
   @Test
   void bhvErrors025SerializationExceptionIsAnOpenApiException() {
     assertInstanceOf(OpenAPIException.class, new SerializationException("bad"));
+  }
+
+  @Test
+  void bhvErrors045OAuth2ErrorsAreRootedAtTheBrandedBaseNotAtApiException() {
+    Object server =
+        new com.example.petstore.errors.OAuth2ServerException(
+            400, "invalid_grant", null, null, "{}");
+    Object token = new com.example.petstore.errors.OAuth2TokenException("no access_token");
+
+    assertInstanceOf(OpenAPIException.class, server);
+    assertInstanceOf(OpenAPIException.class, token);
+    assertFalse(server instanceof ApiException);
+    assertFalse(token instanceof ApiException);
   }
 
   @Test

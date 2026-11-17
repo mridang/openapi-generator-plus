@@ -968,6 +968,20 @@ class PetApiTest {
     }
 
     @Test
+    void bhvSerializationWire055FormSpaceEncodesAsPlus() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.setPetPreferences(1L, new SetPetPreferencesOptions("Good Boy").note("be kind"));
+
+        assertNotNull(capturing.capturedBody);
+        String wire = capturing.capturedBody.toString();
+        assertThat(wire).contains("nickname=Good+Boy", "note=be+kind");
+        assertThat(wire).doesNotContain("%20");
+    }
+
+    @Test
     void bhvOperations073SetPetAvatarStreamsRawBytesWithDeclaredContentType() throws Exception {
         // A request body declared `type: string, format: binary` with a declared
         // Content-Type of image/jpeg must ride the wire as the RAW bytes, with the

@@ -80,7 +80,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void anExplicitArgumentIsNotOverriddenByTheEnvironment() {
+    void bhvAuthBasic013AnExplicitArgumentIsNotOverriddenByTheEnvironment() {
       AdminBasicAuthenticator auth =
           new AdminBasicAuthenticator(
               "https://api.example.com",
@@ -202,7 +202,16 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void anExplicitArgumentIsNotOverriddenByTheEnvironment() {
+    void bhvLifecycle025ReadsTheEnvironmentOnceWhenBuilt() {
+      java.util.Map<String, String> environment =
+          new java.util.HashMap<>(Map.of(TOKEN_VARIABLE, "first"));
+      PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator(HOST, null, environment);
+      environment.put(TOKEN_VARIABLE, "second");
+      assertEquals("Bearer first", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBearer018AnExplicitArgumentIsNotOverriddenByTheEnvironment() {
       PetStoreBearerAuthenticator auth =
           new PetStoreBearerAuthenticator(HOST, "explicit", Map.of(TOKEN_VARIABLE, "env-token"));
       assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
@@ -371,7 +380,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void anExplicitArgumentIsNotOverriddenByTheEnvironment() {
+    void bhvSerializationObject187AnExplicitArgumentIsNotOverriddenByTheEnvironment() {
       ApiKeyHeaderAuthenticator auth =
           new ApiKeyHeaderAuthenticator(
               "https://api.example.com", "explicit", Map.of(API_KEY_VARIABLE, "env-key"));

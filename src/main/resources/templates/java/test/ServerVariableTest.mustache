@@ -32,7 +32,7 @@ class ServerVariableTest {
     }
 
     @Test
-    void enumValuesAreExposedForValidation() {
+    void bhvServers018EnumValuesAreExposedForValidation() {
         // ServerConfiguration validates overrides against this set, so the
         // enum list must surface exactly the allowed values.
         ServerVariable var =
@@ -44,7 +44,7 @@ class ServerVariableTest {
     }
 
     @Test
-    void enumDoesNotContainAValueOutsideTheAllowedSet() {
+    void bhvServers019EnumDoesNotContainAValueOutsideTheAllowedSet() {
         // An out-of-set value (e.g. "dev") is absent from the enum, which is
         // what drives ServerConfiguration to reject it.
         ServerVariable var =
