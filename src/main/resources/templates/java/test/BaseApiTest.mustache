@@ -333,6 +333,39 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvRetries003 a multipart body is not retried")
+        void bhvRetries003MultipartBodyIsNotRetried() {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            assertThrowsExactly(
+                    UnauthorizedException.class,
+                    () -> callWith(client, auth, Map.of("avatar", "bytes"), "multipart/form-data"));
+            assertEquals(1, client.sentHeaders.size());
+        }
+
+        @Test
+        @DisplayName("bhvRetries005 a retry asks the authenticator for the headers again")
+        void bhvRetries005RetryAsksTheAuthenticatorForFreshHeaders() throws ApiException {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            callWith(client, auth, "{}", "application/json");
+            assertEquals(2, client.sentHeaders.size());
+            assertEquals("Bearer t2", client.sentHeaders.get(1).get("Authorization"));
+            assertEquals(2, auth.token);
+        }
+
+        @Test
+        @DisplayName("bhvRetries007 a status other than 401 is not replayed")
+        void bhvRetries007OtherStatusesAreNotReplayed() {
+            var client = new ScriptedApiClient(403, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            assertThrowsExactly(
+                    ForbiddenException.class, () -> callWith(client, auth, "{}", "application/json"));
+            assertEquals(1, client.sentHeaders.size());
+            assertEquals(0, auth.invalidations);
+        }
+
+        @Test
         @DisplayName("bhvRetries002 a bearer authenticator never replays")
         void bhvRetries002BearerAuthenticatorNeverReplays() {
             var client = new ScriptedApiClient(401, 200);
@@ -688,7 +721,7 @@ class BaseApiTest {
          * test tree; the suppression is therefore kept, scoped to this one
          * intentionally-null-passing test method. */
         @SuppressWarnings("NullAway")
-        void nullOptionsOmitsAllowEmptyValueParam() {
+        void bhvOptions002NullOptionsOmitsAllowEmptyValueParam() {
             var client = new CapturingApiClient();
             var config = new Configuration("http://localhost", Map.of());
             var api = new PetApi(client, config);
@@ -1276,6 +1309,43 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationWire011 form optional null field is omitted")
+        void bhvSerializationWire011FormOptionalNullFieldIsOmitted() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new LinkedHashMap<>();
+            formParams.put("name", "Ada");
+            formParams.put("nickname", null);
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertEquals("name=Ada", client.capturedBody.toString());
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire013 form-urlencoded body keeps a well-formed surrogate pair")
+        void bhvSerializationWire013FormBodyKeepsAWellFormedSurrogatePair() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new LinkedHashMap<>();
+            formParams.put("emoji", "😀");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertEquals("emoji=%F0%9F%98%80", client.capturedBody.toString());
+        }
+
+        @Test
         @DisplayName("bhvSerializationWire012 form-urlencoded body encodes space as + not %20")
         void bhvSerializationWire012FormUrlencodedBodyEncodesSpaceAsPlus() throws ApiException {
             // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
@@ -1688,8 +1758,8 @@ class BaseApiTest {
     class CharsetDecodingTests {
 
         @Test
-        @DisplayName("respects charset=ISO-8859-1 from Content-Type")
-        void respectsIso88591Charset() throws Exception {
+        @DisplayName("bhvSerializationWire032 respects charset=ISO-8859-1 from Content-Type")
+        void bhvSerializationWire032RespectsIso88591Charset() throws Exception {
             // 0xE9 is "é" in ISO-8859-1 (would be invalid as UTF-8)
             byte[] bytes = new byte[] {(byte) 0xE9};
             String latin1 = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
@@ -1792,8 +1862,8 @@ class BaseApiTest {
     class MultipartMimeSniffingTests {
 
         @Test
-        @DisplayName("file.png is recognized as image/png")
-        void filePngRecognizedAsImagePng() {
+        @DisplayName("bhvSerializationWire047 file.png is recognized as image/png")
+        void bhvSerializationWire047FilePngRecognizedAsImagePng() {
             String mime = DefaultApiClient.guessMimeTypeFromName("file.png");
             assertEquals("image/png", mime);
         }

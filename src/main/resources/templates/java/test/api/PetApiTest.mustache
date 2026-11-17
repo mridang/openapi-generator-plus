@@ -788,6 +788,22 @@ class PetApiTest {
     }
 
     @Test
+    void bhvSerializationWire010FindPetsByStatusOmittingStatusSendsNoStatusInQuery() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        try {
+            petApi.findPetsByStatus(new FindPetsByStatusOptions());
+        } catch (Exception ignored) {
+            // The capturing client returns no body; only the captured URL matters.
+        }
+
+        assertNotNull(capturing.capturedUrl);
+        assertThat(capturing.capturedUrl).doesNotContain("status=");
+    }
+
+    @Test
     void bhvOperations040FindPetsByStatusExplicitEmptyStatusSendsStatusKeyInQuery() throws Exception {
         // The counterpart to the omit case: when the caller explicitly opts into
         // an empty value (status=""), allowEmptyValue:true permits the key to ride

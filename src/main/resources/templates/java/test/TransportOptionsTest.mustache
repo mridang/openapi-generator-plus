@@ -202,7 +202,7 @@ class TransportOptionsTest {
     @DisplayName("bhvOptions024 invalid proxy URL throws IllegalArgumentException")
     void bhvOptions024InvalidProxyUrlThrowsException() {
         IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
-                TransportOptions.builder().proxy("not a valid url ^%$"));
+                TransportOptions.builder().proxy("not a valid url ^%$").build());
         // A bad proxy URL is a configuration mistake, not an SDK error.
         assertFalse(((Object) ex) instanceof {{errorPrefix}}Exception);
     }
@@ -223,15 +223,75 @@ class TransportOptionsTest {
     @DisplayName("an unusable proxy URL is rejected with the exact message")
     void unusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
         IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
-                TransportOptions.builder().proxy(proxy));
+                TransportOptions.builder().proxy(proxy).build());
         assertEquals(message, ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions008 a proxy URL error never carries the user-info")
+    void bhvOptions008ProxyUrlErrorNeverCarriesTheUserInfo() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().proxy("socks5://svc:s3cret@proxy.example.com:1080").build());
+        assertFalse(String.valueOf(ex.getMessage()).contains("s3cret"));
+        assertTrue(String.valueOf(ex.getMessage()).contains("***@proxy.example.com:1080"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions010 a proxy URL with an unterminated IPv6 literal is rejected")
+    void bhvOptions010UnterminatedIpv6ProxyUrlIsRejected() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().proxy("http://[::1:3128").build());
+        assertEquals("Invalid proxy URL: http://[::1:3128", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions011 a proxy URL with no host is rejected")
+    void bhvOptions011ProxyUrlWithNoHostIsRejected() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().proxy("http://:8080").build());
+        assertEquals("Invalid proxy URL (missing host): http://:8080", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions013 an invalid proxy URL is rejected at build, not in the setter")
+    void bhvOptions013InvalidProxyUrlIsRejectedAtBuild() {
+        TransportOptions.Builder builder = TransportOptions.builder().proxy("not a valid url ^%$");
+        assertThrowsExactly(IllegalArgumentException.class, builder::build);
+    }
+
+    @Test
+    @DisplayName("bhvOptions023 inspect masks the proxy password and sensitive default headers")
+    void bhvOptions023InspectMasksTheProxyPasswordAndSensitiveHeaders() {
+        String text = TransportOptions.builder()
+                .proxy("http://svc:s3cret@proxy.example.com:8080")
+                .defaultHeader("Authorization", "Bearer s3cret-token")
+                .defaultHeader("X-Trace", "trace-1")
+                .build()
+                .toString();
+        assertFalse(text.contains("s3cret"));
+        assertTrue(text.contains("***@proxy.example.com:8080"));
+        assertTrue(text.contains("trace-1"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions027 maxRetries is set by the builder and by the constructor, 0 disabling retries")
+    void bhvOptions027MaxRetriesIsSetByTheBuilderAndTheConstructor() {
+        assertEquals(0, TransportOptions.builder().maxRetries(0).build().getMaxRetries());
+        assertEquals(
+                0,
+                new TransportOptions(true, null, null, null, true, null, null, Map.of(), false, null, 0)
+                        .getMaxRetries());
+        assertEquals(
+                4,
+                new TransportOptions(true, null, null, null, true, null, null, Map.of(), false, null, 4)
+                        .getMaxRetries());
     }
 
     @Test
     @DisplayName("bhvOptions031 an empty proxy URL is rejected as a missing scheme")
     void bhvOptions031EmptyProxyUrlIsRejected() {
         IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
-                TransportOptions.builder().proxy(""));
+                TransportOptions.builder().proxy("").build());
         assertEquals("Invalid proxy URL (must use http or https scheme): ", ex.getMessage());
     }
 
