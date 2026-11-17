@@ -1041,7 +1041,7 @@ func TestBhvOperations060_PetApi_GetPetTagUsesTheMatrixAndLabelPathStyles(t *tes
 		rawPath = r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
 	}))
 	defer server.Close()
 	api := newPetApiForMock(t, server)
@@ -1100,7 +1100,7 @@ func TestBhvOperations064_PetApi_GetPetByNameKeepsANameThatOnlyContainsDots(t *t
 		rawPath = r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
 	}))
 	defer server.Close()
 	api := newPetApiForMock(t, server)
@@ -1121,7 +1121,7 @@ func TestBhvOperations066_PetApi_GetPetTagPercentEncodesAHashInAnAllowReservedVa
 		query = r.URL.RawQuery
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
 	}))
 	defer server.Close()
 	api := newPetApiForMock(t, server)

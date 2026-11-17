@@ -24,7 +24,11 @@ type Set[T comparable] []T
 // ascending natural order, strings by Unicode code point, so the same set
 // always produces the same bytes. Other members keep the set's own order.
 func (s Set[T]) MarshalJSON() ([]byte, error) {
-	items := append([]T(nil), s...)
+	/* A copy made with make, not append to a nil slice: an empty set must be
+	 * written as [] (a nil slice would be written as null, which a required
+	 * array then rejects on the way back in). */
+	items := make([]T, len(s))
+	copy(items, s)
 	if len(items) > 1 {
 		sortScalarMembers(items)
 	}

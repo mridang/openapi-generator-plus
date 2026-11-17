@@ -887,7 +887,9 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 	}
 
 	path := "/pet/born-on/{bornOn}"
-	path = replacePathParam(path, "bornOn", encodePathSegment(stringifyDate(bornOn)))
+	/* A date is formatted as YYYY-MM-DD first and then styled like any other
+	 * path value, so a matrix or label style on a date parameter applies too. */
+	path = replacePathParam(path, "bornOn", fmt.Sprintf("%v", serializeStyled("bornOn", stringifyDate(bornOn), "path", "string", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -2220,7 +2222,9 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
-	path = replacePathParam(path, "asOf", encodePathSegment(stringifyDate(asOf)))
+	/* A date is formatted as YYYY-MM-DD first and then styled like any other
+	 * path value, so a matrix or label style on a date parameter applies too. */
+	path = replacePathParam(path, "asOf", fmt.Sprintf("%v", serializeStyled("asOf", stringifyDate(asOf), "path", "string", "", "matrix", false)))
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Days != nil {
