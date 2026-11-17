@@ -155,6 +155,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param account (required)
    * @return {@code Account}
    * @throws ApiException if fails to make API call
    */
@@ -169,6 +170,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param account (required)
    * @return the API result wrapping {@code Account}
    * @throws ApiException if fails to make API call
    */
@@ -234,6 +236,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param orderId ID of the order to delete (required)
    * @throws ApiException if fails to make API call
    */
   public void deleteOrder(Long orderId) {
@@ -247,6 +250,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param orderId ID of the order to delete (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
@@ -317,6 +321,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param pathSwatch (required)
    * @return {@code Category}
    * @throws ApiException if fails to make API call
    */
@@ -331,6 +336,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param pathSwatch (required)
    * @return the API result wrapping {@code Category}
    * @throws ApiException if fails to make API call
    */
@@ -786,6 +792,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param orderId ID of order to return (required)
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
@@ -800,6 +807,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param orderId ID of order to return (required)
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
@@ -871,6 +879,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param trackingId (required)
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
@@ -885,6 +894,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param trackingId (required)
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
@@ -1329,6 +1339,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param order (optional)
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
@@ -1343,6 +1354,7 @@ public class StoreApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param order (optional)
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */

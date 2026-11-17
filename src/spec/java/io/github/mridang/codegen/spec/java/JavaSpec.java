@@ -2,6 +2,7 @@ package io.github.mridang.codegen.spec.java;
 
 import io.github.mridang.codegen.spec.DockerImageSpec;
 import io.github.mridang.codegen.spec.LanguageSpec;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.testcontainers.utility.DockerImageName;
@@ -22,6 +23,17 @@ interface JavaSpec extends LanguageSpec, DockerImageSpec {
   @Override
   default String getDockerImage() {
     return "eclipse-temurin:25-jdk-alpine";
+  }
+
+  @Override
+  default List<String> getSetupCommands() {
+    /* The Maven image is Alpine and ships without make, which the SDK's own
+     * docs target needs. Installed once with the shared container, with
+     * retries because the package mirror is flaky on CI runners. */
+    return List.of(
+        "for i in 1 2 3 4 5; do apk add --no-cache make && break;"
+            + " echo \"apk attempt $i failed; retrying\" >&2; sleep 3; done;"
+            + " command -v make > /dev/null || { echo \"make missing after retries\" >&2; exit 1; }");
   }
 
   @Override
