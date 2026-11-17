@@ -102,7 +102,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject150 serialized datetime string uses a numeric offset and never the Z designator")
+        @DisplayName("bhvSerializationobject150 bhvSerializationobject151 serialized datetime has a numeric offset, never Z")
         fun serializedDateTimeHasOffset() {
             val dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
@@ -295,6 +295,36 @@ class ObjectSerializerTest {
             assertTrue(json.contains("\"photoUrls\":[\"http://example.com/fido.png\"]"), "got: $json")
             assertFalse(json.contains("\"tags\""), "unset tags must not be sent, got: $json")
             assertFalse(json.contains("\"location\""), "unset location must not be sent, got: $json")
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject152 serializes a model to valid JSON")
+        fun serializesModelToValidJson() {
+            val pet = {{modelPackage}}.Pet(name = "fido", photoUrls = setOf("http://example.com/fido.png"))
+            val json = serializer.serialize(pet)
+            val tree = serializer.parseToJsonElement(json)
+            assertTrue(tree is kotlinx.serialization.json.JsonObject, "a model must serialize to a JSON object, got: $json")
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject147 serializes a map to JSON")
+        fun serializesMapToJson() {
+            val json = serializer.serialize(mapOf("a" to "x", "n" to 1))
+            assertEquals("{\"a\":\"x\",\"n\":1}", json)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject146 serialize emits the protobuf-JSON duration string inside a hash")
+        fun serializeEmitsProtobufDurationInsideAHash() {
+            val json = serializer.serialize(mapOf("retry" to java.time.Duration.ofHours(1)))
+            assertEquals("{\"retry\":\"3600s\"}", json)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject178 a wet subtype emits its discriminator without it being set")
+        fun wetSubtypeEmitsDiscriminator() {
+            val json = serializer.serialize({{modelPackage}}.WetFood(volumeMl = 500))
+            assertTrue(json.contains("\"foodType\":\"wet\""), "discriminator must be emitted, got: $json")
         }
 
         @Test
@@ -811,9 +841,17 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName("bhvSerializationobject013 bhvSerializationobject081 Duration returns a protobuf-JSON duration string")
+
+        @DisplayName("bhvSerializationobject013 bhvSerializationobject158 Duration returns a protobuf-JSON duration string")
         fun durationReturnsProtobufJsonString() {
             assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
             assertEquals("-1.500s", serializer.stringify(java.time.Duration.ofMillis(-1500)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject181 zero Duration stringifies as 0s")
+        fun zeroDurationStringifiesAsZeroSeconds() {
+            assertEquals("0s", serializer.stringify(java.time.Duration.ZERO))
         }
 
         @Test
@@ -829,13 +867,13 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject114 string passes through unchanged")
+        @DisplayName("bhvSerializationobject114 bhvSerializationobject159 string passes through unchanged")
         fun stringPassesThrough() {
             assertEquals("hello", serializer.stringify("hello"))
         }
 
         @Test
-        @DisplayName("bhvSerializationobject157 OffsetDateTime returns ISO 8601 string")
+        @DisplayName("bhvSerializationobject157 bhvSerializationobject179 OffsetDateTime returns ISO 8601 string")
         fun offsetDateTimeReturnsIso8601() {
             val dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
@@ -918,7 +956,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject139 returns the string for a string value")
+        @DisplayName("bhvSerializationobject139 bhvSerializationobject167 returns the string for a string value")
         fun returnsStringForStringValue() {
             assertEquals("hello", serializer.toQueryValue("hello", null))
         }
@@ -931,14 +969,14 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject098 joins collection with comma for csv")
+        @DisplayName("bhvSerializationobject098 bhvSerializationobject168 joins collection with comma for csv")
         fun joinsWithCommaForCsv() {
             val list = listOf("a", "b", "c")
             assertEquals("a,b,c", serializer.toQueryValue(list, "csv"))
         }
 
         @Test
-        @DisplayName("bhvSerializationobject100 joins collection with space for ssv")
+        @DisplayName("bhvSerializationobject100 bhvSerializationobject169 joins collection with space for ssv")
         fun joinsWithSpaceForSsv() {
             val list = listOf("a", "b", "c")
             assertEquals("a b c", serializer.toQueryValue(list, "ssv"))
@@ -1220,6 +1258,8 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName("bhvSerializationobject064 EdgeCases.cutoff (format time) encodes as partial-time and decodes back")
+
+        @DisplayName("bhvSerializationobject163 EdgeCases.cutoff (format time) encodes as partial-time and decodes back")
         fun timePropertyRoundTrips() {
             val json =
                 serializer.serialize(
@@ -1255,7 +1295,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject171 type:number Decimal (Pet.weightKg) serializes as an UNQUOTED JSON number")
+        @DisplayName("bhvSerializationobject171 bhvSerializationobject177 type:number Decimal is an UNQUOTED number, round-trips")
         fun decimalNumberFieldSerializesAsUnquotedNumber() {
             // weightKg is a bare `type: number` (no format) property modelled
             // as java.math.BigDecimal with the contextual BigDecimalSerializer.
@@ -1706,6 +1746,8 @@ class ObjectSerializerTest {
             "bhvSerializationobject073 bhvSerializationobject105 bhvSerializationobject113 format:duration " +
                 "round-trips, including a negative and a sub-0.0001s magnitude",
         )
+
+        @DisplayName("bhvSerializationobject145 format:duration round-trips, including a negative and a sub-0.0001s magnitude")
         fun durationRoundTripsNegativeAndSmallMagnitude() {
             // EdgeCases.retryAfter is format:duration, wire-encoded as a
             // protobuf-JSON google.protobuf.Duration ("-?\\d+(\\.\\d{1,9})?s").
@@ -1833,6 +1875,14 @@ class ObjectSerializerTest {
             }
             assertTrue(ex.message!!.contains("unexpected"))
             assertTrue(ex.message!!.contains("unevaluatedProperties:false"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject123 rejects a null value in a map of models")
+        fun rejectsNullValueInMapOfModels() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<Map<String, {{modelPackage}}.Metadata>>("{\"k\":null}")
+            }
         }
 
         @Test
@@ -2110,7 +2160,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject008 a format: uri field accepts any absolute URI and rejects relative or blank text")
+        @DisplayName("bhvSerializationobject008 bhvSerializationobject173 uri accepts absolute URIs, uri-reference accepts relative")
         fun uriFieldRequiresAnAbsoluteUri() {
             val good = listOf("urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/items/1")
             for (uri in good) {
