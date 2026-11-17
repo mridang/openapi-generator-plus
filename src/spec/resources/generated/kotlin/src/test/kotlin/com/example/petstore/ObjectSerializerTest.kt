@@ -327,6 +327,15 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject188 an all-null model serializes to an empty JSON object")
+        fun allNullPropertiesSerializeToAnEmptyObject() {
+            val category =
+                com.example.petstore.models
+                    .Category(id = null, name = null)
+            assertEquals("{}", serializer.serialize(category))
+        }
+
+        @Test
         @DisplayName("emits non-null schema defaults on the wire (cross-SDK parity)")
         fun emitsSchemaDefaultsOnTheWire() {
             // A default-constructed model carries its schema defaults as kotlinx
@@ -467,6 +476,17 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("deserialize")
     inner class DeserializeTests {
+        @Test
+        @DisplayName("bhvSerializationobject189 mutually recursive models decode from nested JSON")
+        fun mutuallyRecursiveModelsDecodeFromNestedJson() {
+            val json = "{\"name\":\"Eng\",\"lead\":{\"name\":\"Ada\",\"department\":{\"name\":\"Core\"}}}"
+            val department = serializer.deserialize<com.example.petstore.models.Department>(json)
+            assertEquals("Eng", department?.name)
+            assertEquals("Ada", department?.lead?.name)
+            assertEquals("Core", department?.lead?.department?.name)
+            assertNull(department?.lead?.department?.lead)
+        }
+
         @Test
         @DisplayName("bhvSerializationobject136 returns null for empty string")
         fun returnsNullForEmptyString() {
