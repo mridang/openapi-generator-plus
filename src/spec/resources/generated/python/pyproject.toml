@@ -39,8 +39,8 @@ dev = [
     "testcontainers>=4.0.0",
     "pytest-cov>=4.0.0",
     # tomllib joined the standard library in Python 3.11; the tests read the
-    # manifest on 3.10 through the backport.
-    "tomli>=2.0; python_version < '3.11'",
+    # manifest through the backport on 3.10, and mypy checks that branch too.
+    "tomli>=2.0",
     "opentelemetry-sdk>=1.20.0",
     "sphinx>=7,<10",
     "furo>=2024.1.29",

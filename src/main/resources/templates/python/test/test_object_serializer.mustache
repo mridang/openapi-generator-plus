@@ -1864,6 +1864,35 @@ class TestIntegerFieldBoundaries:
         assert json.loads(ObjectSerializer().serialize(order))["id"] == big
 
 
+class TestNicknameConstraints:
+    """F1124 / S3: Python enforces ``minLength``, ``maxLength`` and ``pattern`` natively, look-around pattern included."""
+
+    @staticmethod
+    def _wire(nickname: str) -> str:
+        return '{"name":"Fido","photoUrls":[],"nickname":"' + nickname + '"}'
+
+    @pytest.mark.parametrize('nickname', ['rex', "re'x", 'ab'])
+    def test_a_nickname_inside_its_bounds_round_trips(self, nickname: str) -> None:
+        pet = ObjectSerializer().deserialize(self._wire(nickname), 'Pet')
+
+        assert pet.nickname == nickname
+        assert '"nickname":"' + nickname + '"' in ObjectSerializer().serialize(pet)
+
+    @pytest.mark.parametrize('nickname', ['ZZZZZZZZZZ', 'r', 'adminx', 'toolongname'])
+    def test_a_nickname_out_of_bounds_is_rejected_when_decoding(self, nickname: str) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(self._wire(nickname), 'Pet')
+
+    def test_constructing_a_pet_with_an_out_of_bounds_nickname_raises_a_validation_error(self) -> None:
+        with pytest.raises(ValidationError):
+            Pet(name='Fido', photoUrls=set(), nickname='ZZZZZZZZZZ')
+
+    def test_the_whole_models_package_imports_with_the_look_around_pattern(self) -> None:
+        import importlib
+
+        assert importlib.import_module('{{packageName}}.models') is not None
+
+
 class TestPasswordFormatSendsTheRealValue:
     def test_serialize_writes_the_password_not_the_mask(self) -> None:
         from {{packageName}}.models.account import Account

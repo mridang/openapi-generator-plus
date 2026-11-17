@@ -2262,6 +2262,85 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": "*options",
+   "aspect": "type",
+   "languages": [
+    "python"
+   ],
+   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying timeout, headers and max_retries; python mints one for each operation first, the shared pass still mints it only for operations with parameters or security. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.headers",
+    "*options.maxretries"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python"
+   ],
+   "reason": "owner decision F827 (2026-11-17): optional per-call timeout, headers and max_retries on every Options object (frozen dataclass fields in python). Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "*api.*",
+   "aspect": "params",
+   "languages": [
+    "python"
+   ],
+   "value": "*options)",
+   "reason": "owner decision F827 (2026-11-17): every operation, with or without parameters, takes the trailing optional Options argument that carries the per-call settings. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python"
+   ],
+   "reason": "owner decision F830 (2026-11-17): ApiError and its subclasses expose request_method and request_path (read-only properties in python). Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "*error.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "python"
+   ],
+   "value": "*requestpath)",
+   "reason": "owner decision F830 (2026-11-17): the error constructors take the request method and path as trailing optional arguments. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "bearerauthenticator.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "python"
+   ],
+   "value": "*tokenprovider)",
+   "reason": "owner decision F862 (2026-11-17): a token-provider callback beside the static token; python takes it as an optional dataclass field. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "client.withtoken",
+   "aspect": "params",
+   "languages": [
+    "python"
+   ],
+   "value": "*tokenprovider)",
+   "reason": "owner decision F862 (2026-11-17): host and access token fall back to the environment and a token_provider callback replaces the static token; host and token become optional in python, whose pool_manager argument was already an allowed extra. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "petapi.setpetavatar",
+    "petapi.setpetavatarwithhttpinfo"
+   ],
+   "aspect": "params",
+   "languages": [
+    "python"
+   ],
+   "value": "*options, requestcontenttype)",
+   "reason": "owner decision F827 (2026-11-17): the trailing optional Options argument that carries the per-call settings, ahead of the content-type selector (S8 keeps the selector last in python). Remove the rule when the other eleven SDKs land the same decision."
   }
  ]
 }

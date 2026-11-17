@@ -200,6 +200,24 @@ class TestReadmeAndSkillsText:
         for heading in ('### Custom HTTP client', '### Raw responses', '### Cancellation'):
             assert readme.index(heading) < not_supported
 
+    def test_readme_documents_credentials_per_call_options_and_the_behaviours_to_know(self) -> None:
+        readme = self._read('README.md')
+        not_supported = readme.index('## Not supported')
+        for heading in (
+            '### Credentials',
+            '### Per-call options',
+            '### Errors',
+            '### Operations with several success responses',
+            '### Models are immutable',
+            '### Logging and tracing',
+            '### Versioning and supported Python',
+            '### Behaviours to know',
+        ):
+            assert readme.index(heading) < not_supported
+        assert 'Unknown values fail loudly' in readme
+        assert 'Streaming is not supported' in readme
+        assert 'stay separate objects' in readme
+
     def test_readme_not_supported_lists_xml_links_and_mutual_tls(self) -> None:
         readme = self._read('README.md')
         for heading in ('### XML bodies', '### Link Objects', '### Mutual TLS'):
