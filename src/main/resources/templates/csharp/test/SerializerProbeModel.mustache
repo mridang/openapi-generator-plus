@@ -1,0 +1,16 @@
+{{>api_info}}
+
+namespace {{packageName}}.Models;
+
+/// <summary>
+/// A stand-in model for the parameter-style tests. It is declared here rather than taken from
+/// the generated models so the tests hold for EVERY spec this SDK is generated from.
+/// </summary>
+public sealed class SerializerProbeModel
+{
+    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [System.Text.Json.Serialization.JsonPropertyName("tags")]
+    public System.Collections.Generic.List<string> Tags { get; set; } = [];
+}

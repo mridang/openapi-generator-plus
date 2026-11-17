@@ -1282,7 +1282,7 @@ mod tests {
             .build();
         let api = BaseApi::new(client.clone(), config, None);
         let params = InvokeApiParams {
-            path: "https://pets.example.org/v2/items/7",
+            path: "https://items.example.org/v2/items/7",
             query_params: Vec::new(),
             ..call_params(CallOptions::default())
         };
@@ -1290,7 +1290,7 @@ mod tests {
         api.invoke_api(params).await.expect("a 200 succeeds");
 
         assert_eq!(
-            Some("https://pets.example.org/v2/items/7".to_string()),
+            Some("https://items.example.org/v2/items/7".to_string()),
             *client.url.lock().unwrap()
         );
     }

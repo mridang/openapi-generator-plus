@@ -517,11 +517,11 @@ class DefaultApiClientUnitTest {
                 })
             val apiClient = DefaultApiClient(client)
             val order =
-                com.example.petstore.models.Order(
-                    petId = 198772L,
-                    quantity = 7,
-                    shipDate = java.time.OffsetDateTime.parse("2024-01-15T10:30:00Z"),
-                )
+                kotlinx.serialization.json.buildJsonObject {
+                    put("ownerId", 198772L)
+                    put("quantity", 7)
+                    put("at", "2024-01-15T10:30:00Z")
+                }
             runBlocking {
                 apiClient.sendRequest(
                     "POST",
@@ -536,8 +536,8 @@ class DefaultApiClientUnitTest {
             assertTrue(start >= 0, "missing order part in: $wire")
             val part = wire.substring(start, wire.indexOf("\r\n--", start))
             assertTrue(part.contains("Content-Type: application/json"), part)
-            assertTrue(part.contains("\"petId\":198772"), part)
-            assertTrue(part.contains("\"shipDate\":\"2024-01-15T10:30"), part)
+            assertTrue(part.contains("\"ownerId\":198772"), part)
+            assertTrue(part.contains("\"at\":\"2024-01-15T10:30"), part)
         }
     }
 

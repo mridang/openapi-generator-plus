@@ -1120,10 +1120,10 @@ public class ValueSerializerTest
     [Fact]
     public void BhvSerializationparam036ExplodedFormQueryObjectExpandsToOneEntryPerProperty()
     {
-        var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" });
+        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
         var result = ValueSerializer.SerializeStyled(
-            "pet",
-            pet,
+            "probe",
+            probe,
             "query",
             "object",
             null,
@@ -1132,16 +1132,16 @@ public class ValueSerializerTest
         );
         var fields = Assert.IsType<ValueSerializer.ExplodedFields>(result);
         Assert.Contains(fields.Fields, f => f.Key == "name" && f.Value == "Rex");
-        Assert.Contains(fields.Fields, f => f.Key == "photoUrls");
-        Assert.DoesNotContain(fields.Fields, f => f.Key == "pet");
+        Assert.Contains(fields.Fields, f => f.Key == "tags");
+        Assert.DoesNotContain(fields.Fields, f => f.Key == "probe");
     }
 
     [Fact]
     public void BhvSerializationparam039FormNotExplodedObjectIsOneCommaSeparatedList()
     {
-        var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" });
+        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
         string flat = Assert.IsType<string>(
-            ValueSerializer.SerializeStyled("pet", pet, "query", "object", null, "form", false)
+            ValueSerializer.SerializeStyled("probe", probe, "query", "object", null, "form", false)
         );
         Assert.Contains("name,Rex", flat, StringComparison.Ordinal);
         Assert.DoesNotContain("=", flat, StringComparison.Ordinal);
@@ -1190,9 +1190,17 @@ public class ValueSerializerTest
     [Fact]
     public void BhvSerializationparam082SimpleStyleObjectInAHeaderIsACommaList()
     {
-        var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" });
+        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
         string flat = Assert.IsType<string>(
-            ValueSerializer.SerializeStyled("pet", pet, "header", "object", null, "simple", false)
+            ValueSerializer.SerializeStyled(
+                "probe",
+                probe,
+                "header",
+                "object",
+                null,
+                "simple",
+                false
+            )
         );
         Assert.Contains("name,Rex", flat, StringComparison.Ordinal);
     }

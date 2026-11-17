@@ -21,7 +21,7 @@ import {
   NetworkTimeoutError,
 } from "../src/errors/index.js";
 import { TransportOptions } from "../src/transport-options.js";
-import { EdgeCases, Order } from "../src/models/index.js";
+import { EdgeCases } from "../src/models/index.js";
 
 let server: http.Server;
 let baseUrl: string;
@@ -972,16 +972,13 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
         {},
         {
           edge: new EdgeCases({ n2fa: true }),
-          order: new Order({
-            quantity: 3,
-            shipDate: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
-          }),
+          stamp: { at: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)) },
         },
       );
       const body = getBody().toString("utf-8");
       expect(body).toContain('"2fa":true');
       expect(body).not.toContain("n2fa");
-      expect(body).toContain('"shipDate":"2024-01-15T10:30:00.000+00:00"');
+      expect(body).toContain('"at":"2024-01-15T10:30:00.000+00:00"');
     } finally {
       close();
     }

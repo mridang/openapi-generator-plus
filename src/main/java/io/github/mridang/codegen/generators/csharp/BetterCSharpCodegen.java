@@ -507,6 +507,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "ValueSerializerTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/SerializerProbeModel.mustache",
+                            "Test",
+                            "SerializerProbeModel.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/TraceContextUtilTest.mustache",
                             "Test",
                             "TraceContextUtilTest.cs"));

@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+namespace {
+
 use {{invokerPackage}}\ObjectSerializer;
 
-use {{invokerPackage}}\Models\PetCriteria;
+use {{modelPackage}}\SerializerProbe;
 use {{invokerPackage}}\ValueSerializer;
 
 // -- path location --
@@ -302,20 +304,20 @@ test('bhv serializationparam 040 form style null returns null for query', functi
 });
 
 test('bhv serializationparam 036 form style exploded object expands to one entry per property', function (): void {
-    $criteria = new PetCriteria(breed: 'lab', minAge: 3);
-    expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'PetCriteria', null, 'form', true))
+    $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+    expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'form', true))
         ->toBe(['breed' => 'lab', 'min_age' => '3']);
 });
 
 test('bhv serializationparam 039 form style object without explode is one comma separated list', function (): void {
-    $criteria = new PetCriteria(breed: 'lab', minAge: 3);
-    expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'PetCriteria', null, 'form', false))
+    $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+    expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'form', false))
         ->toBe('breed,lab,min_age,3');
 });
 
 test('bhv serializationparam 082 simple style object renders as a header list', function (): void {
-    $criteria = new PetCriteria(breed: 'lab', minAge: 3);
-    expect(ValueSerializer::serializeStyled('X-Criteria', $criteria, 'header', 'PetCriteria', null, 'simple', false))
+    $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+    expect(ValueSerializer::serializeStyled('X-Criteria', $criteria, 'header', 'SerializerProbe', null, 'simple', false))
         ->toBe('breed,lab,min_age,3');
 });
 
@@ -609,3 +611,23 @@ test('styled form exploded set expands to repeated values', function (): void {
 test('bhv serializationparam 066 a null value is an empty string in the path location', function (): void {
     expect(ObjectSerializer::toPathValue(null))->toBe('');
 });
+}
+
+namespace {{modelPackage}} {
+    /*
+     * A stand-in model for the parameter-style tests: declared here rather than taken from the
+     * generated models so the tests hold for every spec this SDK is generated from.
+     */
+    final class SerializerProbe implements \JsonSerializable
+    {
+        public function __construct(public readonly string $breed, public readonly int $minAge)
+        {
+        }
+
+        /** @return array<string, string|int> */
+        public function jsonSerialize(): array
+        {
+            return ['breed' => $this->breed, 'min_age' => $this->minAge];
+        }
+    }
+}
