@@ -349,7 +349,7 @@ public class ApiException extends OpenAPIException {
   }
 
   /** The path of a request path or URL, without its scheme, host, query string or fragment. */
-  private static String stripQuery(String pathOrUrl) {
+  static String stripQuery(String pathOrUrl) {
     String path = pathOrUrl;
     int end = path.length();
     int query = path.indexOf('?');

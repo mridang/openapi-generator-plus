@@ -596,6 +596,21 @@ class ApiExceptionTest {
     }
 
     @Test
+    void aSerializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery() {
+        SerializationException bare = new SerializationException("bad");
+        assertEquals(0, bare.getStatusCode());
+        assertNull(bare.getResponseHeaders());
+        assertNull(bare.getResponseBody());
+        assertNull(bare.getRequestMethod());
+        assertNull(bare.getRequestPath());
+
+        SerializationException withResponse = new SerializationException(
+                "bad", null, 200, Map.of("content-type", "text/plain"), "x", "GET", "http://h/a/b?token=1");
+        assertEquals(200, withResponse.getStatusCode());
+        assertEquals("/a/b", withResponse.getRequestPath());
+    }
+
+    @Test
     void bhvErrors036ErrorCarriesTheMethodAndPathWithoutTheQueryString() {
         ApiException ex = ApiException.fromResponse("GET", "/pets/1?limit=2", 404, null, null);
         assertEquals("GET", ex.getRequestMethod());
