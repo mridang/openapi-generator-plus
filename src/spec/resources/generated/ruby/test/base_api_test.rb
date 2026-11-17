@@ -237,7 +237,7 @@ describe Petstore::Client::Api::BaseApi do
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', 'Object')
-    _(result).must_equal('id' => 1, 'name' => 'Dogs')
+    _(result).must_equal(id: 1, name: 'Dogs')
   end
 
   it 'bhv_serializationwire_019 returns raw string for non-JSON response' do
