@@ -1413,7 +1413,7 @@ func TestBhvOperations011_BaseApi_NullBody_AddPetWithBodyIncludesContentType(t *
 	}
 }
 
-func TestBaseApi_NullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
+func TestBhvOperations131_BaseApi_NullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1471,7 +1471,7 @@ func TestBaseApi_NullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
 // raises the uniform empty-body ApiError and WithHTTPInfo reports nil Data,
 // instead of fabricating a default-valued model or failing a required-field
 // check.
-func TestBaseApi_NullResponseBody_ConvenienceReturnsEmptyBodyError(t *testing.T) {
+func TestBhvOperations136_BaseApi_NullResponseBody_ConvenienceReturnsEmptyBodyError(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        "null",
@@ -2875,5 +2875,16 @@ func TestBhvRetries006_BaseApi_AMultipartBodyIsNotReplayedOnA401(t *testing.T) {
 	}
 	if got := srv.apiHits.Load(); got != 1 {
 		t.Errorf("expected the multipart request sent once, got %d", got)
+	}
+}
+
+func TestBhvOperations153_BaseApi_OperationWithNoChosenServerUsesTheBaseURL(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("https://base.example.com/api").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	_, _ = api.GetStagingPetInfo(context.Background(), 1, nil)
+	if want := "https://base.example.com/api"; !strings.HasPrefix(client.capturedURL, want) {
+		t.Errorf("expected the request URL to start with %q, got %q", want, client.capturedURL)
 	}
 }

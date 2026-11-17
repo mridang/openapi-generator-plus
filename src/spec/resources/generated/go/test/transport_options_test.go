@@ -743,3 +743,41 @@ func TestBhvOptions023_TransportOptions_StringMasksProxyPasswordAndSecretHeaders
 		}
 	}
 }
+
+func TestBhvOptions045_TransportOptions_RejectsANegativeMaxRedirectsAtBuild(t *testing.T) {
+	t.Parallel()
+	_, err := petstore.NewTransportOptionsBuilder().MaxRedirects(-1).Build()
+	if !errors.Is(err, petstore.ErrInvalidMaxRedirects) {
+		t.Fatalf("expected ErrInvalidMaxRedirects, got %v", err)
+	}
+	if want := "invalid max redirects: must not be negative (got -1)"; err.Error() != want {
+		t.Errorf("expected %q, got %q", want, err.Error())
+	}
+	zero, err := petstore.NewTransportOptionsBuilder().MaxRedirects(0).Build()
+	if err != nil || zero.MaxRedirects() == nil || *zero.MaxRedirects() != 0 {
+		t.Errorf("expected MaxRedirects(0) to be kept, got %v, %v", zero, err)
+	}
+}
+
+func TestBhvOptions047_TransportOptions_RejectsANegativeTimeoutAtConfiguration(t *testing.T) {
+	t.Parallel()
+	value := -5
+	_, err := petstore.NewTransportOptionsBuilder().Timeout(&value).Build()
+	if !errors.Is(err, petstore.ErrInvalidTimeout) {
+		t.Fatalf("expected ErrInvalidTimeout for a negative timeout, got %v", err)
+	}
+}
+
+func TestBhvOptions051_TransportOptions_ProxyWithANonHttpSchemeIsRejected(t *testing.T) {
+	t.Parallel()
+	opts, err := petstore.NewTransportOptionsBuilder().Proxy("ftp://proxy.example.com").Build()
+	if !errors.Is(err, petstore.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "must use http or https scheme") {
+		t.Errorf("expected the scheme reason in the message, got %q", err.Error())
+	}
+	if opts != nil {
+		t.Errorf("expected no TransportOptions for a rejected proxy, got %v", opts)
+	}
+}
