@@ -1972,3 +1972,53 @@ test('bhv serializationobject 117 keyword-named properties keep their names and 
     expect($back->class)->toBe('k');
     expect($back->return)->toBe('v');
 });
+
+test('bhv serializationobject 066 deserialize rejects invalid JSON with the SDK serialization error', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"id":', Category::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 082 deserialize silently ignores unknown extra fields', function (): void {
+    $category = ObjectSerializer::deserialize('{"id":1,"name":"Dogs","unexpected":"extra"}', Category::class);
+    expect($category)->toBeInstanceOf(Category::class);
+    expect($category->id)->toBe(1);
+    expect($category->name)->toBe('Dogs');
+});
+
+test('bhv serializationobject 083 deserialize throws when a required field is absent', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"id":1,"petId":1,"quantity":1,"complete":false}', Order::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 103 a malformed uuid string raises SerializationException on decode', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"trackingId":"not-a-uuid"}', Order::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 119 a referenced enum field rejects an unknown wire value', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"id":1,"petId":1,"quantity":1,"complete":false,"status":"bogus"}', Order::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 134 a date is stringified as an ISO 8601 date-time with a T separator', function (): void {
+    $result = ObjectSerializer::stringify(new \DateTimeImmutable('2024-01-01T00:00:00+00:00'));
+    expect($result)->toContain('T');
+});
+
+test('bhv serializationobject 150 a serialized datetime ends with a numeric offset and never Z', function (): void {
+    $result = ObjectSerializer::stringify(new \DateTimeImmutable('2024-01-01T12:30:45+00:00'));
+    expect(str_ends_with($result, 'Z'))->toBeFalse();
+    expect($result)->toMatch('/[+-]\d{2}:\d{2}$/');
+});
+
+test('bhv serializationobject 155 stringify of a boolean true is the lowercase word', function (): void {
+    expect(ObjectSerializer::stringify(true))->toBe('true');
+});
+
+test('bhv serializationobject 165 to form value of null is an empty string', function (): void {
+    expect(ObjectSerializer::toFormValue(null))->toBe('');
+});
+
+test('bhv serializationobject 147 serialize writes a map as a JSON object', function (): void {
+    expect(ObjectSerializer::serialize(['a' => 1]))->toBe('{"a":1}');
+});

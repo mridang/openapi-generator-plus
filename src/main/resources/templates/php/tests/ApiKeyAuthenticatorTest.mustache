@@ -264,3 +264,14 @@ test('an api key and a key provider cannot both be passed', function (): void {
         fn (): string => 'b'
     ))->toThrow(\InvalidArgumentException::class, 'not both');
 });
+
+test('bhv authapikey 010 redacts the api key in toString', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'key-secret-xyz', ApiKeyLocation::HEADER);
+    expect(json_encode($auth))->not->toContain('key-secret-xyz');
+    expect(print_r($auth, true))->not->toContain('key-secret-xyz');
+});
+
+test('bhv authapikey 015 valid query key is exposed in query params', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
+});

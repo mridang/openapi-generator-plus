@@ -184,3 +184,10 @@ test('the base class reads no environment variable', function (): void {
         expect($message)->toBe('Basic auth credentials are required: pass a username and a password');
     });
 });
+
+test('bhv authbasic 005 password is not leaked in default to string', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret-pass');
+    expect(json_encode($auth))->not->toContain('s3cret-pass');
+    expect(print_r($auth, true))->not->toContain('s3cret-pass');
+    expect(print_r($auth, true))->toContain('https://api.example.com');
+});

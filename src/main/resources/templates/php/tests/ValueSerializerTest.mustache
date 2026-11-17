@@ -570,3 +570,7 @@ test('styled form set serializes like an array', function (): void {
 test('styled form exploded set expands to repeated values', function (): void {
     expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['blue', 'black']), 'query', 'array', null, 'form', true))->toBe(['blue', 'black']);
 });
+
+test('bhv serializationparam 066 a null value is an empty string in the path location', function (): void {
+    expect(ObjectSerializer::toPathValue(null))->toBe('');
+});

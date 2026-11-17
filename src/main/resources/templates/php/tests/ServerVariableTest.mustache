@@ -22,7 +22,7 @@ test('bhv servers 016 enum values default to empty array', function (): void {
     expect($variable->enumValues)->toBe([]);
 });
 
-test('all fields are exposed', function (): void {
+test('bhv servers 017 exposes the default value, description and enum values', function (): void {
     $variable = new ServerVariable(
         defaultValue: 'v3',
         description: 'API version',

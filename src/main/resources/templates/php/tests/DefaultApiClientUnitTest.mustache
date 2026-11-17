@@ -1123,7 +1123,7 @@ test('N1: 308 https to http downgrade with body throws', function (): void {
 
 // -- T-D1: redirect-exhaustion throws "too many redirects" --
 
-test('exceeding max redirects throws too many redirects', function (): void {
+test('bhv redirects 018 exceeding max redirects throws too many redirects', function (): void {
     /* When the response is still a 3xx after the redirect budget is
      * exhausted, the client must raise an SDK-typed ApiException rather
      * than silently returning the last 3xx as a normal response. */
@@ -1286,7 +1286,7 @@ test('bhv lifecycle 023 send after close throws logic exception', function (): v
         });
 });
 
-test('close is idempotent', function (): void {
+test('bhv lifecycle 022 releases the transport at once and a second close is a no-op', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('ok', ['http_code' => 200])));
     $client->close();
     $client->close();
@@ -1907,7 +1907,7 @@ test('bhv retries 021 a retried request that then succeeds returns the success',
     expect(count($log))->toBe(3);
 });
 
-test('a per call maxRetries replaces the transport retry count for that call only', function (): void {
+test('bhv retries 004 a per call maxRetries replaces the transport retry count for that call only', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $client = retryTestClient([503], null, $log);
@@ -1954,7 +1954,7 @@ test('a negative maxRetries is rejected', function (): void {
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
 });
 
-test('only 408, 409, 429 and 5xx other than 501 are retried', function (int $status, int $attempts): void {
+test('bhv retries 007 does not replay other statuses: only 408, 409, 429 and 5xx other than 501 are retried', function (int $status, int $attempts): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $client = retryTestClient([$status], null, $log);
@@ -1998,7 +1998,7 @@ test('the backoff is shortened by up to 25 percent of jitter', function (): void
     expect($client->pauses)->toBe([0.375]);
 });
 
-test('Retry-After in seconds replaces the backoff and is capped at 60 s', function (
+test('bhv retries 023 Retry-After in seconds replaces the backoff and is capped at 60 s', function (
     string $header,
     float $expected
 ): void {
@@ -2076,7 +2076,7 @@ test('a network error that persists is raised after the last attempt', function 
     expect(count($log))->toBe(3);
 });
 
-test('a multipart body is sent once', function (): void {
+test('bhv retries 006 a multipart body is never replayed', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $client = retryTestClient([503], null, $log);
@@ -2111,4 +2111,201 @@ test('every attempt builds its headers anew', function (): void {
     }, null);
 
     expect($built)->toBe(3);
+});
+
+test('bhv retries 003 a multipart body is not retried after a 503', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503, 200], null, $log);
+
+    $response = $client->sendWithRetries('POST', 'http://example.com/upload', static fn (): array => [], ['note' => 'x']);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(1);
+});
+
+test('bhv retries 014 a per call maxRetries of 0 disables the retries the transport allows', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503], TransportOptions::builder()->maxRetries(5)->build(), $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null, maxRetries: 0);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(1);
+});
+
+test('bhv retries 024 stops after max retries and returns the last response', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503, 503, 503, 503], null, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(3);
+});
+
+test('bhv retries 010 a 307 from https to http with a body throws without replaying it', function (): void {
+    $downgrade = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
+
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
+        ->toThrow(ApiException::class);
+});
+
+test('bhv retries 011 a 308 from https to http with a body throws without replaying it', function (): void {
+    $downgrade = new MockResponse('', [
+        'http_code' => 308,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
+
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
+        ->toThrow(ApiException::class);
+});
+
+test('bhv redirects 001 a 302 from https to http with a body proceeds as a GET without the body', function (): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $seen = [];
+    $factory = function (string $method, string $url) use (&$seen, $redirect, $final): MockResponse {
+        $seen[] = [$method, $url];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $response = $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload');
+
+    expect($response->statusCode)->toBe(200);
+    expect($seen[1][0])->toBe('GET');
+});
+
+test('bhv redirects 022 a 308 comes back verbatim when no redirect is requested', function (): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 308,
+        'response_headers' => ['Location' => 'https://api.example.com/moved'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
+
+    $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'x=1', noRedirect: true);
+
+    expect($response->statusCode)->toBe(308);
+    expect($response->headers['location'] ?? null)->toBe(['https://api.example.com/moved']);
+});
+
+test('bhv transport 008 generates a unique X-Request-ID per request', function (): void {
+    $ids = [];
+    $factory = function (string $method, string $url, array $options) use (&$ids): MockResponse {
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            if ($name === 'X-Request-ID') {
+                $ids[] = $value;
+            }
+        }
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->injectRequestId(true)->build());
+
+    $client->sendRequest('GET', 'http://example.com/a', [], null);
+    $client->sendRequest('GET', 'http://example.com/b', [], null);
+
+    expect($ids)->toHaveCount(2);
+    expect($ids[0])->not->toBe($ids[1]);
+});
+
+test('bhv transport 014 injects an X-Request-ID header in UUID format', function (): void {
+    $seen = null;
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            if ($name === 'X-Request-ID') {
+                $seen = $value;
+            }
+        }
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->injectRequestId(true)->build());
+
+    $client->sendRequest('GET', 'http://example.com/a', [], null);
+
+    expect($seen)->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/');
+});
+
+test('bhv transport 011 includes the transport level default headers', function (): void {
+    $lines = [];
+    $factory = function (string $method, string $url, array $options) use (&$lines): MockResponse {
+        $lines = $options['headers'];
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->defaultHeader('X-Custom', 'custom-value')->build());
+
+    $client->sendRequest('GET', 'http://example.com/a', [], null);
+
+    expect($lines)->toContain('X-Custom: custom-value');
+});
+
+test('bhv transport 045 keeps a caller supplied Accept-Encoding', function (): void {
+    $lines = [];
+    $factory = function (string $method, string $url, array $options) use (&$lines): MockResponse {
+        $lines = $options['headers'];
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory));
+
+    $client->sendRequest('GET', 'http://example.com/a', ['Accept-Encoding' => 'identity'], null);
+
+    expect($lines)->toContain('Accept-Encoding: identity');
+});
+
+test('bhv transport 002 the timeout reaches the transport for this call only', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = (float) $options['timeout'];
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->timeout(1000)->build());
+
+    $client->sendWithRetries('GET', 'http://example.com/a', static fn (): array => [], null, timeoutMs: 60000);
+    $client->sendWithRetries('GET', 'http://example.com/b', static fn (): array => [], null);
+
+    expect($seen[0])->toBeGreaterThan(30.0);
+    expect($seen[1])->toBeLessThanOrEqual(1.0);
+});
+
+test('bhv serializationwire 036 the extension is matched case insensitively', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+    $guess = new \ReflectionMethod(DefaultApiClient::class, 'guessMimeType');
+
+    expect($guess->invoke($client, null, 'PHOTO.JPG'))->toBe('image/jpeg');
+});
+
+test('bhv serializationwire 040 a multipart file without an extension defaults to octet stream', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+    $guess = new \ReflectionMethod(DefaultApiClient::class, 'guessMimeType');
+
+    expect($guess->invoke($client, null, 'blob'))->toBe('application/octet-stream');
+});
+
+test('bhv serializationwire 050 a multipart filename containing a NUL byte is rejected', function (): void {
+    expect(fn () => DefaultApiClient::validateMultipartFilename("a\x00b.pdf"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 008 a closed client rejects further requests', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('ok', ['http_code' => 200])));
+    $client->close();
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
+        ->toThrow(\LogicException::class);
 });

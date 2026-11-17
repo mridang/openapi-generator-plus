@@ -82,6 +82,24 @@ test('bhv headers 007 should not set content type header when multipart', functi
     expect($headers)->not->toHaveKey('Content-Type');
 });
 
+test('bhv headers 006 should not set accept header when all entries are blank', function (): void {
+    $headers = $this->headerSelector->selectHeaders(
+        ['', '   '],
+        'application/json',
+        false
+    );
+    expect($headers)->not->toHaveKey('Accept');
+});
+
+test('bhv headers 023 should return a single accept entry as is', function (): void {
+    $headers = $this->headerSelector->selectHeaders(
+        ['application/json'],
+        'application/json',
+        false
+    );
+    expect($headers['Accept'])->toEqual('application/json');
+});
+
 test('bhv headers 001 should default content type to application json when empty', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['application/json'],

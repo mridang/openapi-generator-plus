@@ -294,13 +294,13 @@ test('bhv errors 005 fromResponse leaves the error body null when the body is no
     expect($ex->getErrorBody())->toBeNull();
 });
 
-test('fromResponse strips a leading byte order mark before decoding the error body', function (): void {
+test('bhv errors 008 fromResponse strips a leading byte order mark before decoding the error body', function (): void {
     $e = \{{invokerPackage}}\Errors\ApiException::fromResponse(400, [], "\xEF\xBB\xBF{\"code\":7}");
 
     expect($e->getErrorBody())->toBe(['code' => 7]);
 });
 
-test('fromResponse decodes an error body nested exactly at the depth cap and drops one past it', function (): void {
+test('bhv errors 009 fromResponse decodes an error body nested exactly at the depth cap and drops one past it', function (): void {
     $cap = \{{invokerPackage}}\ObjectSerializer::MAX_JSON_DEPTH;
     $atCap = str_repeat('[', $cap) . str_repeat(']', $cap);
     $pastCap = str_repeat('[', $cap + 1) . str_repeat(']', $cap + 1);
@@ -349,4 +349,60 @@ test('bhv errors 017 getTypedErrorBody raises SerializationException when the bo
 
     expect(fn () => $ex->getTypedErrorBody(Category::class))
         ->toThrow(SerializationException::class);
+});
+
+test('bhv errors 024 renders the message, status, headers and body', function (): void {
+    $ex = new ApiException(404, 'not found', ['x-request-id' => 'abc'], '{"code":7}');
+    expect((string) $ex)->toBe("not found\nHTTP status code: 404\nResponse headers: {\"x-request-id\":\"abc\"}\nResponse body: {\"code\":7}");
+});
+
+test('bhv errors 022 omits empty headers and an empty body', function (): void {
+    $ex = new ApiException(502, 'bad gateway', [], '');
+    expect((string) $ex)->toBe("bad gateway\nHTTP status code: 502");
+});
+
+test('bhv errors 023 rendered form masks credential headers', function (): void {
+    $ex = new ApiException(401, 'denied', [
+        'Authorization' => 'Bearer top-secret-token',
+        'X-Api-Key' => 'key-secret',
+        'Set-Cookie' => 'session=cookie-secret',
+        'Content-Type' => 'application/json',
+    ]);
+    $rendered = (string) $ex;
+    expect($rendered)->not->toContain('top-secret-token');
+    expect($rendered)->not->toContain('key-secret');
+    expect($rendered)->not->toContain('cookie-secret');
+    expect($rendered)->toContain('application/json');
+    expect($rendered)->toContain('***');
+});
+
+test('bhv errors 002 every status exception carries the request context', function (int $status): void {
+    $ex = ApiException::fromResponse($status, [], '{}', 'get', '/items/7?token=secret');
+    expect($ex)->toBeInstanceOf(ApiException::class);
+    expect($ex->getRequestMethod())->toBe('GET');
+    expect($ex->getRequestPath())->toBe('/items/7');
+})->with([
+    '400' => [400],
+    '401' => [401],
+    '404' => [404],
+    '500' => [500],
+    '503' => [503],
+]);
+
+test('bhv errors 011 fromResponse names the request in the message and the fields', function (): void {
+    $ex = ApiException::fromResponse(404, null, null, 'get', '/items?x=1');
+    expect($ex->getRequestMethod())->toBe('GET');
+    expect($ex->getRequestPath())->toBe('/items');
+    expect((string) $ex)->toContain("\nRequest: GET /items");
+});
+
+test('bhv errors 016 getTypedErrorBody returns null for an empty response body', function (): void {
+    $ex = new ApiException(404, 'not found', null, '');
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('bhv errors 036 the error carries the method and the path without the query string', function (): void {
+    $ex = new ApiException(500, 'boom', null, null, null, null, 'post', '/items?token=abc');
+    expect($ex->getRequestMethod())->toBe('POST');
+    expect($ex->getRequestPath())->toBe('/items');
 });

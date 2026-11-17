@@ -361,3 +361,26 @@ test('bhv unions 019 set pet avatar thumbnail byte oneOf has no raw-bytes helper
         expect(method_exists(SetPetAvatarThumbnailRequest::class, $method))->toBeFalse();
     }
 });
+
+test('bhv unions 025 treatment record tries its variants in declaration order', function (): void {
+    $result = TreatmentRecord::build(['drugName' => 'Amoxicillin', 'procedureName' => 'Spay']);
+
+    $instances = $result->getMatchedInstances();
+    expect($instances[0])->toBeInstanceOf(Surgery::class);
+    expect($instances[1])->toBeInstanceOf(Medication::class);
+});
+
+test('bhv unions 026 an unknown discriminator error names the offending value', function (): void {
+    expect(fn () => PetFood::build(['foodType' => 'raw', 'calories' => 300]))
+        ->toThrow(\InvalidArgumentException::class, "Unknown discriminator value 'raw'");
+});
+
+test('bhv unions 011 any of wrappers compare by value', function (): void {
+    $data = ['drugName' => 'Amoxicillin', 'procedureName' => 'Spay'];
+    $first = PetTreatment::build($data);
+    $second = PetTreatment::build($data);
+    $other = PetTreatment::build(['drugName' => 'Aspirin']);
+
+    expect($first == $second)->toBeTrue();
+    expect($first == $other)->toBeFalse();
+});

@@ -61,7 +61,7 @@ test('bhv authbearer 005 bearer rejects empty token at construction', function (
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('bearer rejects ascii whitespace only token as empty', function (string $token): void {
+test('bhv authbearer 017 whitespace only token is rejected at construction', function (string $token): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', $token))
         ->toThrow(\InvalidArgumentException::class, 'Bearer token must not be empty');
 })->with([
@@ -246,4 +246,37 @@ test('bhv authbearer 002 a token from the provider is validated like a passed on
     $auth = new BearerAuthenticator('https://api.example.com', null, fn (): string => " ");
 
     expect(fn () => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class, 'must not be empty');
+});
+
+test('bhv authbearer 004 the bearer prefix is stripped only once', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', 'Bearer Bearer xyz');
+    expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer Bearer xyz']);
+});
+
+test('bhv authbearer 015 a token that merely begins with the word bearer is kept whole', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', 'bearerxyz');
+    expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer bearerxyz']);
+});
+
+test('bhv authbearer 011 redacts the token in toString', function (): void {
+    /* PHP has no __toString here, so the string forms are the JSON encoding
+     * and the debug dump; neither may carry the live credential. */
+    $auth = new BearerAuthenticator('https://api.example.com', 'secret-xyz');
+    expect(json_encode($auth))->not->toContain('secret-xyz');
+    expect(print_r($auth, true))->not->toContain('secret-xyz');
+});
+
+test('bhv authbearer 001 every generated bearer wrapper prints its own class name', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BearerAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $auth = (new \ReflectionClass($class))->newInstance('https://api.example.com', 'wrapper-token');
+        expect(print_r($auth, true))->toContain(basename($file, '.php') . ' Object');
+        expect(print_r($auth, true))->toContain('***');
+    }
+    expect($wrappers)->toBeGreaterThan(0);
 });

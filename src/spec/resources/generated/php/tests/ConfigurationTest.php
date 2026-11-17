@@ -298,3 +298,12 @@ test('SKILLS documents the whole error tree under the root exception', function 
     }
     expect($skills)->toContain('Every failure the SDK raises derives from');
 });
+
+test('bhv config 004 builder merges single and bulk default headers', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('X-First', 'one')
+        ->defaultHeaders(['X-Second' => 'two'])
+        ->defaultHeader('X-Third', 'three')
+        ->build();
+    expect($config->defaultHeaders)->toBe(['X-First' => 'one', 'X-Second' => 'two', 'X-Third' => 'three']);
+});

@@ -284,3 +284,8 @@ test('a supplied psr18 client conflicts with sdk proxy and tls settings', functi
     'ca bundle' => [fn () => TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
     'tls verification off' => [fn () => TransportOptions::builder()->verifySsl(false)->build()],
 ]);
+
+test('bhv lifecycle 016 with token fails when the token is empty', function (): void {
+    expect(fn () => Client::withToken('/api/v3', ''))
+        ->toThrow(\InvalidArgumentException::class);
+});

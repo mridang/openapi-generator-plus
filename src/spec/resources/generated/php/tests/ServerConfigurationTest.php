@@ -154,3 +154,30 @@ test('a value holding replacement patterns is substituted literally', function (
 
     expect($server->getUrl(['env' => 'a$1\\0b']))->toBe('https://a$1\\0b.example.com');
 });
+
+test('bhv servers 007 leaves an unknown placeholder in the template untouched', function (): void {
+    $server = new ServerConfiguration(urlTemplate: 'https://api.example.com/{unknown}');
+
+    expect($server->getUrl())->toBe('https://api.example.com/{unknown}');
+});
+
+test('bhv servers 009 resolves the url template with default values for variables absent from the overrides', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.api.example.com/v{version}',
+        variables: [
+            'env' => new ServerVariable(defaultValue: 'prod'),
+            'version' => new ServerVariable(defaultValue: '2'),
+        ],
+    );
+
+    expect($server->getUrl())->toBe('https://prod.api.example.com/v2');
+});
+
+test('bhv servers 014 a variable without an enum accepts any override', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.api.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'prod')],
+    );
+
+    expect($server->getUrl(['env' => 'anything-goes']))->toBe('https://anything-goes.api.example.com');
+});

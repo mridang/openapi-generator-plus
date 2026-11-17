@@ -221,7 +221,7 @@ test('bhv options 034 setting proxy is supported on all platforms', function ():
     expect($opts->proxy)->toBe('http://proxy.example.com:8080');
 });
 
-test('proxy scheme is matched case insensitively', function (): void {
+test('bhv options 014 an upper-case proxy scheme is accepted', function (): void {
     $opts = TransportOptions::builder()->proxy('HTTP://proxy:3128')->build();
     expect($opts->proxy)->toBe('HTTP://proxy:3128');
 });
@@ -322,4 +322,14 @@ test('bhv options 007 constructor rejects a negative max retries', function (): 
 
 test('debug output shows the max retries', function (): void {
     expect(print_r(TransportOptions::builder()->maxRetries(4)->build(), true))->toContain('[maxRetries] => 4');
+});
+
+test('bhv options 013 an invalid proxy url is rejected at build, not in the setter', function (): void {
+    $builder = TransportOptions::builder()->proxy('not-a-url');
+    expect(fn () => $builder->build())->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv options 039 timeout defaults to 10000 milliseconds', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->timeout)->toBe(10000);
 });
