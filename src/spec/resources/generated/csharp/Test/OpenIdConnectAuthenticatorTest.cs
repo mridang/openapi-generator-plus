@@ -460,7 +460,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task FetchesDiscoveryOnlyOnce()
+    public async Task FetchesDiscoveryDocumentOnlyOnce()
     {
         var client = new CountingApiClient();
         client.Enqueue(

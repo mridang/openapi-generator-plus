@@ -12,20 +12,6 @@
   }
  ],
  "languages": {
-  "csharp": {
-   "missingTests": [
-    {
-     "reason": "tracked in #118",
-     "keys": [
-      "basicauthenticator::rejectspasswordwithnulatconstruction",
-      "basicauthenticator::rejectsusernamewithcolonatconstruction",
-      "basicauthenticator::rejectsusernamewithcrlfatconstruction",
-      "openidconnectauthenticator::fetchesdiscoverydocumentonlyonce",
-      "petapi::setpetavatarstreamsrawbyteswithdeclaredcontenttype"
-     ]
-    }
-   ]
-  },
   "dart": {
    "missingTests": [
     {
