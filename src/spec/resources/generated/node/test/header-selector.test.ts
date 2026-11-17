@@ -214,6 +214,15 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("application/json");
     });
 
+    test("bhv headers 029 an Accept list of only blank entries sends no Accept header and keeps Content-Type", () => {
+      const headers = headerSelector.selectHeaders(
+        ["", "   "],
+        "application/json",
+        false,
+      );
+      expect(headers).toEqual({ "Content-Type": "application/json" });
+    });
+
     test("bhv headers 006 does not set Accept header when all entries are blank", () => {
       const headers = headerSelector.selectHeaders(
         ["", "   "],

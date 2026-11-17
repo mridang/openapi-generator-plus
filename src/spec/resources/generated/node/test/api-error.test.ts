@@ -157,7 +157,7 @@ describe("ApiError", () => {
   describe("unified exception hierarchy", () => {
     // The full extends chain a BadRequestError must satisfy:
     //   BadRequestError -> ClientError -> ApiError -> OpenAPIError -> Error
-    test("a BadRequestError is a ClientError, ApiError, OpenAPIError and Error", () => {
+    test("bhv errors 061 a BadRequestError is a ClientError, ApiError, OpenAPIError and Error", () => {
       const err = new BadRequestError("bad input");
       expect(err).toBeInstanceOf(ClientError);
       expect(err).toBeInstanceOf(ApiError);
@@ -421,6 +421,57 @@ describe("ApiError", () => {
     );
   });
 
+  describe("status mapping", () => {
+    test("bhv errors 058 a 400 response maps to the bad request error", () => {
+      const err = ApiError.fromResponse(400, null, null);
+      expect(err).toBeInstanceOf(BadRequestError);
+      expect(err.statusCode).toBe(400);
+    });
+
+    test("bhv errors 059 a 403 response maps to the forbidden error", () => {
+      const err = ApiError.fromResponse(403, null, null);
+      expect(err).toBeInstanceOf(ForbiddenError);
+      expect(err.statusCode).toBe(403);
+    });
+
+    test("bhv errors 060 a 404 response maps to the not found error", () => {
+      const err = ApiError.fromResponse(404, null, null);
+      expect(err).toBeInstanceOf(NotFoundError);
+      expect(err.statusCode).toBe(404);
+    });
+
+    test("bhv errors 066 a 429 response becomes a too-many-requests error that is a client error", () => {
+      const err = ApiError.fromResponse(429, null, null);
+      expect(err).toBeInstanceOf(TooManyRequestsError);
+      expect(err).toBeInstanceOf(ClientError);
+      expect(err.statusCode).toBe(429);
+    });
+
+    test("bhv errors 067 a 409 response becomes a conflict error", () => {
+      const err = ApiError.fromResponse(409, null, null);
+      expect(err).toBeInstanceOf(ConflictError);
+      expect(err.statusCode).toBe(409);
+    });
+
+    test("bhv errors 068 a 422 response becomes an unprocessable entity error", () => {
+      const err = ApiError.fromResponse(422, null, null);
+      expect(err).toBeInstanceOf(UnprocessableEntityError);
+      expect(err.statusCode).toBe(422);
+    });
+
+    test("bhv errors 069 a 500 response becomes an internal server error", () => {
+      const err = ApiError.fromResponse(500, null, null);
+      expect(err).toBeInstanceOf(InternalServerError);
+      expect(err.statusCode).toBe(500);
+    });
+
+    test("bhv errors 070 a 502 response becomes a server error", () => {
+      const err = ApiError.fromResponse(502, null, null);
+      expect(err).toBeInstanceOf(ServerError);
+      expect(err.statusCode).toBe(502);
+    });
+  });
+
   describe("TooManyRequestsError.retryAfter", () => {
     const tooMany = (headers: Record<string, string> | null) =>
       new TooManyRequestsError("m", headers);
@@ -571,7 +622,7 @@ describe("ApiError", () => {
       );
     });
 
-    test("caps the rendered body and says how much was left out, keeping the field whole", () => {
+    test("bhv errors 065 the error text cuts a long response body at 1 KiB and counts the bytes left out", () => {
       const body = "x".repeat(1030);
       const err = new ApiError(502, "bad gateway", {}, body, null);
 
@@ -662,7 +713,7 @@ describe("ApiError", () => {
       expect(err.toString()).toBe("bad gateway\nHTTP status code: 502");
     });
 
-    test("substitutes a placeholder for an empty message", () => {
+    test("bhv errors 064 an empty message renders the default text, like a missing one", () => {
       const err = new ApiError(500, "");
       expect(err.toString()).toBe(
         "Error message: the server returns an error\nHTTP status code: 500",

@@ -90,6 +90,36 @@ describe('{{clientClassName}}', () => {
       );
     });
 
+    test('bhv lifecycle 028 an explicit host and token win over the environment', async () => {
+      process.env[variable] = 'env-token';
+      const seen: Array<{ url: string; authorization: string | undefined }> = [];
+      const stub = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+        const headers = init?.headers as Record<string, string>;
+        seen.push({ url: String(input), authorization: headers['Authorization'] });
+        return new Response('{"available":1}', { status: 200, headers: { 'content-type': 'application/json' } });
+      }) as typeof fetch;
+      const client = {{clientClassName}}.withToken('https://arg.example.com', 'arg-token', TransportOptions.builder().fetch(stub).build());
+
+      await client.store.getInventory();
+
+      expect(seen[0]!.url.startsWith('https://arg.example.com/')).toBe(true);
+      expect(seen[0]!.authorization).toBe('Bearer arg-token');
+    });
+
+    test('bhv lifecycle 032 a token passed to the client is preferred to the one in the environment', async () => {
+      process.env[variable] = 'env-token';
+      const seen: Array<string | undefined> = [];
+      const stub = (async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+        seen.push((init?.headers as Record<string, string>)['Authorization']);
+        return new Response('{"available":1}', { status: 200, headers: { 'content-type': 'application/json' } });
+      }) as typeof fetch;
+      const client = {{clientClassName}}.withToken('{{{basePath}}}', 'arg-token', TransportOptions.builder().fetch(stub).build());
+
+      await client.store.getInventory();
+
+      expect(seen[0]).toBe('Bearer arg-token');
+    });
+
     test('bhv authbasic 012 an empty variable counts as unset', () => {
       process.env[variable] = '';
 
@@ -181,7 +211,7 @@ describe('{{clientClassName}}', () => {
       expect(seen[0]!.headers['Authorization']).toBeUndefined();
     });
 
-    test('the base URL comes from the default authenticator, else from the first credential given', async () => {
+    test('bhv lifecycle 030 the base URL comes from the default authenticator, else from the first credential given', async () => {
       const first = recordingTransport();
       await new {{clientClassName}}(
         {
@@ -209,7 +239,7 @@ describe('{{clientClassName}}', () => {
       expect(new {{clientClassName}}(credentials)).toBeDefined();
     });
 
-    test('a client with no credential at all is refused', () => {
+    test('bhv lifecycle 026 a client with no credential at all is refused', () => {
       expect(() => new {{clientClassName}}({})).toThrow(new TypeError('At least one credential is required'));
     });
 
@@ -267,7 +297,7 @@ describe('{{clientClassName}}', () => {
       expect((await pending).name).toBe('x');
     });
 
-    test('a request issued after close() fails with the one closed-client error and never reaches the transport', async () => {
+    test('bhv lifecycle 035 a request issued after close() fails with the one closed-client error and never reaches the transport', async () => {
       const { transport, calls } = gatedFetch();
       const client = new {{clientClassName}}(closable, transport);
 

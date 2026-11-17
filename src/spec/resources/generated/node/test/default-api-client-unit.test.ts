@@ -537,6 +537,28 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect((caught!.cause as Error).name).toBe("TypeError");
   });
 
+  it("bhv errors 057 a network failure error carries the request method and path", async () => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+    let caught: ApiError | undefined;
+    try {
+      await client.sendRequest(
+        "DELETE",
+        "http://127.0.0.1:1/items/7?force=1",
+        {},
+        null,
+      );
+    } catch (e) {
+      caught = e as ApiError;
+    } finally {
+      await client.close();
+    }
+    expect(caught).toBeInstanceOf(NetworkError);
+    expect(caught!.requestMethod).toBe("DELETE");
+    expect(caught!.requestPath).toBe("/items/7");
+  });
+
   it("bhv transport 031 an undici phase timeout throws NetworkTimeoutError", async () => {
     /* The client sets one deadline of its own, `AbortSignal.timeout`, which
      * rejects with a DOMException named TimeoutError. undici times the

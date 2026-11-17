@@ -60,6 +60,16 @@ describe("BearerAuthenticator", () => {
     });
   });
 
+  it("bhv authbearer 028 a bearer token containing CRLF is rejected at construction", () => {
+    expect(
+      () =>
+        new BearerAuthenticator(
+          "https://api.example.com",
+          "tok\r\nInjected: yes",
+        ),
+    ).toThrow(TypeError);
+  });
+
   it("bhv authbearer 012 rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     expect(
       () =>
