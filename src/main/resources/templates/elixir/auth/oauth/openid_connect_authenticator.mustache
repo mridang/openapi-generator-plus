@@ -65,9 +65,9 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator do
     * `host` - API base URL.
     * `openid_connect_url` - OIDC discovery document URL.
     * `client_id` - OAuth2 client ID. `nil` reads it from the environment variable
-      `{{envPrefix}}_CLIENT_ID`.
+      `{{envVarPrefix}}_CLIENT_ID`.
     * `client_secret` - OAuth2 client secret. `nil` reads it from the environment variable
-      `{{envPrefix}}_CLIENT_SECRET`.
+      `{{envVarPrefix}}_CLIENT_SECRET`.
     * `redirect_uri` - Redirect URI registered with the provider.
     * `scopes` - Requested scopes.
 

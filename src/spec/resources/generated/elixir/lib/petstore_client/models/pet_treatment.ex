@@ -21,6 +21,57 @@ defmodule PetstoreClient.Models.PetTreatment do
     ]
   end
 
+  @doc """
+  Wraps a `Medication` as a `PetTreatment`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_medication(PetstoreClient.Models.Medication.t()) ::
+          PetstoreClient.Models.Medication.t()
+  def from_medication(%PetstoreClient.Models.Medication{} = value), do: value
+
+  def from_medication(value) do
+    raise ArgumentError,
+          "Expected a Medication for PetTreatment, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `PetTreatment` value is a `Medication`."
+  @spec medication?(t()) :: boolean()
+  def medication?(pet_treatment),
+    do: match?(%PetstoreClient.Models.Medication{}, pet_treatment)
+
+  @doc "The `Medication` variant of a built `PetTreatment` value, or `nil` when it is another variant."
+  @spec as_medication(t()) :: PetstoreClient.Models.Medication.t() | nil
+  def as_medication(pet_treatment) do
+    if match?(%PetstoreClient.Models.Medication{}, pet_treatment),
+      do: pet_treatment,
+      else: nil
+  end
+
+  @doc """
+  Wraps a `Surgery` as a `PetTreatment`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_surgery(PetstoreClient.Models.Surgery.t()) :: PetstoreClient.Models.Surgery.t()
+  def from_surgery(%PetstoreClient.Models.Surgery{} = value), do: value
+
+  def from_surgery(value) do
+    raise ArgumentError,
+          "Expected a Surgery for PetTreatment, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `PetTreatment` value is a `Surgery`."
+  @spec surgery?(t()) :: boolean()
+  def surgery?(pet_treatment),
+    do: match?(%PetstoreClient.Models.Surgery{}, pet_treatment)
+
+  @doc "The `Surgery` variant of a built `PetTreatment` value, or `nil` when it is another variant."
+  @spec as_surgery(t()) :: PetstoreClient.Models.Surgery.t() | nil
+  def as_surgery(pet_treatment) do
+    if match?(%PetstoreClient.Models.Surgery{}, pet_treatment),
+      do: pet_treatment,
+      else: nil
+  end
+
   @doc "Build the appropriate type from data."
   @spec build(term()) :: term()
   def build(data) do

@@ -10,12 +10,42 @@ defmodule PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator do
   @moduledoc """
   Authenticator for the `userAuth` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator)}`.
+
+  Every credential not passed is read, once, when the authenticator is built, from the
+  environment variable of this scheme (an empty variable counts as unset). A credential
+  found in neither place raises `ArgumentError`, so the client fails when it is built and
+  not on its first request.
+
+    * `client_id`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID`
+    * `client_secret`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET`
+    * `redirect_uri`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI`
   """
 
   @doc """
   Creates an authenticator for the `userAuth` security scheme.
   """
-  def new(host, client_id, client_secret, redirect_uri) do
+  def new(host, client_id \\ nil, client_secret \\ nil, redirect_uri \\ nil) do
+    client_id =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        client_id,
+        "CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"
+      )
+
+    client_secret =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        client_secret,
+        "CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET"
+      )
+
+    redirect_uri =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        redirect_uri,
+        "REDIRECT_URI",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI"
+      )
+
     PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
       host,
       client_id,

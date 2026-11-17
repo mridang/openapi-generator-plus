@@ -10,12 +10,50 @@ defmodule PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator do
   @moduledoc """
   Authenticator for the `legacyAuth` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator)}`.
+
+  Every credential not passed is read, once, when the authenticator is built, from the
+  environment variable of this scheme (an empty variable counts as unset). A credential
+  found in neither place raises `ArgumentError`, so the client fails when it is built and
+  not on its first request.
+
+    * `client_id`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID`
+    * `client_secret`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET`
+    * `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME`
+    * `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD`
   """
 
   @doc """
   Creates an authenticator for the `legacyAuth` security scheme.
   """
-  def new(host, client_id, client_secret, username, password) do
+  def new(host, client_id \\ nil, client_secret \\ nil, username \\ nil, password \\ nil) do
+    client_id =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        client_id,
+        "CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID"
+      )
+
+    client_secret =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        client_secret,
+        "CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET"
+      )
+
+    username =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        username,
+        "USERNAME",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"
+      )
+
+    password =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        password,
+        "PASSWORD",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD"
+      )
+
     PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
       host,
       client_id,

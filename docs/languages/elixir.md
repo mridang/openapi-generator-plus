@@ -31,7 +31,7 @@ Types are the typespecs that appear in the generated modules.
 | free-form `object`, any type | `map()` for objects, `any()` for any type | |
 | nullable | `T \| nil` | |
 | `enum` | atoms | Each enum module has `all_values/0`. Atoms come from a fixed set, so server input cannot grow the atom table. |
-| `oneOf`, `anyOf` | the matched variant | `build/1` returns it. An `anyOf` can return an `AnyOfComposite` struct. |
+| `oneOf`, `anyOf` | the matched variant | `build/1` returns it. An `anyOf` can return an `AnyOfComposite` struct. The module of the union has `from_<variant>/1`, `<variant>?/1` and `as_<variant>/1` for each model variant. |
 
 ## Dependencies
 
@@ -58,12 +58,17 @@ The extra applications are `:logger` and `:crypto`. If a `br` response arrives a
 | `authors` | none | Comma-separated names, written to the Hex maintainers. |
 | `documentationUrl` | none | Documentation location, written to the Hex links. |
 | `issueTrackerUrl` | none | Issue tracker, written to the Hex links. |
+| `envVarPrefix` | the API title without a trailing SDK, upper snake case | Prefix of the environment variables the authenticators read credentials from. |
 
 ## Idiom notes
 
 - Configuration is data. `Configuration.new/1` and `TransportOptions.new/1` take a keyword list, and there are no builders.
 - The API struct is the first argument of every operation. Optional trailing arguments (a server override, a content-type choice, a refresh URL) go into one `opts` keyword list.
 - A missing required option raises `ArgumentError` at call time.
+- Every operation takes an optional options struct, even one with no query, header, form or cookie parameter and no security. It carries the per-call `timeout` (milliseconds), `headers` and `max_retries`, and an `auth` field only when the operation has security. The `opts` keyword list takes the same three keys and wins over the struct.
+- A credential that is not passed (`nil`) is read, once, when the authenticator is built, from an environment variable. Each security scheme reads its own variables, named `<PREFIX>_<FIELD>` (`PETSTORE_TOKEN`, `PETSTORE_API_KEY`, `PETSTORE_CLIENT_ID`), or `<PREFIX>_<SCHEME>_<FIELD>` for every scheme that shares a field name with another. An argument you pass wins, an empty variable counts as unset, and a credential found in neither place raises `ArgumentError` when the client is built. A bearer token or an API key can also be a zero-argument function that is called for every request, which takes the place of a token-provider callback. The generated README lists the variable of every credential.
+- A union module has a typed function for each model variant: `from_<variant>/1` checks the value and returns it (it raises `ArgumentError` for another value), `<variant>?/1` tells whether a built value is that variant, and `as_<variant>/1` returns the value or `nil`. The predicate is spelled `<variant>?` because Elixir reserves the `is_` prefix for guards.
+- A property that is a `$ref` with a `default` written beside it (an OpenAPI 3.1 sibling keyword) starts at that default: a referenced enum becomes the matching atom, so `%StockItem{priority: :number_1}.availability` is `:on_hold`, and a payload without the property decodes to it too.
 - There is no exception inheritance. `api_error?/1` tells you whether an exception is an API error, and `exceptions/0` lists the hierarchy for `rescue` clauses.
 - Authenticators are a behaviour. The OAuth2 token manager is an `Agent` started by `start_link/1` and stopped by `Client.close/1`.
 - The client is synchronous, with one `get_auth_headers` and no async variant.

@@ -242,6 +242,46 @@ defmodule {{moduleName}}.Api.StoreApiTest do
     Agent.stop(name)
   end
 
+  # An operation with no query, header, form or cookie parameter and no security
+  # still takes an options struct, which carries only the per-call settings.
+  test "get_inventory takes an options struct that carries the per-call settings and no auth" do
+    {:ok, name} = StubApiClient.start(~s({"available":1}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    options = %{{moduleName}}.Api.Options.GetInventoryOptions{
+      timeout: 30_000,
+      headers: %{"X-Trace" => "1"},
+      max_retries: 0
+    }
+
+    refute Map.has_key?(options, :auth)
+    assert {:ok, %{"available" => 1}} = {{moduleName}}.Api.StoreApi.get_inventory(api, options)
+    assert StubApiClient.captured(name).headers["X-Trace"] == "1"
+
+    Agent.stop(name)
+  end
+
+  test "get_inventory takes the per-call settings in opts after a nil options struct" do
+    {:ok, name} = StubApiClient.start(~s({"available":1}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, _inventory} =
+             {{moduleName}}.Api.StoreApi.get_inventory(api, nil, headers: %{"X-Trace" => "2"})
+
+    assert StubApiClient.captured(name).headers["X-Trace"] == "2"
+
+    assert_raise ArgumentError, "Invalid max_retries: must be a non-negative integer (got -1)", fn ->
+      {{moduleName}}.Api.StoreApi.get_inventory(
+        api,
+        %{{moduleName}}.Api.Options.GetInventoryOptions{max_retries: -1}
+      )
+    end
+
+    Agent.stop(name)
+  end
+
   test "get_by_swatch without options sends only the path value" do
     {:ok, name} = StubApiClient.start(~s({"id":1,"name":"sample"}))
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")

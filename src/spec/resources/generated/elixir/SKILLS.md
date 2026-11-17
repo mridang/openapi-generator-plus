@@ -257,15 +257,47 @@ client = PetstoreClient.Client.new(authenticator, transport)
 
 ### Per-call options
 
-Every operation takes `:timeout` (milliseconds), `:headers` (a map) and `:max_retries` in its trailing `opts` keyword list; an operation's options struct has the same three fields, and the `opts` key wins. Each replaces the client's own setting for that one call.
+Every operation takes an optional options struct, even one with no query, header, form or cookie parameter and no security. It carries `timeout` (milliseconds), `headers` (a map) and `max_retries`, and an `auth` field only when the operation has security. The same three settings can be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list, which wins over the struct. Each replaces the client's own setting for that one call.
 
 ```elixir
-PetstoreClient.Api.ItemsApi.get_item(client.items, 7, timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0)
+options = %PetstoreClient.Api.Options.GetItemOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
+PetstoreClient.Api.ItemsApi.get_item(client.items, 7, options)
+PetstoreClient.Api.ItemsApi.get_item(client.items, 7, nil, timeout: 5_000)
 ```
 
 ### Credentials
 
-Pass `nil` for a credential and the authenticator reads it once, when it is built, from `OPEN_API_<FIELD>` (`OPEN_API_TOKEN`, `OPEN_API_API_KEY`, `OPEN_API_USERNAME`, `OPEN_API_PASSWORD`, `OPEN_API_CLIENT_ID`, `OPEN_API_CLIENT_SECRET`). A value you pass wins, an empty variable counts as unset, and a missing required credential raises `ArgumentError` when the client is built. A bearer token or an API key may be a zero-argument function that returns it, called for every request.
+Pass `nil` for a credential (or leave it out of a security scheme's authenticator) and the authenticator reads it once, when it is built, from an environment variable. A value you pass wins, an empty variable counts as unset, and a missing required credential raises `ArgumentError` when the client is built. A bearer token or an API key may be a zero-argument function that returns it, called for every request.
+
+Each security scheme reads its own variables, named `SWAGGER_PETSTORE_OPEN_API_3_0_<FIELD>`, or `SWAGGER_PETSTORE_OPEN_API_3_0_<SCHEME>_<FIELD>` for every scheme that shares a field name with another:
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `api_key` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `api_key` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `browserAuth` | `client_id` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `internalApiKey` | `api_key` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `legacyAuth` | `client_id` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
+| `legacyAuth` | `client_secret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
+| `legacyAuth` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` |
+| `legacyAuth` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` |
+| `machineAuth` | `client_id` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` |
+| `machineAuth` | `client_secret` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` |
+| `petStoreBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `api_key` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+| `ssoAuth` | `client_id` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` |
+| `ssoAuth` | `client_secret` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` |
+| `ssoAuth` | `redirect_uri` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` |
+| `userAuth` | `client_id` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` |
+| `userAuth` | `client_secret` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
+| `userAuth` | `redirect_uri` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
+
+An authenticator you build without a scheme (`BearerAuthenticator`, `BasicAuthenticator`, `ApiKeyAuthenticator`) reads `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` or `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`. Set `envVarPrefix` when generating to change the `SWAGGER_PETSTORE_OPEN_API_3_0` prefix.
 
 ```elixir
 authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", fn -> MyApp.Tokens.current() end)

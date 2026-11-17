@@ -276,15 +276,29 @@ client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
 
 ### Per-call options
 
-Every operation takes `:timeout` (milliseconds), `:headers` (a map) and `:max_retries` in its trailing `opts` keyword list; an operation's options struct has the same three fields, and the `opts` key wins. Each replaces the client's own setting for that one call.
+Every operation takes an optional options struct, even one with no query, header, form or cookie parameter and no security. It carries `timeout` (milliseconds), `headers` (a map) and `max_retries`, and an `auth` field only when the operation has security. The same three settings can be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list, which wins over the struct. Each replaces the client's own setting for that one call.
 
 ```elixir
-{{moduleName}}.Api.ItemsApi.get_item(client.items, 7, timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0)
+options = %{{moduleName}}.Api.Options.GetItemOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
+{{moduleName}}.Api.ItemsApi.get_item(client.items, 7, options)
+{{moduleName}}.Api.ItemsApi.get_item(client.items, 7, nil, timeout: 5_000)
 ```
 
 ### Credentials
 
-Pass `nil` for a credential and the authenticator reads it once, when it is built, from `{{envPrefix}}_<FIELD>` (`{{envPrefix}}_TOKEN`, `{{envPrefix}}_API_KEY`, `{{envPrefix}}_USERNAME`, `{{envPrefix}}_PASSWORD`, `{{envPrefix}}_CLIENT_ID`, `{{envPrefix}}_CLIENT_SECRET`). A value you pass wins, an empty variable counts as unset, and a missing required credential raises `ArgumentError` when the client is built. A bearer token or an API key may be a zero-argument function that returns it, called for every request.
+Pass `nil` for a credential (or leave it out of a security scheme's authenticator) and the authenticator reads it once, when it is built, from an environment variable. A value you pass wins, an empty variable counts as unset, and a missing required credential raises `ArgumentError` when the client is built. A bearer token or an API key may be a zero-argument function that returns it, called for every request.
+{{#hasSecuritySchemeEnvVars}}
+
+Each security scheme reads its own variables, named `{{envVarPrefix}}_<FIELD>`, or `{{envVarPrefix}}_<SCHEME>_<FIELD>` for every scheme that shares a field name with another:
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{#lambda.elixirSnake}}{{field}}{{/lambda.elixirSnake}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+An authenticator you build without a scheme (`BearerAuthenticator`, `BasicAuthenticator`, `ApiKeyAuthenticator`) reads `{{envVarPrefix}}_TOKEN`, `{{envVarPrefix}}_USERNAME`, `{{envVarPrefix}}_PASSWORD` or `{{envVarPrefix}}_API_KEY`. Set `envVarPrefix` when generating to change the `{{envVarPrefix}}` prefix.
+{{/hasSecuritySchemeEnvVars}}
 
 ```elixir
 authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", fn -> MyApp.Tokens.current() end)

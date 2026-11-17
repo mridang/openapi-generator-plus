@@ -13,8 +13,8 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
     end
 
     test "nil credentials are read once from the environment and passed ones win" do
-      user = "OPEN_API_USERNAME"
-      pass = "OPEN_API_PASSWORD"
+      user = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
+      pass = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"
       System.put_env(user, "alice")
       System.put_env(pass, "from-env")
 
@@ -40,8 +40,8 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
     end
 
     test "an empty or absent environment variable fails when the authenticator is built" do
-      user = "OPEN_API_USERNAME"
-      pass = "OPEN_API_PASSWORD"
+      user = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
+      pass = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"
 
       on_exit(fn ->
         System.delete_env(user)

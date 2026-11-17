@@ -24,7 +24,7 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticatorTest do
     end
 
     test "a nil key is read once from the environment and a passed key wins" do
-      name = "{{envPrefix}}_API_KEY"
+      name = "{{envVarPrefix}}_API_KEY"
       System.put_env(name, "from-env")
       on_exit(fn -> System.delete_env(name) end)
 
@@ -39,7 +39,7 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticatorTest do
     end
 
     test "an empty or absent environment variable fails when the authenticator is built" do
-      name = "{{envPrefix}}_API_KEY"
+      name = "{{envVarPrefix}}_API_KEY"
       on_exit(fn -> System.delete_env(name) end)
       message = "Missing the credential 'api_key': pass it, or set the environment variable #{name}"
 

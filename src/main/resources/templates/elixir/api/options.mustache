@@ -3,6 +3,11 @@
 defmodule {{moduleName}}.Api.Options.{{className}} do
   @moduledoc """
   Options for the `{{operationId}}` operation.
+{{#callSettingsOnly}}
+
+  This operation has no query, header, form or cookie parameter and no security, so the
+  options carry only the per-call settings `timeout`, `headers` and `max_retries`.
+{{/callSettingsOnly}}
 {{#params}}
 {{#examples}}
 

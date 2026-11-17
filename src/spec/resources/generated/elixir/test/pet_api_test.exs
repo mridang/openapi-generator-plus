@@ -169,7 +169,9 @@ defmodule PetstoreClient.Api.PetApiTest do
     # every path in the spec.
     server = %PetstoreClient.ServerConfiguration{url_template: base_url}
 
-    assert {:ok, result} = PetstoreClient.Api.PetApi.get_external_pet_info(api, 1, server: server)
+    assert {:ok, result} =
+             PetstoreClient.Api.PetApi.get_external_pet_info(api, 1, nil, server: server)
+
     assert result != nil
   end
 
@@ -266,14 +268,14 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     assert_raise ArgumentError,
                  ~r/unknown keys \[:server\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries\]/,
-                 fn -> PetstoreClient.Api.PetApi.update_pet(api, 1, pet, server: server) end
+                 fn -> PetstoreClient.Api.PetApi.update_pet(api, 1, pet, nil, server: server) end
   end
 
   test "an operation rejects a misspelt :content_type opt", %{api: api} do
     assert_raise ArgumentError,
                  ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries, :content_type\]/,
                  fn ->
-                   PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>,
+                   PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>, nil,
                      contnet_type: "image/png"
                    )
                  end
@@ -687,7 +689,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   test "an operation takes the per-call timeout, headers and max_retries in opts", %{api: api} do
     assert {:ok, result} =
-             PetstoreClient.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000),
+             PetstoreClient.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000), nil,
                timeout: 30_000,
                headers: %{"X-Trace" => "1"},
                max_retries: 0
@@ -698,11 +700,11 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert_raise ArgumentError,
                  "Invalid timeout: must be a positive number of milliseconds (got 0)",
                  fn ->
-                   PetstoreClient.Api.PetApi.get_pet_by_id(api, 1, timeout: 0)
+                   PetstoreClient.Api.PetApi.get_pet_by_id(api, 1, nil, timeout: 0)
                  end
 
     assert_raise ArgumentError, ~r/unknown keys \[:retries\]/, fn ->
-      PetstoreClient.Api.PetApi.get_pet_by_id(api, 1, retries: 1)
+      PetstoreClient.Api.PetApi.get_pet_by_id(api, 1, nil, retries: 1)
     end
   end
 
@@ -1113,6 +1115,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              PetstoreClient.Api.PetApi.get_external_pet_info(
                api,
                1,
+               nil,
                server: PetstoreClient.Api.GetExternalPetInfoServer.Server0
              )
 
@@ -1130,7 +1133,8 @@ defmodule PetstoreClient.Api.PetApiTest do
       version: PetstoreClient.Api.GetStagingPetInfoServer.Version.v3()
     }
 
-    assert {:ok, _result} = PetstoreClient.Api.PetApi.get_staging_pet_info(api, 5, server: server)
+    assert {:ok, _result} =
+             PetstoreClient.Api.PetApi.get_staging_pet_info(api, 5, nil, server: server)
 
     assert StubResponseApiClient.captured(name).url ==
              "https://sandbox.example.com/api/v3/pet/5/staging"
@@ -1145,6 +1149,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              PetstoreClient.Api.PetApi.get_multi_server_pet_info(
                api,
                5,
+               nil,
                server: PetstoreClient.Api.GetMultiServerPetInfoServer.Primary
              )
 
@@ -1156,7 +1161,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     }
 
     assert {:ok, _result} =
-             PetstoreClient.Api.PetApi.get_multi_server_pet_info(api, 5, server: regional)
+             PetstoreClient.Api.PetApi.get_multi_server_pet_info(api, 5, nil, server: regional)
 
     assert StubResponseApiClient.captured(name).url ==
              "https://eu.example.com/v1/pet/5/multi"
@@ -1185,7 +1190,9 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert_raise ArgumentError,
                  ~s(Invalid value 'mars' for server variable 'region'. Allowed values: [us, eu, ap]),
                  fn ->
-                   PetstoreClient.Api.PetApi.get_multi_server_pet_info(api, 5, server: regional)
+                   PetstoreClient.Api.PetApi.get_multi_server_pet_info(api, 5, nil,
+                     server: regional
+                   )
                  end
 
     assert StubResponseApiClient.captured(name) == nil
@@ -1210,7 +1217,7 @@ defmodule PetstoreClient.Api.PetApiTest do
                  ~s(Unsupported request content-type 'application/unknown-type' for set_pet_avatar; ) <>
                    ~s(declared types are [image/jpeg, image/png, application/json]),
                  fn ->
-                   PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>,
+                   PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>, nil,
                      content_type: "application/unknown-type"
                    )
                  end
@@ -1458,7 +1465,9 @@ defmodule PetstoreClient.Api.PetApiTest do
     png_api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, png_config)
 
     {:ok, _result} =
-      PetstoreClient.Api.PetApi.set_pet_avatar(png_api, 5, payload, content_type: "image/png")
+      PetstoreClient.Api.PetApi.set_pet_avatar(png_api, 5, payload, nil,
+        content_type: "image/png"
+      )
 
     png_captured = BodyCapturingApiClient.captured(png_name)
     assert png_captured.headers["Content-Type"] == "image/png"
@@ -1478,7 +1487,9 @@ defmodule PetstoreClient.Api.PetApiTest do
     api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
 
     {:ok, _result} =
-      PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, payload, content_type: "application/json")
+      PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, payload, nil,
+        content_type: "application/json"
+      )
 
     captured = BodyCapturingApiClient.captured(name)
     assert captured.body == payload

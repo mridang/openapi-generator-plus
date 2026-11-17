@@ -189,6 +189,70 @@ class GenerateElixirClientTest {
     }
   }
 
+  /**
+   * F827: an operation with no query, header, form or cookie parameter and no security still
+   * takes an options struct, which has the per-call settings and no auth field.
+   */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void anOperationWithNoParametersAndNoSecurityStillTakesOptions() throws IOException {
+    final String options =
+        Files.readString(
+            OUTPUT_DIR.resolve("lib/petstore_client/api/options/get_inventory_options.ex"));
+    assertThat(options)
+        .contains("max_retries: non_neg_integer() | nil")
+        .doesNotContain("auth:");
+    final String storeApi =
+        Files.readString(OUTPUT_DIR.resolve("lib/petstore_client/api/store_api.ex"));
+    assertThat(storeApi)
+        .contains("def get_inventory(%__MODULE__{} = api, options \\\\ nil, opts \\\\ [])")
+        .contains("PetstoreClient.Api.BaseApi.call_settings(options, opts)");
+  }
+
+  /**
+   * F862: each scheme's authenticator reads the variable named for that scheme and field, and
+   * the standalone authenticators keep the generic prefix.
+   */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void eachSchemeAuthenticatorReadsItsOwnEnvironmentVariable() throws IOException {
+    final Path auth = OUTPUT_DIR.resolve("lib/petstore_client/auth");
+    assertThat(Files.readString(auth.resolve("service_token_authenticator.ex")))
+        .contains("def new(host, token \\\\ nil)")
+        .contains("\"SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN\"");
+    assertThat(Files.readString(auth.resolve("oauth/legacy_auth_password_authenticator.ex")))
+        .contains("\"SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME\"")
+        .contains("\"SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET\"");
+    assertThat(Files.readString(auth.resolve("base_authenticator.ex")))
+        .contains("\"SWAGGER_PETSTORE_OPEN_API_3_0_\" <> field");
+  }
+
+  /** F878: a union module has a typed constructor, predicate and accessor per model variant. */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void aUnionModuleHasTypedFunctionsForEveryModelVariant() throws IOException {
+    final String union =
+        Files.readString(
+            OUTPUT_DIR.resolve("lib/petstore_client/models/reserve_stock_response.ex"));
+    assertThat(union)
+        .contains("def from_reservation(%PetstoreClient.Models.Reservation{} = value)")
+        .contains("def reservation?(reserve_stock_response)")
+        .contains("def as_reservation(reserve_stock_response)")
+        .contains("def from_reservation_receipt(")
+        .contains("def reservation_receipt?(reserve_stock_response)")
+        .contains("def as_reservation_receipt(reserve_stock_response)");
+  }
+
+  /** F866: a property whose $ref carries a sibling default starts at it, after the plain atoms. */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void aRefPropertyWithASiblingDefaultStartsAtIt() throws IOException {
+    final String model =
+        Files.readString(OUTPUT_DIR.resolve("lib/petstore_client/models/stock_item.ex"));
+    assertThat(model).contains("availability: :on_hold");
+    assertThat(model.indexOf(":matrix")).isLessThan(model.indexOf("availability: :on_hold"));
+  }
+
   /** F1062: an operation with several 2xx schemas passes the status table to the decoder. */
   @Test
   @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)

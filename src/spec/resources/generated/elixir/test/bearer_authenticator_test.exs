@@ -76,7 +76,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
     end
 
     test "a nil token is read once from the environment and a passed token wins" do
-      name = "OPEN_API_TOKEN"
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
       System.put_env(name, "from-env")
       on_exit(fn -> System.delete_env(name) end)
 
@@ -91,7 +91,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
     end
 
     test "an empty or absent environment variable fails when the authenticator is built" do
-      name = "OPEN_API_TOKEN"
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
       on_exit(fn -> System.delete_env(name) end)
       message = "Missing the credential 'token': pass it, or set the environment variable #{name}"
 

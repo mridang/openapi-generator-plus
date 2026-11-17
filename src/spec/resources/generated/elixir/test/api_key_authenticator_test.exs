@@ -23,7 +23,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
     end
 
     test "a nil key is read once from the environment and a passed key wins" do
-      name = "OPEN_API_API_KEY"
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
       System.put_env(name, "from-env")
       on_exit(fn -> System.delete_env(name) end)
 
@@ -40,7 +40,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
     end
 
     test "an empty or absent environment variable fails when the authenticator is built" do
-      name = "OPEN_API_API_KEY"
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
       on_exit(fn -> System.delete_env(name) end)
 
       message =

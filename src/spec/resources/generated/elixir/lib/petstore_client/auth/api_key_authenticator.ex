@@ -40,7 +40,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
     * `host` - API base URL.
     * `key_param_name` - The name of the header, query parameter, or cookie carrying the key.
     * `api_key` - The API key value. `nil` reads it from the environment variable
-      `OPEN_API_API_KEY`. A zero-argument function is called for every request
+      `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`. A zero-argument function is called for every request
       and returns the key, so a key that rotates is always read fresh.
     * `location` - Where the API key is sent on each request: `:header`, `:query`, or `:cookie`.
 

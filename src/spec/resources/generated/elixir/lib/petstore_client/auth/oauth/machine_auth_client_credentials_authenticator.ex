@@ -10,12 +10,34 @@ defmodule PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator do
   @moduledoc """
   Authenticator for the `machineAuth` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator)}`.
+
+  Every credential not passed is read, once, when the authenticator is built, from the
+  environment variable of this scheme (an empty variable counts as unset). A credential
+  found in neither place raises `ArgumentError`, so the client fails when it is built and
+  not on its first request.
+
+    * `client_id`: `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID`
+    * `client_secret`: `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET`
   """
 
   @doc """
   Creates an authenticator for the `machineAuth` security scheme.
   """
-  def new(host, client_id, client_secret) do
+  def new(host, client_id \\ nil, client_secret \\ nil) do
+    client_id =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        client_id,
+        "CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID"
+      )
+
+    client_secret =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        client_secret,
+        "CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET"
+      )
+
     PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
       host,
       client_id,

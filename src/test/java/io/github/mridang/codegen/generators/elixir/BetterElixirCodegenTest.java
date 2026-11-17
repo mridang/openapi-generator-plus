@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 
 class BetterElixirCodegenTest {
 
@@ -110,5 +111,32 @@ class BetterElixirCodegenTest {
               assertThat(doc).containsEntry("summary", "Sold pets");
               assertThat(doc).containsEntry("value", "sold");
             });
+  }
+
+  @Test
+  void mintsAnOptionsStructForEveryOperation() {
+    assertThat(new BetterElixirCodegen().mintsOptionsForEveryOperation()).isTrue();
+  }
+
+  @Test
+  void writesAPropertyAsADefaultedPairWhenItHasADefaultOrASiblingEnumDefault() {
+    final CodegenProperty plain = new CodegenProperty();
+    plain.vendorExtensions = new HashMap<>();
+    assertThat(BetterElixirCodegen.hasStructDefault(plain)).isFalse();
+
+    final CodegenProperty defaulted = new CodegenProperty();
+    defaulted.vendorExtensions = new HashMap<>();
+    defaulted.defaultValue = "3";
+    assertThat(BetterElixirCodegen.hasStructDefault(defaulted)).isTrue();
+
+    final CodegenProperty sibling = new CodegenProperty();
+    sibling.vendorExtensions = new HashMap<>();
+    sibling.vendorExtensions.put("siblingDefaultIsEnum", true);
+    assertThat(BetterElixirCodegen.hasStructDefault(sibling)).isTrue();
+
+    final CodegenProperty siblingNotEnum = new CodegenProperty();
+    siblingNotEnum.vendorExtensions = new HashMap<>();
+    siblingNotEnum.vendorExtensions.put("siblingDefaultIsEnum", false);
+    assertThat(BetterElixirCodegen.hasStructDefault(siblingNotEnum)).isFalse();
   }
 }
