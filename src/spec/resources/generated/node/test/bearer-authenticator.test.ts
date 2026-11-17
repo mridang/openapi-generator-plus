@@ -33,13 +33,12 @@ describe("BearerAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer xyz");
   });
 
-  it.each(["BEARER xyz", "BeArEr xyz"])(
-    "mixed-case prefix %p is stripped",
-    (token) => {
+  it("mixed-case bearer prefix is stripped", () => {
+    for (const token of ["BEARER xyz", "BeArEr xyz"]) {
       const auth = new BearerAuthenticator("https://api.example.com", token);
       expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer xyz" });
-    },
-  );
+    }
+  });
 
   it("a token that merely begins with the word bearer is kept whole", () => {
     const auth = new BearerAuthenticator(

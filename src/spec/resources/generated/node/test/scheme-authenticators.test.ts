@@ -29,7 +29,7 @@ import {
   OpenIdConnectAuthenticator,
 } from "../src/index.js";
 
-describe("per-scheme authenticators", () => {
+describe("SchemeAuthenticators", () => {
   it.each([
     [
       "PetStoreBasicAuthenticator",

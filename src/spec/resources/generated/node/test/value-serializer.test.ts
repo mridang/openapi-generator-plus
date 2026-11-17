@@ -927,181 +927,179 @@ describe("ValueSerializer", () => {
 
   // Cross-language parity tests for path-segment percent-encoding.
   // Every SDK must produce identical encoded strings for these inputs.
-  describe("path encoding parity", () => {
-    test("ASCII-safe pass-through", () => {
-      expect(ValueSerializer.serialize("abc123", "path", "string")).toBe(
-        "abc123",
-      );
-    });
+  test("ASCII-safe pass-through", () => {
+    expect(ValueSerializer.serialize("abc123", "path", "string")).toBe(
+      "abc123",
+    );
+  });
 
-    test("space encoded as %20", () => {
-      expect(ValueSerializer.serialize("a b", "path", "string")).toBe("a%20b");
-    });
+  test("space encoded as %20", () => {
+    expect(ValueSerializer.serialize("a b", "path", "string")).toBe("a%20b");
+  });
 
-    test("slash encoded", () => {
-      expect(ValueSerializer.serialize("a/b", "path", "string")).toBe("a%2Fb");
-    });
+  test("slash encoded", () => {
+    expect(ValueSerializer.serialize("a/b", "path", "string")).toBe("a%2Fb");
+  });
 
-    test("question mark encoded", () => {
-      expect(ValueSerializer.serialize("a?b", "path", "string")).toBe("a%3Fb");
-    });
+  test("question mark encoded", () => {
+    expect(ValueSerializer.serialize("a?b", "path", "string")).toBe("a%3Fb");
+  });
 
-    test("hash encoded", () => {
-      expect(ValueSerializer.serialize("a#b", "path", "string")).toBe("a%23b");
-    });
+  test("hash encoded", () => {
+    expect(ValueSerializer.serialize("a#b", "path", "string")).toBe("a%23b");
+  });
 
-    test("comma preserved (sub-delimiter)", () => {
-      expect(ValueSerializer.serialize("a,b", "path", "string")).toBe("a,b");
-    });
+  test("comma preserved (sub-delimiter)", () => {
+    expect(ValueSerializer.serialize("a,b", "path", "string")).toBe("a,b");
+  });
 
-    test("colon preserved (sub-delimiter)", () => {
-      expect(ValueSerializer.serialize("a:b", "path", "string")).toBe("a:b");
-    });
+  test("colon preserved (sub-delimiter)", () => {
+    expect(ValueSerializer.serialize("a:b", "path", "string")).toBe("a:b");
+  });
 
-    test("plus preserved (sub-delimiter)", () => {
-      expect(ValueSerializer.serialize("a+b", "path", "string")).toBe("a+b");
-    });
+  test("plus preserved (sub-delimiter)", () => {
+    expect(ValueSerializer.serialize("a+b", "path", "string")).toBe("a+b");
+  });
 
-    test("unicode encoded as UTF-8 percent", () => {
-      expect(ValueSerializer.serialize("日本", "path", "string")).toBe(
-        "%E6%97%A5%E6%9C%AC",
-      );
-    });
+  test("unicode encoded as UTF-8 percent", () => {
+    expect(ValueSerializer.serialize("日本", "path", "string")).toBe(
+      "%E6%97%A5%E6%9C%AC",
+    );
+  });
 
-    test("empty string preserved", () => {
-      expect(ValueSerializer.serialize("", "path", "string")).toBe("");
-    });
+  test("empty string preserved", () => {
+    expect(ValueSerializer.serialize("", "path", "string")).toBe("");
+  });
 
-    test("null returns empty string in path location", () => {
-      expect(ValueSerializer.serialize(null, "path", "string")).toBe("");
-    });
+  test("null returns empty string in path location", () => {
+    expect(ValueSerializer.serialize(null, "path", "string")).toBe("");
+  });
 
-    test("simple style encodes value", () => {
-      expect(
-        ValueSerializer.serializeStyled(
-          "color",
-          "a b",
-          "path",
-          "string",
-          null,
-          "simple",
-          false,
-        ),
-      ).toBe("a%20b");
-    });
+  test("simple style encodes value", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "color",
+        "a b",
+        "path",
+        "string",
+        null,
+        "simple",
+        false,
+      ),
+    ).toBe("a%20b");
+  });
 
-    test("simple style array encodes each item", () => {
-      expect(
-        ValueSerializer.serializeStyled(
-          "color",
-          ["a b", "c?d"],
-          "path",
-          "array",
-          null,
-          "simple",
-          false,
-        ),
-      ).toBe("a%20b,c%3Fd");
-    });
+  test("simple style array encodes each item", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "color",
+        ["a b", "c?d"],
+        "path",
+        "array",
+        null,
+        "simple",
+        false,
+      ),
+    ).toBe("a%20b,c%3Fd");
+  });
 
-    test("path_array_item_with_reserved_char_is_percent_encoded", () => {
-      // Gap W1 regression: every per-item path value in a styled array
-      // must be percent-encoded BEFORE being joined with the structural
-      // separator. Otherwise '/', '?', '#', space leak into the URL.
-      const items = ["a/b", "c"];
-      expect(
-        ValueSerializer.serializeStyled(
-          "name",
-          items,
-          "path",
-          "array",
-          null,
-          "simple",
-          false,
-        ),
-      ).toBe("a%2Fb,c");
-      expect(
-        ValueSerializer.serializeStyled(
-          "name",
-          items,
-          "path",
-          "array",
-          null,
-          "label",
-          true,
-        ),
-      ).toBe(".a%2Fb.c");
-      expect(
-        ValueSerializer.serializeStyled(
-          "name",
-          items,
-          "path",
-          "array",
-          null,
-          "matrix",
-          false,
-        ),
-      ).toBe(";name=a%2Fb,c");
-    });
+  test("path_array_item_with_reserved_char_is_percent_encoded", () => {
+    // Gap W1 regression: every per-item path value in a styled array
+    // must be percent-encoded BEFORE being joined with the structural
+    // separator. Otherwise '/', '?', '#', space leak into the URL.
+    const items = ["a/b", "c"];
+    expect(
+      ValueSerializer.serializeStyled(
+        "name",
+        items,
+        "path",
+        "array",
+        null,
+        "simple",
+        false,
+      ),
+    ).toBe("a%2Fb,c");
+    expect(
+      ValueSerializer.serializeStyled(
+        "name",
+        items,
+        "path",
+        "array",
+        null,
+        "label",
+        true,
+      ),
+    ).toBe(".a%2Fb.c");
+    expect(
+      ValueSerializer.serializeStyled(
+        "name",
+        items,
+        "path",
+        "array",
+        null,
+        "matrix",
+        false,
+      ),
+    ).toBe(";name=a%2Fb,c");
+  });
 
-    test("matrix style encodes value", () => {
-      expect(
-        ValueSerializer.serializeStyled(
-          "color",
-          "a b",
-          "path",
-          "string",
-          null,
-          "matrix",
-          false,
-        ),
-      ).toBe(";color=a%20b");
-    });
+  test("matrix style encodes value", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "color",
+        "a b",
+        "path",
+        "string",
+        null,
+        "matrix",
+        false,
+      ),
+    ).toBe(";color=a%20b");
+  });
 
-    test("label style encodes value", () => {
-      expect(
-        ValueSerializer.serializeStyled(
-          "color",
-          "a b",
-          "path",
-          "string",
-          null,
-          "label",
-          false,
-        ),
-      ).toBe(".a%20b");
-    });
+  test("label style encodes value", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "color",
+        "a b",
+        "path",
+        "string",
+        null,
+        "label",
+        false,
+      ),
+    ).toBe(".a%20b");
+  });
 
-    test("query location is not path-encoded", () => {
-      expect(
-        ValueSerializer.serializeStyled(
-          "color",
-          "a b",
-          "query",
-          "string",
-          null,
-          "form",
-          false,
-        ),
-      ).toBe("a b");
-    });
+  test("query location is not path-encoded", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "color",
+        "a b",
+        "query",
+        "string",
+        null,
+        "form",
+        false,
+      ),
+    ).toBe("a b");
+  });
 
-    test("empty string path param throws", () => {
-      // Gap W — empty-string path values silently produce malformed
-      // URLs like `/resource//details`; reject at serialization time so
-      // callers see the real error rather than a downstream 404.
-      expect(() =>
-        ValueSerializer.serializeStyled(
-          "id",
-          "",
-          "path",
-          "string",
-          null,
-          "simple",
-          false,
-        ),
-      ).toThrow(TypeError);
-    });
+  test("empty string path param throws", () => {
+    // Gap W — empty-string path values silently produce malformed
+    // URLs like `/resource//details`; reject at serialization time so
+    // callers see the real error rather than a downstream 404.
+    expect(() =>
+      ValueSerializer.serializeStyled(
+        "id",
+        "",
+        "path",
+        "string",
+        null,
+        "simple",
+        false,
+      ),
+    ).toThrow(TypeError);
   });
 
   /* `format: date` is a plain YYYY-MM-DD string: stringifyDate validates it and

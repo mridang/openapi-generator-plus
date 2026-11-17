@@ -188,10 +188,47 @@ describe("PetApi", () => {
     expect(result).toBeDefined();
   });
 
-  test("getPetPhoto returns image content type", async () => {
+  test("getPetPhoto", async () => {
     const result = await api.getPetPhoto(1, 100);
 
     expect(result).toBeDefined();
+  });
+
+  /*
+   * setPetAvatar declares a binary request body with the content type
+   * image/jpeg. The raw bytes must reach the transport unchanged, never as a
+   * JSON array of numbers and never as base64, and the declared Content-Type
+   * must survive instead of being replaced by application/octet-stream or
+   * application/json.
+   */
+  test("setPetAvatar streams raw bytes with declared content type", async () => {
+    let capturedBody: unknown = null;
+    let capturedHeaders: Record<string, string> = {};
+    const capturingClient: ApiClient = {
+      async sendRequest(
+        _method: string,
+        _url: string,
+        headers: Record<string, string>,
+        body: unknown,
+      ): Promise<ApiHttpResponse> {
+        capturedBody = body;
+        capturedHeaders = headers;
+        return { statusCode: 200, body: "", headers: {} };
+      },
+    };
+    const capturingApi = new PetApi(
+      capturingClient,
+      Configuration.builder()
+        .baseUrl("https://client-base.example.com")
+        .build(),
+    );
+    const payload = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+
+    await capturingApi.setPetAvatar(1, payload);
+
+    expect(Buffer.isBuffer(capturedBody)).toBe(true);
+    expect((capturedBody as Buffer).equals(payload)).toBe(true);
+    expect(capturedHeaders["Content-Type"]).toBe("image/jpeg");
   });
 
   test("getPetTag sends styled parameters (matrix/label path styles)", async () => {
@@ -458,8 +495,8 @@ describe("PetApi top-level byte responses", () => {
   });
 });
 
-describe("PetApi error handling", () => {
-  test("404 response throws error", async () => {
+describe("PetApi", () => {
+  test("error handling not found", async () => {
     const { api: mockApi, close } = await createMockServer(
       404,
       "application/json",
@@ -489,7 +526,7 @@ describe("PetApi error handling", () => {
     }
   });
 
-  test("binary download from mock", async () => {
+  test("download binary mock", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/octet-stream",
@@ -522,7 +559,7 @@ describe("PetApi error handling", () => {
     }
   });
 
-  test("upload multipart from mock", async () => {
+  test("upload multipart mock", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",

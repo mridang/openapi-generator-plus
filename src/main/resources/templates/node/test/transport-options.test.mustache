@@ -130,7 +130,7 @@ describe('TransportOptions', () => {
     expect(() => TransportOptions.builder().timeout(0)).toThrow(TypeError);
   });
 
-  test('invalid proxy URL throws TypeError', () => {
+  test('invalid proxy URL throws error', () => {
     let caught: unknown;
     try {
       TransportOptions.builder().proxy('not-a-valid-url');
@@ -295,20 +295,18 @@ describe('TransportOptions', () => {
     });
   });
 
-  describe('ProxyConfigTests', () => {
-    test('setting proxy URL is preserved on read-back', () => {
-      const opts = TransportOptions.builder()
-        .proxy('http://proxy.example.com:8080')
-        .build();
-      expect(opts.proxy).toBe('http://proxy.example.com:8080');
-    });
+  test('setting proxy URL is preserved on read-back', () => {
+    const opts = TransportOptions.builder()
+      .proxy('http://proxy.example.com:8080')
+      .build();
+    expect(opts.proxy).toBe('http://proxy.example.com:8080');
+  });
 
-    test('setting proxy is supported on all platforms', () => {
-      // Proxy configuration must not throw on any Node.js platform.
-      expect(() => {
-        TransportOptions.builder().proxy('http://proxy.example.com:8080').build();
-      }).not.toThrow();
-    });
+  test('setting proxy is supported on all platforms', () => {
+    // Proxy configuration must not throw on any Node.js platform.
+    expect(() => {
+      TransportOptions.builder().proxy('http://proxy.example.com:8080').build();
+    }).not.toThrow();
   });
 
   describe('string representation', () => {

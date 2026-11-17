@@ -20,24 +20,22 @@ import * as zlib from "node:zlib";
 import * as http from "node:http";
 
 describe("DefaultApiClient", () => {
-  describe("TLS verification disabled", () => {
-    test("makes HTTPS request with verifySsl=false", async () => {
-      const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
+  test("makes HTTPS request with verifySsl=false", async () => {
+    const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
 
-      const transport = TransportOptions.builder().verifySsl(false).build();
+    const transport = TransportOptions.builder().verifySsl(false).build();
 
-      const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        "GET",
-        `${chasmUrl}/test/echo`,
-        {},
-        null,
-      );
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${chasmUrl}/test/echo`,
+      {},
+      null,
+    );
 
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('"method"');
-    }, 30000);
-  });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('"method"');
+  }, 30000);
 
   describe("hostname verification", () => {
     /*
@@ -87,148 +85,138 @@ describe("DefaultApiClient", () => {
     });
   });
 
-  describe("custom CA bundle", () => {
-    test("makes HTTPS request with custom CA cert", async () => {
-      const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
-      const caCertPath = process.env["CA_CERT_PATH"]!;
+  test("makes HTTPS request with custom CA cert", async () => {
+    const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
+    const caCertPath = process.env["CA_CERT_PATH"]!;
 
-      const transport = TransportOptions.builder()
-        .verifySsl(true)
-        .caCertPath(caCertPath)
-        .build();
+    const transport = TransportOptions.builder()
+      .verifySsl(true)
+      .caCertPath(caCertPath)
+      .build();
 
-      const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        "GET",
-        `${chasmUrl}/test/echo`,
-        {},
-        null,
-      );
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${chasmUrl}/test/echo`,
+      {},
+      null,
+    );
 
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('"method"');
-    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('"method"');
   });
 
-  describe("proxy with credentials", () => {
-    /*
-     * Gap AK: userinfo embedded in the proxy URL must be base64-encoded
-     * and surfaced as Proxy-Authorization so the proxy can authenticate
-     * the tunnel — otherwise the proxy 407s. Undici's ProxyAgent reads
-     * userinfo natively from the URL; we assert TransportOptions
-     * preserves the userinfo end-to-end.
-     */
-    /*
-     * The fixture proxy's second port refuses a request unless it carries
-     * Proxy-Authorization, so these two prove the credentials in the proxy
-     * URL reach the proxy on the wire.
-     */
-    test("authenticating proxy accepts the credentials from the proxy URL", async () => {
-      const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
-      const transport = TransportOptions.builder()
-        .proxy(`http://user:pass@${process.env["PROXY_AUTH_HOST_PORT"]!}`)
-        .build();
+  /*
+   * Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+   * and surfaced as Proxy-Authorization so the proxy can authenticate
+   * the tunnel — otherwise the proxy 407s. Undici's ProxyAgent reads
+   * userinfo natively from the URL; we assert TransportOptions
+   * preserves the userinfo end-to-end.
+   */
+  /*
+   * The fixture proxy's second port refuses a request unless it carries
+   * Proxy-Authorization, so these two prove the credentials in the proxy
+   * URL reach the proxy on the wire.
+   */
+  test("authenticating proxy accepts the credentials from the proxy URL", async () => {
+    const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
+    const transport = TransportOptions.builder()
+      .proxy(`http://user:pass@${process.env["PROXY_AUTH_HOST_PORT"]!}`)
+      .build();
 
-      const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        "GET",
-        `${chasmUrl}/test/echo`,
-        {},
-        null,
-      );
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${chasmUrl}/test/echo`,
+      {},
+      null,
+    );
 
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('"method"');
-    });
-
-    test("authenticating proxy refuses a request without credentials", async () => {
-      const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
-      const transport = TransportOptions.builder()
-        .proxy(`http://${process.env["PROXY_AUTH_HOST_PORT"]!}`)
-        .build();
-
-      const client = new DefaultApiClient(transport);
-      const refused = await client
-        .sendRequest("GET", `${chasmUrl}/test/echo`, {}, null)
-        .catch((error: unknown) => error);
-
-      /* The proxy answered, so this is the status error, not a NetworkError. */
-      expect((refused as Error).constructor).toBe(ClientError);
-      expect((refused as ClientError).statusCode).toBe(407);
-    });
-
-    test("proxy_with_credentials_injects_basic_authorization", () => {
-      const transport = TransportOptions.builder()
-        .proxy("http://alice:s3cret@127.0.0.1:3128")
-        .build();
-      const url = new URL(transport.proxy!);
-      expect(url.username).toBe("alice");
-      expect(url.password).toBe("s3cret");
-      const encoded = Buffer.from(
-        `${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`,
-      ).toString("base64");
-      expect(`Basic ${encoded}`).toBe("Basic YWxpY2U6czNjcmV0");
-    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('"method"');
   });
 
-  describe("HTTP proxy", () => {
-    test("makes HTTP request through proxy", async () => {
-      const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
-      const proxyUrl = process.env["PROXY_URL"]!;
+  test("authenticating proxy refuses a request without credentials", async () => {
+    const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
+    const transport = TransportOptions.builder()
+      .proxy(`http://${process.env["PROXY_AUTH_HOST_PORT"]!}`)
+      .build();
 
-      const transport = TransportOptions.builder().proxy(proxyUrl).build();
+    const client = new DefaultApiClient(transport);
+    const refused = await client
+      .sendRequest("GET", `${chasmUrl}/test/echo`, {}, null)
+      .catch((error: unknown) => error);
 
-      const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        "GET",
-        `${chasmUrl}/test/echo`,
-        {},
-        null,
-      );
-
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('"method"');
-    });
+    /* The proxy answered, so this is the status error, not a NetworkError. */
+    expect((refused as Error).constructor).toBe(ClientError);
+    expect((refused as ClientError).statusCode).toBe(407);
   });
 
-  describe("HTTP proxy with TLS", () => {
-    test("makes HTTPS request through proxy with verifySsl=false", async () => {
-      const chasmUrl = process.env["CHASM_INTERNAL_HTTPS_URL"]!;
-      const proxyUrl = process.env["PROXY_URL"]!;
-
-      const transport = TransportOptions.builder()
-        .proxy(proxyUrl)
-        .verifySsl(false)
-        .build();
-
-      const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        "GET",
-        `${chasmUrl}/test/echo`,
-        {},
-        null,
-      );
-
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('"method"');
-    });
+  test("proxy_with_credentials_injects_basic_authorization", () => {
+    const transport = TransportOptions.builder()
+      .proxy("http://alice:s3cret@127.0.0.1:3128")
+      .build();
+    const url = new URL(transport.proxy!);
+    expect(url.username).toBe("alice");
+    expect(url.password).toBe("s3cret");
+    const encoded = Buffer.from(
+      `${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`,
+    ).toString("base64");
+    expect(`Basic ${encoded}`).toBe("Basic YWxpY2U6czNjcmV0");
   });
 
-  describe("request timeout", () => {
-    test("times out on slow endpoint", async () => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+  test("makes HTTP request through proxy", async () => {
+    const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
+    const proxyUrl = process.env["PROXY_URL"]!;
 
-      const transport = TransportOptions.builder().timeout(1000).build();
+    const transport = TransportOptions.builder().proxy(proxyUrl).build();
 
-      const client = new DefaultApiClient(transport);
-      const error = await client
-        .sendRequest("GET", `${chasmUrl}/test/slow`, {}, null)
-        .catch((e: unknown) => e);
-      expect(error).toBeInstanceOf(NetworkTimeoutError);
-      expect(error).toBeInstanceOf(NetworkError);
-      expect((error as NetworkTimeoutError).statusCode).toBe(0);
-      expect((error as NetworkTimeoutError).cause).toBeDefined();
-    });
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${chasmUrl}/test/echo`,
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('"method"');
+  });
+
+  test("makes HTTPS request through proxy with verifySsl=false", async () => {
+    const chasmUrl = process.env["CHASM_INTERNAL_HTTPS_URL"]!;
+    const proxyUrl = process.env["PROXY_URL"]!;
+
+    const transport = TransportOptions.builder()
+      .proxy(proxyUrl)
+      .verifySsl(false)
+      .build();
+
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${chasmUrl}/test/echo`,
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('"method"');
+  });
+
+  test("times out on slow endpoint", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+
+    const transport = TransportOptions.builder().timeout(1000).build();
+
+    const client = new DefaultApiClient(transport);
+    const error = await client
+      .sendRequest("GET", `${chasmUrl}/test/slow`, {}, null)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NetworkTimeoutError);
+    expect(error).toBeInstanceOf(NetworkError);
+    expect((error as NetworkTimeoutError).statusCode).toBe(0);
+    expect((error as NetworkTimeoutError).cause).toBeDefined();
   });
 
   describe("redirect chain timeout is one budget", () => {
@@ -341,26 +329,22 @@ describe("DefaultApiClient", () => {
     }, 30000);
   });
 
-  describe("User-Agent header", () => {
-    test("injects custom User-Agent header", async () => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+  test("injects custom User-Agent header", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
-      const transport = TransportOptions.builder()
-        .userAgent("MyApp/1.0")
-        .build();
+    const transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
 
-      const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        "GET",
-        `${chasmUrl}/test/echo`,
-        {},
-        null,
-      );
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${chasmUrl}/test/echo`,
+      {},
+      null,
+    );
 
-      expect(response.statusCode).toBe(200);
-      const json = JSON.parse(response.body);
-      expect(json.headers["user-agent"]).toBe("MyApp/1.0");
-    });
+    expect(response.statusCode).toBe(200);
+    const json = JSON.parse(response.body);
+    expect(json.headers["user-agent"]).toBe("MyApp/1.0");
   });
 
   describe("X-Request-ID injection", () => {
@@ -459,130 +443,124 @@ describe("DefaultApiClient", () => {
     });
   });
 
-  describe("redirect handling", () => {
-    test("follows redirects when enabled", async () => {
+  test("follows redirects when enabled", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+
+    const transport = TransportOptions.builder().followRedirects(true).build();
+
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${chasmUrl}/test/redirect/302`,
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('"method"');
+  });
+
+  test("returns redirect response when disabled", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+
+    const transport = TransportOptions.builder().followRedirects(false).build();
+
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${chasmUrl}/test/redirect/302`,
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(302);
+  });
+
+  test.each([
+    ["no-location", '{"redirect":"no-location"}'],
+    ["malformed-location", '{"redirect":"malformed"}'],
+  ])(
+    "a 302 with an unusable Location (%s) is returned untouched",
+    async (path, body) => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
-
-      const transport = TransportOptions.builder()
-        .followRedirects(true)
-        .build();
-
-      const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        "GET",
-        `${chasmUrl}/test/redirect/302`,
-        {},
-        null,
+      const client = new DefaultApiClient(
+        TransportOptions.builder().followRedirects(true).build(),
       );
 
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('"method"');
-    });
-
-    test("returns redirect response when disabled", async () => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
-
-      const transport = TransportOptions.builder()
-        .followRedirects(false)
-        .build();
-
-      const client = new DefaultApiClient(transport);
       const response = await client.sendRequest(
         "GET",
-        `${chasmUrl}/test/redirect/302`,
+        `${chasmUrl}/test/redirect/${path}`,
         {},
         null,
       );
 
       expect(response.statusCode).toBe(302);
-    });
+      expect(JSON.parse(response.body as string)).toEqual(JSON.parse(body));
+    },
+  );
 
-    test.each([
-      ["no-location", '{"redirect":"no-location"}'],
-      ["malformed-location", '{"redirect":"malformed"}'],
-    ])(
-      "a 302 with an unusable Location (%s) is returned untouched",
-      async (path, body) => {
-        const chasmUrl = process.env["CHASM_HTTP_URL"]!;
-        const client = new DefaultApiClient(
-          TransportOptions.builder().followRedirects(true).build(),
-        );
+  test("303 switches to GET and drops body (Gap T3)", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
-        const response = await client.sendRequest(
-          "GET",
-          `${chasmUrl}/test/redirect/${path}`,
-          {},
-          null,
-        );
+    const transport = TransportOptions.builder()
+      .followRedirects(true)
+      .maxRedirects(5)
+      .build();
 
-        expect(response.statusCode).toBe(302);
-        expect(JSON.parse(response.body as string)).toEqual(JSON.parse(body));
-      },
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "POST",
+      `${chasmUrl}/test/redirect/303`,
+      { "Content-Type": "application/json" },
+      "hello-body",
     );
 
-    test("303 switches to GET and drops body (Gap T3)", async () => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+    expect(response.statusCode).toBe(200);
+    const json = JSON.parse(response.body as string);
+    expect(json.method).toBe("GET");
+    expect(json.body).toBe("");
+  });
 
-      const transport = TransportOptions.builder()
-        .followRedirects(true)
-        .maxRedirects(5)
-        .build();
+  // T-new-3: multipart bodies must be replayed across 307 redirects per
+  // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+  // request after a 307 still carries the multipart form parts.
+  test("replays multipart body across 307 redirects (T-new-3)", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
-      const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        "POST",
-        `${chasmUrl}/test/redirect/303`,
-        { "Content-Type": "application/json" },
-        "hello-body",
-      );
+    const transport = TransportOptions.builder()
+      .followRedirects(true)
+      .maxRedirects(5)
+      .build();
 
-      expect(response.statusCode).toBe(200);
-      const json = JSON.parse(response.body as string);
-      expect(json.method).toBe("GET");
-      expect(json.body).toBe("");
-    });
-
-    // T-new-3: multipart bodies must be replayed across 307 redirects per
-    // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
-    // request after a 307 still carries the multipart form parts.
-    test("replays multipart body across 307 redirects (T-new-3)", async () => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
-
-      const transport = TransportOptions.builder()
-        .followRedirects(true)
-        .maxRedirects(5)
-        .build();
-
-      const client = new DefaultApiClient(transport);
-      const boundary = "test-boundary";
-      const body = Buffer.from(
+    const client = new DefaultApiClient(transport);
+    const boundary = "test-boundary";
+    const body = Buffer.from(
+      `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="description"\r\n\r\n` +
+        `hello\r\n` +
         `--${boundary}\r\n` +
-          `Content-Disposition: form-data; name="description"\r\n\r\n` +
-          `hello\r\n` +
-          `--${boundary}\r\n` +
-          `Content-Disposition: form-data; name="file"; filename="file"\r\n` +
-          `Content-Type: application/octet-stream\r\n\r\n` +
-          `file-content-bytes\r\n` +
-          `--${boundary}--\r\n`,
-      );
-      // chasm's bodyPatterns matches the replayed multipart parts; 200
-      // is returned only when the multipart body arrives intact at the
-      // redirect target.
-      const response = await client.sendRequest(
-        "POST",
-        `${chasmUrl}/test/redirect/307-multipart`,
-        { "Content-Type": `multipart/form-data; boundary=${boundary}` },
-        body,
-      );
+        `Content-Disposition: form-data; name="file"; filename="file"\r\n` +
+        `Content-Type: application/octet-stream\r\n\r\n` +
+        `file-content-bytes\r\n` +
+        `--${boundary}--\r\n`,
+    );
+    // chasm's bodyPatterns matches the replayed multipart parts; 200
+    // is returned only when the multipart body arrives intact at the
+    // redirect target.
+    const response = await client.sendRequest(
+      "POST",
+      `${chasmUrl}/test/redirect/307-multipart`,
+      { "Content-Type": `multipart/form-data; boundary=${boundary}` },
+      body,
+    );
 
-      expect(response.statusCode).toBe(200);
-      const json = JSON.parse(response.body as string);
-      expect(json.method).toBe("POST");
-      // Assert the replayed body arrived intact at the redirect target.
-      expect(typeof json.body).toBe("string");
-      expect(json.body.length).toBeGreaterThan(0);
-      expect(json.body).toContain("file-content-bytes");
-    });
+    expect(response.statusCode).toBe(200);
+    const json = JSON.parse(response.body as string);
+    expect(json.method).toBe("POST");
+    // Assert the replayed body arrived intact at the redirect target.
+    expect(typeof json.body).toBe("string");
+    expect(json.body.length).toBeGreaterThan(0);
+    expect(json.body).toContain("file-content-bytes");
   });
 
   /*
@@ -686,134 +664,126 @@ describe("DefaultApiClient", () => {
     }, 30000);
   });
 
-  describe("max redirects", () => {
-    test("respects maxRedirects limit", () => {
-      const transport = TransportOptions.builder()
-        .followRedirects(true)
-        .maxRedirects(5)
-        .build();
+  test("respects maxRedirects limit", () => {
+    const transport = TransportOptions.builder()
+      .followRedirects(true)
+      .maxRedirects(5)
+      .build();
 
-      const client = new DefaultApiClient(transport);
-      expect(client).toBeDefined();
-      expect(transport.maxRedirects).toBe(5);
-    });
+    const client = new DefaultApiClient(transport);
+    expect(client).toBeDefined();
+    expect(transport.maxRedirects).toBe(5);
   });
 
-  describe("multipart body", () => {
-    test("sends multipart form data", async () => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+  test("sends multipart form data", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
-      const client = new DefaultApiClient();
-      const formData: Buffer = Buffer.from(
-        JSON.stringify({ description: "A test file" }),
-      );
-      const response = await client.sendRequest(
-        "POST",
-        `${chasmUrl}/test/echo`,
-        { "Content-Type": "multipart/form-data" },
-        formData,
-      );
-
-      expect(response).toBeDefined();
-    });
-
-    // W-new-2: multipart field-name validation must run on every branch (not
-    // just binary). Confirm that even for a plain string value, a CR/LF in
-    // the field name is rejected, preventing Content-Disposition smuggling.
-    test("multipart_field_name_with_crlf_rejected_on_string_value", async () => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
-      const client = new DefaultApiClient();
-      const badFields: Record<string, unknown> = {
-        "name\r\nInjected: yes": "string-value",
-      };
-      await expect(
-        client.sendRequest("POST", `${chasmUrl}/test/echo`, {}, badFields),
-      ).rejects.toThrow();
-    });
-  });
-
-  describe("HTTP compression", () => {
-    /*
-     * The fixture's compressed endpoints really send the requested
-     * Content-Encoding, so a JSON body that parses back to the fixture
-     * document proves the client ran the decode path for that codec.
-     */
-    const compressedUrl = (encoding: string): string =>
-      `${process.env["CHASM_HTTP_URL"]!}/test/compressed/${encoding}`;
-    const fixtureBody = { userId: 1, id: 1, title: "compressed fixture body" };
-
-    test("decompresses gzip response", async () => {
-      const client = new DefaultApiClient();
-      const response = await client.sendRequest(
-        "GET",
-        compressedUrl("gzip"),
-        { "Accept-Encoding": "gzip" },
-        null,
-      );
-
-      expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.body)).toEqual(fixtureBody);
-    });
-
-    test("decompresses brotli response", async () => {
-      const client = new DefaultApiClient();
-      const response = await client.sendRequest(
-        "GET",
-        compressedUrl("br"),
-        { "Accept-Encoding": "br" },
-        null,
-      );
-
-      expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.body)).toEqual(fixtureBody);
-    });
-
-    const zstdAvailable = typeof zlib.zstdDecompress === "function";
-    (zstdAvailable ? test : test.skip)(
-      "decompresses zstd response",
-      async () => {
-        const client = new DefaultApiClient();
-        const response = await client.sendRequest(
-          "GET",
-          compressedUrl("zstd"),
-          { "Accept-Encoding": "zstd" },
-          null,
-        );
-
-        expect(response.statusCode).toBe(200);
-        expect(JSON.parse(response.body)).toEqual(fixtureBody);
-      },
+    const client = new DefaultApiClient();
+    const formData: Buffer = Buffer.from(
+      JSON.stringify({ description: "A test file" }),
     );
+    const response = await client.sendRequest(
+      "POST",
+      `${chasmUrl}/test/echo`,
+      { "Content-Type": "multipart/form-data" },
+      formData,
+    );
+
+    expect(response).toBeDefined();
   });
 
-  describe("null-body Content-Length", () => {
-    /*
-     * Regression: POST/PUT/PATCH with body == null must emit an
-     * explicit Content-Length: 0. Some servers / WAFs reject body-
-     * bearing verbs with no Content-Length (411 Length Required). The
-     * client sets the header explicitly on body-bearing verbs when
-     * the body is null.
-     */
-    test("post_with_null_body_sends_content_length_zero", async () => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+  // W-new-2: multipart field-name validation must run on every branch (not
+  // just binary). Confirm that even for a plain string value, a CR/LF in
+  // the field name is rejected, preventing Content-Disposition smuggling.
+  test("multipart_field_name_with_crlf_rejected_on_string_value", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+    const client = new DefaultApiClient();
+    const badFields: Record<string, unknown> = {
+      "name\r\nInjected: yes": "string-value",
+    };
+    await expect(
+      client.sendRequest("POST", `${chasmUrl}/test/echo`, {}, badFields),
+    ).rejects.toThrow();
+  });
+
+  /*
+   * The fixture's compressed endpoints really send the requested
+   * Content-Encoding, so a JSON body that parses back to the fixture
+   * document proves the client ran the decode path for that codec.
+   */
+  const compressedUrl = (encoding: string): string =>
+    `${process.env["CHASM_HTTP_URL"]!}/test/compressed/${encoding}`;
+  const fixtureBody = { userId: 1, id: 1, title: "compressed fixture body" };
+
+  test("decompresses gzip response", async () => {
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest(
+      "GET",
+      compressedUrl("gzip"),
+      { "Accept-Encoding": "gzip" },
+      null,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual(fixtureBody);
+  });
+
+  test("decompresses brotli response", async () => {
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest(
+      "GET",
+      compressedUrl("br"),
+      { "Accept-Encoding": "br" },
+      null,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual(fixtureBody);
+  });
+
+  const zstdAvailable = typeof zlib.zstdDecompress === "function";
+  (zstdAvailable ? test : test.skip)(
+    "decompresses zstd response when the runtime supports it",
+    async () => {
       const client = new DefaultApiClient();
       const response = await client.sendRequest(
-        "POST",
-        `${chasmUrl}/test/echo`,
-        {},
+        "GET",
+        compressedUrl("zstd"),
+        { "Accept-Encoding": "zstd" },
         null,
       );
 
       expect(response.statusCode).toBe(200);
-      const payload = JSON.parse(response.body) as {
-        method: string;
-        contentLength: number;
-      };
-      expect(payload.method).toBe("POST");
-      // chasm reports contentLength as a camelCase integer (not a string keyed 'content-length').
-      expect(payload.contentLength).toBe(0);
-    }, 30000);
-  });
+      expect(JSON.parse(response.body)).toEqual(fixtureBody);
+    },
+  );
+
+  /*
+   * Regression: POST/PUT/PATCH with body == null must emit an
+   * explicit Content-Length: 0. Some servers / WAFs reject body-
+   * bearing verbs with no Content-Length (411 Length Required). The
+   * client sets the header explicitly on body-bearing verbs when
+   * the body is null.
+   */
+  test("post_with_null_body_sends_content_length_zero", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest(
+      "POST",
+      `${chasmUrl}/test/echo`,
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(200);
+    const payload = JSON.parse(response.body) as {
+      method: string;
+      contentLength: number;
+    };
+    expect(payload.method).toBe("POST");
+    // chasm reports contentLength as a camelCase integer (not a string keyed 'content-length').
+    expect(payload.contentLength).toBe(0);
+  }, 30000);
 
   /*
    * Canonical scenario AK — proxy userinfo is carried, not dropped.
@@ -958,23 +928,21 @@ describe("DefaultApiClient", () => {
     });
   });
 
-  describe("client lifecycle (Gap T6)", () => {
-    /*
-     * Gap T6: close() releases the underlying undici dispatcher and is
-     * idempotent. A request issued on a closed client must throw the
-     * invalid-state built-in Error (closed-flag guard), matching the
-     * uniform use-after-close contract across SDKs.
-     */
-    test("close releases underlying client", async () => {
-      const client = new DefaultApiClient();
-      await client.close();
-      // close() is idempotent.
-      await client.close();
-      const error = await client
-        .sendRequest("GET", "https://example.com", {}, null)
-        .catch((e: unknown) => e);
-      expect((error as Error).constructor).toBe(Error);
-      expect((error as Error).message).toContain("closed");
-    });
+  /*
+   * Gap T6: close() releases the underlying undici dispatcher and is
+   * idempotent. A request issued on a closed client must throw the
+   * invalid-state built-in Error (closed-flag guard), matching the
+   * uniform use-after-close contract across SDKs.
+   */
+  test("close releases underlying client", async () => {
+    const client = new DefaultApiClient();
+    await client.close();
+    // close() is idempotent.
+    await client.close();
+    const error = await client
+      .sendRequest("GET", "https://example.com", {}, null)
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(Error);
+    expect((error as Error).message).toContain("closed");
   });
 });

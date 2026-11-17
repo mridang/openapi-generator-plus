@@ -67,7 +67,7 @@ describe("BasicAuthenticator", () => {
     ).toThrow(TypeError);
   });
 
-  it("password is not leaked in default string representation", () => {
+  it("redacts secret", () => {
     // authenticator-secret-in-default-string-repr: the default inspect/JSON
     // representation must never expose the stored password.
     const auth = new BasicAuthenticator(

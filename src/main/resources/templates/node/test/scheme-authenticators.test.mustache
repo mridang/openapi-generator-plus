@@ -2,7 +2,7 @@
 
 import { {{#perSchemeAuthImports}}{{name}}{{^-last}}, {{/-last}}{{/perSchemeAuthImports}} } from '../src/index{{importFileExtension}}';
 
-describe('per-scheme authenticators', () => {
+describe('SchemeAuthenticators', () => {
   it.each([
 {{#perSchemeAuthEntries}}
     ['{{className}}', {{className}}, {{baseClass}}],

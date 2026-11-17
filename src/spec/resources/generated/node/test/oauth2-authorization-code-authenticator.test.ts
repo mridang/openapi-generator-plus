@@ -448,7 +448,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(mockClient.calls).toHaveLength(2);
   });
 
-  test("authorize URL with existing query string uses ampersand separator", () => {
+  test("authorize URL with existing query string uses amp separator", () => {
     const auth = new OAuth2AuthorizationCodeAuthenticator(
       "https://api.example.com",
       "my-client-id",
