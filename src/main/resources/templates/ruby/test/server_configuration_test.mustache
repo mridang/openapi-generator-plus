@@ -155,4 +155,31 @@ describe {{moduleName}}::ServerConfiguration do
     )
     _(config.url({ 'unknown' => 'x' })).must_equal 'https://prod.api.example.com'
   end
+
+  it 'bhv_servers_001 keeps the defaults of the variables the override leaves out' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/v{version}',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod'),
+        'version' => {{moduleName}}::ServerVariable.new(default_value: '2')
+      }
+    )
+    _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com/v2'
+  end
+
+  it 'bhv_servers_002 replaces every occurrence of a variable repeated in the template' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{host}.example.com/{host}',
+      variables: { 'host' => {{moduleName}}::ServerVariable.new(default_value: 'prod') }
+    )
+    _(config.url({ 'host' => 'staging' })).must_equal 'https://staging.example.com/staging'
+  end
+
+  it 'bhv_servers_013 keeps the hostile text of the third global server unchanged' do
+    server = {{moduleName}}::Servers::SERVER_2
+    _(server.url_template).must_equal 'https://{tenant}.example.com/api'
+    _(server.description).must_equal "Bob's \"sandbox\" & co: $5 \#{x} a*/b"
+    _(server.variables['tenant'].default_value).must_equal "o'neil"
+    _(server.variables['tenant'].enum_values).must_equal ["o'neil", 'a&b']
+  end
 end

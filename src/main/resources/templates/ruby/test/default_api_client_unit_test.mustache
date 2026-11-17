@@ -2227,4 +2227,65 @@ describe 'DefaultApiClientUnit', 'redirect dependencies' do
     spec = Gem::Specification.load('{{gemName}}.gemspec')
     _(spec.runtime_dependencies.map(&:name)).wont_include 'faraday-follow_redirects'
   end
+
+  it 'bhv_redirects_008 returns the redirect response as it is when redirects are disabled' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/moved') do
+        [302, { 'location' => 'http://localhost/final' }, '']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(false).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
+      _(resp.status_code).must_equal 302
+      _(resp.headers['location']).must_equal 'http://localhost/final'
+    end
+  end
+
+  it 'bhv_redirects_015 returns a 307 verbatim when no_redirect is set' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/moved') do
+        [307, { 'location' => 'http://localhost/final' }, '']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil, no_redirect: true)
+      _(resp.status_code).must_equal 307
+    end
+  end
+
+  it 'bhv_redirects_026 raises ApiError when maxRedirects is exceeded' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/loop') do
+        [302, { 'location' => 'http://localhost/loop' }, '']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).max_redirects(2).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::Errors::ApiError) do
+        client.send_request(:GET, 'http://localhost/loop', {}, nil)
+      end
+      _(err.detail_message).must_equal 'Too many redirects (exceeded 2)'
+      _(err.status_code).must_equal 302
+    end
+  end
+
+  it 'bhv_retries_020 refuses to replay a POST body when redirected from HTTPS to HTTP' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do
+        [307, { 'location' => 'http://insecure.example.com/upload' }, '']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::Errors::ApiError) do
+        client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
+      end
+      _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
+    end
+  end
 end

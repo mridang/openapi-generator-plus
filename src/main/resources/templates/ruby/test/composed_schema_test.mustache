@@ -332,4 +332,14 @@ describe 'Composed Schema' do
       _(restored.owner_name).must_equal(original.owner_name)
     end
   end
+
+  it 'bhv_unions_022 round-trips an array of byte values through base64 strings' do
+    raws = [[0x01, 0x02].pack('C*'), [0x03, 0x04].pack('C*')]
+    encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body(raws, 'SetPetAvatarThumbnailRequest')
+    json = {{moduleName}}::ObjectSerializer.serialize(encoded)
+
+    _(json).must_equal('["AQI=","AwQ="]')
+    result = {{moduleName}}::ObjectSerializer.deserialize(json, 'SetPetAvatarThumbnailRequest')
+    _(result.map(&:bytes)).must_equal([[0x01, 0x02], [0x03, 0x04]])
+  end
 end
