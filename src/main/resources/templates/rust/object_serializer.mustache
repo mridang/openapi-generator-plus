@@ -726,12 +726,17 @@ pub fn serialize_extras<V: Serialize, S: serde::Serializer>(
 
 /// Returns the wire text of the parameter types whose form is not their serde
 /// form: `format: byte` (`Vec<u8>`) is padded standard-alphabet base64 rather
-/// than a number array, and `format: time` is [`format_time`].
+/// than a number array, `format: time` is [`format_time`], and `format: duration`
+/// is the protobuf-JSON string of `crate::proto_duration::format` (chrono's own
+/// serde form is a `{secs, nanos}` struct).
 fn scalar_override<T: 'static>(value: &T) -> Option<String> {
     use base64::Engine as _;
     let any = value as &dyn std::any::Any;
     if let Some(bytes) = any.downcast_ref::<Vec<u8>>() {
         return Some(base64::engine::general_purpose::STANDARD.encode(bytes));
+    }
+    if let Some(duration) = any.downcast_ref::<chrono::Duration>() {
+        return Some(crate::proto_duration::format(duration));
     }
     any.downcast_ref::<chrono::NaiveTime>().map(format_time)
 }
@@ -1565,13 +1570,13 @@ mod tests {
     }
 
     #[test]
-    fn test_to_header_value_none() {
+    fn test_bhv_serializationobject_132_to_header_value_none() {
         let result = object_serializer::to_header_value(&Option::<String>::None);
         assert_eq!(result, "");
     }
 
     #[test]
-    fn test_to_path_value_none() {
+    fn test_bhv_serializationobject_131_to_path_value_none() {
         let result = object_serializer::to_path_value(&Option::<String>::None);
         assert_eq!(result, "");
     }
@@ -1592,7 +1597,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_cookie_value_none() {
+    fn test_bhv_serializationobject_133_to_cookie_value_none() {
         let result = object_serializer::to_cookie_value(&Option::<String>::None);
         assert_eq!(result, "");
     }
@@ -2075,6 +2080,152 @@ mod tests {
             .expect("decode failed")
             .expect("expected Some");
         assert_eq!(decoded.cutoff, chrono::NaiveTime::from_hms_milli_opt(10, 30, 0, 123));
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_118_scalar_for_a_nested_model_raises_serialization_error() {
+        assert!(
+            object_serializer::deserialize::<crate::models::PetPassport>(br#"{"pet":5}"#).is_err(),
+            "a scalar where a Pet object is expected must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_120_fractional_number_for_an_int32_field_is_rejected() {
+        assert!(
+            object_serializer::deserialize::<crate::models::Order>(br#"{"quantity":1.5}"#).is_err(),
+            "a fractional quantity must not be truncated to an int32"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_121_null_element_in_an_array_of_models_is_rejected() {
+        assert!(
+            object_serializer::deserialize::<Vec<crate::models::Tag>>(br#"[{"id":1},null]"#)
+                .is_err(),
+            "a null element of an array of models must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_122_null_elements_of_int32_maps_and_nested_arrays_are_rejected() {
+        assert!(
+            object_serializer::deserialize::<std::collections::HashMap<String, i32>>(
+                br#"{"a":1,"b":null}"#
+            )
+            .is_err(),
+            "a null value in a map of int32 must be refused"
+        );
+        assert!(
+            object_serializer::deserialize::<Vec<Vec<i32>>>(br#"[[1,null]]"#).is_err(),
+            "a null element of a nested array of int32 must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_123_null_value_in_a_map_of_models_is_rejected() {
+        assert!(
+            object_serializer::deserialize::<std::collections::HashMap<String, crate::models::Tag>>(
+                br#"{"a":null}"#
+            )
+            .is_err(),
+            "a null value in a map of models must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_128_one_of_returns_the_first_matching_variant() {
+        let decoded: Option<crate::models::SetPetAvatarThumbnailRequest> =
+            object_serializer::deserialize(br#""AQID""#).expect("a base64 string decodes");
+        assert_eq!(
+            decoded,
+            Some(crate::models::SetPetAvatarThumbnailRequest::VecU8(vec![1, 2, 3]))
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_129_one_of_throws_when_no_variant_matches() {
+        assert!(
+            object_serializer::deserialize::<crate::models::SetPetAvatarThumbnailRequest>(b"42")
+                .is_err(),
+            "a number matches neither variant of the oneOf"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_136_returns_none_for_empty_input() {
+        let decoded: Option<crate::models::Tag> =
+            object_serializer::deserialize(b"").expect("empty input is not an error");
+        assert!(decoded.is_none());
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_138_returns_none_for_null_input() {
+        let decoded: Option<crate::models::Tag> =
+            object_serializer::deserialize(b"null").expect("null is not an error");
+        assert!(decoded.is_none());
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_139_returns_the_string_for_a_string_value() {
+        assert_eq!(object_serializer::stringify(&"hello".to_string()), "hello");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_154_strict_model_rejects_an_undeclared_key() {
+        assert!(
+            object_serializer::deserialize::<crate::models::StrictTag>(
+                br#"{"id":1,"extra":true}"#
+            )
+            .is_err(),
+            "a strict model must refuse a key it does not declare"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_157_stringify_date_time_returns_iso_8601_string() {
+        let value = crate::date_time::DateTime::new(
+            chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45.250+00:00")
+                .expect("valid date-time"),
+        );
+        assert_eq!(
+            object_serializer::stringify(&value),
+            "2024-01-01T12:30:45.250+00:00"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_158_stringify_emits_the_canonical_protobuf_duration() {
+        assert_eq!(
+            object_serializer::stringify(&chrono::Duration::seconds(5400)),
+            "5400s"
+        );
+        assert_eq!(
+            object_serializer::stringify(&chrono::Duration::milliseconds(1500)),
+            "1.500s"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_172_unknown_enum_value_raises_serialization_error() {
+        assert!(
+            object_serializer::deserialize::<crate::models::Separator>(br#""banana""#).is_err(),
+            "an enum value outside the schema must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_180_wrong_primitive_type_is_a_serialization_error() {
+        assert!(
+            object_serializer::deserialize::<crate::models::Order>(br#"{"quantity":"five"}"#)
+                .is_err(),
+            "a string where an int32 is expected must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_181_zero_duration_stringifies_as_0s() {
+        assert_eq!(object_serializer::stringify(&chrono::Duration::zero()), "0s");
     }
 {{/generateTests}}
 }
