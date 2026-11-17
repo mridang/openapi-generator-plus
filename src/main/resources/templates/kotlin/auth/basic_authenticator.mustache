@@ -8,7 +8,7 @@ import java.util.Base64
  * Authenticator for HTTP Basic authentication.
  *
  * Each credential is the first of: the argument, the environment variable
- * `{{credentialEnvPrefix}}_USERNAME` or `{{credentialEnvPrefix}}_PASSWORD` (read once, here; an empty
+ * `{{envVarPrefix}}_USERNAME` or `{{envVarPrefix}}_PASSWORD` (read once, here; an empty
  * value counts as unset). When one is missing, building the authenticator fails.
  *
  * @param host the base URL of the API
@@ -16,21 +16,34 @@ import java.util.Base64
  * @param password the Basic auth password
  * @throws IllegalArgumentException if a credential is missing or malformed
  */
-open class BasicAuthenticator(
+open class BasicAuthenticator internal constructor(
     private val host: String,
-    username: String? = null,
-    password: String? = null,
+    username: String?,
+    password: String?,
+    usernameVariable: String,
+    passwordVariable: String,
 ) : BaseAuthenticator() {
 
+    /**
+     * Creates an authenticator that reads `{{envVarPrefix}}_USERNAME` and
+     * `{{envVarPrefix}}_PASSWORD` for a credential that is not passed.
+     *
+     * @param host the base URL of the API
+     * @param username the Basic auth user-id
+     * @param password the Basic auth password
+     * @throws IllegalArgumentException if a credential is missing or malformed
+     */
+    constructor(
+        host: String,
+        username: String? = null,
+        password: String? = null,
+    ) : this(host, username, password, "{{envVarPrefix}}_USERNAME", "{{envVarPrefix}}_PASSWORD")
+
     private val username: String =
-        username ?: CredentialEnvironment.read("USERNAME") ?: throw IllegalArgumentException(
-            "A Basic auth username is required: pass one or set ${CredentialEnvironment.variable("USERNAME")}"
-        )
+        CredentialEnvironment.require(username, usernameVariable, "the Basic auth username")
 
     private val password: String =
-        password ?: CredentialEnvironment.read("PASSWORD") ?: throw IllegalArgumentException(
-            "A Basic auth password is required: pass one or set ${CredentialEnvironment.variable("PASSWORD")}"
-        )
+        CredentialEnvironment.require(password, passwordVariable, "the Basic auth password")
 
     init {
         // Validate eagerly at construction so a malformed credential surfaces

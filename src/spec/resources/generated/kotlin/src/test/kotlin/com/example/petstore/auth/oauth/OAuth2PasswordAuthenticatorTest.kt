@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.auth.CredentialEnvironment
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -356,7 +357,8 @@ class OAuth2PasswordAuthenticatorTest {
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
-        val auth = LegacyAuthPasswordAuthenticator("https://api.example.com", "cid", "sec", "alice", "pw")
+        val auth =
+            LegacyAuthPasswordAuthenticator("https://api.example.com", "cid", "sec", "alice", "pw")
         auth.setApiClient(client)
 
         runBlocking { auth.getAuthHeaders() }
@@ -366,5 +368,54 @@ class OAuth2PasswordAuthenticatorTest {
         runBlocking { auth.getAuthHeaders() }
         assertEquals("https://auth.example.com/oauth/refresh", client.lastUrl)
         assertTrue(client.lastBody!!.contains("grant_type=refresh_token"), client.lastBody)
+    }
+
+    private fun <T> withEnvironment(
+        values: Map<String, String>,
+        body: () -> T,
+    ): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    fun generatedSchemeWrapperReadsEveryCredentialFromItsOwnVariable() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok","expires_in":3600}""")
+        val env =
+            mapOf(
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID" to "env-id",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET" to "env-" + "secret",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME" to "env-user",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD" to "env-" + "pw",
+            )
+        val auth =
+            withEnvironment(env) { LegacyAuthPasswordAuthenticator("https://api.example.com", username = "arg-user") }
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        assertTrue(client.lastBody!!.contains("username=arg-user"), client.lastBody)
+        assertTrue(client.lastBody!!.contains("env-pw"), client.lastBody)
+    }
+
+    @Test
+    fun generatedSchemeWrapperFailsNamingTheVariableOfAMissingCredential() {
+        val env =
+            mapOf(
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID" to "env-id",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET" to "x",
+            )
+        val ex =
+            withEnvironment(env) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    LegacyAuthPasswordAuthenticator("https://api.example.com")
+                }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"), ex.message)
     }
 }

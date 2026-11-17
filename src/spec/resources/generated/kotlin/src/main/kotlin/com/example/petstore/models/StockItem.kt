@@ -27,7 +27,7 @@ data class StockItem(
      * The `availability` property.
      */
     @SerialName("availability")
-    val availability: Availability? = null,
+    val availability: Availability? = Availability.ON_HOLD,
     /**
      * Quantity grid as an array of integer arrays
      */

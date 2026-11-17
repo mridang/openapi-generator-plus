@@ -60,6 +60,21 @@ class SetPetAvatarThumbnailRequest(
             else -> a.hashCode()
         }
 
+    /** Tells whether this union holds a [ByteArray]. */
+    val isByteArray: Boolean
+        get() = actualInstance is ByteArray
+
+    /** The held variant as a [ByteArray], or null when this union holds another variant. */
+    fun asByteArray(): ByteArray? = actualInstance as? ByteArray
+
+    companion object {
+        /** Wraps a [ByteArray] as this union. */
+        fun fromByteArray(value: ByteArray): SetPetAvatarThumbnailRequest = SetPetAvatarThumbnailRequest(value)
+
+        /** Wraps a [List<ByteArray>] as this union. */
+        fun fromListOfByteArray(value: List<ByteArray>): SetPetAvatarThumbnailRequest = SetPetAvatarThumbnailRequest(value)
+    }
+
     internal object Serializer : kotlinx.serialization.KSerializer<SetPetAvatarThumbnailRequest> {
         override val descriptor =
             kotlinx.serialization.descriptors.buildClassSerialDescriptor("SetPetAvatarThumbnailRequest")

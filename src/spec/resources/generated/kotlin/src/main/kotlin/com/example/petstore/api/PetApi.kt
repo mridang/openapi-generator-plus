@@ -17,11 +17,24 @@ import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.AddPetTreatmentOptions
 import com.example.petstore.api.options.DeletePetOptions
+import com.example.petstore.api.options.DownloadPetDocumentOptions
+import com.example.petstore.api.options.FindPetsBornOnOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
+import com.example.petstore.api.options.GetExternalPetInfoOptions
+import com.example.petstore.api.options.GetMultiServerPetInfoOptions
+import com.example.petstore.api.options.GetPetAvatarOptions
+import com.example.petstore.api.options.GetPetAvatarThumbnailOptions
+import com.example.petstore.api.options.GetPetByIdOptions
 import com.example.petstore.api.options.GetPetByNameOptions
+import com.example.petstore.api.options.GetPetPassportOptions
+import com.example.petstore.api.options.GetPetPhotoOptions
 import com.example.petstore.api.options.GetPetSummaryOptions
 import com.example.petstore.api.options.GetPetTagOptions
+import com.example.petstore.api.options.GetStagingPetInfoOptions
+import com.example.petstore.api.options.SetPetAvatarOptions
+import com.example.petstore.api.options.SetPetAvatarThumbnailOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
+import com.example.petstore.api.options.UpdatePetOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.auth.Authenticator
@@ -168,7 +181,7 @@ class PetApi : BaseApi {
     /**
      * Add a new pet to the store
      * @param pet Create a new pet in the store (required)
-     * @param options per-operation authenticator override
+     * @param options per-operation authenticator override and the per-call timeout, headers and maxRetries
 
      * @return Pet
      * @throws ApiException if fails to make API call
@@ -222,7 +235,7 @@ class PetApi : BaseApi {
      * Add photos to the pet's gallery
      * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
      * @param petId  (required)
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return List<Photo>
      * @throws ApiException if fails to make API call
@@ -289,7 +302,7 @@ class PetApi : BaseApi {
      * Record a treatment for a pet
      * @param petId  (required)
      * @param petTreatment  (required)
-     * @param options per-operation authenticator override
+     * @param options per-operation authenticator override and the per-call timeout, headers and maxRetries
 
      * @return PetTreatment
      * @throws ApiException if fails to make API call
@@ -352,7 +365,7 @@ class PetApi : BaseApi {
     /**
      * Deletes a pet
      * @param petId Pet id to delete (required)
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters, per-operation auth and the per-call timeout, headers and maxRetries
 
      * @throws ApiException if fails to make API call
      */
@@ -425,6 +438,7 @@ class PetApi : BaseApi {
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
      * @param petId  (required)
      * @param documentId  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return ByteArray
      * @throws ApiException if fails to make API call
@@ -432,8 +446,9 @@ class PetApi : BaseApi {
     suspend fun downloadPetDocument(
         petId: Long,
         documentId: Long,
+        options: DownloadPetDocumentOptions? = null,
     ): ByteArray =
-        downloadPetDocumentWithHttpInfo(petId, documentId).let { result ->
+        downloadPetDocumentWithHttpInfo(petId, documentId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for downloadPetDocument but received none",
@@ -446,7 +461,11 @@ class PetApi : BaseApi {
     suspend fun downloadPetDocumentWithHttpInfo(
         petId: Long,
         documentId: Long,
+        options: DownloadPetDocumentOptions? = null,
     ): ApiResult<ByteArray> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.downloadPetDocument"
         }
@@ -475,18 +494,25 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.downloadPetDocument",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * List pets born on a given date
      * @param bornOn Date of birth to match (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return List<Pet>
      * @throws ApiException if fails to make API call
      */
-    suspend fun findPetsBornOn(bornOn: LocalDate): List<Pet> =
-        findPetsBornOnWithHttpInfo(bornOn).let { result ->
+    suspend fun findPetsBornOn(
+        bornOn: LocalDate,
+        options: FindPetsBornOnOptions? = null,
+    ): List<Pet> =
+        findPetsBornOnWithHttpInfo(bornOn, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for findPetsBornOn but received none",
@@ -496,7 +522,13 @@ class PetApi : BaseApi {
         }
 
     /** Same as [findPetsBornOn] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun findPetsBornOnWithHttpInfo(bornOn: LocalDate): ApiResult<List<Pet>> {
+    suspend fun findPetsBornOnWithHttpInfo(
+        bornOn: LocalDate,
+        options: FindPetsBornOnOptions? = null,
+    ): ApiResult<List<Pet>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(bornOn) {
             "Missing the required parameter 'bornOn' when calling PetApi.findPetsBornOn"
         }
@@ -519,12 +551,15 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.findPetsBornOn",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Finds Pets by status
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return List<Pet>
      * @throws ApiException if fails to make API call
@@ -597,14 +632,21 @@ class PetApi : BaseApi {
     }
 
     /** Same as [getExternalPetInfo] but sends the request to the default server. */
-    suspend fun getExternalPetInfo(petId: Long): Pet = getExternalPetInfo(petId = petId, server = null)
+    suspend fun getExternalPetInfo(
+        petId: Long,
+        options: GetExternalPetInfoOptions? = null,
+    ): Pet = getExternalPetInfo(petId = petId, options = options, server = null)
 
     /** Same as [getExternalPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getExternalPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getExternalPetInfoWithHttpInfo(petId = petId, server = null)
+    suspend fun getExternalPetInfoWithHttpInfo(
+        petId: Long,
+        options: GetExternalPetInfoOptions? = null,
+    ): ApiResult<Pet> = getExternalPetInfoWithHttpInfo(petId = petId, options = options, server = null)
 
     /**
      * Get external pet info
      * @param petId  (required)
+     * @param options the per-call timeout, headers and maxRetries
      * @param server the server to send the request to; when null the default server is used
 
      * @return Pet
@@ -613,8 +655,9 @@ class PetApi : BaseApi {
     suspend fun getExternalPetInfo(
         petId: Long,
         server: GetExternalPetInfoServer? = null,
+        options: GetExternalPetInfoOptions? = null,
     ): Pet =
-        getExternalPetInfoWithHttpInfo(petId, server).let { result ->
+        getExternalPetInfoWithHttpInfo(petId, server, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getExternalPetInfo but received none",
@@ -627,7 +670,11 @@ class PetApi : BaseApi {
     suspend fun getExternalPetInfoWithHttpInfo(
         petId: Long,
         server: GetExternalPetInfoServer? = null,
+        options: GetExternalPetInfoOptions? = null,
     ): ApiResult<Pet> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getExternalPetInfo"
         }
@@ -656,19 +703,28 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getExternalPetInfo",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /** Same as [getMultiServerPetInfo] but sends the request to the default server. */
-    suspend fun getMultiServerPetInfo(petId: Long): Pet = getMultiServerPetInfo(petId = petId, server = null)
+    suspend fun getMultiServerPetInfo(
+        petId: Long,
+        options: GetMultiServerPetInfoOptions? = null,
+    ): Pet = getMultiServerPetInfo(petId = petId, options = options, server = null)
 
     /** Same as [getMultiServerPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getMultiServerPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> =
-        getMultiServerPetInfoWithHttpInfo(petId = petId, server = null)
+    suspend fun getMultiServerPetInfoWithHttpInfo(
+        petId: Long,
+        options: GetMultiServerPetInfoOptions? = null,
+    ): ApiResult<Pet> = getMultiServerPetInfoWithHttpInfo(petId = petId, options = options, server = null)
 
     /**
      * Get multi-server pet info
      * @param petId  (required)
+     * @param options the per-call timeout, headers and maxRetries
      * @param server the server to send the request to; when null the default server is used
 
      * @return Pet
@@ -677,8 +733,9 @@ class PetApi : BaseApi {
     suspend fun getMultiServerPetInfo(
         petId: Long,
         server: GetMultiServerPetInfoServer? = null,
+        options: GetMultiServerPetInfoOptions? = null,
     ): Pet =
-        getMultiServerPetInfoWithHttpInfo(petId, server).let { result ->
+        getMultiServerPetInfoWithHttpInfo(petId, server, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getMultiServerPetInfo but received none",
@@ -691,7 +748,11 @@ class PetApi : BaseApi {
     suspend fun getMultiServerPetInfoWithHttpInfo(
         petId: Long,
         server: GetMultiServerPetInfoServer? = null,
+        options: GetMultiServerPetInfoOptions? = null,
     ): ApiResult<Pet> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getMultiServerPetInfo"
         }
@@ -720,6 +781,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getMultiServerPetInfo",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -727,12 +791,16 @@ class PetApi : BaseApi {
      * Get the pet's profile photo
      * Returns the raw image bytes of the pet's current avatar.
      * @param petId  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
-    suspend fun getPetAvatar(petId: Long): ByteArray =
-        getPetAvatarWithHttpInfo(petId).let { result ->
+    suspend fun getPetAvatar(
+        petId: Long,
+        options: GetPetAvatarOptions? = null,
+    ): ByteArray =
+        getPetAvatarWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getPetAvatar but received none",
@@ -742,7 +810,13 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetAvatar] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetAvatarWithHttpInfo(petId: Long): ApiResult<ByteArray> {
+    suspend fun getPetAvatarWithHttpInfo(
+        petId: Long,
+        options: GetPetAvatarOptions? = null,
+    ): ApiResult<ByteArray> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetAvatar"
         }
@@ -765,6 +839,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getPetAvatar",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -772,12 +849,16 @@ class PetApi : BaseApi {
      * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
      * @param petId  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
-    suspend fun getPetAvatarThumbnail(petId: Long): ByteArray =
-        getPetAvatarThumbnailWithHttpInfo(petId).let { result ->
+    suspend fun getPetAvatarThumbnail(
+        petId: Long,
+        options: GetPetAvatarThumbnailOptions? = null,
+    ): ByteArray =
+        getPetAvatarThumbnailWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getPetAvatarThumbnail but received none",
@@ -787,7 +868,13 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetAvatarThumbnail] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetAvatarThumbnailWithHttpInfo(petId: Long): ApiResult<ByteArray> {
+    suspend fun getPetAvatarThumbnailWithHttpInfo(
+        petId: Long,
+        options: GetPetAvatarThumbnailOptions? = null,
+    ): ApiResult<ByteArray> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetAvatarThumbnail"
         }
@@ -810,16 +897,25 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getPetAvatarThumbnail",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /** Same as [getPetById] but sends the request to the default server. */
     @Deprecated("This operation is deprecated.")
-    suspend fun getPetById(petId: Long): Pet = getPetById(petId = petId, server = null)
+    suspend fun getPetById(
+        petId: Long,
+        options: GetPetByIdOptions? = null,
+    ): Pet = getPetById(petId = petId, options = options, server = null)
 
     /** Same as [getPetByIdWithHttpInfo] but sends the request to the default server. */
     @Deprecated("This operation is deprecated.")
-    suspend fun getPetByIdWithHttpInfo(petId: Long): ApiResult<Pet> = getPetByIdWithHttpInfo(petId = petId, server = null)
+    suspend fun getPetByIdWithHttpInfo(
+        petId: Long,
+        options: GetPetByIdOptions? = null,
+    ): ApiResult<Pet> = getPetByIdWithHttpInfo(petId = petId, options = options, server = null)
 
     /**
      * Find pet by ID
@@ -827,6 +923,7 @@ class PetApi : BaseApi {
      * @param petId ID of pet to return (required)
      * Example — Small breed ID: `1`
      * Example — Large breed ID: `42`
+     * @param options the per-call timeout, headers and maxRetries
      * @param server the server to send the request to; when null the default server is used
 
      * @return Pet
@@ -837,8 +934,9 @@ class PetApi : BaseApi {
     suspend fun getPetById(
         petId: Long,
         server: GetPetByIdServer? = null,
+        options: GetPetByIdOptions? = null,
     ): Pet =
-        getPetByIdWithHttpInfo(petId, server).let { result ->
+        getPetByIdWithHttpInfo(petId, server, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getPetById but received none",
@@ -852,7 +950,11 @@ class PetApi : BaseApi {
     suspend fun getPetByIdWithHttpInfo(
         petId: Long,
         server: GetPetByIdServer? = null,
+        options: GetPetByIdOptions? = null,
     ): ApiResult<Pet> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetById"
         }
@@ -881,13 +983,16 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getPetById",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Look up a pet by name (simple string path param + required query)
      * @param name  (required)
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return Pet
      * @throws ApiException if fails to make API call
@@ -976,12 +1081,16 @@ class PetApi : BaseApi {
      * Get the pet's passport
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param petId  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return PetPassport
      * @throws ApiException if fails to make API call
      */
-    suspend fun getPetPassport(petId: Long): PetPassport =
-        getPetPassportWithHttpInfo(petId).let { result ->
+    suspend fun getPetPassport(
+        petId: Long,
+        options: GetPetPassportOptions? = null,
+    ): PetPassport =
+        getPetPassportWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getPetPassport but received none",
@@ -991,7 +1100,13 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetPassport] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetPassportWithHttpInfo(petId: Long): ApiResult<PetPassport> {
+    suspend fun getPetPassportWithHttpInfo(
+        petId: Long,
+        options: GetPetPassportOptions? = null,
+    ): ApiResult<PetPassport> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetPassport"
         }
@@ -1014,6 +1129,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getPetPassport",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1022,6 +1140,7 @@ class PetApi : BaseApi {
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
      * @param petId  (required)
      * @param photoId  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return ByteArray
      * @throws ApiException if fails to make API call
@@ -1029,8 +1148,9 @@ class PetApi : BaseApi {
     suspend fun getPetPhoto(
         petId: Long,
         photoId: Long,
+        options: GetPetPhotoOptions? = null,
     ): ByteArray =
-        getPetPhotoWithHttpInfo(petId, photoId).let { result ->
+        getPetPhotoWithHttpInfo(petId, photoId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getPetPhoto but received none",
@@ -1043,7 +1163,11 @@ class PetApi : BaseApi {
     suspend fun getPetPhotoWithHttpInfo(
         petId: Long,
         photoId: Long,
+        options: GetPetPhotoOptions? = null,
     ): ApiResult<ByteArray> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetPhoto"
         }
@@ -1072,6 +1196,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getPetPhoto",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1080,7 +1207,7 @@ class PetApi : BaseApi {
      * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
      * @param petId  (required)
      * @param asOf Summary date, sent as a matrix-style path segment (required)
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return String
      * @throws ApiException if fails to make API call
@@ -1180,7 +1307,7 @@ class PetApi : BaseApi {
      * Get a tag for a pet
      * @param petId  (required)
      * @param tagName  (required)
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return Pet
      * @throws ApiException if fails to make API call
@@ -1317,14 +1444,21 @@ class PetApi : BaseApi {
     }
 
     /** Same as [getStagingPetInfo] but sends the request to the default server. */
-    suspend fun getStagingPetInfo(petId: Long): Pet = getStagingPetInfo(petId = petId, server = null)
+    suspend fun getStagingPetInfo(
+        petId: Long,
+        options: GetStagingPetInfoOptions? = null,
+    ): Pet = getStagingPetInfo(petId = petId, options = options, server = null)
 
     /** Same as [getStagingPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getStagingPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getStagingPetInfoWithHttpInfo(petId = petId, server = null)
+    suspend fun getStagingPetInfoWithHttpInfo(
+        petId: Long,
+        options: GetStagingPetInfoOptions? = null,
+    ): ApiResult<Pet> = getStagingPetInfoWithHttpInfo(petId = petId, options = options, server = null)
 
     /**
      * Get staging pet info
      * @param petId  (required)
+     * @param options the per-call timeout, headers and maxRetries
      * @param server the server to send the request to; when null the default server is used
 
      * @return Pet
@@ -1333,8 +1467,9 @@ class PetApi : BaseApi {
     suspend fun getStagingPetInfo(
         petId: Long,
         server: GetStagingPetInfoServer? = null,
+        options: GetStagingPetInfoOptions? = null,
     ): Pet =
-        getStagingPetInfoWithHttpInfo(petId, server).let { result ->
+        getStagingPetInfoWithHttpInfo(petId, server, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getStagingPetInfo but received none",
@@ -1347,7 +1482,11 @@ class PetApi : BaseApi {
     suspend fun getStagingPetInfoWithHttpInfo(
         petId: Long,
         server: GetStagingPetInfoServer? = null,
+        options: GetStagingPetInfoOptions? = null,
     ): ApiResult<Pet> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getStagingPetInfo"
         }
@@ -1376,6 +1515,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getStagingPetInfo",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1384,6 +1526,7 @@ class PetApi : BaseApi {
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
      * @param petId  (required)
      * @param body  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @param requestContentType one of the declared request content-types; when null the first declared type is used (defaults to the first declared content-type)
 
@@ -1392,17 +1535,22 @@ class PetApi : BaseApi {
     suspend fun setPetAvatar(
         petId: Long,
         body: ByteArray,
+        options: SetPetAvatarOptions? = null,
         requestContentType: String? = null,
     ) {
-        setPetAvatarWithHttpInfo(petId, body, requestContentType)
+        setPetAvatarWithHttpInfo(petId, body, options, requestContentType)
     }
 
     /** Same as [setPetAvatar] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun setPetAvatarWithHttpInfo(
         petId: Long,
         body: ByteArray,
+        options: SetPetAvatarOptions? = null,
         requestContentType: String? = null,
     ): ApiResult<Unit> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.setPetAvatar"
         }
@@ -1441,6 +1589,9 @@ class PetApi : BaseApi {
             effectiveRequestContentType,
             null,
             "PetApi.setPetAvatar",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1449,21 +1600,27 @@ class PetApi : BaseApi {
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
      * @param petId  (required)
      * @param setPetAvatarThumbnailRequest  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @throws ApiException if fails to make API call
      */
     suspend fun setPetAvatarThumbnail(
         petId: Long,
         setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
+        options: SetPetAvatarThumbnailOptions? = null,
     ) {
-        setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest)
+        setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest, options)
     }
 
     /** Same as [setPetAvatarThumbnail] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun setPetAvatarThumbnailWithHttpInfo(
         petId: Long,
         setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
+        options: SetPetAvatarThumbnailOptions? = null,
     ): ApiResult<Unit> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.setPetAvatarThumbnail"
         }
@@ -1489,6 +1646,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.setPetAvatarThumbnail",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1496,7 +1656,7 @@ class PetApi : BaseApi {
      * Update a pet's notification preferences
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
      * @param petId  (required)
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return ApiResponse
      * @throws ApiException if fails to make API call
@@ -1574,6 +1734,7 @@ class PetApi : BaseApi {
      * Update an existing pet
      * @param petId ID of pet to update (required)
      * @param pet Pet object that needs to be updated (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Pet
      * @throws ApiException if fails to make API call
@@ -1581,8 +1742,9 @@ class PetApi : BaseApi {
     suspend fun updatePet(
         petId: Long,
         pet: Pet,
+        options: UpdatePetOptions? = null,
     ): Pet =
-        updatePetWithHttpInfo(petId, pet).let { result ->
+        updatePetWithHttpInfo(petId, pet, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for updatePet but received none",
@@ -1595,7 +1757,11 @@ class PetApi : BaseApi {
     suspend fun updatePetWithHttpInfo(
         petId: Long,
         pet: Pet,
+        options: UpdatePetOptions? = null,
     ): ApiResult<Pet> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.updatePet"
         }
@@ -1621,6 +1787,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.updatePet",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1628,7 +1797,7 @@ class PetApi : BaseApi {
      * Upload the pet's adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param petId  (required)
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return ApiResponse
      * @throws ApiException if fails to make API call
@@ -1691,7 +1860,7 @@ class PetApi : BaseApi {
      * Attach a vet document or health record
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param petId  (required)
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @param requestContentType one of the declared request content-types; when null the first declared type is used (defaults to the first declared content-type)
 

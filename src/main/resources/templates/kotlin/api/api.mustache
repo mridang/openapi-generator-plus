@@ -126,11 +126,14 @@ class {{classname}} : BaseApi {
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.hasOptionsParam}}
-     * @param options options for query, header, form, cookie parameters{{#hasAuthMethods}}, and per-operation auth{{/hasAuthMethods}}
+     * @param options options for query, header, form, cookie parameters{{#hasAuthMethods}}, per-operation auth{{/hasAuthMethods}} and the per-call timeout, headers and maxRetries
 {{/vendorExtensions.op.hasOptionsParam}}
 {{^vendorExtensions.op.hasOptionsParam}}
 {{#hasAuthMethods}}
-     * @param options per-operation authenticator override
+     * @param options per-operation authenticator override and the per-call timeout, headers and maxRetries
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+     * @param options the per-call timeout, headers and maxRetries
 {{/hasAuthMethods}}
 {{/vendorExtensions.op.hasOptionsParam}}
 {{#servers}}
@@ -190,11 +193,9 @@ class {{classname}} : BaseApi {
         val callMaxRetries: Int? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries
 {{/vendorExtensions.op.hasOptionsParam}}
 {{^vendorExtensions.op.hasOptionsParam}}
-{{#hasAuthMethods}}
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
-{{/hasAuthMethods}}
 {{/vendorExtensions.op.hasOptionsParam}}
 {{#pathParams}}
 {{#required}}
@@ -416,13 +417,10 @@ class {{classname}} : BaseApi {
                 arrayOf({{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}),
                 {{#consumes}}{{#-last}}{{^-first}}effectiveRequestContentType{{/-first}}{{#-first}}"{{vendorExtensions.op.effectiveConsumes}}"{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes}},
                 {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
-                "{{classname}}.{{operationId}}"{{#vendorExtensions.op.hasOptionsParam}},
+                "{{classname}}.{{operationId}}",
                 callTimeout = callTimeout,
                 callHeaders = callHeaders,
-                callMaxRetries = callMaxRetries{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}},
-                callTimeout = callTimeout,
-                callHeaders = callHeaders,
-                callMaxRetries = callMaxRetries{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}{{#vendorExtensions.op.hasMultiple2xx}},
+                callMaxRetries = callMaxRetries{{#vendorExtensions.op.hasMultiple2xx}},
                 decodeSuccess = { status, text ->
                     when {
 {{#vendorExtensions.op.successResponses}}

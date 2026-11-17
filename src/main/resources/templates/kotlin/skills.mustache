@@ -40,8 +40,16 @@ val authenticator = BearerAuthenticator("https://api.example.com", "your-token")
 val client = {{clientClassName}}(authenticator)
 ```
 
-A credential you pass wins; when you pass none, the authenticator reads `{{credentialEnvPrefix}}_TOKEN` (Basic auth: `{{credentialEnvPrefix}}_USERNAME` and `{{credentialEnvPrefix}}_PASSWORD`, API key: `{{credentialEnvPrefix}}_API_KEY`) once, when it is built, and an empty value counts as unset. A missing credential fails right there with an `IllegalArgumentException` naming the variable. A token that rotates takes `BearerAuthenticator(host, tokenProvider = { currentToken() })`, called on every request (`ApiKeyAuthenticator` has `apiKeyProvider`).
+A credential you pass wins; when you pass none, the authenticator reads `{{envVarPrefix}}_TOKEN` (Basic auth: `{{envVarPrefix}}_USERNAME` and `{{envVarPrefix}}_PASSWORD`, API key: `{{envVarPrefix}}_API_KEY`) once, when it is built, and an empty value counts as unset. A missing credential fails right there with an `IllegalArgumentException` naming the variable. A token that rotates takes `BearerAuthenticator(host, tokenProvider = { currentToken() })`, called on every request (`ApiKeyAuthenticator` has `apiKeyProvider`); a provider is used only when no argument and no environment variable is set.
 
+{{#hasSecuritySchemeEnvVars}}
+The authenticator generated for a security scheme reads its own variable instead:
+
+{{#securitySchemeEnvVars}}
+- `{{envName}}`: the `{{field}}` of the `{{schemeId}}` scheme
+{{/securitySchemeEnvVars}}
+
+{{/hasSecuritySchemeEnvVars}}
 {{#hasBasicAuth}}
 ### Basic Auth
 
@@ -260,7 +268,7 @@ suspend fun {{operationId}}OrReport(client: {{clientClassName}}{{#pathParams}}, 
 
 ### Per-call options
 
-The options object of an operation takes `timeout` (milliseconds, one end-to-end budget), `headers` (replace a header of the same name) and `maxRetries` (`0` disables) for that call only, in place of the client-wide setting:
+Every operation takes an options object, also one with no parameters and no security. It takes `timeout` (milliseconds, one end-to-end budget), `headers` (replace a header of the same name) and `maxRetries` (`0` disables) for that call only, in place of the client-wide setting:
 
 ```kotlin
 client.someApi.someOperation(options = SomeOperationOptions(timeout = 2_000, maxRetries = 0))

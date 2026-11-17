@@ -478,6 +478,34 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("F866: a property whose \$ref carries a sibling default starts at that default")
+        fun refSiblingDefaultAppliesOnConstructionAndDecode() {
+            // StockItem.availability is a $ref to the Availability enum with
+            // `default: on-hold` written next to it. The default must be the
+            // typed member both when the model is built without the argument and
+            // when the payload omits the key; an explicit value still wins.
+            val built = {{modelPackage}}.StockItem(priority = {{modelPackage}}.Priority.NUMBER_1)
+            assertEquals({{modelPackage}}.Availability.ON_HOLD, built.availability)
+
+            val decoded = serializer.deserialize<{{modelPackage}}.StockItem>("{\"priority\":1}")
+            assertNotNull(decoded)
+            assertEquals({{modelPackage}}.Availability.ON_HOLD, decoded!!.availability)
+
+            val explicit = serializer.deserialize<{{modelPackage}}.StockItem>("{\"priority\":1,\"availability\":\"Sold\"}")
+            assertEquals({{modelPackage}}.Availability.SOLD, explicit!!.availability)
+        }
+
+        @Test
+        @DisplayName("F316: building a model never validates, an unknown enum string fails only at decode")
+        fun constructionNeverValidatesAndDecodeFailsOnAnUnknownEnum() {
+            val built = {{modelPackage}}.StockItem(priority = {{modelPackage}}.Priority.NUMBER_1)
+            assertNotNull(built)
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.StockItem>("{\"priority\":1,\"availability\":\"no-such-member\"}")
+            }
+        }
+
+        @Test
         @DisplayName("primitive-type-coercion-lenient: unquoted scalar on a String field throws")
         fun unquotedScalarOnStringFieldThrows() {
             // isLenient=true accepts an unquoted bare literal as a string value

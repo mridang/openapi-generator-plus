@@ -13,8 +13,23 @@ import com.example.petstore.ApiClient
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
+import com.example.petstore.api.options.CreateAccountOptions
+import com.example.petstore.api.options.DeleteOrderOptions
 import com.example.petstore.api.options.GetBySwatchOptions
+import com.example.petstore.api.options.GetDefaultsOptions
+import com.example.petstore.api.options.GetDepartmentOptions
+import com.example.petstore.api.options.GetGroupedCategoriesOptions
+import com.example.petstore.api.options.GetInventoryOptions
+import com.example.petstore.api.options.GetMatrixOptions
+import com.example.petstore.api.options.GetOrderByIdOptions
+import com.example.petstore.api.options.GetOrderByTrackingIdOptions
 import com.example.petstore.api.options.GetStockItemOptions
+import com.example.petstore.api.options.GetSwatchGroupsOptions
+import com.example.petstore.api.options.GetSwatchOptions
+import com.example.petstore.api.options.GetTimestampGroupsOptions
+import com.example.petstore.api.options.GetTreeOptions
+import com.example.petstore.api.options.PlaceOrderOptions
+import com.example.petstore.api.options.ReserveStockOptions
 import com.example.petstore.api.options.SearchStoreOptions
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
@@ -49,12 +64,16 @@ class StoreApi : BaseApi {
     /**
      * Create an account
      * @param account  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Account
      * @throws ApiException if fails to make API call
      */
-    suspend fun createAccount(account: Account): Account =
-        createAccountWithHttpInfo(account).let { result ->
+    suspend fun createAccount(
+        account: Account,
+        options: CreateAccountOptions? = null,
+    ): Account =
+        createAccountWithHttpInfo(account, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for createAccount but received none",
@@ -64,7 +83,13 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [createAccount] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun createAccountWithHttpInfo(account: Account): ApiResult<Account> {
+    suspend fun createAccountWithHttpInfo(
+        account: Account,
+        options: CreateAccountOptions? = null,
+    ): ApiResult<Account> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(account) {
             "Missing the required parameter 'account' when calling StoreApi.createAccount"
         }
@@ -82,21 +107,34 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.createAccount",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Delete purchase order by ID
      * @param orderId ID of the order to delete (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @throws ApiException if fails to make API call
      */
-    suspend fun deleteOrder(orderId: Long) {
-        deleteOrderWithHttpInfo(orderId)
+    suspend fun deleteOrder(
+        orderId: Long,
+        options: DeleteOrderOptions? = null,
+    ) {
+        deleteOrderWithHttpInfo(orderId, options)
     }
 
     /** Same as [deleteOrder] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun deleteOrderWithHttpInfo(orderId: Long): ApiResult<Unit> {
+    suspend fun deleteOrderWithHttpInfo(
+        orderId: Long,
+        options: DeleteOrderOptions? = null,
+    ): ApiResult<Unit> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(orderId) {
             "Missing the required parameter 'orderId' when calling StoreApi.deleteOrder"
         }
@@ -119,13 +157,16 @@ class StoreApi : BaseApi {
             "application/json",
             null,
             "StoreApi.deleteOrder",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Echoes a swatch supplied via path, query and header parameters.
      * @param pathSwatch  (required)
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return Category
      * @throws ApiException if fails to make API call
@@ -201,12 +242,13 @@ class StoreApi : BaseApi {
 
     /**
      * Returns a model exercising schema defaults on deserialize.
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Defaults
      * @throws ApiException if fails to make API call
      */
-    suspend fun getDefaults(): Defaults =
-        getDefaultsWithHttpInfo().let { result ->
+    suspend fun getDefaults(options: GetDefaultsOptions? = null): Defaults =
+        getDefaultsWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getDefaults but received none",
@@ -216,7 +258,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getDefaults] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getDefaultsWithHttpInfo(): ApiResult<Defaults> {
+    suspend fun getDefaultsWithHttpInfo(options: GetDefaultsOptions? = null): ApiResult<Defaults> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/defaults"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -231,17 +276,21 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getDefaults",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Returns a department (mutual-recursion codegen fixture).
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Department
      * @throws ApiException if fails to make API call
      */
-    suspend fun getDepartment(): Department =
-        getDepartmentWithHttpInfo().let { result ->
+    suspend fun getDepartment(options: GetDepartmentOptions? = null): Department =
+        getDepartmentWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getDepartment but received none",
@@ -251,7 +300,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getDepartment] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getDepartmentWithHttpInfo(): ApiResult<Department> {
+    suspend fun getDepartmentWithHttpInfo(options: GetDepartmentOptions? = null): ApiResult<Department> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/department"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -266,17 +318,21 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getDepartment",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Returns categories grouped into an array of string-keyed maps.
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return List<Map<String, Category>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getGroupedCategories(): List<Map<String, Category>> =
-        getGroupedCategoriesWithHttpInfo().let { result ->
+    suspend fun getGroupedCategories(options: GetGroupedCategoriesOptions? = null): List<Map<String, Category>> =
+        getGroupedCategoriesWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getGroupedCategories but received none",
@@ -286,7 +342,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getGroupedCategories] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getGroupedCategoriesWithHttpInfo(): ApiResult<List<Map<String, Category>>> {
+    suspend fun getGroupedCategoriesWithHttpInfo(options: GetGroupedCategoriesOptions? = null): ApiResult<List<Map<String, Category>>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/grouped-categories"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -301,17 +360,21 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getGroupedCategories",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Returns pet inventories by status
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Map<String, Int>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getInventory(): Map<String, Int> =
-        getInventoryWithHttpInfo().let { result ->
+    suspend fun getInventory(options: GetInventoryOptions? = null): Map<String, Int> =
+        getInventoryWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getInventory but received none",
@@ -321,7 +384,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getInventory] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getInventoryWithHttpInfo(): ApiResult<Map<String, Int>> {
+    suspend fun getInventoryWithHttpInfo(options: GetInventoryOptions? = null): ApiResult<Map<String, Int>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/inventory"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -336,17 +402,21 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getInventory",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Returns a matrix as an array of integer arrays.
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return List<List<Int>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getMatrix(): List<List<Int>> =
-        getMatrixWithHttpInfo().let { result ->
+    suspend fun getMatrix(options: GetMatrixOptions? = null): List<List<Int>> =
+        getMatrixWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getMatrix but received none",
@@ -356,7 +426,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getMatrix] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getMatrixWithHttpInfo(): ApiResult<List<List<Int>>> {
+    suspend fun getMatrixWithHttpInfo(options: GetMatrixOptions? = null): ApiResult<List<List<Int>>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/matrix"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -371,18 +444,25 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getMatrix",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Find purchase order by ID
      * @param orderId ID of order to return (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Order
      * @throws ApiException if fails to make API call
      */
-    suspend fun getOrderById(orderId: Long): Order =
-        getOrderByIdWithHttpInfo(orderId).let { result ->
+    suspend fun getOrderById(
+        orderId: Long,
+        options: GetOrderByIdOptions? = null,
+    ): Order =
+        getOrderByIdWithHttpInfo(orderId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getOrderById but received none",
@@ -392,7 +472,13 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getOrderById] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getOrderByIdWithHttpInfo(orderId: Long): ApiResult<Order> {
+    suspend fun getOrderByIdWithHttpInfo(
+        orderId: Long,
+        options: GetOrderByIdOptions? = null,
+    ): ApiResult<Order> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(orderId) {
             "Missing the required parameter 'orderId' when calling StoreApi.getOrderById"
         }
@@ -415,18 +501,25 @@ class StoreApi : BaseApi {
             "application/json",
             null,
             "StoreApi.getOrderById",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Find purchase order by tracking id
      * @param trackingId  (required)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Order
      * @throws ApiException if fails to make API call
      */
-    suspend fun getOrderByTrackingId(trackingId: Uuid): Order =
-        getOrderByTrackingIdWithHttpInfo(trackingId).let { result ->
+    suspend fun getOrderByTrackingId(
+        trackingId: Uuid,
+        options: GetOrderByTrackingIdOptions? = null,
+    ): Order =
+        getOrderByTrackingIdWithHttpInfo(trackingId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getOrderByTrackingId but received none",
@@ -436,7 +529,13 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getOrderByTrackingId] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getOrderByTrackingIdWithHttpInfo(trackingId: Uuid): ApiResult<Order> {
+    suspend fun getOrderByTrackingIdWithHttpInfo(
+        trackingId: Uuid,
+        options: GetOrderByTrackingIdOptions? = null,
+    ): ApiResult<Order> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(trackingId) {
             "Missing the required parameter 'trackingId' when calling StoreApi.getOrderByTrackingId"
         }
@@ -459,12 +558,15 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getOrderByTrackingId",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return StockItem
      * @throws ApiException if fails to make API call
@@ -514,12 +616,13 @@ class StoreApi : BaseApi {
 
     /**
      * Returns a bare enum (value-type response codegen fixture).
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Swatch
      * @throws ApiException if fails to make API call
      */
-    suspend fun getSwatch(): Swatch =
-        getSwatchWithHttpInfo().let { result ->
+    suspend fun getSwatch(options: GetSwatchOptions? = null): Swatch =
+        getSwatchWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getSwatch but received none",
@@ -529,7 +632,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getSwatch] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getSwatchWithHttpInfo(): ApiResult<Swatch> {
+    suspend fun getSwatchWithHttpInfo(options: GetSwatchOptions? = null): ApiResult<Swatch> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/swatch"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -544,17 +650,21 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getSwatch",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Returns swatches grouped as an array of string-keyed enum maps.
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return List<Map<String, Swatch>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getSwatchGroups(): List<Map<String, Swatch>> =
-        getSwatchGroupsWithHttpInfo().let { result ->
+    suspend fun getSwatchGroups(options: GetSwatchGroupsOptions? = null): List<Map<String, Swatch>> =
+        getSwatchGroupsWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getSwatchGroups but received none",
@@ -564,7 +674,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getSwatchGroups] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getSwatchGroupsWithHttpInfo(): ApiResult<List<Map<String, Swatch>>> {
+    suspend fun getSwatchGroupsWithHttpInfo(options: GetSwatchGroupsOptions? = null): ApiResult<List<Map<String, Swatch>>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/swatch-groups"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -579,17 +692,21 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getSwatchGroups",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Returns timestamps grouped as an array of string-keyed maps.
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return List<Map<String, OffsetDateTime>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getTimestampGroups(): List<Map<String, OffsetDateTime>> =
-        getTimestampGroupsWithHttpInfo().let { result ->
+    suspend fun getTimestampGroups(options: GetTimestampGroupsOptions? = null): List<Map<String, OffsetDateTime>> =
+        getTimestampGroupsWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getTimestampGroups but received none",
@@ -599,7 +716,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getTimestampGroups] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getTimestampGroupsWithHttpInfo(): ApiResult<List<Map<String, OffsetDateTime>>> {
+    suspend fun getTimestampGroupsWithHttpInfo(options: GetTimestampGroupsOptions? = null): ApiResult<List<Map<String, OffsetDateTime>>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/timestamp-groups"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -614,17 +734,21 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getTimestampGroups",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Returns a self-referential tree (recursive-type codegen fixture)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return TreeNode
      * @throws ApiException if fails to make API call
      */
-    suspend fun getTree(): TreeNode =
-        getTreeWithHttpInfo().let { result ->
+    suspend fun getTree(options: GetTreeOptions? = null): TreeNode =
+        getTreeWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getTree but received none",
@@ -634,7 +758,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getTree] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getTreeWithHttpInfo(): ApiResult<TreeNode> {
+    suspend fun getTreeWithHttpInfo(options: GetTreeOptions? = null): ApiResult<TreeNode> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/tree"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -649,18 +776,25 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getTree",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Place an order for a pet
      * @param order  (optional)
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Order
      * @throws ApiException if fails to make API call
      */
-    suspend fun placeOrder(order: Order? = null): Order =
-        placeOrderWithHttpInfo(order).let { result ->
+    suspend fun placeOrder(
+        order: Order? = null,
+        options: PlaceOrderOptions? = null,
+    ): Order =
+        placeOrderWithHttpInfo(order, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for placeOrder but received none",
@@ -670,7 +804,13 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [placeOrder] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun placeOrderWithHttpInfo(order: Order? = null): ApiResult<Order> {
+    suspend fun placeOrderWithHttpInfo(
+        order: Order? = null,
+        options: PlaceOrderOptions? = null,
+    ): ApiResult<Order> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/order"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -685,18 +825,22 @@ class StoreApi : BaseApi {
             "application/json",
             null,
             "StoreApi.placeOrder",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
     /**
      * Reserve stock, answering with the existing or a new reservation
      * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return ReserveStockResponse
      * @throws ApiException if fails to make API call
      */
-    suspend fun reserveStock(): ReserveStockResponse =
-        reserveStockWithHttpInfo().let { result ->
+    suspend fun reserveStock(options: ReserveStockOptions? = null): ReserveStockResponse =
+        reserveStockWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for reserveStock but received none",
@@ -706,7 +850,10 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [reserveStock] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun reserveStockWithHttpInfo(): ApiResult<ReserveStockResponse> {
+    suspend fun reserveStockWithHttpInfo(options: ReserveStockOptions? = null): ApiResult<ReserveStockResponse> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/reservation"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -721,6 +868,9 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.reserveStock",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
             decodeSuccess = { status, text ->
                 when {
                     status == 200 ->
@@ -735,7 +885,7 @@ class StoreApi : BaseApi {
 
     /**
      * Searches the store; exercises content-encoded, Set and time-of-day parameters.
-     * @param options options for query, header, form, cookie parameters
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @return List<Order>
      * @throws ApiException if fails to make API call

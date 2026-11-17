@@ -2815,29 +2815,6 @@
   },
   {
    "element": [
-    "*error.<ctor>"
-   ],
-   "aspect": "ctor",
-   "languages": [
-    "kotlin"
-   ],
-   "value": "*requestmethod, requestpath)",
-   "reason": "F830 owner decision: every ApiException subclass constructor takes the optional requestMethod and requestPath last; drop this row once the majority has them."
-  },
-  {
-   "element": [
-    "apikeyauthenticator.<ctor>",
-    "bearerauthenticator.<ctor>"
-   ],
-   "aspect": "ctor",
-   "languages": [
-    "kotlin"
-   ],
-   "value": "*provider)",
-   "reason": "F862 owner decision (a token-provider callback beside the static credential): kotlin takes it as a trailing suspend lambda; drop this row once the majority has a provider."
-  },
-  {
-   "element": [
     "basicauthenticator.<ctor>",
     "client.withtoken"
    ],
@@ -3216,19 +3193,6 @@
   {
    "element": [
     "reservestockresponse.reservation",
-    "reservestockresponse.reservationreceipt",
-    "reservestockresponse.asreservation",
-    "reservestockresponse.asreservationreceipt"
-   ],
-   "aspect": "member",
-   "languages": [
-    "python"
-   ],
-   "reason": "F878 (python/AGENTS.md): a oneOf wrapper holds its variant in actual_instance, a typed Union that isinstance narrows for mypy, so python has no per-variant is/as accessors, like node, kotlin, rust and elixir whose unions are native; the member only reads as missing here because the languages with wrapper objects are the majority"
-  },
-  {
-   "element": [
-    "reservestockresponse.reservation",
     "reservestockresponse.reservationreceipt"
    ],
    "aspect": "member",
@@ -3412,6 +3376,75 @@
     "node"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
+  },
+  {
+   "element": [
+    "clienterror.<ctor>",
+    "servererror.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "kotlin"
+   ],
+   "value": "*requestmethod, requestpath)",
+   "reason": "F830 owner decision: every ApiException subclass constructor takes the optional requestMethod and requestPath last; the two base classes of the 4xx and 5xx families still read as extra because the majority of the languages that have them has not landed the request context; drop this row once it has."
+  },
+  {
+   "element": [
+    "apikeyauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "kotlin"
+   ],
+   "value": "*provider)",
+   "reason": "F862 owner decision (a token-provider callback beside the static credential): kotlin takes it as a trailing suspend lambda on the api key authenticator; drop this row once the majority has an api key provider."
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "php",
+    "node"
+   ],
+   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "optional",
+   "languages": [
+    "php",
+    "node"
+   ],
+   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
+  },
+  {
+   "element": [
+    "reservestockresponse.reservation",
+    "reservestockresponse.reservationreceipt",
+    "reservestockresponse.asreservation",
+    "reservestockresponse.asreservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python"
+   ],
+   "reason": "F878 (python/AGENTS.md): a oneOf wrapper holds its variant in actual_instance, a typed Union that isinstance narrows for mypy, so python has no per-variant is/as accessors, like node, rust and elixir whose unions are native; the member only reads as missing here because the languages with wrapper objects are the majority"
+  },
+  {
+   "element": [
+    "petfood.*",
+    "pettreatment.*",
+    "reservestockresponse.*",
+    "setpetavatarthumbnailrequest.*",
+    "treatmentrecord.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "kotlin"
+   ],
+   "value": "extra*",
+   "reason": "F878: a kotlin oneOf wrapper holds an Any, so each variant gets a typed from<Variant> factory on its companion object and an is<Variant> property and an as<Variant>() accessor (a generic variant, which is erased at run time, only the factory), like swift, csharp and php; languages with native unions (node, rust, elixir) or isinstance (python) need none"
   }
  ]
 }

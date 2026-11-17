@@ -174,10 +174,10 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: with no token passed, OPEN_API_TOKEN is read once at construction")
+    @DisplayName("F862: with no token passed, SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is read once at construction")
     fun tokenComesFromTheEnvironment() {
         val auth =
-            withEnvironment(mapOf("OPEN_API_TOKEN" to "from-env")) {
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")) {
                 BearerAuthenticator("https://api.example.com")
             }
         // The environment is read once: it is gone now, the token is not.
@@ -188,7 +188,7 @@ class BearerAuthenticatorTest {
     @DisplayName("F862: an explicit token wins over the environment")
     fun explicitTokenWinsOverTheEnvironment() {
         val auth =
-            withEnvironment(mapOf("OPEN_API_TOKEN" to "from-env")) {
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")) {
                 BearerAuthenticator("https://api.example.com", "explicit")
             }
         assertEquals("Bearer explicit", runBlocking { auth.getAuthHeaders()["Authorization"] })
@@ -198,14 +198,14 @@ class BearerAuthenticatorTest {
     @DisplayName("F862: an empty environment value counts as unset and a missing token fails at construction")
     fun missingTokenFailsAtConstruction() {
         val ex =
-            withEnvironment(mapOf("OPEN_API_TOKEN" to "")) {
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "")) {
                 assertThrows(IllegalArgumentException::class.java) { BearerAuthenticator("https://api.example.com") }
             }
-        assertTrue(ex.message!!.contains("OPEN_API_TOKEN"), ex.message)
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"), ex.message)
     }
 
     @Test
-    @DisplayName("F862: a token provider is called on every request and replaces the static token")
+    @DisplayName("F862: a token provider is called on every request when no token and no variable is set")
     fun tokenProviderIsCalledOnEveryRequest() =
         runBlocking {
             var calls = 0
@@ -219,9 +219,73 @@ class BearerAuthenticatorTest {
         }
 
     @Test
+    @DisplayName("F862: the argument wins over the environment variable, which wins over the provider")
+    fun precedenceIsArgumentThenEnvironmentThenProvider() =
+        runBlocking {
+            val provider: suspend () -> String = { "from-provider" }
+            val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")
+            val explicit =
+                withEnvironment(env) { BearerAuthenticator("https://api.example.com", "explicit", provider) }
+            assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
+            val fromEnv =
+                withEnvironment(env) { BearerAuthenticator("https://api.example.com", tokenProvider = provider) }
+            assertEquals("Bearer from-env", fromEnv.getAuthHeaders()["Authorization"])
+            val fromProvider =
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "")) {
+                    BearerAuthenticator("https://api.example.com", tokenProvider = provider)
+                }
+            assertEquals("Bearer from-provider", fromProvider.getAuthHeaders()["Authorization"])
+        }
+
+    @Test
     @DisplayName("F862: a token the provider returns is validated like a static one")
     fun providerTokenIsValidated() {
-        val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { "bad\r\ntoken" })
+        val auth =
+            BearerAuthenticator("https://api.example.com", tokenProvider = { "bad\r\ntoken" })
         assertThrows(IllegalArgumentException::class.java) { runBlocking { auth.getAuthHeaders() } }
+    }
+
+    @Test
+    @DisplayName("F862: a security scheme's authenticator reads the variable of its own scheme")
+    fun schemeWrapperReadsItsOwnVariable() =
+        runBlocking {
+            val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "from-env")
+            val auth =
+                withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com") }
+            assertEquals("Bearer from-env", auth.getAuthHeaders()["Authorization"])
+            val other =
+                withEnvironment(env) {
+                    assertThrows(IllegalArgumentException::class.java) { ServiceTokenAuthenticator("https://api.example.com") }
+                }
+            assertTrue(other.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"), other.message)
+        }
+
+    @Test
+    @DisplayName("F862: a scheme's authenticator takes the argument first, then the variable, then the provider")
+    fun schemeWrapperPrecedence() =
+        runBlocking {
+            val provider: suspend () -> String = { "from-provider" }
+            val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "from-env")
+            val explicit =
+                withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "explicit", provider) }
+            assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
+            val fromEnv =
+                withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider) }
+            assertEquals("Bearer from-env", fromEnv.getAuthHeaders()["Authorization"])
+            val empty =
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "")) {
+                    PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider)
+                }
+            assertEquals("Bearer from-provider", empty.getAuthHeaders()["Authorization"])
+        }
+
+    @Test
+    @DisplayName("F862: a scheme's authenticator with no token, variable or provider fails naming its variable")
+    fun schemeWrapperMissingTokenFails() {
+        val ex =
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "")) {
+                assertThrows(IllegalArgumentException::class.java) { PetStoreBearerAuthenticator("https://api.example.com") }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"), ex.message)
     }
 }

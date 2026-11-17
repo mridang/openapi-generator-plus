@@ -38,7 +38,7 @@ The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, 
 | `object` with `additionalProperties` | `Map` | |
 | free-form `object` | `@Contextual Any?` | |
 | nullable or optional property | `T?` | an absent key and an explicit `null` read the same; a required and nullable property keeps its key and is written as `null` when unset |
-| `enum` | `enum class` | an unknown value fails with `SerializationException` |
+| `enum` | `enum class` | an unknown value fails with `SerializationException`; a `$ref` to an enum with a `default` next to it starts at that member, whether the model is built or decoded without the key |
 | `oneOf`, `anyOf` | a wrapper class | see Idioms |
 | file upload and download | `ByteArray` | |
 
@@ -73,7 +73,8 @@ The generated project also configures ktlint, detekt, Kover and Dokka, and tests
 | `documentationUrl` | none | linked from the README |
 | `issueTrackerUrl` | none | POM `issueManagement` and the README |
 | `clientClassName` | `Client` | name of the client facade |
-| `errorPrefix` | `OpenAPI` | prefix of the root error type; also the base of the credential environment variable names |
+| `errorPrefix` | `OpenAPI` | prefix of the root error type |
+| `envVarPrefix` | the API title in upper snake case without a trailing `SDK`, else `API` | prefix of the credential environment variables, see Authentication |
 | `generateTests` | `true` | emit the full test suite |
 | `generateUnitTests` | `false` | emit only the spec-independent unit tests |
 
@@ -82,11 +83,14 @@ The generated project also configures ktlint, detekt, Kover and Dokka, and tests
 - **Errors.** Failures derive from the root exception and, for HTTP failures, from `ApiException` with `statusCode`, the headers, the body, `requestMethod` and `requestPath` (without the query string). `NetworkException` and `NetworkTimeoutException` mean no response arrived. Caller mistakes raise `IllegalArgumentException`.
 - **Retries.** Up to two retries by default (`TransportOptions.maxRetries`, `0` turns them off), after a network error before any response and after 408, 409, 429 and 5xx except 501. The wait starts at 0.5 seconds, doubles up to 8 seconds, loses up to 25% to jitter and is replaced by `Retry-After` (at most 60 seconds). Retries share the end-to-end timeout, which defaults to 10 000 ms, and a timeout itself is never retried.
 - **Cancellation.** Every operation is a `suspend` function, so cancelling the coroutine (or using `withTimeout`) aborts the request and raises `kotlinx.coroutines.CancellationException`, never `NetworkTimeoutException`.
-- **Authentication.** Basic, bearer and API key authenticators, plus OAuth 2 and OpenID Connect. A credential you pass wins; if you pass none, the authenticator reads `OPEN_API_TOKEN`, `OPEN_API_API_KEY`, or `OPEN_API_USERNAME` and `OPEN_API_PASSWORD` once when it is built, and fails with `IllegalArgumentException` naming the variable if neither is set. A rotating token takes a `tokenProvider` lambda that is called on every request.
+- **Authentication.** Basic, bearer and API key authenticators, plus OAuth 2 and OpenID Connect. Every credential is the first of three: the argument you pass, then an environment variable read once when the authenticator is built (an empty value counts as unset), then, for a bearer token or an API key, a `tokenProvider` or `apiKeyProvider` lambda that is called on every request. A credential found in none of them fails with `IllegalArgumentException` naming the variable, where the authenticator is built. `BearerAuthenticator`, `ApiKeyAuthenticator` and `BasicAuthenticator` read `{PREFIX}_TOKEN`, `{PREFIX}_API_KEY`, and `{PREFIX}_USERNAME` with `{PREFIX}_PASSWORD`. The authenticator generated for each security scheme reads the variable of its own scheme, `{PREFIX}_{FIELD}`, or `{PREFIX}_{SCHEME}_{FIELD}` when two schemes have a field of the same name, for every field including an OAuth 2 client id and secret; the generated README lists them. `{PREFIX}` is the `envVarPrefix` option. `Client.withToken(host, accessToken = null)` reads `{PREFIX}_TOKEN`.
 - **Immutability.** Models are `data class`es with `val` properties; copy them with `copy(...)`.
-- **Unions.** A `oneOf` or `anyOf` model is a wrapper class holding the decoded variant in `actualInstance`, with a hand-written serializer that dispatches on the discriminator when there is one. Equality compares the held variants. An operation with several `2xx` responses returns a union decoded by the status that arrived.
-- **Optional arguments.** Optional parameters use Kotlin default arguments, and per-call `timeout`, `headers` and `maxRetries` go in the operation's options object.
+- **Unions.** A `oneOf` or `anyOf` model is a wrapper class holding the decoded variant in `actualInstance`, with a hand-written serializer that dispatches on the discriminator when there is one. Equality compares the held variants. Each variant has a `from<Variant>(value)` factory on the companion object, an `is<Variant>` property and an `as<Variant>()` function that returns the variant or `null` (a variant that is a generic type, such as `List<String>`, has only the factory, because the type is erased at run time). An operation with several `2xx` responses returns a union decoded by the status that arrived.
+- **Optional arguments.** Optional parameters use Kotlin default arguments. Every operation takes an options object, also one with no parameters and no security, and per-call `timeout`, `headers` and `maxRetries` go in it; an operation with nothing of its own gets an options object that holds only those three.
 - **Raw responses.** Every operation has a `*WithHttpInfo` variant returning an `ApiResult`.
+- **Closing.** `Client.close()` is graceful and idempotent: a request already in flight finishes, the transport the SDK created is released after the last one, a later request fails with `IllegalStateException` ("ApiClient has been closed and can no longer send requests"), and a Ktor client you supplied is never closed.
+- **Construction and decoding.** A model constructor never validates or raises; an unknown enum string fails only when a payload is decoded, with `SerializationException`.
+- **Cookie parameters.** A cookie value is sent as given when every character is a legal RFC 6265 cookie-octet, and otherwise the call fails with `IllegalArgumentException` before anything is sent. A cookie carried as `content` is percent-encoded; a plain value is not, so pre-encode it yourself.
 - **Custom transport.** `TransportOptions.builder().httpClient(myKtorClient)` sends requests through your own Ktor `HttpClient`; combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
 
 ## Known limits

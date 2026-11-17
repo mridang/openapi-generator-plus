@@ -11,6 +11,7 @@ package com.example.petstore.api
 
 import com.example.petstore.*
 import com.example.petstore.api.options.GetBySwatchOptions
+import com.example.petstore.api.options.GetInventoryOptions
 import com.example.petstore.api.options.SearchStoreOptions
 import com.example.petstore.errors.ApiException
 import com.example.petstore.models.*
@@ -536,6 +537,36 @@ class StoreApiTest {
             assertTrue(second is Category)
             assertEquals(2L, second!!.id)
             assertEquals("Cats", second.name)
+        }
+
+        @Test
+        @DisplayName("F827: an operation with no parameter and no security still takes per-call headers and retries")
+        fun testOperationWithNothingOfItsOwnTakesPerCallOptions() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val engine =
+                MockEngine { request ->
+                    seen.add(request)
+                    respond(
+                        content = "{}",
+                        status = HttpStatusCode.ServiceUnavailable,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            assertThrows(com.example.petstore.errors.ServerException::class.java) {
+                runBlocking {
+                    api.getInventory(GetInventoryOptions(headers = mapOf("X-Call" to "1"), timeout = 2000L, maxRetries = 0))
+                }
+            }
+
+            assertEquals(1, seen.size)
+            assertEquals("1", seen.single().headers["X-Call"])
         }
 
         @Test

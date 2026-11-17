@@ -66,6 +66,28 @@ class PetFood(
             else -> a.hashCode()
         }
 
+    /** Tells whether this union holds a [DryFood]. */
+    val isDryFood: Boolean
+        get() = actualInstance is DryFood
+
+    /** The held variant as a [DryFood], or null when this union holds another variant. */
+    fun asDryFood(): DryFood? = actualInstance as? DryFood
+
+    /** Tells whether this union holds a [WetFood]. */
+    val isWetFood: Boolean
+        get() = actualInstance is WetFood
+
+    /** The held variant as a [WetFood], or null when this union holds another variant. */
+    fun asWetFood(): WetFood? = actualInstance as? WetFood
+
+    companion object {
+        /** Wraps a [DryFood] as this union. */
+        fun fromDryFood(value: DryFood): PetFood = PetFood(value)
+
+        /** Wraps a [WetFood] as this union. */
+        fun fromWetFood(value: WetFood): PetFood = PetFood(value)
+    }
+
     internal object Serializer : kotlinx.serialization.KSerializer<PetFood> {
         override val descriptor =
             kotlinx.serialization.descriptors.buildClassSerialDescriptor("PetFood")

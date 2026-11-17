@@ -121,14 +121,46 @@ val transport = TransportOptions.builder().maxRetries(0).build()
 ## Credentials
 
 A credential you pass to an authenticator always wins. When you pass none, the
-authenticator reads the environment variable `OPEN_API_<FIELD>` once, when it
-is built: `OPEN_API_TOKEN` for a Bearer token, `OPEN_API_API_KEY` for an API key, and
-`OPEN_API_USERNAME` and `OPEN_API_PASSWORD` for Basic auth. An empty value counts as
-not set, and a credential that is neither passed nor set fails right there with an
-`IllegalArgumentException` that names the variable, before any request is made.
+authenticator reads an environment variable once, when it is built, and an empty
+value counts as not set. `BearerAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`,
+`ApiKeyAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`, and `BasicAuthenticator` reads
+`SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` and `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD`. A credential that is neither
+passed nor set fails right there with an `IllegalArgumentException` that names the
+variable, before any request is made.
 
-A Bearer token or an API key that rotates takes a provider instead: the lambda is
-called on every request and its result is checked like a static value.
+The authenticator generated for a security scheme reads the variable of its own
+scheme, so two schemes never read each other's secret:
+
+| Variable | Security scheme | Credential |
+|---|---|---|
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` | `adminBasic` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` | `adminBasic` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` | `apiKeyHeader` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` | `apiKeyQuery` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` | `browserAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` | `internalApiKey` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` | `legacyAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` | `legacyAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` | `legacyAuth` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` | `legacyAuth` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` | `machineAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` | `machineAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` | `petStoreBasic` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` | `petStoreBasic` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` | `petStoreBearer` | `token` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` | `serviceToken` | `token` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` | `sessionCookie` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` | `ssoAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` | `ssoAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` | `ssoAuth` | `redirectUri` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` | `userAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` | `userAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` | `userAuth` | `redirectUri` |
+
+A Bearer token or an API key that rotates takes a provider as well: the lambda is
+called on every request and its result is checked like a static value. The order is
+the argument, then the environment variable, then the provider, so a provider is
+used only when neither of the other two is set.
 
 ```kotlin
 val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { vault.currentToken() })
@@ -136,9 +168,10 @@ val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { vaul
 
 ## Per-call options
 
-The options object of an operation also takes `timeout` (milliseconds, one
-end-to-end budget for this call), `headers` (sent with this call only; a header of
-the same name set anywhere else is replaced) and `maxRetries` (`0` turns the
+Every operation takes an options object, also an operation with no parameters and no
+security. Besides the operation's own parameters it carries `timeout` (milliseconds,
+one end-to-end budget for this call), `headers` (sent with this call only; a header
+of the same name set anywhere else is replaced) and `maxRetries` (`0` turns the
 retries of this call off). Each replaces the client-wide setting for that call
 and leaves it as it was for every other.
 

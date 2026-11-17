@@ -292,11 +292,11 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: with no key passed, OPEN_API_API_KEY is read once at construction")
+    @DisplayName("F862: with no key passed, SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY is read once at construction")
     fun keyComesFromTheEnvironment() =
         runBlocking {
             val auth =
-                withEnvironment(mapOf("OPEN_API_API_KEY" to "from-env")) {
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY" to "from-env")) {
                     ApiKeyAuthenticator("https://api.example.com", "X-API-Key", location = ApiKeyLocation.HEADER)
                 }
             assertEquals("from-env", auth.getAuthHeaders()["X-API-Key"])
@@ -306,7 +306,7 @@ class ApiKeyAuthenticatorTest {
     @DisplayName("F862: an explicit key wins over the environment, and a missing key fails at construction")
     fun explicitKeyWinsAndAMissingKeyFails() {
         val auth =
-            withEnvironment(mapOf("OPEN_API_API_KEY" to "from-env")) {
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY" to "from-env")) {
                 ApiKeyAuthenticator("https://api.example.com", "api_key", "explicit", ApiKeyLocation.QUERY)
             }
         assertEquals("explicit", auth.getQueryParams()["api_key"])
@@ -316,7 +316,7 @@ class ApiKeyAuthenticatorTest {
                     ApiKeyAuthenticator("https://api.example.com", "api_key", location = ApiKeyLocation.QUERY)
                 }
             }
-        assertTrue(ex.message!!.contains("OPEN_API_API_KEY"), ex.message)
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"), ex.message)
     }
 
     @Test
@@ -326,16 +326,76 @@ class ApiKeyAuthenticatorTest {
             var calls = 0
             for (location in ApiKeyLocation.values()) {
                 val auth =
-                    ApiKeyAuthenticator(
-                        "https://api.example.com",
-                        "k",
-                        location = location,
-                        apiKeyProvider = { "key-" + (++calls) },
-                    )
+                    withEnvironment(emptyMap()) {
+                        ApiKeyAuthenticator(
+                            "https://api.example.com",
+                            "k",
+                            location = location,
+                            apiKeyProvider = { "key-" + (++calls) },
+                        )
+                    }
                 val headers = auth.getAuthHeaders()
-                val seen = headers["k"] ?: auth.getQueryParams()["k"] ?: auth.getCookieParams()["k"]
+                val seen =
+                    headers["k"] ?: auth.getQueryParams()["k"] ?: auth.getCookieParams()["k"]
                 assertEquals("key-$calls", seen)
             }
             assertEquals(ApiKeyLocation.values().size, calls)
+        }
+
+    @Test
+    @DisplayName("F862: the argument wins over the environment variable, which wins over the provider")
+    fun precedenceIsArgumentThenEnvironmentThenProvider() =
+        runBlocking {
+            val provider: suspend () -> String = { "from-provider" }
+            val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY" to "from-env")
+            val explicit =
+                withEnvironment(env) {
+                    ApiKeyAuthenticator("https://api.example.com", "k", "explicit", ApiKeyLocation.HEADER, provider)
+                }
+            assertEquals("explicit", explicit.getAuthHeaders()["k"])
+            val fromEnv =
+                withEnvironment(env) {
+                    ApiKeyAuthenticator("https://api.example.com", "k", location = ApiKeyLocation.HEADER, apiKeyProvider = provider)
+                }
+            assertEquals("from-env", fromEnv.getAuthHeaders()["k"])
+            val fromProvider =
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY" to "")) {
+                    ApiKeyAuthenticator("https://api.example.com", "k", location = ApiKeyLocation.HEADER, apiKeyProvider = provider)
+                }
+            assertEquals("from-provider", fromProvider.getAuthHeaders()["k"])
+        }
+
+    @Test
+    @DisplayName("F862: a security scheme's authenticator reads the variable of its own scheme")
+    fun schemeWrapperReadsItsOwnVariable() =
+        runBlocking {
+            val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY" to "from-env")
+            val auth =
+                withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com") }
+            assertEquals("from-env", auth.getAuthHeaders()["X-API-Key"])
+            val explicit =
+                withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com", "explicit") }
+            assertEquals("explicit", explicit.getAuthHeaders()["X-API-Key"])
+            val other =
+                withEnvironment(env) {
+                    assertThrows(IllegalArgumentException::class.java) { InternalApiKeyAuthenticator("https://api.example.com") }
+                }
+            assertTrue(other.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"), other.message)
+        }
+
+    @Test
+    @DisplayName("F862: a scheme's authenticator uses its provider when neither argument nor variable is set")
+    fun schemeWrapperFallsBackToItsProvider() =
+        runBlocking {
+            val auth =
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY" to "")) {
+                    ApiKeyHeaderAuthenticator("https://api.example.com", apiKeyProvider = { "from-provider" })
+                }
+            assertEquals("from-provider", auth.getAuthHeaders()["X-API-Key"])
+            val ex =
+                withEnvironment(emptyMap()) {
+                    assertThrows(IllegalArgumentException::class.java) { ApiKeyHeaderAuthenticator("https://api.example.com") }
+                }
+            assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY"), ex.message)
         }
 }

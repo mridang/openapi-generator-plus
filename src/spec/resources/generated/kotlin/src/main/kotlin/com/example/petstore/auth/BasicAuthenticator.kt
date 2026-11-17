@@ -13,7 +13,7 @@ import java.util.Base64
  * Authenticator for HTTP Basic authentication.
  *
  * Each credential is the first of: the argument, the environment variable
- * `OPEN_API_USERNAME` or `OPEN_API_PASSWORD` (read once, here; an empty
+ * `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` or `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` (read once, here; an empty
  * value counts as unset). When one is missing, building the authenticator fails.
  *
  * @param host the base URL of the API
@@ -21,20 +21,33 @@ import java.util.Base64
  * @param password the Basic auth password
  * @throws IllegalArgumentException if a credential is missing or malformed
  */
-open class BasicAuthenticator(
+open class BasicAuthenticator internal constructor(
     private val host: String,
-    username: String? = null,
-    password: String? = null,
+    username: String?,
+    password: String?,
+    usernameVariable: String,
+    passwordVariable: String,
 ) : BaseAuthenticator() {
+    /**
+     * Creates an authenticator that reads `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` and
+     * `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` for a credential that is not passed.
+     *
+     * @param host the base URL of the API
+     * @param username the Basic auth user-id
+     * @param password the Basic auth password
+     * @throws IllegalArgumentException if a credential is missing or malformed
+     */
+    constructor(
+        host: String,
+        username: String? = null,
+        password: String? = null,
+    ) : this(host, username, password, "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME", "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD")
+
     private val username: String =
-        username ?: CredentialEnvironment.read("USERNAME") ?: throw IllegalArgumentException(
-            "A Basic auth username is required: pass one or set ${CredentialEnvironment.variable("USERNAME")}",
-        )
+        CredentialEnvironment.require(username, usernameVariable, "the Basic auth username")
 
     private val password: String =
-        password ?: CredentialEnvironment.read("PASSWORD") ?: throw IllegalArgumentException(
-            "A Basic auth password is required: pass one or set ${CredentialEnvironment.variable("PASSWORD")}",
-        )
+        CredentialEnvironment.require(password, passwordVariable, "the Basic auth password")
 
     init {
         // Validate eagerly at construction so a malformed credential surfaces
