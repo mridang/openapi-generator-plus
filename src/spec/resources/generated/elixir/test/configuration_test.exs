@@ -1,19 +1,19 @@
 defmodule PetstoreClient.ConfigurationTest do
   use ExUnit.Case, async: true
 
-  test "new produces correct defaults" do
+  test "bhv config 005 new produces correct defaults" do
     config = PetstoreClient.Configuration.new()
 
     assert config.base_url == "/api/v3"
     assert config.default_headers == %{}
   end
 
-  test "builder sets base url" do
+  test "bhv config 011 builder sets base url" do
     config = PetstoreClient.Configuration.new(base_url: "https://custom.example.com")
     assert config.base_url == "https://custom.example.com"
   end
 
-  test "new sets default headers" do
+  test "bhv config 013 new sets default headers" do
     config =
       PetstoreClient.Configuration.new(default_headers: %{"Authorization" => "Bearer token123"})
 
@@ -25,7 +25,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.default_headers == %{}
   end
 
-  test "new sets all fields" do
+  test "bhv config 010 new sets all fields" do
     config =
       PetstoreClient.Configuration.new(
         base_url: "https://api.example.com",
@@ -40,7 +40,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.default_headers["X-Custom"] == "value"
   end
 
-  test "builder sets multiple default headers" do
+  test "bhv config 012 builder sets multiple default headers" do
     config =
       PetstoreClient.Configuration.new(
         default_headers: %{
@@ -56,7 +56,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.default_headers["X-Third"] == "three"
   end
 
-  test "builder produces independent instances" do
+  test "bhv config 006 builder produces independent instances" do
     config1 = PetstoreClient.Configuration.new(base_url: "https://one.example.com")
     config2 = PetstoreClient.Configuration.new(base_url: "https://two.example.com")
 
@@ -71,7 +71,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert first.base_url == second.base_url
   end
 
-  test "from_server resolves URL with default variables" do
+  test "bhv config 008 from_server resolves URL with default variables" do
     server = %PetstoreClient.ServerConfiguration{
       url_template: "https://{env}.example.com/api/{version}",
       description: "Test server",
@@ -91,7 +91,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.base_url == "https://api.example.com/api/v3"
   end
 
-  test "from_server resolves URL with variable overrides" do
+  test "bhv config 009 from_server resolves URL with variable overrides" do
     server = %PetstoreClient.ServerConfiguration{
       url_template: "https://{env}.example.com/api/{version}",
       variables: %{
@@ -112,7 +112,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.base_url == "https://staging.example.com/api/v2"
   end
 
-  test "base_url overrides server" do
+  test "bhv config 001 base_url overrides server" do
     server = %PetstoreClient.ServerConfiguration{
       url_template: "https://api.example.com"
     }
@@ -124,13 +124,13 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.base_url == "https://override.example.com"
   end
 
-  test "default returns an instance" do
+  test "bhv config 014 default returns an instance" do
     config = PetstoreClient.Configuration.default()
     assert %PetstoreClient.Configuration{} = config
     assert config.base_url == "/api/v3"
   end
 
-  test "from_server raises for invalid enum value" do
+  test "bhv config 016 from_server raises for invalid enum value" do
     server = %PetstoreClient.ServerConfiguration{
       url_template: "https://{env}.example.com",
       variables: %{
@@ -146,7 +146,7 @@ defmodule PetstoreClient.ConfigurationTest do
     end
   end
 
-  test "inspect masks sensitive default headers" do
+  test "bhv config 015 inspect masks sensitive default headers" do
     config =
       PetstoreClient.Configuration.new(
         default_headers: %{"Authorization" => "Bearer abc123", "Accept" => "application/json"}

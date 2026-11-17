@@ -4,7 +4,7 @@ defmodule PetstoreClient.ApiResultTest do
   alias PetstoreClient.ApiResult
 
   describe "ApiResult struct" do
-    test "carries data, status, raw body, and headers" do
+    test "bhv results 003 carries data, status, raw body, and headers" do
       result = %ApiResult{
         status_code: 200,
         data: %{"id" => 1},
@@ -18,7 +18,7 @@ defmodule PetstoreClient.ApiResultTest do
       assert result.headers == %{"content-type" => "application/json"}
     end
 
-    test "data and raw_body default to nil and an empty string" do
+    test "bhv results 001 data and raw_body default to nil and an empty string" do
       result = %ApiResult{status_code: 204}
 
       assert result.status_code == 204

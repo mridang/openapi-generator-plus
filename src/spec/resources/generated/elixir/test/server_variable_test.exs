@@ -4,13 +4,13 @@ defmodule PetstoreClient.ServerVariableTest do
   alias PetstoreClient.ServerVariable
 
   describe "ServerVariable struct" do
-    test "exposes the default value" do
+    test "bhv servers 017 exposes the default value" do
       variable = %ServerVariable{default_value: "prod"}
 
       assert variable.default_value == "prod"
     end
 
-    test "description and enum_values default to nil and an empty list" do
+    test "bhv servers 016 description and enum_values default to nil and an empty list" do
       variable = %ServerVariable{default_value: "v1"}
 
       assert variable.description == nil

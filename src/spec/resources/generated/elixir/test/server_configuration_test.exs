@@ -5,13 +5,13 @@ defmodule PetstoreClient.ServerConfigurationTest do
   alias PetstoreClient.ServerVariable
 
   describe "url/2" do
-    test "resolves a plain template with no variables unchanged" do
+    test "bhv servers 011 resolves a plain template with no variables unchanged" do
       config = %ServerConfiguration{url_template: "https://api.example.com/v1"}
 
       assert ServerConfiguration.url(config) == "https://api.example.com/v1"
     end
 
-    test "substitutes variables using their default values" do
+    test "bhv servers 010 substitutes variables using their default values" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com/v{version}",
         variables: %{
@@ -48,7 +48,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
                "https://staging.api.example.com"
     end
 
-    test "rejects an override outside the enum with ArgumentError" do
+    test "bhv servers 008 rejects an override outside the enum with ArgumentError" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
         variables: %{
@@ -64,7 +64,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
       end
     end
 
-    test "the rejection names the value, the variable and the allowed values" do
+    test "bhv servers 012 the rejection names the value, the variable and the allowed values" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
         variables: %{
@@ -90,7 +90,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
                    fn -> ServerConfiguration.url(config, %{"env" => "z"}) end
     end
 
-    test "a placeholder introduced by a substituted value is not expanded again" do
+    test "bhv servers 005 a placeholder introduced by a substituted value is not expanded again" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com/{version}",
         variables: %{
@@ -109,7 +109,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
       assert ServerConfiguration.url(config) == "https://{unknown}.example.com"
     end
 
-    test "a default outside the enum is rejected" do
+    test "bhv servers 004 a default outside the enum is rejected" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
         variables: %{
@@ -122,7 +122,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
                    fn -> ServerConfiguration.url(config) end
     end
 
-    test "a variable with no enum accepts any override" do
+    test "bhv servers 014 a variable with no enum accepts any override" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
         variables: %{"env" => %ServerVariable{default_value: "prod"}}
@@ -132,7 +132,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
                "https://anything-goes.api.example.com"
     end
 
-    test "a partial override keeps the other variables' defaults" do
+    test "bhv servers 001 a partial override keeps the other variables' defaults" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com/v{version}",
         variables: %{
@@ -145,7 +145,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
                "https://prod.api.example.com/v3"
     end
 
-    test "a variable repeated in the template is replaced everywhere" do
+    test "bhv servers 002 a variable repeated in the template is replaced everywhere" do
       config = %ServerConfiguration{
         url_template: "https://{region}.example.com/{region}/v1",
         variables: %{"region" => %ServerVariable{default_value: "eu"}}
@@ -154,7 +154,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
       assert ServerConfiguration.url(config) == "https://eu.example.com/eu/v1"
     end
 
-    test "exposes the raw template and description" do
+    test "bhv servers 006 exposes the raw template and description" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
         description: "Deployment server",

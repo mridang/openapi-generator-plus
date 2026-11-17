@@ -23,13 +23,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
   use ExUnit.Case, async: true
 
   describe "DateTimeOffsetPreservation" do
-    test "UTC datetime serializes containing date-time and UTC offset" do
+    test "bhv serializationobject 174 UTC datetime serializes containing date-time and UTC offset" do
       dt = ~U[2024-01-01 12:30:45Z]
       result = PetstoreClient.ObjectSerializer.stringify(dt)
       assert result == "2024-01-01T12:30:45.000+00:00"
     end
 
-    test "positive timezone offset is preserved in serialized string" do
+    test "bhv serializationobject 116 positive timezone offset is preserved in serialized string" do
       # DateTime.from_iso8601/1 normalizes to UTC, so we construct the struct
       # directly to preserve the +05:30 offset in the serialized output.
       dt = %DateTime{
@@ -51,7 +51,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert result == "2024-01-01T12:30:45.000+05:30"
     end
 
-    test "negative timezone offset is preserved in serialized string" do
+    test "bhv serializationobject 107 negative timezone offset is preserved in serialized string" do
       # DateTime.from_iso8601/1 normalizes to UTC, so we construct the struct
       # directly to preserve the -08:00 offset in the serialized output.
       dt = %DateTime{
@@ -73,7 +73,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert result == "2024-01-01T12:30:45.000-08:00"
     end
 
-    test "date-time serialization preserves sub-second precision" do
+    test "bhv serializationobject 046 date-time serialization preserves sub-second precision" do
       # 2020-01-02T03:04:05.123Z carries millisecond precision (the cross-SDK
       # common denominator). The encoder must keep the ".123" so the wire form
       # round-trips losslessly with the decoder, which accepts fractions.
@@ -85,33 +85,33 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert DateTime.compare(parsed, dt) == :eq
     end
 
-    test "whole-second datetime serializes with a fixed three-digit fraction" do
+    test "bhv serializationobject 179 whole-second datetime serializes with a fixed three-digit fraction" do
       {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45+00:00")
       result = PetstoreClient.ObjectSerializer.stringify(dt)
       assert result == "2024-01-01T12:30:45.000+00:00"
     end
 
-    test "date-only serializes as ISO 8601 date without time component" do
+    test "bhv serializationobject 044 date-only serializes as ISO 8601 date without time component" do
       d = ~D[2024-01-01]
       result = PetstoreClient.ObjectSerializer.stringify(d)
       assert result == "2024-01-01"
     end
 
-    test "serialized datetime string contains an offset marker" do
+    test "bhv serializationobject 149 serialized datetime string contains an offset marker" do
       dt = ~U[2024-01-01 12:30:45Z]
       result = PetstoreClient.ObjectSerializer.stringify(dt)
       assert result == "2024-01-01T12:30:45.000+00:00"
       refute String.ends_with?(result, "Z")
     end
 
-    test "round-trip: serialize then deserialize yields equivalent datetime" do
+    test "bhv serializationobject 144 round-trip: serialize then deserialize yields equivalent datetime" do
       {:ok, original, _} = DateTime.from_iso8601("2024-01-01T12:30:45+05:30")
       serialized = PetstoreClient.ObjectSerializer.stringify(original)
       {:ok, parsed, _} = DateTime.from_iso8601(serialized)
       assert DateTime.to_unix(original) == DateTime.to_unix(parsed)
     end
 
-    test "model date-time field serialization preserves sub-second precision" do
+    test "bhv serializationobject 045 model date-time field serialization preserves sub-second precision" do
       # Canonical cross-SDK regression: a model carrying a format:date-time
       # field (PhotoMetadata.takenAt) must keep millisecond precision through
       # a full JSON-body serialize, and deserialize back to the same instant.
@@ -127,14 +127,14 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert DateTime.compare(decoded.taken_at, instant) == :eq
     end
 
-    test "a readOnly property is populated on decode" do
+    test "bhv serializationobject 014 a readOnly property is populated on decode" do
       decoded =
         PetstoreClient.ObjectSerializer.deserialize(~s({"id":7,"username":"u"}), "Account")
 
       assert decoded.id == 7
     end
 
-    test "a writeOnly property is written on encode" do
+    test "bhv serializationobject 018 a writeOnly property is written on encode" do
       json =
         PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.Account{
           username: "u",
@@ -144,7 +144,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert Jason.decode!(json)["password"] == "p"
     end
 
-    test "a writeOnly property is kept on decode" do
+    test "bhv serializationobject 017 a writeOnly property is kept on decode" do
       decoded =
         PetstoreClient.ObjectSerializer.deserialize(
           ~s({"id":7,"username":"u","password":"p"}),
@@ -161,7 +161,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
                account
     end
 
-    test "a format: password property is left out of inspect" do
+    test "bhv serializationobject 007 a format: password property is left out of inspect" do
       account = %PetstoreClient.Models.Account{username: "u", password: "hunter2"}
 
       refute inspect(account) =~ "hunter2"
@@ -203,30 +203,30 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "NonAsciiSerialization" do
-    test "accented character serializes without unicode escape" do
+    test "bhv serializationobject 019 accented character serializes without unicode escape" do
       result = PetstoreClient.ObjectSerializer.serialize("café")
       assert String.contains?(result, "é"), "should contain literal é: #{result}"
     end
 
-    test "CJK characters serialize without unicode escape" do
+    test "bhv serializationobject 031 CJK characters serialize without unicode escape" do
       result = PetstoreClient.ObjectSerializer.serialize("日本")
       assert String.contains?(result, "日本"), "should contain literal CJK chars: #{result}"
     end
 
-    test "tab character is properly escaped in JSON" do
+    test "bhv serializationobject 160 tab character is properly escaped in JSON" do
       result = PetstoreClient.ObjectSerializer.serialize("a\tb")
       assert String.contains?(result, "\\t"), "tab should be escaped: #{result}"
     end
   end
 
   describe "deserialize wraps decode failures" do
-    test "truncated JSON raises SerializationError" do
+    test "bhv serializationobject 170 truncated JSON raises SerializationError" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize("{", "Category")
       end
     end
 
-    test "incomplete JSON object raises SerializationError" do
+    test "bhv serializationobject 089 incomplete JSON object raises SerializationError" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize("{\"name\":", "Category")
       end
@@ -236,7 +236,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     # OpenAPIError hierarchy: malformed JSON, a wrong primitive type, a
     # missing required field, an unknown enum value and a malformed date-time
     # or duration.
-    test "every wire-shape failure is a SerializationError" do
+    test "bhv serializationobject 077 every wire-shape failure is a SerializationError" do
       for {json, model} <- [
             {"{", "Pet"},
             {~s({"name":7,"photoUrls":[]}), "Pet"},
@@ -270,7 +270,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
                "Failed to convert to Order: " <> Exception.message(err.cause)
     end
 
-    test "a bare object where a date-time string is expected raises SerializationError" do
+    test "bhv serializationobject 080 a bare object where a date-time string is expected raises SerializationError" do
       err =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(~s({"a":1}), "DateTime")
@@ -300,7 +300,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
                "Expected a JSON object for PetstoreClient.Models.Category, got [1, 2]"
     end
 
-    test "a scalar where a nested model is expected raises instead of dropping the field" do
+    test "bhv serializationobject 118 a scalar where a nested model is expected raises instead of dropping the field" do
       err =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(
@@ -333,7 +333,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert err.message == "Expected a JSON object for map type, got [1]"
     end
 
-    test "a fractional, quoted or boolean element of a map of integers raises" do
+    test "bhv serializationobject 122 a fractional, quoted or boolean element of a map of integers raises" do
       for {json, shown} <- [
             {~s({"a":1.5}), "1.5"},
             {~s({"a":"1"}), "\"1\""},
@@ -376,7 +376,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
              ]
     end
 
-    test "thrown SerializationError has a message referencing the failure" do
+    test "bhv serializationobject 162 thrown SerializationError has a message referencing the failure" do
       try do
         PetstoreClient.ObjectSerializer.deserialize("{", "Category")
         flunk("Expected SerializationError to be raised")
@@ -391,12 +391,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # raise on deserialize, not be silently retained. The TestEnumStatus
   # helper module is defined at the top of this file (see note there).
   describe "enum unknown value" do
-    test "known enum value coerces to its atom" do
+    test "bhv serializationobject 069 known enum value coerces to its atom" do
       assert PetstoreClient.ObjectSerializer.convert_to_type("available", "TestEnumStatus") ==
                :available
     end
 
-    test "unknown enum value raises SerializationError" do
+    test "bhv serializationobject 172 unknown enum value raises SerializationError" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type("banana", "TestEnumStatus")
       end
@@ -410,99 +410,114 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "stringify/1" do
-    test "returns empty string for nil" do
+    test "bhv serializationobject 110 returns empty string for nil" do
       assert PetstoreClient.ObjectSerializer.stringify(nil) == ""
     end
 
-    test "returns 'true' for boolean true" do
+    test "bhv serializationobject 028 returns 'true' for boolean true" do
       assert PetstoreClient.ObjectSerializer.stringify(true) == "true"
     end
 
-    test "returns 'false' for boolean false" do
+    test "bhv serializationobject 027 returns 'false' for boolean false" do
       assert PetstoreClient.ObjectSerializer.stringify(false) == "false"
     end
 
-    test "returns string representation of integer" do
+    test "bhv serializationobject 091 returns string representation of integer" do
       assert PetstoreClient.ObjectSerializer.stringify(42) == "42"
     end
 
-    test "passes through plain string unchanged" do
+    test "bhv serializationobject 114 passes through plain string unchanged" do
       assert PetstoreClient.ObjectSerializer.stringify("hello") == "hello"
     end
 
-    test "returns string representation of float" do
+    test "bhv serializationobject 078 returns string representation of float" do
       assert PetstoreClient.ObjectSerializer.stringify(3.14) == "3.14"
     end
 
-    test "returns ISO 8601 date string for Date" do
+    test "bhv serializationobject 134 returns ISO 8601 date string for Date" do
       assert PetstoreClient.ObjectSerializer.stringify(~D[2024-01-15]) == "2024-01-15"
+    end
+
+    test "bhv serializationobject 155 stringify writes a boolean as its lowercase word" do
+      assert PetstoreClient.ObjectSerializer.stringify(true) == "true"
+      assert PetstoreClient.ObjectSerializer.stringify(false) == "false"
+    end
+
+    test "bhv serializationobject 159 stringify returns a plain string unchanged" do
+      assert PetstoreClient.ObjectSerializer.stringify("a b") == "a b"
+      assert PetstoreClient.ObjectSerializer.stringify("") == ""
+    end
+
+    test "bhv serializationobject 157 stringify writes a DateTime as an ISO 8601 string" do
+      dt = ~U[2024-01-01 12:30:45Z]
+      assert PetstoreClient.ObjectSerializer.stringify(dt) == "2024-01-01T12:30:45.000+00:00"
     end
   end
 
   describe "to_path_value/1" do
-    test "returns empty string for nil" do
+    test "bhv serializationobject 130 returns empty string for nil" do
       assert PetstoreClient.ObjectSerializer.to_path_value(nil) == ""
     end
 
-    test "returns the string for a string value" do
+    test "bhv serializationobject 141 returns the string for a string value" do
       assert PetstoreClient.ObjectSerializer.to_path_value("hello") == "hello"
     end
 
-    test "converts integer to string" do
+    test "bhv serializationobject 036 converts integer to string" do
       assert PetstoreClient.ObjectSerializer.to_path_value(42) == "42"
     end
 
-    test "converts true to 'true'" do
+    test "bhv serializationobject 043 converts true to 'true'" do
       assert PetstoreClient.ObjectSerializer.to_path_value(true) == "true"
     end
 
-    test "converts false to 'false'" do
+    test "bhv serializationobject 033 converts false to 'false'" do
       assert PetstoreClient.ObjectSerializer.to_path_value(false) == "false"
     end
   end
 
   describe "to_query_value/2" do
-    test "returns nil for nil" do
+    test "bhv serializationobject 137 returns nil for nil" do
       assert PetstoreClient.ObjectSerializer.to_query_value(nil) == nil
     end
 
-    test "returns the string for a string value" do
+    test "bhv serializationobject 139 returns the string for a string value" do
       assert PetstoreClient.ObjectSerializer.to_query_value("hello") == "hello"
     end
 
-    test "converts integer to string" do
+    test "bhv serializationobject 037 converts integer to string" do
       assert PetstoreClient.ObjectSerializer.to_query_value(42) == "42"
     end
 
-    test "converts true to 'true'" do
+    test "bhv serializationobject 041 converts true to 'true'" do
       assert PetstoreClient.ObjectSerializer.to_query_value(true) == "true"
     end
 
-    test "converts false to 'false'" do
+    test "bhv serializationobject 034 converts false to 'false'" do
       assert PetstoreClient.ObjectSerializer.to_query_value(false) == "false"
     end
 
-    test "joins array with comma by default" do
+    test "bhv serializationobject 097 joins array with comma by default" do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"]) == "a,b,c"
     end
 
-    test "joins array with comma for csv" do
+    test "bhv serializationobject 098 joins array with comma for csv" do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :csv) == "a,b,c"
     end
 
-    test "joins array with space for ssv" do
+    test "bhv serializationobject 100 joins array with space for ssv" do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :ssv) == "a b c"
     end
 
-    test "joins array with tab for tsv" do
+    test "bhv serializationobject 101 joins array with tab for tsv" do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :tsv) == "a\tb\tc"
     end
 
-    test "joins array with pipe for pipes" do
+    test "bhv serializationobject 099 joins array with pipe for pipes" do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :pipes) == "a|b|c"
     end
 
-    test "returns array as-is for multi" do
+    test "bhv serializationobject 135 returns array as-is for multi" do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :multi) == [
                "a",
                "b",
@@ -512,61 +527,61 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "to_header_value/1" do
-    test "returns empty string for nil" do
+    test "bhv serializationobject 131 returns empty string for nil" do
       assert PetstoreClient.ObjectSerializer.to_header_value(nil) == ""
     end
 
-    test "returns the string for a string value" do
+    test "bhv serializationobject 142 returns the string for a string value" do
       assert PetstoreClient.ObjectSerializer.to_header_value("hello") == "hello"
     end
 
-    test "converts integer to string" do
+    test "bhv serializationobject 038 converts integer to string" do
       assert PetstoreClient.ObjectSerializer.to_header_value(42) == "42"
     end
 
-    test "joins array with comma" do
+    test "bhv serializationobject 096 joins array with comma" do
       assert PetstoreClient.ObjectSerializer.to_header_value(["a", "b", "c"]) == "a,b,c"
     end
   end
 
   describe "to_form_value/1" do
-    test "returns empty string for nil" do
+    test "bhv serializationobject 132 returns empty string for nil" do
       assert PetstoreClient.ObjectSerializer.to_form_value(nil) == ""
     end
 
-    test "returns the string for a string value" do
+    test "bhv serializationobject 140 returns the string for a string value" do
       assert PetstoreClient.ObjectSerializer.to_form_value("hello") == "hello"
     end
 
-    test "converts integer to string" do
+    test "bhv serializationobject 039 converts integer to string" do
       assert PetstoreClient.ObjectSerializer.to_form_value(42) == "42"
     end
 
-    test "converts true to 'true'" do
+    test "bhv serializationobject 042 converts true to 'true'" do
       assert PetstoreClient.ObjectSerializer.to_form_value(true) == "true"
     end
 
-    test "converts false to 'false'" do
+    test "bhv serializationobject 035 converts false to 'false'" do
       assert PetstoreClient.ObjectSerializer.to_form_value(false) == "false"
     end
   end
 
   describe "to_cookie_value/1" do
-    test "returns empty string for nil" do
+    test "bhv serializationobject 133 returns empty string for nil" do
       assert PetstoreClient.ObjectSerializer.to_cookie_value(nil) == ""
     end
 
-    test "returns the string for a string value" do
+    test "bhv serializationobject 143 returns the string for a string value" do
       assert PetstoreClient.ObjectSerializer.to_cookie_value("hello") == "hello"
     end
 
-    test "converts integer to string" do
+    test "bhv serializationobject 040 converts integer to string" do
       assert PetstoreClient.ObjectSerializer.to_cookie_value(42) == "42"
     end
   end
 
   describe "serialize/1" do
-    test "serializes a model to valid JSON" do
+    test "bhv serializationobject 152 serializes a model to valid JSON" do
       category = %PetstoreClient.Models.Category{id: 1, name: "Dogs"}
       json = PetstoreClient.ObjectSerializer.serialize(category)
       data = Jason.decode!(json)
@@ -574,7 +589,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert data["name"] == "Dogs"
     end
 
-    test "an inline enum atom outside the declared values raises instead of being sent" do
+    test "bhv serializationobject 024 an inline enum atom outside the declared values raises instead of being sent" do
       pet = %PetstoreClient.Models.Pet{name: "x", photo_urls: [], status: :bogus}
 
       err =
@@ -604,7 +619,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(pet))["status"] == "sold"
     end
 
-    test "a model's keys are written in schema declaration order" do
+    test "bhv serializationobject 015 a model's keys are written in schema declaration order" do
       order = %PetstoreClient.Models.Order{
         id: 1,
         pet_id: 2,
@@ -638,12 +653,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
                ["id", "petId", "quantity", "trackingId", "shipDate", "status", "complete"]
     end
 
-    test "handles nil" do
+    test "bhv serializationobject 087 handles nil" do
       json = PetstoreClient.ObjectSerializer.serialize(nil)
       assert json == "null"
     end
 
-    test "includes fields explicitly set to default values" do
+    test "bhv serializationobject 088 includes fields explicitly set to default values" do
       category = %PetstoreClient.Models.Category{id: 0, name: ""}
       json = PetstoreClient.ObjectSerializer.serialize(category)
       data = Jason.decode!(json)
@@ -655,7 +670,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "inline enum with non-identifier wire values (EdgeCases.phase)" do
-    test "each wire value decodes to a distinct member atom and re-encodes unchanged" do
+    test "bhv serializationobject 161 each wire value decodes to a distinct member atom and re-encodes unchanged" do
       for {wire, member} <- [
             {"In-Stock", :in_stock},
             {"on-hold", :on_hold},
@@ -672,7 +687,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "the member name is not accepted as a wire value" do
+    test "bhv serializationobject 076 the member name is not accepted as a wire value" do
       err =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(~s({"phase":"on_hold"}), "EdgeCases")
@@ -695,13 +710,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert bytes == "hello"
     end
 
-    test "rejects malformed base64 with SerializationError" do
+    test "bhv serializationobject 102 rejects malformed base64 with SerializationError" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type("not-base64!!!", "ByteArray")
       end
     end
 
-    test "rejects non-string payload with SerializationError" do
+    test "bhv serializationobject 153 rejects non-string payload with SerializationError" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(123, "ByteArray")
       end
@@ -721,7 +736,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       PetstoreClient.ObjectSerializer.deserialize(json, "BinaryVault")
     end
 
-    test "two vaults decoded from equal bytes are equal, whatever the shape" do
+    test "bhv serializationobject 090 two vaults decoded from equal bytes are equal, whatever the shape" do
       left = decode_vault("c2VhbA==", ["YQ==", "Yg=="], %{"k" => "YQ=="})
       right = decode_vault("c2VhbA==", ["YQ==", "Yg=="], %{"k" => "YQ=="})
 
@@ -731,7 +746,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert left == right
     end
 
-    test "a different byte in the bare array, the list or the map makes the vaults differ" do
+    test "bhv serializationobject 075 a different byte in the bare array, the list or the map makes the vaults differ" do
       base = decode_vault("c2VhbA==", ["YQ==", "Yg=="], %{"k" => "YQ=="})
 
       refute base == decode_vault("eA==", ["YQ==", "Yg=="], %{"k" => "YQ=="})
@@ -739,7 +754,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       refute base == decode_vault("c2VhbA==", ["YQ==", "Yg=="], %{"k" => "eA=="})
     end
 
-    test "a list of byte arrays is distinct from a map of them" do
+    test "bhv serializationobject 009 a list of byte arrays is distinct from a map of them" do
       listed = decode_vault("c2VhbA==", ["YQ=="], %{})
       mapped = decode_vault("c2VhbA==", [], %{"0" => "YQ=="})
 
@@ -748,7 +763,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "encode_base64_param/1" do
-    test "encodes bytes as padded standard-alphabet base64" do
+    test "bhv serializationobject 156 encodes bytes as padded standard-alphabet base64" do
       assert PetstoreClient.ObjectSerializer.encode_base64_param("hi") == "aGk="
       assert PetstoreClient.ObjectSerializer.encode_base64_param(<<0xFB, 0xFF>>) == "+/8="
     end
@@ -761,7 +776,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "format: uuid (UUID)" do
-    test "accepts canonical lower-case UUID" do
+    test "bhv serializationobject 175 accepts canonical lower-case UUID" do
       uuid = "550e8400-e29b-41d4-a716-446655440000"
       assert PetstoreClient.ObjectSerializer.convert_to_type(uuid, "UUID") == uuid
     end
@@ -773,7 +788,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
                String.downcase(uuid)
     end
 
-    test "encode_uuid_param writes lowercase and rejects malformed values" do
+    test "bhv serializationobject 148 encode_uuid_param writes lowercase and rejects malformed values" do
       assert PetstoreClient.ObjectSerializer.encode_uuid_param(
                "550E8400-E29B-41D4-A716-446655440000"
              ) ==
@@ -786,7 +801,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "rejects malformed UUID" do
+    test "bhv serializationobject 048 rejects malformed UUID" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type("not-a-uuid", "UUID")
       end
@@ -809,7 +824,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "format: uri (URI)" do
-    test "accepts absolute URIs of any scheme and returns the original string" do
+    test "bhv serializationobject 021 accepts absolute URIs of any scheme and returns the original string" do
       for uri <- [
             "https://example.com/a?b=c",
             "ftp://x.org/f",
@@ -820,7 +835,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "rejects relative references, blanks and whitespace" do
+    test "bhv serializationobject 008 rejects relative references, blanks and whitespace" do
       for bad <- ["/relative", "", " ", "http://a b", "http://a\nb", "no scheme"] do
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.convert_to_type(bad, "URI")
@@ -836,7 +851,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "deserialize/2" do
-    test "deserializes JSON to typed model" do
+    test "bhv serializationobject 070 deserializes JSON to typed model" do
       json_str = ~s({"id":1,"name":"Dogs"})
       category = PetstoreClient.ObjectSerializer.deserialize(json_str, "Category")
       assert %PetstoreClient.Models.Category{} = category
@@ -848,7 +863,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     # text and Jason rejects it, but Windows-generated payloads often include
     # one. deserialize/2 strips it transparently (parity with Java Jackson /
     # C# System.Text.Json), so a BOM-prefixed body still yields a typed model.
-    test "strips a leading UTF-8 BOM before deserializing" do
+    test "bhv serializationobject 060 strips a leading UTF-8 BOM before deserializing" do
       json_str = <<0xEF, 0xBB, 0xBF>> <> ~s({"id":1,"name":"Dogs"})
       category = PetstoreClient.ObjectSerializer.deserialize(json_str, "Category")
       assert %PetstoreClient.Models.Category{} = category
@@ -856,7 +871,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert category.name == "Dogs"
     end
 
-    test "rejects a null element in an array of models" do
+    test "bhv serializationobject 121 rejects a null element in an array of models" do
       for type <- ["[Category]", "Array<Category>"] do
         error =
           assert_raise PetstoreClient.Errors.SerializationError, fn ->
@@ -867,7 +882,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "rejects a null value in a map of models" do
+    test "bhv serializationobject 123 rejects a null value in a map of models" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(~s({"a":null}), "%{String.t() => Category}")
       end
@@ -880,11 +895,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
              ]
     end
 
-    test "returns nil for empty input" do
+    test "bhv serializationobject 136 returns nil for empty input" do
       assert PetstoreClient.ObjectSerializer.deserialize("", "Category") == nil
     end
 
-    test "returns nil for nil input" do
+    test "bhv serializationobject 138 returns nil for nil input" do
       assert PetstoreClient.ObjectSerializer.deserialize(nil, "Category") == nil
     end
 
@@ -894,7 +909,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     # never replaced by the default. The Defaults model declares
     # retries (int, default 3), mode (enum, default medium — not the first
     # variant), and label (nullable string, default "untitled").
-    test "deserialize applies defaults for an empty object" do
+    test "bhv serializationobject 025 deserialize applies defaults for an empty object" do
       defaults = PetstoreClient.ObjectSerializer.deserialize(~s({}), "Defaults")
       assert %PetstoreClient.Models.Defaults{} = defaults
       assert defaults.retries == 3
@@ -903,14 +918,14 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert defaults.greeting == "it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b"
     end
 
-    test "deserialize renders the numeric defaults as their exact typed values" do
+    test "bhv serializationobject 111 deserialize renders the numeric defaults as their exact typed values" do
       defaults = PetstoreClient.ObjectSerializer.deserialize(~s({}), "Defaults")
       assert defaults.ratio === 1.5
       assert defaults.scale === 0.25
       assert defaults.ceiling === 9_000_000_000
     end
 
-    test "deserialize preserves an explicit null over the default" do
+    test "bhv serializationobject 056 deserialize preserves an explicit null over the default" do
       json_str = ~s({"label":null,"retries":7})
       defaults = PetstoreClient.ObjectSerializer.deserialize(json_str, "Defaults")
       assert %PetstoreClient.Models.Defaults{} = defaults
@@ -924,7 +939,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     # TreeNode. Deserialization must decode the nested child into a typed
     # TreeNode struct (not a raw map) at every level, with the absent
     # grandchild left nil.
-    test "deserializes a self-referential TreeNode and decodes the nesting" do
+    test "bhv serializationobject 068 deserializes a self-referential TreeNode and decodes the nesting" do
       json_str = ~s({"value":"root","child":{"value":"leaf"}})
       top = PetstoreClient.ObjectSerializer.deserialize(json_str, "TreeNode")
       assert %PetstoreClient.Models.TreeNode{} = top
@@ -942,7 +957,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # so the default is the atom `:placed`, identical to the value the
   # deserializer produces for a present "status" wire string. Canonical across
   # the product; the asserted value is the schema default placed.
-  test "deserialize applies schema default for absent field" do
+  test "bhv serializationobject 053 deserialize applies schema default for absent field" do
     json_str = ~s({"id":10,"petId":198772})
     order = PetstoreClient.ObjectSerializer.deserialize(json_str, "Order")
     assert %PetstoreClient.Models.Order{} = order
@@ -956,7 +971,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # untouched. Canonical across the product; parity with Go/PHP/Kotlin/
   # Swift/Rust which all reject a missing/null required field.
   describe "required field strictness (Divergence #10)" do
-    test "deserializing a complete object still succeeds" do
+    test "bhv serializationobject 061 deserializing a complete object still succeeds" do
       json = ~s({"name":"Rex","photoUrls":["http://example.com/rex.jpg"]})
       pet = PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
       assert %PetstoreClient.Models.Pet{} = pet
@@ -964,7 +979,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert pet.photo_urls == MapSet.new(["http://example.com/rex.jpg"])
     end
 
-    test "missing required field raises SerializationError" do
+    test "bhv serializationobject 063 missing required field raises SerializationError" do
       # photoUrls (required, non-nullable) is absent.
       json = ~s({"name":"Rex"})
 
@@ -973,7 +988,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "explicitly-null required field raises SerializationError" do
+    test "bhv serializationobject 084 explicitly-null required field raises SerializationError" do
       json = ~s({"name":"Rex","photoUrls":null})
 
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
@@ -981,7 +996,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "null on a required field other than the first also raises" do
+    test "bhv serializationobject 062 null on a required field other than the first also raises" do
       # Guard against only the first required field being checked: here
       # `name` is null while `photoUrls` is present and valid.
       json = ~s({"name":null,"photoUrls":["http://example.com/rex.jpg"]})
@@ -1005,7 +1020,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     # (explicitNulls=false) accepts → silent contract violation; the other 9
     # (elixir among them) throw. Canonical = throw. GREEN in elixir — the
     # assert_required_present guard rejects an explicitly-null required field.
-    test "Gap AJ: null on required non-nullable name raises SerializationError" do
+    test "bhv serializationobject 086 Gap AJ: null on required non-nullable name raises SerializationError" do
       json = ~s({"name":null,"photoUrls":["u"]})
 
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
@@ -1015,7 +1030,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "required and nullable property" do
-    test "an explicit null decodes to nil" do
+    test "bhv serializationobject 049 an explicit null decodes to nil" do
       model = PetstoreClient.ObjectSerializer.deserialize(~s({"note":null}), "RequiredNullable")
       assert model.note == nil
     end
@@ -1025,13 +1040,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert model.note == "x"
     end
 
-    test "an absent key raises SerializationError" do
+    test "bhv serializationobject 126 an absent key raises SerializationError" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize("{}", "RequiredNullable")
       end
     end
 
-    test "a nil value is written as an explicit null" do
+    test "bhv serializationobject 125 a nil value is written as an explicit null" do
       model = %PetstoreClient.Models.RequiredNullable{note: nil}
       assert PetstoreClient.ObjectSerializer.serialize(model) == ~s({"note":null})
     end
@@ -1047,7 +1062,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.stringify(~T[13:45:30]) == "13:45:30"
     end
 
-    test "stringify keeps a non-zero millisecond part and truncates finer precision" do
+    test "bhv serializationobject 164 stringify keeps a non-zero millisecond part and truncates finer precision" do
       assert PetstoreClient.ObjectSerializer.stringify(~T[10:30:00.123456]) == "10:30:00.123"
       assert PetstoreClient.ObjectSerializer.stringify(~T[10:30:00.9996]) == "10:30:00.999"
     end
@@ -1062,19 +1077,19 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert Jason.decode!(json)["opens_at"] == "09:00:00.250"
     end
 
-    test "serialize emits HH:MM:SS for a Time inside a map" do
+    test "bhv serializationobject 005 serialize emits HH:MM:SS for a Time inside a map" do
       json = PetstoreClient.ObjectSerializer.serialize(%{"opens_at" => ~T[09:00:00]})
       assert Jason.decode!(json)["opens_at"] == "09:00:00"
     end
   end
 
   describe "format: duration round-tripping" do
-    test "stringify emits canonical protobuf duration for a Duration" do
+    test "bhv serializationobject 158 stringify emits canonical protobuf duration for a Duration" do
       d = Duration.new!(hour: 1, minute: 30)
       assert PetstoreClient.ObjectSerializer.stringify(d) == "5400s"
     end
 
-    test "serialize emits the canonical duration string inside a map" do
+    test "bhv serializationobject 146 serialize emits the canonical duration string inside a map" do
       d = Duration.new!(minute: 5)
       json = PetstoreClient.ObjectSerializer.serialize(%{"ttl" => d})
       assert Jason.decode!(json)["ttl"] == "300s"
@@ -1087,7 +1102,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # from_value/1. Serialize must emit the bare integer (2, never "2") and
   # deserialize must invert it back to the member atom.
   describe "integer-backed enum (Priority) round-trips as a JSON number" do
-    test "serialize emits the bare integer wire value" do
+    test "bhv serializationobject 002 serialize emits the bare integer wire value" do
       # StockItem.priority is typed "Priority", so sanitize routes the atom
       # through Priority.value/1 and emits the int. matrix is omitted (nil)
       # so only the required priority field surfaces.
@@ -1098,7 +1113,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       refute data["priority"] == "2"
     end
 
-    test "deserialize maps the JSON number back to the member atom" do
+    test "bhv serializationobject 092 deserialize maps the JSON number back to the member atom" do
       json = ~s({"priority":2})
       item = PetstoreClient.ObjectSerializer.deserialize(json, "StockItem")
       assert %PetstoreClient.Models.StockItem{} = item
@@ -1154,7 +1169,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # StockItem.availability is a $ref to the Availability enum; an out-of-spec
   # value reaches atomize_enum via the field's declared type and raises.
   describe "referenced enum field rejects unknown wire value" do
-    test "unknown Availability wire value on a model field raises SerializationError" do
+    test "bhv serializationobject 059 unknown Availability wire value on a model field raises SerializationError" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(
           ~s({"priority":1,"availability":"Discontinued"}),
@@ -1180,7 +1195,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert item.availability == :on_hold
     end
 
-    test "decoding a payload without the property gives the default" do
+    test "bhv serializationobject 050 decoding a payload without the property gives the default" do
       item = PetstoreClient.ObjectSerializer.deserialize(~s({"priority":1}), "StockItem")
       assert item.availability == :on_hold
     end
@@ -1201,7 +1216,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # StockItem.matrix is typed "[[integer()]]"; convert_to_type peels each
   # container level so every leaf is a strict integer.
   describe "nested container (array-of-array int) deep round-trips" do
-    test "deserialize decodes every leaf to a typed integer" do
+    test "bhv serializationobject 108 deserialize decodes every leaf to a typed integer" do
       json = ~s({"priority":1,"matrix":[[1,2],[3,4,5]]})
       item = PetstoreClient.ObjectSerializer.deserialize(json, "StockItem")
       assert item.matrix == [[1, 2], [3, 4, 5]]
@@ -1242,7 +1257,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # "additionalProperties"/"additional_properties" key). Metadata declares
   # additional_properties/0 == true with a single declared field createdAt.
   describe "additionalProperties round-trip at the top level" do
-    test "deserialize captures an undeclared key into additional_properties" do
+    test "bhv serializationobject 058 deserialize captures an undeclared key into additional_properties" do
       json = ~s({"createdAt":"2024-01-01T00:00:00Z","region":"eu","weight":42})
       meta = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
       assert %PetstoreClient.Models.Metadata{} = meta
@@ -1250,7 +1265,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert meta.additional_properties["weight"] == 42
     end
 
-    test "serialize re-emits the extra key at the top level" do
+    test "bhv serializationobject 020 serialize re-emits the extra key at the top level" do
       meta = %PetstoreClient.Models.Metadata{additional_properties: %{"region" => "eu"}}
       data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(meta))
       assert data["region"] == "eu"
@@ -1291,7 +1306,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert data["scans"] == [Base.encode64(raw)]
     end
 
-    test "scalar and array byte fields round-trip together" do
+    test "bhv serializationobject 079 scalar and array byte fields round-trip together" do
       thumb = <<0, 1, 2>>
       scan = <<3, 4, 5>>
       passport = %PetstoreClient.Models.PetPassport{thumbnail: thumb, scans: [scan]}
@@ -1305,7 +1320,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # ── Gap K — discriminator auto-injection on subtype serialize ──
 
   describe "discriminator auto-injection" do
-    test "dry subtype serialize auto-emits the discriminator" do
+    test "bhv serializationobject 072 dry subtype serialize auto-emits the discriminator" do
       # The discriminator is an enforced key, so the caller always supplies it
       # and it is the value that reaches the wire.
       dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
@@ -1314,13 +1329,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert data["weightKg"] == 2.5
     end
 
-    test "wet subtype serialize auto-emits the discriminator" do
+    test "bhv serializationobject 178 wet subtype serialize auto-emits the discriminator" do
       wet = %PetstoreClient.Models.WetFood{volume_ml: 350, food_type: "wet"}
       data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(wet))
       assert data["foodType"] == "wet"
     end
 
-    test "deserializing the oneOf parent routes to the subtype by discriminator" do
+    test "bhv serializationobject 055 deserializing the oneOf parent routes to the subtype by discriminator" do
       # A discriminator-tagged payload deserialized against the parent
       # PetFood oneOf must come back as the concrete DryFood subtype, not
       # the raw map — PetFood.build resolves foodType="dry" to DryFood.
@@ -1336,7 +1351,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     # them) throw. Canonical = throw. GREEN in elixir — PetFood.build raises
     # SerializationError ("Missing discriminator 'foodType' for PetFood") when
     # the discriminator value is absent, before any subtype can be resolved.
-    test "Gap AU-resid: missing discriminator on PetFood raises" do
+    test "bhv serializationobject 085 Gap AU-resid: missing discriminator on PetFood raises" do
       json = ~s({"weightKg":5.0})
 
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
@@ -1348,7 +1363,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # ── Gap #13 — null fields omitted on serialize ──
 
   describe "nil discard on serialize" do
-    test "omits model fields that are nil" do
+    test "bhv serializationobject 023 omits model fields that are nil" do
       # Category's id is optional; left nil it must be dropped from the
       # payload rather than emitted as "id": null.
       category = %PetstoreClient.Models.Category{id: nil, name: "Dogs"}
@@ -1366,7 +1381,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # a quoted string, diverging from the spec's `type: number`. This SDK is
   # correct because it carries the value as a plain float through the wire.
   describe "type:number field serializes as an unquoted JSON number" do
-    test "weightKg set to 1.5 emits a bare JSON number, not a quoted string" do
+    test "bhv serializationobject 171 weightKg set to 1.5 emits a bare JSON number, not a quoted string" do
       pet = %PetstoreClient.Models.Pet{
         name: "Rex",
         photo_urls: ["http://example.com/rex.jpg"],
@@ -1388,7 +1403,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert is_float(data["weightKg"])
     end
 
-    test "weightKg survives a serialize -> deserialize round-trip as a number" do
+    test "bhv serializationobject 177 weightKg survives a serialize -> deserialize round-trip as a number" do
       pet = %PetstoreClient.Models.Pet{
         name: "Rex",
         photo_urls: ["http://example.com/rex.jpg"],
@@ -1405,7 +1420,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "oneOf/anyOf no-match" do
-    test "resolve_one_of returns the first matching variant" do
+    test "bhv serializationobject 128 resolve_one_of returns the first matching variant" do
       candidates = [
         fn _ -> raise "variant A does not match" end,
         fn data -> {:matched, data} end
@@ -1415,7 +1430,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert result == {:matched, %{"k" => "v"}}
     end
 
-    test "resolve_one_of raises when no variant matches" do
+    test "bhv serializationobject 129 resolve_one_of raises when no variant matches" do
       # A payload matching none of the declared variants is a contract violation
       # and must fail loudly rather than be silently returned as nil.
       candidates = [
@@ -1428,7 +1443,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "resolve_any_of raises when no variant matches" do
+    test "bhv serializationobject 127 resolve_any_of raises when no variant matches" do
       candidates = [fn _ -> raise "no match" end]
 
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
@@ -1445,7 +1460,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # A wrong primitive type, and a malformed date, date-time, time or duration,
   # is a SerializationError. None of them is passed through as the raw value.
   describe "wire-shape failures raise SerializationError" do
-    test "wrong primitive types" do
+    test "bhv serializationobject 180 wrong primitive types" do
       for {value, type} <- [
             {42, "String"},
             {"42", "Integer"},
@@ -1483,11 +1498,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # covered above; a non-finite float is not representable on the BEAM (Elixir
   # floats are always finite), so NaN/Infinity-on-encode does not apply here.
   describe "canonical serde behaviours" do
-    test "deserializes a literal null body to nil" do
+    test "bhv serializationobject 067 deserializes a literal null body to nil" do
       assert PetstoreClient.ObjectSerializer.deserialize("null", "Category") == nil
     end
 
-    test "decodes a payload within the depth cap but rejects one past it" do
+    test "bhv serializationobject 051 decodes a payload within the depth cap but rejects one past it" do
       within = String.duplicate("[", 600) <> String.duplicate("]", 600)
       assert PetstoreClient.ObjectSerializer.deserialize(within, "Object") != nil
 
@@ -1502,7 +1517,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
                "Failed to deserialize JSON: JSON nesting depth 1500 exceeds limit 1000"
     end
 
-    test "a payload that is not JSON raises with the parser's detail" do
+    test "bhv serializationobject 004 a payload that is not JSON raises with the parser's detail" do
       err =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize("{not json", "Object")
@@ -1554,7 +1569,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert Time.compare(decoded.cutoff, ~T[10:30:00.123]) == :eq
     end
 
-    test "an undeclared key on a non-strict model is ignored and the declared fields survive" do
+    test "bhv serializationobject 052 an undeclared key on a non-strict model is ignored and the declared fields survive" do
       category =
         PetstoreClient.ObjectSerializer.deserialize(
           ~s({"id":7,"name":"cats","unexpected":"x"}),
@@ -1594,7 +1609,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "the prefixItems array Pet.location keeps its mixed items in order" do
+    test "bhv serializationobject 103 malformed UUID string raises SerializationError on decode" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"trackingId":"not-a-uuid"}), "Order")
+      end
+    end
+
+    test "bhv serializationobject 012 the prefixItems array Pet.location keeps its mixed items in order" do
       pet = %PetstoreClient.Models.Pet{
         name: "Rex",
         photo_urls: MapSet.new(),
@@ -1613,7 +1634,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded.location == [1.5, 2.5, "label"]
     end
 
-    test "a digit-leading and a keyword-named property keep their wire keys" do
+    test "bhv serializationobject 117 a digit-leading and a keyword-named property keep their wire keys" do
       edge = %PetstoreClient.Models.EdgeCases{
         n2fa: true,
         class: "c",
@@ -1649,7 +1670,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded._false == false
     end
 
-    test "the Error and Result schemas round-trip through their models" do
+    test "bhv serializationobject 104 the Error and Result schemas round-trip through their models" do
       error = PetstoreClient.ObjectSerializer.deserialize(~s({"code":1,"message":"m"}), "Error")
       assert %PetstoreClient.Models.Error{code: 1, message: "m"} = error
 
@@ -1663,7 +1684,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(result)) == %{"ok" => true}
     end
 
-    test "PetPassport.biometricChip (contentEncoding base64) round-trips as bytes" do
+    test "bhv serializationobject 115 PetPassport.biometricChip (contentEncoding base64) round-trips as bytes" do
       chip = <<1, 2, 3, 255>>
       passport = %PetstoreClient.Models.PetPassport{biometric_chip: chip}
 
@@ -1679,7 +1700,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded.biometric_chip == chip
     end
 
-    test "a duplicate object key resolves to the last value, even when the first has the wrong type" do
+    test "bhv serializationobject 006 a duplicate object key resolves to the last value, even when the first has the wrong type" do
       pet =
         PetstoreClient.ObjectSerializer.deserialize(
           ~s({"name":"a","name":"b","photoUrls":[]}),
@@ -1697,12 +1718,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert retyped.name == "b"
     end
 
-    test "EdgeCases.slug accepts a value matching its pattern" do
+    test "bhv serializationobject 074 EdgeCases.slug accepts a value matching its pattern" do
       edge = PetstoreClient.ObjectSerializer.deserialize(~s({"slug":"12/ab"}), "EdgeCases")
       assert edge.slug == "12/ab"
     end
 
-    test "a nickname longer than its declared maximum still decodes and round-trips" do
+    test "bhv serializationobject 010 a nickname longer than its declared maximum still decodes and round-trips" do
       json = ~s({"name":"n","photoUrls":[],"nickname":"ZZZZZZZZZZ"})
       decoded = PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
 
@@ -1718,7 +1739,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded.quantity == 500
     end
 
-    test "a date-time without an offset is rejected whatever the host zone" do
+    test "bhv serializationobject 003 a date-time without an offset is rejected whatever the host zone" do
       for value <- ["2024-01-01T10:00:00", "2024-01-01T10:00:00.123", "2024-01-01T10:00"] do
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.convert_to_type(value, "DateTime")
@@ -1733,7 +1754,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "U+2028 and U+2029 are written literally and only quote, backslash and controls are escaped" do
+    test "bhv serializationobject 124 U+2028 and U+2029 are written literally and only quote, backslash and controls are escaped" do
       json = PetstoreClient.ObjectSerializer.serialize(%{"k" => "a\u2028b\u2029c\"d\\e\nf"})
 
       assert json =~ "a\u2028b\u2029c"
@@ -1785,7 +1806,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert mode.from_value("nope") == {:error, "nope"}
     end
 
-    test "EdgeCases.PhaseEnum maps non-identifier wire values" do
+    test "bhv serializationobject 022 EdgeCases.PhaseEnum maps non-identifier wire values" do
       phase = PetstoreClient.Models.EdgeCases.PhaseEnum
       assert phase.value(:on_hold) == "on-hold"
       assert phase.from_value("OUT_OF_STOCK") == :out_of_stock
@@ -1825,7 +1846,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # wrong type, an atom outside an enum) builds fine; the unknown enum string
   # fails loudly, and only when it is decoded.
   describe "constructing a model does not validate, decoding does" do
-    test "wrong-typed and out-of-range values build without raising" do
+    test "bhv serializationobject 030 wrong-typed and out-of-range values build without raising" do
       assert %PetstoreClient.Models.Order{
                id: "not a number",
                quantity: :many,
@@ -1872,7 +1893,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "strict models (unevaluatedProperties:false)" do
-    test "an undeclared key raises SerializationError naming the key" do
+    test "bhv serializationobject 154 an undeclared key raises SerializationError naming the key" do
       error =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(~s({"id":1,"extra":true}), "StrictTag")
@@ -1881,7 +1902,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert Exception.message(error) =~ "extra"
     end
 
-    test "declared keys decode" do
+    test "bhv serializationobject 047 declared keys decode" do
       decoded = PetstoreClient.ObjectSerializer.deserialize(~s({"id":1,"name":"a"}), "StrictTag")
       assert decoded.id == 1
       assert decoded.name == "a"

@@ -2,86 +2,86 @@ defmodule PetstoreClient.ValueSerializerTest do
   use ExUnit.Case, async: true
 
   describe "path location" do
-    test "null returns empty string" do
+    test "bhv serializationparam 062 null returns empty string" do
       assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
     end
 
-    test "string returns URL-encoded value" do
+    test "bhv serializationparam 100 string returns URL-encoded value" do
       assert PetstoreClient.ValueSerializer.serialize("hello", :path, "string") == "hello"
     end
 
-    test "string with spaces is URL-encoded" do
+    test "bhv serializationparam 102 string with spaces is URL-encoded" do
       assert PetstoreClient.ValueSerializer.serialize("hello world", :path, "string") ==
                "hello%20world"
     end
 
-    test "string with slash is URL-encoded" do
+    test "bhv serializationparam 101 string with slash is URL-encoded" do
       assert PetstoreClient.ValueSerializer.serialize("a/b", :path, "string") == "a%2Fb"
     end
 
-    test "integer returns string" do
+    test "bhv serializationparam 044 integer returns string" do
       assert PetstoreClient.ValueSerializer.serialize(42, :path, "integer") == "42"
     end
 
-    test "boolean true returns true" do
+    test "bhv serializationparam 021 boolean true returns true" do
       assert PetstoreClient.ValueSerializer.serialize(true, :path, "boolean") == "true"
     end
 
-    test "boolean false returns false" do
+    test "bhv serializationparam 018 boolean false returns false" do
       assert PetstoreClient.ValueSerializer.serialize(false, :path, "boolean") == "false"
     end
   end
 
   describe "query location" do
-    test "null returns nil" do
+    test "bhv serializationparam 067 null returns nil" do
       assert PetstoreClient.ValueSerializer.serialize(nil, :query, "string") == nil
     end
 
-    test "string returns as-is" do
+    test "bhv serializationparam 096 string returns as-is" do
       assert PetstoreClient.ValueSerializer.serialize("hello", :query, "string") == "hello"
     end
 
-    test "integer returns string" do
+    test "bhv serializationparam 045 integer returns string" do
       assert PetstoreClient.ValueSerializer.serialize(42, :query, "integer") == "42"
     end
 
-    test "boolean true returns true" do
+    test "bhv serializationparam 022 boolean true returns true" do
       assert PetstoreClient.ValueSerializer.serialize(true, :query, "boolean") == "true"
     end
 
-    test "boolean false returns false" do
+    test "bhv serializationparam 019 boolean false returns false" do
       assert PetstoreClient.ValueSerializer.serialize(false, :query, "boolean") == "false"
     end
 
-    test "array joins with comma by default" do
+    test "bhv serializationparam 006 array joins with comma by default" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array") == "a,b,c"
     end
 
-    test "array joins with space for ssv" do
+    test "bhv serializationparam 009 array joins with space for ssv" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array",
                collection_format: :ssv
              ) == "a b c"
     end
 
-    test "array joins with tab for tsv" do
+    test "bhv serializationparam 010 array joins with tab for tsv" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array",
                collection_format: :tsv
              ) == "a\tb\tc"
     end
 
-    test "array joins with pipe for pipes" do
+    test "bhv serializationparam 008 array joins with pipe for pipes" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array",
                collection_format: :pipes
              ) == "a|b|c"
     end
 
-    test "array returns list for multi" do
+    test "bhv serializationparam 015 array returns list for multi" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array",
                collection_format: :multi
              ) == ["a", "b", "c"]
     end
 
-    test "array joins with comma for csv" do
+    test "bhv serializationparam 007 array joins with comma for csv" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array",
                collection_format: :csv
              ) == "a,b,c"
@@ -89,7 +89,7 @@ defmodule PetstoreClient.ValueSerializerTest do
 
     # A nil element is an empty slot: it is neither skipped nor rendered as the
     # word nil.
-    test "a nil element keeps its slot in every array style" do
+    test "bhv serializationparam 001 a nil element keeps its slot in every array style" do
       for {format, expected} <- [
             {:csv, "1,,3"},
             {:ssv, "1  3"},
@@ -103,101 +103,101 @@ defmodule PetstoreClient.ValueSerializerTest do
       end
     end
 
-    test "leading and trailing nil elements keep their slots" do
+    test "bhv serializationparam 011 leading and trailing nil elements keep their slots" do
       assert PetstoreClient.ValueSerializer.serialize([nil, "x", nil], :query, "array",
                collection_format: :csv
              ) == ",x,"
     end
 
-    test "empty array returns empty string for csv" do
+    test "bhv serializationparam 032 empty array returns empty string for csv" do
       assert PetstoreClient.ValueSerializer.serialize([], :query, "array") == ""
     end
 
-    test "empty array returns empty list for multi" do
+    test "bhv serializationparam 031 empty array returns empty list for multi" do
       assert PetstoreClient.ValueSerializer.serialize([], :query, "array",
                collection_format: :multi
              ) == []
     end
 
-    test "single-element array returns single value" do
+    test "bhv serializationparam 090 single-element array returns single value" do
       assert PetstoreClient.ValueSerializer.serialize(["a"], :query, "array") == "a"
     end
 
-    test "array of integers stringifies elements" do
+    test "bhv serializationparam 014 array of integers stringifies elements" do
       assert PetstoreClient.ValueSerializer.serialize([1, 2, 3], :query, "array") == "1,2,3"
     end
 
-    test "array of booleans stringifies elements" do
+    test "bhv serializationparam 012 array of booleans stringifies elements" do
       assert PetstoreClient.ValueSerializer.serialize([true, false], :query, "array") ==
                "true,false"
     end
   end
 
   describe "header location" do
-    test "null returns empty string" do
+    test "bhv serializationparam 063 null returns empty string" do
       assert PetstoreClient.ValueSerializer.serialize(nil, :header, "string") == ""
     end
 
-    test "string returns as-is" do
+    test "bhv serializationparam 097 string returns as-is" do
       assert PetstoreClient.ValueSerializer.serialize("hello", :header, "string") == "hello"
     end
 
-    test "integer returns string" do
+    test "bhv serializationparam 046 integer returns string" do
       assert PetstoreClient.ValueSerializer.serialize(42, :header, "integer") == "42"
     end
 
-    test "boolean true returns true" do
+    test "bhv serializationparam 023 boolean true returns true" do
       assert PetstoreClient.ValueSerializer.serialize(true, :header, "boolean") == "true"
     end
 
-    test "array joins with comma" do
+    test "bhv serializationparam 005 array joins with comma" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :header, "array") ==
                "a,b,c"
     end
 
-    test "empty array joins to empty string" do
+    test "bhv serializationparam 030 empty array joins to empty string" do
       assert PetstoreClient.ValueSerializer.serialize([], :header, "array") == ""
     end
 
-    test "array of integers stringifies and joins" do
+    test "bhv serializationparam 013 array of integers stringifies and joins" do
       assert PetstoreClient.ValueSerializer.serialize([1, 2, 3], :header, "array") == "1,2,3"
     end
   end
 
   describe "cookie location" do
-    test "string returns as-is" do
+    test "bhv serializationparam 099 string returns as-is" do
       assert PetstoreClient.ValueSerializer.serialize("hello", :cookie, "string") == "hello"
     end
 
-    test "null returns empty string" do
+    test "bhv serializationparam 065 null returns empty string" do
       assert PetstoreClient.ValueSerializer.serialize(nil, :cookie, "string") == ""
     end
   end
 
   describe "form location" do
-    test "null returns empty string" do
+    test "bhv serializationparam 064 null returns empty string" do
       assert PetstoreClient.ValueSerializer.serialize(nil, :form, "string") == ""
     end
 
-    test "string returns as-is" do
+    test "bhv serializationparam 098 string returns as-is" do
       assert PetstoreClient.ValueSerializer.serialize("hello", :form, "string") == "hello"
     end
 
-    test "integer returns string" do
+    test "bhv serializationparam 047 integer returns string" do
       assert PetstoreClient.ValueSerializer.serialize(42, :form, "integer") == "42"
     end
 
-    test "boolean true returns true" do
+    test "bhv serializationparam 024 boolean true returns true" do
       assert PetstoreClient.ValueSerializer.serialize(true, :form, "boolean") == "true"
     end
 
-    test "boolean false returns false" do
+    test "bhv serializationparam 020 boolean false returns false" do
       assert PetstoreClient.ValueSerializer.serialize(false, :form, "boolean") == "false"
     end
   end
 
   describe "serialize_styled/7" do
-    test "matrix scalar returns semicolon-prefixed name=value" do
+    test "bhv serializationparam 058 matrix scalar returns semicolon-prefixed name=value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -212,7 +212,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ";color=blue"
     end
 
-    test "matrix array with explode false joins with comma" do
+    test "bhv serializationparam 055 matrix array with explode false joins with comma" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -227,7 +227,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ";color=blue,black"
     end
 
-    test "matrix array with explode true repeats name" do
+    test "bhv serializationparam 056 matrix array with explode true repeats name" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -242,7 +242,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ";color=blue;color=black"
     end
 
-    test "matrix null returns empty string" do
+    test "bhv serializationparam 057 matrix null returns empty string" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -257,7 +257,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ""
     end
 
-    test "label scalar returns dot-prefixed value" do
+    test "bhv serializationparam 052 label scalar returns dot-prefixed value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -272,7 +272,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ".blue"
     end
 
-    test "label array with explode false joins with comma" do
+    test "bhv serializationparam 049 label array with explode false joins with comma" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -287,7 +287,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ".blue,black"
     end
 
-    test "label array with explode true joins with dot separator" do
+    test "bhv serializationparam 050 label array with explode true joins with dot separator" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -302,7 +302,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ".blue.black"
     end
 
-    test "label null returns empty string" do
+    test "bhv serializationparam 051 label null returns empty string" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -317,7 +317,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ""
     end
 
-    test "spaceDelimited array joins with space" do
+    test "bhv serializationparam 093 spaceDelimited array joins with space" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -332,7 +332,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "blue black"
     end
 
-    test "spaceDelimited array with explode true returns list" do
+    test "bhv serializationparam 094 spaceDelimited array with explode true returns list" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -347,7 +347,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ["blue", "black"]
     end
 
-    test "spaceDelimited scalar returns stringified value" do
+    test "bhv serializationparam 095 spaceDelimited scalar returns stringified value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -362,7 +362,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "blue"
     end
 
-    test "pipeDelimited array joins with pipe" do
+    test "bhv serializationparam 074 pipeDelimited array joins with pipe" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -377,7 +377,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "blue|black"
     end
 
-    test "pipeDelimited array with explode true returns list" do
+    test "bhv serializationparam 075 pipeDelimited array with explode true returns list" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -392,7 +392,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ["blue", "black"]
     end
 
-    test "pipeDelimited scalar returns stringified value" do
+    test "bhv serializationparam 076 pipeDelimited scalar returns stringified value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -407,7 +407,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "blue"
     end
 
-    test "form array with explode false joins with comma" do
+    test "bhv serializationparam 037 form array with explode false joins with comma" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -422,7 +422,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "blue,black"
     end
 
-    test "form array with explode true returns list" do
+    test "bhv serializationparam 038 form array with explode true returns list" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -437,7 +437,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ["blue", "black"]
     end
 
-    test "form scalar with explode true returns string not list" do
+    test "bhv serializationparam 041 form scalar with explode true returns string not list" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -453,7 +453,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "blue"
     end
 
-    test "form single-element array with explode true returns list" do
+    test "bhv serializationparam 042 form single-element array with explode true returns list" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -469,7 +469,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ["blue"]
     end
 
-    test "form null returns nil for query location" do
+    test "bhv serializationparam 040 form null returns nil for query location" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -484,7 +484,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == nil
     end
 
-    test "simple null returns empty string" do
+    test "bhv serializationparam 085 simple null returns empty string" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "id",
@@ -499,7 +499,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ""
     end
 
-    test "simple scalar returns stringified value" do
+    test "bhv serializationparam 086 simple scalar returns stringified value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "id",
@@ -514,7 +514,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "5"
     end
 
-    test "simple array joins with comma" do
+    test "bhv serializationparam 084 simple array joins with comma" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "id",
@@ -529,7 +529,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "3,4,5"
     end
 
-    test "simple scalar URL-encodes path value" do
+    test "bhv serializationparam 087 simple scalar URL-encodes path value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "id",
@@ -559,7 +559,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "5"
     end
 
-    test "empty style falls back to location-based serialization" do
+    test "bhv serializationparam 035 empty style falls back to location-based serialization" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "id",
@@ -576,7 +576,7 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "uniqueItems (MapSet) parameters" do
-    test "a set expands like an array for form style, exploded and not" do
+    test "bhv serializationparam 083 a set expands like an array for form style, exploded and not" do
       set = MapSet.new(["red", "blue"])
 
       assert PetstoreClient.ValueSerializer.serialize_styled(
@@ -683,7 +683,7 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "serialize_deep_object/2" do
-    test "basic map returns bracketed keys" do
+    test "bhv serializationparam 017 basic map returns bracketed keys" do
       result =
         PetstoreClient.ValueSerializer.serialize_deep_object("filter", %{
           "color" => "blue",
@@ -694,7 +694,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result["filter[size]"] == "large"
     end
 
-    test "null returns empty map" do
+    test "bhv serializationparam 061 null returns empty map" do
       result = PetstoreClient.ValueSerializer.serialize_deep_object("filter", nil)
       assert result == %{}
     end
@@ -703,48 +703,48 @@ defmodule PetstoreClient.ValueSerializerTest do
   # Cross-language parity tests for path-segment percent-encoding.
   # Every SDK must produce identical encoded strings for these inputs.
   describe "path encoding parity" do
-    test "ASCII-safe pass-through" do
+    test "bhv serializationparam 016 ASCII-safe pass-through" do
       assert PetstoreClient.ValueSerializer.serialize("abc123", :path, "string") == "abc123"
     end
 
-    test "space encoded as %20" do
+    test "bhv serializationparam 092 space encoded as %20" do
       assert PetstoreClient.ValueSerializer.serialize("a b", :path, "string") == "a%20b"
     end
 
-    test "slash encoded" do
+    test "bhv serializationparam 091 slash encoded" do
       assert PetstoreClient.ValueSerializer.serialize("a/b", :path, "string") == "a%2Fb"
     end
 
-    test "question mark encoded" do
+    test "bhv serializationparam 079 question mark encoded" do
       assert PetstoreClient.ValueSerializer.serialize("a?b", :path, "string") == "a%3Fb"
     end
 
-    test "hash encoded" do
+    test "bhv serializationparam 043 hash encoded" do
       assert PetstoreClient.ValueSerializer.serialize("a#b", :path, "string") == "a%23b"
     end
 
-    test "comma preserved (sub-delimiter)" do
+    test "bhv serializationparam 026 comma preserved (sub-delimiter)" do
       assert PetstoreClient.ValueSerializer.serialize("a,b", :path, "string") == "a,b"
     end
 
-    test "colon preserved (sub-delimiter)" do
+    test "bhv serializationparam 025 colon preserved (sub-delimiter)" do
       assert PetstoreClient.ValueSerializer.serialize("a:b", :path, "string") == "a:b"
     end
 
-    test "plus preserved (sub-delimiter)" do
+    test "bhv serializationparam 077 plus preserved (sub-delimiter)" do
       assert PetstoreClient.ValueSerializer.serialize("a+b", :path, "string") == "a+b"
     end
 
     # Every sub-delimiter and unreserved character OAS styles use as a
     # separator stays literal in a path segment.
-    test "each sub-delimiter and unreserved character is preserved" do
+    test "bhv serializationparam 081 each sub-delimiter and unreserved character is preserved" do
       for char <- String.graphemes(";=,:@!$&'()*+~-._") do
         assert PetstoreClient.ValueSerializer.serialize("a" <> char <> "b", :path, "string") ==
                  "a" <> char <> "b"
       end
     end
 
-    test "each remaining reserved or unsafe character is percent-encoded" do
+    test "bhv serializationparam 071 each remaining reserved or unsafe character is percent-encoded" do
       for {char, encoded} <- [
             {" ", "%20"},
             {"/", "%2F"},
@@ -768,24 +768,24 @@ defmodule PetstoreClient.ValueSerializerTest do
       end
     end
 
-    test "a value that already looks percent-encoded is encoded again" do
+    test "bhv serializationparam 004 a value that already looks percent-encoded is encoded again" do
       assert PetstoreClient.ValueSerializer.serialize("a%20b", :path, "string") == "a%2520b"
     end
 
-    test "unicode encoded as UTF-8 percent" do
+    test "bhv serializationparam 103 unicode encoded as UTF-8 percent" do
       assert PetstoreClient.ValueSerializer.serialize("日本", :path, "string") ==
                "%E6%97%A5%E6%9C%AC"
     end
 
-    test "empty string preserved" do
+    test "bhv serializationparam 034 empty string preserved" do
       assert PetstoreClient.ValueSerializer.serialize("", :path, "string") == ""
     end
 
-    test "null returns empty string in path location" do
+    test "bhv serializationparam 066 null returns empty string in path location" do
       assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
     end
 
-    test "simple style encodes value" do
+    test "bhv serializationparam 089 simple style encodes value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -800,7 +800,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "a%20b"
     end
 
-    test "simple style array encodes each item" do
+    test "bhv serializationparam 088 simple style array encodes each item" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -815,7 +815,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "a%20b,c%3Fd"
     end
 
-    test "path_array_item_with_reserved_char_is_percent_encoded" do
+    test "bhv serializationparam 069 path_array_item_with_reserved_char_is_percent_encoded" do
       # Gap W1 regression: every per-item path value in a styled array
       # must be percent-encoded BEFORE being joined with the structural
       # separator. Otherwise '/', '?', '#', space leak into the URL.
@@ -852,7 +852,7 @@ defmodule PetstoreClient.ValueSerializerTest do
              ) == ";name=a%2Fb,c"
     end
 
-    test "matrix style encodes value" do
+    test "bhv serializationparam 059 matrix style encodes value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -867,7 +867,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ";color=a%20b"
     end
 
-    test "label style encodes value" do
+    test "bhv serializationparam 053 label style encodes value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -882,7 +882,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ".a%20b"
     end
 
-    test "query location is not path-encoded" do
+    test "bhv serializationparam 078 query location is not path-encoded" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "color",
@@ -897,7 +897,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "a b"
     end
 
-    test "empty string path param raises ArgumentError" do
+    test "bhv serializationparam 033 empty string path param raises ArgumentError" do
       # Gap W — empty-string path values silently produce malformed
       # URLs like `/resource//details`; reject at serialization time so
       # callers see the real error rather than a downstream 404.
@@ -914,7 +914,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       end
     end
 
-    test "dot-segment path values raise ArgumentError" do
+    test "bhv serializationparam 029 dot-segment path values raise ArgumentError" do
       for value <- [".", ".."], style <- [nil, "", "simple"] do
         error =
           assert_raise ArgumentError, fn ->
@@ -933,7 +933,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       end
     end
 
-    test "dot-containing path values that are not dot segments are accepted" do
+    test "bhv serializationparam 072 dot-containing path values that are not dot segments are accepted" do
       assert PetstoreClient.ValueSerializer.serialize_styled(
                "name",
                "a..b",
@@ -969,7 +969,7 @@ defmodule PetstoreClient.ValueSerializerTest do
              "label style prefixes the value so it can never be a dot segment"
     end
 
-    test "path value is encoded exactly once (no double-encoding)" do
+    test "bhv serializationparam 073 path value is encoded exactly once (no double-encoding)" do
       # path-double-encoding: serialize_styled already percent-encodes the path
       # segment, so the api template must NOT wrap it again. A space must become
       # %20 (never %2520) and a slash %2F (never %252F).
@@ -1008,12 +1008,12 @@ defmodule PetstoreClient.ValueSerializerTest do
   # `format: date` as `Date`, whose `Date.to_iso8601/1` already produces
   # YYYY-MM-DD.
   describe "format:date path parameter emits YYYY-MM-DD" do
-    test "Date in path returns YYYY-MM-DD" do
+    test "bhv serializationparam 028 Date in path returns YYYY-MM-DD" do
       date = ~D[2024-01-15]
       assert PetstoreClient.ValueSerializer.serialize(date, :path, "string") == "2024-01-15"
     end
 
-    test "Date via serialize_styled simple returns YYYY-MM-DD" do
+    test "bhv serializationparam 054 Date via serialize_styled simple returns YYYY-MM-DD" do
       date = ~D[2024-01-15]
 
       result =
@@ -1030,7 +1030,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "2024-01-15"
     end
 
-    test "Date at a day/year boundary still emits date-only (no time/offset leak)" do
+    test "bhv serializationparam 027 Date at a day/year boundary still emits date-only (no time/offset leak)" do
       # UTC/midnight edge: a date on the year boundary must serialize as a bare
       # YYYY-MM-DD with no time/offset suffix, matching the stringifyDate UTC
       # behaviour of Go/Node/Swift/Dart.
@@ -1040,7 +1040,7 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "allowReserved query encoding" do
-    test "reserved characters are left literal, other characters still encoded" do
+    test "bhv serializationparam 080 reserved characters are left literal, other characters still encoded" do
       assert PetstoreClient.ValueSerializer.encode_query_allowing_reserved("v1.0/beta:rc1") ==
                "v1.0/beta:rc1"
 
@@ -1049,7 +1049,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert PetstoreClient.ValueSerializer.encode_query_allowing_reserved("a b:c") == "a%20b:c"
     end
 
-    test "maybe_allow_reserved wraps only when allowReserved is true" do
+    test "bhv serializationparam 060 maybe_allow_reserved wraps only when allowReserved is true" do
       assert PetstoreClient.ValueSerializer.maybe_allow_reserved("plain", false) == "plain"
 
       assert PetstoreClient.ValueSerializer.maybe_allow_reserved("v1/beta", true) ==
@@ -1059,7 +1059,7 @@ defmodule PetstoreClient.ValueSerializerTest do
     end
   end
 
-  test "path array item with reserved char is percent encoded" do
+  test "bhv serializationparam 002 path array item with reserved char is percent encoded" do
     items = ["a/b", "c"]
 
     assert PetstoreClient.ValueSerializer.serialize_styled(

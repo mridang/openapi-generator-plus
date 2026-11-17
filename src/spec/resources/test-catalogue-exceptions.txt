@@ -8,3 +8,4 @@ node | transport049 | Node fetch (undici) decodes a headerless raw DEFLATE body 
 swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentType String, so a nil Content-Type cannot be passed; the empty-string default is covered by headers001
 swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
 swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
+elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in

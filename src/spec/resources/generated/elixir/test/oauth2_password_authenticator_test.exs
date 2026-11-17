@@ -49,7 +49,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
   end
 
   describe "OAuth2PasswordAuthenticator" do
-    test "scheme authenticator keeps the declared scopes" do
+    test "bhv authoauthtwopassword 012 scheme authenticator keeps the declared scopes" do
       auth =
         PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator.new(
           "https://api.example.com",
@@ -80,7 +80,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert auth.refresh_url == "https://auth.example.com/oauth/refresh"
     end
 
-    test "sends password grant type" do
+    test "bhv authoauthtwopassword 014 sends password grant type" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -100,7 +100,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert String.contains?(last_body, "grant_type=password")
     end
 
-    test "sends username and password" do
+    test "bhv authoauthtwopassword 016 sends username and password" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -121,7 +121,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert String.contains?(last_body, "password=testpass")
     end
 
-    test "sends client id and secret" do
+    test "bhv authoauthtwopassword 013 sends client id and secret" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -142,7 +142,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert String.contains?(last_body, "client_secret=my-client-secret")
     end
 
-    test "returns authorization bearer header" do
+    test "bhv authoauthtwopassword 011 returns authorization bearer header" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -161,7 +161,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok-pwd"
     end
 
-    test "uses refresh token on subsequent calls" do
+    test "bhv authoauthtwopassword 019 uses refresh token on subsequent calls" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -194,7 +194,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert String.contains?(last_body, "refresh_token=ref1")
     end
 
-    test "refresh sends the client credentials in the body" do
+    test "bhv authoauthtwopassword 009 refresh sends the client credentials in the body" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -228,7 +228,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
              }
     end
 
-    test "refresh with basic client authentication keeps the credentials out of the body" do
+    test "bhv authoauthtwopassword 008 refresh with basic client authentication keeps the credentials out of the body" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -273,7 +273,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert Base.decode64!(encoded) == "my-client-id:my-client-secret"
     end
 
-    test "the first grant goes to the token URL and the refresh to the refresh URL" do
+    test "bhv authoauthtwopassword 017 the first grant goes to the token URL and the refresh to the refresh URL" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -313,7 +313,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/refresh"
     end
 
-    test "a rejected refresh re-runs the password grant at the token URL" do
+    test "bhv authoauthtwopassword 010 a rejected refresh re-runs the password grant at the token URL" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -400,7 +400,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
                "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
     end
 
-    test "the password grant sends scopes with + for the space and percent-encodes * ! ' ( )" do
+    test "bhv authoauthtwopassword 015 the password grant sends scopes with + for the space and percent-encodes * ! ' ( )" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -430,7 +430,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert String.contains?(last_body, "client_id=id~%2A%21%27%28%29")
     end
 
-    test "basic auth percent-encodes * ! ' ( ) and keeps ~ literal" do
+    test "bhv authoauthtwopassword 001 basic auth percent-encodes * ! ' ( ) and keeps ~ literal" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -460,14 +460,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert Base.decode64!(encoded) == "id~%2A%21%27%28%29:secret~%2A%21%27%28%29"
     end
 
-    test "get_host returns configured host" do
+    test "bhv authoauthtwopassword 003 get_host returns configured host" do
       auth = create_authenticator()
 
       assert PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.host(auth) ==
                "https://api.example.com"
     end
 
-    test "basic auth URL-encodes client id and secret" do
+    test "bhv authoauthtwopassword 002 basic auth URL-encodes client id and secret" do
       # Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
       # client_id and client_secret MUST be application/x-www-form-
       # urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -508,7 +508,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff"
     end
 
-    test "invalidate_access_token drops the access token and keeps the refresh token" do
+    test "bhv authoauthtwopassword 004 invalidate_access_token drops the access token and keeps the refresh token" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -550,7 +550,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert second =~ "refresh_token=ref1"
     end
 
-    test "redacts secret" do
+    test "bhv authoauthtwopassword 007 redacts secret" do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"

@@ -6,21 +6,21 @@ defmodule PetstoreClient.ComposedSchemaTest do
   # -- oneOf with discriminator: PetFood --
 
   describe "oneOf with discriminator PetFood" do
-    test "deserializes to DryFood via discriminator" do
+    test "bhv unions 012 deserializes to DryFood via discriminator" do
       json = ~s({"foodType":"dry","weightKg":2.5})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
 
       assert %PetstoreClient.Models.DryFood{} = result
     end
 
-    test "deserializes to WetFood via discriminator" do
+    test "bhv unions 013 deserializes to WetFood via discriminator" do
       json = ~s({"foodType":"wet","volumeMl":400})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
 
       assert %PetstoreClient.Models.WetFood{} = result
     end
 
-    test "raises SerializationError for unknown discriminator value" do
+    test "bhv unions 016 raises SerializationError for unknown discriminator value" do
       # Gap L: union deserialise with an unmapped discriminator now
       # raises instead of silently returning nil. Aligns Elixir with
       # Python / Swift / Dart / Go / Rust.
@@ -31,7 +31,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       end
     end
 
-    test "raises SerializationError for missing discriminator field" do
+    test "bhv unions 015 raises SerializationError for missing discriminator field" do
       # A payload omitting the discriminator field entirely cannot route to
       # any variant; the union build raises instead of silently returning nil.
       # Aligns Elixir with Python / Swift / PHP / Ruby / Dart / Rust.
@@ -51,7 +51,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert err.message == "Expected a JSON object for PetFood, got [1, 2]"
     end
 
-    test "raises SerializationError for empty discriminator value" do
+    test "bhv unions 024 raises SerializationError for empty discriminator value" do
       # An empty discriminator value matches no listed mapping and must raise
       # rather than route to a structurally-fitting variant.
       json = ~s({"foodType":"","weightKg":2.5})
@@ -61,7 +61,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       end
     end
 
-    test "unknown discriminator error names the offending value" do
+    test "bhv unions 026 unknown discriminator error names the offending value" do
       # CS4: the error message must surface the offending discriminator value
       # so callers can diagnose server/spec drift.
       json = ~s({"foodType":"raw","calories":300})
@@ -74,7 +74,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert err.message =~ "raw"
     end
 
-    test "serializes DryFood back to JSON" do
+    test "bhv unions 020 serializes DryFood back to JSON" do
       json = ~s({"foodType":"dry","weightKg":2.5})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       serialized = PetstoreClient.ObjectSerializer.serialize(result)
@@ -86,7 +86,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
   # -- anyOf without discriminator: PetTreatment --
 
   describe "anyOf PetTreatment" do
-    test "deserializes Medication from anyOf" do
+    test "bhv unions 014 deserializes Medication from anyOf" do
       json = ~s({"drugName":"Amoxicillin","dosage":"500mg"})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
 
@@ -94,14 +94,14 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert result.drug_name == "Amoxicillin"
     end
 
-    test "deserializes Surgery from anyOf" do
+    test "bhv unions 006 deserializes Surgery from anyOf" do
       json = ~s({"procedureName":"Spay","durationMinutes":45})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
 
       assert %PetstoreClient.Models.Surgery{} = result
     end
 
-    test "a single-variant anyOf is its own actual and matched instance" do
+    test "bhv unions 003 a single-variant anyOf is its own actual and matched instance" do
       json = ~s({"drugName":"Amoxicillin","dosage":"500mg"})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
 
@@ -109,7 +109,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert PetstoreClient.Models.PetTreatment.actual_instance(result) == result
     end
 
-    test "serializes round-trip for anyOf" do
+    test "bhv unions 008 serializes round-trip for anyOf" do
       json = ~s({"drugName":"Amoxicillin","dosage":"500mg"})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
       serialized = PetstoreClient.ObjectSerializer.serialize(result)
@@ -117,7 +117,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert byte_size(serialized) > 0
     end
 
-    test "anyOf retains all matching variants (medication and surgery) losslessly" do
+    test "bhv unions 009 anyOf retains all matching variants (medication and surgery) losslessly" do
       # PetTreatment is documented as matching a medication, a surgery, OR
       # BOTH. A payload satisfying both variants at once must retain the
       # data of BOTH — not silently drop the second variant's fields on the
@@ -173,7 +173,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert serialized =~ "45"
     end
 
-    test "anyOf collision keeps the last-declared variant, emitted once" do
+    test "bhv unions 010 anyOf collision keeps the last-declared variant, emitted once" do
       # anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
       # When a PetTreatment retains both members with DIFFERENT `notes` values,
       # the merged encoding keeps the LAST-declared member's value (Surgery) and
@@ -194,7 +194,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert length(String.split(serialized, ~s("notes"))) == 2
     end
 
-    test "an anyOf keeps its variants in declaration order, not alphabetical order" do
+    test "bhv unions 005 an anyOf keeps its variants in declaration order, not alphabetical order" do
       # TreatmentRecord declares Surgery before Medication, the reverse of
       # alphabetical order: the first declared match is the actual instance.
       json = ~s({"drugName":"a","procedureName":"b"})
@@ -207,7 +207,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
                PetstoreClient.Models.TreatmentRecord.actual_instance(result)
     end
 
-    test "a shared property of two matched anyOf variants takes the later declared value" do
+    test "bhv unions 002 a shared property of two matched anyOf variants takes the later declared value" do
       json = ~s({"drugName":"a","procedureName":"b","notes":"shared"})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "TreatmentRecord")
       serialized = PetstoreClient.ObjectSerializer.serialize(result)
@@ -216,7 +216,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert length(String.split(serialized, ~s("notes"))) == 2
     end
 
-    test "raises for anyOf payload matching no variant" do
+    test "bhv unions 007 raises for anyOf payload matching no variant" do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty
       # union. resolve_any_of raises SerializationError on union no-match.
@@ -241,11 +241,11 @@ defmodule PetstoreClient.ComposedSchemaTest do
   # the generic serializer), and a scalar base64 string mis-parsed element-by-
   # element into a list because the codegen lists the array variant first.
   describe "setPetAvatarThumbnail byte oneOf round-trips through base64" do
-    test "variants are tried in schema declaration order, not alphabetical order" do
+    test "bhv unions 025 variants are tried in schema declaration order, not alphabetical order" do
       assert SetPetAvatarThumbnailRequest.openapi_one_of() == [:"binary()", :"[binary()]"]
     end
 
-    test "scalar byte variant serializes to a base64 STRING, not raw bytes or an int-array" do
+    test "bhv unions 019 scalar byte variant serializes to a base64 STRING, not raw bytes or an int-array" do
       raw = <<0x01, 0x02, 0x03, 0x04>>
 
       wire = SetPetAvatarThumbnailRequest.serialize(raw)
@@ -262,7 +262,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert Jason.encode!(wire) == ~s("AQIDBA==")
     end
 
-    test "scalar base64 string deserializes back to the original 4 bytes (scalar before array)" do
+    test "bhv unions 023 scalar base64 string deserializes back to the original 4 bytes (scalar before array)" do
       # A scalar base64 string must resolve to the SCALAR variant (one
       # `binary()`), NOT be mis-parsed element-by-element into a list. The
       # array variant "[binary()]" is listed first, so this also pins the
@@ -277,7 +277,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert byte_size(restored) == 4
     end
 
-    test "scalar byte variant round-trips serialize -> deserialize -> identical bytes" do
+    test "bhv unions 018 scalar byte variant round-trips serialize -> deserialize -> identical bytes" do
       raw = <<0x01, 0x02, 0x03, 0x04>>
 
       wire = SetPetAvatarThumbnailRequest.serialize(raw)
@@ -305,7 +305,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
   # -- allOf: PetWithOwner --
 
   describe "allOf PetWithOwner" do
-    test "deserializes all properties from allOf composition" do
+    test "bhv unions 004 deserializes all properties from allOf composition" do
       json =
         ~s({"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"})
 
@@ -317,7 +317,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert result.owner_email == "john@example.com"
     end
 
-    test "serializes PetWithOwner to JSON" do
+    test "bhv unions 021 serializes PetWithOwner to JSON" do
       json =
         ~s({"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"})
 
@@ -328,7 +328,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert serialized =~ "John Doe"
     end
 
-    test "round-trip preserves all fields" do
+    test "bhv unions 017 round-trip preserves all fields" do
       json =
         ~s({"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"})
 
