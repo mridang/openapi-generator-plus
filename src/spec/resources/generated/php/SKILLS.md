@@ -29,7 +29,20 @@ $authenticator = new BearerAuthenticator('https://api.example.com', 'your-token'
 $client = new Client($authenticator);
 ```
 
-Pass `null` as the token to read `PETSTORE_CLIENT_TOKEN` from the environment (read once, an empty value counts as unset; a missing credential throws when the authenticator is built). Pass a `\Closure` as the third argument to supply a rotating token on every request. `BasicAuthenticator` reads `PETSTORE_CLIENT_USERNAME` and `PETSTORE_CLIENT_PASSWORD`, `ApiKeyAuthenticator` reads `PETSTORE_CLIENT_API_KEY`; an argument always wins.
+A generated authenticator of a basic, bearer or API key scheme reads its credential from an environment variable when you pass `null` (read once when the authenticator is built, an empty value counts as unset, a missing credential throws `InvalidArgumentException`; an argument always wins):
+
+- `PetStoreBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` for `username`.
+- `PetStoreBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` for `password`.
+- `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` for `username`.
+- `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` for `password`.
+- `PetStoreBearerAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` for `token`.
+- `ServiceTokenAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` for `token`.
+- `ApiKeyHeaderAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` for `apiKey`.
+- `InternalApiKeyAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` for `apiKey`.
+- `ApiKeyQueryAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` for `apiKey`.
+- `SessionCookieAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` for `apiKey`.
+
+The prefix `SWAGGER_PETSTORE_OPEN_API_3_0` comes from the `envVarPrefix` generator option. Pass a `\Closure` as the third argument of `BearerAuthenticator` to supply a rotating token on every request. The base classes read no variable; the OAuth 2 and OpenID Connect authenticators take their credentials as arguments.
 
 ### Basic Auth
 
@@ -261,7 +274,7 @@ The SDK sends every request through your client and never closes it. Combining a
 
 ### Per-call options
 
-An operation's options object takes `timeout` (ms), `headers` and `maxRetries` for that call only, replacing the transport settings.
+Every operation takes an options object as its last argument, including one with no parameters and no security scheme, and it carries `timeout` (ms), `headers` and `maxRetries` for that call only, replacing the transport settings.
 
 ```php
 $api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));

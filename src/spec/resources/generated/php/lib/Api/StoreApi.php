@@ -20,8 +20,23 @@ use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\NoAuth;
+use PetstoreClient\Api\Options\CreateAccountOptions;
+use PetstoreClient\Api\Options\DeleteOrderOptions;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
+use PetstoreClient\Api\Options\GetDefaultsOptions;
+use PetstoreClient\Api\Options\GetDepartmentOptions;
+use PetstoreClient\Api\Options\GetGroupedCategoriesOptions;
+use PetstoreClient\Api\Options\GetInventoryOptions;
+use PetstoreClient\Api\Options\GetMatrixOptions;
+use PetstoreClient\Api\Options\GetOrderByIdOptions;
+use PetstoreClient\Api\Options\GetOrderByTrackingIdOptions;
 use PetstoreClient\Api\Options\GetStockItemOptions;
+use PetstoreClient\Api\Options\GetSwatchOptions;
+use PetstoreClient\Api\Options\GetSwatchGroupsOptions;
+use PetstoreClient\Api\Options\GetTimestampGroupsOptions;
+use PetstoreClient\Api\Options\GetTreeOptions;
+use PetstoreClient\Api\Options\PlaceOrderOptions;
+use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
 use PetstoreClient\Models\Swatch;
 
@@ -33,11 +48,12 @@ class StoreApi extends BaseApi
 {
     /**
      * Create an account
+     * @param CreateAccountOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function createAccount(\PetstoreClient\Models\Account $account): \PetstoreClient\Models\Account
+    public function createAccount(\PetstoreClient\Models\Account $account, ?CreateAccountOptions $options = null): \PetstoreClient\Models\Account
     {
-        $apiResult = $this->createAccountWithHttpInfo($account);
+        $apiResult = $this->createAccountWithHttpInfo($account, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -57,10 +73,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param CreateAccountOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Account>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function createAccountWithHttpInfo(\PetstoreClient\Models\Account $account): ApiResult
+    public function createAccountWithHttpInfo(\PetstoreClient\Models\Account $account, ?CreateAccountOptions $options = null): ApiResult
     {
         $path = '/store/account';
         $queryParams = [];
@@ -89,6 +106,9 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -96,19 +116,21 @@ class StoreApi extends BaseApi
     /**
      * Delete purchase order by ID
      * @param int $orderId ID of the order to delete
+     * @param DeleteOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function deleteOrder(int $orderId): void
+    public function deleteOrder(int $orderId, ?DeleteOrderOptions $options = null): void
     {
-        $this->deleteOrderWithHttpInfo($orderId);
+        $this->deleteOrderWithHttpInfo($orderId, $options);
     }
 
     /**
      * @param int $orderId ID of the order to delete
+     * @param DeleteOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function deleteOrderWithHttpInfo(int $orderId): ApiResult
+    public function deleteOrderWithHttpInfo(int $orderId, ?DeleteOrderOptions $options = null): ApiResult
     {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
@@ -155,6 +177,9 @@ class StoreApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -271,11 +296,12 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a model exercising schema defaults on deserialize.
+     * @param GetDefaultsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getDefaults(): \PetstoreClient\Models\Defaults
+    public function getDefaults(?GetDefaultsOptions $options = null): \PetstoreClient\Models\Defaults
     {
-        $apiResult = $this->getDefaultsWithHttpInfo();
+        $apiResult = $this->getDefaultsWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -295,10 +321,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetDefaultsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Defaults>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getDefaultsWithHttpInfo(): ApiResult
+    public function getDefaultsWithHttpInfo(?GetDefaultsOptions $options = null): ApiResult
     {
         $path = '/store/defaults';
         $queryParams = [];
@@ -327,17 +354,21 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Returns a department (mutual-recursion codegen fixture).
+     * @param GetDepartmentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getDepartment(): \PetstoreClient\Models\Department
+    public function getDepartment(?GetDepartmentOptions $options = null): \PetstoreClient\Models\Department
     {
-        $apiResult = $this->getDepartmentWithHttpInfo();
+        $apiResult = $this->getDepartmentWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -357,10 +388,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetDepartmentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Department>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getDepartmentWithHttpInfo(): ApiResult
+    public function getDepartmentWithHttpInfo(?GetDepartmentOptions $options = null): ApiResult
     {
         $path = '/store/department';
         $queryParams = [];
@@ -389,18 +421,22 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Returns categories grouped into an array of string-keyed maps.
+     * @param GetGroupedCategoriesOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getGroupedCategories(): \Ds\Vector
+    public function getGroupedCategories(?GetGroupedCategoriesOptions $options = null): \Ds\Vector
     {
-        $apiResult = $this->getGroupedCategoriesWithHttpInfo();
+        $apiResult = $this->getGroupedCategoriesWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -420,10 +456,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetGroupedCategoriesOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getGroupedCategoriesWithHttpInfo(): ApiResult
+    public function getGroupedCategoriesWithHttpInfo(?GetGroupedCategoriesOptions $options = null): ApiResult
     {
         $path = '/store/grouped-categories';
         $queryParams = [];
@@ -452,18 +489,22 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Returns pet inventories by status
+     * @param GetInventoryOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Map<string, int>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getInventory(): \Ds\Map
+    public function getInventory(?GetInventoryOptions $options = null): \Ds\Map
     {
-        $apiResult = $this->getInventoryWithHttpInfo();
+        $apiResult = $this->getInventoryWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -483,10 +524,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetInventoryOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Map<string, int>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getInventoryWithHttpInfo(): ApiResult
+    public function getInventoryWithHttpInfo(?GetInventoryOptions $options = null): ApiResult
     {
         $path = '/store/inventory';
         $queryParams = [];
@@ -515,18 +557,22 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Returns a matrix as an array of integer arrays.
+     * @param GetMatrixOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\Ds\Vector<int>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getMatrix(): \Ds\Vector
+    public function getMatrix(?GetMatrixOptions $options = null): \Ds\Vector
     {
-        $apiResult = $this->getMatrixWithHttpInfo();
+        $apiResult = $this->getMatrixWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -546,10 +592,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetMatrixOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\Ds\Vector<int>>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getMatrixWithHttpInfo(): ApiResult
+    public function getMatrixWithHttpInfo(?GetMatrixOptions $options = null): ApiResult
     {
         $path = '/store/matrix';
         $queryParams = [];
@@ -578,6 +625,9 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -585,11 +635,12 @@ class StoreApi extends BaseApi
     /**
      * Find purchase order by ID
      * @param int $orderId ID of order to return
+     * @param GetOrderByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getOrderById(int $orderId): \PetstoreClient\Models\Order
+    public function getOrderById(int $orderId, ?GetOrderByIdOptions $options = null): \PetstoreClient\Models\Order
     {
-        $apiResult = $this->getOrderByIdWithHttpInfo($orderId);
+        $apiResult = $this->getOrderByIdWithHttpInfo($orderId, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -610,10 +661,11 @@ class StoreApi extends BaseApi
 
     /**
      * @param int $orderId ID of order to return
+     * @param GetOrderByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getOrderByIdWithHttpInfo(int $orderId): ApiResult
+    public function getOrderByIdWithHttpInfo(int $orderId, ?GetOrderByIdOptions $options = null): ApiResult
     {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
@@ -660,17 +712,21 @@ class StoreApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Find purchase order by tracking id
+     * @param GetOrderByTrackingIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getOrderByTrackingId(\Symfony\Component\Uid\Uuid $trackingId): \PetstoreClient\Models\Order
+    public function getOrderByTrackingId(\Symfony\Component\Uid\Uuid $trackingId, ?GetOrderByTrackingIdOptions $options = null): \PetstoreClient\Models\Order
     {
-        $apiResult = $this->getOrderByTrackingIdWithHttpInfo($trackingId);
+        $apiResult = $this->getOrderByTrackingIdWithHttpInfo($trackingId, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -690,10 +746,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetOrderByTrackingIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getOrderByTrackingIdWithHttpInfo(\Symfony\Component\Uid\Uuid $trackingId): ApiResult
+    public function getOrderByTrackingIdWithHttpInfo(\Symfony\Component\Uid\Uuid $trackingId, ?GetOrderByTrackingIdOptions $options = null): ApiResult
     {
         $path = '/store/order/by-tracking/{trackingId}';
         /** @var string $pathValue */
@@ -741,6 +798,9 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -825,11 +885,12 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a bare enum (value-type response codegen fixture).
+     * @param GetSwatchOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getSwatch(): \PetstoreClient\Models\Swatch
+    public function getSwatch(?GetSwatchOptions $options = null): \PetstoreClient\Models\Swatch
     {
-        $apiResult = $this->getSwatchWithHttpInfo();
+        $apiResult = $this->getSwatchWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -849,10 +910,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetSwatchOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Swatch>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getSwatchWithHttpInfo(): ApiResult
+    public function getSwatchWithHttpInfo(?GetSwatchOptions $options = null): ApiResult
     {
         $path = '/store/swatch';
         $queryParams = [];
@@ -881,18 +943,22 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Returns swatches grouped as an array of string-keyed enum maps.
+     * @param GetSwatchGroupsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getSwatchGroups(): \Ds\Vector
+    public function getSwatchGroups(?GetSwatchGroupsOptions $options = null): \Ds\Vector
     {
-        $apiResult = $this->getSwatchGroupsWithHttpInfo();
+        $apiResult = $this->getSwatchGroupsWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -912,10 +978,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetSwatchGroupsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getSwatchGroupsWithHttpInfo(): ApiResult
+    public function getSwatchGroupsWithHttpInfo(?GetSwatchGroupsOptions $options = null): ApiResult
     {
         $path = '/store/swatch-groups';
         $queryParams = [];
@@ -944,18 +1011,22 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Returns timestamps grouped as an array of string-keyed maps.
+     * @param GetTimestampGroupsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\Ds\Map<string, \DateTime>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getTimestampGroups(): \Ds\Vector
+    public function getTimestampGroups(?GetTimestampGroupsOptions $options = null): \Ds\Vector
     {
-        $apiResult = $this->getTimestampGroupsWithHttpInfo();
+        $apiResult = $this->getTimestampGroupsWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -975,10 +1046,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetTimestampGroupsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \DateTime>>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getTimestampGroupsWithHttpInfo(): ApiResult
+    public function getTimestampGroupsWithHttpInfo(?GetTimestampGroupsOptions $options = null): ApiResult
     {
         $path = '/store/timestamp-groups';
         $queryParams = [];
@@ -1007,17 +1079,21 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Returns a self-referential tree (recursive-type codegen fixture)
+     * @param GetTreeOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getTree(): \PetstoreClient\Models\TreeNode
+    public function getTree(?GetTreeOptions $options = null): \PetstoreClient\Models\TreeNode
     {
-        $apiResult = $this->getTreeWithHttpInfo();
+        $apiResult = $this->getTreeWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -1037,10 +1113,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param GetTreeOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\TreeNode>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getTreeWithHttpInfo(): ApiResult
+    public function getTreeWithHttpInfo(?GetTreeOptions $options = null): ApiResult
     {
         $path = '/store/tree';
         $queryParams = [];
@@ -1069,17 +1146,21 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
 
     /**
      * Place an order for a pet
+     * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function placeOrder(\PetstoreClient\Models\Order|null $order = null): \PetstoreClient\Models\Order
+    public function placeOrder(\PetstoreClient\Models\Order|null $order = null, ?PlaceOrderOptions $options = null): \PetstoreClient\Models\Order
     {
-        $apiResult = $this->placeOrderWithHttpInfo($order);
+        $apiResult = $this->placeOrderWithHttpInfo($order, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -1099,10 +1180,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function placeOrderWithHttpInfo(\PetstoreClient\Models\Order|null $order = null): ApiResult
+    public function placeOrderWithHttpInfo(\PetstoreClient\Models\Order|null $order = null, ?PlaceOrderOptions $options = null): ApiResult
     {
         $path = '/store/order';
         $queryParams = [];
@@ -1130,6 +1212,9 @@ class StoreApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -1137,11 +1222,12 @@ class StoreApi extends BaseApi
     /**
      * Reserve stock, answering with the existing or a new reservation
      * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+     * @param ReserveStockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function reserveStock(): \PetstoreClient\Models\ReserveStockResponse
+    public function reserveStock(?ReserveStockOptions $options = null): \PetstoreClient\Models\ReserveStockResponse
     {
-        $apiResult = $this->reserveStockWithHttpInfo();
+        $apiResult = $this->reserveStockWithHttpInfo($options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -1161,10 +1247,11 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * @param ReserveStockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\ReserveStockResponse>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function reserveStockWithHttpInfo(): ApiResult
+    public function reserveStockWithHttpInfo(?ReserveStockOptions $options = null): ApiResult
     {
         $path = '/store/reservation';
         $queryParams = [];
@@ -1193,6 +1280,9 @@ class StoreApi extends BaseApi
              * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
             successTypes: [
                 '200' => \PetstoreClient\Models\Reservation::class,
                 '201' => \PetstoreClient\Models\ReservationReceipt::class,

@@ -52,7 +52,7 @@ $client = {{clientClassName}}::withToken('https://api.example.com', 'your-token'
 $client->close();
 ```
 
-Close the client to release its connections; a closed client throws `\LogicException`. Errors derive from `{{errorPrefix}}Exception`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+Closing the client is graceful: a request already sent finishes, every later request fails with a `\LogicException` (`client closed`), and only the transport the SDK built is released, never a client you supplied. Calling `close()` twice is harmless. Errors derive from `{{errorPrefix}}Exception`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
 
 ### Raw responses
 
@@ -80,7 +80,7 @@ When an OAuth2 or OpenID Connect call is answered with 401, the cached access to
 
 ### Per-call options
 
-An operation that takes an options object accepts three more fields for that one call: `timeout` (milliseconds, positive), `headers` (a name to value map that wins over a configured header of the same name) and `maxRetries` (0 or more). They replace the transport settings for that call only.
+Every operation takes an options object as its last argument, even one with no query, header, form or cookie parameter and no security scheme (`$api->operation()` with no argument still works). It accepts three fields for that one call: `timeout` (milliseconds, positive), `headers` (a name to value map that wins over a configured header of the same name) and `maxRetries` (0 or more). They replace the transport settings for that call only.
 
 ```php
 $api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
@@ -90,7 +90,21 @@ $api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tena
 
 ### Credentials
 
-An authenticator takes its credential as an argument, or reads it from the environment when you pass `null`: `BearerAuthenticator` reads `{{envPrefix}}_TOKEN`, `BasicAuthenticator` reads `{{envPrefix}}_USERNAME` and `{{envPrefix}}_PASSWORD`, `ApiKeyAuthenticator` reads `{{envPrefix}}_API_KEY`. An argument always wins over the environment, an empty variable counts as unset, and the variable is read once, when the authenticator is built. A credential that is neither passed nor in the environment throws `InvalidArgumentException` at that point, so a missing credential never waits for the first request. Pass a `\Closure` token provider (`new BearerAuthenticator($host, null, fn (): string => $vault->token())`) to supply a rotating credential; it is called for every request.
+{{#hasSchemeCredentials}}
+The client takes one optional credential per security scheme, named after the scheme (`new {{clientClassName}}({{#schemeCredentials}}{{#-first}}{{param}}: $credential{{/-first}}{{/schemeCredentials}})`): {{#schemeCredentials}}`{{param}}`{{^-last}}, {{/-last}}{{/schemeCredentials}}. Each operation uses the scheme its security requirement names (the first alternative whose schemes are all configured; the schemes of one alternative are sent together) and sends no credential of another scheme. An operation has no per-call authenticator. The authenticator given first (`{{clientClassName}}::withToken()`) is used for a secured operation only when no scheme credential is configured.
+
+{{/hasSchemeCredentials}}
+
+The authenticator of a basic, bearer or API key security scheme takes its credential as an argument, or reads it from an environment variable when you pass `null`. Every variable is named `{{envVarPrefix}}_` followed by the field (`TOKEN`, `USERNAME`, `PASSWORD`, `API_KEY`); when two schemes have a field of the same name, the scheme id sits between the two so that no scheme reads another's secret. Set the prefix with the `envVarPrefix` generator option.
+
+{{#credentialSchemeEnvVars}}
+- `{{className}}` reads `{{envName}}` for `{{field}}`.
+{{/credentialSchemeEnvVars}}
+{{^credentialSchemeEnvVars}}
+This API declares no basic, bearer or API key scheme, so no variable is read.
+{{/credentialSchemeEnvVars}}
+
+An argument always wins over the environment, an empty variable counts as unset, and the variable is read once, when the authenticator is built. A credential that is neither passed nor in the environment throws `InvalidArgumentException` at that point, so a missing credential never waits for the first request. Pass a `\Closure` token provider (`new BearerAuthenticator($host, null, fn (): string => $vault->token())`) to supply a rotating credential; it is called for every request. The base classes `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` read no variable: only the generated authenticator of a scheme knows its name. The OAuth 2 and OpenID Connect authenticators take their credentials as arguments.
 
 ### Request id
 

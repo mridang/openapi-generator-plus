@@ -10,18 +10,49 @@ namespace {{invokerPackage}}\Auth;
  */
 abstract class BaseAuthenticator implements Authenticator
 {
-    /** Prefix of the environment variables a credential is read from when none is passed. */
-    protected const string ENV_PREFIX = '{{envPrefix}}';
+    /**
+     * The environment variable each credential is read from when none is passed, by field name
+     * (token, username, password, apiKey). A generated per-scheme authenticator names its own, so
+     * two schemes of one kind never share a variable; a base class used directly reads none.
+     *
+     * @var array<string, string>
+     */
+    protected const array ENV_VARS = [];
 
     /**
-     * The credential in the environment variable ENV_PREFIX_FIELD, or null when it is unset or empty.
-     * Read once, when the authenticator is built.
+     * The credential in the environment variable of the field, or null when the class names none,
+     * or the variable is unset or empty. Read once, when the authenticator is built.
      */
     protected static function environmentCredential(string $field): ?string
     {
-        $value = getenv(self::ENV_PREFIX . '_' . $field);
+        $name = static::ENV_VARS[$field] ?? null;
+        if ($name === null) {
+            return null;
+        }
+        $value = getenv($name);
 
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * The end of a missing-credential message that names the environment variables of the fields,
+     * or an empty string when the class reads none.
+     */
+    protected static function environmentHint(string ...$fields): string
+    {
+        $names = [];
+        foreach ($fields as $field) {
+            $name = static::ENV_VARS[$field] ?? null;
+            if ($name !== null) {
+                $names[] = $name;
+            }
+        }
+        if ($names === []) {
+            return '';
+        }
+
+        return ', or set the ' . implode(' and ', $names)
+            . (count($names) === 1 ? ' environment variable' : ' environment variables');
     }
 
     abstract public function getHost(): string;

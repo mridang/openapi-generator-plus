@@ -18,8 +18,8 @@ class ApiKeyAuthenticator extends BaseAuthenticator
     /**
      * @param string        $host           the API base URL
      * @param string        $keyParamName   the name of the header, query parameter or cookie
-     * @param string|null   $apiKey         the key; when null, the {{envPrefix}}_API_KEY environment
-     *                                      variable is used (an empty value counts as unset)
+     * @param string|null   $apiKey         the key; when null, the environment variable of the generated
+     *                                      authenticator is used (an empty value counts as unset)
      * @param ApiKeyLocation $location      where the key is sent
      * @param \Closure|null $apiKeyProvider returns the key for each request, so a rotated key is
      *                                      picked up; use it instead of $apiKey
@@ -36,11 +36,11 @@ class ApiKeyAuthenticator extends BaseAuthenticator
             throw new \InvalidArgumentException('Pass either an API key or an API key provider, not both');
         }
         if ($apiKey === null && $apiKeyProvider === null) {
-            $apiKey = self::environmentCredential('API_KEY');
+            $apiKey = static::environmentCredential('apiKey');
             if ($apiKey === null) {
                 throw new \InvalidArgumentException(
-                    "API key for '$keyParamName' is required: pass a key or a key provider, "
-                    . 'or set the {{envPrefix}}_API_KEY environment variable'
+                    "API key for '$keyParamName' is required: pass a key or a key provider"
+                    . static::environmentHint('apiKey')
                 );
             }
         }

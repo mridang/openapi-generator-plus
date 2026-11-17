@@ -4,7 +4,12 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -232,6 +237,98 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 "options", "server", "requestContentType", "auth", "timeout", "headers", "maxRetries");
     }
 
+    /**
+     * Computes the client's credential parameters (F857): one optional parameter per distinct
+     * security scheme of the document, named after the scheme, as {@code schemeCredentials}
+     * (each entry has {@code param}, the PHP parameter name, and {@code scheme}, the scheme id
+     * that an operation's requirement names).
+     */
+    @Override
+    public void processOpenAPI(OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final List<Map<String, Object>> credentials = new ArrayList<>();
+        if (openAPI.getComponents() != null && openAPI.getComponents().getSecuritySchemes() != null) {
+            final Set<String> taken = new HashSet<>(Set.of("authenticator", "transportOptions", "apiClient"));
+            for (final Map.Entry<String, SecurityScheme> entry :
+                    openAPI.getComponents().getSecuritySchemes().entrySet()) {
+                if (buildSchemeAuthSpec(entry.getKey(), entry.getValue()) == null) {
+                    continue;
+                }
+                String param = NamingConvention.CAMEL_CASE.apply(entry.getKey());
+                while (!taken.add(param)) {
+                    param = param + "Scheme";
+                }
+                final Map<String, Object> credential = new HashMap<>();
+                credential.put("param", param);
+                credential.put("scheme", entry.getKey());
+                credential.put("schemeLiteral", toPhpStringLiteral(entry.getKey()));
+                credentials.add(credential);
+            }
+        }
+        additionalProperties.put("schemeCredentials", credentials);
+        additionalProperties.put("hasSchemeCredentials", !credentials.isEmpty());
+    }
+
+    /**
+     * Adds the security requirement of the operation as a PHP array literal
+     * ({@code phpSecurityRequirements}): the alternatives, each the list of scheme ids that must
+     * all be configured. The operation's own requirement wins, else the document's; an empty
+     * requirement gives {@code []}.
+     */
+    @Override
+    public CodegenOperation fromOperation(
+            String path, String httpMethod, Operation operation, List<Server> servers) {
+        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        final List<SecurityRequirement> requirements =
+                operation.getSecurity() != null
+                        ? operation.getSecurity()
+                        : (openAPI == null ? null : openAPI.getSecurity());
+        op.vendorExtensions.put("phpSecurityRequirements", securityRequirementsLiteral(requirements));
+        return op;
+    }
+
+    /**
+     * The PHP array literal of a security requirement list: {@code [['a'], ['b', 'c']]}.
+     *
+     * @param requirements the requirement alternatives, or {@code null} for none
+     * @return the literal, {@code []} when there is no alternative
+     */
+    static String securityRequirementsLiteral(@Nullable List<SecurityRequirement> requirements) {
+        if (requirements == null) {
+            return "[]";
+        }
+        final List<String> alternatives = new ArrayList<>();
+        for (final SecurityRequirement requirement : requirements) {
+            final List<String> names = new ArrayList<>();
+            for (final String name : requirement.keySet()) {
+                names.add(toPhpStringLiteral(name));
+            }
+            if (!names.isEmpty()) {
+                alternatives.add("[" + String.join(", ", names) + "]");
+            }
+        }
+        return "[" + String.join(", ", alternatives) + "]";
+    }
+
+    /**
+     * An operation takes no per-call authenticator (F857): the credential of each scheme is set
+     * once on the client, so the options object has no {@code auth} field.
+     */
+    @Override
+    protected void injectAuthFieldContext(CodegenOperation op, Map<String, Object> context) {
+        context.put("hasAuthField", false);
+        context.put("authFieldType", getAuthenticatorTypeName());
+    }
+
+    /**
+     * Every operation gets an options object, so each call can carry its own timeout, headers and
+     * retry count even when it has no query, header, form or cookie parameter and no security.
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected NamingConvention getOperationIdCasing() {
@@ -327,6 +424,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.php"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.php"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.php"),
+            new SupportingFileSpec("client_lifecycle.mustache", invokerFolder, "ClientLifecycle.php"),
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
             new SupportingFileSpec("abstract_api_client.mustache", invokerFolder, "AbstractApiClient.php"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.php"),
@@ -339,6 +437,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("base_api.mustache", apiFolder, "BaseApi.php"),
             new SupportingFileSpec("authenticator.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "Authenticator.php"),
             new SupportingFileSpec("auth/no_auth.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "NoAuth.php"),
+            new SupportingFileSpec("auth/composite_authenticator.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "CompositeAuthenticator.php"),
             new SupportingFileSpec("composer.mustache", "", "composer.json"),
             new SupportingFileSpec("phpstan_neon.mustache", "", "phpstan.neon"),
             new SupportingFileSpec("rector.mustache", "", "rector.php"),
@@ -489,23 +588,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * The prefix of the environment variables the authenticators read credentials from
-     * ({@code <PREFIX>_TOKEN}): the {@code envPrefix} option when given, otherwise the invoker
-     * package in upper snake case ({@code PetstoreClient} becomes {@code PETSTORE_CLIENT}).
-     */
-    static String resolveEnvPrefix(@Nullable Object option, String invokerPackage) {
-        if (option != null && isNotBlank(option.toString())) {
-            return option.toString().trim();
-        }
-        return invokerPackage
-                .replace("\\", "_")
-                .replaceAll("([a-z0-9])([A-Z])", "$1_$2")
-                .replaceAll("[^A-Za-z0-9]+", "_")
-                .replaceAll("^_+|_+$", "")
-                .toUpperCase(Locale.ROOT);
-    }
-
-    /**
      * The package metadata lines of {@code composer.json} that the generator options produce
      * ({@code authors}, {@code homepageUrl}, {@code repositoryUrl}, {@code documentationUrl},
      * {@code issueTrackerUrl}), each one a complete, comma-terminated JSON member line; empty when
@@ -626,8 +708,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         additionalProperties.put(
                 "userAgentDefault", composerPackage + "/" + packageVersion + " (php)");
 
-        additionalProperties.put(
-                "envPrefix", resolveEnvPrefix(additionalProperties.get("envPrefix"), invokerPackage));
+        additionalProperties.put("credentialSchemeEnvVars", new ArrayList<Map<String, Object>>());
+        additionalProperties.remove("bearerScheme");
+        additionalProperties.remove("basicScheme");
+        additionalProperties.remove("apiKeyScheme");
         additionalProperties.put("composerExtras", composerExtras(additionalProperties));
         additionalProperties.put(
                 "authorsText", String.join(", ", authorList(additionalProperties.get("authors"))));
@@ -688,6 +772,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/TransportOptionsTest.mustache",
                             "tests",
                             "TransportOptionsTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/CompositeAuthenticatorTest.mustache",
+                            "tests",
+                            "CompositeAuthenticatorTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/TraceContextUtilTest.mustache",
@@ -1098,21 +1187,94 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             if (SENSITIVE_PARAMS.contains(name)) {
                 param.put("sensitive", "true");
             }
-            final boolean environmentCredential =
-                    CREDENTIAL_FALLBACK_BASES.contains(spec.baseClass())
-                            && (SENSITIVE_PARAMS.contains(name) || "username".equals(name));
-            if (environmentCredential) {
+            if (readsEnvironment(spec, name)) {
                 /* The credential may be left out and read from the environment. */
                 param.put("type", "?string");
                 param.put("defaultNull", "true");
             }
             constructorParams.add(param);
         }
+        final List<Map<String, Object>> credentialEnvVars = schemeCredentialEnvVars(spec, ctx);
+        ctx.put("credentialEnvVars", credentialEnvVars);
+        ctx.put("hasCredentialEnvVars", !credentialEnvVars.isEmpty());
+        recordCredentialScheme(
+                spec, spec.schemeClass() + spec.oauthSuffix() + "Authenticator", credentialEnvVars);
         ctx.put("constructorParams", constructorParams);
         final List<String> superArgs = buildPhpSuperArgs(spec);
         ctx.put("superArgs", superArgs);
         ctx.put("hasCustomConstructor", !isPassthroughConstructor(constructorParams, superArgs));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Whether the authenticator of this scheme reads the named constructor argument from the
+     * environment when it is left out: the credential of a basic, bearer or API key scheme.
+     */
+    private static boolean readsEnvironment(SchemeAuthSpec spec, String name) {
+        return CREDENTIAL_FALLBACK_BASES.contains(spec.baseClass())
+                && (SENSITIVE_PARAMS.contains(name) || "username".equals(name));
+    }
+
+    /**
+     * The environment variables of this scheme that its authenticator reads: the shared
+     * {@code envVars} of the scheme, narrowed to the credentials the authenticator takes from the
+     * environment. Each entry has {@code field} and {@code envName}.
+     */
+    @SuppressWarnings("unchecked")
+    static List<Map<String, Object>> schemeCredentialEnvVars(
+            SchemeAuthSpec spec, Map<String, Object> ctx) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        final List<Map<String, Object>> shared = (List<Map<String, Object>>) ctx.get("envVars");
+        if (shared == null) {
+            return out;
+        }
+        for (final Map<String, Object> entry : shared) {
+            if (readsEnvironment(spec, String.valueOf(entry.get("field")))) {
+                out.add(entry);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Records the scheme for the README, the skills page and the authenticator tests:
+     * {@code credentialSchemeEnvVars} lists every variable (class, field, name) and
+     * {@code bearerScheme}, {@code basicScheme} and {@code apiKeyScheme} hold the first scheme of
+     * each kind, whose generated class the tests build.
+     */
+    @SuppressWarnings("unchecked")
+    private void recordCredentialScheme(
+            SchemeAuthSpec spec, String className, List<Map<String, Object>> envVars) {
+        if (envVars.isEmpty()) {
+            return;
+        }
+        final List<Map<String, Object>> all =
+                (List<Map<String, Object>>)
+                        additionalProperties.computeIfAbsent(
+                                "credentialSchemeEnvVars", k -> new ArrayList<Map<String, Object>>());
+        final Map<String, Object> first = new HashMap<>();
+        first.put("className", className);
+        for (final Map<String, Object> entry : envVars) {
+            final Map<String, Object> row = new HashMap<>();
+            row.put("className", className);
+            row.put("field", entry.get("field"));
+            row.put("envName", entry.get("envName"));
+            all.add(row);
+            first.put(entry.get("field") + "Env", entry.get("envName"));
+        }
+        final String key;
+        switch (spec.baseClass()) {
+            case "BearerAuthenticator":
+                key = "bearerScheme";
+                break;
+            case "BasicAuthenticator":
+                key = "basicScheme";
+                break;
+            default:
+                key = "apiKeyScheme";
+                break;
+        }
+        additionalProperties.putIfAbsent(key, first);
     }
 
     private static String formatPhpScopes(@Nullable Map<String, String> scopes) {
@@ -1504,6 +1666,49 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         keepStringForUriSubformats(property, "string");
     }
 
+    /**
+     * The PHP constant expression for a {@code default} written next to a {@code $ref} (F866), so
+     * the constructor starts the property at that value: an enum case ({@code \Ns\Availability::ON_HOLD})
+     * for a referenced enum, a literal for a referenced string, integer, number or boolean.
+     * Returns {@code null} when the property has no such default or its type has no constant form.
+     *
+     * @param property the property after the shared pass captured the sibling default
+     * @return the constructor default, or {@code null}
+     */
+    @Nullable
+    static String siblingDefaultLiteral(CodegenProperty property) {
+        if (property.vendorExtensions == null || property.vendorExtensions.get("siblingDefault") == null) {
+            return null;
+        }
+        final String wire = String.valueOf(property.vendorExtensions.get("siblingDefault"));
+        if (Boolean.TRUE.equals(property.vendorExtensions.get("siblingDefaultIsEnum"))) {
+            final Object member = property.vendorExtensions.get("siblingDefaultEnumVar");
+            if (member == null || property.dataType == null) {
+                return null;
+            }
+            return property.dataType + "::" + member;
+        }
+        final String type = property.dataType;
+        if ("string".equals(type)) {
+            return toPhpStringLiteral(wire);
+        }
+        try {
+            if ("int".equals(type)) {
+                return Long.toString(Long.parseLong(wire));
+            }
+            if ("float".equals(type)) {
+                final double value = Double.parseDouble(wire);
+                return Double.isFinite(value) ? wire : null;
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        if ("bool".equals(type) && ("true".equals(wire) || "false".equals(wire))) {
+            return wire;
+        }
+        return null;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
@@ -1804,6 +2009,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             if (model.vars == null) {
                 continue;
             }
+            addSiblingDefaultLiterals(model);
             modelMap.put("hasByteVars", model.vars.stream().anyMatch(
                     BetterPHPCodegen::holdsBytes));
             addCopyArguments(model);
@@ -1834,6 +2040,29 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
         }
         return result;
+    }
+
+    /**
+     * Writes {@code siblingDefaultLiteral} onto every property that has a constant form of its
+     * default beside a {@code $ref}, in each list the model template reads. It is not the
+     * property's own default, which would move the property behind the other optional ones and
+     * drop its {@code null}, so the constructor reads this one instead. The lists hold separate
+     * property objects, so each is visited.
+     */
+    private static void addSiblingDefaultLiterals(CodegenModel model) {
+        final List<List<CodegenProperty>> lists =
+                Arrays.asList(model.vars, model.allVars, model.requiredVars, model.optionalVars);
+        for (final List<CodegenProperty> list : lists) {
+            if (list == null) {
+                continue;
+            }
+            for (final CodegenProperty property : list) {
+                final String literal = siblingDefaultLiteral(property);
+                if (literal != null) {
+                    property.vendorExtensions.put("siblingDefaultLiteral", literal);
+                }
+            }
+        }
     }
 
     /**

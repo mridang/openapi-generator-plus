@@ -18,6 +18,10 @@ namespace PetstoreClient\Auth;
  */
 final class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator
 {
+    protected const array ENV_VARS = [
+        'apiKey' => 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY',
+    ];
+
     public function __construct(
         string $host,
         #[\SensitiveParameter] ?string $apiKey = null

@@ -18,4 +18,7 @@ namespace PetstoreClient\Auth;
  */
 final class PetStoreBearerAuthenticator extends BearerAuthenticator
 {
+    protected const array ENV_VARS = [
+        'token' => 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN',
+    ];
 }

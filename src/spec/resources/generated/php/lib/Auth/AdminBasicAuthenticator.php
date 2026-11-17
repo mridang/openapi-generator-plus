@@ -18,4 +18,8 @@ namespace PetstoreClient\Auth;
  */
 final class AdminBasicAuthenticator extends BasicAuthenticator
 {
+    protected const array ENV_VARS = [
+        'username' => 'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME',
+        'password' => 'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD',
+    ];
 }

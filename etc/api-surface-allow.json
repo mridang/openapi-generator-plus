@@ -2390,24 +2390,6 @@
    "reason": "F878 wave 2: a oneOf wrapper gains a typed From<Variant> factory and Is<Variant>/As<Variant> accessors per variant; csharp lands first and the other languages add typed accessors in their idiom in their own wave branches, after which this rule is deleted"
   },
   {
-   "element": "apierror.fromresponse",
-   "aspect": "params",
-   "languages": [
-    "java",
-    "php"
-   ],
-   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": "apierror.fromresponse",
-   "aspect": "optional",
-   "languages": [
-    "java",
-    "php"
-   ],
-   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
-  },
-  {
    "element": "*.with",
    "aspect": "member",
    "languages": [
@@ -2553,18 +2535,6 @@
     "node"
    ],
    "reason": "F862 and F830: CredentialProvider is the token-provider callback type (`() => string | Promise<string>`) and `credentials` its module of helpers; ApiErrorOptions is the options object of the error constructors (`cause`, `requestMethod`, `requestPath`), which ES2022 errors take in place of positional arguments"
-  },
-  {
-   "element": [
-    "*options.timeout",
-    "*options.headers",
-    "*options.maxretries"
-   ],
-   "aspect": "member",
-   "languages": [
-    "php"
-   ],
-   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F827 per-call timeout, headers and maxRetries on every Options object; the other eleven land in their own waves, so php is the only extra until the majority has them"
   },
   {
    "element": [
@@ -3349,6 +3319,40 @@
    ],
    "value": "*tokenprovider)",
    "reason": "F862 owner decision (a token-provider callback beside the static credential): python has no overloads, so a bearer scheme authenticator takes token_provider as a defaulted keyword argument beside token; giving both raises ValueError"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "java"
+   ],
+   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "optional",
+   "languages": [
+    "java"
+   ],
+   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "kotlin",
+    "node"
+   ],
+   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "optional",
+   "languages": [
+    "kotlin",
+    "node"
+   ],
+   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
   }
  ]
 }

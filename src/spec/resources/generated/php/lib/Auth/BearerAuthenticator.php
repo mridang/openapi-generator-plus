@@ -26,8 +26,8 @@ class BearerAuthenticator extends BaseAuthenticator
 
     /**
      * @param string        $host          the API base URL
-     * @param string|null   $token         the bearer token; when null, the PETSTORE_CLIENT_TOKEN environment
-     *                                     variable is used (an empty value counts as unset)
+     * @param string|null   $token         the bearer token; when null, the environment variable of the
+     *                                     generated authenticator is used (an empty value counts as unset)
      * @param \Closure|null $tokenProvider returns the token for each request, so a rotated token is
      *                                     picked up; use it instead of $token
      * @throws \InvalidArgumentException when no token is available or both a token and a provider are passed
@@ -41,11 +41,11 @@ class BearerAuthenticator extends BaseAuthenticator
             throw new \InvalidArgumentException('Pass either a bearer token or a token provider, not both');
         }
         if ($token === null && !$tokenProvider instanceof \Closure) {
-            $token = self::environmentCredential('TOKEN');
+            $token = static::environmentCredential('token');
             if ($token === null) {
                 throw new \InvalidArgumentException(
-                    'Bearer token is required: pass a token or a token provider, '
-                    . 'or set the PETSTORE_CLIENT_TOKEN environment variable'
+                    'Bearer token is required: pass a token or a token provider'
+                    . static::environmentHint('token')
                 );
             }
         }

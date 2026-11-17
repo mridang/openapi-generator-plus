@@ -715,7 +715,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
         {{>model_var_type}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
 {{/requiredVars}}
 {{#optionalVars}}
-        {{>model_var_type}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = null{{/defaultValue}},
+        {{>model_var_type}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = {{#vendorExtensions.siblingDefaultLiteral}}{{{.}}}{{/vendorExtensions.siblingDefaultLiteral}}{{^vendorExtensions.siblingDefaultLiteral}}null{{/vendorExtensions.siblingDefaultLiteral}}{{/defaultValue}},
 {{/optionalVars}}
 {{#isAdditionalPropertiesTrue}}
         ?\Ds\Map $additionalProperties = null,

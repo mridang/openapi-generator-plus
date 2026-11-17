@@ -35,7 +35,7 @@ class StockItem
      */
     public function __construct(
         \PetstoreClient\Models\Priority $priority,
-        ?\PetstoreClient\Models\Availability $availability = null,
+        ?\PetstoreClient\Models\Availability $availability = \PetstoreClient\Models\Availability::ON_HOLD,
         ?\Ds\Vector $matrix = null,
     ) {
         $this->priority = $priority;

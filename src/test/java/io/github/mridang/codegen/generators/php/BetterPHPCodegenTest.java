@@ -1,12 +1,17 @@
 package io.github.mridang.codegen.generators.php;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 
 /**
  * Validates the string-literal rendering that the PHP authenticator wrappers use
@@ -133,15 +138,134 @@ class BetterPHPCodegenTest {
     }
 
     @Test
-    void derivesTheEnvironmentPrefixFromTheInvokerPackage() {
-        assertEquals("PETSTORE_CLIENT", BetterPHPCodegen.resolveEnvPrefix(null, "PetstoreClient"));
-        assertEquals("ACME_SDK_V2", BetterPHPCodegen.resolveEnvPrefix(null, "Acme\\Sdk\\V2"));
+    void mintsAnOptionsObjectForEveryOperation() {
+        assertTrue(new BetterPHPCodegen().mintsOptionsForEveryOperation());
     }
 
     @Test
-    void anEnvironmentPrefixOptionWinsOverTheInvokerPackage() {
-        assertEquals("ACME", BetterPHPCodegen.resolveEnvPrefix(" ACME ", "PetstoreClient"));
-        assertEquals("PETSTORE_CLIENT", BetterPHPCodegen.resolveEnvPrefix("  ", "PetstoreClient"));
+    void readsOnlyTheCredentialsOfBasicBearerAndApiKeySchemesFromTheEnvironment() {
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put(
+                "envVars",
+                List.of(
+                        envVar("host", "ACME_HOST"),
+                        envVar("token", "ACME_TOKEN"),
+                        envVar("clientId", "ACME_CLIENT_ID")));
+
+        assertEquals(
+                List.of(envVar("token", "ACME_TOKEN")),
+                BetterPHPCodegen.schemeCredentialEnvVars(scheme("BearerAuthenticator"), ctx));
+        assertEquals(
+                List.of(),
+                BetterPHPCodegen.schemeCredentialEnvVars(
+                        scheme("OAuth2ClientCredentialsAuthenticator"), ctx));
+    }
+
+    @Test
+    void readsTheUsernameAndPasswordOfABasicSchemeFromTheEnvironment() {
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put(
+                "envVars",
+                List.of(envVar("username", "ACME_USERNAME"), envVar("password", "ACME_PASSWORD")));
+
+        assertEquals(
+                List.of(envVar("username", "ACME_USERNAME"), envVar("password", "ACME_PASSWORD")),
+                BetterPHPCodegen.schemeCredentialEnvVars(scheme("BasicAuthenticator"), ctx));
+    }
+
+    @Test
+    void startsAReferencedEnumPropertyAtTheDefaultNextToTheReference() {
+        final CodegenProperty property = siblingDefault("on-hold", true);
+        property.dataType = "\\Acme\\Models\\Availability";
+        property.vendorExtensions.put("siblingDefaultEnumVar", "ON_HOLD");
+
+        assertEquals("\\Acme\\Models\\Availability::ON_HOLD", BetterPHPCodegen.siblingDefaultLiteral(property));
+    }
+
+    @Test
+    void startsAReferencedScalarPropertyAtTheDefaultNextToTheReference() {
+        final CodegenProperty text = siblingDefault("it's", false);
+        text.dataType = "string";
+        final CodegenProperty count = siblingDefault("3", false);
+        count.dataType = "int";
+        final CodegenProperty ratio = siblingDefault("0.5", false);
+        ratio.dataType = "float";
+        final CodegenProperty flag = siblingDefault("true", false);
+        flag.dataType = "bool";
+
+        assertEquals("'it\\'s'", BetterPHPCodegen.siblingDefaultLiteral(text));
+        assertEquals("3", BetterPHPCodegen.siblingDefaultLiteral(count));
+        assertEquals("0.5", BetterPHPCodegen.siblingDefaultLiteral(ratio));
+        assertEquals("true", BetterPHPCodegen.siblingDefaultLiteral(flag));
+    }
+
+    @Test
+    void leavesAPropertyWithoutAConstantFormOfItsSiblingDefaultAlone() {
+        final CodegenProperty model = siblingDefault("{}", false);
+        model.dataType = "\\Acme\\Models\\Address";
+        final CodegenProperty count = siblingDefault("many", false);
+        count.dataType = "int";
+        final CodegenProperty plain = new CodegenProperty();
+        plain.vendorExtensions = new HashMap<>();
+        plain.dataType = "string";
+
+        assertNull(BetterPHPCodegen.siblingDefaultLiteral(model));
+        assertNull(BetterPHPCodegen.siblingDefaultLiteral(count));
+        assertNull(BetterPHPCodegen.siblingDefaultLiteral(plain));
+    }
+
+    @Test
+    void writesTheSecurityRequirementOfAnOperationAsAlternativesOfSchemeIds() {
+        final SecurityRequirement either = new SecurityRequirement();
+        either.addList("apiKey");
+        final SecurityRequirement both = new SecurityRequirement();
+        both.addList("bearer");
+        both.addList("it's");
+
+        assertEquals(
+                "[['apiKey'], ['bearer', 'it\\'s']]",
+                BetterPHPCodegen.securityRequirementsLiteral(List.of(either, both)));
+    }
+
+    @Test
+    void writesNoSecurityRequirementForAnOperationWithoutOne() {
+        assertEquals("[]", BetterPHPCodegen.securityRequirementsLiteral(null));
+        assertEquals("[]", BetterPHPCodegen.securityRequirementsLiteral(List.of()));
+        assertEquals(
+                "[]", BetterPHPCodegen.securityRequirementsLiteral(List.of(new SecurityRequirement())));
+    }
+
+    @Test
+    void givesNoOperationAPerCallAuthenticatorField() {
+        final Map<String, Object> context = new HashMap<>();
+        final org.openapitools.codegen.CodegenOperation operation =
+                new org.openapitools.codegen.CodegenOperation();
+        operation.hasAuthMethods = true;
+
+        new BetterPHPCodegen().injectAuthFieldContext(operation, context);
+
+        assertEquals(false, context.get("hasAuthField"));
+    }
+
+    private static Map<String, Object> envVar(String field, String envName) {
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("field", field);
+        entry.put("envName", envName);
+        return entry;
+    }
+
+    private static AbstractBetterCodegen.SchemeAuthSpec scheme(String baseClass) {
+        return new AbstractBetterCodegen.SchemeAuthSpec(
+                "scheme", "Scheme", "", baseClass, false, List.of("host"),
+                null, null, null, null, null, null, null);
+    }
+
+    private static CodegenProperty siblingDefault(String wire, boolean isEnum) {
+        final CodegenProperty property = new CodegenProperty();
+        property.vendorExtensions = new HashMap<>();
+        property.vendorExtensions.put("siblingDefault", wire);
+        property.vendorExtensions.put("siblingDefaultIsEnum", isEnum);
+        return property;
     }
 
     @Test
