@@ -411,7 +411,7 @@ describe('OAuth2TokenManager', () => {
   });
 
   test.each(['0x10', '1e3', '3600d', 'Infinity', '+3600'])(
-    'expires_in %p is not a decimal number and marks the token stale',
+    'bhv authoauthtwotokenmgr 046 expires_in %p is not a decimal number and marks the token stale',
     async (raw) => {
       mockClient.responseBody = JSON.stringify({ access_token: 'odd-tok', expires_in: raw });
 
@@ -426,7 +426,7 @@ describe('OAuth2TokenManager', () => {
     }
   );
 
-  test('expires_in as a padded decimal string with a fraction and a trailing newline is accepted', async () => {
+  test('bhv authoauthtwotokenmgr 045 expires_in as a padded decimal string with a fraction and a trailing newline is accepted', async () => {
     mockClient.responseBody = JSON.stringify({ access_token: 'pad-tok', expires_in: ' 3600.5\n' });
 
     await tokenManager.getAccessToken('https://auth.example.com/token', {
@@ -437,6 +437,32 @@ describe('OAuth2TokenManager', () => {
     });
 
     expect(mockClient.callCount).toBe(1);
+  });
+
+  test('bhv authoauthtwotokenmgr 042 a token server error names the status, the error code and the description', async () => {
+    mockClient.responseStatus = 400;
+    mockClient.responseBody = JSON.stringify({ error: 'invalid_grant', error_description: 'refresh token expired' });
+
+    await expect(
+      tokenManager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' })
+    ).rejects.toThrow('Token request failed with status 400: invalid_grant -- refresh token expired');
+  });
+
+  test('bhv authoauthtwotokenmgr 043 the token request body is serialised with the parameters in a fixed shared key order', async () => {
+    mockClient.responseBody = JSON.stringify({ access_token: 'order-tok', expires_in: 3600 });
+
+    await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'password',
+      username: 'testuser',
+      password: 'testpass',
+      client_id: 'my-client-id',
+      client_secret: 'my-client-secret',
+      scope: 'read write'
+    });
+
+    expect(mockClient.lastBody).toBe(
+      'grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write'
+    );
   });
 
   test('bhv authoauthtwotokenmgr 036 missing access_token in 2xx response throws typed OAuth2TokenError', async () => {

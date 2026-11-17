@@ -255,6 +255,24 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(error).not.toBeInstanceOf(OpenAPIError);
   });
 
+  test("bhv authoauthtwoauthcode 030 auth headers before the code exchange fail naming the exchange call to make first", async () => {
+    await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow(
+      "Must call exchangeCode() before making API requests",
+    );
+  });
+
+  test("bhv authoauthtwoauthcode 032 the code exchange body uses a fixed parameter order", async () => {
+    mockClient.responseBody = JSON.stringify({
+      access_token: "access-token-123",
+      expires_in: 3600,
+    });
+    authenticator.buildAuthorizationUrl();
+    await authenticator.exchangeCode("C");
+    expect(mockClient.lastBody).toMatch(
+      /^grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fmyapp\.example\.com%2Fcallback&code_verifier=[A-Za-z0-9_-]{43}$/,
+    );
+  });
+
   test("bhv authoauthtwoauthcode 010 exchangeCode rejects empty code", async () => {
     // oauth-exchangecode-no-empty-code-guard: an empty code can only fail
     // at the token endpoint, so reject it up front.

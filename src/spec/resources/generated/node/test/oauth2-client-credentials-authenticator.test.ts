@@ -64,6 +64,13 @@ describe("OAuth2ClientCredentialsAuthenticator", () => {
     );
   });
 
+  test("bhv authoauthtwoclientcred 016 the token request body uses a fixed parameter order", async () => {
+    await authenticator.getAuthHeadersAsync();
+    expect(mockClient.lastBody).toBe(
+      "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+    );
+  });
+
   test("bhv authoauthtwoclientcred 010 sends client credentials grant type", async () => {
     await authenticator.getAuthHeadersAsync();
 
