@@ -19,3 +19,5 @@ elixir | authbearer001 | A scheme wrapper returns the shared BearerAuthenticator
 ||||||| 4610d9ef3
 go | serializationobject002 | type: number is float64 in go, documented as lossy (no stdlib decimal), so an exact value in plain notation cannot hold for every number
 go | serializationobject015 | uniqueItems sets keep the sorted order of their scalar members (S6, D69): Set[T] is map-backed, so go has no insertion order to keep
+||||||| 4610d9ef3
+go | serializationobject164 | Go has no time-of-day type: format: time is a plain string (EdgeCases.cutoff) that no SDK code reformats, so there is no HH:mm:ss or .SSS formatter to test; the partial-time round trip is bhv serialization 163
