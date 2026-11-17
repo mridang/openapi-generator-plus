@@ -194,4 +194,25 @@ class BearerAuthenticatorTest {
             IllegalArgumentException.class, () -> new BearerAuthenticator(HOST, null, null));
     assertEquals("Bearer token must not be empty", ex.getMessage());
   }
+
+  @Test
+  void bhvAuthBearer012RejectsCrLfAndNonAscii() {
+    for (String token : new String[] {"abc\r\ndef", "abc\rdef", "töken"}) {
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> new BearerAuthenticator("https://api.example.com", token));
+      assertTrue(
+          java.util.Objects.requireNonNull(ex.getMessage())
+              .contains("printable ASCII characters (RFC 7230 §3.2.6)"));
+    }
+  }
+
+  @Test
+  void bhvAuthBearer013ReprShowsTheHostAndMasksTheToken() {
+    String repr = new BearerAuthenticator("https://api.example.com", "s3cr3t-value").toString();
+    assertTrue(repr.contains("host=https://api.example.com"));
+    assertFalse(repr.contains("s3cr3t-value"));
+    assertTrue(repr.contains("token=***"));
+  }
 }

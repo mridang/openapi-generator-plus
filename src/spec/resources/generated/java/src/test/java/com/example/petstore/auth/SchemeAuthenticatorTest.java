@@ -9,6 +9,7 @@
 package com.example.petstore.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -133,6 +134,34 @@ class SchemeAuthenticatorTest {
           new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret", Map.of());
       assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders().get("Authorization"));
     }
+
+    @Test
+    void bhvAuthBasic001ReadsBothCredentialsFromTheEnvironmentWhenNonePassed() {
+      PetStoreBasicAuthenticator auth =
+          new PetStoreBasicAuthenticator(
+              "https://api.example.com",
+              null,
+              null,
+              Map.of(
+                  "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME", "alice",
+                  "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD", "s3cret"));
+      assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBasic003MissingCredentialFailsAtConstruction() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new PetStoreBasicAuthenticator("https://api.example.com", null, null, Map.of()));
+    }
+
+    @Test
+    void bhvAuthBasic002WrapperEmitsTheBasicHeaderAndMasksThePassword() {
+      PetStoreBasicAuthenticator auth =
+          new PetStoreBasicAuthenticator("https://api.example.com", "alice", "s3cret");
+      assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders().get("Authorization"));
+      assertFalse(auth.toString().contains("s3cret"));
+    }
   }
 
   /** The wrappers of the HTTP Bearer security schemes. */
@@ -233,6 +262,22 @@ class SchemeAuthenticatorTest {
     void bhvAuthScheme002ExplicitArgumentsNeedNoEnvironment() {
       PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator(HOST, "xyz", Map.of());
       assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBearer006WrapperEmitsTheBearerHeaderAndMasksTheToken() {
+      PetStoreBearerAuthenticator auth =
+          new PetStoreBearerAuthenticator("https://api.example.com", "tok-123");
+      assertEquals("Bearer tok-123", auth.getAuthHeaders().get("Authorization"));
+      assertFalse(auth.toString().contains("tok-123"));
+    }
+
+    @Test
+    void bhvAuthBearer001WrapperPrintsItsOwnNameWithTheTokenMasked() {
+      String repr =
+          new PetStoreBearerAuthenticator("https://api.example.com", "tok-123").toString();
+      assertTrue(repr.startsWith("PetStoreBearerAuthenticator(host=https://api.example.com"));
+      assertTrue(repr.contains("token=***"));
     }
   }
 
@@ -393,6 +438,17 @@ class SchemeAuthenticatorTest {
       ApiKeyHeaderAuthenticator auth =
           new ApiKeyHeaderAuthenticator("https://api.example.com", "explicit", Map.of());
       assertEquals("explicit", auth.getAuthHeaders().get("X-API-Key"));
+    }
+
+    @Test
+    void bhvAuthApiKey007WrappersEmitTheirKeyAtTheirSpecLocation() {
+      ApiKeyHeaderAuthenticator header =
+          new ApiKeyHeaderAuthenticator("https://api.example.com", "k1", Map.of());
+      ApiKeyQueryAuthenticator query =
+          new ApiKeyQueryAuthenticator("https://api.example.com", "k2", Map.of());
+      assertEquals("k1", header.getAuthHeaders().get("X-API-Key"));
+      assertEquals("k2", query.getQueryParams().get("api_key"));
+      assertFalse(query.getAuthHeaders().containsKey("api_key"));
     }
   }
 }

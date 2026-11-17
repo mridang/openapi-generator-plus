@@ -215,4 +215,34 @@ class ApiKeyAuthenticatorTest {
             + " apiKey=***, location=HEADER)",
         repr);
   }
+
+  @Test
+  void bhvAuthApiKey015ValidQueryKeyIsExposedOnlyInQueryParams() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "api_key", "abc123", ApiKeyLocation.QUERY);
+    assertEquals("abc123", auth.getQueryParams().get("api_key"));
+    assertFalse(auth.getAuthHeaders().containsKey("api_key"));
+  }
+
+  @Test
+  void bhvAuthApiKey011RejectsAKeyOfOnlyAsciiWhitespaceSuchAsAVerticalTab() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", "\013", ApiKeyLocation.QUERY));
+  }
+
+  @Test
+  void bhvAuthApiKey012ReprShowsTheNonSecretFieldsAndMasksTheKey() {
+    String repr =
+        new ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER)
+            .toString();
+    assertTrue(repr.contains("host=https://api.example.com"));
+    assertTrue(repr.contains("keyParamName=X-API-Key"));
+    assertFalse(repr.contains("abc123"));
+    assertTrue(repr.contains("***"));
+  }
 }

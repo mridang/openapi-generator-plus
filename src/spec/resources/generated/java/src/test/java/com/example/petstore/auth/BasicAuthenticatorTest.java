@@ -77,4 +77,11 @@ class BasicAuthenticatorTest {
     assertEquals(
         "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", repr);
   }
+
+  @Test
+  void bhvAuthBasic010ReprShowsHostAndUsernameAndMasksThePassword() {
+    String repr = new BasicAuthenticator("https://api.example.com", "alice", "s3cret").toString();
+    assertEquals(
+        "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", repr);
+  }
 }
