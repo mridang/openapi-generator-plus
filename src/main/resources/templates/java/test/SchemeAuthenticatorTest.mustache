@@ -88,7 +88,7 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void aMissingCredentialNamesItsVariable() {
+        void missingCredentialNamesItsVariable() {
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                     new AdminBasicAuthenticator("https://api.example.com", null, "from-env", Map.of()));
             assertEquals(
@@ -164,7 +164,7 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void aMissingCredentialNamesItsVariable() {
+        void missingCredentialNamesItsVariable() {
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                     new PetStoreBearerAuthenticator(HOST, null, Map.of()));
             assertEquals(
@@ -293,7 +293,7 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void aMissingCredentialNamesItsVariable() {
+        void missingCredentialNamesItsVariable() {
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                     new ApiKeyHeaderAuthenticator("https://api.example.com", null, Map.of()));
             assertEquals(

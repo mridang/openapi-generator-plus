@@ -112,7 +112,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void aMissingCredentialNamesItsVariable() {
+    void missingCredentialNamesItsVariable() {
       IllegalArgumentException ex =
           assertThrows(
               IllegalArgumentException.class,
@@ -198,7 +198,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void aMissingCredentialNamesItsVariable() {
+    void missingCredentialNamesItsVariable() {
       IllegalArgumentException ex =
           assertThrows(
               IllegalArgumentException.class,
@@ -355,7 +355,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void aMissingCredentialNamesItsVariable() {
+    void missingCredentialNamesItsVariable() {
       IllegalArgumentException ex =
           assertThrows(
               IllegalArgumentException.class,
