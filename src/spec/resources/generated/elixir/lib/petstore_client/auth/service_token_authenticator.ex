@@ -10,12 +10,26 @@ defmodule PetstoreClient.Auth.ServiceTokenAuthenticator do
   @moduledoc """
   Authenticator for the `serviceToken` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.BearerAuthenticator)}`.
+
+  Every credential not passed is read, once, when the authenticator is built, from the
+  environment variable of this scheme (an empty variable counts as unset). A credential
+  found in neither place raises `ArgumentError`, so the client fails when it is built and
+  not on its first request.
+
+    * `token`: `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN`
   """
 
   @doc """
   Creates an authenticator for the `serviceToken` security scheme.
   """
-  def new(host, token) do
+  def new(host, token \\ nil) do
+    token =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        token,
+        "TOKEN",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"
+      )
+
     PetstoreClient.Auth.BearerAuthenticator.new(host, token)
   end
 end

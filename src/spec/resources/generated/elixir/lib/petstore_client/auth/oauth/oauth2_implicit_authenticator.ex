@@ -52,7 +52,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
 
     * `host` - API base URL.
     * `client_id` - OAuth2 client ID. `nil` reads it from the environment variable
-      `OPEN_API_CLIENT_ID`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID`.
     * `authorization_url` - Authorization endpoint URL.
     * `scopes` - Requested scopes.
 

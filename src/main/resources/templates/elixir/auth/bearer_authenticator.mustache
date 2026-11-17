@@ -30,7 +30,7 @@ defmodule {{moduleName}}.Auth.BearerAuthenticator do
 
     * `host` - API base URL.
     * `token` - Bearer token. `nil` reads it from the environment variable
-      `{{envPrefix}}_TOKEN`. A zero-argument function is called for every request
+      `{{envVarPrefix}}_TOKEN`. A zero-argument function is called for every request
       and returns the token, so a token that rotates is always read fresh.
 
   """

@@ -51,6 +51,8 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `account` - Account
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -61,10 +63,15 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec create_account(t(), PetstoreClient.Models.Account.t(), keyword()) ::
+  @spec create_account(
+          t(),
+          PetstoreClient.Models.Account.t(),
+          PetstoreClient.Api.Options.CreateAccountOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.Models.Account.t()} | {:error, Exception.t()}
-  def create_account(%__MODULE__{} = api, account, opts \\ []) do
-    case create_account_with_http_info(api, account, opts) do
+  def create_account(%__MODULE__{} = api, account, options \\ nil, opts \\ []) do
+    case create_account_with_http_info(api, account, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -89,10 +96,15 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `create_account`. Raises on error.
   """
-  @spec create_account!(t(), PetstoreClient.Models.Account.t(), keyword()) ::
+  @spec create_account!(
+          t(),
+          PetstoreClient.Models.Account.t(),
+          PetstoreClient.Api.Options.CreateAccountOptions.t() | nil,
+          keyword()
+        ) ::
           PetstoreClient.Models.Account.t()
-  def create_account!(%__MODULE__{} = api, account, opts \\ []) do
-    case create_account(api, account, opts) do
+  def create_account!(%__MODULE__{} = api, account, options \\ nil, opts \\ []) do
+    case create_account(api, account, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -101,9 +113,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `create_account` but returns the full `ApiResult`.
   """
-  @spec create_account_with_http_info(t(), PetstoreClient.Models.Account.t(), keyword()) ::
+  @spec create_account_with_http_info(
+          t(),
+          PetstoreClient.Models.Account.t(),
+          PetstoreClient.Api.Options.CreateAccountOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def create_account_with_http_info(%__MODULE__{} = api, account, opts \\ []) do
+  def create_account_with_http_info(%__MODULE__{} = api, account, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -113,7 +130,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -156,6 +173,8 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of the order to delete
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -166,10 +185,15 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec delete_order(t(), integer(), keyword()) ::
+  @spec delete_order(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.DeleteOrderOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, nil} | {:error, Exception.t()}
-  def delete_order(%__MODULE__{} = api, order_id, opts \\ []) do
-    case delete_order_with_http_info(api, order_id, opts) do
+  def delete_order(%__MODULE__{} = api, order_id, options \\ nil, opts \\ []) do
+    case delete_order_with_http_info(api, order_id, options, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -178,10 +202,15 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `delete_order`. Raises on error.
   """
-  @spec delete_order!(t(), integer(), keyword()) ::
+  @spec delete_order!(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.DeleteOrderOptions.t() | nil,
+          keyword()
+        ) ::
           nil
-  def delete_order!(%__MODULE__{} = api, order_id, opts \\ []) do
-    case delete_order(api, order_id, opts) do
+  def delete_order!(%__MODULE__{} = api, order_id, options \\ nil, opts \\ []) do
+    case delete_order(api, order_id, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -190,9 +219,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `delete_order` but returns the full `ApiResult`.
   """
-  @spec delete_order_with_http_info(t(), integer(), keyword()) ::
+  @spec delete_order_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.DeleteOrderOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def delete_order_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
+  def delete_order_with_http_info(%__MODULE__{} = api, order_id, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -202,7 +236,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
@@ -256,7 +290,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `path_swatch` - Swatch
 
-    * `options` - Optional parameters (query, header, form, cookie).
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
 
     * `opts` - Keyword list.
 
@@ -436,6 +470,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -446,10 +482,10 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_defaults(t(), keyword()) ::
+  @spec get_defaults(t(), PetstoreClient.Api.Options.GetDefaultsOptions.t() | nil, keyword()) ::
           {:ok, PetstoreClient.Models.Defaults.t()} | {:error, Exception.t()}
-  def get_defaults(%__MODULE__{} = api, opts \\ []) do
-    case get_defaults_with_http_info(api, opts) do
+  def get_defaults(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_defaults_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -474,10 +510,10 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_defaults`. Raises on error.
   """
-  @spec get_defaults!(t(), keyword()) ::
+  @spec get_defaults!(t(), PetstoreClient.Api.Options.GetDefaultsOptions.t() | nil, keyword()) ::
           PetstoreClient.Models.Defaults.t()
-  def get_defaults!(%__MODULE__{} = api, opts \\ []) do
-    case get_defaults(api, opts) do
+  def get_defaults!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_defaults(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -486,9 +522,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_defaults` but returns the full `ApiResult`.
   """
-  @spec get_defaults_with_http_info(t(), keyword()) ::
+  @spec get_defaults_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetDefaultsOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_defaults_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_defaults_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -498,7 +538,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -532,6 +572,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -542,10 +584,10 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_department(t(), keyword()) ::
+  @spec get_department(t(), PetstoreClient.Api.Options.GetDepartmentOptions.t() | nil, keyword()) ::
           {:ok, PetstoreClient.Models.Department.t()} | {:error, Exception.t()}
-  def get_department(%__MODULE__{} = api, opts \\ []) do
-    case get_department_with_http_info(api, opts) do
+  def get_department(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_department_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -570,10 +612,10 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_department`. Raises on error.
   """
-  @spec get_department!(t(), keyword()) ::
+  @spec get_department!(t(), PetstoreClient.Api.Options.GetDepartmentOptions.t() | nil, keyword()) ::
           PetstoreClient.Models.Department.t()
-  def get_department!(%__MODULE__{} = api, opts \\ []) do
-    case get_department(api, opts) do
+  def get_department!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_department(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -582,9 +624,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_department` but returns the full `ApiResult`.
   """
-  @spec get_department_with_http_info(t(), keyword()) ::
+  @spec get_department_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetDepartmentOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_department_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_department_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -594,7 +640,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -628,6 +674,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -638,10 +686,14 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_grouped_categories(t(), keyword()) ::
+  @spec get_grouped_categories(
+          t(),
+          PetstoreClient.Api.Options.GetGroupedCategoriesOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, [%{String.t() => Category}]} | {:error, Exception.t()}
-  def get_grouped_categories(%__MODULE__{} = api, opts \\ []) do
-    case get_grouped_categories_with_http_info(api, opts) do
+  def get_grouped_categories(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_grouped_categories_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -666,10 +718,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_grouped_categories`. Raises on error.
   """
-  @spec get_grouped_categories!(t(), keyword()) ::
+  @spec get_grouped_categories!(
+          t(),
+          PetstoreClient.Api.Options.GetGroupedCategoriesOptions.t() | nil,
+          keyword()
+        ) ::
           [%{String.t() => Category}]
-  def get_grouped_categories!(%__MODULE__{} = api, opts \\ []) do
-    case get_grouped_categories(api, opts) do
+  def get_grouped_categories!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_grouped_categories(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -678,9 +734,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_grouped_categories` but returns the full `ApiResult`.
   """
-  @spec get_grouped_categories_with_http_info(t(), keyword()) ::
+  @spec get_grouped_categories_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetGroupedCategoriesOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_grouped_categories_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_grouped_categories_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -690,7 +750,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -724,6 +784,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -734,10 +796,10 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_inventory(t(), keyword()) ::
+  @spec get_inventory(t(), PetstoreClient.Api.Options.GetInventoryOptions.t() | nil, keyword()) ::
           {:ok, %{String.t() => integer()}} | {:error, Exception.t()}
-  def get_inventory(%__MODULE__{} = api, opts \\ []) do
-    case get_inventory_with_http_info(api, opts) do
+  def get_inventory(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_inventory_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -762,10 +824,10 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_inventory`. Raises on error.
   """
-  @spec get_inventory!(t(), keyword()) ::
+  @spec get_inventory!(t(), PetstoreClient.Api.Options.GetInventoryOptions.t() | nil, keyword()) ::
           %{String.t() => integer()}
-  def get_inventory!(%__MODULE__{} = api, opts \\ []) do
-    case get_inventory(api, opts) do
+  def get_inventory!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_inventory(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -774,9 +836,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_inventory` but returns the full `ApiResult`.
   """
-  @spec get_inventory_with_http_info(t(), keyword()) ::
+  @spec get_inventory_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetInventoryOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_inventory_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_inventory_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -786,7 +852,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -820,6 +886,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -830,10 +898,10 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_matrix(t(), keyword()) ::
+  @spec get_matrix(t(), PetstoreClient.Api.Options.GetMatrixOptions.t() | nil, keyword()) ::
           {:ok, [[integer()]]} | {:error, Exception.t()}
-  def get_matrix(%__MODULE__{} = api, opts \\ []) do
-    case get_matrix_with_http_info(api, opts) do
+  def get_matrix(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_matrix_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -858,10 +926,10 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_matrix`. Raises on error.
   """
-  @spec get_matrix!(t(), keyword()) ::
+  @spec get_matrix!(t(), PetstoreClient.Api.Options.GetMatrixOptions.t() | nil, keyword()) ::
           [[integer()]]
-  def get_matrix!(%__MODULE__{} = api, opts \\ []) do
-    case get_matrix(api, opts) do
+  def get_matrix!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_matrix(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -870,9 +938,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_matrix` but returns the full `ApiResult`.
   """
-  @spec get_matrix_with_http_info(t(), keyword()) ::
+  @spec get_matrix_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetMatrixOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_matrix_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_matrix_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -882,7 +954,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -917,6 +989,8 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of order to return
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -927,10 +1001,15 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_order_by_id(t(), integer(), keyword()) ::
+  @spec get_order_by_id(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.GetOrderByIdOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.Models.Order.t()} | {:error, Exception.t()}
-  def get_order_by_id(%__MODULE__{} = api, order_id, opts \\ []) do
-    case get_order_by_id_with_http_info(api, order_id, opts) do
+  def get_order_by_id(%__MODULE__{} = api, order_id, options \\ nil, opts \\ []) do
+    case get_order_by_id_with_http_info(api, order_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -955,10 +1034,15 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_order_by_id`. Raises on error.
   """
-  @spec get_order_by_id!(t(), integer(), keyword()) ::
+  @spec get_order_by_id!(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.GetOrderByIdOptions.t() | nil,
+          keyword()
+        ) ::
           PetstoreClient.Models.Order.t()
-  def get_order_by_id!(%__MODULE__{} = api, order_id, opts \\ []) do
-    case get_order_by_id(api, order_id, opts) do
+  def get_order_by_id!(%__MODULE__{} = api, order_id, options \\ nil, opts \\ []) do
+    case get_order_by_id(api, order_id, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -967,9 +1051,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_order_by_id` but returns the full `ApiResult`.
   """
-  @spec get_order_by_id_with_http_info(t(), integer(), keyword()) ::
+  @spec get_order_by_id_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.GetOrderByIdOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
+  def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -979,7 +1068,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
@@ -1033,6 +1122,8 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `tracking_id` - String.t()
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -1043,10 +1134,15 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_order_by_tracking_id(t(), String.t(), keyword()) ::
+  @spec get_order_by_tracking_id(
+          t(),
+          String.t(),
+          PetstoreClient.Api.Options.GetOrderByTrackingIdOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.Models.Order.t()} | {:error, Exception.t()}
-  def get_order_by_tracking_id(%__MODULE__{} = api, tracking_id, opts \\ []) do
-    case get_order_by_tracking_id_with_http_info(api, tracking_id, opts) do
+  def get_order_by_tracking_id(%__MODULE__{} = api, tracking_id, options \\ nil, opts \\ []) do
+    case get_order_by_tracking_id_with_http_info(api, tracking_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -1071,10 +1167,15 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_order_by_tracking_id`. Raises on error.
   """
-  @spec get_order_by_tracking_id!(t(), String.t(), keyword()) ::
+  @spec get_order_by_tracking_id!(
+          t(),
+          String.t(),
+          PetstoreClient.Api.Options.GetOrderByTrackingIdOptions.t() | nil,
+          keyword()
+        ) ::
           PetstoreClient.Models.Order.t()
-  def get_order_by_tracking_id!(%__MODULE__{} = api, tracking_id, opts \\ []) do
-    case get_order_by_tracking_id(api, tracking_id, opts) do
+  def get_order_by_tracking_id!(%__MODULE__{} = api, tracking_id, options \\ nil, opts \\ []) do
+    case get_order_by_tracking_id(api, tracking_id, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1083,9 +1184,19 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_order_by_tracking_id` but returns the full `ApiResult`.
   """
-  @spec get_order_by_tracking_id_with_http_info(t(), String.t(), keyword()) ::
+  @spec get_order_by_tracking_id_with_http_info(
+          t(),
+          String.t(),
+          PetstoreClient.Api.Options.GetOrderByTrackingIdOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_order_by_tracking_id_with_http_info(%__MODULE__{} = api, tracking_id, opts \\ []) do
+  def get_order_by_tracking_id_with_http_info(
+        %__MODULE__{} = api,
+        tracking_id,
+        options \\ nil,
+        opts \\ []
+      ) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -1095,7 +1206,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1152,7 +1263,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `options` - Optional parameters (query, header, form, cookie).
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
 
     * `opts` - Keyword list.
 
@@ -1277,6 +1388,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -1287,10 +1400,10 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_swatch(t(), keyword()) ::
+  @spec get_swatch(t(), PetstoreClient.Api.Options.GetSwatchOptions.t() | nil, keyword()) ::
           {:ok, PetstoreClient.Models.Swatch.t()} | {:error, Exception.t()}
-  def get_swatch(%__MODULE__{} = api, opts \\ []) do
-    case get_swatch_with_http_info(api, opts) do
+  def get_swatch(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_swatch_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -1315,10 +1428,10 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_swatch`. Raises on error.
   """
-  @spec get_swatch!(t(), keyword()) ::
+  @spec get_swatch!(t(), PetstoreClient.Api.Options.GetSwatchOptions.t() | nil, keyword()) ::
           PetstoreClient.Models.Swatch.t()
-  def get_swatch!(%__MODULE__{} = api, opts \\ []) do
-    case get_swatch(api, opts) do
+  def get_swatch!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_swatch(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1327,9 +1440,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_swatch` but returns the full `ApiResult`.
   """
-  @spec get_swatch_with_http_info(t(), keyword()) ::
+  @spec get_swatch_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetSwatchOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_swatch_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_swatch_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -1339,7 +1456,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1373,6 +1490,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -1383,10 +1502,14 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_swatch_groups(t(), keyword()) ::
+  @spec get_swatch_groups(
+          t(),
+          PetstoreClient.Api.Options.GetSwatchGroupsOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, [%{String.t() => Swatch}]} | {:error, Exception.t()}
-  def get_swatch_groups(%__MODULE__{} = api, opts \\ []) do
-    case get_swatch_groups_with_http_info(api, opts) do
+  def get_swatch_groups(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_swatch_groups_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -1411,10 +1534,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_swatch_groups`. Raises on error.
   """
-  @spec get_swatch_groups!(t(), keyword()) ::
+  @spec get_swatch_groups!(
+          t(),
+          PetstoreClient.Api.Options.GetSwatchGroupsOptions.t() | nil,
+          keyword()
+        ) ::
           [%{String.t() => Swatch}]
-  def get_swatch_groups!(%__MODULE__{} = api, opts \\ []) do
-    case get_swatch_groups(api, opts) do
+  def get_swatch_groups!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_swatch_groups(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1423,9 +1550,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_swatch_groups` but returns the full `ApiResult`.
   """
-  @spec get_swatch_groups_with_http_info(t(), keyword()) ::
+  @spec get_swatch_groups_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetSwatchGroupsOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_swatch_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_swatch_groups_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -1435,7 +1566,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1469,6 +1600,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -1479,10 +1612,14 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_timestamp_groups(t(), keyword()) ::
+  @spec get_timestamp_groups(
+          t(),
+          PetstoreClient.Api.Options.GetTimestampGroupsOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, [%{String.t() => DateTime.t()}]} | {:error, Exception.t()}
-  def get_timestamp_groups(%__MODULE__{} = api, opts \\ []) do
-    case get_timestamp_groups_with_http_info(api, opts) do
+  def get_timestamp_groups(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_timestamp_groups_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -1507,10 +1644,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_timestamp_groups`. Raises on error.
   """
-  @spec get_timestamp_groups!(t(), keyword()) ::
+  @spec get_timestamp_groups!(
+          t(),
+          PetstoreClient.Api.Options.GetTimestampGroupsOptions.t() | nil,
+          keyword()
+        ) ::
           [%{String.t() => DateTime.t()}]
-  def get_timestamp_groups!(%__MODULE__{} = api, opts \\ []) do
-    case get_timestamp_groups(api, opts) do
+  def get_timestamp_groups!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_timestamp_groups(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1519,9 +1660,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_timestamp_groups` but returns the full `ApiResult`.
   """
-  @spec get_timestamp_groups_with_http_info(t(), keyword()) ::
+  @spec get_timestamp_groups_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetTimestampGroupsOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_timestamp_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_timestamp_groups_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -1531,7 +1676,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1565,6 +1710,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -1575,10 +1722,10 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_tree(t(), keyword()) ::
+  @spec get_tree(t(), PetstoreClient.Api.Options.GetTreeOptions.t() | nil, keyword()) ::
           {:ok, PetstoreClient.Models.TreeNode.t()} | {:error, Exception.t()}
-  def get_tree(%__MODULE__{} = api, opts \\ []) do
-    case get_tree_with_http_info(api, opts) do
+  def get_tree(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_tree_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -1603,10 +1750,10 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_tree`. Raises on error.
   """
-  @spec get_tree!(t(), keyword()) ::
+  @spec get_tree!(t(), PetstoreClient.Api.Options.GetTreeOptions.t() | nil, keyword()) ::
           PetstoreClient.Models.TreeNode.t()
-  def get_tree!(%__MODULE__{} = api, opts \\ []) do
-    case get_tree(api, opts) do
+  def get_tree!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_tree(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1615,9 +1762,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_tree` but returns the full `ApiResult`.
   """
-  @spec get_tree_with_http_info(t(), keyword()) ::
+  @spec get_tree_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetTreeOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_tree_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def get_tree_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -1627,7 +1778,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1662,6 +1813,8 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order` - Order
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -1672,10 +1825,15 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec place_order(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
+  @spec place_order(
+          t(),
+          PetstoreClient.Models.Order.t() | nil,
+          PetstoreClient.Api.Options.PlaceOrderOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.Models.Order.t()} | {:error, Exception.t()}
-  def place_order(%__MODULE__{} = api, order \\ nil, opts \\ []) do
-    case place_order_with_http_info(api, order, opts) do
+  def place_order(%__MODULE__{} = api, order \\ nil, options \\ nil, opts \\ []) do
+    case place_order_with_http_info(api, order, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -1700,10 +1858,15 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `place_order`. Raises on error.
   """
-  @spec place_order!(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
+  @spec place_order!(
+          t(),
+          PetstoreClient.Models.Order.t() | nil,
+          PetstoreClient.Api.Options.PlaceOrderOptions.t() | nil,
+          keyword()
+        ) ::
           PetstoreClient.Models.Order.t()
-  def place_order!(%__MODULE__{} = api, order \\ nil, opts \\ []) do
-    case place_order(api, order, opts) do
+  def place_order!(%__MODULE__{} = api, order \\ nil, options \\ nil, opts \\ []) do
+    case place_order(api, order, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1712,9 +1875,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `place_order` but returns the full `ApiResult`.
   """
-  @spec place_order_with_http_info(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
+  @spec place_order_with_http_info(
+          t(),
+          PetstoreClient.Models.Order.t() | nil,
+          PetstoreClient.Api.Options.PlaceOrderOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, opts \\ []) do
+  def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -1724,7 +1892,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
@@ -1758,6 +1926,8 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
@@ -1768,10 +1938,10 @@ defmodule PetstoreClient.Api.StoreApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec reserve_stock(t(), keyword()) ::
+  @spec reserve_stock(t(), PetstoreClient.Api.Options.ReserveStockOptions.t() | nil, keyword()) ::
           {:ok, PetstoreClient.Models.ReserveStockResponse.t()} | {:error, Exception.t()}
-  def reserve_stock(%__MODULE__{} = api, opts \\ []) do
-    case reserve_stock_with_http_info(api, opts) do
+  def reserve_stock(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case reserve_stock_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -1796,10 +1966,10 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `reserve_stock`. Raises on error.
   """
-  @spec reserve_stock!(t(), keyword()) ::
+  @spec reserve_stock!(t(), PetstoreClient.Api.Options.ReserveStockOptions.t() | nil, keyword()) ::
           PetstoreClient.Models.ReserveStockResponse.t()
-  def reserve_stock!(%__MODULE__{} = api, opts \\ []) do
-    case reserve_stock(api, opts) do
+  def reserve_stock!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case reserve_stock(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1808,9 +1978,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `reserve_stock` but returns the full `ApiResult`.
   """
-  @spec reserve_stock_with_http_info(t(), keyword()) ::
+  @spec reserve_stock_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.ReserveStockOptions.t() | nil,
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def reserve_stock_with_http_info(%__MODULE__{} = api, opts \\ []) do
+  def reserve_stock_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
@@ -1820,7 +1994,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
-    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1854,7 +2028,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `options` - Optional parameters (query, header, form, cookie).
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
 
     * `opts` - Keyword list.
 

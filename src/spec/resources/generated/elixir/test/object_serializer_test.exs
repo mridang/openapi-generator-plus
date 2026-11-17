@@ -1170,6 +1170,32 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
+  # StockItem.availability is a $ref to the Availability enum with a default
+  # written beside it (an OpenAPI 3.1 sibling keyword): the property starts at
+  # that default when the struct is built and when the key is absent on decode,
+  # and an explicit value on the wire replaces it.
+  describe "a $ref property with a sibling default starts at that default" do
+    test "building the struct without the property gives the default" do
+      item = %PetstoreClient.Models.StockItem{priority: :number_1}
+      assert item.availability == :on_hold
+    end
+
+    test "decoding a payload without the property gives the default" do
+      item = PetstoreClient.ObjectSerializer.deserialize(~s({"priority":1}), "StockItem")
+      assert item.availability == :on_hold
+    end
+
+    test "decoding an explicit value replaces the default" do
+      item =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"priority":1,"availability":"Sold"}),
+          "StockItem"
+        )
+
+      assert item.availability == :sold
+    end
+  end
+
   # Scenario 7: a nested container property (array-of-array<int>) must
   # deep-round-trip to typed integer leaves, not stop at the outer list.
   # StockItem.matrix is typed "[[integer()]]"; convert_to_type peels each

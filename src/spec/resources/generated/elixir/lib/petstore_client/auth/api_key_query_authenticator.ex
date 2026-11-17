@@ -10,12 +10,26 @@ defmodule PetstoreClient.Auth.ApiKeyQueryAuthenticator do
   @moduledoc """
   Authenticator for the `apiKeyQuery` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.ApiKeyAuthenticator)}`.
+
+  Every credential not passed is read, once, when the authenticator is built, from the
+  environment variable of this scheme (an empty variable counts as unset). A credential
+  found in neither place raises `ArgumentError`, so the client fails when it is built and
+  not on its first request.
+
+    * `api_key`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY`
   """
 
   @doc """
   Creates an authenticator for the `apiKeyQuery` security scheme.
   """
-  def new(host, api_key) do
+  def new(host, api_key \\ nil) do
+    api_key =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        api_key,
+        "API_KEY",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY"
+      )
+
     PetstoreClient.Auth.ApiKeyAuthenticator.new(host, "api_key", api_key, :query)
   end
 end

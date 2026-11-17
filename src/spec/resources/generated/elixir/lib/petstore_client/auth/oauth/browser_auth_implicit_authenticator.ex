@@ -10,12 +10,26 @@ defmodule PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator do
   @moduledoc """
   Authenticator for the `browserAuth` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator)}`.
+
+  Every credential not passed is read, once, when the authenticator is built, from the
+  environment variable of this scheme (an empty variable counts as unset). A credential
+  found in neither place raises `ArgumentError`, so the client fails when it is built and
+  not on its first request.
+
+    * `client_id`: `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID`
   """
 
   @doc """
   Creates an authenticator for the `browserAuth` security scheme.
   """
-  def new(host, client_id) do
+  def new(host, client_id \\ nil) do
+    client_id =
+      PetstoreClient.Auth.BaseAuthenticator.credential(
+        client_id,
+        "CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"
+      )
+
     PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
       host,
       client_id,

@@ -70,14 +70,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
 
     * `host` - API base URL.
     * `client_id` - OAuth2 client ID. `nil` reads it from the environment variable
-      `OPEN_API_CLIENT_ID`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID`.
     * `client_secret` - OAuth2 client secret. `nil` reads it from the environment variable
-      `OPEN_API_CLIENT_SECRET`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET`.
     * `token_url` - Token endpoint URL.
     * `username` - Resource owner username. `nil` reads it from the environment variable
-      `OPEN_API_USERNAME`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME`.
     * `password` - Resource owner password. `nil` reads it from the environment variable
-      `OPEN_API_PASSWORD`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD`.
     * `scopes` - Requested scopes.
     * `opts` - Keyword list. Supported options:
       * `:refresh_url` - Refresh token endpoint URL (defaults to `token_url`).

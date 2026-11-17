@@ -38,9 +38,9 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
 
     * `host` - API base URL.
     * `username` - The username. `nil` reads it from the environment variable
-      `OPEN_API_USERNAME`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME`.
     * `password` - The password. `nil` reads it from the environment variable
-      `OPEN_API_PASSWORD`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD`.
 
   """
   @spec new(String.t(), String.t() | nil, String.t() | nil) :: t()

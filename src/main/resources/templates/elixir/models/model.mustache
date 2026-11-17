@@ -124,6 +124,35 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/-last}}
   {{/mappedModels}}
   {{/discriminator}}
+{{#composedSchemas.oneOf}}
+  {{#isModel}}
+  @doc """
+  Wraps a `{{{dataType}}}` as a `{{classname}}`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}({{moduleName}}.Models.{{{dataType}}}.t()) :: {{moduleName}}.Models.{{{dataType}}}.t()
+  def from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(%{{moduleName}}.Models.{{{dataType}}}{} = value), do: value
+
+  def from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(value) do
+    raise ArgumentError,
+          "Expected a {{{dataType}}} for {{classname}}, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `{{classname}}` value is a `{{{dataType}}}`."
+  @spec {{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}?(t()) :: boolean()
+  def {{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}?({{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}),
+    do: match?(%{{moduleName}}.Models.{{{dataType}}}{}, {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}})
+
+  @doc "The `{{{dataType}}}` variant of a built `{{classname}}` value, or `nil` when it is another variant."
+  @spec as_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(t()) :: {{moduleName}}.Models.{{{dataType}}}.t() | nil
+  def as_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}({{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}) do
+    if match?(%{{moduleName}}.Models.{{{dataType}}}{}, {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}),
+      do: {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}},
+      else: nil
+  end
+
+  {{/isModel}}
+{{/composedSchemas.oneOf}}
   @doc "Build the appropriate type from data."
   @spec build({{#discriminator}}map() | list() | nil{{/discriminator}}{{^discriminator}}term(){{/discriminator}}) :: term()
   {{#discriminator}}
@@ -289,6 +318,35 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   {{/-last}}
   {{/composedSchemas.anyOf}}
+{{#composedSchemas.anyOf}}
+  {{#isModel}}
+  @doc """
+  Wraps a `{{{dataType}}}` as a `{{classname}}`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}({{moduleName}}.Models.{{{dataType}}}.t()) :: {{moduleName}}.Models.{{{dataType}}}.t()
+  def from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(%{{moduleName}}.Models.{{{dataType}}}{} = value), do: value
+
+  def from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(value) do
+    raise ArgumentError,
+          "Expected a {{{dataType}}} for {{classname}}, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `{{classname}}` value is a `{{{dataType}}}`."
+  @spec {{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}?(t()) :: boolean()
+  def {{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}?({{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}),
+    do: match?(%{{moduleName}}.Models.{{{dataType}}}{}, {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}})
+
+  @doc "The `{{{dataType}}}` variant of a built `{{classname}}` value, or `nil` when it is another variant."
+  @spec as_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(t()) :: {{moduleName}}.Models.{{{dataType}}}.t() | nil
+  def as_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}({{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}) do
+    if match?(%{{moduleName}}.Models.{{{dataType}}}{}, {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}),
+      do: {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}},
+      else: nil
+  end
+
+  {{/isModel}}
+{{/composedSchemas.anyOf}}
   @doc "Build the appropriate type from data."
   @spec build(term()) :: term()
   def build(data) do
@@ -462,7 +520,12 @@ defmodule {{moduleName}}.Models.{{classname}} do
     {{name}}: {{{defaultValue}}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
 {{/defaultValue}}
 {{^defaultValue}}
+{{#vendorExtensions.siblingDefaultIsEnum}}
+    {{name}}: :"{{#lambda.lowercase}}{{{vendorExtensions.siblingDefaultEnumVar}}}{{/lambda.lowercase}}"{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{^vendorExtensions.siblingDefaultIsEnum}}
     :{{name}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+{{/vendorExtensions.siblingDefaultIsEnum}}
 {{/defaultValue}}
   {{/vars}}
   {{#isAdditionalPropertiesTrue}}

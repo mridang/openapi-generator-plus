@@ -22,6 +22,58 @@ defmodule PetstoreClient.Models.ReserveStockResponse do
     ]
   end
 
+  @doc """
+  Wraps a `Reservation` as a `ReserveStockResponse`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_reservation(PetstoreClient.Models.Reservation.t()) ::
+          PetstoreClient.Models.Reservation.t()
+  def from_reservation(%PetstoreClient.Models.Reservation{} = value), do: value
+
+  def from_reservation(value) do
+    raise ArgumentError,
+          "Expected a Reservation for ReserveStockResponse, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `ReserveStockResponse` value is a `Reservation`."
+  @spec reservation?(t()) :: boolean()
+  def reservation?(reserve_stock_response),
+    do: match?(%PetstoreClient.Models.Reservation{}, reserve_stock_response)
+
+  @doc "The `Reservation` variant of a built `ReserveStockResponse` value, or `nil` when it is another variant."
+  @spec as_reservation(t()) :: PetstoreClient.Models.Reservation.t() | nil
+  def as_reservation(reserve_stock_response) do
+    if match?(%PetstoreClient.Models.Reservation{}, reserve_stock_response),
+      do: reserve_stock_response,
+      else: nil
+  end
+
+  @doc """
+  Wraps a `ReservationReceipt` as a `ReserveStockResponse`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_reservation_receipt(PetstoreClient.Models.ReservationReceipt.t()) ::
+          PetstoreClient.Models.ReservationReceipt.t()
+  def from_reservation_receipt(%PetstoreClient.Models.ReservationReceipt{} = value), do: value
+
+  def from_reservation_receipt(value) do
+    raise ArgumentError,
+          "Expected a ReservationReceipt for ReserveStockResponse, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `ReserveStockResponse` value is a `ReservationReceipt`."
+  @spec reservation_receipt?(t()) :: boolean()
+  def reservation_receipt?(reserve_stock_response),
+    do: match?(%PetstoreClient.Models.ReservationReceipt{}, reserve_stock_response)
+
+  @doc "The `ReservationReceipt` variant of a built `ReserveStockResponse` value, or `nil` when it is another variant."
+  @spec as_reservation_receipt(t()) :: PetstoreClient.Models.ReservationReceipt.t() | nil
+  def as_reservation_receipt(reserve_stock_response) do
+    if match?(%PetstoreClient.Models.ReservationReceipt{}, reserve_stock_response),
+      do: reserve_stock_response,
+      else: nil
+  end
+
   @doc "Build the appropriate type from data."
   @spec build(term()) :: term()
   def build(data) do

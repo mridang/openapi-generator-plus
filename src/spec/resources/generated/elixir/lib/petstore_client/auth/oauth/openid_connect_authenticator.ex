@@ -76,9 +76,9 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     * `host` - API base URL.
     * `openid_connect_url` - OIDC discovery document URL.
     * `client_id` - OAuth2 client ID. `nil` reads it from the environment variable
-      `OPEN_API_CLIENT_ID`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID`.
     * `client_secret` - OAuth2 client secret. `nil` reads it from the environment variable
-      `OPEN_API_CLIENT_SECRET`.
+      `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET`.
     * `redirect_uri` - Redirect URI registered with the provider.
     * `scopes` - Requested scopes.
 

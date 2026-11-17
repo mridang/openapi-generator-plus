@@ -32,6 +32,56 @@ defmodule PetstoreClient.Models.PetFood do
     }
   end
 
+  @doc """
+  Wraps a `DryFood` as a `PetFood`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_dry_food(PetstoreClient.Models.DryFood.t()) :: PetstoreClient.Models.DryFood.t()
+  def from_dry_food(%PetstoreClient.Models.DryFood{} = value), do: value
+
+  def from_dry_food(value) do
+    raise ArgumentError,
+          "Expected a DryFood for PetFood, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `PetFood` value is a `DryFood`."
+  @spec dry_food?(t()) :: boolean()
+  def dry_food?(pet_food),
+    do: match?(%PetstoreClient.Models.DryFood{}, pet_food)
+
+  @doc "The `DryFood` variant of a built `PetFood` value, or `nil` when it is another variant."
+  @spec as_dry_food(t()) :: PetstoreClient.Models.DryFood.t() | nil
+  def as_dry_food(pet_food) do
+    if match?(%PetstoreClient.Models.DryFood{}, pet_food),
+      do: pet_food,
+      else: nil
+  end
+
+  @doc """
+  Wraps a `WetFood` as a `PetFood`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_wet_food(PetstoreClient.Models.WetFood.t()) :: PetstoreClient.Models.WetFood.t()
+  def from_wet_food(%PetstoreClient.Models.WetFood{} = value), do: value
+
+  def from_wet_food(value) do
+    raise ArgumentError,
+          "Expected a WetFood for PetFood, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `PetFood` value is a `WetFood`."
+  @spec wet_food?(t()) :: boolean()
+  def wet_food?(pet_food),
+    do: match?(%PetstoreClient.Models.WetFood{}, pet_food)
+
+  @doc "The `WetFood` variant of a built `PetFood` value, or `nil` when it is another variant."
+  @spec as_wet_food(t()) :: PetstoreClient.Models.WetFood.t() | nil
+  def as_wet_food(pet_food) do
+    if match?(%PetstoreClient.Models.WetFood{}, pet_food),
+      do: pet_food,
+      else: nil
+  end
+
   @doc "Build the appropriate type from data."
   @spec build(map() | list() | nil) :: term()
   # The discriminator is read by key, which only a JSON object supports; any

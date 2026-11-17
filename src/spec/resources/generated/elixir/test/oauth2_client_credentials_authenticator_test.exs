@@ -46,8 +46,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
 
   describe "OAuth2ClientCredentialsAuthenticator" do
     test "nil client credentials are read from the environment and a missing one fails at construction" do
-      id = "OPEN_API_CLIENT_ID"
-      secret = "OPEN_API_CLIENT_SECRET"
+      id = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID"
+      secret = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET"
 
       on_exit(fn ->
         System.delete_env(id)

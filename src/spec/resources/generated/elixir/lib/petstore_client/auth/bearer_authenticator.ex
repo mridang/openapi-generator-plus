@@ -36,7 +36,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
 
     * `host` - API base URL.
     * `token` - Bearer token. `nil` reads it from the environment variable
-      `OPEN_API_TOKEN`. A zero-argument function is called for every request
+      `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`. A zero-argument function is called for every request
       and returns the token, so a token that rotates is always read fresh.
 
   """

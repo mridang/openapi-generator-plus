@@ -14,8 +14,8 @@ defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
     end
 
     test "nil credentials are read once from the environment and passed ones win" do
-      user = "{{envPrefix}}_USERNAME"
-      pass = "{{envPrefix}}_PASSWORD"
+      user = "{{envVarPrefix}}_USERNAME"
+      pass = "{{envVarPrefix}}_PASSWORD"
       System.put_env(user, "alice")
       System.put_env(pass, "from-env")
 
@@ -35,8 +35,8 @@ defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
     end
 
     test "an empty or absent environment variable fails when the authenticator is built" do
-      user = "{{envPrefix}}_USERNAME"
-      pass = "{{envPrefix}}_PASSWORD"
+      user = "{{envVarPrefix}}_USERNAME"
+      pass = "{{envVarPrefix}}_PASSWORD"
 
       on_exit(fn ->
         System.delete_env(user)

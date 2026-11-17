@@ -14,8 +14,8 @@ defmodule PetstoreClient.Models.StockItem do
 
   @type t :: %__MODULE__{
           priority: PetstoreClient.Models.Priority.t(),
-          availability: PetstoreClient.Models.Availability.t() | nil,
-          matrix: [[integer()]] | nil
+          matrix: [[integer()]] | nil,
+          availability: PetstoreClient.Models.Availability.t() | nil
         }
 
   @enforce_keys [
@@ -23,8 +23,8 @@ defmodule PetstoreClient.Models.StockItem do
   ]
   defstruct [
     :priority,
-    :availability,
-    :matrix
+    :matrix,
+    availability: :on_hold
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -32,8 +32,8 @@ defmodule PetstoreClient.Models.StockItem do
   def attribute_map do
     %{
       priority: "priority",
-      availability: "availability",
-      matrix: "matrix"
+      matrix: "matrix",
+      availability: "availability"
     }
   end
 
@@ -87,8 +87,8 @@ defmodule PetstoreClient.Models.StockItem do
   def openapi_types do
     %{
       priority: "Priority",
-      availability: "Availability",
-      matrix: "[[integer()]]"
+      matrix: "[[integer()]]",
+      availability: "Availability"
     }
   end
 end

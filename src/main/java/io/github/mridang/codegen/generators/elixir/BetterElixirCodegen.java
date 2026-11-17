@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +30,8 @@ import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +47,12 @@ import org.slf4j.LoggerFactory;
 public class BetterElixirCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterElixirCodegen.class);
+
+    /**
+     * The generated per-scheme authenticators that read an environment variable, with the
+     * variable of each credential, for the generated unit test (F862).
+     */
+    private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
 
     protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
@@ -377,9 +386,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         additionalProperties.put("moduleName", moduleName);
         additionalProperties.put(
                 "userAgentDefault", packageName + "/" + packageVersion + " (elixir)");
-        additionalProperties.put(
-                "envPrefix",
-                errorPrefixSnake().toUpperCase(Locale.ROOT));
+        additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
         putManifestProperties();
 
         final String libDir = Path.of("lib", packageName).toString();
@@ -608,6 +615,31 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Keeps every defaulted property last in each struct. {@code defstruct} takes its plain
+     * atoms first and its {@code key: default} pairs last, and a property whose {@code $ref}
+     * carries a sibling default (F866) is written as a pair although its own
+     * {@code defaultValue} is empty, so the shared sort on {@code defaultValue} cannot see it.
+     * Runs after the shared pass, which re-sorts discriminator children, so the order is final.
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                modelMap.getModel().vars.sort(
+                        Comparator.comparing(p -> hasStructDefault(p) ? 1 : 0));
+            }
+        }
+        return result;
+    }
+
+    /** Whether the property is written as a {@code key: default} pair in {@code defstruct}. */
+    static boolean hasStructDefault(CodegenProperty property) {
+        return property.defaultValue != null
+                || Boolean.TRUE.equals(property.vendorExtensions.get("siblingDefaultIsEnum"));
+    }
+
+    /**
      * Enables Gap K (auto-inject discriminator on serialise) for
      * Elixir. The Elixir {@code defstruct} template emits keyword
      * entries from {@code defaultValue}, so subtype structs gain
@@ -631,6 +663,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     protected String getSourceFolder() {
         return "lib";
+    }
+
+    /**
+     * Every operation takes an options struct (F827), so each call has a slot for the per-call
+     * {@code timeout}, {@code headers} and {@code max_retries}, even an operation with no query,
+     * header, form or cookie parameter and no security.
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
     }
 
     /** {@inheritDoc} */
@@ -661,6 +703,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
         context.put("params", params);
+        context.put("callSettingsOnly", params.isEmpty() && !op.hasAuthMethods);
         // Per-operation auth folded into the Options struct: authed operations
         // gain an optional `auth` field (guarded by {{#hasAuthField}}) that
         // overrides the API instance's configured authenticator for one call.
@@ -734,6 +777,13 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (generateTests && Boolean.TRUE.equals(additionalProperties.get("hasSecuritySchemeEnvVars"))) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/scheme_authenticator_test.mustache",
+                            "test",
+                            "scheme_authenticator_test.exs"));
+        }
         if (generateTests && hasBasicAuth) {
             supportingFiles.add(
                     new SupportingFile(
@@ -803,15 +853,41 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         final Map<String, Object> ctx = baseSchemeContext(spec);
         ctx.put("package", moduleName + (spec.isOAuth() ? ".Auth.OAuth" : ".Auth"));
         ctx.put("imports", List.of());
-        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> envVars =
+                Objects.requireNonNull((List<Map<String, Object>>) ctx.get("envVars"));
+        final List<Map<String, Object>> constructorParams = new ArrayList<>();
+        final List<Map<String, Object>> credentials = new ArrayList<>();
         for (final String name : spec.paramNames()) {
-            final Map<String, String> param = new HashMap<>();
+            final Map<String, Object> param = new HashMap<>();
             param.put("name", NamingConvention.SNAKE_CASE.apply(name));
             param.put("type", "String.t()");
+            for (final Map<String, Object> env : envVars) {
+                if (name.equals(env.get("field"))) {
+                    param.put("isCredential", true);
+                    param.put("fieldSnake", env.get("fieldSnake"));
+                    param.put("envName", env.get("envName"));
+                    credentials.add(param);
+                    break;
+                }
+            }
             constructorParams.add(param);
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildElixirSuperArgs(spec));
+        if (!credentials.isEmpty()) {
+            final String className = spec.schemeClass() + spec.oauthSuffix() + "Authenticator";
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("className", className);
+            entry.put("module", ctx.get("package") + "." + className);
+            entry.put("schemeName", spec.schemeName());
+            entry.put("credentials", credentials);
+            entry.put("firstEnvName", credentials.get(0).get("envName"));
+            entry.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
+            entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
+            entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+            perSchemeAuthEntries.add(entry);
+        }
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
@@ -920,6 +996,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                         "elixirTypespec",
                         (fragment, writer) ->
                                 writer.write(toModuleTypespec(fragment.execute(), moduleName)))
+                .put(
+                        "elixirSnake",
+                        (fragment, writer) ->
+                                writer.write(NamingConvention.SNAKE_CASE.apply(fragment.execute())))
                 .put(
                         "elixirComment",
                         (fragment, writer) -> writer.write(toLineComment(fragment.execute())))

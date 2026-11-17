@@ -71,7 +71,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
   Create a new authorization code authenticator.
 
   `client_id` and `client_secret` may be `nil`; they are then read from the
-  environment variables `OPEN_API_CLIENT_ID` and `OPEN_API_CLIENT_SECRET`.
+  environment variables `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID` and `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET`.
   """
   @spec new(
           String.t(),

@@ -31,9 +31,9 @@ defmodule {{moduleName}}.Auth.BasicAuthenticator do
 
     * `host` - API base URL.
     * `username` - The username. `nil` reads it from the environment variable
-      `{{envPrefix}}_USERNAME`.
+      `{{envVarPrefix}}_USERNAME`.
     * `password` - The password. `nil` reads it from the environment variable
-      `{{envPrefix}}_PASSWORD`.
+      `{{envVarPrefix}}_PASSWORD`.
 
   """
   @spec new(String.t(), String.t() | nil, String.t() | nil) :: t()
