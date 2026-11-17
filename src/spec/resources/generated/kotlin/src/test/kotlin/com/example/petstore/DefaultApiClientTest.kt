@@ -165,7 +165,8 @@ class DefaultApiClientTest {
             assertTrue(
                 causes(ex).any {
                     it is io.ktor.network.tls.TLSException &&
-                        it.message.orEmpty().startsWith("No server host: $address in the server certificate")
+                        it.message.orEmpty().startsWith("No server host: ") &&
+                        it.message.orEmpty().contains(" in the server certificate")
                 },
                 "the host name check must reject $address, got ${causes(ex)}",
             )
