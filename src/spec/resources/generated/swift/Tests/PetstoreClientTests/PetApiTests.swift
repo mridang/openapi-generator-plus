@@ -916,7 +916,7 @@ final class PetApiTests {
   // encoded as repeated keys (tags=a&tags=b), never bracketed ("[a, b]") or
   // comma-joined. Decodes the captured request body and asserts both tag
   // values appear as separate `tags=` pairs.
-  @Test func testFormArrayEncodedAsRepeatedKeys() async throws {
+  @Test func testBhvSerializationwire053FormArrayEncodedAsRepeatedKeys() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
@@ -1044,6 +1044,30 @@ final class PetApiTests {
     #expect(
       message == "Missing the required parameter 'bornOn' when calling PetApi.findPetsBornOn",
       "expected the canonical required-parameter message, got: \(message)")
+    #expect(
+      mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
+  }
+
+  // required-query-validation: a required query param with no value (an empty
+  // string, the swift stand-in for nil) fails before dispatch, and the message
+  // names the parameter.
+  @Test func testBhvOperations125RequiredQueryParamCategoryMissingThrows() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(
+        name: "item-1", options: GetPetByNameOptions(category: "", xCorrelationId: "c-1"))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message == "Missing the required parameter 'category' when calling PetApi.getPetByName")
     #expect(
       mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
   }

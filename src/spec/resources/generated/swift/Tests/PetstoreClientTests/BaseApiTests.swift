@@ -650,7 +650,7 @@ import Testing
 
   // MARK: - Nil body
 
-  @Test func testHandlesNilBody() async throws {
+  @Test func testBhvSerializationobject183HandlesNilBody() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 

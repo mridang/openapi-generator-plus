@@ -83,7 +83,7 @@ import Testing
         ("abc\n", ApiKeyLocation.cookie),
         ("kéy", ApiKeyLocation.header),
     ])
-    func testInvalidKeyIsRejectedAtConstruction(apiKey: String, location: ApiKeyLocation) {
+    func testBhvAuthapikey018InvalidKeyIsRejectedAtConstruction(apiKey: String, location: ApiKeyLocation) {
         let error = #expect(throws: ConfigurationError.self) {
             _ = try ApiKeyAuthenticator(
                 host: "https://api.example.com",
@@ -179,10 +179,20 @@ import Testing
         ("ApiKeyQuery", "api_key"),
         ("SessionCookie", "SESSION_ID"),
     ])
-    func testSchemeWrapperRejectsAnEmptyKeyEagerly(scheme: String, name: String) {
+    func testBhvAuthapikey019SchemeWrapperRejectsAnEmptyKeyEagerly(scheme: String, name: String) {
         #expect(throws: ConfigurationError.invalidArgument("API key value for '\(name)' must not be empty")) {
             _ = try Self.schemeWrapper(scheme, apiKey: "")
         }
+    }
+
+    /* Every API-key wrapper refuses an empty key when it is built and never shows the key in its description. */
+    @Test(arguments: ["ApiKeyHeader", "InternalApiKey", "ApiKeyQuery", "SessionCookie"])
+    func testBhvAuthapikey020SchemeWrapperValidatesEagerlyAndRedactsTheKey(scheme: String) throws {
+        #expect(throws: ConfigurationError.self) {
+            _ = try Self.schemeWrapper(scheme, apiKey: "")
+        }
+        let auth = try Self.schemeWrapper(scheme, apiKey: "wrapper-key-value")
+        #expect(!String(describing: auth).contains("wrapper-key-value"))
     }
 
     private static func schemeWrapper(_ scheme: String, apiKey: String) throws -> ApiKeyAuthenticator {

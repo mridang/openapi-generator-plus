@@ -38,6 +38,14 @@ import Testing
         #expect(headers["Content-Type"] == "application/json")
     }
 
+    /* An empty accept array yields the empty string for Accept, which means no Accept value is sent. */
+    @Test func testBhvHeaders027EmptyAcceptArrayReturnsAnEmptyString() {
+        let hs = HeaderSelector()
+        let headers = hs.selectHeaders(accept: [], contentType: "application/json", isMultipart: false)
+
+        #expect((headers["Accept"] ?? "") == "")
+    }
+
     @Test func testBhvHeaders004SelectHeadersWithEmptyAccepts() {
         let hs = HeaderSelector()
         let headers = hs.selectHeaders(accept: [], contentType: "application/json", isMultipart: false)

@@ -173,6 +173,19 @@ import Testing
         }
     }
 
+    /* An empty variable counts as unset: construction fails and the message names the missing credential by its variable. */
+    @Test func testBhvAuthbasic012{{className}}AnEmptyVariableCountsAsUnset() throws {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try {{className}}(host: "https://api.example.com", username: nil, password: nil, environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        #expect(message.hasPrefix("Missing the credential '"))
+        #expect(message.contains("environment variable"))
+    }
+
 {{/isBasicScheme}}
 {{/perSchemeAuthEntries}}
     private static func schemeWrapper(_ scheme: String, username: String, password: String) throws -> BasicAuthenticator {

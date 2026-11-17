@@ -899,6 +899,23 @@ import Testing
         }
     }
 
+    /* A 2xx token body that is not JSON is not echoed into the error message. */
+    @Test func testBhvAuthoauthtwotokenmgr041NonJsonTokenBodyIsNotEchoedIntoTheError() async {
+        let secret = ["sec", "ret-token-41"].joined()
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "access_token=\(secret)&token_type=bearer"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let error = await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"])
+        }
+        #expect(error?.errorDescription == "Token response is not valid JSON")
+        #expect(!(error?.errorDescription ?? "").contains(secret))
+    }
+
     /* D07: the three token failures have one canonical text each, with no
        parser detail. */
     @Test(arguments: [

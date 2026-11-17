@@ -220,6 +220,24 @@ import Testing
     }
   }
 
+  /* An empty variable counts as unset: construction fails and the message names the missing credential by its variable. */
+  @Test func testBhvAuthbasic012PetStoreBasicAuthenticatorAnEmptyVariableCountsAsUnset() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try PetStoreBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "",
+        ])
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message.hasPrefix("Missing the credential '"))
+    #expect(message.contains("environment variable"))
+  }
+
   @Test
   func
     testBhvAuthbasic001AdminBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
@@ -260,6 +278,24 @@ import Testing
           "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "",
         ])
     }
+  }
+
+  /* An empty variable counts as unset: construction fails and the message names the missing credential by its variable. */
+  @Test func testBhvAuthbasic012AdminBasicAuthenticatorAnEmptyVariableCountsAsUnset() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try AdminBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "",
+        ])
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message.hasPrefix("Missing the credential '"))
+    #expect(message.contains("environment variable"))
   }
 
   private static func schemeWrapper(_ scheme: String, username: String, password: String) throws

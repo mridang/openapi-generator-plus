@@ -142,6 +142,19 @@ import Testing
         }
     }
 
+    /* A non-ASCII access token is refused with the RFC 7230 message. */
+    @Test func testBhvAuthoauthtwoimplicit014NonAsciiAccessTokenIsRefusedWithTheRfc7230Message() {
+        let auth = createAuthenticator()
+        let error = #expect(throws: ConfigurationError.self) {
+            try auth.setAccessToken("ñoño")
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        #expect(message == "Access token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    }
+
     @Test func testBhvAuthoauthtwoimplicit008GetHostReturnsConfiguredHost() {
         let auth = createAuthenticator()
 

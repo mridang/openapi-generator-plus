@@ -74,6 +74,16 @@ import Testing
     #expect(metadata.additionalProperties["extra"]?.value as? String == "x")
   }
 
+  /* The description dumps the declared fields and the additionalProperties map. */
+  @Test func testBhvModels012ToStringDumpsTheFieldsAndAdditionalProperties() {
+    let metadata = Metadata(additionalProperties: ["customField": AnyCodable("hello")])
+    let dump = String(describing: metadata)
+    #expect(dump.contains("createdAt: nil"))
+    #expect(dump.contains("additionalProperties"))
+    #expect(dump.contains("customField"))
+    #expect(dump.contains("hello"))
+  }
+
   /* Two instances that differ only in the additionalProperties bucket are
    * not equal, and equal ones hash alike. */
   @Test func testBhvModels005EqualityIncludesAdditionalProperties() {
