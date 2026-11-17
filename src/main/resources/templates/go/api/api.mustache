@@ -84,11 +84,17 @@ type {{classname}} struct {
 	*baseApi
 }
 
-// New{{classname}} creates a new {{classname}} instance.
-func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator Authenticator) *{{classname}} {
-	return &{{classname}}{
+// New{{classname}} creates a new {{classname}} instance. The authenticator is
+// applied to every operation that is not declared without security; the
+// schemeAuthenticators give each security scheme its own credential (see
+// Credentials) and an operation uses the one its spec names. Pass nil and the
+// zero Credentials for the ones you do not use.
+func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator Authenticator, schemeAuthenticators Credentials) *{{classname}} {
+	api := &{{classname}}{
 		baseApi: newBaseApi(apiClient, config, authenticator),
 	}
+	api.credentials = schemeAuthenticators.bySchemeId()
+	return api
 }
 
 // {{classname}}Interface is the set of operations {{classname}} provides. Depend

@@ -34,14 +34,14 @@ func newStoreApiForIntegration(t *testing.T) *{{packageName}}.StoreApi {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	client := {{packageName}}.NewDefaultApiClient(transport)
-	return {{packageName}}.NewStoreApi(client, config, nil)
+	return {{packageName}}.NewStoreApi(client, config, nil, {{packageName}}.Credentials{})
 }
 
 func newStoreApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.StoreApi {
 	t.Helper()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := {{packageName}}.NewDefaultApiClient(noRetryTransport(t))
-	return {{packageName}}.NewStoreApi(client, config, nil)
+	return {{packageName}}.NewStoreApi(client, config, nil, {{packageName}}.Credentials{})
 }
 
 // F1128: createAccount sends the write-only password, keeps the read-only id
@@ -98,7 +98,7 @@ func TestStoreApi_GetOrderByIdPicksTheStatusSpecificErrorClass(t *testing.T) {
 		config := {{packageName}}.NewConfigurationBuilder().
 			BaseURL(fmt.Sprintf("%s/test/status/%d", chasmURL, tc.status)).
 			Build()
-		api := {{packageName}}.NewStoreApi({{packageName}}.NewDefaultApiClient(noRetryTransport(t)), config, nil)
+		api := {{packageName}}.NewStoreApi({{packageName}}.NewDefaultApiClient(noRetryTransport(t)), config, nil, {{packageName}}.Credentials{})
 		_, err := api.GetOrderById(context.Background(), int64(1))
 		if err == nil {
 			t.Fatalf("status %d: expected an error", tc.status)

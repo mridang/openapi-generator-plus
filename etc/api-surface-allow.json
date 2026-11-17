@@ -2732,17 +2732,6 @@
   },
   {
    "element": [
-    "baseapi.<ctor>",
-    "*api.<ctor>"
-   ],
-   "aspect": "ctor",
-   "languages": [
-    "java"
-   ],
-   "reason": "F857 owner decision: an API class also takes the per-scheme credentials the client holds (an optional fourth argument, a map keyed by scheme name), which an operation resolves for the first scheme its spec lists that the client holds; the (apiClient, config, authenticator) overload is kept, so a call site written against the canonical shape still compiles. Delete this rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": [
     "petfood.dryfood",
     "petfood.wetfood",
     "petfood.asdryfood",
@@ -3083,22 +3072,6 @@
    "reason": "F862 owner decision (a token-provider callback beside the static credential): kotlin takes it as a trailing suspend lambda on the api key authenticator; drop this row once the majority has an api key provider."
   },
   {
-   "element": "apierror.fromresponse",
-   "aspect": "params",
-   "languages": [
-    "php"
-   ],
-   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": "apierror.fromresponse",
-   "aspect": "optional",
-   "languages": [
-    "php"
-   ],
-   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
-  },
-  {
    "element": [
     "client.<ctor>"
    ],
@@ -3138,18 +3111,6 @@
   },
   {
    "element": [
-    "addpetoptions.auth",
-    "addpettreatmentoptions.auth",
-    "deletepetoptions.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "rust"
-   ],
-   "reason": "F857 owner decision (the client takes one credential per security scheme, each operation uses the scheme its spec requires, no per-call scheme override): rust removes the per-operation auth field from the Options struct. Delete this rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": [
     "credentials",
     "credentials.envvarname",
     "credentials.readenvcredential",
@@ -3160,38 +3121,6 @@
     "rust"
    ],
    "reason": "F857 owner decision: rust holds the per-scheme credentials in a Credentials struct (one with_<scheme> setter per scheme, handed to Client::with_credentials) because it has no named constructor arguments or optional parameters to give the client one argument per scheme. Delete this rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": [
-    "petapi.*",
-    "storeapi.*"
-   ],
-   "aspect": "params",
-   "value": "*options*",
-   "languages": [
-    "php"
-   ],
-   "reason": "F827: php takes the options object on every operation (mintsOptionsForEveryOperation); the other languages add it in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": "*options",
-   "aspect": "type",
-   "languages": [
-    "php"
-   ],
-   "reason": "F827: php mints an Options class for every operation, so the classes of operations without parameters or security exist only in php until the other languages adopt it, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "addpetoptions.auth",
-    "addpettreatmentoptions.auth",
-    "deletepetoptions.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "php"
-   ],
-   "reason": "F857: owner decision, no per-call scheme override; php dropped the Options auth field first and the other languages drop it in their own adopt branches, after which this rule is deleted"
   },
   {
    "element": "baseapi.<ctor>",
@@ -3241,22 +3170,6 @@
    "reason": "each language passes the per-request redirect option in its own way: python with a defaulted body, node with an options object, elixir with a keyword list, kotlin by inheriting the interface default; the behaviour is the same"
   },
   {
-   "element": "apierror.fromresponse",
-   "aspect": "params",
-   "languages": [
-    "node"
-   ],
-   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": "apierror.fromresponse",
-   "aspect": "optional",
-   "languages": [
-    "node"
-   ],
-   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
-  },
-  {
    "element": [
     "petfood.*",
     "pettreatment.*",
@@ -3270,16 +3183,6 @@
    ],
    "value": "extra*",
    "reason": "F878: a kotlin oneOf or anyOf wrapper holds an Any, so each variant gets a typed from<Variant> factory on its companion object and an is<Variant> property and an as<Variant>() accessor (a generic variant, which is erased at run time, only the factory), like swift, csharp and php; languages with native unions (node, rust, elixir) or isinstance (python) need none"
-  },
-  {
-   "element": [
-    "*options.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "kotlin"
-   ],
-   "reason": "F857 owner decision (the client takes one credential per security scheme, each operation uses the scheme its spec requires, no per-call scheme override): the kotlin Options classes carry no auth property. Delete this rule when the other languages land the same decision."
   },
   {
    "element": [
@@ -3353,30 +3256,6 @@
   },
   {
    "element": [
-    "addpetoptions.auth",
-    "addpettreatmentoptions.auth",
-    "deletepetoptions.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "python"
-   ],
-   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so python's Options objects carry no per-call authenticator; the other eleven drop the field in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "baseapi.<ctor>",
-    "petapi.<ctor>",
-    "storeapi.<ctor>"
-   ],
-   "aspect": "ctor",
-   "languages": [
-    "python"
-   ],
-   "reason": "F857: the trailing scheme_authenticators mapping hands the client's credential per security scheme to each API group, which picks the one its spec names; the other languages pass it in their own way (dart a named argument, csharp an optional argument) and add it in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": [
     "calloptions"
    ],
    "aspect": "type",
@@ -3396,18 +3275,6 @@
     "ruby"
    ],
    "reason": "F857 owner decision: an API class also takes the per-scheme credentials the client holds (an optional fourth scheme_authenticators argument keyed by scheme name), which an operation resolves for the first scheme its spec names that the client holds; the (apiClient, config, authenticator) call site is unchanged"
-  },
-  {
-   "element": [
-    "addpetoptions.auth",
-    "addpettreatmentoptions.auth",
-    "deletepetoptions.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "ruby"
-   ],
-   "reason": "F857 owner decision (the client takes one credential per security scheme, each operation uses the scheme its spec requires, no per-call scheme override): ruby removes the per-operation auth member from the Options objects. Delete this rule when the other eleven SDKs land the same decision."
   },
   {
    "element": [
@@ -3458,18 +3325,6 @@
    "reason": "an operation with no query, header, form or cookie parameter has no Options interface in node: its per-call timeout, headers, maxRetries and signal travel on the trailing RequestOptions object every operation takes, so an empty interface would carry nothing; the other SDKs mint an <Operation>Options type for each operation (F827)"
   },
   {
-   "element": [
-    "addpetoptions.auth",
-    "addpettreatmentoptions.auth",
-    "deletepetoptions.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "node"
-   ],
-   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so node's Options interfaces carry no per-call authenticator; the other languages drop the field in their own adopt branches, after which this rule is deleted"
-  },
-  {
    "element": "client.<ctor>",
    "aspect": "ctor",
    "languages": [
@@ -3509,22 +3364,6 @@
    "reason": "F862: the helpers every authenticator calls to take its credential from the argument or from <PREFIX>_<FIELD>; JS has no package-private visibility, so they are exported from the credentials module the authenticators share"
   },
   {
-   "element": "apierror.fromresponse",
-   "aspect": "params",
-   "languages": [
-    "kotlin"
-   ],
-   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": "apierror.fromresponse",
-   "aspect": "optional",
-   "languages": [
-    "kotlin"
-   ],
-   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
-  },
-  {
    "element": [
     "*authenticator.invalidateaccesstoken"
    ],
@@ -3555,18 +3394,6 @@
     "elixir"
    ],
    "reason": "F857 owner decision: an elixir API struct also takes the per-scheme credentials the client holds (an optional fourth scheme_authenticators map keyed by the scheme's name in the spec), which an operation resolves for the schemes its spec lists; the (api_client, config, authenticator) call site is unchanged"
-  },
-  {
-   "element": [
-    "addpetoptions.auth",
-    "addpettreatmentoptions.auth",
-    "deletepetoptions.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "elixir"
-   ],
-   "reason": "F857 owner decision: no per-call scheme override. An operation uses the credential of the scheme its spec requires, so the elixir Options struct carries no auth field. Delete this rule when the other languages land the same decision."
   },
   {
    "element": [
@@ -3630,6 +3457,54 @@
     "dart"
    ],
    "reason": "dart builds a union value with a named constructor named after the variant (ReserveStockResponse.reservation(v)), the language's own way to give a class several typed factories; the other languages say from<Variant>"
+  },
+  {
+   "element": "client.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has no overloaded or named-argument constructors: NewClient(authenticator, transportOptions) keeps the canonical shape and the per-scheme credentials go through NewClientWithCredentials(host, Credentials, transportOptions), as NewClientWithToken and NewClientWithTokenProvider hold the other entry points"
+  },
+  {
+   "element": "*options",
+   "aspect": "type",
+   "languages": [
+    "go"
+   ],
+   "value": "missing",
+   "reason": "an operation with no query, header, form or cookie parameter has no Options struct in go: its per-call timeout, headers and maxRetries travel in the variadic RequestOption every operation takes, so each call still has the slot"
+  },
+  {
+   "element": "baseauthenticator.resolvecredential",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra*",
+   "reason": "go has no static methods and no implementation inheritance: the helper every authenticator constructor calls to take its credential from the argument or from the environment is the package-level auth.ResolveCredential"
+  },
+  {
+   "element": [
+    "credentials",
+    "credentials.*"
+   ],
+   "aspect": "*",
+   "languages": [
+    "go"
+   ],
+   "reason": "F857 owner decision: go holds the per-scheme credentials in a Credentials struct (one Authenticator field per scheme, handed to NewClientWithCredentials and to the API group constructors) because it has no named constructor arguments or optional parameters to give the client one argument per scheme"
+  },
+  {
+   "element": [
+    "reservestockresponse.fromreservation",
+    "reservestockresponse.fromreservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "F878: go has no static methods and no overloads, so the typed factory of a union variant is the package-level New<Variant><Union> (NewReservationReserveStockResponse), already allowed as the extra New* member"
   }
  ]
 }

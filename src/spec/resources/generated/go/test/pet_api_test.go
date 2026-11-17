@@ -67,14 +67,14 @@ func newPetApiForIntegration(t *testing.T) *petstore.PetApi {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	client := petstore.NewDefaultApiClient(transport)
-	return petstore.NewPetApi(client, config, nil)
+	return petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 }
 
 func newPetApiForMock(t *testing.T, server *httptest.Server) *petstore.PetApi {
 	t.Helper()
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := petstore.NewDefaultApiClient(noRetryTransport(t))
-	return petstore.NewPetApi(client, config, nil)
+	return petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 }
 
 // newTempFile returns a temp *os.File with the supplied contents, registered for cleanup.
@@ -1408,7 +1408,7 @@ func TestPetApi_AddPetAppliesTheClientAuthenticator(t *testing.T) {
 	defer server.Close()
 
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, &perCallPetAuth{})
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, &perCallPetAuth{}, petstore.Credentials{})
 
 	pet := models.NewPet("OverrideDog", models.Set[string]{"http://example.com/p.jpg"})
 	if _, err := api.AddPet(context.Background(), *pet, nil); err != nil {
@@ -1455,6 +1455,34 @@ func TestPetApi_AddPetUsesOnlyTheCredentialOfTheSchemeItRequires(t *testing.T) {
 	}
 	if strings.Contains(gotQuery, "query-key") {
 		t.Errorf("the credential of a scheme AddPet does not accept leaked into the query: %q", gotQuery)
+	}
+}
+
+// F857: an API group built on its own takes the per-scheme credentials as its
+// last constructor argument, like the client hands them to its groups.
+func TestPetApi_NewPetApiTakesTheCredentialsOfEachScheme(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, err := auth.NewPetStoreBearerAuthenticator(server.URL, "group-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{PetStoreBearer: bearer})
+
+	pet := models.NewPet("GroupDog", models.Set[string]{"http://example.com/g.jpg"})
+	if _, err := api.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if gotAuth != "Bearer group-token" {
+		t.Errorf("expected the credential passed to NewPetApi, got %q", gotAuth)
 	}
 }
 
@@ -1540,7 +1568,7 @@ func TestPetApi_AddPetNilOptionsUsesConfiguredCredentials(t *testing.T) {
 		DefaultHeader("Authorization", "Bearer default-token").
 		Build()
 	client := petstore.NewDefaultApiClient(nil)
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	pet := models.NewPet("DefaultDog", models.Set[string]{"http://example.com/d.jpg"})
 
@@ -1581,7 +1609,7 @@ func TestPetApi_GetPetByIdUnsecuredHasNoAuthField(t *testing.T) {
 
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := petstore.NewDefaultApiClient(nil)
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	// Compiles only because GetPetById takes (petId, server) — no Options/Auth.
 	result, err := api.GetPetById(context.Background(), int64(1), nil)

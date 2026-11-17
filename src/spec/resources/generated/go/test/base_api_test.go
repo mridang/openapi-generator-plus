@@ -71,7 +71,7 @@ func newBaseApiAuth() *baseApiAuth {
 
 func chasmApi() *petstore.PetApi {
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL).Build()
-	return petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	return petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
 }
 
 // noRetryTransport is the default transport with retries disabled, for the tests
@@ -144,7 +144,7 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.errType, func(t *testing.T) {
 			config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + tc.path).Build()
-			api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil)
+			api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil, petstore.Credentials{})
 			_, err := api.GetPetById(context.Background(), int64(1), nil)
 			if err == nil {
 				t.Fatalf("expected error for status %d, got nil", tc.status)
@@ -158,7 +158,7 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 func TestBaseApi_ParsesJsonErrorBody(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
 
 	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
@@ -179,7 +179,7 @@ func TestBaseApi_ParsesJsonErrorBody(t *testing.T) {
 func TestBaseApi_NotFoundIsClientError(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/404").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
 
 	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
@@ -196,7 +196,7 @@ func TestBaseApi_NotFoundIsClientError(t *testing.T) {
 func TestBaseApi_InternalServerErrorIsServerError(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/500").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil, petstore.Credentials{})
 
 	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
@@ -248,7 +248,7 @@ func TestBaseApi_ReturnsNilWhenReturnTypeIsVoid(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	// DeletePet is a void operation -- it should return no error for a 200 OK response
 	err := api.DeletePet(context.Background(), int64(1), nil)
 	if err != nil {
@@ -264,7 +264,7 @@ func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 		BaseURL(chasmHTTPURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
 
 	// Use the client directly to echo headers
 	client := petstore.NewDefaultApiClient(nil)
@@ -294,7 +294,7 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 		query:   map[string]string{},
 		cookies: map[string]string{"session": "abc123"},
 	}
-	api := petstore.NewPetApi(client, config, auth)
+	api := petstore.NewPetApi(client, config, auth, petstore.Credentials{})
 
 	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
 	if err != nil {
@@ -316,7 +316,7 @@ func TestBaseApi_SeveralAuthCookiesAreWrittenSortedByName(t *testing.T) {
 		query:   map[string]string{},
 		cookies: map[string]string{"zeta": "3", "alpha": "1", "mid": "2"},
 	}
-	api := petstore.NewPetApi(client, config, auth)
+	api := petstore.NewPetApi(client, config, auth, petstore.Credentials{})
 
 	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
 	if err != nil {
@@ -338,7 +338,7 @@ func TestBaseApi_InvalidCookieReturnsErrInvalidCookie(t *testing.T) {
 		query:   map[string]string{},
 		cookies: map[string]string{"session": "a;b"},
 	}
-	api := petstore.NewPetApi(client, config, auth)
+	api := petstore.NewPetApi(client, config, auth, petstore.Credentials{})
 	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
 	if !errors.Is(err, petstore.ErrInvalidCookie) {
 		t.Fatalf("expected ErrInvalidCookie, got %v", err)
@@ -364,7 +364,7 @@ func TestBaseApi_ConfiguredAuthenticatorIsAppliedToSecuredRequest(t *testing.T) 
 
 	// Bearer is one of the schemes the petstore spec defines (petStoreBearer).
 	bearer := mustBearer(t, "https://api.example.com", "secret-jwt")
-	api := petstore.NewPetApi(client, config, bearer)
+	api := petstore.NewPetApi(client, config, bearer, petstore.Credentials{})
 
 	// Secured operation with no per-operation Auth override: the configured
 	// client-level authenticator must supply the credential. capturingApiClient
@@ -405,7 +405,7 @@ func TestBaseApi_SecurityNoneSuppressesClientAuthenticator(t *testing.T) {
 		query:   map[string]string{"api_key": "secret-api-key"},
 		cookies: map[string]string{"session": "secret-session"},
 	}
-	api := petstore.NewStoreApi(client, config, leaky)
+	api := petstore.NewStoreApi(client, config, leaky, petstore.Credentials{})
 
 	// GetInventory is declared security:[] — the configured authenticator must be
 	// suppressed entirely.
@@ -442,7 +442,7 @@ func TestBaseApi_InheritedGlobalSecurityAppliesClientAuthenticator(t *testing.T)
 	bearer := &baseApiAuth{
 		headers: map[string]string{"Authorization": "Bearer secret-jwt"},
 	}
-	api := petstore.NewPetApi(client, config, bearer)
+	api := petstore.NewPetApi(client, config, bearer, petstore.Credentials{})
 
 	// GetPetById inherits the global security requirement; with no per-call
 	// override the client authenticator must be applied.
@@ -508,7 +508,7 @@ func TestBaseApi_EmptyContentTypeDefaultsToJson(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	pet := models.NewPet("TestPet", []string{})
 	_, _ = api.AddPet(context.Background(), *pet, nil)
 	ct, ok := client.capturedHeaders["Content-Type"]
@@ -524,7 +524,7 @@ func TestBaseApi_AllHeadersFlowThrough(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	pet := models.NewPet("TestPet", []string{})
 	_, _ = api.AddPet(context.Background(), *pet, nil)
 	if _, ok := client.capturedHeaders["Accept"]; !ok {
@@ -546,7 +546,7 @@ func TestBaseApi_ConfigDefaultHeaderOverridesNegotiatedAccept(t *testing.T) {
 		BaseURL("http://localhost").
 		DefaultHeader("Accept", "application/xml").
 		Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.GetPetById(context.Background(), int64(1), nil)
 	accept, ok := client.capturedHeaders["Accept"]
 	if !ok {
@@ -588,7 +588,7 @@ func TestBaseApi_SkipsDeserializationForNonJSON(t *testing.T) {
 		responseBody:        "hello plain text",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	pet, err := api.GetPetById(context.Background(), int64(1), nil)
 	/* A text/plain body must NOT be handed to the JSON deserializer, and a
 	 * model return type must never come back as a zero-valued model with a nil
@@ -612,7 +612,7 @@ func TestBaseApi_DeserializesVendorJsonMimeType(t *testing.T) {
 		responseBody:        `{"title":"Not Found"}`,
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	/* The vendor JSON MIME type should be recognized as JSON and deserialized.
 	 * If it fails, it should not be because of a content-type mismatch. */
@@ -632,7 +632,7 @@ func TestBaseApi_SerializesJsonBody(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	pet := models.NewPet("TestPet", []string{})
 	_, _ = api.AddPet(context.Background(), *pet, nil)
 	if client.capturedBody == nil {
@@ -652,7 +652,7 @@ func TestBaseApi_FormUrlencodedWireFormat(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	tags := []string{"x", "y"}
 	// note is left nil so the optional field must be omitted from the wire body.
@@ -682,7 +682,7 @@ func TestBaseApi_FormUrlencodedDateTimeUsesCanonicalForm(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	when := models.DateTime(time.Date(2024, time.January, 15, 10, 30, 0, 0, time.UTC))
 	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{
@@ -727,7 +727,7 @@ func TestBaseApi_QueryParamSerialization(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	status := options.FindPetsByStatusStatusAvailable
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if !strings.Contains(client.capturedURL, "status=available") {
@@ -741,7 +741,7 @@ func TestBaseApi_DateQueryParamIsPlainDate(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	bornAfter := "2024-01-01"
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{BornAfter: &bornAfter})
 	if !strings.Contains(client.capturedURL, "bornAfter=2024-01-01") {
@@ -759,7 +759,7 @@ func TestBaseApi_CollapsesDoubleSlashWhenBaseURLHasTrailingSlash(t *testing.T) {
 	// servers route to 404.
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost/").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.GetPetById(context.Background(), int64(1), nil)
 	if client.capturedURL != "http://localhost/pet/1" {
 		t.Errorf("expected exactly one slash, got %q", client.capturedURL)
@@ -773,7 +773,7 @@ func TestBaseApi_QueryParamEmptyWhenNoOptions(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	// GetPetById has no query params - URL should not contain '?'
 	_, _ = api.GetPetById(context.Background(), int64(1), nil)
 	if strings.Contains(client.capturedURL, "?") {
@@ -785,7 +785,7 @@ func TestBaseApi_NilOptionsOmitsQueryParams(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.FindPetsByStatus(context.Background(), nil)
 	if strings.Contains(client.capturedURL, "status=") {
 		t.Errorf("expected URL without status param when options is nil, got %q", client.capturedURL)
@@ -796,7 +796,7 @@ func TestBaseApi_NonNilOptionsWithNilStatusIncludesParam(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{})
 	// A nil optional allowEmptyValue value must NOT emit a spurious empty key; the
 	// key is sent only when the caller supplies a value (see the empty-string test).
@@ -809,7 +809,7 @@ func TestBaseApi_AllowEmptyValueIncludesParamInQueryString(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	emptyStr := options.FindPetsByStatusStatus("")
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &emptyStr})
 	if !strings.Contains(client.capturedURL, "status=") {
@@ -821,7 +821,7 @@ func TestBaseApi_ExpandsArrayQueryParams(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	colors := []string{"red", "blue"}
 	_, _ = api.GetPetTag(context.Background(), int64(1), "favorite", &options.GetPetTagOptions{Colors: &colors})
 	// pipeDelimited array params should appear in the URL
@@ -847,7 +847,7 @@ func TestBaseApi_OptionalArrayQueryParamsSerializeAsStyledValues(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	colors := []string{"blue", "black"}
 	sizes := []string{"S", "M"}
@@ -902,7 +902,7 @@ func TestBaseApi_MissingRequiredQueryParam_NilOptions(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, err := api.GetPetByName(context.Background(), "rex", nil)
 	if err == nil {
 		t.Fatal("expected error for nil options with a required query param, got nil")
@@ -921,7 +921,7 @@ func TestBaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, err := api.GetPetByName(context.Background(), "", &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"})
 	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
 		t.Fatalf("expected ErrMissingRequiredParameter, got %v", err)
@@ -941,7 +941,7 @@ func TestBaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, err := api.GetPetByName(context.Background(), "rex", &options.GetPetByNameOptions{Category: ""})
 	if err == nil {
 		t.Fatal("expected error for empty required query param 'category', got nil")
@@ -960,7 +960,7 @@ func TestBaseApi_RequiredQueryParamIsSent(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.GetPetByName(context.Background(), "rex", &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"})
 	if !strings.Contains(client.capturedURL, "category=dog") {
 		t.Errorf("expected URL to contain category=dog, got %q", client.capturedURL)
@@ -974,7 +974,7 @@ func TestBaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
 	for _, name := range []string{".", ".."} {
 		client := &queryCapturingApiClient{}
 		config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-		api := petstore.NewPetApi(client, config, nil)
+		api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 		_, err := api.GetPetByName(context.Background(), name, &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"})
 		if !errors.Is(err, petstore.ErrInvalidPathParameter) {
 			t.Fatalf("expected ErrInvalidPathParameter for %q, got %v", name, err)
@@ -988,7 +988,7 @@ func TestBaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
 	}
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.GetPetByName(context.Background(), "a..b", &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"})
 	if !strings.Contains(client.capturedURL, "/pet/byName/a..b?") {
 		t.Errorf("expected URL to contain /pet/byName/a..b, got %q", client.capturedURL)
@@ -1000,7 +1000,7 @@ func TestBaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
 func TestBaseApi_418TeapotThrowsClientError(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/418").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
 
 	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
@@ -1071,7 +1071,7 @@ func TestBaseApi_SerializesBooleanQueryParams(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	status := options.FindPetsByStatusStatus("true")
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if !strings.Contains(client.capturedURL, "status=true") {
@@ -1083,7 +1083,7 @@ func TestBaseApi_SerializesNumberQueryParams(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.GetPetById(context.Background(), int64(10), nil)
 	// GetPetById uses path param, not query, so test via direct URL capture
 	// Verify the pet ID 10 is in the URL as a path param (not 10.0)
@@ -1120,7 +1120,7 @@ func TestBaseApi_SerializesTextPlainBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	// Use AddPet which sends a body - the body will be JSON but tests the capturing mechanism
 	pet := models.NewPet("TestPet", []string{})
 	_, _ = api.AddPet(context.Background(), *pet, nil)
@@ -1133,7 +1133,7 @@ func TestBaseApi_SerializesFormUrlencodedBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	pet := models.NewPet("FormPet", []string{})
 	_, _ = api.AddPet(context.Background(), *pet, nil)
 	if client.capturedBody == nil {
@@ -1147,7 +1147,7 @@ func TestBaseApi_FormUrlencodedBodyEncodesSpaceAsPlus(t *testing.T) {
 	 * mandates '+' for a space (WHATWG/HTML form-encoding), not %20. */
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{Nickname: "good boy"})
 	body, ok := client.capturedBody.([]byte)
 	if !ok {
@@ -1162,7 +1162,7 @@ func TestBaseApi_PassesBinaryBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	pet := models.NewPet("BinaryPet", []string{})
 	_, _ = api.AddPet(context.Background(), *pet, nil)
 	if client.capturedBody == nil {
@@ -1207,7 +1207,7 @@ func TestBinaryResponse_OctetStreamDecodedFromBase64(t *testing.T) {
 		responseContentType: "application/octet-stream",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	got, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
@@ -1258,7 +1258,7 @@ func TestBinaryResponse_ImagePngDecodedFromBase64(t *testing.T) {
 		responseContentType: "image/png",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	got, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
@@ -1282,7 +1282,7 @@ func TestBinaryResponse_JsonWrappedByteDecodedToRawBytes(t *testing.T) {
 		responseContentType: "application/json",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	got, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
@@ -1302,7 +1302,7 @@ func TestBinaryResponse_JsonResponseParsedToObject(t *testing.T) {
 		responseContentType: "application/json",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	pet, err := api.GetPetById(context.Background(), int64(42), nil)
 	if err != nil {
 		t.Fatalf("GetPetById returned error: %v", err)
@@ -1322,7 +1322,7 @@ func TestBinaryResponse_TextPlainBodyForModelReturnIsASerializationError(t *test
 		responseContentType: "text/plain",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	got, err := api.GetPetById(context.Background(), int64(1), nil)
 	var serErr *apierrors.SerializationError
 	if !errors.As(err, &serErr) {
@@ -1340,7 +1340,7 @@ func TestBinaryResponse_EmptyBodyYieldsNoError(t *testing.T) {
 		responseContentType: "application/octet-stream",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	err := api.DeletePet(context.Background(), int64(1), nil)
 	// DeletePet is void -- empty body should succeed
 	_ = err
@@ -1352,7 +1352,7 @@ func TestNullBody_PostDoesNotSendContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	// GetPetById sends no body -- Content-Type should not be present
 	_, _ = api.GetPetById(context.Background(), int64(1), nil)
 	if _, ok := client.capturedHeaders["Content-Type"]; ok {
@@ -1364,7 +1364,7 @@ func TestNullBody_AddPetWithBodyIncludesContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	pet := models.NewPet("TestPet", []string{})
 	_, _ = api.AddPet(context.Background(), *pet, nil)
 	if _, ok := client.capturedHeaders["Content-Type"]; !ok {
@@ -1376,7 +1376,7 @@ func TestNullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	// DeletePet sends no body
 	_ = api.DeletePet(context.Background(), int64(1), nil)
 	if _, ok := client.capturedHeaders["Content-Type"]; ok {
@@ -1390,7 +1390,7 @@ func TestNullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewStoreApi(client, config, nil)
+	api := petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.PlaceOrder(context.Background(), nil)
 	if body, _ := client.capturedBody.([]byte); len(body) != 0 {
 		t.Errorf("expected no request body for a nil order, got %q", string(body))
@@ -1404,7 +1404,7 @@ func TestNullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewStoreApi(client, config, nil)
+	api := petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.PlaceOrder(context.Background(), models.NewOrder())
 	if body, _ := client.capturedBody.([]byte); len(body) == 0 {
 		t.Error("expected a JSON body for a non-nil order")
@@ -1426,12 +1426,12 @@ func TestNullResponseBody_ConvenienceReturnsEmptyBodyError(t *testing.T) {
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 
-	_, orderErr := petstore.NewStoreApi(client, config, nil).GetOrderById(context.Background(), int64(1))
+	_, orderErr := petstore.NewStoreApi(client, config, nil, petstore.Credentials{}).GetOrderById(context.Background(), int64(1))
 	if orderErr == nil || !strings.Contains(orderErr.Error(), "expected a response body for GetOrderById but received none") {
 		t.Errorf("GetOrderById: expected the empty-body error, got %v", orderErr)
 	}
 
-	_, petErr := petstore.NewPetApi(client, config, nil).GetPetById(context.Background(), int64(1), nil)
+	_, petErr := petstore.NewPetApi(client, config, nil, petstore.Credentials{}).GetPetById(context.Background(), int64(1), nil)
 	if petErr == nil || !strings.Contains(petErr.Error(), "expected a response body for GetPetById but received none") {
 		t.Errorf("GetPetById: expected the empty-body error, got %v", petErr)
 	}
@@ -1448,7 +1448,7 @@ func TestNullResponseBody_WithHTTPInfoReportsNilData(t *testing.T) {
 		responseContentType: "application/json",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	result, err := petstore.NewStoreApi(client, config, nil).GetOrderByIdWithHTTPInfo(context.Background(), int64(1))
+	result, err := petstore.NewStoreApi(client, config, nil, petstore.Credentials{}).GetOrderByIdWithHTTPInfo(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1469,7 +1469,7 @@ func TestWithHTTPInfo_ReturnsApiResultWithStatusAndHeaders(t *testing.T) {
 		responseContentType: "application/json",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	result, err := api.GetPetByIdWithHTTPInfo(context.Background(), int64(7), nil)
 	if err != nil {
 		t.Fatalf("GetPetByIdWithHTTPInfo error: %v", err)
@@ -1520,7 +1520,7 @@ func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 		query:   map[string]string{},
 		cookies: map[string]string{},
 	}
-	api := petstore.NewPetApi(client, config, clientLevelAuth)
+	api := petstore.NewPetApi(client, config, clientLevelAuth, petstore.Credentials{})
 	pet := *models.NewPet("AuthTest", []string{})
 	_, _ = api.AddPet(context.Background(), pet, nil)
 	if got := client.headers["X-Client-Auth"]; got != "client-level-token" {
@@ -1533,7 +1533,7 @@ func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 func TestErrorsAs_BadRequestErrorMatches(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
 	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
 		t.Fatal("expected error")
@@ -1547,7 +1547,7 @@ func TestErrorsAs_BadRequestErrorMatches(t *testing.T) {
 func TestErrorsAs_NotFoundErrorMatches(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/404").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
 	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
 		t.Fatal("expected error")
@@ -1612,7 +1612,7 @@ func TestBaseApi_FormatDatePathParamIsDateOnly(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	_, _ = api.FindPetsBornOn(context.Background(), "2024-01-01")
 	if client.capturedURL != "http://localhost/pet/born-on/2024-01-01" {
 		t.Errorf("expected the date-only path /pet/born-on/2024-01-01, got %q", client.capturedURL)
@@ -1624,7 +1624,7 @@ func TestBaseApi_FormatDateHeaderParamIsPlainDate(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 	reportDate := "2024-01-02"
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{ReportDate: &reportDate})
 	if got := client.capturedHeaders["Report-Date"]; got != "2024-01-02" {
@@ -1710,7 +1710,7 @@ func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 	for _, tc := range cases {
 		client := &queryCapturingApiClient{}
 		config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-		api := petstore.NewPetApi(client, config, nil)
+		api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 		_ = tc.call(api)
 		if !strings.HasPrefix(client.capturedURL, tc.want) {
 			t.Errorf("%s: expected the request URL to start with %q, got %q", tc.name, tc.want, client.capturedURL)
@@ -1726,7 +1726,7 @@ func TestBaseApi_OperationPassesTheCallContextToTheTransport(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), ctxKey{}, "marker"))
 	defer cancel()
@@ -1750,7 +1750,7 @@ func TestBaseApi_QueryFormAndMultipartPartsKeepTheSpecDeclarationOrder(t *testin
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	colors, sizes := []string{"red"}, []string{"s"}
 	filter, revision := "f", "r"
@@ -1801,7 +1801,7 @@ func TestBaseApi_ContentHeaderParameterIsEncodedBySdkSerializer(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewStoreApi(client, config, nil)
+	api := petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
 
 	filter := map[string]string{"a": "<b>"}
 	_, _ = api.SearchStore(context.Background(), &options.SearchStoreOptions{XFilter: &filter})
@@ -1978,7 +1978,7 @@ func retryApi(t *testing.T, srv *scriptedServer, configure func(*petstore.Transp
 	config := petstore.NewConfigurationBuilder().BaseURL(srv.URL).Build()
 	client := petstore.NewDefaultApiClient(transport)
 	t.Cleanup(func() { _ = client.Close() })
-	return petstore.NewPetApi(client, config, authenticator)
+	return petstore.NewPetApi(client, config, authenticator, petstore.Credentials{})
 }
 
 func addPetCall(api *petstore.PetApi) error {
@@ -2190,7 +2190,7 @@ func TestBaseApi_RetriesANetworkErrorThatHappenedBeforeAResponse(t *testing.T) {
 	client := petstore.NewDefaultApiClient(transport)
 	defer func() { _ = client.Close() }()
 
-	if err := addPetCall(petstore.NewPetApi(client, config, nil)); err != nil {
+	if err := addPetCall(petstore.NewPetApi(client, config, nil, petstore.Credentials{})); err != nil {
 		t.Fatalf("expected the retry after the dropped connection to succeed, got %v", err)
 	}
 	if got := hits.Load(); got != 2 {
@@ -2224,7 +2224,7 @@ func TestBaseApi_StatusErrorCarriesTheRequestMethodAndPathWithoutTheQuery(t *tes
 	t.Parallel()
 	client := &failingApiClient{status: 404, body: `{"message":"gone"}`}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	bornAfter := "2020-01-01"
 	_, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{BornAfter: &bornAfter})
@@ -2248,7 +2248,7 @@ func TestBaseApi_StatusErrorNamesTheSubstitutedPath(t *testing.T) {
 	t.Parallel()
 	client := &failingApiClient{status: 500}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	_, err := api.GetPetById(context.Background(), int64(7), nil)
 
@@ -2265,7 +2265,7 @@ func TestBaseApi_NetworkErrorCarriesTheRequestMethodAndPath(t *testing.T) {
 	t.Parallel()
 	client := &failingApiClient{err: apierrors.NewNetworkError("connection refused", nil)}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	_, err := api.GetPetById(context.Background(), int64(7), nil)
 
@@ -2300,7 +2300,7 @@ func TestBaseApi_AnAuthenticatorThatNeedsRequestsReceivesTheCallContext(t *testi
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	authenticator := &contextAuth{}
-	api := petstore.NewPetApi(client, config, authenticator)
+	api := petstore.NewPetApi(client, config, authenticator, petstore.Credentials{})
 
 	ctx := context.WithValue(context.Background(), ctxKey{}, "marker")
 	_, _ = api.GetPetById(ctx, int64(1), nil)
@@ -2347,7 +2347,7 @@ func TestBaseApi_PerCallHeadersReachTheTransportAndReplaceADefaultOfTheSameName(
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").DefaultHeader("X-Default", "client").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	_, _ = api.GetPetById(context.Background(), int64(1), nil, petstore.WithHeaders(map[string]string{"x-default": "call", "X-Call": "1"}))
 
@@ -2363,7 +2363,7 @@ func TestBaseApi_PerCallTimeoutIsHandedToTheTransportAndBoundsTheContext(t *test
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	_, _ = api.GetPetById(context.Background(), int64(1), nil, petstore.WithTimeout(1500*time.Millisecond))
 
@@ -2379,7 +2379,7 @@ func TestBaseApi_NoPerCallTimeoutLeavesTheTransportTimeoutAlone(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	_, _ = api.GetPetById(context.Background(), int64(1), nil)
 
@@ -2398,7 +2398,7 @@ func TestBaseApi_PerCallTimeoutShorterThanTheClientsFailsTheCallWithATimeout(t *
 	}))
 	defer server.Close()
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil, petstore.Credentials{})
 
 	_, err := api.GetPetById(context.Background(), int64(1), nil, petstore.WithTimeout(80*time.Millisecond))
 
@@ -2422,7 +2422,7 @@ func TestBaseApi_PerCallTimeoutLongerThanTheClientsLetsASlowResponseThrough(t *t
 		t.Fatalf("unexpected error: %v", err)
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil, petstore.Credentials{})
 
 	if _, err := api.GetPetById(context.Background(), int64(1), nil); err == nil {
 		t.Fatal("expected the client's 60 ms timeout to fail the call")
@@ -2449,7 +2449,7 @@ func TestBaseApi_PerCallMaxRetriesZeroTurnsRetryingOffForTheCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil, petstore.Credentials{})
 
 	_, err = api.GetPetById(context.Background(), int64(1), nil, petstore.WithMaxRetries(0))
 
@@ -2468,7 +2468,7 @@ func TestBaseApi_PerCallMaxRetriesReplacesTheClientsLimit(t *testing.T) {
 	server := countingFailureServer(&hits)
 	defer server.Close()
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil, petstore.Credentials{})
 
 	if _, err := api.GetPetById(context.Background(), int64(1), nil); err == nil {
 		t.Fatal("expected the call to fail")
@@ -2489,7 +2489,7 @@ func TestBaseApi_AnInvalidPerCallOptionFailsBeforeAnyRequestIsSent(t *testing.T)
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
 	_, err := api.GetPetById(context.Background(), int64(1), nil, petstore.WithMaxRetries(-1))
 
