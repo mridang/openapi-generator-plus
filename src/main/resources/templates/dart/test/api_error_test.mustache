@@ -37,12 +37,12 @@ void main() {
       expect(err.responseBody, isNull);
     });
 
-    test('implements Exception', () {
+    test('bhv errors 019 is an Exception subclass with status in its string form', () {
       const err = ApiException(statusCode: 500, message: 'boom');
 
       expect(err, isA<Exception>());
       expect(err, isA<{{errorPrefix}}Exception>());
-      expect(err.toString(), isNotEmpty);
+      expect(err.toString(), contains('500'));
     });
 
     test('bhv errors 018 is a {{errorPrefix}}Exception (branded root)', () {
@@ -343,6 +343,33 @@ void main() {
         expect(err.requestMethod, equals('POST'), reason: '$status');
         expect(err.requestPath, equals('/x'), reason: '$status');
       }
+    });
+
+    test('bhv errors 026 the request method and path are rendered on their own line and never carry the query string', () {
+      final err = ApiException.fromResponse(
+        404,
+        const {},
+        null,
+        requestMethod: 'GET',
+        requestPath: '/items/7?token=secret',
+      );
+
+      expect(err.toString().split('\n').first,
+          equals('GET /items/7 returned status code 404'));
+      expect(err.toString(), isNot(contains('token=secret')));
+    });
+
+    test('bhv errors 030 getTypedErrorBody returns null for a response that carried no body', () {
+      final err = ApiException.fromResponse(500, const {}, null);
+
+      expect(err.getTypedErrorBody(Category.fromJson), isNull);
+    });
+
+    test('bhv errors 037 throws the exception that matches the status code', () {
+      expect(ApiException.fromResponse(404, const {}, null),
+          isA<NotFoundException>());
+      expect(ApiException.fromResponse(500, const {}, null),
+          isA<InternalServerErrorException>());
     });
 
     test('bhv errors 007 withRequest keeps the type and never overwrites a recorded request', () {

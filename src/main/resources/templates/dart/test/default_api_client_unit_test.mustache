@@ -26,6 +26,14 @@ class _ProxyCredentialClient extends AbstractApiClient {
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding) => bytes;
 }
 
+class _OwnedTransportClient extends AbstractApiClient {
+  _OwnedTransportClient(http.Client inner)
+      : super(TransportOptionsBuilder().build(), inner, null);
+
+  @override
+  Uint8List decompressBytes(Uint8List bytes, String contentEncoding) => bytes;
+}
+
 class _CloseTrackingClient extends http.BaseClient {
   _CloseTrackingClient(this._inner);
 
@@ -1650,7 +1658,7 @@ void main() {
       return server;
     }
 
-    test('the timeout covers the whole redirect chain', () async {
+    test('bhv redirects 009 the timeout covers the whole redirect chain', () async {
       final server = await slowChain();
       try {
         final client = DefaultApiClient(
@@ -1666,7 +1674,7 @@ void main() {
       }
     });
 
-    test('a redirect chain inside the budget completes', () async {
+    test('bhv redirects 002 a redirect chain inside the budget completes', () async {
       final server = await slowChain();
       try {
         final client = DefaultApiClient(
@@ -1677,6 +1685,143 @@ void main() {
         expect(response.statusCode, equals(200));
       } finally {
         await server.close(force: true);
+      }
+    });
+
+    test('bhv lifecycle 008 closed client rejects further requests', () async {
+      var hits = 0;
+      final custom = MockClient((_) async {
+        hits++;
+        return http.Response('', 200);
+      });
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().httpClient(custom).build(),
+      );
+      client.close();
+
+      await expectLater(
+        client.sendRequest('POST', 'http://custom.test/closed', {}, null),
+        throwsA(isA<StateError>()),
+      );
+      expect(hits, equals(0));
+    });
+
+    test('bhv lifecycle 021 closing the client lets a running request finish', () async {
+      final gate = Completer<void>();
+      final custom = MockClient((_) async {
+        await gate.future;
+        return http.Response('finished', 200);
+      });
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().httpClient(custom).build(),
+      );
+
+      final inFlight = client.sendRequest('GET', 'http://custom.test/running', {}, null);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      client.close();
+      gate.complete();
+
+      final resp = await inFlight;
+      expect(resp.statusCode, equals(200));
+      expect(resp.body, equals('finished'));
+    });
+
+    test('bhv lifecycle 022 releases the transport at once when idle and a second close is a no-op', () {
+      final inner = _CloseTrackingClient(MockClient((_) async => http.Response('', 200)));
+      final client = _OwnedTransportClient(inner);
+
+      client.close();
+      expect(inner.closed, isTrue);
+      expect(client.close, returnsNormally);
+    });
+
+    test('bhv redirects 008 returns the redirect as is when following is disabled', () async {
+      var hits = 0;
+      final custom = MockClient((_) async {
+        hits++;
+        return http.Response('', 302, headers: {'location': 'http://custom.test/landed'});
+      });
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder()
+            .httpClient(custom)
+            .followRedirects(false)
+            .build(),
+      );
+
+      final resp = await client.sendRequest('GET', 'http://custom.test/start', {}, null);
+
+      expect(resp.statusCode, equals(302));
+      expect(hits, equals(1));
+    });
+
+    test('bhv redirects 015 no redirect returns the 307 response itself', () async {
+      var hits = 0;
+      final custom = MockClient((_) async {
+        hits++;
+        return http.Response('', 307, headers: {'location': 'http://custom.test/target'});
+      });
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().httpClient(custom).build(),
+      );
+
+      final resp = await client.sendRequest(
+        'GET',
+        'http://custom.test/source',
+        {},
+        null,
+        noRedirect: true,
+      );
+
+      expect(resp.statusCode, equals(307));
+      expect(hits, equals(1));
+    });
+
+    test('bhv redirects 018 raises ApiException when the redirect budget is exhausted', () async {
+      final custom = MockClient((_) async {
+        return http.Response('', 301, headers: {'location': 'http://custom.test/again'});
+      });
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().httpClient(custom).maxRedirects(1).build(),
+      );
+
+      await expectLater(
+        client.sendRequest('GET', 'http://custom.test/start', {}, null),
+        throwsA(isA<ApiException>()
+            .having((e) => e.message, 'message', equals('Too many redirects (exceeded 1)'))),
+      );
+    });
+
+    test('bhv errors 038 a body truncated after the headers throws NetworkException with status 0', () async {
+      final sockets = <Socket>[];
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((conn) {
+        sockets.add(conn);
+        conn.listen((_) {
+          conn.write('HTTP/1.1 200 OK\r\n'
+              'Content-Type: text/plain\r\n'
+              'Content-Length: 100\r\n'
+              '\r\n'
+              'abc');
+          conn.close();
+        });
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().timeout(5000).build(),
+        );
+        await expectLater(
+          client.sendRequest(
+              'GET', 'http://127.0.0.1:${server.port}/truncated-body', {}, null),
+          throwsA(isA<NetworkException>()
+              .having((e) => e.statusCode, 'statusCode', 0)
+              .having((e) => e, 'not a timeout', isNot(isA<NetworkTimeoutException>()))),
+        );
+      } finally {
+        for (final conn in sockets) {
+          conn.destroy();
+        }
+        await server.close();
       }
     });
 

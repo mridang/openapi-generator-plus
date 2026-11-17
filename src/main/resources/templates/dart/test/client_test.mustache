@@ -165,6 +165,59 @@ void main() {
       expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
     });
 
+    test('bhv lifecycle 002 API key header rejects a line feed and non-ASCII', () {
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\ndef',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'naïve',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv lifecycle 003 API key query accepts non-ASCII', () {
+      final queryAuth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'naïve',
+        location: ApiKeyLocation.query,
+      );
+
+      expect(queryAuth.queryParams(), equals({'api_key': 'naïve'}));
+    });
+
+    test('bhv lifecycle 014 reads the token from the environment when none is passed', () {
+      final fromEnvironment =
+          Platform.environment[BearerAuthenticator.defaultEnvironmentVariable];
+      if (fromEnvironment == null) {
+        expect(
+          () => {{clientClassName}}.withToken(host: '{{{basePath}}}'),
+          throwsA(isA<ArgumentError>()),
+        );
+        return;
+      }
+
+      expect({{clientClassName}}.withToken(host: '{{{basePath}}}'), isNotNull);
+    });
+
+    test('bhv lifecycle 015 takes one optional keyword credential per security scheme, named after it', () {
+      expect(() => {{clientClassName}}(), throwsArgumentError);
+{{#clientSchemes}}
+      expect(() => {{clientClassName}}({{paramName}}: null), throwsArgumentError);
+{{/clientSchemes}}
+    });
+
     test('bhv lifecycle 001 API groups are accessible', () {
       final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
 
