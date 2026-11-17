@@ -772,7 +772,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("bhvOperations038 500 response throws InternalServerErrorException")
+        @DisplayName("bhvOperations038 a server error response throws InternalServerErrorException")
         fun testErrorHandlingServerError() {
             val engine =
                 MockEngine { _ ->

@@ -67,12 +67,14 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    fun bhvAuthbasic002GeneratedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() = runBlocking {
-        val auth = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
-        assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
-        assertEquals("AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
-        assertThrows(IllegalArgumentException::class.java) {
-            AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+    fun bhvAuthbasic002GeneratedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() {
+        runBlocking {
+            val auth = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+            assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+            assertEquals("AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
+            assertThrows(IllegalArgumentException::class.java) {
+                AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+            }
         }
     }
 

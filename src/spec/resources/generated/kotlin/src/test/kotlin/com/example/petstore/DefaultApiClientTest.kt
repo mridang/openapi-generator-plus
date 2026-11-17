@@ -680,7 +680,7 @@ class DefaultApiClientTest {
          * rebuilds the multipart body for every hop.
          */
         @Test
-        @DisplayName("bhvRetries012 307 replays multipart body to redirected location (T-new-3)")
+        @DisplayName("bhvRetries012 a 307 redirect replays the multipart body to the redirected location (T-new-3)")
         fun multipartBodyReplayedOn307Redirect() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()

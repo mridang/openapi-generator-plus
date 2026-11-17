@@ -1578,6 +1578,7 @@ class BaseApiTest {
             )
         }
 
+        @Test
         @DisplayName("bhvOptions002 null options omits the allowEmptyValue status param")
         fun nullOptionsOmitsAllowEmptyValueParam() {
             val client = CapturingApiClient()
