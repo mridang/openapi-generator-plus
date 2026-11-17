@@ -298,6 +298,19 @@ public final class ErrorResponses {
     }
 
     /**
+     * A concrete status a response declared under the given key can arrive with.
+     *
+     * @param status the response key
+     * @return the status itself, 400 for a 4XX range, 500 for a 5XX range or the default
+     */
+    static int sampleStatus(String status) {
+        if (status.matches("\\d\\d\\d")) {
+            return Integer.parseInt(status);
+        }
+        return "5XX".equals(status) ? 500 : 400;
+    }
+
+    /**
      * Folds the rows of every operation into the specification-level list of
      * distinct error schemas, in the order they are first seen. Each entry has
      * {@code schemaName}, {@code className}, {@code parentStem},
@@ -347,8 +360,10 @@ public final class ErrorResponses {
             schema.put("className", schemaClassName(e.getKey(), suffix));
             schema.put("parentStem", parent);
             schema.put("parentClassName", statusNamer.apply(parent));
+            schema.put("parentIsFamily", API.equals(parent) || CLIENT.equals(parent) || SERVER.equals(parent));
             schema.put("statuses", new ArrayList<>(e.getValue()));
             schema.put("hasMultipleStatuses", e.getValue().size() > 1);
+            schema.put("sampleStatus", sampleStatus(e.getValue().iterator().next()));
             schemas.add(schema);
         }
         for (int i = 0; i < schemas.size(); i++) {

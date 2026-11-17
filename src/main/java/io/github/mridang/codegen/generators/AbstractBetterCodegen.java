@@ -657,6 +657,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public void processOpenAPI(OpenAPI openAPI) {
         super.processOpenAPI(openAPI);
+        generating = true;
         additionalProperties.put(
                 "appNameBase",
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
@@ -3453,6 +3454,51 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return ErrorResponses.statusClassName(stem, errorSuffix());
     }
 
+    /**
+     * The template of the per-schema error type, or null when the language does
+     * not generate one yet. The template renders once per entry of
+     * {@code errorSchemas}.
+     *
+     * @return a template name under the language's template folder, or null
+     */
+    @Nullable
+    protected String errorSchemaTemplate() {
+        return null;
+    }
+
+    /**
+     * Where the per-schema error type of the given class is written.
+     *
+     * @param className the error class name, such as {@code ProjectNotFoundException}
+     * @return the file path, or null when the language writes none
+     */
+    @Nullable
+    protected String errorSchemaFilePath(String className) {
+        return null;
+    }
+
+    /** Names of the error schema classes already written, so each is written once. */
+    private final java.util.Set<String> writtenErrorSchemas = new java.util.HashSet<>();
+
+    /** Set once a document is being generated, so a bare codegen never writes files. */
+    private boolean generating;
+
+    private void writeErrorSchemaFiles(List<Map<String, Object>> schemas) {
+        final String template = errorSchemaTemplate();
+        if (!generating || template == null) {
+            return;
+        }
+        for (final Map<String, Object> schema : schemas) {
+            final String className = Objects.requireNonNull((String) schema.get("className"));
+            final String path = errorSchemaFilePath(className);
+            if (path == null || !writtenErrorSchemas.add(className)) {
+                continue;
+            }
+            writeFile(path, renderOptionsTemplate(template, new HashMap<>(schema)));
+            postProcessFile(Path.of(path).toFile(), "source");
+        }
+    }
+
     /** Rows of declared error responses per operation, keyed by operation, in generation order. */
     private final Map<String, List<Map<String, Object>>> declaredErrorsByOperation =
             new java.util.LinkedHashMap<>();
@@ -3484,8 +3530,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final List<Map<String, Object>> withSchema = new ArrayList<>();
         for (final Map<String, Object> row : rows) {
             if (Boolean.TRUE.equals(row.get("hasSchema"))) {
-                withSchema.add(row);
+                withSchema.add(new java.util.LinkedHashMap<>(row));
             }
+        }
+        for (int i = 0; i < withSchema.size(); i++) {
+            withSchema.get(i).put("isFirst", i == 0);
+            withSchema.get(i).put("isLast", i == withSchema.size() - 1);
         }
         d.put("errorResponses", rows);
         d.put("hasErrorResponses", !rows.isEmpty());
@@ -3497,6 +3547,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         new ArrayList<>(declaredErrorsByOperation.values()), suffix, this::statusClassName);
         additionalProperties.put("errorSchemas", schemas);
         additionalProperties.put("hasErrorSchemas", !schemas.isEmpty());
+        writeErrorSchemaFiles(schemas);
     }
 
     /**

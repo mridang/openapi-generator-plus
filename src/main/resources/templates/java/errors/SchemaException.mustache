@@ -1,0 +1,101 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors;
+
+import {{modelPackage}}.{{schemaName}};
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/**
+ * Exception for a response whose body is a {@link {{schemaName}}}, declared under HTTP
+ * {{#statuses}}{{.}}{{^-last}}, {{/-last}}{{/statuses}}.
+ */
+public class {{className}} extends {{parentClassName}} {
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates a new exception.
+     *
+{{#parentIsFamily}}
+     * @param statusCode the HTTP status code of the response
+{{/parentIsFamily}}
+     * @param message the error message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param errorBody the response body decoded as {@link {{schemaName}}}, if available
+     * @param cause the underlying failure, if any
+     * @param requestMethod the HTTP method of the request, if known
+     * @param requestPath the path of the request, if known; a query string is stripped
+     */
+    public {{className}}(
+{{#parentIsFamily}}
+            int statusCode,
+{{/parentIsFamily}}
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable {{schemaName}} errorBody,
+            @Nullable Throwable cause,
+            @Nullable String requestMethod,
+            @Nullable String requestPath) {
+        super({{#parentIsFamily}}statusCode, {{/parentIsFamily}}message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath);
+    }
+
+    /**
+     * Get the response body decoded as {@link {{schemaName}}}.
+     *
+     * @return the decoded error body, or null if not available
+     */
+    @Override
+    @Nullable
+    public {{schemaName}} getErrorBody() {
+        return ({{schemaName}}) super.getErrorBody();
+    }
+
+    /**
+     * Builds the exception for a response, decoding the body as {@link {{schemaName}}}. A body
+     * that does not match the schema yields the status exception with the raw body and the
+     * decoding failure as its cause.
+     *
+     * @param requestMethod the HTTP method of the request
+     * @param requestPath the path or URL of the request
+     * @param statusCode the HTTP status code of the response
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @return the exception to throw
+     */
+    public static ApiException fromErrorResponse(
+            String requestMethod,
+            String requestPath,
+            int statusCode,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody) {
+        ApiException status =
+                ApiException.fromResponse(requestMethod, requestPath, statusCode, responseHeaders, responseBody);
+        if (responseBody == null || responseBody.isEmpty()) {
+            return status;
+        }
+        String message = status.getMessage();
+        if (message == null) {
+            message = "API returned status code " + statusCode;
+        }
+        try {
+            {{schemaName}} decoded = ApiException.decodeErrorBody(responseBody, {{schemaName}}.class);
+            return new {{className}}(
+{{#parentIsFamily}}
+                    statusCode,
+{{/parentIsFamily}}
+                    message,
+                    responseHeaders,
+                    responseBody,
+                    decoded,
+                    null,
+                    requestMethod,
+                    requestPath);
+        } catch (SerializationException e) {
+            return ApiException.statusFallback(
+                    requestMethod, requestPath, statusCode, responseHeaders, responseBody, e);
+        }
+    }
+}

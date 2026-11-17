@@ -264,6 +264,10 @@ errors040 | Malformed request URL raises ArgumentError
 errors041 | Non-existent caCertPath throws ArgumentError at construction
 errors042 | Surfaces ApiError for an unsupported Content-Encoding
 errors043 | Wraps a body-read failure in NetworkException
+errors044 | An error is retryable exactly for the statuses the client retries
+errors045 | An error exposes the x-request-id response header as its request id
+errors046 | The error factory of an operation is chosen by exact status, then range, then default
+errors047 | A body that does not match its declared error schema leaves the status error with the raw body and a cause
 headers001 | Defaults Content-Type to application/json when empty
 headers002 | Defaults Content-Type to application/json when nil
 headers003 | Does not reorder or prioritize JSON types

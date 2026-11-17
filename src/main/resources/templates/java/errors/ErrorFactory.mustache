@@ -1,0 +1,32 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors;
+
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/**
+ * Builds the exception for one error schema an operation declares. An operation hands the
+ * factories of its own declared error responses to {@link ApiException}, which picks the one
+ * for the status that arrived.
+ */
+@FunctionalInterface
+public interface ErrorFactory {
+
+    /**
+     * Builds the exception for a response.
+     *
+     * @param requestMethod the HTTP method of the request
+     * @param requestPath the path or URL of the request
+     * @param statusCode the HTTP status code of the response
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @return the exception to throw
+     */
+    ApiException create(
+            String requestMethod,
+            String requestPath,
+            int statusCode,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody);
+}

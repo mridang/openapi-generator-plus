@@ -157,4 +157,27 @@ class ErrorResponsesTest {
                 ErrorResponses.operationRows(List.of(d("404", "Shared")), "Error");
         assertEquals(1, ErrorResponses.distinctSchemas(List.of(a, b), "Error").size());
     }
+
+    @Test
+    void sampleStatusIsAConcreteStatusForEveryKey() {
+        assertEquals(404, ErrorResponses.sampleStatus("404"));
+        assertEquals(400, ErrorResponses.sampleStatus("4XX"));
+        assertEquals(500, ErrorResponses.sampleStatus("5XX"));
+        assertEquals(400, ErrorResponses.sampleStatus("default"));
+    }
+
+    @Test
+    void aSchemaDeclaredUnderAFamilyOrSeveralStatusesTakesAStatusArgument() {
+        final List<Map<String, Object>> schemas =
+                ErrorResponses.distinctSchemas(
+                        List.of(
+                                ErrorResponses.operationRows(
+                                        List.of(d("404", "Gone"), d("4XX", "Wide"), d("default", "Other")),
+                                        "Error")),
+                        "Error");
+        assertEquals(false, schemas.get(0).get("parentIsFamily"));
+        assertEquals(true, schemas.get(1).get("parentIsFamily"));
+        assertEquals(true, schemas.get(2).get("parentIsFamily"));
+        assertEquals(404, schemas.get(0).get("sampleStatus"));
+    }
 }

@@ -511,6 +511,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("reflect_config.mustache", nativeImageFolder, "reflect-config.json"),
             new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".java"),
             new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.java"),
+            new SupportingFileSpec("errors/ErrorFactory.mustache", errorsFolder, "ErrorFactory.java"),
             new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.java"),
             new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.java"),
             new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.java"),
@@ -1652,6 +1653,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/SchemaException.mustache";
+    }
+
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, sourceFolder, invokerPackage.replace('.', '/'), "errors", className + ".java")
+                .toString();
+    }
+
     @Override
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         return Path.of(

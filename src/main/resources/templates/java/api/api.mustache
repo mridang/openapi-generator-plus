@@ -178,6 +178,7 @@ public class {{classname}} extends BaseApi {
      * @return {@code {{{returnType}}}}
 {{/returnType}}
      * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
      */
 {{#isDeprecated}}
     @Deprecated
@@ -196,6 +197,7 @@ public class {{classname}} extends BaseApi {
 {{>api/operation_doc_args}}
      * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
      * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
      */
 {{#isDeprecated}}
     @Deprecated
@@ -214,6 +216,7 @@ public class {{classname}} extends BaseApi {
      * @return {@code {{{returnType}}}}
 {{/returnType}}
      * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
      */
 {{#isDeprecated}}
     @Deprecated
@@ -229,6 +232,7 @@ public class {{classname}} extends BaseApi {
      *
      * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
      * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
      */
 {{#isDeprecated}}
     @Deprecated
@@ -264,6 +268,7 @@ public class {{classname}} extends BaseApi {
      * @return {@code {{{returnType}}}}
 {{/returnType}}
      * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
      */
 {{#isDeprecated}}
     @Deprecated
@@ -286,6 +291,7 @@ public class {{classname}} extends BaseApi {
      * @param requestContentType the request content-type to send, or {@code null} for the default
      * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
      * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
      */
 {{#isDeprecated}}
     @Deprecated
@@ -522,7 +528,17 @@ public class {{classname}} extends BaseApi {
                 callMaxRetries,{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}callTimeout,
                 callMaxRetries,{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}null,
                 null,{{/vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsArgOptional}}
-                {{#vendorExtensions.op.hasMultiple2xx}}successDecoder{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}null{{/vendorExtensions.op.hasMultiple2xx}});
+                {{#vendorExtensions.op.hasMultiple2xx}}successDecoder{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}null{{/vendorExtensions.op.hasMultiple2xx}},
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+                java.util.Map.ofEntries(
+{{#vendorExtensions.op.errorSchemaResponses}}
+                        java.util.Map.entry("{{{status}}}", ({{{invokerPackage}}}.errors.ErrorFactory) {{{invokerPackage}}}.errors.{{{schemaClassName}}}::fromErrorResponse){{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+                ));
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.hasErrorSchemaResponses}}
+                null);
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
     }
     {{/operation}}
 

@@ -9,6 +9,7 @@
 package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -649,6 +650,67 @@ class ApiExceptionTest {
     assertEquals(com.example.petstore.errors.ServerException.class, ex.getClass());
     assertEquals("<html>bad gateway</html>", ex.getResponseBody());
     assertNull(ex.getErrorBody());
+  }
+
+  @Test
+  void bhvErrors044AnErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+    for (int status : new int[] {408, 409, 429, 500, 502, 503, 504, 599}) {
+      assertTrue(
+          ApiException.fromResponse(status, Map.of(), null).isRetryable(), "status " + status);
+    }
+    for (int status : new int[] {400, 401, 403, 404, 422, 501, 302}) {
+      assertFalse(
+          ApiException.fromResponse(status, Map.of(), null).isRetryable(), "status " + status);
+    }
+  }
+
+  @Test
+  void bhvErrors045AnErrorExposesTheRequestIdHeaderAsItsRequestId() {
+    assertEquals(
+        "abc", ApiException.fromResponse(500, Map.of("X-Request-ID", "abc"), null).getRequestId());
+    assertEquals(
+        "abc", ApiException.fromResponse(500, Map.of("x-request-id", "abc"), null).getRequestId());
+    assertNull(ApiException.fromResponse(500, Map.of("other", "abc"), null).getRequestId());
+    assertNull(new ApiException(0, "no response", null, null).getRequestId());
+  }
+
+  @Test
+  void bhvErrors046TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+    Map<String, com.example.petstore.errors.ErrorFactory> factories =
+        Map.of(
+            "404", (m, p, s, h, b) -> new ApiException(s, "exact", h, b),
+            "4XX", (m, p, s, h, b) -> new ApiException(s, "range", h, b),
+            "default", (m, p, s, h, b) -> new ApiException(s, "default", h, b));
+
+    assertEquals(
+        "exact",
+        ApiException.fromResponse("GET", "/x", 404, Map.of(), "{}", factories).getMessage());
+    assertEquals(
+        "range",
+        ApiException.fromResponse("GET", "/x", 418, Map.of(), "{}", factories).getMessage());
+    assertEquals(
+        "default",
+        ApiException.fromResponse("GET", "/x", 502, Map.of(), "{}", factories).getMessage());
+    assertEquals(
+        com.example.petstore.errors.BadGatewayException.class,
+        ApiException.fromResponse("GET", "/x", 502, Map.of(), "{}", Map.of()).getClass());
+    assertEquals(
+        com.example.petstore.errors.NotFoundException.class,
+        ApiException.fromResponse("GET", "/x", 404, Map.of(), "{}", null).getClass());
+  }
+
+  @Test
+  void
+      bhvErrors047ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+    ApiException ex =
+        com.example.petstore.errors.UnexpectedFailureException.fromErrorResponse(
+            "GET", "/x", 400, Map.of(), "[1, 2");
+
+    assertEquals(
+        ApiException.fromResponse("GET", "/x", 400, Map.of(), "[1, 2").getClass(), ex.getClass());
+    assertEquals("[1, 2", ex.getResponseBody());
+    assertEquals(400, ex.getStatusCode());
+    assertNotNull(ex.getCause());
   }
 
   @Test

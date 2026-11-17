@@ -105,6 +105,8 @@ public class ProblemsApi extends BaseApi {
    * @param fallbackId (required)
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
+   *     UnexpectedFailure} body
    */
   public Result getFallback(String fallbackId) {
     return getFallback(fallbackId, null);
@@ -120,6 +122,8 @@ public class ProblemsApi extends BaseApi {
    * @param fallbackId (required)
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
+   *     UnexpectedFailure} body
    */
   public ApiResult<Result> getFallbackWithHttpInfo(String fallbackId) {
     return getFallbackWithHttpInfo(fallbackId, null);
@@ -132,6 +136,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
+   *     UnexpectedFailure} body
    */
   public Result getFallback(String fallbackId, @Nullable GetFallbackOptions options) {
     return requireBody(getFallbackWithHttpInfo(fallbackId, options), "getFallback");
@@ -144,6 +150,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
+   *     UnexpectedFailure} body
    */
   public ApiResult<Result> getFallbackWithHttpInfo(
       String fallbackId, @Nullable GetFallbackOptions options) {
@@ -179,7 +187,12 @@ public class ProblemsApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
-        null);
+        null,
+        java.util.Map.ofEntries(
+            java.util.Map.entry(
+                "default",
+                (com.example.petstore.errors.ErrorFactory)
+                    com.example.petstore.errors.UnexpectedFailureException::fromErrorResponse)));
   }
 
   /**
@@ -192,6 +205,8 @@ public class ProblemsApi extends BaseApi {
    * @param memberId (required)
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
+   *     MemberNotFound} body
    */
   public Result getMember(String memberId) {
     return getMember(memberId, null);
@@ -207,6 +222,8 @@ public class ProblemsApi extends BaseApi {
    * @param memberId (required)
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
+   *     MemberNotFound} body
    */
   public ApiResult<Result> getMemberWithHttpInfo(String memberId) {
     return getMemberWithHttpInfo(memberId, null);
@@ -219,6 +236,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
+   *     MemberNotFound} body
    */
   public Result getMember(String memberId, @Nullable GetMemberOptions options) {
     return requireBody(getMemberWithHttpInfo(memberId, options), "getMember");
@@ -231,6 +250,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
+   *     MemberNotFound} body
    */
   public ApiResult<Result> getMemberWithHttpInfo(
       String memberId, @Nullable GetMemberOptions options) {
@@ -266,7 +287,12 @@ public class ProblemsApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
-        null);
+        null,
+        java.util.Map.ofEntries(
+            java.util.Map.entry(
+                "404",
+                (com.example.petstore.errors.ErrorFactory)
+                    com.example.petstore.errors.MemberNotFoundException::fromErrorResponse)));
   }
 
   /**
@@ -279,6 +305,8 @@ public class ProblemsApi extends BaseApi {
    * @param projectId (required)
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
+   *     ProjectNotFound} body
    */
   public Result getProject(String projectId) {
     return getProject(projectId, null);
@@ -294,6 +322,8 @@ public class ProblemsApi extends BaseApi {
    * @param projectId (required)
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
+   *     ProjectNotFound} body
    */
   public ApiResult<Result> getProjectWithHttpInfo(String projectId) {
     return getProjectWithHttpInfo(projectId, null);
@@ -306,6 +336,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
+   *     ProjectNotFound} body
    */
   public Result getProject(String projectId, @Nullable GetProjectOptions options) {
     return requireBody(getProjectWithHttpInfo(projectId, options), "getProject");
@@ -318,6 +350,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
+   *     ProjectNotFound} body
    */
   public ApiResult<Result> getProjectWithHttpInfo(
       String projectId, @Nullable GetProjectOptions options) {
@@ -353,7 +387,12 @@ public class ProblemsApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
-        null);
+        null,
+        java.util.Map.ofEntries(
+            java.util.Map.entry(
+                "404",
+                (com.example.petstore.errors.ErrorFactory)
+                    com.example.petstore.errors.ProjectNotFoundException::fromErrorResponse)));
   }
 
   /**
@@ -366,6 +405,8 @@ public class ProblemsApi extends BaseApi {
    * @param rangeId (required)
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
+   *     RejectedRequest} body
    */
   public Result getRange(String rangeId) {
     return getRange(rangeId, null);
@@ -381,6 +422,8 @@ public class ProblemsApi extends BaseApi {
    * @param rangeId (required)
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
+   *     RejectedRequest} body
    */
   public ApiResult<Result> getRangeWithHttpInfo(String rangeId) {
     return getRangeWithHttpInfo(rangeId, null);
@@ -393,6 +436,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
+   *     RejectedRequest} body
    */
   public Result getRange(String rangeId, @Nullable GetRangeOptions options) {
     return requireBody(getRangeWithHttpInfo(rangeId, options), "getRange");
@@ -405,6 +450,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
+   *     RejectedRequest} body
    */
   public ApiResult<Result> getRangeWithHttpInfo(String rangeId, @Nullable GetRangeOptions options) {
     if (rangeId == null || rangeId.isEmpty()) {
@@ -439,7 +486,12 @@ public class ProblemsApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
-        null);
+        null,
+        java.util.Map.ofEntries(
+            java.util.Map.entry(
+                "4XX",
+                (com.example.petstore.errors.ErrorFactory)
+                    com.example.petstore.errors.RejectedRequestException::fromErrorResponse)));
   }
 
   /**
@@ -452,6 +504,8 @@ public class ProblemsApi extends BaseApi {
    * @param upstreamId (required)
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
+   *     UpstreamFailure} body
    */
   public Result getUpstream(String upstreamId) {
     return getUpstream(upstreamId, null);
@@ -467,6 +521,8 @@ public class ProblemsApi extends BaseApi {
    * @param upstreamId (required)
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
+   *     UpstreamFailure} body
    */
   public ApiResult<Result> getUpstreamWithHttpInfo(String upstreamId) {
     return getUpstreamWithHttpInfo(upstreamId, null);
@@ -479,6 +535,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
+   *     UpstreamFailure} body
    */
   public Result getUpstream(String upstreamId, @Nullable GetUpstreamOptions options) {
     return requireBody(getUpstreamWithHttpInfo(upstreamId, options), "getUpstream");
@@ -491,6 +549,8 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
+   *     UpstreamFailure} body
    */
   public ApiResult<Result> getUpstreamWithHttpInfo(
       String upstreamId, @Nullable GetUpstreamOptions options) {
@@ -526,7 +586,12 @@ public class ProblemsApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
-        null);
+        null,
+        java.util.Map.ofEntries(
+            java.util.Map.entry(
+                "5XX",
+                (com.example.petstore.errors.ErrorFactory)
+                    com.example.petstore.errors.UpstreamFailureException::fromErrorResponse)));
   }
 
   /**
@@ -539,6 +604,10 @@ public class ProblemsApi extends BaseApi {
    * @param lockId (required)
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a {@code
+   *     StateConflict} body
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
+   *     StateConflict} body
    */
   public Result takeLock(String lockId) {
     return takeLock(lockId, null);
@@ -554,6 +623,10 @@ public class ProblemsApi extends BaseApi {
    * @param lockId (required)
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a {@code
+   *     StateConflict} body
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
+   *     StateConflict} body
    */
   public ApiResult<Result> takeLockWithHttpInfo(String lockId) {
     return takeLockWithHttpInfo(lockId, null);
@@ -566,6 +639,10 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a {@code
+   *     StateConflict} body
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
+   *     StateConflict} body
    */
   public Result takeLock(String lockId, @Nullable TakeLockOptions options) {
     return requireBody(takeLockWithHttpInfo(lockId, options), "takeLock");
@@ -578,6 +655,10 @@ public class ProblemsApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Result}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a {@code
+   *     StateConflict} body
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
+   *     StateConflict} body
    */
   public ApiResult<Result> takeLockWithHttpInfo(String lockId, @Nullable TakeLockOptions options) {
     if (lockId == null || lockId.isEmpty()) {
@@ -612,7 +693,16 @@ public class ProblemsApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
-        null);
+        null,
+        java.util.Map.ofEntries(
+            java.util.Map.entry(
+                "409",
+                (com.example.petstore.errors.ErrorFactory)
+                    com.example.petstore.errors.StateConflictException::fromErrorResponse),
+            java.util.Map.entry(
+                "423",
+                (com.example.petstore.errors.ErrorFactory)
+                    com.example.petstore.errors.StateConflictException::fromErrorResponse)));
   }
 
   /**
