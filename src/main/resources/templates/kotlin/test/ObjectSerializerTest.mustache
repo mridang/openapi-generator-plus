@@ -61,7 +61,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject107 datetime with +05:30 offset preserves offset in " +
+            "bhvSerializationobject116 datetime with +05:30 offset preserves offset in " +
                 "serialized string",
         )
         fun positiveOffsetPreserved() {
@@ -76,6 +76,27 @@ class ObjectSerializerTest {
             val dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00")
             val result = serializer.stringify(dt)
             assertEquals("2024-01-01T12:30:45.000-08:00", result)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject107 negative offset is preserved in serialized string")
+        fun negativeOffsetIsPreservedInTheSerializedString() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45-03:30")
+            assertEquals("2024-01-01T12:30:45.000-03:30", serializer.stringify(dt))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject151 a datetime serializes in the canonical date-time form")
+        fun dateTimeSerializesInTheCanonicalDateTimeForm() {
+            val dt = OffsetDateTime.parse("2024-03-10T08:05:09+02:00")
+            assertEquals("2024-03-10T08:05:09.000+02:00", serializer.stringify(dt))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject179 a whole-second datetime serializes with a fixed three-digit fraction")
+        fun wholeSecondDateTimeHasAFixedThreeDigitFraction() {
+            val dt = OffsetDateTime.parse("2024-06-30T23:59:59Z")
+            assertEquals("2024-06-30T23:59:59.000+00:00", serializer.stringify(dt))
         }
 
         @Test
@@ -619,6 +640,41 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject092 integer-backed enum deserializes from a JSON number to the member")
+        fun integerBackedEnumDeserializesFromANumber() {
+            val item = serializer.deserialize<{{modelPackage}}.StockItem>("{\"priority\":1}")
+            assertEquals({{modelPackage}}.Priority.NUMBER_1, item!!.priority)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject111 numeric schema defaults are exact typed values")
+        fun numericSchemaDefaultsAreExactTypedValues() {
+            val defaults = serializer.deserialize<{{modelPackage}}.Defaults>("{}")
+            assertNotNull(defaults)
+            assertEquals(3, defaults!!.retries)
+            assertEquals(0.25f, defaults.scale)
+            assertEquals(2.0, defaults.weight)
+            assertEquals(9000000000L, defaults.ceiling)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject173 uri-reference field still accepts a relative reference")
+        fun uriReferenceFieldAcceptsARelativeReference() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>(
+                "{\"name\":\"n\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb.png\"}",
+            )
+            assertEquals("/assets/thumb.png", pet!!.thumbnailRef)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject177 a weight survives a serialize and deserialize round trip as a number")
+        fun weightSurvivesARoundTripAsANumber() {
+            val json = serializer.serialize({{modelPackage}}.DryFood(weightKg = 2.5))
+            val back = serializer.deserialize<{{modelPackage}}.DryFood>(json)
+            assertEquals(2.5, back!!.weightKg)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject180 primitive-type-coercion-lenient: unquoted scalar on a String field throws")
         fun unquotedScalarOnStringFieldThrows() {
             // isLenient=true accepts an unquoted bare literal as a string value
@@ -876,6 +932,24 @@ class ObjectSerializerTest {
         @DisplayName("bhvSerializationobject181 zero Duration stringifies as 0s")
         fun zeroDurationStringifiesAsZeroSeconds() {
             assertEquals("0s", serializer.stringify(java.time.Duration.ZERO))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject105 negative duration carries the sign")
+        fun negativeDurationCarriesTheSign() {
+            assertEquals("-90s", serializer.stringify(java.time.Duration.ofSeconds(-90)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject158 stringify emits the canonical protobuf duration for a Duration")
+        fun durationStringifiesAsCanonicalProtobufDuration() {
+            assertEquals("1.500s", serializer.stringify(java.time.Duration.ofMillis(1500)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject159 stringify returns a string unchanged, quotes and backslashes included")
+        fun stringStringifiesUnchanged() {
+            assertEquals("a \"quoted\" \\ value", serializer.stringify("a \"quoted\" \\ value"))
         }
 
         @Test
@@ -1840,6 +1914,13 @@ class ObjectSerializerTest {
         fun wholeSecondProtobufDurationParses() {
             val edge = serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"3600s\"}")
             assertEquals(java.time.Duration.ofHours(1), edge!!.retryAfter)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject113 parses a negative protobuf-JSON duration of whole seconds")
+        fun negativeWholeSecondProtobufDurationParses() {
+            val edge = serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"-90s\"}")
+            assertEquals(java.time.Duration.ofSeconds(-90), edge!!.retryAfter)
         }
 
         @Test
