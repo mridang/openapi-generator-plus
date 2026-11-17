@@ -36,6 +36,12 @@ defmodule {{moduleName}}.ServerVariableTest do
       assert variable.enum_values == ["prod", "staging"]
     end
 
+    test "bhv servers 018 enum values are exposed for validation" do
+      variable = %ServerVariable{default_value: "prod", enum_values: ["prod", "staging"]}
+
+      assert variable.enum_values == ["prod", "staging"]
+    end
+
     test "requires the default_value key" do
       assert_raise ArgumentError, fn ->
         struct!(ServerVariable, description: "missing default")

@@ -61,6 +61,23 @@ defmodule {{moduleName}}.ServerConfigurationTest do
       assert ServerConfiguration.url(config) == "https://eu.prod.example.com"
     end
 
+    test "bhv servers 019 an enum accepts only its listed values and rejects any other" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{
+          "env" => %ServerVariable{default_value: "prod", enum_values: ["prod", "staging"]}
+        }
+      }
+
+      for allowed <- ["prod", "staging"] do
+        assert ServerConfiguration.url(config, %{"env" => allowed}) == "https://#{allowed}.api.example.com"
+      end
+
+      assert_raise ArgumentError, fn ->
+        ServerConfiguration.url(config, %{"env" => "dev"})
+      end
+    end
+
     test "bhv servers 008 rejects an override outside the enum with ArgumentError" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",

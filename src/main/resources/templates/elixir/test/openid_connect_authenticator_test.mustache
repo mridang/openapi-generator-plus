@@ -705,6 +705,29 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
     # The discovery document must be cached: a second build should reuse it
     # rather than issue a second GET to the discovery endpoint.
+    test "bhv authoidc 029 concurrent callers on a cold authenticator share one discovery request" do
+      document = %{{moduleName}}.ApiHttpResponse{
+        status_code: 200,
+        body: Jason.encode!(%{
+          "issuer" => "https://auth.example.com",
+          "authorization_endpoint" => "https://auth.example.com/authorize",
+          "token_endpoint" => "https://auth.example.com/token"
+        })
+      }
+
+      fake_client = FakeApiClient.new(List.duplicate(document, 8))
+      auth = create_authenticator()
+      auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      1..8
+      |> Enum.map(fn _ ->
+        Task.async(fn -> {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) end)
+      end)
+      |> Enum.each(&Task.await/1)
+
+      assert FakeApiClient.get_count(fake_client) == 1
+    end
+
     test "bhv authoidc 011 fetches discovery document only once" do
       fake_client = FakeApiClient.new([
         %{{moduleName}}.ApiHttpResponse{

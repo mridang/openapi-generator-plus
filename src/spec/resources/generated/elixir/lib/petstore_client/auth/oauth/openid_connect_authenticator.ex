@@ -234,7 +234,17 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
         end
 
       _ ->
-        cache_discovery(fetch_discovery(self, nil))
+        # Concurrent callers on a cold cache share one discovery request: the
+        # first takes the lock and fetches, the others wait and find the result
+        # in the cache when they get it.
+        lock = {__MODULE__, self.discovery_cache}
+
+        :global.trans({lock, self()}, fn ->
+          case Agent.get(self.discovery_cache, & &1.discovery) do
+            nil -> cache_discovery(fetch_discovery(self, nil))
+            {delegate, expiry} -> %{self | delegate: delegate, discovery_expiry: expiry}
+          end
+        end)
     end
   end
 

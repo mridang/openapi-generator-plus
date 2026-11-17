@@ -273,6 +273,23 @@ defmodule {{moduleName}}.ApiErrorTest do
   end
 
   describe "OAuth2ServerError message" do
+    test "bhv errors 046 the message has three forms: raw body, code, and code with description" do
+      raw = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 502, raw_body: "<html>bad gateway</html>")
+      code = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 400, code: "invalid_grant")
+
+      described =
+        {{moduleName}}.Errors.OAuth2ServerError.exception(
+          status_code: 400,
+          code: "invalid_grant",
+          description: "refresh token expired"
+        )
+
+      assert Exception.message(raw) == "Token request failed with status 502: <html>bad gateway</html>"
+      assert Exception.message(code) == "Token request failed with status 400: invalid_grant"
+      assert Exception.message(described) ==
+               "Token request failed with status 400: invalid_grant -- refresh token expired"
+    end
+
     test "names the raw body when the response is not an OAuth2 error object" do
       err = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 502, raw_body: "Bad Gateway")
 
@@ -357,6 +374,24 @@ defmodule {{moduleName}}.ApiErrorTest do
       assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(api_error)
       assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(typed_error)
       assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(serialization_error)
+    end
+
+    test "bhv errors 045 the OAuth2 errors are not ApiError and the SDK error root recognises them" do
+      token = %{{moduleName}}.Errors.OAuth2TokenError{message: "missing access_token"}
+      server = %{{moduleName}}.Errors.OAuth2ServerError{status_code: 400, message: "invalid_grant"}
+
+      refute {{moduleName}}.Errors.ApiError.api_error?(token)
+      refute {{moduleName}}.Errors.ApiError.api_error?(server)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(token)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(server)
+    end
+
+    test "bhv errors 047 a typed server error is an ApiError and an SDK error" do
+      err = {{moduleName}}.Errors.ApiError.from_response(500, %{}, "boom")
+
+      assert %{{moduleName}}.Errors.InternalServerError{} = err
+      assert {{moduleName}}.Errors.ApiError.api_error?(err)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
     end
 
     test "bhv errors 018 every SDK exception module is listed in exceptions/0" do

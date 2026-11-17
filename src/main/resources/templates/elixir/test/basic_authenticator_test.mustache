@@ -34,6 +34,21 @@ defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
       assert BasicAuthenticator.auth_headers(mixed)["Authorization"] == "Basic " <> Base.encode64("bob:changed")
     end
 
+    test "bhv authbasic 013 explicit credentials win over the environment" do
+      user = "{{envVarPrefix}}_USERNAME"
+      pass = "{{envVarPrefix}}_PASSWORD"
+      System.put_env(user, "env-user")
+      System.put_env(pass, "env-pass")
+
+      on_exit(fn ->
+        System.delete_env(user)
+        System.delete_env(pass)
+      end)
+
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "explicit-pass")
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] == "Basic " <> Base.encode64("alice:explicit-pass")
+    end
+
     test "bhv authbasic 003 an empty or absent environment variable fails when the authenticator is built" do
       user = "{{envVarPrefix}}_USERNAME"
       pass = "{{envVarPrefix}}_PASSWORD"

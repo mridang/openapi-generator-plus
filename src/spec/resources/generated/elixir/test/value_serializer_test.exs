@@ -544,6 +544,50 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "hello%20world"
     end
 
+    test "bhv serializationparam 105 SerializeStyled form scalar is the bare value, exploded or not" do
+      for explode <- [true, false] do
+        result =
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "color",
+            "blue",
+            :query,
+            "string",
+            nil,
+            "form",
+            explode
+          )
+
+        assert result == "blue"
+      end
+    end
+
+    test "bhv serializationparam 106 path with null style behaves like simple" do
+      null_style =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "id",
+          "hello world",
+          :path,
+          "string",
+          nil,
+          nil,
+          false
+        )
+
+      simple =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "id",
+          "hello world",
+          :path,
+          "string",
+          nil,
+          "simple",
+          false
+        )
+
+      assert null_style == simple
+      assert null_style == "hello%20world"
+    end
+
     test "null style falls back to location-based serialization" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(

@@ -90,6 +90,15 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer xyz"
     end
 
+    test "bhv authbearer 018 an explicit token wins over the environment" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "env-token")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", "explicit-token")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer explicit-token"
+    end
+
     test "bhv lifecycle 013 an empty or absent environment variable fails when no token is passed" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
       on_exit(fn -> System.delete_env(name) end)

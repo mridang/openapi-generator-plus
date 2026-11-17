@@ -161,7 +161,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         end
       end
 
-      test "the environment is read once, when the authenticator is built" do
+      test "bhv lifecycle 025 the environment is read once, when the authenticator is built" do
         Enum.each(@vars, fn {arg, env} -> System.put_env(env, "first-" <> arg) end)
 
         auth = build(@module, [@host])
