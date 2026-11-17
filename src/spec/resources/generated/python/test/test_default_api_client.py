@@ -933,10 +933,7 @@ class TestHttpCompression:
     """The fixture serves one JSON body under each codec whatever the request
     advertises, so the plain text proves the client decoded it."""
 
-    @pytest.mark.parametrize("encoding", ["gzip", "br", "zstd"])
-    def test_decompresses_the_response(
-        self, chasm_http_url: Any, encoding: str
-    ) -> None:
+    def _assert_decompresses(self, chasm_http_url: Any, encoding: str) -> None:
         client = DefaultApiClient()
         response = client.send_request(
             "GET",
@@ -949,6 +946,15 @@ class TestHttpCompression:
         assert "content-encoding" not in response.headers
         assert "content-length" not in response.headers
         assert json.loads(response.body)["title"] == "compressed fixture body"
+
+    def test_decompresses_gzip_response(self, chasm_http_url: Any) -> None:
+        self._assert_decompresses(chasm_http_url, "gzip")
+
+    def test_decompresses_brotli_response(self, chasm_http_url: Any) -> None:
+        self._assert_decompresses(chasm_http_url, "br")
+
+    def test_decompresses_zstd_response(self, chasm_http_url: Any) -> None:
+        self._assert_decompresses(chasm_http_url, "zstd")
 
 
 class TestNullBodyContentLength:
