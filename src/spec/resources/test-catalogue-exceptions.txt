@@ -60,3 +60,4 @@ go | *unnumbered | tests beyond the shared catalogue: language-specific behaviou
 rust | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 swift | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 elixir | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
+python | operations111 | the trackingId parameter is typed uuid.UUID, which refuses a malformed value when the caller builds it, so the SDK never receives one it must reject; a plain str bypasses that type and is sent unchecked
