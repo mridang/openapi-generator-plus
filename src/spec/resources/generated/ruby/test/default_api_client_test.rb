@@ -395,7 +395,7 @@ describe Petstore::Client::DefaultApiClient do
       _(response.status_code).must_equal(302)
     end
 
-    it '303 switches to GET and drops body (Gap T3)' do
+    it 'redirect 303 switches to GET and drops body' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = Petstore::Client::TransportOptions.builder

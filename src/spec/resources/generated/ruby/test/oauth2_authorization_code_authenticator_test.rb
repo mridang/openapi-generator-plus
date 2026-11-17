@@ -249,13 +249,13 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   # oauth-exchangecode-no-empty-code-guard: an empty/blank authorization
   # code must be rejected before issuing the token POST.
-  it 'rejects an empty authorization code' do
+  it 'exchange code rejects empty code' do
     auth.api_client = FakeAuthCodeClient.new([{ status: 200, body: {} }])
     err = assert_raises(ArgumentError) { auth.exchange_code('') }
     _(err.message).must_equal 'Authorization code must not be empty'
   end
 
-  it 'rejects a whitespace-only authorization code' do
+  it 'exchange code rejects whitespace only code' do
     auth.api_client = FakeAuthCodeClient.new([{ status: 200, body: {} }])
     _(-> { auth.exchange_code('   ') }).must_raise ArgumentError
   end
