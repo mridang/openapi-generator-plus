@@ -312,7 +312,7 @@ void main() {
       ('no-location', 'no-location'),
       ('malformed-location', 'malformed'),
     ]) {
-      test('a 302 with a ${row.$1} Location is returned as the 3xx', () async {
+      test('bhv redirects 010 a 302 with a ${row.$1} Location is returned as the 3xx', () async {
         final transport = TransportOptionsBuilder()
             .followRedirects(true)
             .build();
@@ -332,6 +332,17 @@ void main() {
      * default options ignores an ambient proxy pointing at a dead address.
      * A running Dart process cannot change its own environment, so the
      * client runs in a child process started with that environment. */
+    test('bhv redirects 017 follows a redirect when nothing suppresses it', () async {
+      final client = DefaultApiClient();
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/redirect/302',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+    });
+
     test('bhv transport 009 ignores ambient proxy environment variables', () async {
       final dir = await Directory.systemTemp.createTemp('ambient-proxy');
       try {

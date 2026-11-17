@@ -717,6 +717,77 @@ void main() {
       }
     });
 
+    test('bhv authintegration 004 appends auth cookies to a Cookie header the operation already set', () async {
+      String? receivedCookie;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedCookie = request.headers.value('cookie');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('hello')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          authenticator: _BaseApiAuth(cookies: {'auth': 'xyz'}),
+        );
+
+        await api.getPetSummary(
+          1,
+          DateTime.utc(2024, 1, 15),
+          GetPetSummaryOptions(session: 'abc'),
+        );
+        expect(receivedCookie, isNotNull);
+        expect(receivedCookie!, contains('session=abc'));
+        expect(receivedCookie!, contains('auth=xyz'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv authintegration 015 a security:[] operation suppresses a configured api-key client authenticator, header and query', () async {
+      String? receivedApiKeyHeader;
+      String? receivedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedApiKeyHeader = request.headers.value('api-key');
+        receivedQuery = request.uri.queryParameters['api-key'];
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"available":1}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          authenticator: _BaseApiAuth(
+            headers: {'api-key': 'header-key'},
+            query: {'api-key': 'query-key'},
+          ),
+        );
+
+        await api.getInventory(null);
+
+        expect(receivedApiKeyHeader, isNull);
+        expect(receivedQuery, isNull);
+      } finally {
+        await server.close();
+      }
+    });
+
     test('returns null data for empty 200 response', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
@@ -3066,6 +3137,63 @@ void main() {
       await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
 
       expect(sent.single, equals('Bearer configured'));
+    });
+
+    test('bhv authintegration 003 a scheme credential wins over the client-level authenticator and the fallback is used when none matches', () async {
+      final seen = <String, String?>{};
+      final transport = Mock{{clientClassName}}((request) async {
+        seen['${request.method} ${request.url.path}'] =
+            request.headers['authorization'];
+        return http.Response('{"id":1,"name":"x","photoUrls":[]}', 200,
+            headers: {'content-type': 'application/json'});
+      });
+      final client = {{clientClassName}}(
+        authenticator: BearerAuthenticator(host: 'http://api.test', token: 'fallback'),
+        petStoreBearer: BearerAuthenticator(host: 'http://api.test', token: 'scheme'),
+        adminBasic: BasicAuthenticator(
+            host: 'http://api.test', username: 'admin', password: 'pw'),
+        transportOptions: TransportOptionsBuilder().http{{clientClassName}}(transport).build(),
+      );
+
+      await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+      await client.pet.deletePet(1, null);
+
+      expect(seen['POST /pet'], equals('Bearer scheme'));
+      expect(seen['DELETE /pet/1'], equals('Bearer fallback'));
+    });
+
+    test('bhv authintegration 014 resolves the credential of the first listed scheme the client holds', () async {
+      String? sent;
+      final transport = Mock{{clientClassName}}((request) async {
+        sent = request.headers['authorization'];
+        return http.Response('{"id":1,"name":"x","photoUrls":[]}', 200,
+            headers: {'content-type': 'application/json'});
+      });
+      final client = {{clientClassName}}(
+        petStoreBearer: BearerAuthenticator(host: 'http://api.test', token: 'held'),
+        transportOptions: TransportOptionsBuilder().http{{clientClassName}}(transport).build(),
+      );
+
+      await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+
+      expect(sent, equals('Bearer held'));
+    });
+
+    test('bhv authintegration 016 a security:[] operation sends no scheme credential', () async {
+      String? sent;
+      final transport = Mock{{clientClassName}}((request) async {
+        sent = request.headers['authorization'];
+        return http.Response('{"available":1}', 200,
+            headers: {'content-type': 'application/json'});
+      });
+      final client = {{clientClassName}}(
+        petStoreBearer: BearerAuthenticator(host: 'http://api.test', token: 'b-token'),
+        transportOptions: TransportOptionsBuilder().http{{clientClassName}}(transport).build(),
+      );
+
+      await client.store.getInventory(null);
+
+      expect(sent, isNull);
     });
 
     test('a client with no credential at all is refused', () {

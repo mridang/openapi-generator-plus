@@ -21,7 +21,7 @@ void main() {
       expect(config.url(), equals('https://prod.api.example.com/v1'));
     });
 
-    test('applies overrides and falls back to defaults for unset variables', () {
+    test('bhv servers 001 applies overrides and falls back to defaults for unset variables', () {
       // "env" is overridden, "version" is left to its default — the resolved
       // URL must mix both.
       const config = ServerConfiguration(
@@ -39,6 +39,41 @@ void main() {
         config.url({'env': 'staging'}),
         equals('https://staging.api.example.com/v1'),
       );
+    });
+
+    test('bhv servers 003 accepts an override that is one of the enum values', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{env}.api.example.com',
+        variables: {
+          'env': ServerVariable(
+            defaultValue: 'prod',
+            enumValues: ['prod', 'staging', 'dev'],
+          ),
+        },
+      );
+
+      for (final value in ['prod', 'staging', 'dev']) {
+        expect(config.url({'env': value}), equals('https://$value.api.example.com'));
+      }
+    });
+
+    test('bhv servers 010 substitutes each variable with its default value when none is given', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{host}:{port}/v{version}',
+        variables: {
+          'host': ServerVariable(defaultValue: 'api.example.com'),
+          'port': ServerVariable(defaultValue: '8443'),
+          'version': ServerVariable(defaultValue: '2'),
+        },
+      );
+
+      expect(config.url(), equals('https://api.example.com:8443/v2'));
+    });
+
+    test('bhv servers 015 allows an omitted description and reports it as empty', () {
+      const config = ServerConfiguration(urlTemplate: 'https://api.example.com');
+
+      expect(config.description, isEmpty);
     });
 
     test('bhv servers 006 exposes raw URL template and description', () {
@@ -201,7 +236,7 @@ void main() {
       expect(config.url({'a': '{b}'}), equals('https://{b}.example.com/y'));
     });
 
-    test('a placeholder without a variable is left in place', () {
+    test('bhv servers 007 a placeholder without a variable is left in place', () {
       const config = ServerConfiguration(
         urlTemplate: 'https://{host}/{unknown}',
         variables: {'host': ServerVariable(defaultValue: 'h')},
