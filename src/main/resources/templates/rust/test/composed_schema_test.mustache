@@ -475,7 +475,7 @@ fn test_order_default_status_serializes_default_variant() {
 // `#[serde(default = ...)]` seeds the default variant for the absent
 // property, matching the other SDKs.
 #[test]
-fn test_order_deserialize_applies_schema_default_for_absent_status() {
+fn test_bhv_serializationobject_050_order_deserialize_applies_schema_default_for_absent_status() {
     let json_data = r#"{"id":10,"petId":198772}"#;
 
     let order: Order =
@@ -585,7 +585,7 @@ fn test_defaults_absent_applies_schema_defaults() {
 }
 
 #[test]
-fn test_defaults_explicit_null_is_preserved() {
+fn test_bhv_serializationobject_056_defaults_explicit_null_is_preserved() {
     let json_data = r#"{"label":null,"retries":7}"#;
 
     let defaults: Defaults =
@@ -693,7 +693,7 @@ fn test_availability_string_enum_rejects_unknown_value() {
 // decode that leaves the key out all start from it; a present value replaces it
 // and an explicit null stays `None`.
 #[test]
-fn test_referenced_enum_with_sibling_default_is_set_on_construction() {
+fn test_bhv_serializationobject_001_referenced_enum_with_sibling_default_is_set_on_construction() {
     assert_eq!(
         StockItem::new(Priority::Number1).availability,
         Some(Availability::OnHold)
@@ -930,7 +930,7 @@ fn test_separator_wire_values_decode_to_distinct_members_and_re_encode() {
 /* -- an inline enum with non-identifier wire values (F1146) -- */
 
 #[test]
-fn test_edge_cases_phase_round_trips_its_wire_values() {
+fn test_bhv_serializationobject_022_edge_cases_phase_round_trips_its_wire_values() {
     for (wire, member) in [
         ("In-Stock", EdgeCasesPhaseEnum::InStock),
         ("on-hold", EdgeCasesPhaseEnum::OnHold),
@@ -1006,7 +1006,7 @@ fn test_edge_cases_keyword_named_properties_keep_their_wire_keys() {
  * a nickname that breaks its look-around pattern and a quantity above its
  * maximum all decode as given, and the slug re-encodes unchanged. */
 #[test]
-fn test_constraint_keywords_are_not_enforced_on_decode() {
+fn test_bhv_serializationobject_032_constraint_keywords_are_not_enforced_on_decode() {
     let edge: EdgeCases = serde_json::from_str(r#"{"slug":"12/ab"}"#).expect("failed to decode EdgeCases");
     assert_eq!(edge.slug.as_deref(), Some("12/ab"));
     assert_eq!(serde_json::to_string(&edge).expect("failed to encode EdgeCases"), r#"{"slug":"12/ab"}"#);
@@ -1033,7 +1033,7 @@ fn test_defaults_numeric_literals_keep_their_exact_typed_values() {
 /* -- a uuid property is written lowercase and decoded from either case (F1130) -- */
 
 #[test]
-fn test_order_tracking_id_is_lowercase_on_the_wire_and_decodes_from_uppercase() {
+fn test_bhv_serializationobject_016_order_tracking_id_is_lowercase_on_the_wire_and_decodes_from_uppercase() {
     let decoded: Order =
         serde_json::from_str(r#"{"trackingId":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F"}"#)
             .expect("an uppercase uuid must decode");
@@ -1064,7 +1064,7 @@ fn test_pet_passport_content_encoded_property_is_base64_on_the_wire() {
 /* -- a prefixItems tuple degrades to an open list that round-trips (F1175) -- */
 
 #[test]
-fn test_pet_location_tuple_round_trips_as_an_open_list() {
+fn test_bhv_serializationobject_012_pet_location_tuple_round_trips_as_an_open_list() {
     let body = r#"{"name":"n","photoUrls":[],"location":[1.5,2.5,"label"]}"#;
     let decoded: Pet = serde_json::from_str(body).expect("failed to decode Pet");
     assert_eq!(3, decoded.location.as_ref().expect("location must decode").len());
@@ -1077,7 +1077,7 @@ fn test_pet_location_tuple_round_trips_as_an_open_list() {
 /* -- a protobuf-JSON duration decodes and re-encodes (F1149) -- */
 
 #[test]
-fn test_edge_cases_retry_after_duration_round_trips() {
+fn test_bhv_serializationobject_013_edge_cases_retry_after_duration_round_trips() {
     for (wire, expected) in [
         ("3600s", chrono::Duration::seconds(3600)),
         ("3600.000000001s", chrono::Duration::seconds(3600) + chrono::Duration::nanoseconds(1)),
@@ -1093,4 +1093,71 @@ fn test_edge_cases_retry_after_duration_round_trips() {
             "{wire}"
         );
     }
+}
+
+#[test]
+fn test_bhv_serializationobject_010_nickname_beyond_its_max_length_round_trips() {
+    let body = r#"{"name":"n","photoUrls":[],"nickname":"ZZZZZZZZZZ"}"#;
+    let pet: Pet = serde_json::from_str(body).expect("failed to decode Pet");
+    assert_eq!(pet.nickname.as_deref(), Some("ZZZZZZZZZZ"));
+    let json = serde_json::to_string(&pet).expect("failed to encode Pet");
+    assert!(json.contains(r#""nickname":"ZZZZZZZZZZ""#), "got: {json}");
+}
+
+#[test]
+fn test_bhv_serializationobject_023_optional_nullable_field_drops_its_null() {
+    let defaults: Defaults =
+        serde_json::from_str(r#"{"label":null}"#).expect("failed to deserialize Defaults");
+    assert!(defaults.label.is_none(), "an explicit null decodes to None");
+    let json = serde_json::to_string(&defaults).expect("failed to encode Defaults");
+    assert!(!json.contains("\"label\""), "a None optional field must be omitted, got: {json}");
+}
+
+#[test]
+fn test_bhv_serializationobject_024_unknown_inline_enum_value_is_rejected() {
+    let result = serde_json::from_str::<EdgeCases>(r#"{"phase":"never-a-phase"}"#);
+    assert!(result.is_err(), "an unknown EdgeCases.phase must be rejected");
+}
+
+#[test]
+fn test_bhv_serializationobject_025_defaults_apply_only_to_absent_fields() {
+    let absent: Defaults = serde_json::from_str("{}").expect("failed to deserialize Defaults");
+    assert_eq!(Some(3), absent.retries);
+    let explicit_null: Defaults =
+        serde_json::from_str(r#"{"label":null}"#).expect("failed to deserialize Defaults");
+    assert!(explicit_null.label.is_none(), "an explicit null must not take the default");
+}
+
+#[test]
+fn test_bhv_serializationobject_029_building_a_model_never_validates_its_values() {
+    let order = Order {
+        quantity: Some(-1),
+        ..Order::default()
+    };
+    let json = serde_json::to_string(&order).expect("an out-of-range value still serializes");
+    assert!(json.contains("\"quantity\":-1"), "got: {json}");
+}
+
+#[test]
+fn test_bhv_serializationobject_047_declared_keys_decode() {
+    let order: Order =
+        serde_json::from_str(r#"{"id":10,"petId":198772,"quantity":2}"#).expect("failed to decode Order");
+    assert_eq!(Some(10), order.id);
+    assert_eq!(Some(2), order.quantity);
+}
+
+#[test]
+fn test_bhv_serializationobject_048_decode_rejects_a_malformed_uuid() {
+    assert!(
+        serde_json::from_str::<Order>(r#"{"trackingId":"not-a-uuid"}"#).is_err(),
+        "a malformed uuid must be rejected on decode"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_052_strict_model_accepts_every_declared_key() {
+    let tag: StrictTag =
+        serde_json::from_str(r#"{"id":1,"name":"x"}"#).expect("the declared keys are accepted");
+    assert_eq!(Some(1), tag.id);
+    assert!(tag.name.is_some());
 }

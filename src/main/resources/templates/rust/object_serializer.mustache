@@ -1088,7 +1088,7 @@ mod tests {
      * range or with a fractional part as a SerializationError, instead of
      * truncating it, and an int64 keeps every digit of a value above 2^53. */
     #[test]
-    fn test_bhv_serializationobject_032_integer_widths_are_enforced_on_deserialize() {
+    fn test_bhv_serializationobject_030_integer_widths_are_enforced_on_deserialize() {
         let overflow: Result<Option<i32>, SerializationError> =
             object_serializer::deserialize(b"3000000000");
         assert!(overflow.is_err(), "3000000000 does not fit an int32");
@@ -1440,7 +1440,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_form_value_int() {
+    fn test_bhv_serializationobject_037_to_form_value_int() {
         let result = object_serializer::to_form_value(&123.to_string());
         assert_eq!(result, "123");
     }
@@ -1461,6 +1461,26 @@ mod tests {
     fn test_bhv_serializationobject_165_to_form_value_none() {
         let result = object_serializer::to_form_value(&Option::<String>::None);
         assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_033_to_header_value_bool_false() {
+        assert_eq!(object_serializer::to_header_value(&false), "false");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_034_to_cookie_value_bool_false() {
+        assert_eq!(object_serializer::to_cookie_value(&false), "false");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_041_to_header_value_bool_true() {
+        assert_eq!(object_serializer::to_header_value(&true), "true");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_043_to_cookie_value_bool_true() {
+        assert_eq!(object_serializer::to_cookie_value(&true), "true");
     }
 
     #[test]
@@ -1515,7 +1535,7 @@ mod tests {
     }
 
     #[test]
-    fn test_stringify_int() {
+    fn test_bhv_serializationobject_039_stringify_int() {
         let result = object_serializer::stringify(&42.to_string());
         assert_eq!(result, "42");
     }
@@ -1934,6 +1954,16 @@ mod tests {
         .expect("a uri-reference keeps relative references")
         .expect("expected Some");
         assert_eq!(reference.thumbnail_ref.as_deref(), Some("/assets/thumb-1.png"));
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_021_absolute_uri_is_accepted_verbatim() {
+        let uri = "https://example.com/a/b?x=1&y=two#frag";
+        let payload = String::from(r#"{"name":"n","photoUrls":[],"homepageUrl":""#) + uri + r#""}"#;
+        let pet: Pet = object_serializer::deserialize(payload.as_bytes())
+            .expect("an absolute URI must decode")
+            .expect("expected Some");
+        assert_eq!(pet.homepage_url.as_deref(), Some(uri));
     }
 
     #[test]

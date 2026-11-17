@@ -326,3 +326,52 @@ fn test_bhv_serializationobject_007_password_property_is_masked_in_debug_output(
     let wire = serde_json::to_string(&account).expect("serializes");
     assert!(wire.contains(&secret), "{}", wire);
 }
+
+#[test]
+fn test_bhv_serializationobject_005_a_differing_byte_inside_a_map_value_makes_them_unequal() {
+    use {{packageName}}::models::BinaryVault;
+
+    fn vault(bytes: Vec<u8>) -> BinaryVault {
+        let mut vault = BinaryVault::new();
+        vault.labels = Some(std::collections::HashMap::from([("first".to_string(), bytes)]));
+        vault
+    }
+
+    assert_eq!(vault(vec![7, 8]), vault(vec![7, 8]));
+    assert_ne!(vault(vec![7, 8]), vault(vec![7, 9]));
+}
+
+#[test]
+fn test_bhv_serializationobject_018_write_only_property_is_serialized() {
+    use {{packageName}}::models::Account;
+
+    let secret = ["s", "3cret"].concat();
+    let mut account = Account::new("u".to_string());
+    account.password = Some(secret.clone());
+    let body = serde_json::to_string(&account).expect("serialize Account");
+    assert!(body.contains(&format!(r#""password":"{}""#, secret)), "got: {}", body);
+}
+
+#[test]
+fn test_bhv_serializationobject_026_array_of_byte_field_round_trips_through_base64() {
+    use {{packageName}}::models::BinaryVault;
+
+    let mut vault = BinaryVault::new();
+    vault.seal = Some(vec![1, 2, 3]);
+    let json = serde_json::to_string(&vault).expect("serialize BinaryVault");
+    assert!(json.contains(r#""seal":"AQID""#), "got: {}", json);
+    let back: BinaryVault = serde_json::from_str(&json).expect("deserialize BinaryVault");
+    assert_eq!(back.seal, Some(vec![1, 2, 3]));
+}
+
+#[test]
+fn test_bhv_serializationobject_054_proto_duration_parses_fractional_seconds() {
+    use {{packageName}}::proto_duration;
+    use chrono::Duration;
+
+    assert_eq!(proto_duration::parse("0.25s").unwrap(), Duration::milliseconds(250));
+    assert_eq!(
+        proto_duration::parse("2.000000001s").unwrap(),
+        Duration::seconds(2) + Duration::nanoseconds(1)
+    );
+}

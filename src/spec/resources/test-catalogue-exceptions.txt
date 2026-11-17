@@ -32,3 +32,5 @@ go | authintegration002 | go has no per-call authenticator: no Options struct ca
 go | authintegration013 | go has no per-call auth override: a call cannot replace the scheme's credential, the spec and the Credentials struct decide it
 ||||||| 4610d9ef3
 go | options027 | Go has no constructor that takes maxRetries: TransportOptions is built only through NewTransportOptionsBuilder, so there is no second construction path to test; the builder path and the MaxRetries(0) disabling are bhv options 026
+||||||| 4610d9ef3
+rust | serializationobject009 | Rust == takes two values of one type, so a list of byte arrays cannot be compared with a map of them: the compiler rejects the comparison, a stronger guarantee than a runtime inequality

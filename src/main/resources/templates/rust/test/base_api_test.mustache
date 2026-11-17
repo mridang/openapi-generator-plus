@@ -622,7 +622,7 @@ async fn test_set_pet_preferences_sends_form_content_type() {
 // for each position: query (`bornAfter`), header (`Report-Date`) and
 // form-urlencoded body (`renewalDate`). None may carry a time component.
 #[tokio::test]
-async fn test_date_query_param_serialises_date_only() {
+async fn test_bhv_serializationobject_044_date_query_param_serialises_date_only() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
