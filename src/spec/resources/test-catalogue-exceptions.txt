@@ -9,3 +9,5 @@ swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentTy
 swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
 swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
 elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in
+csharp | serializationobject015 | S6 leaves uniqueItems order to the natural collection, and a HashSet promises no insertion order
+csharp | operations111 | the uuid path parameter is typed System.Guid, so a malformed value cannot be built and the SDK never receives a string to reject

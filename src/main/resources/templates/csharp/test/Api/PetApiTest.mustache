@@ -997,7 +997,7 @@ public class PetApiTest
     [Theory]
     [InlineData("6869", "aGk%3D", "aGk=")]
     [InlineData("FBFF", "%2B%2F8%3D", "+/8=")]
-    public async Task ByteFormatParamsAreSentAsStandardBase64(string hex, string query, string header)
+    public async Task BhvOperations059ByteFormatParamsAreSentAsStandardBase64(string hex, string query, string header)
     {
         byte[] bytes = Convert.FromHexString(hex);
         var client = new DateWireCapturingApiClient { ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}" };
@@ -1052,6 +1052,45 @@ public class PetApiTest
             .BaseUrl("http://localhost")
             .Build();
         return new PetApi(new FakeApiClient(status, contentType, body), config);
+    }
+
+    [Fact]
+    public async Task BhvOperations018WithHttpInfoReturnsStatusDataHeadersAndRawBody()
+    {
+        var api = NewPetApiForMock(200, "application/json", "{\"name\":\"x\",\"photoUrls\":[]}");
+
+        var result = await api.GetPetByIdWithHttpInfoAsync(1L);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Contains("\"name\"", result.RawBody, StringComparison.Ordinal);
+        Assert.Equal("application/json", result.Headers["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task BhvOperations021DigitLeadingQueryParamKeepsItsWireName()
+    {
+        var client = new QueryCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "available", N2ndPage = 3 });
+
+        Assert.Contains("2ndPage=3", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations094UploadPetDocumentDefaultSelectionStillSendsMultipart()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+
+        await api.UploadPetDocumentAsync(1L, new UploadPetDocumentOptions { File = fileData, DocumentType = "vaccination" });
+
+        Assert.StartsWith("multipart/form-data", client.CapturedHeaders["Content-Type"], StringComparison.Ordinal);
     }
 
     [Fact]

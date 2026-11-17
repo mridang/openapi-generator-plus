@@ -168,6 +168,89 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvTransport008GeneratesADifferentRequestIdPerRequest()
+    {
+        var requestIds = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            requestIds.Add(req.Headers.GetValues("X-Request-ID").Single());
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
+
+        Assert.Equal(2, requestIds.Count);
+        Assert.NotEqual(requestIds[0], requestIds[1]);
+    }
+
+    [Fact]
+    public async Task BhvTransport011IncludesTransportDefaultHeaders()
+    {
+        List<string>? customHeaders = null;
+        var handler = new CapturingHandler(req =>
+        {
+            customHeaders = req.Headers.TryGetValues("X-Custom", out var values) ? values.ToList() : null;
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().DefaultHeader("X-Custom", "custom-value").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
+
+        Assert.Equal(new List<string> { "custom-value" }, customHeaders);
+    }
+
+    [Fact]
+    public async Task BhvTransport014InjectsARequestIdThatIsAUuid()
+    {
+        string? requestId = null;
+        var handler = new CapturingHandler(req =>
+        {
+            requestId = req.Headers.GetValues("X-Request-ID").Single();
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
+
+        Assert.True(Guid.TryParse(requestId, out _));
+    }
+
+    [Fact]
+    public async Task BhvTransport052EmptyUserAgentOptionSendsAnEmptyUserAgentHeader()
+    {
+        List<string>? userAgents = null;
+        var handler = new CapturingHandler(req =>
+        {
+            userAgents = req.Headers.TryGetValues("User-Agent", out var values) ? values.ToList() : null;
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().UserAgent(string.Empty).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
+
+        Assert.Equal(new List<string> { string.Empty }, userAgents);
+    }
+
+    [Fact]
+    public void BhvTransport046ProxyAuthorizationHeaderIsNullWhenNoProxyIsConfigured()
+    {
+        var client = new DefaultApiClient();
+
+        Assert.Null(client.ProxyAuthorizationHeader);
+    }
+
+    [Fact]
     public async Task BhvTransport041InjectsCustomUserAgent()
     {
         string? capturedUserAgent = null;
@@ -335,7 +418,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallerHeadersWinRegardlessOfCasing()
+    public async Task BhvTransport003CallerHeadersWinRegardlessOfCasing()
     {
         List<string>? userAgents = null;
         List<string>? requestIds = null;
