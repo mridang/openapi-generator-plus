@@ -104,6 +104,53 @@ fn test_bhv_serializationobject_020_metadata_additional_properties_round_trip_pr
     }
 }
 
+fn test_bhv_models_001_metadata_additional_properties_round_trip_preserves_free_form_json() {
+    /* FIX 3 (no serde_json in public fields): `additional_properties` is a
+     * HashMap<String, JsonValue> where JsonValue is the SDK-owned wrapper.
+     * Free-form JSON in unknown fields must round-trip losslessly. */
+    let json_data =
+        r#"{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42,"nested":{"a":[1,2,3]}}"#;
+
+    let metadata: Metadata =
+        serde_json::from_str(json_data).expect("failed to deserialize Metadata");
+
+    // The free-form values landed in additional_properties via the public
+    // JsonValue wrapper (no serde_json::Value in the field signature).
+    let custom = metadata
+        .additional_properties
+        .get("customField")
+        .expect("expected customField in additional_properties");
+    assert_eq!(custom.as_str(), Some("customValue"));
+    let count = metadata
+        .additional_properties
+        .get("count")
+        .expect("expected count in additional_properties");
+    assert_eq!(count.as_i64(), Some(42));
+    let nested = metadata
+        .additional_properties
+        .get("nested")
+        .expect("expected nested in additional_properties");
+    assert!(nested.is_object(), "expected nested to be a JSON object");
+
+    // Re-serialize and confirm the free-form JSON fields are preserved
+    // verbatim. (The typed `createdAt` field is excluded because it is
+    // normalised to the canonical date-time wire form, which is unrelated to
+    // the free-form JsonValue round-trip under test.)
+    let reserialized: serde_json::Value =
+        serde_json::from_str(&serde_json::to_string(&metadata).expect("failed to serialize"))
+            .expect("re-parsed JSON");
+    let original: serde_json::Value =
+        serde_json::from_str(json_data).expect("parsed original JSON");
+    for key in ["customField", "count", "nested"] {
+        assert_eq!(
+            reserialized.get(key),
+            original.get(key),
+            "free-form field {} must round-trip unchanged",
+            key
+        );
+    }
+}
+
 /// Equality covers the free-form additional properties: two models that differ
 /// only in an extra property are not equal.
 #[test]
@@ -365,4 +412,15 @@ fn test_bhv_models_010_metadata_declared_property_wins_over_a_colliding_addition
     let data = serde_json::to_string(&metadata).expect("failed to serialize Metadata");
 
     assert_eq!(data, r#"{"createdAt":"2024-01-15T10:30:00.000+00:00"}"#);
+}
+
+/// The crate header (the `//!` lines of lib.rs) prints the info description with
+/// its quotes as written, never with a backslash before each one.
+#[test]
+fn test_bhv_models_006_file_header_prints_the_info_description_without_escaped_quotes() {
+    let lib = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs"))
+        .expect("failed to read src/lib.rs");
+    let header: Vec<&str> = lib.lines().filter(|line| line.starts_with("//!")).collect();
+    assert!(header.iter().any(|line| line.contains("\"quoted\" text")), "{:?}", header);
+    assert!(!header.iter().any(|line| line.contains("\\\"")), "{:?}", header);
 }

@@ -124,7 +124,7 @@ fn test_bhv_options_021_transport_options_follow_redirects_defaults_to_true_with
 /* D79: the proxy messages are the canonical ones, and the userinfo of the
  * rejected URL is shown as `***@`, so a proxy credential never reaches a log. */
 #[test]
-fn test_bhv_options_024_transport_options_invalid_proxy_url_throws_exception() {
+fn test_bhv_options_024_bhv_options_008_bhv_options_011_bhv_options_013_bhv_options_031_transport_options_invalid_proxy_url_throws_exception() {
     for (proxy, message) in [
         ("not-a-valid-url", "Invalid proxy URL: not-a-valid-url"),
         (
@@ -164,7 +164,7 @@ fn test_bhv_options_024_transport_options_invalid_proxy_url_throws_exception() {
 /// F1065: an IPv6 literal host is a valid proxy host (brackets kept, userinfo
 /// allowed); an unterminated literal is rejected with the userinfo masked.
 #[test]
-fn test_bhv_options_009_transport_options_proxy_with_an_ipv6_literal_host() {
+fn test_bhv_options_009_bhv_options_010_transport_options_proxy_with_an_ipv6_literal_host() {
     for proxy in ["http://[::1]:3128", "http://user@[::1]:3128", "https://[2001:db8::1]"] {
         let opts = TransportOptionsBuilder::new()
             .proxy(proxy)

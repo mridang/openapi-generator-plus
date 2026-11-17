@@ -12,3 +12,5 @@ elixir | options013 | Elixir has no option setter: TransportOptions is a keyword
 elixir | retries019 | The psr18 client is a PHP transport object with its own timeout budget; the Elixir deadline is fixed once per call and retries never extend it (bhv retries 025)
 go | lifecycle015 | Go has no keyword arguments, so one credential per security scheme is a positional constructor parameter and cannot be passed by name
 rust | authintegration011 | Rust operations take no per-call authenticator and the Options structs are plain data with no authenticator field, a shape the type system enforces at compile time, so no run-time test can observe its absence
+rust | options007 | max_retries takes a u32, so a negative count cannot be passed and the compiler rejects it before the builder runs
+rust | models009 | additional properties are a HashMap<String, JsonValue> that keeps any JSON value (models001 covers the round trip), so a string-only type is not the rust contract

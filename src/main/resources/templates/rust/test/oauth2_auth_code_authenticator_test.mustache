@@ -396,7 +396,7 @@ fn test_bhv_authoauthtwoauthcode_020_scheme_wrapper_requests_the_scopes_declared
 /// exchange did, and a rejected refresh surfaces once, after exactly one
 /// refresh request.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_authoauthtwoauthcode_026_refresh_carries_the_client_credentials_and_a_rejection_is_sent_once() {
+async fn test_bhv_authoauthtwoauthcode_026_bhv_authoauthtwoauthcode_002_refresh_carries_the_client_credentials_and_a_rejection_is_sent_once() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#, 200);
     client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
@@ -521,9 +521,67 @@ async fn test_bhv_authoauthtwoauthcode_023_authorization_code_flow_uses_pkce_s25
 
 /* Every authorization URL starts a new PKCE pair. */
 #[tokio::test]
-async fn test_bhv_authoauthtwoauthcode_008_each_authorization_url_has_its_own_code_challenge() {
+async fn test_bhv_authoauthtwoauthcode_008_bhv_authoauthtwoauthcode_009_each_authorization_url_has_its_own_code_challenge() {
     let auth = create_authenticator();
     let first = auth.build_authorization_url("");
     let second = auth.build_authorization_url("");
     assert_ne!(first, second);
+}
+
+/* A code exchange that never built an authorization URL has no PKCE verifier to send. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwoauthcode_001_exchange_without_an_authorization_url_sends_no_code_verifier() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("auth-code-xyz").await.expect("the exchange succeeds");
+
+    let body = client.last_body().expect("should have body");
+    assert!(!body.contains("code_verifier"), "{}", body);
+}
+
+/// An empty state is left out of the authorization URL rather than sent blank.
+#[tokio::test]
+async fn test_bhv_authoauthtwoauthcode_018_empty_state_is_omitted_from_the_authorization_url() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    let query = url.split_once('?').expect("a query string").1;
+    assert!(!query.split('&').any(|pair| pair.starts_with("state=")), "{}", url);
+}
+
+/// Invalidating the access token drops it, and the next request renews through
+/// the refresh token that is kept.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwoauthcode_016_invalidate_access_token_keeps_the_refresh_token() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#, 200);
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
+
+    assert!(auth.invalidate_access_token().await);
+    let headers = auth.try_auth_headers().await.expect("the refresh succeeds");
+
+    assert_eq!(Some(&"Bearer tok2".to_string()), headers.get("Authorization"));
+    let body = client.last_body().expect("should have body");
+    assert!(body.starts_with("grant_type=refresh_token&refresh_token=ref1&"), "{}", body);
+}
+
+/// The code exchange keeps ~ literal and percent-encodes * ! ' ( ) in the code.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwoauthcode_017_exchange_body_keeps_the_tilde_and_encodes_reserved_punctuation() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("a~b*!'()").await.expect("should succeed");
+
+    let body = client.last_body().expect("should have body");
+    assert!(body.split('&').any(|pair| pair == "code=a~b%2A%21%27%28%29"), "{}", body);
 }
