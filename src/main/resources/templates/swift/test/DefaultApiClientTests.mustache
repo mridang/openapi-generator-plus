@@ -79,7 +79,7 @@ import FoundationNetworking
         ("http://user:pass@127.0.0.1:3128", "user", "pass"),
         ("http://us%40er:p%3Ass@127.0.0.1:3128", "us@er", "p:ss"),
     ])
-    func testProxyCredentialsGoToTheProxyOnly(proxy: String, user: String, password: String) async throws {
+    func testBhvTransport020ProxyCredentialsGoToTheProxyOnly(proxy: String, user: String, password: String) async throws {
         let transport = try TransportOptionsBuilder().proxy(proxy).build()
         var capturedRequest: URLRequest?
         let client = makeClient(transport: transport) { req in
@@ -473,7 +473,7 @@ import FoundationNetworking
 
     /* A 302 to another origin must not carry any credential header to the new
      * host, while ordinary headers still travel with the request. */
-    @Test func testCrossOriginRedirectDropsCredentialHeaders() async throws {
+    @Test func testBhvRedirects012CrossOriginRedirectStripsSensitiveHeaders() async throws {
         let followUp = try await headersOnSecondHop(redirectingTo: "https://other.example.org/landing")
         for name in DefaultApiClientStubTests.credentialHeaders.keys {
             #expect(
@@ -493,7 +493,7 @@ import FoundationNetworking
     /* The same origin keeps its credentials, whether the Location is relative
      * or spells out the scheme's default port. */
     @Test(arguments: ["/landing", "https://example.com/landing", "https://example.com:443/landing"])
-    func testSameOriginRedirectKeepsCredentialHeaders(location: String) async throws {
+    func testBhvRedirects013SameOriginRedirectKeepsAuthorizationAndCookie(location: String) async throws {
         let followUp = try await headersOnSecondHop(redirectingTo: location)
         for (name, value) in DefaultApiClientStubTests.credentialHeaders {
             #expect(followUp[name] == value, "\(name) must survive a same-origin redirect to \(location)")
@@ -503,10 +503,49 @@ import FoundationNetworking
     /* A 3xx whose Location is absent or cannot be parsed is the response, not
      * an exception: there is nowhere to follow it to. */
     @Test(arguments: [nil, "http://[bad"] as [String?])
-    func testRedirectWithAbsentOrUnparseableLocationIsReturnedAsThe302(location: String?) async throws {
+    func testBhvRedirects010RedirectWithAbsentOrUnparseableLocationIsReturnedAsThe302(location: String?) async throws {
         let transport = try TransportOptionsBuilder().followRedirects(true).build()
         let client = makeClient(transport: transport) { _ in
             (Data(), 302, location.map { ["Location": $0] } ?? [:])
+        }
+        let resp = try await client.sendRequest(
+            method: "GET", url: "https://example.com/start", headers: [:], body: nil)
+        #expect(resp.statusCode == 302)
+    }
+
+    /* The spec-declared API key header is dropped on a cross-origin hop, the same as Authorization. */
+    @Test func testBhvRedirects011ApiKeyHeaderIsStrippedOnACrossOriginRedirect() async throws {
+        let followUp = try await headersOnSecondHop(redirectingTo: "https://other.example.org/landing")
+        #expect(followUp["X-API-Key"] == nil, "the API key header must not reach a different origin")
+    }
+
+    /* A default header that carries a credential is kept on a same-origin redirect. */
+    @Test func testBhvRedirects024SameOriginRedirectKeepsSensitiveDefaultHeaders() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true)
+            .defaultHeader(name: "X-Tenant-Token", value: "tenant-secret").build()
+        let hops = HopCounter()
+        var followUp: [String: String]?
+        let client = makeClient(transport: transport) { req in
+            if hops.increment() == 1 {
+                return (Data(), 302, ["Location": "/landing"])
+            }
+            followUp = req.allHTTPHeaderFields ?? [:]
+            return (self.jsonBody(), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await client.sendRequest(
+            method: "GET", url: "https://example.com/start", headers: [:], body: nil)
+        #expect(followUp?["X-Tenant-Token"] == "tenant-secret")
+    }
+
+    /* A final 3xx without a Location, reached when the redirect budget is used up, is returned. */
+    @Test func testBhvRedirects023ReturnsTheLastRedirectWithoutLocationWhenTheBudgetIsUsedUp() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(1).build()
+        let hops = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            if hops.increment() == 1 {
+                return (Data(), 302, ["Location": "/landing"])
+            }
+            return (Data(), 302, [:])
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com/start", headers: [:], body: nil)
@@ -544,7 +583,7 @@ import FoundationNetworking
     // redirect-exhaustion-silent: exceeding maxRedirects must throw a typed
     // ApiError ("too many redirects") rather than silently returning the last
     // 3xx response.
-    @Test func testRedirectExhaustionThrowsApiError() async throws {
+    @Test func testBhvRedirects018RaisesApiErrorWhenTheRedirectBudgetIsExhausted() async throws {
         let transport = try TransportOptionsBuilder()
             .followRedirects(true)
             .maxRedirects(2)
@@ -570,7 +609,7 @@ import FoundationNetworking
     // redirect-scheme-refusal-silent: a Location pointing at a non-HTTP(S)
     // scheme (file:, javascript:, data:) must throw a typed ApiError rather
     // than silently returning the 3xx.
-    @Test func testNonHttpRedirectSchemeThrowsApiError() async throws {
+    @Test func testBhvRedirects020RedirectToNonHttpSchemeThrowsApiError() async throws {
         let transport = try TransportOptionsBuilder().followRedirects(true).build()
         RedirectStubURLProtocol.configure { _ in
             return .redirect(status: 302, location: "file:///etc/passwd")
@@ -786,7 +825,7 @@ import FoundationNetworking
 
     /* A supplied session receives the request, with the SDK's own user agent
        and timeout applied on top. */
-    @Test func testSuppliedSessionReceivesRequestWithSdkDefaults() async throws {
+    @Test func testBhvTransport040InjectedHttpClientReceivesTheRequestWithSdkDefaultsApplied() async throws {
         let seen = LockedRequests()
         let session = StubURLProtocol.session { req in
             seen.append(req)
@@ -1174,7 +1213,7 @@ private final class RedirectStubURLProtocol: URLProtocol {
 
     /* The chain /test/redirect/chain/1 takes three hops: a limit of one is
        exhausted and throws, a limit of five completes. */
-    @Test func testRespectsMaxRedirectsLimit() async throws {
+    @Test func testBhvRedirects026ThrowsApiExceptionWhenMaxRedirectsIsExceeded() async throws {
         let tight = try TransportOptionsBuilder().followRedirects(true).maxRedirects(1).build()
         let tightClient = try DefaultApiClient(transportOptions: tight)
         let error = await #expect(throws: ApiError.self) {
@@ -1241,7 +1280,42 @@ private final class RedirectStubURLProtocol: URLProtocol {
         #expect(reason.contains("closed"))
     }
 
-    @Test func testDecompressesGzipResponse() async throws {
+    @Test func testBhvRedirects002ARedirectChainInsideTheBudgetCompletes() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let client = try DefaultApiClient(transportOptions: transport)
+        let response = try await client.sendRequest(
+            method: "GET", url: chasmHttpUrl + "/test/redirect/chain/1", headers: [:], body: nil)
+        #expect(response.statusCode == 200)
+    }
+
+    /* With verification on, the request to the bare loopback address is held to the certificate's
+       names and the platform trust store, not accepted on the strength of the connection alone. */
+    @Test func testBhvTransport025VerifySslRejectsAnAddressTheCertificateDoesNotName() async throws {
+        var components = try #require(URLComponents(string: chasmHttpsUrl))
+        components.host = "127.0.0.1"
+        let address = try #require(components.string)
+        let client = try DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().verifySsl(true).build())
+        let error = await #expect(throws: NetworkError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: address + "/test/echo", headers: [:], body: nil)
+        }
+        #expect(error?.statusCode == 0)
+    }
+
+    /* Nothing listens on port 1, so the connection is refused before any response. */
+    @Test func testBhvTransport032ConnectionRefusedRaisesNetworkError() async throws {
+        let transport = try TransportOptionsBuilder().maxRetries(0).build()
+        let client = try DefaultApiClient(transportOptions: transport)
+        let error = await #expect(throws: NetworkError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "http://127.0.0.1:1/refused", headers: [:], body: nil)
+        }
+        #expect(error?.statusCode == 0)
+        #expect(!(error is NetworkTimeoutError))
+    }
+
+    @Test func testBhvTransport034DecompressesAValidGzipEncodedResponseBody() async throws {
         let client = DefaultApiClient()
         let response = try await client.sendRequest(
             method: "GET", url: chasmHttpUrl + "/test/compressed/gzip",
