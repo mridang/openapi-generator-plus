@@ -162,6 +162,18 @@ describe("ApiKeyAuthenticator", () => {
     }
   });
 
+  it("bhv authapikey 018 a CR in a header key throws at construction", () => {
+    expect(
+      () =>
+        new ApiKeyAuthenticator(
+          "https://api.example.com",
+          "X-Api-Key",
+          "abc\rdef",
+          ApiKeyLocation.HEADER,
+        ),
+    ).toThrow(TypeError);
+  });
+
   it("bhv authapikey 004 an empty cookie key throws at construction", () => {
     expect(
       () =>
@@ -231,6 +243,32 @@ describe("ApiKeyAuthenticator", () => {
     expect(auth.getQueryParams()).toEqual({ api_key: "abc123" });
     expect(auth.getAuthHeaders()).toEqual({});
     expect(auth.getCookieParams()).toEqual({});
+  });
+
+  it("bhv authapikey 019 every API-key wrapper rejects an empty key at construction", () => {
+    for (const Wrapper of [
+      ApiKeyHeaderAuthenticator,
+      InternalApiKeyAuthenticator,
+      ApiKeyQueryAuthenticator,
+      SessionCookieAuthenticator,
+    ]) {
+      expect(() => new Wrapper("https://api.example.com", "")).toThrow(
+        TypeError,
+      );
+    }
+  });
+
+  it("bhv authapikey 020 every API-key wrapper redacts its key in the inspected form", () => {
+    for (const Wrapper of [
+      ApiKeyHeaderAuthenticator,
+      InternalApiKeyAuthenticator,
+      ApiKeyQueryAuthenticator,
+      SessionCookieAuthenticator,
+    ]) {
+      const auth = new Wrapper("https://api.example.com", "topsecret");
+      expect(util.inspect(auth)).not.toContain("topsecret");
+      expect(util.inspect(auth)).toContain("***");
+    }
   });
 
   it.each([

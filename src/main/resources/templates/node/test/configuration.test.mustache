@@ -170,7 +170,7 @@ describe('Configuration', () => {
     expect(first.baseUrl).toBe(second.baseUrl);
   });
 
-  test('configuration is immutable', () => {
+  test('bhv config 017 configuration is immutable', () => {
     const config = Configuration.builder()
       .defaultHeader('X-Key', 'value')
       .build();

@@ -39,6 +39,7 @@ import {
 } from "../../src/errors/index.js";
 import { uuid, type UUID } from "../../src/brand.js";
 import { Temporal } from "temporal-polyfill";
+import type { ApiClient } from "../../src/api-client.js";
 
 const baseUrl = process.env.API_BASE_URL || "http://localhost:4010";
 const config = Configuration.builder()
@@ -80,6 +81,24 @@ describe("StoreApi", () => {
 
     expect(result).toBeDefined();
     expect(result.id).toBeDefined();
+  });
+
+  test("bhv operations 126 placeOrder without an argument sends no body", async () => {
+    let sentBody: unknown = "unset";
+    const client = {
+      sendRequest: async (...args: unknown[]) => {
+        sentBody = args[3];
+        return {
+          statusCode: 200,
+          body: '{"id":1}',
+          headers: { "content-type": "application/json" },
+        };
+      },
+    } as unknown as ApiClient;
+
+    await new StoreApi(client, config).placeOrder();
+
+    expect(sentBody ?? null).toBeNull();
   });
 
   test("bhv operations 103 getInventoryWithHttpInfo", async () => {

@@ -455,7 +455,7 @@ describe("ObjectSerializer", () => {
       expect(parsed.name).toBe("Dogs");
     });
 
-    test("handles null", () => {
+    test("bhv serializationobject 183 handles null", () => {
       const result = ObjectSerializer.serialize(null);
       expect(result).toBe("null");
     });
@@ -592,6 +592,13 @@ describe("ObjectSerializer", () => {
     // being stored verbatim on the typed field (type confusion).
     const json = { name: "Fido", photoUrls: [], status: "banana" };
     expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
+  });
+
+  test("bhv serializationobject 182 an unknown enum wire value on deserialize throws a SerializationError", () => {
+    const json = { name: "Fido", photoUrls: [], status: "banana" };
+    expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+      SerializationError,
+    );
   });
 
   test("bhv serializationobject 061 deserializing a complete object still succeeds (no regression)", () => {

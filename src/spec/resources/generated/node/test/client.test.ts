@@ -109,7 +109,7 @@ describe("Client", () => {
       );
     });
 
-    test("an empty variable counts as unset", () => {
+    test("bhv authbasic 012 an empty variable counts as unset", () => {
       process.env[variable] = "";
 
       expect(() => Client.withToken("/api/v3")).toThrow(TypeError);
@@ -936,7 +936,7 @@ describe("generated documentation", () => {
     expect(skills).toContain("TransportOptions.builder().fetch(stub).build()");
   });
 
-  test("README names the builder setter that rejects a SOCKS proxy", () => {
+  test("bhv options 044 README names the builder setter that rejects a SOCKS proxy", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",

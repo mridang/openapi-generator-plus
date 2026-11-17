@@ -1278,6 +1278,15 @@ describe("ValueSerializer", () => {
       );
     });
 
+    test("bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal", () => {
+      expect(ValueSerializer.encodeQueryComponent("AZaz09-._~")).toBe(
+        "AZaz09-._~",
+      );
+      expect(ValueSerializer.encodeQueryComponent("!'()*,")).toBe(
+        "%21%27%28%29%2A%2C",
+      );
+    });
+
     test("bhv serializationparam 003 percent-encodes a space and a reserved character", () => {
       expect(ValueSerializer.encodeQueryComponent("a b&c=d")).toBe(
         "a%20b%26c%3Dd",
