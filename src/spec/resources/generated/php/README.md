@@ -52,7 +52,7 @@ $result = $client->pet->addPet($body);
 $client->close();
 ```
 
-Close the client to release its connections; a closed client throws `\LogicException`. Errors derive from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+Closing the client is graceful: a request already sent finishes, every later request fails with a `\LogicException` (`client closed`), and only the transport the SDK built is released, never a client you supplied. Calling `close()` twice is harmless. Errors derive from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
 
 ### Raw responses
 
@@ -89,6 +89,8 @@ $api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tena
 `timeout` and `maxRetries` need the bundled transport or a subclass of `AbstractApiClient`; a transport you wrote yourself against `ApiClient` sends the headers and ignores the other two.
 
 ### Credentials
+
+The client takes one optional credential per security scheme, named after the scheme (`new Client(petStoreBasic: $credential)`): `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Each operation uses the scheme its security requirement names (the first alternative whose schemes are all configured; the schemes of one alternative are sent together) and sends no credential of another scheme. An operation has no per-call authenticator. The authenticator given first (`Client::withToken()`) is used for a secured operation only when no scheme credential is configured.
 
 The authenticator of a basic, bearer or API key security scheme takes its credential as an argument, or reads it from an environment variable when you pass `null`. Every variable is named `SWAGGER_PETSTORE_OPEN_API_3_0_` followed by the field (`TOKEN`, `USERNAME`, `PASSWORD`, `API_KEY`); when two schemes have a field of the same name, the scheme id sits between the two so that no scheme reads another's secret. Set the prefix with the `envVarPrefix` generator option.
 

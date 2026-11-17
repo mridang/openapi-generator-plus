@@ -51,6 +51,9 @@ class Client
     /** @var ApiClient The transport every API group sends through. */
     private readonly ApiClient $sdkTransport;
 
+    /** @var ClientLifecycle Shared with every API group; closing the client closes it. */
+    private readonly ClientLifecycle $lifecycle;
+
     /** @var bool Whether the SDK built the transport itself and so releases it on close(). */
     private readonly bool $sdkOwnsTransport;
 
@@ -67,7 +70,9 @@ class Client
      * shared {@see ApiClient} is injected so that token exchange and
      * discovery requests use the same proxy, TLS, and timeout settings.
      *
-     * @param Authenticator       $authenticator    Provides host URL and auth headers.
+     * @param Authenticator|null  $authenticator    Provides the host URL and the credential of every secured
+     *                                              operation when no per-scheme credential is given. Null is
+     *                                              allowed only when at least one per-scheme credential is.
      * @param TransportOptions|null $transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
      * @param ApiClient|null      $apiClient        Custom transport. Defaults to {@see DefaultApiClient}
      *                                              (Symfony HTTP client); supply your own — e.g. a
@@ -75,36 +80,154 @@ class Client
      *                                              PSR-18 client — to drive the SDK with a different stack.
      *                                              When provided, $transportOptions' transport-level settings
      *                                              (TLS/proxy/timeout) are owned by your client, not applied here.
+     * @param Authenticator|null  $petStoreBasic        The credential of the `petStoreBasic` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $adminBasic        The credential of the `adminBasic` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $petStoreBearer        The credential of the `petStoreBearer` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $serviceToken        The credential of the `serviceToken` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $apiKeyHeader        The credential of the `apiKeyHeader` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $internalApiKey        The credential of the `internalApiKey` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $apiKeyQuery        The credential of the `apiKeyQuery` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $sessionCookie        The credential of the `sessionCookie` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $machineAuth        The credential of the `machineAuth` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $legacyAuth        The credential of the `legacyAuth` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $userAuth        The credential of the `userAuth` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $browserAuth        The credential of the `browserAuth` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $ssoAuth        The credential of the `ssoAuth` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+     * @throws \InvalidArgumentException when neither an authenticator nor a scheme credential is given
      */
     public function __construct(
-        Authenticator $authenticator,
+        ?Authenticator $authenticator = null,
         ?TransportOptions $transportOptions = null,
-        ?ApiClient $apiClient = null
+        ?ApiClient $apiClient = null,
+        ?Authenticator $petStoreBasic = null,
+        ?Authenticator $adminBasic = null,
+        ?Authenticator $petStoreBearer = null,
+        ?Authenticator $serviceToken = null,
+        ?Authenticator $apiKeyHeader = null,
+        ?Authenticator $internalApiKey = null,
+        ?Authenticator $apiKeyQuery = null,
+        ?Authenticator $sessionCookie = null,
+        ?Authenticator $machineAuth = null,
+        ?Authenticator $legacyAuth = null,
+        ?Authenticator $userAuth = null,
+        ?Authenticator $browserAuth = null,
+        ?Authenticator $ssoAuth = null
     ) {
+        $schemeAuthenticators = [];
+        if ($petStoreBasic instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['petStoreBasic'] = $petStoreBasic;
+        }
+        if ($adminBasic instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['adminBasic'] = $adminBasic;
+        }
+        if ($petStoreBearer instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['petStoreBearer'] = $petStoreBearer;
+        }
+        if ($serviceToken instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['serviceToken'] = $serviceToken;
+        }
+        if ($apiKeyHeader instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['apiKeyHeader'] = $apiKeyHeader;
+        }
+        if ($internalApiKey instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['internalApiKey'] = $internalApiKey;
+        }
+        if ($apiKeyQuery instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['apiKeyQuery'] = $apiKeyQuery;
+        }
+        if ($sessionCookie instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['sessionCookie'] = $sessionCookie;
+        }
+        if ($machineAuth instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['machineAuth'] = $machineAuth;
+        }
+        if ($legacyAuth instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['legacyAuth'] = $legacyAuth;
+        }
+        if ($userAuth instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['userAuth'] = $userAuth;
+        }
+        if ($browserAuth instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['browserAuth'] = $browserAuth;
+        }
+        if ($ssoAuth instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['ssoAuth'] = $ssoAuth;
+        }
+        $hostAuthenticator = $authenticator ?? (array_values($schemeAuthenticators)[0] ?? null);
         $transportOptions ??= TransportOptions::builder()->build();
+        $this->lifecycle = new ClientLifecycle();
         $this->sdkOwnsTransport = !$apiClient instanceof \PetstoreClient\ApiClient;
         $apiClient ??= new DefaultApiClient($transportOptions);
         $this->sdkTransport = $apiClient;
+        if ($hostAuthenticator === null) {
+            $this->close();
+            throw new \InvalidArgumentException(
+                'A client needs an authenticator or the credential of at least one security scheme'
+            );
+        }
 
-        if ($authenticator instanceof HttpAwareAuthenticator) {
-            $authenticator->setApiClient($this->sdkTransport);
+        foreach ([$authenticator, ...array_values($schemeAuthenticators)] as $credential) {
+            if ($credential instanceof HttpAwareAuthenticator) {
+                $credential->setApiClient($this->sdkTransport);
+            }
         }
 
         $config = Configuration::builder()
-            ->baseUrl($authenticator->getHost())
+            ->baseUrl($hostAuthenticator->getHost())
             ->build();
-        $this->pet = new PetApi($this->sdkTransport, $config, $authenticator);
-        $this->store = new StoreApi($this->sdkTransport, $config, $authenticator);
+        $this->pet = new PetApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
+        $this->store = new StoreApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
     }
 
     /**
-     * Closes the client: the HTTP transport the SDK built itself is released
-     * and rejects later requests with a \LogicException. A transport supplied
-     * by the caller is never closed here; the caller owns it and it keeps
-     * working. Safe to call more than once.
+     * Closes the client gracefully: a request already sent finishes, and every
+     * later request fails with a \LogicException ("client closed"). Only the
+     * HTTP transport the SDK built itself is released; a transport supplied by
+     * the caller is never closed here, the caller owns it and it keeps working
+     * for its other users. Safe to call more than once.
      */
     public function close(): void
     {
+        $this->lifecycle->close();
         if ($this->sdkOwnsTransport) {
             $this->sdkTransport->close();
         }

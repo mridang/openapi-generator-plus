@@ -1033,7 +1033,9 @@ test('delete pet cookie param with a clean value is sent on the wire', function 
 
 test('delete pet cookie param with a character outside cookie-octet fails before sending', function (string $value): void {
     [$api, $captured] = newHeaderCapturingPetApi();
-    $captured->headers = [];
+    /** @var array<string, string> $none */
+    $none = [];
+    $captured->headers = $none;
 
     expect(fn () => $api->deletePet(1, new DeletePetOptions(apiKey: $value)))
         ->toThrow(\InvalidArgumentException::class, "Cookie value for 'api_key' contains characters forbidden by RFC 6265");
@@ -1203,7 +1205,9 @@ test('the credential of the scheme the operation requires is sent', function ():
     /* addPet accepts the apiKeyHeader scheme or the petStoreBearer scheme; only the
      * bearer credential is configured here, so it is the one that reaches the wire. */
     $captured = new \stdClass();
-    $captured->headers = [];
+    /** @var array<string, string> $none */
+    $none = [];
+    $captured->headers = $none;
     $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
         public function __construct(private readonly \stdClass $captured)
         {

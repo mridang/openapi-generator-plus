@@ -1277,7 +1277,7 @@ test('send after close throws logic exception', function (): void {
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
         ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\LogicException::class);
-            expect($e->getMessage())->toBe('ApiClient has been closed and can no longer send requests');
+            expect($e->getMessage())->toBe('client closed');
             expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
 });

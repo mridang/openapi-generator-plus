@@ -176,18 +176,23 @@ test('close on a client that built its own transport rejects later requests and 
 });
 
 /**
- * A transport that records how often it was asked to send and to close.
+ * A transport that counts how often it was asked to send and to close.
+ *
+ * @return array{0: ApiClient, 1: \stdClass}
  */
-function newRecordingTransport(): ApiClient
+function newRecordingTransport(): array
 {
-    return new class implements ApiClient {
-        public int $sent = 0;
-
-        public int $closes = 0;
+    $counts = new \stdClass();
+    $counts->sent = 0;
+    $counts->closes = 0;
+    $transport = new class($counts) implements ApiClient {
+        public function __construct(private readonly \stdClass $counts)
+        {
+        }
 
         public function close(): void
         {
-            $this->closes++;
+            $this->counts->closes++;
         }
 
         public function sendRequest(
@@ -198,15 +203,17 @@ function newRecordingTransport(): ApiClient
             bool $noRedirect = false,
             bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
-            $this->sent++;
+            $this->counts->sent++;
 
             return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
         }
     };
+
+    return [$transport, $counts];
 }
 
 test('a closed client fails new requests with one canonical error even on a supplied transport', function (): void {
-    $transport = newRecordingTransport();
+    [$transport, $counts] = newRecordingTransport();
     $client = new {{clientClassName}}($this->authenticator, null, $transport);
     $client->close();
 
@@ -222,20 +229,20 @@ test('a closed client fails new requests with one canonical error even on a supp
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
-    expect($transport->sent)->toBe(0);
+    expect($counts->sent)->toBe(0);
 });
 
 test('closing a client never closes a transport the caller supplied', function (): void {
-    $transport = newRecordingTransport();
+    [$transport, $counts] = newRecordingTransport();
     $client = new {{clientClassName}}($this->authenticator, null, $transport);
     $client->close();
     $client->close();
 
-    expect($transport->closes)->toBe(0);
+    expect($counts->closes)->toBe(0);
 });
 
 test('a client that is not closed still sends', function (): void {
-    $transport = newRecordingTransport();
+    [$transport, $counts] = newRecordingTransport();
     $client = new {{clientClassName}}($this->authenticator, null, $transport);
 
 {{#apiInfo}}
@@ -249,7 +256,7 @@ test('a client that is not closed still sends', function (): void {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
-    expect($transport->sent)->toBe(1);
+    expect($counts->sent)->toBe(1);
 });
 
 test('a client needs an authenticator or a scheme credential', function (): void {

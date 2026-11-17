@@ -181,7 +181,7 @@ abstract class AbstractApiClient implements ApiClient
          * close() is a wrong call order, so it raises \LogicException rather
          * than silently re-using a reset transport. */
         if ($this->closed) {
-            throw new \LogicException('ApiClient has been closed and can no longer send requests');
+            throw new \LogicException(ClientLifecycle::CLOSED_MESSAGE);
         }
 
         /* An SDK token request (RFC 6749 section 3.2) or OpenID Connect

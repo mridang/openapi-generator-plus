@@ -22,10 +22,12 @@ use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\HeaderSelector;
+use PetstoreClient\ClientLifecycle;
 use PetstoreClient\ObjectSerializer;
 use PetstoreClient\TraceContextUtil;
 use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\Auth\CompositeAuthenticator;
 use PetstoreClient\Auth\HttpAwareAuthenticator;
 use PetstoreClient\Auth\NoAuth;
 
@@ -47,22 +49,64 @@ class BaseApi
 
     protected readonly ?Authenticator $authenticator;
 
+    protected readonly ?ClientLifecycle $lifecycle;
+
+    /** @var array<string, Authenticator> the credential of each security scheme, by scheme id */
+    protected readonly array $schemeAuthenticators;
+
     /**
      * Create an API instance.
      *
      * @param ApiClient|null     $apiClient     API client instance
      * @param Configuration|null $config        Configuration instance
-     * @param Authenticator|null $authenticator Default authenticator for operations without explicit auth
+     * @param Authenticator|null $authenticator Default authenticator, used by a secured operation only
+     *                                          when no per-scheme credential is configured
+     * @param array<string, Authenticator> $schemeAuthenticators The credential of each security scheme,
+     *                                          by scheme id; an operation uses the scheme its
+     *                                          security requirement names
+     * @param ClientLifecycle|null $lifecycle   Shared with the client; once it is closed every call
+     *                                          fails with a \LogicException
      */
     public function __construct(
         ?ApiClient $apiClient = null,
         ?Configuration $config = null,
-        ?Authenticator $authenticator = null
+        ?Authenticator $authenticator = null,
+        array $schemeAuthenticators = [],
+        ?ClientLifecycle $lifecycle = null
     ) {
         $this->config = $config ?: Configuration::defaultConfiguration();
         $this->apiClient = $apiClient ?: new DefaultApiClient();
         $this->headerSelector = new HeaderSelector();
         $this->authenticator = $authenticator;
+        $this->schemeAuthenticators = $schemeAuthenticators;
+        $this->lifecycle = $lifecycle;
+    }
+
+    /**
+     * The credential an operation sends: the first alternative of its security requirement whose
+     * schemes all have a configured credential (several schemes of one alternative are applied
+     * together), or null when none has, so no credential of another scheme is ever sent.
+     *
+     * @param list<list<string>> $requirements the alternatives, each a list of scheme ids
+     */
+    private function schemeAuthenticatorFor(array $requirements): ?Authenticator
+    {
+        foreach ($requirements as $alternative) {
+            $chosen = [];
+            foreach ($alternative as $scheme) {
+                if (!isset($this->schemeAuthenticators[$scheme])) {
+                    continue 2;
+                }
+                $chosen[] = $this->schemeAuthenticators[$scheme];
+            }
+            if ($chosen === []) {
+                continue;
+            }
+
+            return count($chosen) === 1 ? $chosen[0] : new CompositeAuthenticator($chosen);
+        }
+
+        return null;
     }
 
     /**
@@ -111,6 +155,10 @@ class BaseApi
      *                                            A success body is decoded as the type of its
      *                                            actual status and wrapped in $returnType, the
      *                                            union. Empty for every other operation.
+     * @param list<list<string>>    $securityRequirements The operation's security requirement:
+     *                                            alternatives of scheme ids that must all be
+     *                                            configured. Read only when per-scheme credentials
+     *                                            are configured.
      *
      * @return ApiResult<mixed> Result containing deserialized data, status code, raw body, and headers
      * @throws ApiException
@@ -130,8 +178,10 @@ class BaseApi
         ?int $timeout = null,
         ?array $headers = null,
         ?int $maxRetries = null,
-        array $successTypes = []
+        array $successTypes = [],
+        array $securityRequirements = []
     ): ApiResult {
+        $this->lifecycle?->assertOpen();
         $callHeaders = $headers;
         if ($timeout !== null && $timeout <= 0) {
             throw new \InvalidArgumentException(
@@ -167,7 +217,13 @@ class BaseApi
         if ($auth === NoAuth::instance()) {
             $effectiveAuth = null;
         } else {
-            $effectiveAuth = $auth ?? $this->authenticator;
+            if ($auth instanceof \PetstoreClient\Auth\Authenticator) {
+                $effectiveAuth = $auth;
+            } elseif ($this->schemeAuthenticators !== []) {
+                $effectiveAuth = $this->schemeAuthenticatorFor($securityRequirements);
+            } else {
+                $effectiveAuth = $this->authenticator;
+            }
         }
         if ($auth instanceof \PetstoreClient\Auth\Authenticator && $effectiveAuth instanceof HttpAwareAuthenticator) {
             /* A per-call authenticator never went through the Client
