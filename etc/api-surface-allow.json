@@ -2327,46 +2327,71 @@
   },
   {
    "element": [
-    "*options.timeout",
-    "*options.headers",
-    "*options.maxretries"
-   ],
-   "aspect": "member",
-   "languages": [
-    "csharp"
-   ],
-   "reason": "F827 wave 2: every per-operation Options object gains optional timeout, headers and maxRetries; csharp lands first and the other languages add the same shape in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath"
-   ],
-   "aspect": "member",
-   "languages": [
-    "csharp"
-   ],
-   "reason": "F830 wave 2: ApiException gains requestMethod and requestPath; csharp lands first and the other languages add the same members in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "apierror.fromresponse"
-   ],
-   "aspect": "params",
-   "languages": [
-    "csharp"
-   ],
-   "reason": "F830 wave 2: fromResponse takes the request method and path as two trailing optional arguments; the other languages add the same parameters in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "bearerauthenticator.<ctor>"
+    "petstorebearerauthenticator.<ctor>",
+    "servicetokenauthenticator.<ctor>"
    ],
    "aspect": "ctor",
    "languages": [
     "csharp"
    ],
-   "reason": "F862 wave 2: a token-provider callback overload beside (host, token); csharp lands first and the other languages add the callback in their own wave branches, after which this rule is deleted"
+   "reason": "F862: a bearer per-scheme authenticator has a (host, tokenProvider) overload beside (host, token) because a rotating token cannot be set as a string; the other languages add the callback in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "adminbasicauthenticator.<ctor>",
+    "apikeyheaderauthenticator.<ctor>",
+    "apikeyqueryauthenticator.<ctor>",
+    "internalapikeyauthenticator.<ctor>",
+    "petstorebasicauthenticator.<ctor>",
+    "sessioncookieauthenticator.<ctor>",
+    "browserauthimplicitauthenticator.<ctor>",
+    "legacyauthpasswordauthenticator.<ctor>",
+    "machineauthclientcredentialsauthenticator.<ctor>",
+    "ssoauthauthenticator.<ctor>",
+    "userauthauthorizationcodeauthenticator.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F862: every credential argument of a per-scheme authenticator is optional so that it can default from its environment variable; the other languages make theirs optional in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "createaccountoptions",
+    "deleteorderoptions",
+    "downloadpetdocumentoptions",
+    "findpetsbornonoptions",
+    "getdefaultsoptions",
+    "getdepartmentoptions",
+    "getexternalpetinfooptions",
+    "getgroupedcategoriesoptions",
+    "getinventoryoptions",
+    "getmatrixoptions",
+    "getmultiserverpetinfooptions",
+    "getorderbyidoptions",
+    "getorderbytrackingidoptions",
+    "getpetavataroptions",
+    "getpetavatarthumbnailoptions",
+    "getpetbyidoptions",
+    "getpetpassportoptions",
+    "getpetphotooptions",
+    "getstagingpetinfooptions",
+    "getswatchgroupsoptions",
+    "getswatchoptions",
+    "gettimestampgroupsoptions",
+    "gettreeoptions",
+    "placeorderoptions",
+    "reservestockoptions",
+    "setpetavataroptions",
+    "setpetavatarthumbnailoptions",
+    "updatepetoptions"
+   ],
+   "aspect": "type",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F827: every operation gets an Options type, including one with no parameters and no security, so each call has a slot for timeout, headers and maxRetries; the other languages mint the same type in their own adopt branches, after which this rule is deleted"
   },
   {
    "element": [

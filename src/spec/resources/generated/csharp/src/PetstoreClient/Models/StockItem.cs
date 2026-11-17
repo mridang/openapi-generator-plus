@@ -42,7 +42,8 @@ public record StockItem
     public required Priority Priority { get; init; }
 
     [JsonPropertyName("availability")]
-    public Availability? Availability { get; init; }
+    public Availability? Availability { get; init; } =
+        global::PetstoreClient.Models.Availability.OnHold;
 
     /// <summary>
     /// Quantity grid as an array of integer arrays

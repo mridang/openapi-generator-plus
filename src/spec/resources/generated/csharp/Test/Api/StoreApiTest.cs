@@ -720,6 +720,7 @@ public class StoreApiTest
         public int? Timeout { get; private set; }
         public int? MaxRetries { get; private set; }
         public Dictionary<string, string> Headers { get; private set; } = [];
+        public string Body { get; init; } = "[]";
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
             string method,
@@ -732,7 +733,7 @@ public class StoreApiTest
             return Task.FromResult(
                 new PetstoreClient.ApiHttpResponse(
                     200,
-                    "[]",
+                    Body,
                     new Dictionary<string, string> { { "Content-Type", "application/json" } }
                 )
             );
@@ -786,6 +787,58 @@ public class StoreApiTest
 
         Assert.Null(client.Timeout);
         Assert.Null(client.MaxRetries);
+    }
+
+    [Fact]
+    public async Task AnOperationWithNoParametersAndNoSecurityTakesPerCallOptions()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetInventoryAsync(
+            new GetInventoryOptions
+            {
+                Timeout = 1500,
+                MaxRetries = 1,
+                Headers = new Dictionary<string, string> { ["X-Trace"] = "t-2" },
+            }
+        );
+
+        Assert.Equal(1500, client.Timeout);
+        Assert.Equal(1, client.MaxRetries);
+        Assert.Equal("t-2", client.Headers["X-Trace"]);
+    }
+
+    [Fact]
+    public async Task AnOperationWithNoParametersAndNoSecurityLeavesTheTransportSettingsAloneWithoutOptions()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetInventoryAsync();
+
+        Assert.Null(client.Timeout);
+        Assert.Null(client.MaxRetries);
+    }
+
+    [Fact]
+    public void TheOptionsOfAnOperationWithNoParametersAndNoSecurityHaveNoAuthField()
+    {
+        Assert.NotNull(typeof(GetInventoryOptions).GetProperty("Timeout"));
+        Assert.NotNull(typeof(GetInventoryOptions).GetProperty("Headers"));
+        Assert.NotNull(typeof(GetInventoryOptions).GetProperty("MaxRetries"));
+        Assert.Null(typeof(GetInventoryOptions).GetProperty("Auth"));
+    }
+
+    [Fact]
+    public async Task APerCallTimeoutOfZeroIsRejectedOnAnOperationWithNoParameters()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            api.GetInventoryAsync(new GetInventoryOptions { Timeout = 0 })
+        );
     }
 
     [Fact]

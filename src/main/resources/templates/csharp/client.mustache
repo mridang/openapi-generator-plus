@@ -96,9 +96,9 @@ public sealed class {{clientClassName}} : IDisposable
     /// <summary>
     /// Creates a client from explicit options first and the environment second.
     /// The host is the <paramref name="host"/> argument, else the environment
-    /// variable <c>{{envPrefix}}_HOST</c>; the credential is the
+    /// variable <c>{{envVarPrefix}}_HOST</c>; the credential is the
     /// <paramref name="tokenProvider"/> callback, else the <paramref name="token"/>
-    /// argument, else <c>{{envPrefix}}_TOKEN</c>. The environment is read once, here,
+    /// argument, else <c>{{envVarPrefix}}_TOKEN</c>. The environment is read once, here,
     /// and an empty value counts as unset. A missing host or credential fails the
     /// call that builds the client, not a later request.
     /// </summary>
@@ -114,21 +114,21 @@ public sealed class {{clientClassName}} : IDisposable
         Func<CancellationToken, Task<string>>? tokenProvider = null,
         TransportOptions? transportOptions = null)
     {
-        string? resolvedHost = FirstSet(host, "{{envPrefix}}_HOST");
+        string? resolvedHost = FirstSet(host, "{{envVarPrefix}}_HOST");
         if (resolvedHost is null)
         {
             throw new InvalidOperationException(
-                "No API host: pass host or set the {{envPrefix}}_HOST environment variable");
+                "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable");
         }
         if (tokenProvider is not null)
         {
             return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, tokenProvider), transportOptions);
         }
-        string? resolvedToken = FirstSet(token, "{{envPrefix}}_TOKEN");
+        string? resolvedToken = FirstSet(token, "{{envVarPrefix}}_TOKEN");
         if (resolvedToken is null)
         {
             throw new InvalidOperationException(
-                "No credential: pass token or tokenProvider, or set the {{envPrefix}}_TOKEN environment variable");
+                "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable");
         }
         return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions);
     }

@@ -37,4 +37,57 @@ public abstract class BaseAuthenticator : IAuthenticator
     {
         return [];
     }
+
+    /// <summary>
+    /// Resolves one credential for a per-scheme authenticator: the explicit
+    /// argument when it is not null, else the environment variable. The
+    /// variable is read once, here, and an empty value counts as unset.
+    /// </summary>
+    /// <param name="explicitValue">The argument the caller passed, or null.</param>
+    /// <param name="environmentVariable">The variable to read when no argument was passed.</param>
+    /// <returns>The credential.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the argument is null and the variable is unset or empty.
+    /// </exception>
+    protected static string ResolveCredential(string? explicitValue, string environmentVariable)
+    {
+        if (explicitValue is not null)
+        {
+            return explicitValue;
+        }
+        string? fromEnvironment = Environment.GetEnvironmentVariable(environmentVariable);
+        if (string.IsNullOrEmpty(fromEnvironment))
+        {
+            throw new InvalidOperationException(
+                $"No credential: pass it as an argument or set the {environmentVariable} environment variable"
+            );
+        }
+        return fromEnvironment;
+    }
+
+    /// <summary>
+    /// Resolves one absolute URI credential the way <see cref="ResolveCredential"/>
+    /// resolves a string: the explicit argument, else the parsed environment variable.
+    /// </summary>
+    /// <param name="explicitValue">The argument the caller passed, or null.</param>
+    /// <param name="environmentVariable">The variable to read when no argument was passed.</param>
+    /// <returns>The URI.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the argument is null and the variable is unset, empty or not an absolute URI.
+    /// </exception>
+    protected static Uri ResolveUri(Uri? explicitValue, string environmentVariable)
+    {
+        if (explicitValue is not null)
+        {
+            return explicitValue;
+        }
+        string text = ResolveCredential(null, environmentVariable);
+        if (!Uri.TryCreate(text, UriKind.Absolute, out Uri? parsed))
+        {
+            throw new InvalidOperationException(
+                $"The {environmentVariable} environment variable is not an absolute URI"
+            );
+        }
+        return parsed;
+    }
 }
