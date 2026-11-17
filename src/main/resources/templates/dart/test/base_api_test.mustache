@@ -1359,7 +1359,7 @@ void main() {
       }
     });
 
-    test('form date-time field uses the canonical stringify form', () async {
+    test('bhv operations 075 form date-time field uses the canonical stringify form', () async {
       final client = _CapturingApiClient();
       final api = PetApi(
         apiClient: client,
@@ -1466,7 +1466,7 @@ void main() {
      * with NO time component, in the query (`bornAfter`), the header
      * (`Report-Date`) and the form body (`renewalDate`) — never an ISO
      * date-time like `2024-01-01T00:00:00.000Z`. */
-    test('format:date query and header params serialize as YYYY-MM-DD', () async {
+    test('bhv operations 069 format:date query and header params serialize as YYYY-MM-DD', () async {
       String? capturedQuery;
       String? capturedHeader;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1503,7 +1503,7 @@ void main() {
       }
     });
 
-    test('format:date form field serializes as YYYY-MM-DD', () async {
+    test('bhv operations 019 format:date form field serializes as YYYY-MM-DD', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -2273,10 +2273,132 @@ void main() {
         await server.close();
       }
     });
+
+    test('bhv operations 003 AllowEmptyValue param included when value is empty string', () async {
+      Uri? capturedUri;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUri = request.uri;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.findPetsByStatus(FindPetsByStatusOptions(status: ''));
+        expect(capturedUri!.queryParametersAll['status'], equals(['']));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 040 find pets by status explicit empty status sends the status key in the query', () async {
+      Uri? capturedUri;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUri = request.uri;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.findPetsByStatus(FindPetsByStatusOptions(status: ''));
+        expect(capturedUri!.query, equals('status='));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 041 find pets by status omitting status sends no status key in the query', () async {
+      Uri? capturedUri;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUri = request.uri;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.findPetsByStatus(const FindPetsByStatusOptions());
+        expect(capturedUri!.queryParameters.containsKey('status'), isFalse);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 008 config default Accept wins over the operation-negotiated Accept', () async {
+      String? accept;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        accept = request.headers.value('accept');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Accept', 'application/xml')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetById(1, null, null);
+        expect(accept, equals('application/xml'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 006 ApiResult rawBody is an empty string for an empty body', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.deleteOrderWithHttpInfo(1, null);
+        expect(result.rawBody, equals(''));
+      } finally {
+        await server.close();
+      }
+    });
   });
 
   group('Parameters on the wire', () {
-    test('a format:date path parameter is sent as YYYY-MM-DD with no time component', () async {
+    test('bhv operations 043 a format:date path parameter is sent as YYYY-MM-DD with no time component', () async {
       String? capturedPath;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -2302,7 +2424,7 @@ void main() {
       }
     });
 
-    test('a named-enum path, query and header parameter send the enum wire value', () async {
+    test('bhv operations 122 a named-enum path, query and header parameter send the enum wire value', () async {
       String? capturedPath;
       String? capturedQuery;
       String? capturedHeader;
@@ -2749,7 +2871,7 @@ void main() {
       expect(client.sentHeaders.single['X-Call'], equals('yes'));
     });
 
-    test('an operation with no parameters of its own takes the Options object', () async {
+    test('bhv operations 096 an operation with no parameters of its own takes per call headers', () async {
       final client = _ScriptedApiClient([
         ApiHttpResponse(
             statusCode: 200,
@@ -2803,7 +2925,7 @@ void main() {
       expect(seen['DELETE /pet/1'], startsWith('Basic '));
     });
 
-    test('the default authenticator serves an operation no scheme matches', () async {
+    test('bhv operations 026 the default authenticator serves an operation no scheme matches', () async {
       String? sent;
       final transport = Mock{{clientClassName}}((request) async {
         sent = request.headers['authorization'];
@@ -2820,6 +2942,61 @@ void main() {
       await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
 
       expect(sent, equals('Bearer fallback'));
+    });
+
+    test('bhv operations 020 a credential held for a scheme the operation does not name is never sent', () async {
+      final sent = <String?>[];
+      final transport = Mock{{clientClassName}}((request) async {
+        sent.add(request.headers['authorization']);
+        return http.Response('{"id":1,"name":"x","photoUrls":[]}', 200,
+            headers: {'content-type': 'application/json'});
+      });
+      final client = {{clientClassName}}(
+        authenticator: BearerAuthenticator(host: 'http://api.test', token: 'fallback'),
+        adminBasic: BasicAuthenticator(
+            host: 'http://api.test', username: 'admin', password: 'pw'),
+        transportOptions: TransportOptionsBuilder().http{{clientClassName}}(transport).build(),
+      );
+
+      await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+
+      expect(sent.single, isNot(startsWith('Basic ')));
+    });
+
+    test('bhv operations 080 addPet uses the first declared scheme the client holds a credential for', () async {
+      final sent = <String?>[];
+      final transport = Mock{{clientClassName}}((request) async {
+        sent.add(request.headers['authorization']);
+        return http.Response('{"id":1,"name":"x","photoUrls":[]}', 200,
+            headers: {'content-type': 'application/json'});
+      });
+      final client = {{clientClassName}}(
+        petStoreBearer: BearerAuthenticator(host: 'http://api.test', token: 'b-token'),
+        apiKeyHeader: BasicAuthenticator(
+            host: 'http://api.test', username: 'u', password: 'p'),
+        transportOptions: TransportOptionsBuilder().http{{clientClassName}}(transport).build(),
+      );
+
+      await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+
+      expect(sent.single, equals('Bearer b-token'));
+    });
+
+    test('bhv operations 081 addPet using configured credentials sends the configured credential', () async {
+      final sent = <String?>[];
+      final transport = Mock{{clientClassName}}((request) async {
+        sent.add(request.headers['authorization']);
+        return http.Response('{"id":1,"name":"x","photoUrls":[]}', 200,
+            headers: {'content-type': 'application/json'});
+      });
+      final client = {{clientClassName}}(
+        petStoreBearer: BearerAuthenticator(host: 'http://api.test', token: 'configured'),
+        transportOptions: TransportOptionsBuilder().http{{clientClassName}}(transport).build(),
+      );
+
+      await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+
+      expect(sent.single, equals('Bearer configured'));
     });
 
     test('a client with no credential at all is refused', () {
@@ -2854,7 +3031,7 @@ void main() {
       expect(result.actualInstance, isA<Reservation>());
     });
 
-    test('a 201 body is decoded as the schema of 201', () async {
+    test('bhv operations 120 a 201 body is decoded as the schema of 201', () async {
       final client = _ScriptedApiClient(
           [jsonReply(201, '{"receiptCode":"r1","expiresAt":"2030-01-01T00:00:00Z"}')]);
 
