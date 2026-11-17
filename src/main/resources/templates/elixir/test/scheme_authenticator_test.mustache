@@ -57,7 +57,7 @@ defmodule {{moduleName}}.SchemeAuthenticatorTest do
         end
       end
 
-      test "explicit arguments need no environment" do
+      test "bhv authscheme 002 explicit arguments need no environment" do
         args = Enum.map(@vars, fn {arg, _env} -> "explicit-" <> arg end)
 
         auth = build(@module, [@host | args])

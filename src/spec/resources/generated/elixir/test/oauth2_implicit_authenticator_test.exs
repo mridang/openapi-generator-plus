@@ -11,7 +11,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
   end
 
   describe "OAuth2ImplicitAuthenticator" do
-    test "scheme authenticator keeps the declared scopes in the authorization URL" do
+    test "bhv authoauthtwoimplicit 006 scheme authenticator keeps the declared scopes in the authorization URL" do
       auth =
         PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator.new(
           "https://api.example.com",
@@ -25,7 +25,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "scope=read")
     end
 
-    test "builds authorization URL with response type token" do
+    test "bhv authoauthtwoimplicit 003 builds authorization URL with response type token" do
       auth = create_authenticator()
 
       url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
@@ -34,7 +34,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "response_type=token")
     end
 
-    test "builds authorization URL with client id" do
+    test "bhv authoauthtwoimplicit 002 builds authorization URL with client id" do
       auth = create_authenticator()
 
       url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
@@ -42,7 +42,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "client_id=my-client-id")
     end
 
-    test "builds authorization URL with scopes" do
+    test "bhv authoauthtwoimplicit 004 builds authorization URL with scopes" do
       auth = create_authenticator()
 
       url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
@@ -51,7 +51,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       refute String.contains?(url, "scope=read+write")
     end
 
-    test "builds authorization URL with state" do
+    test "bhv authoauthtwoimplicit 005 builds authorization URL with state" do
       auth = create_authenticator()
 
       url =
@@ -73,7 +73,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
                "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s"
     end
 
-    test "empty state is omitted" do
+    test "bhv authoauthtwoimplicit 009 empty state is omitted" do
       auth = create_authenticator()
 
       url =
@@ -85,7 +85,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
                PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
     end
 
-    test "get_auth_headers returns Bearer after set_access_token" do
+    test "bhv authoauthtwoimplicit 007 get_auth_headers returns Bearer after set_access_token" do
       auth = create_authenticator()
 
       auth =
@@ -99,7 +99,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert headers["Authorization"] == "Bearer implicit-tok"
     end
 
-    test "throws when access token not set" do
+    test "bhv authoauthtwoimplicit 012 throws when access token not set" do
       auth = create_authenticator()
 
       assert_raise RuntimeError, ~r/Must set the access token before making API requests/, fn ->
@@ -107,7 +107,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       end
     end
 
-    test "throws when access token was set to empty" do
+    test "bhv authoauthtwoimplicit 013 throws when access token was set to empty" do
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "")
 
@@ -131,7 +131,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       end
     end
 
-    test "authorization URL percent-encodes * ! ' ( ) and keeps ~ literal" do
+    test "bhv authoauthtwoimplicit 001 authorization URL percent-encodes * ! ' ( ) and keeps ~ literal" do
       auth =
         PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
           "https://api.example.com",
@@ -151,14 +151,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "state=s%20t%27a%21te")
     end
 
-    test "get_host returns configured host" do
+    test "bhv authoauthtwoimplicit 008 get_host returns configured host" do
       auth = create_authenticator()
 
       assert PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.host(auth) ==
                "https://api.example.com"
     end
 
-    test "redacts secret" do
+    test "bhv authoauthtwoimplicit 010 redacts secret" do
       auth = create_authenticator()
 
       auth =

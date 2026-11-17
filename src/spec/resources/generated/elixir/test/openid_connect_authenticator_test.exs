@@ -58,7 +58,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
   end
 
   describe "OpenIdConnectAuthenticator" do
-    test "builds authorization URL from discovery" do
+    test "bhv authoidc 002 builds authorization URL from discovery" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -89,7 +89,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert String.contains?(url, "state=my-state")
     end
 
-    test "openid is always requested, prepended once and de-duplicated case-sensitively" do
+    test "bhv authoidc 022 openid is always requested, prepended once and de-duplicated case-sensitively" do
       for {given, expected} <- [
             {[], "openid"},
             {["profile"], "openid profile"},
@@ -132,7 +132,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       end
     end
 
-    test "empty state is omitted" do
+    test "bhv authoidc 018 empty state is omitted" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -157,7 +157,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       refute String.contains?(url, "state")
     end
 
-    test "fetches discovery document" do
+    test "bhv authoidc 010 fetches discovery document" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -184,7 +184,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
                "https://auth.example.com/.well-known/openid-configuration"
     end
 
-    test "obtains token after code exchange" do
+    test "bhv authoidc 017 obtains token after code exchange" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -214,7 +214,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert String.contains?(last_body, "code=oidc-code")
     end
 
-    test "get_auth_headers returns Bearer after exchange" do
+    test "bhv authoidc 013 get_auth_headers returns Bearer after exchange" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -279,7 +279,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert headers["Authorization"] == "Bearer oidc-tok"
     end
 
-    test "throws when no ApiClient injected" do
+    test "bhv authoidc 028 throws when no ApiClient injected" do
       auth = create_authenticator()
 
       err =
@@ -294,7 +294,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     # OIDC discovery is an HTTP call like any other: a 404 is a NotFoundError,
     # a transport failure propagates as the NetworkError / NetworkTimeoutError
     # it already is, and an unparseable document is a SerializationError.
-    test "discovery failures are typed" do
+    test "bhv authoidc 006 discovery failures are typed" do
       discover = fn response ->
         auth =
           PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
@@ -332,7 +332,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     # oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
     # raise the typed ApiError for its status rather than surfacing as an
     # opaque "invalid JSON" parse error.
-    test "raises on non-2xx discovery response instead of parsing it as JSON" do
+    test "bhv authoidc 027 raises on non-2xx discovery response instead of parsing it as JSON" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -357,7 +357,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     # oauth-oidc-missing-endpoint-guard: a discovery document missing the
     # authorization/token endpoint must raise rather than silently building
     # a delegate with empty endpoint URLs.
-    test "raises when discovery document is missing authorization_endpoint" do
+    test "bhv authoidc 025 raises when discovery document is missing authorization_endpoint" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -381,7 +381,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
                    end
     end
 
-    test "raises when discovery document is missing token_endpoint" do
+    test "bhv authoidc 026 raises when discovery document is missing token_endpoint" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -439,7 +439,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       )
     end
 
-    test "a trailing slash on the issuer and a loopback http endpoint are accepted" do
+    test "bhv authoidc 004 a trailing slash on the issuer and a loopback http endpoint are accepted" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -463,14 +463,14 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
                "http://127.0.0.1:8080/authorize"
     end
 
-    test "get_host returns configured host" do
+    test "bhv authoidc 014 get_host returns configured host" do
       auth = create_authenticator()
 
       assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.host(auth) ==
                "https://api.example.com"
     end
 
-    test "invalidate_access_token reaches the discovered flow and is a no-op before a code exchange" do
+    test "bhv authoidc 015 invalidate_access_token reaches the discovered flow and is a no-op before a code exchange" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         body:
@@ -525,7 +525,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert FakeApiClient.last_body(fake_client) =~ "grant_type=refresh_token"
     end
 
-    test "redacts secret" do
+    test "bhv authoidc 019 redacts secret" do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"
@@ -534,7 +534,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
     # An expired discovery document is fetched again, but the token state lives
     # on across it: a code exchanged before the expiry is still exchanged after.
-    test "rediscovery after expiry keeps the exchanged tokens" do
+    test "bhv authoidc 020 rediscovery after expiry keeps the exchanged tokens" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         headers: %{"Cache-Control" => "max-age=0"},
@@ -571,7 +571,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     # The PKCE verifier lives in the token manager the rediscovery keeps, so a
     # code exchanged after the discovery document expired still proves the
     # challenge of the authorization URL built before it.
-    test "the PKCE verifier survives a rediscovery and the URL has no nonce" do
+    test "bhv authoidc 021 the PKCE verifier survives a rediscovery and the URL has no nonce" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         headers: %{"Cache-Control" => "max-age=0"},
@@ -624,7 +624,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     # The discovery document is cached for the max-age of its Cache-Control
     # header, and for the default when the header is absent or has no usable
     # max-age.
-    test "discovery is cached when Cache-Control carries a positive max-age or none" do
+    test "bhv authoidc 003 discovery is cached when Cache-Control carries a positive max-age or none" do
       for headers <- [
             %{"Cache-Control" => "max-age=3600"},
             %{"cache-control" => "public, MAX-AGE=3600"},
@@ -658,7 +658,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       end
     end
 
-    test "a failed rediscovery keeps using the previous discovery document" do
+    test "bhv authoidc 009 a failed rediscovery keeps using the previous discovery document" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         headers: %{"Cache-Control" => "max-age=0"},
@@ -688,7 +688,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert FakeApiClient.get_count(fake_client) == 2
     end
 
-    test "an oversized max-age is clamped to one year" do
+    test "bhv authoidc 001 an oversized max-age is clamped to one year" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         headers: %{"Cache-Control" => "max-age=99999999999999"},
@@ -743,7 +743,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
     # The discovery document must be cached: a second build should reuse it
     # rather than issue a second GET to the discovery endpoint.
-    test "fetches discovery document only once" do
+    test "bhv authoidc 011 fetches discovery document only once" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

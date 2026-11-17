@@ -16,7 +16,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     %{api: api, base_url: base_url}
   end
 
-  test "add_pet", %{api: api} do
+  test "bhv operations 022 add_pet", %{api: api} do
     pet = %PetstoreClient.Models.Pet{
       id: :rand.uniform(1_000_000_000),
       name: "TestDog",
@@ -28,14 +28,14 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "find_pets_by_status", %{api: api} do
+  test "bhv operations 039 find_pets_by_status", %{api: api} do
     options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: "available"}
     assert {:ok, result} = PetstoreClient.Api.PetApi.find_pets_by_status(api, options)
     assert is_list(result)
     assert result != []
   end
 
-  test "get_pet_by_id", %{api: api} do
+  test "bhv operations 047 get_pet_by_id", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_by_id(api, pet_id)
     assert result != nil
@@ -43,7 +43,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.name != nil
   end
 
-  test "update_pet", %{api: api} do
+  test "bhv operations 087 update_pet", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     pet = %PetstoreClient.Models.Pet{
@@ -57,19 +57,19 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "delete_pet", %{api: api} do
+  test "bhv operations 027 delete_pet", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet(api, pet_id)
   end
 
-  test "set_pet_avatar", %{api: api} do
+  test "bhv operations 070 set_pet_avatar", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     assert {:ok, _result} =
              PetstoreClient.Api.PetApi.set_pet_avatar(api, pet_id, <<0xFF, 0xD8, 0xFF>>)
   end
 
-  test "get_pet_avatar", %{api: api} do
+  test "bhv operations 045 get_pet_avatar", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar_with_http_info(api, pet_id)
     assert is_binary(result.data)
@@ -79,13 +79,13 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert Base.encode64(result.data) == result.raw_body
   end
 
-  test "get_pet_avatar_thumbnail", %{api: api} do
+  test "bhv operations 046 get_pet_avatar_thumbnail", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar_thumbnail(api, pet_id)
     assert result != nil
   end
 
-  test "set_pet_avatar_thumbnail", %{api: api} do
+  test "bhv operations 074 set_pet_avatar_thumbnail", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     request = "iVBORw0KGgoAAAANSUhEUg=="
 
@@ -93,7 +93,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              PetstoreClient.Api.PetApi.set_pet_avatar_thumbnail(api, pet_id, request)
   end
 
-  test "upload_pet_certificate", %{api: api} do
+  test "bhv operations 090 upload_pet_certificate", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     options = %PetstoreClient.Api.Options.UploadPetCertificateOptions{
@@ -104,7 +104,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "upload_pet_document", %{api: api} do
+  test "bhv operations 091 upload_pet_document", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     options = %PetstoreClient.Api.Options.UploadPetDocumentOptions{
@@ -117,7 +117,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "add_pet_photos", %{api: api} do
+  test "bhv operations 023 add_pet_photos", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     metadata = %PetstoreClient.Models.PhotoMetadata{caption: "Test photo", is_primary: true}
 
@@ -131,28 +131,28 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert is_list(result)
   end
 
-  test "download_pet_document", %{api: api} do
+  test "bhv operations 035 download_pet_document", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     doc_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.download_pet_document(api, pet_id, doc_id)
     assert result != nil
   end
 
-  test "get_pet_photo", %{api: api} do
+  test "bhv operations 055 get_pet_photo", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     photo_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_photo(api, pet_id, photo_id)
     assert result != nil
   end
 
-  test "get_pet_passport", %{api: api} do
+  test "bhv operations 053 get_pet_passport", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_passport(api, pet_id)
     assert result != nil
     assert %PetstoreClient.Models.PetPassport{} = result
   end
 
-  test "get_pet_tag sends styled path and query parameters", %{api: api} do
+  test "bhv operations 058 get_pet_tag sends styled path and query parameters", %{api: api} do
     options = %PetstoreClient.Api.Options.GetPetTagOptions{
       colors: ["blue", "black"],
       sizes: ["S", "M"]
@@ -162,7 +162,10 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "get_external_pet_info uses per-operation server URL", %{api: api, base_url: base_url} do
+  test "bhv operations 061 get_external_pet_info uses per-operation server URL", %{
+    api: api,
+    base_url: base_url
+  } do
     # The operation's own server is pointed at the mock server, which serves
     # every path in the spec.
     server = %PetstoreClient.ServerConfiguration{url_template: base_url}
@@ -175,7 +178,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   # A deprecated operation carries @deprecated on every public variant (data,
   # bang and with_http_info), and each of them has a typespec.
-  test "a deprecated operation marks every public variant and types the bang one" do
+  test "bhv operations 033 a deprecated operation marks every public variant and types the bang one" do
     deprecated =
       PetstoreClient.Api.PetApi.__info__(:deprecated)
       |> Enum.map(fn {key, _message} -> elem(key, 0) end)
@@ -206,7 +209,7 @@ defmodule PetstoreClient.Api.PetApiTest do
         do: text
   end
 
-  test "docs describe the options struct and never a per-call authenticator" do
+  test "bhv operations 082 docs describe the options struct and never a per-call authenticator" do
     settings = "Optional per-call settings (`timeout`, `headers`, `max_retries`)"
 
     options_plain =
@@ -341,7 +344,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
-  test "get_pet_tag renders petId as a matrix segment and tagName as a label segment" do
+  test "bhv operations 060 get_pet_tag renders petId as a matrix segment and tagName as a label segment" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -385,7 +388,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
-  test "get_pet_summary sends the matrix date segment, the session cookie and the date array, and returns the text" do
+  test "bhv operations 057 get_pet_summary sends the matrix date segment, the session cookie and the date array, and returns the text" do
     {:ok, name} = SummaryApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(SummaryApiClient, config)
@@ -442,7 +445,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   # D47: an object-valued query or header parameter is written by the
   # property wire names, in each of its styles.
-  test "get_pet_tag sends object-valued query and header parameters in their styles" do
+  test "bhv operations 067 get_pet_tag sends object-valued query and header parameters in their styles" do
     {:ok, name} = RecordingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(RecordingApiClient, config)
@@ -470,7 +473,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "add_pet_treatment sends the anyOf wrapper as its JSON body and decodes the matching variant" do
+  test "bhv operations 024 add_pet_treatment sends the anyOf wrapper as its JSON body and decodes the matching variant" do
     {:ok, name} = RecordingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(RecordingApiClient, config)
@@ -523,7 +526,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # "black"]`, or a percent-encoded `%5Bblue` / `%5B%22blue%22` blob). The
   # ValueSerializer joins each element via the per-item stringify before
   # styling, so `["blue", "black"]` -> `blue|black` and `["S", "M"]` -> `S M`.
-  test "get_pet_tag serialises optional array query params as styled values, not a debug blob" do
+  test "bhv operations 068 get_pet_tag serialises optional array query params as styled values, not a debug blob" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -623,7 +626,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     "A.B-C_D"
   ]
 
-  test "delete_pet fails closed with ArgumentError for a cookie value that is not a legal cookie-octet string" do
+  test "bhv operations 028 delete_pet fails closed with ArgumentError for a cookie value that is not a legal cookie-octet string" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -675,7 +678,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     PetstoreClient.Api.PetApi.new(client, config)
   end
 
-  test "error handling not found" do
+  test "bhv operations 037 error handling not found" do
     api = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
 
     assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =
@@ -738,14 +741,14 @@ defmodule PetstoreClient.Api.PetApiTest do
                  end
   end
 
-  test "error handling 500 server error" do
+  test "bhv operations 038 error handling 500 server error" do
     api = new_pet_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
 
     assert {:error, %PetstoreClient.Errors.InternalServerError{status_code: 500}} =
              PetstoreClient.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000))
   end
 
-  test "download binary mock" do
+  test "bhv operations 034 download binary mock" do
     api = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA")
 
     assert {:ok, result} =
@@ -754,7 +757,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "upload multipart mock" do
+  test "bhv operations 089 upload multipart mock" do
     api =
       new_pet_api_for_mock(
         200,
@@ -779,7 +782,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # convenience-empty-body-handling: a body-returning operation that comes
   # back with an empty body must surface a typed ApiError from the plain
   # (non-_with_http_info) convenience method, not a silent nil.
-  test "body-returning op with empty 200 body returns a typed ApiError" do
+  test "bhv operations 036 body-returning op with empty 200 body returns a typed ApiError" do
     api = new_pet_api_for_mock(200, "application/json", "")
 
     assert {:error, %PetstoreClient.Errors.ApiError{} = error} =
@@ -797,7 +800,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
-  test "get_pet_by_id_with_http_info", %{api: api} do
+  test "bhv operations 048 get_pet_by_id_with_http_info", %{api: api} do
     assert {:ok, result} =
              PetstoreClient.Api.PetApi.get_pet_by_id_with_http_info(
                api,
@@ -809,7 +812,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.raw_body != nil
   end
 
-  test "add_pet_with_http_info", %{api: api} do
+  test "bhv operations 025 add_pet_with_http_info", %{api: api} do
     pet = %PetstoreClient.Models.Pet{
       id: :rand.uniform(1_000_000_000),
       name: "HttpInfoDog",
@@ -823,7 +826,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.data != nil
   end
 
-  test "update_pet_with_http_info", %{api: api} do
+  test "bhv operations 088 update_pet_with_http_info", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     pet = %PetstoreClient.Models.Pet{
@@ -838,7 +841,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.status_code < 300
   end
 
-  test "delete_pet_with_http_info", %{api: api} do
+  test "bhv operations 031 delete_pet_with_http_info", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     assert {:ok, result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, pet_id)
@@ -847,7 +850,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.status_code < 300
   end
 
-  test "find_pets_by_status_with_http_info", %{api: api} do
+  test "bhv operations 042 find_pets_by_status_with_http_info", %{api: api} do
     options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: "available"}
 
     assert {:ok, result} =
@@ -856,7 +859,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.status_code == 200
   end
 
-  test "get_pet_passport_with_http_info", %{api: api} do
+  test "bhv operations 054 get_pet_passport_with_http_info", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_passport_with_http_info(api, pet_id)
     assert result.status_code == 200
@@ -912,13 +915,13 @@ defmodule PetstoreClient.Api.PetApiTest do
     headers
   end
 
-  test "an operation uses the credential of the scheme its spec names" do
+  test "bhv operations 079 an operation uses the credential of the scheme its spec names" do
     headers = delete_with(nil, %{"machineAuth" => credential("machine")})
 
     assert headers["Authorization"] == "machine"
   end
 
-  test "an operation uses the first scheme of its own order that the client holds" do
+  test "bhv operations 080 an operation uses the first scheme of its own order that the client holds" do
     both =
       delete_with(nil, %{
         "machineAuth" => credential("machine"),
@@ -931,7 +934,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert only_second["Authorization"] == "machine"
   end
 
-  test "a credential for a scheme the operation does not name is never sent" do
+  test "bhv operations 020 a credential for a scheme the operation does not name is never sent" do
     headers =
       delete_with(nil, %{
         "petStoreBearer" => credential("bearer"),
@@ -941,7 +944,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     refute Map.has_key?(headers, "Authorization")
   end
 
-  test "an operation falls back to the client-level authenticator when no scheme matches" do
+  test "bhv operations 026 an operation falls back to the client-level authenticator when no scheme matches" do
     headers = delete_with(credential("default"), %{"petStoreBearer" => credential("bearer")})
 
     assert headers["Authorization"] == "default"
@@ -979,7 +982,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     refute Map.has_key?(headers, "Authorization")
   end
 
-  test "delete_pet sends a cookie value made only of legal cookie-octets exactly as given" do
+  test "bhv operations 030 delete_pet sends a cookie value made only of legal cookie-octets exactly as given" do
     {:ok, name} = HeaderCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
@@ -999,7 +1002,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # F857: no per-call scheme override. The options struct has no `auth` field,
   # and an `:auth` entry in the trailing keyword list is rejected as an unknown
   # key.
-  test "there is no per-call credential: no auth field on options and no :auth in opts" do
+  test "bhv operations 086 there is no per-call credential: no auth field on options and no :auth in opts" do
     refute Map.has_key?(%PetstoreClient.Api.Options.DeletePetOptions{}, :auth)
     refute Map.has_key?(%PetstoreClient.Api.Options.AddPetOptions{}, :auth)
 
@@ -1025,7 +1028,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # the credential is dispatched through the struct's module and reaches the
   # wire. A plain-map fixture (used by the tests above for override/fallback
   # logic) would NOT catch this bug, so this case uses the generated struct.
-  test "configured BearerAuthenticator struct applies its credential to the wire" do
+  test "bhv operations 081 configured BearerAuthenticator struct applies its credential to the wire" do
     {:ok, name} = HeaderCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     bearer = PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "real-struct-token")
@@ -1143,7 +1146,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_staging_pet_info resolves the variant's variables into the request URL" do
+  test "bhv operations 083 get_staging_pet_info resolves the variant's variables into the request URL" do
     {name, api} = stub_pet_api(@sample_pet)
 
     server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{
@@ -1160,7 +1163,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_multi_server_pet_info reaches whichever of its servers is passed" do
+  test "bhv operations 085 get_multi_server_pet_info reaches whichever of its servers is passed" do
     {name, api} = stub_pet_api(@sample_pet)
 
     assert {:ok, _result} =
@@ -1187,7 +1190,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "the Mirror server variant splices a channel with an ampersand or an apostrophe verbatim" do
+  test "bhv operations 084 the Mirror server variant splices a channel with an ampersand or an apostrophe verbatim" do
     mirror = PetstoreClient.Api.GetMultiServerPetInfoServer.Mirror
 
     for channel <- ["a&b", "it's"] do
@@ -1218,7 +1221,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   # A format: date path parameter renders as YYYY-MM-DD with no time component.
-  test "find_pets_born_on serialises the date path param as YYYY-MM-DD" do
+  test "bhv operations 043 find_pets_born_on serialises the date path param as YYYY-MM-DD" do
     {name, api} = stub_pet_api("[]")
 
     assert {:ok, []} = PetstoreClient.Api.PetApi.find_pets_born_on(api, ~D[2024-01-01])
@@ -1228,7 +1231,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "set_pet_avatar rejects a content type the operation does not declare" do
+  test "bhv operations 076 set_pet_avatar rejects a content type the operation does not declare" do
     {name, api} = stub_pet_api("")
 
     assert_raise ArgumentError,
@@ -1244,7 +1247,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "upload_pet_document rejects a content type the operation does not declare" do
+  test "bhv operations 093 upload_pet_document rejects a content type the operation does not declare" do
     {name, api} = stub_pet_api("")
 
     assert_raise ArgumentError,
@@ -1268,7 +1271,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # (quotes included). It must be JSON-parsed first (stripping the quotes) and
   # only then base64-decoded to the raw bytes; decoding the quoted literal
   # directly would fail base64 and hand back the quoted string.
-  test "get_pet_avatar_thumbnail JSON-parses then base64-decodes a byte body over JSON" do
+  test "bhv operations 062 get_pet_avatar_thumbnail JSON-parses then base64-decodes a byte body over JSON" do
     {:ok, name} = StubResponseApiClient.start(200, ~s("dGVzdC1pbWFnZQ=="), "application/json")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
@@ -1281,7 +1284,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # format: date parameters must serialise as YYYY-MM-DD (Elixir's native Date
   # renders through Date.to_iso8601/1) in the query string, in a header and in
   # a form-urlencoded body.
-  test "find_pets_by_status serialises date params as YYYY-MM-DD in query and header" do
+  test "bhv operations 069 find_pets_by_status serialises date params as YYYY-MM-DD in query and header" do
     {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
@@ -1301,7 +1304,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "find_pets_by_status sends the digit-leading 2ndPage under its wire name and the deepObject filter" do
+  test "bhv operations 044 find_pets_by_status sends the digit-leading 2ndPage under its wire name and the deepObject filter" do
     {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
@@ -1321,7 +1324,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "set_pet_preferences serialises the date form field as YYYY-MM-DD" do
+  test "bhv operations 019 set_pet_preferences serialises the date form field as YYYY-MM-DD" do
     {:ok, name} = StubResponseApiClient.start(200, ~s({"code":200}), "application/json")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
@@ -1339,7 +1342,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "set_pet_preferences serialises the date-time form field in the canonical form" do
+  test "bhv operations 075 set_pet_preferences serialises the date-time form field in the canonical form" do
     {:ok, name} = StubResponseApiClient.start(200, ~s({"code":200}), "application/json")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
@@ -1428,7 +1431,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "set_pet_avatar streams raw bytes with declared content type" do
+  test "bhv operations 073 set_pet_avatar streams raw bytes with declared content type" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
@@ -1462,7 +1465,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # existing call sites keep sending image/jpeg unchanged. With image/jpeg and
   # image/png both being raw binary bodies, switching the selector only changes
   # the outgoing Content-Type header — the same raw bytes are sent either way.
-  test "set_pet_avatar honours the selected request content type" do
+  test "bhv operations 071 set_pet_avatar honours the selected request content type" do
     payload = <<0xFF, 0xD8, 0xFF, 0xE0>>
 
     # (1) No selector -> the first declared content-type (image/jpeg).
@@ -1497,7 +1500,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   # A format:binary body is never re-encoded, even under the JSON selector,
   # while a format:byte JSON body is still a base64 JSON string.
-  test "set_pet_avatar sends the raw bytes under the application/json selector" do
+  test "bhv operations 072 set_pet_avatar sends the raw bytes under the application/json selector" do
     payload = <<0xFF, 0xD8, 0xFF, 0xE0>>
 
     {:ok, name} = BodyCapturingApiClient.start()
@@ -1534,7 +1537,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # envelope. BodyCapturingApiClient records the body BaseApi hands to the
   # transport, so a raw binary here proves the raw-bytes path and a map proves
   # the multipart path.
-  test "upload_pet_document octet-stream selection sends raw bytes, not multipart" do
+  test "bhv operations 092 upload_pet_document octet-stream selection sends raw bytes, not multipart" do
     # A known, non-trivial binary payload (PDF magic bytes).
     payload = <<0x25, 0x50, 0x44, 0x46, 0x2D>>
 
@@ -1605,7 +1608,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   # Primitive multipart fields (boolean, integer, date-time, enum) are plain
   # text parts in the canonical stringify form, with no part Content-Type.
-  test "upload_pet_document sends primitive fields as plain text parts" do
+  test "bhv operations 095 upload_pet_document sends primitive fields as plain text parts" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
@@ -1674,7 +1677,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_pet_by_name raises when required category is empty string" do
+  test "bhv operations 049 get_pet_by_name raises when required category is empty string" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1696,7 +1699,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_pet_by_name raises when the required X-Correlation-Id header is missing" do
+  test "bhv operations 050 get_pet_by_name raises when the required X-Correlation-Id header is missing" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1720,7 +1723,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_pet_summary raises when the required session cookie is missing" do
+  test "bhv operations 056 get_pet_summary raises when the required session cookie is missing" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1742,7 +1745,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_pet_by_name raises ArgumentError when the path param is empty" do
+  test "bhv operations 052 get_pet_by_name raises ArgumentError when the path param is empty" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1764,7 +1767,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_pet_by_name rejects dot-segment path values before dispatch" do
+  test "bhv operations 051 get_pet_by_name rejects dot-segment path values before dispatch" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1789,7 +1792,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_pet_by_name sends a path value that merely contains dots" do
+  test "bhv operations 064 get_pet_by_name sends a path value that merely contains dots" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1807,7 +1810,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   # format: byte query parameters travel as standard-alphabet base64: the bytes
   # "hi" are `aGk=` (percent-encoded `aGk%3D`), never the raw text.
-  test "get_pet_tag base64-encodes a format byte query parameter" do
+  test "bhv operations 059 get_pet_tag base64-encodes a format byte query parameter" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1828,7 +1831,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_pet_by_name sends the required category on the wire" do
+  test "bhv operations 065 get_pet_by_name sends the required category on the wire" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1854,7 +1857,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # SDK to always emit the key. When status is omitted (nil) NO `status=` may
   # appear on the wire; when the caller passes an explicit empty string the key
   # is present with an empty value (`status=`).
-  test "find_pets_by_status omitting status sends no status= in query" do
+  test "bhv operations 041 find_pets_by_status omitting status sends no status= in query" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1873,7 +1876,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "find_pets_by_status with explicit empty status sends status= with empty value" do
+  test "bhv operations 040 find_pets_by_status with explicit empty status sends status= with empty value" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1892,7 +1895,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "set_pet_avatar_thumbnail sends raw bytes as a base64 string" do
+  test "bhv operations 077 set_pet_avatar_thumbnail sends raw bytes as a base64 string" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)

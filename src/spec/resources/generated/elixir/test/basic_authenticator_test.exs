@@ -6,13 +6,13 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   alias PetstoreClient.Auth.BearerAuthenticator
 
   describe "BasicAuthenticator" do
-    test "valid credentials produce basic header" do
+    test "bhv authbasic 011 valid credentials produce basic header" do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
       headers = BasicAuthenticator.auth_headers(auth)
       assert headers["Authorization"] == "Basic YWxpY2U6czNjcmV0"
     end
 
-    test "nil credentials are read once from the environment and passed ones win" do
+    test "bhv authbasic 001 nil credentials are read once from the environment and passed ones win" do
       user = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
       pass = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"
       System.put_env(user, "alice")
@@ -39,7 +39,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
                "Basic " <> Base.encode64("bob:changed")
     end
 
-    test "an empty or absent environment variable fails when the authenticator is built" do
+    test "bhv authbasic 003 an empty or absent environment variable fails when the authenticator is built" do
       user = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
       pass = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"
 
@@ -60,7 +60,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
                    fn -> BasicAuthenticator.new("https://api.example.com", "alice", nil) end
     end
 
-    test "non-ASCII credentials are encoded as UTF-8" do
+    test "bhv authbasic 004 non-ASCII credentials are encoded as UTF-8" do
       auth = BasicAuthenticator.new("https://api.example.com", "ünïcødé", "pässwörd")
       headers = BasicAuthenticator.auth_headers(auth)
       assert headers["Authorization"] == "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA=="
@@ -91,25 +91,25 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
                    end
     end
 
-    test "rejects username with crlf at construction" do
+    test "bhv authbasic 009 rejects username with crlf at construction" do
       assert_raise ArgumentError, fn ->
         BasicAuthenticator.new("https://api.example.com", "alice\r\n", "s3cret")
       end
     end
 
-    test "rejects password with nul at construction" do
+    test "bhv authbasic 007 rejects password with nul at construction" do
       assert_raise ArgumentError, fn ->
         BasicAuthenticator.new("https://api.example.com", "alice", "s3c\0ret")
       end
     end
 
-    test "rejects username with colon at construction" do
+    test "bhv authbasic 008 rejects username with colon at construction" do
       assert_raise ArgumentError, fn ->
         BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret")
       end
     end
 
-    test "redacts secret" do
+    test "bhv authbasic 006 redacts secret" do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
 
       refute inspect(auth) =~ "s3cret"
@@ -150,7 +150,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert inspect(auth) =~ "api.example.com"
     end
 
-    test "basic auth password is not leaked by inspect/1" do
+    test "bhv authbasic 005 basic auth password is not leaked by inspect/1" do
       auth =
         BasicAuthenticator.new("https://api.example.com", "alice", "super-secret-pw")
 
@@ -159,7 +159,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert inspect(auth) =~ ~s(password: "***")
     end
 
-    test "basic auth repr shows the host and username and masks only the password" do
+    test "bhv authbasic 010 basic auth repr shows the host and username and masks only the password" do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "super-secret-pw")
 
       assert inspect(auth) =~ ~s(host: "https://api.example.com")

@@ -1,7 +1,7 @@
 defmodule PetstoreClient.DefaultApiClientTest do
   use ExUnit.Case, async: true
 
-  test "makes HTTPS request with verify_ssl=false" do
+  test "bhv transport 018 makes HTTPS request with verify_ssl=false" do
     chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
 
     transport = PetstoreClient.TransportOptions.new(verify_ssl: false)
@@ -22,7 +22,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert json["method"] == "GET"
   end
 
-  test "makes HTTPS request with custom CA cert" do
+  test "bhv transport 017 makes HTTPS request with custom CA cert" do
     chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
     ca_cert_path = System.fetch_env!("CA_CERT_PATH")
 
@@ -50,7 +50,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
 
   # TLS verification is on by default: the fixture server's certificate is
   # signed by a CA the system does not trust, so the handshake must fail.
-  test "verify_ssl=true without the fixture CA rejects the server certificate" do
+  test "bhv transport 025 verify_ssl=true without the fixture CA rejects the server certificate" do
     chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
 
     transport = PetstoreClient.TransportOptions.new()
@@ -72,7 +72,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert err.status_code == 0
   end
 
-  test "makes HTTP request through proxy" do
+  test "bhv transport 015 makes HTTP request through proxy" do
     chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
 
@@ -96,7 +96,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
   # and surfaced as Proxy-Authorization so the proxy can authenticate
   # the tunnel — otherwise the proxy 407s.
-  test "proxy_with_credentials_injects_basic_authorization" do
+  test "bhv transport 021 proxy_with_credentials_injects_basic_authorization" do
     transport =
       PetstoreClient.TransportOptions.new(proxy: "http://alice:s3cret@127.0.0.1:3128")
 
@@ -112,7 +112,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # the other 11 (elixir among them) honour it. Canonical = honour the creds.
   # GREEN in elixir — build_proxy_auth_header extracts user:pass at
   # construction. base64("user:pass") == "dXNlcjpwYXNz".
-  test "Gap AK: proxy URL with user:pass carries Proxy-Authorization credentials" do
+  test "bhv transport 020 Gap AK: proxy URL with user:pass carries Proxy-Authorization credentials" do
     transport =
       PetstoreClient.TransportOptions.new(proxy: "http://user:pass@127.0.0.1:3128")
 
@@ -121,7 +121,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert PetstoreClient.DefaultApiClient.proxy_auth_header(client) == "Basic dXNlcjpwYXNz"
   end
 
-  test "makes HTTPS request through proxy with verify_ssl=false" do
+  test "bhv transport 016 makes HTTPS request through proxy with verify_ssl=false" do
     chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTPS_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
 
@@ -145,7 +145,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # The request timeout is ONE end-to-end budget across every redirect hop:
   # two hops of 600 ms each exceed a 1000 ms budget even though no single hop
   # does.
-  test "timeout is one budget across all redirect hops" do
+  test "bhv redirects 009 timeout is one budget across all redirect hops" do
     {:ok, listener} =
       :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
 
@@ -194,7 +194,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     end
   end
 
-  test "times out on slow endpoint" do
+  test "bhv transport 024 times out on slow endpoint" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(timeout: 1000)
@@ -211,7 +211,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     end
   end
 
-  test "the redirect chain of three 500 ms hops fails under timeout 1200 and completes under 5000" do
+  test "bhv redirects 002 the redirect chain of three 500 ms hops fails under timeout 1200 and completes under 5000" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     chain = "#{chasm_url}/test/redirect/chain/1"
 
@@ -284,7 +284,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
 
   # D74: no ambient proxy. The request still reaches the mock server although
   # every proxy variable points at a port nothing listens on.
-  test "ambient proxy environment variables are ignored" do
+  test "bhv transport 009 ambient proxy environment variables are ignored" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     names = ["HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"]
     saved = Enum.map(names, fn name -> {name, System.get_env(name)} end)
@@ -312,7 +312,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     end
   end
 
-  test "injects custom User-Agent header" do
+  test "bhv transport 012 injects custom User-Agent header" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(user_agent: "MyApp/1.0")
@@ -333,7 +333,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert json["headers"]["user-agent"] == "MyApp/1.0"
   end
 
-  test "injects request id header" do
+  test "bhv transport 013 injects request id header" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
@@ -359,7 +359,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
            )
   end
 
-  test "generates unique request ids" do
+  test "bhv transport 007 generates unique request ids" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
@@ -390,7 +390,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert request_id1 != request_id2
   end
 
-  test "a lower-case user-agent or x-request-id default header is not injected again" do
+  test "bhv transport 003 a lower-case user-agent or x-request-id default header is not injected again" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
@@ -418,7 +418,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     refute response.body =~ "sdk-default-agent"
   end
 
-  test "includes transport default headers" do
+  test "bhv transport 010 includes transport default headers" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
@@ -440,7 +440,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert json["headers"]["x-custom"] == "custom-value"
   end
 
-  test "caller headers override transport defaults" do
+  test "bhv options 004 caller headers override transport defaults" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(default_headers: %{"Accept" => "text/plain"})
@@ -461,7 +461,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert json["headers"]["accept"] == "application/json"
   end
 
-  test "follows redirects when enabled" do
+  test "bhv redirects 004 follows redirects when enabled" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: true)
@@ -481,7 +481,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert json["method"] == "GET"
   end
 
-  test "returns redirect when disabled" do
+  test "bhv redirects 008 returns redirect when disabled" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: false)
@@ -499,7 +499,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert response.status_code == 302
   end
 
-  test "redirect 303 switches to GET and drops body" do
+  test "bhv redirects 005 redirect 303 switches to GET and drops body" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
@@ -535,7 +535,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # body is present AND the hop downgrades https -> http) — no chasm, no network
   # round-trip — so the canonical N1 scenario (an https->http 302) is verified
   # without depending on a harness that cannot model cross-scheme redirects.
-  test "Gap N1: 302 with a body is not refused (guard fires only for 307/308)" do
+  test "bhv redirects 001 Gap N1: 302 with a body is not refused (guard fires only for 307/308)" do
     https = "https://example.com/x"
     http = "http://example.com/x"
 
@@ -559,7 +559,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # refuses iff the status preserves the body (307/308) AND there is a body AND
   # the hop downgrades https -> http. node got this wrong by refusing every
   # status; elixir guards 307/308 only, so this asserts GREEN.
-  test "Gap N1: https->http body replay refused for 307/308 only" do
+  test "bhv retries 010 Gap N1: https->http body replay refused for 307/308 only" do
     https = "https://example.com/x"
     http = "http://example.com/x"
 
@@ -600,7 +600,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # T-new-3: multipart bodies must be replayed across 307 redirects per
   # RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
   # request after a 307 still carries the multipart form parts.
-  test "multipart body replayed on 307 redirect" do
+  test "bhv retries 012 multipart body replayed on 307 redirect" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
@@ -648,7 +648,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert String.contains?(json["body"], "file-content-bytes")
   end
 
-  test "respects max_redirects limit" do
+  test "bhv redirects 006 respects max_redirects limit" do
     transport =
       PetstoreClient.TransportOptions.new(
         follow_redirects: true,
@@ -676,7 +676,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # redirect state were shared, the max_redirects: 0 refusal — or the hop
   # consumed by the redirecting request — would leak onto the others and
   # fail them. A correct (per-request) SDK passes.
-  test "redirect count and refusal are per-request across concurrent calls" do
+  test "bhv redirects 003 redirect count and refusal are per-request across concurrent calls" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     # A shared client whose transport permits following redirects. Every
@@ -775,7 +775,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     end)
   end
 
-  test "sends multipart form data" do
+  test "bhv serializationwire 027 sends multipart form data" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     client = PetstoreClient.DefaultApiClient.new()
@@ -813,7 +813,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # W-new-2: multipart field-name validation must run on every branch (not
   # just binary). Confirm that even for a plain String value, a CR/LF in the
   # field name is rejected, preventing Content-Disposition smuggling.
-  test "multipart_field_name_with_crlf_rejected_on_string_value" do
+  test "bhv serializationwire 026 multipart_field_name_with_crlf_rejected_on_string_value" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     client = PetstoreClient.DefaultApiClient.new()
@@ -830,7 +830,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     end
   end
 
-  test "decompresses gzip response" do
+  test "bhv transport 005 decompresses gzip response" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -854,7 +854,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # compiles from C source). Without it the SDK neither advertises nor
   # decodes br; consumers opt in by adding :brotli to their own deps.
   @tag skip: "the optional :brotli NIF is not loaded in the test environment"
-  test "decompresses brotli response" do
+  test "bhv transport 004 decompresses brotli response" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -871,7 +871,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert String.contains?(response.body, "compressed fixture body")
   end
 
-  test "decompresses zstd response" do
+  test "bhv transport 006 decompresses zstd response" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -894,7 +894,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # marks the client closed so any subsequent use raises RuntimeError
   # (uniform use-after-close contract: a wrong call order is not an SDK
   # error).
-  test "close releases underlying client" do
+  test "bhv lifecycle 018 close releases underlying client" do
     client = PetstoreClient.DefaultApiClient.new()
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
@@ -964,7 +964,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # Content-Length: 0. Some servers / WAFs reject body-bearing verbs
   # with no Content-Length (411 Length Required). The client sends an
   # empty string and Content-Length: 0 explicitly on body-bearing verbs.
-  test "post_with_null_body_sends_content_length_zero" do
+  test "bhv transport 019 post_with_null_body_sends_content_length_zero" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 

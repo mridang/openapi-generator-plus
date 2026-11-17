@@ -15,12 +15,12 @@ defmodule PetstoreClient.Api.StoreApiTest do
     %{api: api}
   end
 
-  test "get_inventory", %{api: api} do
+  test "bhv operations 102 get_inventory", %{api: api} do
     assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory(api)
     assert is_map(result)
   end
 
-  test "place_order", %{api: api} do
+  test "bhv operations 117 place_order", %{api: api} do
     order = %PetstoreClient.Models.Order{
       id: :rand.uniform(1_000_000_000),
       pet_id: :rand.uniform(1_000_000_000),
@@ -35,13 +35,13 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert result.id != nil
   end
 
-  test "get_inventory_with_http_info", %{api: api} do
+  test "bhv operations 103 get_inventory_with_http_info", %{api: api} do
     assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory_with_http_info(api)
     assert result.status_code >= 200 and result.status_code < 300
     assert result.data != nil
   end
 
-  test "place_order_with_http_info", %{api: api} do
+  test "bhv operations 119 place_order_with_http_info", %{api: api} do
     order = %PetstoreClient.Models.Order{
       id: :rand.uniform(1_000_000_000),
       pet_id: :rand.uniform(1_000_000_000),
@@ -56,7 +56,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert result.data != nil
   end
 
-  test "get_order_by_id", %{api: api} do
+  test "bhv operations 104 get_order_by_id", %{api: api} do
     assert {:ok, result} =
              PetstoreClient.Api.StoreApi.get_order_by_id(api, :rand.uniform(1_000_000_000))
 
@@ -64,7 +64,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert result.id != nil
   end
 
-  test "get_order_by_id_with_http_info", %{api: api} do
+  test "bhv operations 105 get_order_by_id_with_http_info", %{api: api} do
     assert {:ok, result} =
              PetstoreClient.Api.StoreApi.get_order_by_id_with_http_info(
                api,
@@ -75,7 +75,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert result.data != nil
   end
 
-  test "delete_order", %{api: api} do
+  test "bhv operations 099 delete_order", %{api: api} do
     assert {:ok, _result} =
              PetstoreClient.Api.StoreApi.delete_order(api, :rand.uniform(1_000_000_000))
   end
@@ -109,14 +109,14 @@ defmodule PetstoreClient.Api.StoreApiTest do
     PetstoreClient.Api.StoreApi.new(client, config)
   end
 
-  test "get_order_not_found" do
+  test "bhv operations 106 get_order_not_found" do
     api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
 
     assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =
              PetstoreClient.Api.StoreApi.get_order_by_id(api, 99_999)
   end
 
-  test "place_order_server_error" do
+  test "bhv operations 118 place_order_server_error" do
     api = new_store_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
 
     order = %PetstoreClient.Models.Order{
@@ -131,7 +131,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
              PetstoreClient.Api.StoreApi.place_order(api, order)
   end
 
-  test "reserve_stock decodes the 200 body and the 201 body as their own schemas" do
+  test "bhv operations 120 reserve_stock decodes the 200 body and the 201 body as their own schemas" do
     existing =
       new_store_api_for_mock(200, "application/json", ~s({"reservationId":7,"quantity":2}))
 
@@ -164,7 +164,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
   # status, and the matching status-specific error struct is chosen. The route
   # /test/status/<code>/store/order/<id> is reached by putting the status in
   # the base URL.
-  test "get_order_by_id picks the status-specific error struct for each typed route" do
+  test "bhv operations 110 get_order_by_id picks the status-specific error struct for each typed route" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     client =
@@ -195,7 +195,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     end
   end
 
-  test "delete_order_not_found" do
+  test "bhv operations 100 delete_order_not_found" do
     api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
 
     assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =
@@ -205,7 +205,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
   # Nested container deserialization: getGroupedCategories returns
   # Array<Record<string, Category>>. Each leaf of the array-of-maps must be
   # decoded into a typed Category struct, not left as a raw map.
-  test "get_grouped_categories deserializes nested map leaves into typed Category structs" do
+  test "bhv operations 101 get_grouped_categories deserializes nested map leaves into typed Category structs" do
     body = ~s([{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}])
     api = new_store_api_for_mock(200, "application/json", body)
 
@@ -246,7 +246,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
   # A named-enum ($ref) parameter goes on the wire as its declared value in a
   # path, a query string and a header, never as the atom's debug form.
-  test "get_by_swatch sends the named enum's wire value in path, query and header" do
+  test "bhv operations 122 get_by_swatch sends the named enum's wire value in path, query and header" do
     {:ok, name} = StubApiClient.start(~s({"id":1,"name":"sample"}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -290,7 +290,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_inventory takes the per-call settings in opts after a nil options struct" do
+  test "bhv operations 096 get_inventory takes the per-call settings in opts after a nil options struct" do
     {:ok, name} = StubApiClient.start(~s({"available":1}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -372,7 +372,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
   # A parameter declared with `content: application/json` goes through the
   # SDK's own object serializer, so a model is encoded with its wire names and
   # canonical date-time and a map keeps its keys.
-  test "search_store sends content-encoded query and header parameters through the object serializer" do
+  test "bhv operations 121 search_store sends content-encoded query and header parameters through the object serializer" do
     {:ok, name} = StubApiClient.start("")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -415,7 +415,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
   # The response-shape operations: each return type is decoded by the
   # generated function itself, so a wrong return type or a decoder that cannot
   # handle a bare enum, a map-of-array or a recursive model fails here.
-  test "get_swatch decodes a bare enum response to its atom" do
+  test "bhv operations 113 get_swatch decodes a bare enum response to its atom" do
     {:ok, name} = StubApiClient.start(~s("blue"))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -426,7 +426,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_swatch_groups decodes an array of maps of enums" do
+  test "bhv operations 114 get_swatch_groups decodes an array of maps of enums" do
     {:ok, name} = StubApiClient.start(~s([{"a":"red"},{"b":"blue"}]))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -437,7 +437,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_timestamp_groups decodes an array of maps of date-times" do
+  test "bhv operations 115 get_timestamp_groups decodes an array of maps of date-times" do
     {:ok, name} = StubApiClient.start(~s([{"a":"2024-01-15T10:30:00Z"}]))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -450,7 +450,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_department decodes the mutually recursive Department and Employee" do
+  test "bhv operations 108 get_department decodes the mutually recursive Department and Employee" do
     body = ~s({"name":"eng","lead":{"name":"ann","department":{"name":"eng"}}})
     {:ok, name} = StubApiClient.start(body)
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
@@ -465,7 +465,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_tree decodes the self-referential TreeNode" do
+  test "bhv operations 116 get_tree decodes the self-referential TreeNode" do
     {:ok, name} = StubApiClient.start(~s({"value":"root","child":{"value":"leaf"}}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -478,7 +478,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_defaults decodes an empty object with the schema defaults applied" do
+  test "bhv operations 123 get_defaults decodes an empty object with the schema defaults applied" do
     {:ok, name} = StubApiClient.start(~s({}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -489,7 +489,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_stock_item sends asOf as a date-time and decodes the referenced enums" do
+  test "bhv operations 112 get_stock_item sends asOf as a date-time and decodes the referenced enums" do
     {:ok, name} = StubApiClient.start(~s({"priority":1,"availability":"Sold"}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -504,7 +504,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_order_by_tracking_id puts the canonical lowercase uuid in the path" do
+  test "bhv operations 124 get_order_by_tracking_id puts the canonical lowercase uuid in the path" do
     {:ok, name} = StubApiClient.start(~s({"id":1}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -521,7 +521,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_order_by_tracking_id rejects a malformed uuid before sending" do
+  test "bhv operations 111 get_order_by_tracking_id rejects a malformed uuid before sending" do
     {:ok, name} = StubApiClient.start(~s({"id":1}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -537,7 +537,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
   # readOnly and writeOnly have no wire effect: the writeOnly password is sent
   # and the readOnly id of the response is decoded.
-  test "create_account sends the writeOnly property and decodes the readOnly one" do
+  test "bhv operations 098 create_account sends the writeOnly property and decodes the readOnly one" do
     {:ok, name} = StubApiClient.start(~s({"id":7,"username":"u","password":"p"}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)

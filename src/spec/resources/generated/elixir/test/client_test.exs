@@ -1,7 +1,7 @@
 defmodule PetstoreClient.ClientTest do
   use ExUnit.Case, async: true
 
-  test "construct with authenticator only" do
+  test "bhv lifecycle 012 construct with authenticator only" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
 
     client = PetstoreClient.Client.new(authenticator)
@@ -9,7 +9,7 @@ defmodule PetstoreClient.ClientTest do
     assert %PetstoreClient.Client{} = client
   end
 
-  test "construct with authenticator and nil transport options" do
+  test "bhv lifecycle 010 construct with authenticator and nil transport options" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
 
     client = PetstoreClient.Client.new(authenticator, nil)
@@ -17,7 +17,7 @@ defmodule PetstoreClient.ClientTest do
     assert %PetstoreClient.Client{} = client
   end
 
-  test "construct with authenticator and transport options" do
+  test "bhv lifecycle 011 construct with authenticator and transport options" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
     transport = PetstoreClient.TransportOptions.new()
 
@@ -204,7 +204,7 @@ defmodule PetstoreClient.ClientTest do
     refute_received {:released, _label}
   end
 
-  test "close never touches a transport the caller supplied" do
+  test "bhv lifecycle 009 close never touches a transport the caller supplied" do
     {adapter, transport} = blocked_transport()
     first = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
     second = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
@@ -219,7 +219,7 @@ defmodule PetstoreClient.ClientTest do
     assert {:ok, %{status_code: 200}} = Task.await(task)
   end
 
-  test "construct with one credential per security scheme and no authenticator" do
+  test "bhv lifecycle 015 construct with one credential per security scheme and no authenticator" do
     credential = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "scheme-token")
 
     client = PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
@@ -272,7 +272,7 @@ defmodule PetstoreClient.ClientTest do
     refute_received {:released, _label}
   end
 
-  test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+  test "bhv lifecycle 006 BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     assert_raise ArgumentError, fn ->
       PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "tok\r\nInjected: yes")
     end
@@ -282,7 +282,7 @@ defmodule PetstoreClient.ClientTest do
     end
   end
 
-  test "BearerAuthenticator rejects an empty or whitespace token" do
+  test "bhv lifecycle 005 BearerAuthenticator rejects an empty or whitespace token" do
     # bearer-no-empty-token-guard: an empty/whitespace token would emit a
     # bare "Authorization: Bearer " header, sending the request
     # unauthenticated, so new/2 must reject it.
@@ -295,7 +295,7 @@ defmodule PetstoreClient.ClientTest do
     end
   end
 
-  test "ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+  test "bhv lifecycle 004 ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     # HEADER location must reject anything outside printable ASCII + TAB
     # to prevent header injection (\r\n) and silent UTF-8 mangling that
     # varies per HTTP lib.
@@ -320,7 +320,7 @@ defmodule PetstoreClient.ClientTest do
            }
   end
 
-  test "API groups are accessible" do
+  test "bhv lifecycle 001 API groups are accessible" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
 
     client = PetstoreClient.Client.new(authenticator)

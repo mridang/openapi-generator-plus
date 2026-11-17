@@ -126,7 +126,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
   end
 
   describe "OAuth2TokenManager" do
-    test "extracts access token from response" do
+    test "bhv authoauthtwotokenmgr 014 extracts access token from response" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -148,7 +148,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert token == "tok123"
     end
 
-    test "stores refresh token" do
+    test "bhv authoauthtwotokenmgr 028 stores refresh token" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -174,7 +174,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "ref1"
     end
 
-    test "returns cached token when not expired" do
+    test "bhv authoauthtwotokenmgr 025 returns cached token when not expired" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -199,7 +199,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert second == "tok1"
     end
 
-    test "refetches token when expired" do
+    test "bhv authoauthtwotokenmgr 021 refetches token when expired" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -228,7 +228,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert second == "tok2"
     end
 
-    test "set_access_token bypasses endpoint" do
+    test "bhv authoauthtwotokenmgr 026 set_access_token bypasses endpoint" do
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_access_token(manager, "manual-token")
 
@@ -242,7 +242,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert token == "manual-token"
     end
 
-    test "invalidate_access_token forces refetch" do
+    test "bhv authoauthtwotokenmgr 018 invalidate_access_token forces refetch" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -274,7 +274,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 2
     end
 
-    test "throws when no ApiClient injected" do
+    test "bhv authoauthtwotokenmgr 030 throws when no ApiClient injected" do
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
 
       err =
@@ -290,7 +290,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
     end
 
-    test "10 concurrent get_access_token calls hit token endpoint exactly once" do
+    test "bhv authoauthtwotokenmgr 027 10 concurrent get_access_token calls hit token endpoint exactly once" do
       counting_client = CountingApiClient.new()
 
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
@@ -316,7 +316,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert CountingApiClient.call_count(counting_client) == 1
     end
 
-    test "expires_in short-lived token does not storm" do
+    test "bhv authoauthtwotokenmgr 013 expires_in short-lived token does not storm" do
       # Gap CM: short-lived token (expires_in < buffer) must produce exactly
       # ONE network call from a single get_access_token invocation.
       fake_client =
@@ -341,7 +341,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 1
     end
 
-    test "expires_in long-lived token applies full buffer" do
+    test "bhv authoauthtwotokenmgr 010 expires_in long-lived token applies full buffer" do
       # Gap CM: long-lived token gets full 30s buffer; second call uses cache.
       fake_client =
         FakeApiClient.new([
@@ -368,7 +368,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 1
     end
 
-    test "expires_in of 0 is stale at once and refetches" do
+    test "bhv authoauthtwotokenmgr 012 expires_in of 0 is stale at once and refetches" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -399,7 +399,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     end
 
     for expires_in <- [31, 60, 90, 120] do
-      test "a token with expires_in #{expires_in} is reused, not refetched on every call" do
+      test "bhv authoauthtwotokenmgr 004 a token with expires_in #{expires_in} is reused, not refetched on every call" do
         fake_client =
           FakeApiClient.new([
             %PetstoreClient.ApiHttpResponse{
@@ -431,7 +431,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       end
     end
 
-    test "the token request carries a form-urlencoded Content-Type and a JSON Accept" do
+    test "bhv authoauthtwotokenmgr 035 the token request carries a form-urlencoded Content-Type and a JSON Accept" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -454,7 +454,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert headers["Accept"] == "application/json"
     end
 
-    test "an oversized expires_in is clamped to one year" do
+    test "bhv authoauthtwotokenmgr 005 an oversized expires_in is clamped to one year" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -482,7 +482,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert expiry > before + 31_536_000 * 1000 - 120_000
     end
 
-    test "refresh_token empty string preserves existing" do
+    test "bhv authoauthtwotokenmgr 024 refresh_token empty string preserves existing" do
       # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
       # MUST NOT clobber the cached refresh_token.
       fake_client =
@@ -522,7 +522,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "old_refresh"
     end
 
-    test "a refresh sends the refresh token with the client credentials, not the original grant" do
+    test "bhv authoauthtwotokenmgr 022 a refresh sends the refresh token with the client credentials, not the original grant" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -568,7 +568,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
              }
     end
 
-    test "a failed refresh falls back to the original grant" do
+    test "bhv authoauthtwotokenmgr 016 a failed refresh falls back to the original grant" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -657,7 +657,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert error.code == "invalid_client"
     end
 
-    test "a refresh goes to the refresh_url option" do
+    test "bhv authoauthtwotokenmgr 029 a refresh goes to the refresh_url option" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -703,7 +703,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/refresh"
     end
 
-    test "a refresh grant passed as params is sent exactly once" do
+    test "bhv authoauthtwotokenmgr 023 a refresh grant passed as params is sent exactly once" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -771,7 +771,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
                "grant_type=client_credentials&client_id=cid&client_secret=sec&scope=a+b&alpha=x&zeta=z"
     end
 
-    test "exchange bypasses a cached token and the refresh path" do
+    test "bhv authoauthtwotokenmgr 006 exchange bypasses a cached token and the refresh path" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -808,7 +808,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.exchanged?(manager)
     end
 
-    test "a failed exchange restores the previous session" do
+    test "bhv authoauthtwotokenmgr 015 a failed exchange restores the previous session" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -850,7 +850,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
              ) == "tok1"
     end
 
-    test "a token response without expires_in is cached indefinitely" do
+    test "bhv authoauthtwotokenmgr 039 a token response without expires_in is cached indefinitely" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -880,7 +880,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 1
     end
 
-    test "a refresh response without expires_in is cached without a lapsed expiry" do
+    test "bhv authoauthtwotokenmgr 003 a refresh response without expires_in is cached without a lapsed expiry" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -927,7 +927,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 2
     end
 
-    test "a non-string refresh_token is ignored" do
+    test "bhv authoauthtwotokenmgr 020 a non-string refresh_token is ignored" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -953,7 +953,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == nil
     end
 
-    test "expires_in as JSON string is accepted" do
+    test "bhv authoauthtwotokenmgr 009 expires_in as JSON string is accepted" do
       # D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
       # quoted string. The manager must accept it and cache the token; a
       # second call within the buffer window must serve from cache.
@@ -982,7 +982,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 1
     end
 
-    test "expires_in as float is floored" do
+    test "bhv authoauthtwotokenmgr 008 expires_in as float is floored" do
       # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
       # The manager must floor it and cache the token.
       fake_client =
@@ -1010,7 +1010,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 1
     end
 
-    test "expires_in negative skips caching" do
+    test "bhv authoauthtwotokenmgr 011 expires_in negative skips caching" do
       # D1: a negative expires_in (e.g. -1) must mark the token as
       # immediately stale so the very next call refetches.
       fake_client =
@@ -1042,7 +1042,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 2
     end
 
-    test "throws when token request fails" do
+    test "bhv authoauthtwotokenmgr 031 throws when token request fails" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -1065,7 +1065,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       end
     end
 
-    test "missing access_token in 2xx response raises typed OAuth2TokenError" do
+    test "bhv authoauthtwotokenmgr 036 missing access_token in 2xx response raises typed OAuth2TokenError" do
       # A 2xx response whose body omits access_token must surface as the typed
       # OAuth2TokenError, not silently cache an empty token.
       fake_client =
@@ -1088,7 +1088,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       end
     end
 
-    test "token POST passes no_redirect flag to the ApiClient transport" do
+    test "bhv authoauthtwotokenmgr 034 token POST passes no_redirect flag to the ApiClient transport" do
       # Gap 3.2: the token POST must opt out of redirect following at the
       # transport layer. The manager passes no_redirect: true to clients that
       # export send_request/6; this fake captures the propagated options.
@@ -1116,7 +1116,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
     for status <- [301, 302, 303, 307, 308] do
       @redirect_status status
-      test "refuses #{@redirect_status} from token endpoint with OAuth2ServerError" do
+      test "bhv authoauthtwotokenmgr 033 refuses #{@redirect_status} from token endpoint with OAuth2ServerError" do
         fake_client =
           FakeApiClient.new([
             %PetstoreClient.ApiHttpResponse{
@@ -1145,7 +1145,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     # Token endpoint: a 2xx body that is not JSON is an OAuth2TokenError (never
     # a leaked Jason.DecodeError), and a transport failure propagates as the
     # NetworkError / NetworkTimeoutError it already is.
-    test "token endpoint failures are typed" do
+    test "bhv authoauthtwotokenmgr 037 token endpoint failures are typed" do
       fetch = fn response ->
         {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
 
@@ -1194,7 +1194,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       end
     end
 
-    test "token endpoint error response parsed to typed OAuth2ServerError" do
+    test "bhv authoauthtwotokenmgr 032 token endpoint error response parsed to typed OAuth2ServerError" do
       # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
       # typed OAuth2ServerError carrying code/description/uri.
       fake_client =
@@ -1228,7 +1228,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert error.uri == "https://docs.example.com/errors/invalid_grant"
     end
 
-    test "invalidate_access_token triggers a single refetch under concurrency" do
+    test "bhv authoauthtwotokenmgr 019 invalidate_access_token triggers a single refetch under concurrency" do
       # After invalidation, 10 concurrent callers must coalesce into exactly
       # ONE additional token-endpoint call (single-flight), all observing the
       # refreshed token.
@@ -1265,7 +1265,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert NumberingCountingApiClient.call_count(counting_client) == 2
     end
 
-    test "token_type bearer in any case, or none, is accepted; anything else is refused" do
+    test "bhv authoauthtwotokenmgr 002 token_type bearer in any case, or none, is accepted; anything else is refused" do
       fetch = fn token_type ->
         body = %{"access_token" => "tok", "expires_in" => 3600}
         body = if token_type == :none, do: body, else: Map.put(body, "token_type", token_type)

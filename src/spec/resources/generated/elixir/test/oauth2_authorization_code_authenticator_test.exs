@@ -74,7 +74,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert auth.redirect_uri == "https://app.example.com/callback"
     end
 
-    test "scheme authenticator keeps the declared scopes in the authorization URL" do
+    test "bhv authoauthtwoauthcode 020 scheme authenticator keeps the declared scopes in the authorization URL" do
       auth =
         PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator.new(
           "https://api.example.com",
@@ -94,7 +94,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert String.contains?(url, "scope=")
     end
 
-    test "builds authorization URL with required params" do
+    test "bhv authoauthtwoauthcode 006 builds authorization URL with required params" do
       auth = create_authenticator()
 
       url =
@@ -112,7 +112,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
     # RFC 3986 unreserved characters (including ~) stay literal; * ! ' ( ) are
     # percent-encoded, and a space is %20 rather than +.
-    test "authorization URL percent-encodes * ! ' ( ) and keeps ~ literal" do
+    test "bhv authoauthtwoauthcode 004 authorization URL percent-encodes * ! ' ( ) and keeps ~ literal" do
       auth =
         PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
           "https://api.example.com",
@@ -135,7 +135,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert String.contains?(url, "state=s%20t%27a%21te")
     end
 
-    test "builds authorization URL with state" do
+    test "bhv authoauthtwoauthcode 007 builds authorization URL with state" do
       auth = create_authenticator()
 
       url =
@@ -147,7 +147,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert String.contains?(url, "state=csrf-state-123")
     end
 
-    test "empty state is omitted" do
+    test "bhv authoauthtwoauthcode 018 empty state is omitted" do
       auth = create_authenticator()
 
       url =
@@ -166,7 +166,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                )
     end
 
-    test "exchanges code with correct grant type" do
+    test "bhv authoauthtwoauthcode 012 exchanges code with correct grant type" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -200,7 +200,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert String.contains?(last_body, "client_secret=my-client-secret")
     end
 
-    test "includes refresh token on refresh" do
+    test "bhv authoauthtwoauthcode 015 includes refresh token on refresh" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -240,7 +240,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok2"
     end
 
-    test "refresh sends the client credentials with the refresh token" do
+    test "bhv authoauthtwoauthcode 026 refresh sends the client credentials with the refresh token" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -282,7 +282,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
              }
     end
 
-    test "the code is exchanged at the token URL and the refresh goes to the refresh URL" do
+    test "bhv authoauthtwoauthcode 024 the code is exchanged at the token URL and the refresh goes to the refresh URL" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -330,7 +330,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/refresh"
     end
 
-    test "a rejected refresh raises OAuth2ServerError after exactly one refresh request" do
+    test "bhv authoauthtwoauthcode 002 a rejected refresh raises OAuth2ServerError after exactly one refresh request" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -371,7 +371,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert length(FakeApiClient.requests(fake_client)) == 2
     end
 
-    test "a second exchange_code sends the new code" do
+    test "bhv authoauthtwoauthcode 021 a second exchange_code sends the new code" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -418,7 +418,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                "Bearer tok2"
     end
 
-    test "a second exchange without refresh_token drops the old refresh token" do
+    test "bhv authoauthtwoauthcode 022 a second exchange without refresh_token drops the old refresh token" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -453,7 +453,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(auth.token_manager) == nil
     end
 
-    test "a failed exchange keeps the previous session" do
+    test "bhv authoauthtwoauthcode 013 a failed exchange keeps the previous session" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -545,7 +545,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
     end
 
-    test "the authorization URL carries a PKCE S256 challenge that the code exchange proves" do
+    test "bhv authoauthtwoauthcode 023 the authorization URL carries a PKCE S256 challenge that the code exchange proves" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -587,7 +587,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
     end
 
-    test "each authorization URL has its own challenge and the exchange proves the last one" do
+    test "bhv authoauthtwoauthcode 008 each authorization URL has its own challenge and the exchange proves the last one" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -630,7 +630,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
     end
 
-    test "a code exchange without a built authorization URL sends no code verifier" do
+    test "bhv authoauthtwoauthcode 001 a code exchange without a built authorization URL sends no code verifier" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -729,7 +729,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok1"
     end
 
-    test "exchange code rejects empty code" do
+    test "bhv authoauthtwoauthcode 010 exchange code rejects empty code" do
       auth = create_authenticator()
 
       err =
@@ -740,7 +740,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert err.message == "Authorization code must not be empty"
     end
 
-    test "exchange code rejects whitespace only code" do
+    test "bhv authoauthtwoauthcode 011 exchange code rejects whitespace only code" do
       auth = create_authenticator()
 
       assert_raise ArgumentError, fn ->
@@ -748,7 +748,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       end
     end
 
-    test "throws before exchange code called" do
+    test "bhv authoauthtwoauthcode 027 throws before exchange code called" do
       auth = create_authenticator()
 
       assert_raise RuntimeError, fn ->
@@ -756,14 +756,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       end
     end
 
-    test "get_host returns configured host" do
+    test "bhv authoauthtwoauthcode 014 get_host returns configured host" do
       auth = create_authenticator()
 
       assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.host(auth) ==
                "https://api.example.com"
     end
 
-    test "auth_headers_before_exchange_returns_recoverable_error" do
+    test "bhv authoauthtwoauthcode 003 auth_headers_before_exchange_returns_recoverable_error" do
       auth = create_authenticator()
 
       # Calling auth_headers before exchange_code is a precondition
@@ -785,7 +785,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                "https://api.example.com"
     end
 
-    test "authorize URL with existing query string uses amp separator" do
+    test "bhv authoauthtwoauthcode 005 authorize URL with existing query string uses amp separator" do
       auth =
         PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
           "https://api.example.com",
@@ -807,7 +807,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert length(String.split(url, "?")) - 1 == 1
     end
 
-    test "invalidate_access_token drops the access token and keeps the refresh token" do
+    test "bhv authoauthtwoauthcode 016 invalidate_access_token drops the access token and keeps the refresh token" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -855,7 +855,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert refresh =~ "refresh_token=ref1"
     end
 
-    test "redacts secret" do
+    test "bhv authoauthtwoauthcode 019 redacts secret" do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"

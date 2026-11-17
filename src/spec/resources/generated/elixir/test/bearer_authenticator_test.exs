@@ -4,25 +4,25 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
   alias PetstoreClient.Auth.BearerAuthenticator
 
   describe "BearerAuthenticator" do
-    test "raw token is prefixed with Bearer" do
+    test "bhv authbearer 009 raw token is prefixed with Bearer" do
       auth = BearerAuthenticator.new("https://api.example.com", "xyz")
       headers = BearerAuthenticator.auth_headers(auth)
       assert headers["Authorization"] == "Bearer xyz"
     end
 
-    test "already-prefixed token is not doubled" do
+    test "bhv authbearer 003 already-prefixed token is not doubled" do
       auth = BearerAuthenticator.new("https://api.example.com", "Bearer xyz")
       headers = BearerAuthenticator.auth_headers(auth)
       assert headers["Authorization"] == "Bearer xyz"
     end
 
-    test "lowercase bearer prefix is stripped" do
+    test "bhv authbearer 007 lowercase bearer prefix is stripped" do
       auth = BearerAuthenticator.new("https://api.example.com", "bearer xyz")
       headers = BearerAuthenticator.auth_headers(auth)
       assert headers["Authorization"] == "Bearer xyz"
     end
 
-    test "mixed-case bearer prefix is stripped" do
+    test "bhv authbearer 008 mixed-case bearer prefix is stripped" do
       auth = BearerAuthenticator.new("https://api.example.com", "BeArEr xyz")
       headers = BearerAuthenticator.auth_headers(auth)
       assert headers["Authorization"] == "Bearer xyz"
@@ -31,13 +31,13 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
     # bearer-no-empty-token-guard: an empty/whitespace token would emit a
     # bare "Authorization: Bearer " header, sending the request
     # unauthenticated, so new/2 must reject it.
-    test "rejects an empty token at construction" do
+    test "bhv authbearer 005 rejects an empty token at construction" do
       assert_raise ArgumentError, ~r/Bearer token must not be empty/, fn ->
         BearerAuthenticator.new("https://api.example.com", "")
       end
     end
 
-    test "rejects a whitespace-only token at construction" do
+    test "bhv authbearer 017 rejects a whitespace-only token at construction" do
       assert_raise ArgumentError, fn ->
         BearerAuthenticator.new("https://api.example.com", "   ")
       end
@@ -45,7 +45,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
 
     # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. Reject
     # CR/LF (header injection) and non-ASCII (silent UTF-8 mangling).
-    test "rejects CR/LF and non-ASCII tokens at construction" do
+    test "bhv authbearer 012 rejects CR/LF and non-ASCII tokens at construction" do
       assert_raise ArgumentError, fn ->
         BearerAuthenticator.new("https://api.example.com", "tok\r\nInjected: yes")
       end
@@ -55,7 +55,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       end
     end
 
-    test "a token of Unicode spaces is not blank: the printable ASCII rule rejects it" do
+    test "bhv authbearer 016 a token of Unicode spaces is not blank: the printable ASCII rule rejects it" do
       error =
         assert_raise ArgumentError, fn ->
           BearerAuthenticator.new("https://api.example.com", "\u00A0\u2003")
@@ -65,17 +65,17 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
     end
 
-    test "a token that merely begins with the word bearer is kept whole" do
+    test "bhv authbearer 015 a token that merely begins with the word bearer is kept whole" do
       auth = BearerAuthenticator.new("https://api.example.com", "bearerxyz")
       assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer bearerxyz"
     end
 
-    test "a doubled bearer prefix is stripped only once" do
+    test "bhv authbearer 004 a doubled bearer prefix is stripped only once" do
       auth = BearerAuthenticator.new("https://api.example.com", "Bearer Bearer xyz")
       assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer Bearer xyz"
     end
 
-    test "a nil token is read once from the environment and a passed token wins" do
+    test "bhv authbearer 010 a nil token is read once from the environment and a passed token wins" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
       System.put_env(name, "from-env")
       on_exit(fn -> System.delete_env(name) end)
@@ -108,7 +108,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       end
     end
 
-    test "a zero-argument function supplies the token for every request" do
+    test "bhv authbearer 014 a zero-argument function supplies the token for every request" do
       {:ok, counter} = Agent.start_link(fn -> 0 end)
 
       provider = fn ->
@@ -122,7 +122,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       refute inspect(auth) =~ "#Function"
     end
 
-    test "a token the function returns is checked like a passed one" do
+    test "bhv authbearer 002 a token the function returns is checked like a passed one" do
       auth = BearerAuthenticator.new("https://api.example.com", fn -> "" end)
 
       assert_raise ArgumentError, ~r/Bearer token must not be empty/, fn ->
@@ -132,7 +132,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
 
     # authenticator-secret-in-default-string-repr: the token must never
     # appear in the authenticator's default Inspect representation.
-    test "default inspect/1 redacts the token but keeps the host" do
+    test "bhv authbearer 011 default inspect/1 redacts the token but keeps the host" do
       auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
 
       refute inspect(auth) =~ "super-secret-token"

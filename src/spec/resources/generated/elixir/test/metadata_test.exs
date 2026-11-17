@@ -2,20 +2,20 @@ defmodule PetstoreClient.Models.MetadataTest do
   use ExUnit.Case, async: true
 
   describe "typed additional properties" do
-    test "serializes empty metadata" do
+    test "bhv models 008 serializes empty metadata" do
       metadata = %PetstoreClient.Models.Metadata{}
       json = PetstoreClient.ObjectSerializer.serialize(metadata)
 
       assert json != nil
     end
 
-    test "deserializes empty object" do
+    test "bhv models 003 deserializes empty object" do
       metadata = PetstoreClient.ObjectSerializer.deserialize("{}", "Metadata")
 
       assert metadata != nil
     end
 
-    test "deserializes additional string properties" do
+    test "bhv models 004 deserializes additional string properties" do
       json = ~s({"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"})
       metadata = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
 
@@ -23,7 +23,7 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert %PetstoreClient.Models.Metadata{} = metadata
     end
 
-    test "round-trip preserves known properties" do
+    test "bhv models 011 round-trip preserves known properties" do
       metadata = %PetstoreClient.Models.Metadata{
         created_at: "2024-01-01T00:00:00+00:00"
       }
@@ -33,14 +33,14 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert data["createdAt"] != nil
     end
 
-    test "captures undeclared keys into additional_properties" do
+    test "bhv models 001 captures undeclared keys into additional_properties" do
       metadata =
         PetstoreClient.ObjectSerializer.deserialize(~s({"customField":"hello"}), "Metadata")
 
       assert metadata.additional_properties == %{"customField" => "hello"}
     end
 
-    test "equality includes additional_properties" do
+    test "bhv models 005 equality includes additional_properties" do
       plain = %PetstoreClient.Models.Metadata{}
 
       with_extra = %PetstoreClient.Models.Metadata{
@@ -74,7 +74,7 @@ defmodule PetstoreClient.Models.MetadataTest do
   # documentation noise. It is a parity assertion that should already pass and
   # stay passing.
   describe "generated model docblocks (L1 parity)" do
-    test ~s(no generated model carries a literal "Example: null" / "@example null" doc line) do
+    test ~s(bhv models 007 no generated model carries a literal "Example: null" / "@example null" doc line) do
       model_files =
         Path.wildcard(Path.join([File.cwd!(), "lib", "**", "models", "*.ex"]))
 
@@ -102,7 +102,7 @@ defmodule PetstoreClient.Models.MetadataTest do
   # non-empty description so the package does not publish with an empty
   # description field.
   describe "package manifest" do
-    test "mix project package metadata declares a non-empty description" do
+    test "bhv models 002 mix project package metadata declares a non-empty description" do
       description = PetstoreClient.MixProject.project()[:package][:description]
       assert is_binary(description)
       assert String.trim(description) != ""

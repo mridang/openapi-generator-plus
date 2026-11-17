@@ -4,19 +4,19 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
   alias PetstoreClient.Auth.ApiKeyAuthenticator
 
   describe "ApiKeyAuthenticator" do
-    test "valid header key is emitted as a header" do
+    test "bhv authapikey 014 valid header key is emitted as a header" do
       auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
       headers = ApiKeyAuthenticator.auth_headers(auth)
       assert headers["X-Api-Key"] == "abc123"
     end
 
-    test "valid query key is emitted as a query param" do
+    test "bhv authapikey 015 valid query key is emitted as a query param" do
       auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc123", :query)
       params = ApiKeyAuthenticator.query_params(auth)
       assert params["api_key"] == "abc123"
     end
 
-    test "valid cookie key is emitted as a cookie param" do
+    test "bhv authapikey 013 valid cookie key is emitted as a cookie param" do
       auth = ApiKeyAuthenticator.new("https://api.example.com", "session", "abc123", :cookie)
       cookies = ApiKeyAuthenticator.cookie_params(auth)
       assert cookies["session"] == "abc123"
@@ -86,7 +86,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
-    test "rejects an empty key for every location at construction" do
+    test "bhv authapikey 005 rejects an empty key for every location at construction" do
       assert_raise ArgumentError, fn ->
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "", :header)
       end
@@ -100,7 +100,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
-    test "rejects a key of only ASCII whitespace, including form feed and vertical tab" do
+    test "bhv authapikey 011 rejects a key of only ASCII whitespace, including form feed and vertical tab" do
       for blank <- [" ", "\t", "\n", "\r", "\f", "\v", " \t\f\v"] do
         assert_raise ArgumentError, fn ->
           ApiKeyAuthenticator.new("https://api.example.com", "api_key", blank, :query)
@@ -108,21 +108,21 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
-    test "a Unicode space is not blank and is a valid query key" do
+    test "bhv authapikey 001 a Unicode space is not blank and is a valid query key" do
       for key <- ["\u00A0", "\u2003"] do
         auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", key, :query)
         assert ApiKeyAuthenticator.query_params(auth)["api_key"] == key
       end
     end
 
-    test "rejects a whitespace-only key at construction" do
+    test "bhv authapikey 017 rejects a whitespace-only key at construction" do
       assert_raise ArgumentError, fn ->
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "   ", :header)
       end
     end
 
     # CR/LF/NUL are forbidden control characters in ALL locations.
-    test "rejects CR/LF/NUL keys for query and cookie at construction" do
+    test "bhv authapikey 002 rejects CR/LF/NUL keys for query and cookie at construction" do
       assert_raise ArgumentError, fn ->
         ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc\r\n", :query)
       end
@@ -138,7 +138,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
 
     # HEADER location must reject anything outside printable ASCII + TAB
     # (RFC 7230 §3.2.6); non-header locations accept arbitrary chars.
-    test "header location rejects non-ASCII while query accepts it" do
+    test "bhv authapikey 008 header location rejects non-ASCII while query accepts it" do
       assert_raise ArgumentError, fn ->
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "kéy", :header)
       end
@@ -191,7 +191,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
 
     # The authenticators generated for the spec's API key schemes fix the key
     # name and the location the spec declares.
-    test "scheme authenticators send their key under the declared name and location" do
+    test "bhv authapikey 007 scheme authenticators send their key under the declared name and location" do
       header =
         PetstoreClient.Auth.ApiKeyHeaderAuthenticator.new("https://api.example.com", "abc123")
 
@@ -269,7 +269,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
 
     # authenticator-secret-in-default-string-repr: the key must never appear
     # in the authenticator's default Inspect representation.
-    test "default inspect/1 redacts the API key" do
+    test "bhv authapikey 010 default inspect/1 redacts the API key" do
       auth =
         ApiKeyAuthenticator.new(
           "https://api.example.com",

@@ -2,7 +2,7 @@
 defmodule {{moduleName}}.ClientTest do
   use ExUnit.Case, async: true
 
-  test "construct with authenticator only" do
+  test "bhv lifecycle 012 construct with authenticator only" do
     authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
 
     client = {{moduleName}}.{{clientClassName}}.new(authenticator)
@@ -10,7 +10,7 @@ defmodule {{moduleName}}.ClientTest do
     assert %{{moduleName}}.{{clientClassName}}{} = client
   end
 
-  test "construct with authenticator and nil transport options" do
+  test "bhv lifecycle 010 construct with authenticator and nil transport options" do
     authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
 
     client = {{moduleName}}.{{clientClassName}}.new(authenticator, nil)
@@ -18,7 +18,7 @@ defmodule {{moduleName}}.ClientTest do
     assert %{{moduleName}}.{{clientClassName}}{} = client
   end
 
-  test "construct with authenticator and transport options" do
+  test "bhv lifecycle 011 construct with authenticator and transport options" do
     authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
     transport = {{moduleName}}.TransportOptions.new()
 
@@ -198,7 +198,7 @@ defmodule {{moduleName}}.ClientTest do
     refute_received {:released, _label}
   end
 
-  test "close never touches a transport the caller supplied" do
+  test "bhv lifecycle 009 close never touches a transport the caller supplied" do
     {adapter, transport} = blocked_transport()
     first = {{moduleName}}.{{clientClassName}}.new(%ClosingAuthenticator{notify: self()}, transport)
     second = {{moduleName}}.{{clientClassName}}.new(%ClosingAuthenticator{notify: self()}, transport)
@@ -214,7 +214,7 @@ defmodule {{moduleName}}.ClientTest do
   end
 
 {{#hasClientSchemes}}
-  test "construct with one credential per security scheme and no authenticator" do
+  test "bhv lifecycle 015 construct with one credential per security scheme and no authenticator" do
     credential = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "scheme-token")
 
     client = {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
@@ -284,7 +284,7 @@ defmodule {{moduleName}}.ClientTest do
   end
 
 {{/hasClientSchemes}}
-  test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+  test "bhv lifecycle 006 BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     assert_raise ArgumentError, fn ->
       {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "tok\r\nInjected: yes")
     end
@@ -294,7 +294,7 @@ defmodule {{moduleName}}.ClientTest do
     end
   end
 
-  test "BearerAuthenticator rejects an empty or whitespace token" do
+  test "bhv lifecycle 005 BearerAuthenticator rejects an empty or whitespace token" do
     # bearer-no-empty-token-guard: an empty/whitespace token would emit a
     # bare "Authorization: Bearer " header, sending the request
     # unauthenticated, so new/2 must reject it.
@@ -307,7 +307,7 @@ defmodule {{moduleName}}.ClientTest do
     end
   end
 
-  test "ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+  test "bhv lifecycle 004 ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     # HEADER location must reject anything outside printable ASCII + TAB
     # to prevent header injection (\r\n) and silent UTF-8 mangling that
     # varies per HTTP lib.
@@ -324,7 +324,7 @@ defmodule {{moduleName}}.ClientTest do
     assert {{moduleName}}.Auth.ApiKeyAuthenticator.query_params(query_auth) == %{"api_key" => "kéy"}
   end
 
-  test "API groups are accessible" do
+  test "bhv lifecycle 001 API groups are accessible" do
     authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
 
     client = {{moduleName}}.{{clientClassName}}.new(authenticator)
