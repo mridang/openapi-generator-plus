@@ -139,7 +139,7 @@ public abstract record {{classname}}
 {{/discriminator}}
 {{^discriminator}}
 [JsonConverter(typeof({{classname}}Converter))]
-public class {{classname}}(object value) : IEquatable<{{classname}}>
+public class {{classname}}(object value) : IEquatable<{{classname}}>, global::{{packageName}}.IOneOfWrapper
 {
     /// <summary>The wrapped variant. The wrapper is immutable: to change it, build another one.</summary>
     public object? ActualInstance { get; } = value;
