@@ -2839,6 +2839,54 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvLifecycle019CloseRefusesANewRequestWithoutSendingItWhileAnotherIsInFlight()
+      throws Exception {
+    var entered = new java.util.concurrent.CountDownLatch(1);
+    var release = new java.util.concurrent.CountDownLatch(1);
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer slow = HttpServer.create(new InetSocketAddress(0), 0);
+    slow.createContext(
+        "/",
+        exchange -> {
+          hits.incrementAndGet();
+          entered.countDown();
+          try {
+            release.await();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          byte[] response = "done".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+    slow.start();
+    var result = new java.util.concurrent.atomic.AtomicReference<ApiHttpResponse>();
+    try {
+      DefaultApiClient client = new DefaultApiClient();
+      Thread running =
+          new Thread(
+              () -> result.set(client.sendRequest("GET", urlOf(slow), Map.of(), null)));
+      running.start();
+      assertTrue(entered.await(10, java.util.concurrent.TimeUnit.SECONDS));
+
+      client.close();
+
+      assertThrowsExactly(
+          IllegalStateException.class,
+          () -> client.sendRequest("GET", urlOf(slow), Map.of(), null));
+      assertEquals(1, hits.get(), "the refused request must never reach the server");
+      release.countDown();
+      running.join(10_000);
+      assertEquals(200, java.util.Objects.requireNonNull(result.get()).statusCode());
+    } finally {
+      release.countDown();
+      slow.stop(0);
+    }
+  }
+
+  @Test
   void bhvLifecycle022ClosingTwiceIsANoOpAndReleasesTheTransportOnce() {
     DefaultApiClient client = new DefaultApiClient();
     assertFalse(client.isTransportReleased());

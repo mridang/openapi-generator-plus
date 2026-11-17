@@ -179,8 +179,16 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("anyOf unions decoded from the same JSON are equal with equal hash codes")
-        void anyOfValueEquality() {
+        @DisplayName("bhvUnions007 anyOf with no matching variant throws SerializationException")
+        void bhvUnions007TestAnyOfNoMatchingVariantThrows() {
+            String json = "{\"unexpected\":\"shape\"}";
+            assertThatThrownBy(() -> serializer.deserialize(json, PET_TREATMENT_TYPE))
+                    .isExactlyInstanceOf(SerializationException.class);
+        }
+
+        @Test
+        @DisplayName("bhvUnions011 anyOf unions decoded from the same JSON are equal with equal hash codes")
+        void bhvUnions011AnyOfValueEquality() {
             String json = "{\"drugName\":\"a\",\"procedureName\":\"b\"}";
             PetTreatment first = Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
             PetTreatment second = Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
@@ -319,6 +327,17 @@ class ComposedSchemaTest {
             assertThat(result.getMatchedInstances().get(0)).isInstanceOf(Surgery.class);
             assertThat(result.getMatchedInstances().get(1)).isInstanceOf(Medication.class);
             assertThat(result.getActualInstance()).isInstanceOf(Surgery.class);
+        }
+
+        @Test
+        @DisplayName("bhvUnions005 retains the matching variants in declaration order, not alphabetical order")
+        void bhvUnions005TestVariantsAreRetainedInDeclarationOrder() {
+            String json = "{\"drugName\":\"Amoxicillin\",\"procedureName\":\"Spay\"}";
+            TreatmentRecord result =
+                    Objects.requireNonNull(serializer.deserialize(json, TREATMENT_RECORD_TYPE));
+
+            assertThat(result.getMatchedInstances().get(0)).isInstanceOf(Surgery.class);
+            assertThat(result.getMatchedInstances().get(1)).isInstanceOf(Medication.class);
         }
 
         @Test

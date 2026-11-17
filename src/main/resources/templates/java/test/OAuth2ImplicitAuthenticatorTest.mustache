@@ -156,6 +156,16 @@ class OAuth2ImplicitAuthenticatorTest {
      * {@code ***} redaction marker present.
      */
     @Test
+    @DisplayName("bhvAuthOauthTwoImplicit010 toString() redacts the secret and shows ***")
+    void bhvAuthOauthTwoImplicit010RedactsSecret() {
+        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+        auth.setAccessToken("implicit-tok");
+        String repr = auth.toString();
+        assertFalse(repr.contains("implicit-tok"));
+        assertTrue(repr.contains("***"));
+    }
+
+    @Test
     @DisplayName("bhvAuthOauthTwoImplicit011 toString() redacts the access token and shows ***")
     void bhvAuthOauthTwoImplicit011RedactsSecret() {
         OAuth2ImplicitAuthenticator auth = createAuthenticator();

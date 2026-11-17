@@ -51,6 +51,15 @@ class MetadataTest {
     }
 
     @Test
+    void bhvModels001CapturesUndeclaredKeysIntoAdditionalProperties() {
+        String json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"undeclaredKey\":\"extra\"}";
+        Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
+
+        assertThat(metadata.getAdditionalProperties()).containsOnlyKeys("undeclaredKey");
+        assertThat(metadata.getAdditionalProperties().get("undeclaredKey")).isEqualTo("extra");
+    }
+
+    @Test
     void bhvModels011TestRoundTripPreservesAdditionalProperties() {
         Metadata metadata =
                 Metadata.builder()
@@ -215,6 +224,32 @@ class MetadataTest {
     @Test
     void testDefaultedPropertyKeepsItsDefaultUntilSet() {
         assertThat(Order.builder().build().status).isEqualTo(Order.StatusEnum.PLACED);
+    }
+
+    @Test
+    void bhvModels006FileHeaderPrintsTheDescriptionWithoutEscapedQuotes() throws IOException {
+        java.util.List<Path> sources;
+        try (java.util.stream.Stream<Path> walk = Files.walk(Path.of("src"))) {
+            sources = walk.filter(Files::isRegularFile)
+                    .filter(f -> f.toString().endsWith(".java"))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        java.util.List<java.util.List<String>> headers = new java.util.ArrayList<>();
+        for (Path source : sources) {
+            try (java.util.stream.Stream<String> lines = Files.lines(source)) {
+                java.util.List<String> head = lines.limit(3).collect(java.util.stream.Collectors.toList());
+                if (!head.isEmpty() && head.get(0).startsWith("// ")) {
+                    headers.add(head);
+                }
+            }
+        }
+        assertThat(headers).as("generated sources must start with the header comment").isNotEmpty();
+        for (java.util.List<String> header : headers) {
+            for (String line : header) {
+                assertThat(line).as("header line must not contain a backslash-escaped quote")
+                        .doesNotContain("\\\"");
+            }
+        }
     }
 
     @Test

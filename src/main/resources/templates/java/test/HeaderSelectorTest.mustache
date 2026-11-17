@@ -95,6 +95,28 @@ class HeaderSelectorTest {
     class SelectHeadersTests {
 
         @Test
+        @DisplayName("bhvHeaders010 should filter out empty entries before joining")
+        void bhvHeaders010ShouldFilterOutEmptyEntries() {
+            Map<String, String> headers = headerSelector.selectHeaders(
+                new String[]{"", "image/png", ""},
+                "application/json",
+                false
+            );
+            assertEquals("image/png", headers.get("Accept"));
+        }
+
+        @Test
+        @DisplayName("bhvHeaders023 should set Accept to the single accept given")
+        void bhvHeaders023ShouldSetAcceptToTheSingleAcceptGiven() {
+            Map<String, String> headers = headerSelector.selectHeaders(
+                new String[]{"application/xml"},
+                "application/json",
+                false
+            );
+            assertEquals("application/xml", headers.get("Accept"));
+        }
+
+        @Test
         @DisplayName("bhvHeaders024 should set Accept header when accepts provided")
         void bhvHeaders024ShouldSetAcceptHeaderWhenAcceptsProvided() {
             Map<String, String> headers = headerSelector.selectHeaders(
