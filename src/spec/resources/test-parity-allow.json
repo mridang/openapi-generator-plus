@@ -355,20 +355,6 @@
     }
    ]
   },
-  "python": {
-   "missingTests": [
-    {
-     "reason": "tracked in #118",
-     "keys": [
-      "baseapi::collapsesdoubleslashwhenbaseurlhastrailingslash",
-      "defaultapiclient::decompressesgzipresponse",
-      "transportoptions::cacertpathdefaultstonull",
-      "transportoptions::maxredirectsdefaultstonull",
-      "transportoptions::proxydefaultstonull"
-     ]
-    }
-   ]
-  },
   "ruby": {
    "missingGroups": [
     {

@@ -774,7 +774,9 @@ class TestQuerySerialization:
         )
         assert "?" not in client.captured_url
 
-    async def test_collapses_double_slash_when_baseurl_has_trailing(self) -> None:
+    async def test_collapses_double_slash_when_base_url_has_trailing_slash(
+        self,
+    ) -> None:
         # Gap Z — baseUrl='http://x/' + path='/y' must produce
         # 'http://x/y', not 'http://x//y' which most servers route to
         # 404. Matches Java/C#/Go/Swift/Dart/Kotlin which collapse via

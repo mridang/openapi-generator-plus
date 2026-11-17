@@ -19,11 +19,11 @@ class TestTransportOptions:
         opts = TransportOptions.builder().build()
         assert opts.verify_ssl is True
 
-    def test_ca_cert_path_defaults_to_none(self) -> None:
+    def test_ca_cert_path_defaults_to_null(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.ca_cert_path is None
 
-    def test_proxy_defaults_to_none(self) -> None:
+    def test_proxy_defaults_to_null(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.proxy is None
 
@@ -35,7 +35,7 @@ class TestTransportOptions:
         opts = TransportOptions.builder().build()
         assert opts.follow_redirects is True
 
-    def test_max_redirects_defaults_to_none(self) -> None:
+    def test_max_redirects_defaults_to_null(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.max_redirects is None
 
