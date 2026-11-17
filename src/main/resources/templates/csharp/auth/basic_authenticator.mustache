@@ -36,39 +36,33 @@ public class BasicAuthenticator : BaseAuthenticator
         {
             throw new ArgumentException("Basic auth password must not be empty", nameof(password));
         }
-        if (username != null)
+        foreach (char c in username)
         {
-            foreach (char c in username)
+            if (c is '\r' or '\n' or '\0')
             {
-                if (c is '\r' or '\n' or '\0')
-                {
-                    throw new ArgumentException(
-                        "Basic auth username must not contain CR, LF, or NUL characters",
-                        nameof(username));
-                }
-                if (c == ':')
-                {
-                    throw new ArgumentException(
-                        "Basic auth username must not contain ':' (RFC 7617 §2)",
-                        nameof(username));
-                }
+                throw new ArgumentException(
+                    "Basic auth username must not contain CR, LF, or NUL characters",
+                    nameof(username));
+            }
+            if (c == ':')
+            {
+                throw new ArgumentException(
+                    "Basic auth username must not contain ':' (RFC 7617 §2)",
+                    nameof(username));
             }
         }
-        if (password != null)
+        foreach (char c in password)
         {
-            foreach (char c in password)
+            if (c is '\r' or '\n' or '\0')
             {
-                if (c is '\r' or '\n' or '\0')
-                {
-                    throw new ArgumentException(
-                        "Basic auth password must not contain CR, LF, or NUL characters",
-                        nameof(password));
-                }
+                throw new ArgumentException(
+                    "Basic auth password must not contain CR, LF, or NUL characters",
+                    nameof(password));
             }
         }
         _host = host;
-        _username = username ?? string.Empty;
-        _password = password ?? string.Empty;
+        _username = username;
+        _password = password;
     }
 
     /// <inheritdoc/>
