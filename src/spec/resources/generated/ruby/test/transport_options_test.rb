@@ -119,8 +119,6 @@ describe Petstore::Client::TransportOptions do
     _(Petstore::Client::TransportOptions.sensitive_header?('Accept')).must_equal false
   end
 
-  it 'a negative timeout raises ArgumentError' do
-
   it 'bhv_options_033 rejects a non-positive timeout with the canonical message' do
     assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.timeout(-1) }
     err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.timeout(-5) }
@@ -154,7 +152,7 @@ describe Petstore::Client::TransportOptions do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[::1:3128').build
     end
-    _(error.message).must_match(/\AInvalid proxy URL \(.*\): http:\/\/\[::1:3128\z/m)
+    _(error.message).must_match(%r{\AInvalid proxy URL \(.*\): http://\[::1:3128\z}m)
   end
 
   it 'constructing directly with a non-http proxy scheme raises ArgumentError' do
