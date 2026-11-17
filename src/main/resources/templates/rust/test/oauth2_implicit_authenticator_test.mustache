@@ -60,6 +60,16 @@ fn test_bhv_authoauthtwoimplicit_001_authorization_url_encodes_everything_but_th
     assert!(pairs.contains(&"state=st~%2A%21%27%28%29"), "{}", url);
 }
 
+/// An empty state is left out of the authorization URL.
+#[test]
+fn test_bhv_authoauthtwoimplicit_009_omits_an_empty_state_from_the_authorization_url() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(!url.contains("state="), "authorization url: {}", url);
+}
+
 #[test]
 fn test_bhv_authoauthtwoimplicit_005_builds_authorization_url_with_state() {
     let auth = create_authenticator();
