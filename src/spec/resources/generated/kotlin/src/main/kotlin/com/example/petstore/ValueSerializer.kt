@@ -366,7 +366,7 @@ internal object ValueSerializer {
      * is percent-encoded, a header value is sent verbatim (the transport
      * rejects CR/LF), and a query value is returned for the query builder to
      * encode. Any serialization failure surfaces as the SDK's
-     * [SerializationException]; nothing is swallowed.
+     * [com.example.petstore.errors.SerializationException]; nothing is swallowed.
      *
      * @param paramName the parameter name
      * @param value the value to serialize (may be null)

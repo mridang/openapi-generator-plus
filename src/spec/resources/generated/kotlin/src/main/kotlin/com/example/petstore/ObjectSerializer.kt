@@ -462,7 +462,7 @@ internal class ObjectSerializer(
     }
 
     /**
-     * If [model] declares a free-form `additionalProperties` map (emitted by the
+     * If [value] declares a free-form `additionalProperties` map (emitted by the
      * model template for schemas with `additionalProperties: true`), fold its
      * entries into [encoded] as top-level JSON members. Reads the map
      * reflectively because the property is @Transient and thus invisible to the
