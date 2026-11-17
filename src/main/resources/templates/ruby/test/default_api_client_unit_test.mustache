@@ -670,7 +670,7 @@ describe 'DefaultApiClientUnit' do
 
   # ── Per-part MIME sniffing (Gap J) ──
 
-  it 'bhv_serializationwire_039 bhv_serializationwire_047 sets image/png Content-Type for .png upload' do
+  it 'bhv_serializationwire_039 sets image/png Content-Type for .png upload' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/upload') do |env|
@@ -686,6 +686,25 @@ describe 'DefaultApiClientUnit' do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
     _(captured_body.to_s).must_include 'Content-Type: image/png'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serializationwire_047 gives the png file part its own image/png Content-Type header' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new("\x89PNG\r\n".b)
+    io.define_singleton_method(:path) { 'pic.png' }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include "Content-Disposition: form-data; name=\"file\"; filename=\"pic.png\"\r\nContent-Type: image/png\r\n\r\n"
     stubs.verify_stubbed_calls
   end
 
