@@ -1093,6 +1093,34 @@ void main() {
       }
     });
 
+    test('bhv serializationwire 001 AllowEmptyValue param omitted when status is null in options', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String capturedUrl = '';
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.findPetsByStatus(FindPetsByStatusOptions(status: null));
+        } catch (_) {}
+        expect(capturedUrl, isNot(contains('status=')),
+            reason: 'Expected no status param when status is null, got: $capturedUrl');
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv serializationwire 016 includes empty value param in query string when value is empty string', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
