@@ -1834,7 +1834,7 @@ async fn test_bhv_transport_058_timeout_returns_network_timeout_error() {
 /// 400 ms hops and a 400 ms final answer exceed a 1000 ms budget even though
 /// each single request is well inside it.
 #[tokio::test]
-async fn test_timeout_is_one_budget_across_redirect_hops() {
+async fn test_bhv_redirects_009_timeout_is_one_budget_across_redirect_hops() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let addr = listener.local_addr().expect("local addr");
     thread::spawn(move || {
@@ -2122,3 +2122,258 @@ fn test_bhv_errors_041_nonexistent_ca_cert_path_fails_fast() {
 // they exercise (mime_for_filename, build_filename_directive,
 // validate_multipart_filename, decode_text_body, parse_charset,
 // SENSITIVE_HEADER_NAMES) live in the crate-private `default_api_client` module.
+
+/// Starts a server that answers the first `hops` requests with a 302 to
+/// `/hop`, and every later request with `last`.
+fn start_redirect_chain_server(hops: usize, last: &'static str) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        for (i, stream) in listener.incoming().enumerate() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let response = if i < hops {
+                "HTTP/1.1 302 Found\r\nLocation: /hop\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            } else {
+                last
+            };
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_002_a_redirect_chain_inside_the_budget_completes() {
+    let base_url = start_redirect_chain_server(
+        2,
+        "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(3))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("a chain inside the budget must complete");
+
+    assert_eq!(200, response.status_code());
+}
+
+/// With redirects disabled, a 302 is the response and nothing is followed.
+#[tokio::test]
+async fn test_bhv_redirects_007_a_redirect_response_is_returned_when_redirects_are_disabled() {
+    let (base_url, _head) = start_redirect_server(302);
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(false)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(302, response.status_code());
+}
+
+/// Redirects are followed by default: a plain request to a 302 reaches the
+/// Location target without any option being set.
+#[tokio::test]
+async fn test_bhv_redirects_017_a_redirect_is_followed_when_not_suppressed() {
+    let (base_url, head) = start_redirect_server(302);
+    let client = DefaultApiClient::new(None);
+
+    let response = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(200, response.status_code());
+    let follow_up = head.recv().expect("no follow-up request captured");
+    assert!(follow_up.starts_with("GET /next "), "{}", follow_up);
+}
+
+/// The budget is used up on the second hop, whose 3xx carries no Location: that
+/// response comes back unchanged instead of a too-many-redirects error.
+#[tokio::test]
+async fn test_bhv_redirects_023_the_last_3xx_without_a_location_is_returned_when_the_budget_is_used_up() {
+    let base_url = start_redirect_chain_server(
+        1,
+        "HTTP/1.1 302 Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(1))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("a 3xx without a Location is not an error");
+
+    assert_eq!(302, response.status_code());
+}
+
+/// Gap 3.2 variant: `no_redirect` returns a 307 as the response.
+#[tokio::test]
+async fn test_bhv_redirects_015_no_redirect_returns_the_307_response() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 307 Temporary Redirect\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request_with_options(
+            "POST",
+            &format!("{}/token", base_url),
+            &HashMap::new(),
+            None,
+            &RequestOptions::new().no_redirect(true),
+        )
+        .await
+        .expect("no_redirect must return the 3xx, not error");
+
+    assert_eq!(307, response.status_code());
+}
+
+/// `no_redirect` returns a 308 as the response, with the body untouched.
+#[tokio::test]
+async fn test_bhv_redirects_022_no_redirect_returns_the_308_response_verbatim() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 308 Permanent Redirect\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request_with_options(
+            "POST",
+            &format!("{}/token", base_url),
+            &HashMap::new(),
+            None,
+            &RequestOptions::new().no_redirect(true),
+        )
+        .await
+        .expect("no_redirect must return the 3xx, not error");
+
+    assert_eq!(308, response.status_code());
+}
+
+/// A credential-named header survives a redirect that stays on the same origin.
+#[tokio::test]
+async fn test_bhv_redirects_024_a_same_origin_redirect_keeps_the_sensitive_headers() {
+    let (base_url, head) = start_redirect_server(302);
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let mut headers = HashMap::new();
+    headers.insert("X-API-Key".to_string(), "secret-key".to_string());
+
+    client
+        .send_request("GET", &format!("{}/start", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let follow_up = head.recv().expect("no follow-up request captured");
+    assert_eq!(Some("secret-key".to_string()), head_header(&follow_up, "x-api-key"), "{}", follow_up);
+}
+
+/// A closed client refuses a request made through the `ApiClient` trait object.
+#[tokio::test]
+async fn test_bhv_lifecycle_008_closed_client_rejects_further_requests() {
+    let base_url = start_method_echo_server();
+    let client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(None));
+    client.close();
+
+    let err = client
+        .send_request("GET", &format!("{}/echo", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a request on a closed client must fail");
+
+    assert!(matches!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(ConfigurationError::InvalidState(_))
+    ));
+}
+
+/// Closing a client never releases a caller-supplied client, however many times
+/// close runs: a request through the supplied client still reaches the server.
+#[tokio::test]
+async fn test_bhv_lifecycle_020_close_never_closes_a_caller_supplied_http_client() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let supplied = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("valid client");
+    let client = DefaultApiClient::with_client(supplied.clone(), None).expect("no conflict");
+
+    client.close();
+    client.close();
+
+    let status = supplied
+        .get(format!("{}/ping", base_url))
+        .send()
+        .await
+        .expect("the caller's client still sends")
+        .status();
+    assert_eq!(status.as_u16(), 200);
+}
+
+/// A request already running when close runs finishes, observed through the
+/// `ApiClient` trait object.
+#[tokio::test]
+async fn test_bhv_lifecycle_021_closing_the_client_lets_a_running_request_finish() {
+    let base_url = start_delayed_server(400);
+    let client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(None));
+    let in_flight = {
+        let client = client.clone();
+        let url = format!("{}/slow", base_url);
+        tokio::spawn(async move {
+            client
+                .send_request("GET", &url, &HashMap::new(), None)
+                .await
+                .map(|response| response.status_code())
+        })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+
+    client.close();
+
+    let status = in_flight
+        .await
+        .expect("the task must not panic")
+        .expect("the running request must finish");
+    assert_eq!(200, status);
+}
+
+/// An idle client releases its transport at once, and a second close is a no-op.
+#[tokio::test]
+async fn test_bhv_lifecycle_022_idle_close_releases_the_transport_and_a_second_close_is_a_no_op() {
+    let client = DefaultApiClient::new(None);
+
+    client.close();
+    assert!(client.is_closed());
+    client.close();
+    assert!(client.is_closed());
+}

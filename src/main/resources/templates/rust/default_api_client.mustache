@@ -1135,7 +1135,7 @@ mod tests {
 
     /* D16: the redirect refusal texts, with the query and fragment left out. */
     #[test]
-    fn test_redirect_refusal_messages_are_canonical_and_credential_free() {
+    fn test_bhv_redirects_019_redirect_refusal_messages_are_canonical_and_credential_free() {
         let file = reqwest::Url::parse("file:///etc/passwd?k=secret#frag").unwrap();
         assert_eq!(
             "Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd",

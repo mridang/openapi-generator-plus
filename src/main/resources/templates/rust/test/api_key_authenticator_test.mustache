@@ -217,3 +217,59 @@ fn test_bhv_authapikey_001_unicode_space_key_is_valid() {
         .is_ok());
     }
 }
+
+/// The reason a key is refused at construction, or a panic when it is accepted.
+fn refusal_reason(key: &str, location: ApiKeyLocation) -> String {
+    match ApiKeyAuthenticator::new("https://api.example.com", "X-API-Key", key, location) {
+        Err(ConfigurationError::InvalidArgument(reason)) => reason,
+        other => panic!("expected ConfigurationError::InvalidArgument for {:?}, got {:?}", key, other),
+    }
+}
+
+#[test]
+fn test_bhv_authapikey_002_crlf_in_a_cookie_key_throws_at_construction() {
+    assert!(refusal_reason("abc\r\n", ApiKeyLocation::Cookie).contains("control characters"));
+}
+
+#[test]
+fn test_bhv_authapikey_003_crlf_in_a_query_key_throws_at_construction() {
+    assert!(refusal_reason("abc\r\n", ApiKeyLocation::Query).contains("control characters"));
+}
+
+#[test]
+fn test_bhv_authapikey_004_empty_cookie_key_throws_at_construction() {
+    assert!(refusal_reason("", ApiKeyLocation::Cookie).contains("must not be empty"));
+}
+
+#[test]
+fn test_bhv_authapikey_005_empty_header_key_throws_at_construction() {
+    assert!(refusal_reason("", ApiKeyLocation::Header).contains("must not be empty"));
+}
+
+#[test]
+fn test_bhv_authapikey_006_empty_query_key_throws_at_construction() {
+    assert!(refusal_reason("", ApiKeyLocation::Query).contains("must not be empty"));
+}
+
+#[test]
+fn test_bhv_authapikey_008_header_location_rejects_a_non_ascii_key() {
+    assert!(refusal_reason("kéy", ApiKeyLocation::Header).contains("printable ASCII"));
+}
+
+#[test]
+fn test_bhv_authapikey_011_rejects_a_key_of_only_a_vertical_tab() {
+    assert!(refusal_reason("\x0b", ApiKeyLocation::Header).contains("must not be empty"));
+}
+
+#[test]
+fn test_bhv_authapikey_015_valid_query_key_is_exposed_in_query_params() {
+    let auth = ApiKeyAuthenticator::new("https://api.example.com", "api_key", "abc123", ApiKeyLocation::Query)
+        .unwrap();
+    assert_eq!(auth.query_params().get("api_key").map(|s| s.as_str()), Some("abc123"));
+    assert!(auth.cookie_params().is_empty());
+}
+
+#[test]
+fn test_bhv_authapikey_017_whitespace_only_key_throws_at_construction() {
+    assert!(refusal_reason("   ", ApiKeyLocation::Cookie).contains("must not be empty"));
+}
