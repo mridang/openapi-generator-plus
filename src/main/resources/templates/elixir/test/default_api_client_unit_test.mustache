@@ -1094,7 +1094,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
 
   # A connection that dies after the headers arrived is a NetworkError with no
   # status: the response never completed.
-  test "bhv errors 043 bhv errors 038 a body cut off after the headers raises NetworkError with status 0" do
+  test "bhv errors 038 a body truncated after the headers raises NetworkError with status 0" do
     base_url = start_partial_body_server(:close)
     client = {{moduleName}}.DefaultApiClient.new()
 
@@ -1104,6 +1104,17 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
       end
 
     assert err.status_code == 0
+  end
+
+  test "bhv errors 043 a body-read failure after the headers keeps the transport error as the cause" do
+    base_url = start_partial_body_server(:close)
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    err =
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/cut", %{}, nil)
+      end
+
     assert err.cause != nil
   end
 
