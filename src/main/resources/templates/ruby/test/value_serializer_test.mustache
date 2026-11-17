@@ -705,4 +705,8 @@ describe {{moduleName}}::ValueSerializer do
       _(result).must_equal('breed,lab,min_age,3')
     end
   end
+
+  it 'bhv_serializationparam_070 path encoding of null is empty for every schema type' do
+    _({{moduleName}}::ValueSerializer.serialize(nil, :path, 'integer')).must_equal('')
+  end
 end

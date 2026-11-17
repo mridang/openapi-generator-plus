@@ -213,4 +213,13 @@ describe {{moduleName}}::Configuration do
       _(text).must_include 'visible'
     end
   end
+
+  it 'bhv_config_004 builder merges single and bulk headers' do
+    config = {{moduleName}}::Configuration.builder
+      .default_headers({ 'X-Bulk' => 'bulk' })
+      .default_header('X-Single', 'single')
+      .build
+
+    _(config.default_headers).must_equal({ 'X-Bulk' => 'bulk', 'X-Single' => 'single' })
+  end
 end

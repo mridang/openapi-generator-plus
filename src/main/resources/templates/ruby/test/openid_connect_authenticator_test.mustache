@@ -573,4 +573,17 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       'client_id="my_client_id" client_secret="***">'
     )
   end
+
+  it 'bhv_authoidc_007 raises NotFoundError when discovery answers 404' do
+    client = FakeOidcClient.new([{ status: 404, body: '{}' }])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    err = _(-> { auth.build_authorization_url }).must_raise {{moduleName}}::Errors::NotFoundError
+    _(err.status_code).must_equal 404
+  end
 end
