@@ -785,3 +785,42 @@ async fn test_bhv_authoauthtwoauthcode_017_exchange_body_keeps_the_tilde_and_enc
         body
     );
 }
+
+/// Headers requested before the code is exchanged fail with the canonical
+/// message, which names the exchange call the caller must make first.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwoauthcode_030_headers_before_the_exchange_name_the_exchange_call() {
+    let auth = create_authenticator();
+    let err = auth
+        .try_auth_headers()
+        .await
+        .expect_err("headers need an exchanged code");
+    assert!(
+        err.downcast_ref::<OAuth2AuthorizationCodeError>()
+            == Some(&OAuth2AuthorizationCodeError::CodeNotExchanged),
+        "expected OAuth2AuthorizationCodeError::CodeNotExchanged, got {:?}",
+        err
+    );
+    assert_eq!(
+        "Must call exchange_code() before making API requests",
+        err.to_string()
+    );
+}
+
+/// The code exchange body is written in the canonical key order on every run.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwoauthcode_032_code_exchange_body_uses_the_fixed_parameter_order() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("C")
+        .await
+        .expect("the exchange succeeds");
+
+    assert_eq!(
+        "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+        client.last_body().expect("should have body")
+    );
+}

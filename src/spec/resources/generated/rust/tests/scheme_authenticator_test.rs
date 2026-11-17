@@ -110,6 +110,44 @@ mod pet_store_basic_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD",
+                Some("bad\r\nvalue"),
+            ),
+        ];
+        with_variables(&unusable, || {
+            assert!(PetStoreBasicAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-username"),
+                Some("explicit-password")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(PetStoreBasicAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(PetStoreBasicAuthenticator::new(
@@ -245,6 +283,44 @@ mod admin_basic_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD",
+                Some("bad\r\nvalue"),
+            ),
+        ];
+        with_variables(&unusable, || {
+            assert!(AdminBasicAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-username"),
+                Some("explicit-password")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(AdminBasicAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(AdminBasicAuthenticator::new(
@@ -338,6 +414,36 @@ mod pet_store_bearer_authenticator {
                 Some("explicit-token")
             )
             .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN",
+            Some("bad\r\nvalue"),
+        )];
+        with_variables(&unusable, || {
+            assert!(PetStoreBearerAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-token")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"),
+                "{}",
+                text
+            );
         });
     }
 
@@ -501,6 +607,36 @@ mod service_token_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN",
+            Some("bad\r\nvalue"),
+        )];
+        with_variables(&unusable, || {
+            assert!(ServiceTokenAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-token")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(ServiceTokenAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(ServiceTokenAuthenticator::new(
@@ -630,6 +766,36 @@ mod api_key_header_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
+            Some("bad\r\nvalue"),
+        )];
+        with_variables(&unusable, || {
+            assert!(ApiKeyHeaderAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-api_key")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(ApiKeyHeaderAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(ApiKeyHeaderAuthenticator::new(
@@ -736,6 +902,36 @@ mod internal_api_key_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY",
+            Some("bad\r\nvalue"),
+        )];
+        with_variables(&unusable, || {
+            assert!(InternalApiKeyAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-api_key")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(InternalApiKeyAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(InternalApiKeyAuthenticator::new(
@@ -824,6 +1020,36 @@ mod api_key_query_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY",
+            Some("bad\r\nvalue"),
+        )];
+        with_variables(&unusable, || {
+            assert!(ApiKeyQueryAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-api_key")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(ApiKeyQueryAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(ApiKeyQueryAuthenticator::new(
@@ -908,6 +1134,36 @@ mod session_cookie_authenticator {
                 Some("explicit-api_key")
             )
             .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY",
+            Some("bad\r\nvalue"),
+        )];
+        with_variables(&unusable, || {
+            assert!(SessionCookieAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-api_key")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(SessionCookieAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"),
+                "{}",
+                text
+            );
         });
     }
 
@@ -1020,6 +1276,44 @@ mod machine_auth_client_credentials_authenticator {
                 Some("explicit-client_secret")
             )
             .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET",
+                Some("bad\r\nvalue"),
+            ),
+        ];
+        with_variables(&unusable, || {
+            assert!(MachineAuthClientCredentialsAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-client_id"),
+                Some("explicit-client_secret")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(MachineAuthClientCredentialsAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
         });
     }
 
@@ -1163,6 +1457,56 @@ mod legacy_auth_password_authenticator {
                 Some("explicit-password")
             )
             .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD",
+                Some("bad\r\nvalue"),
+            ),
+        ];
+        with_variables(&unusable, || {
+            assert!(LegacyAuthPasswordAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-client_id"),
+                Some("explicit-client_secret"),
+                Some("explicit-username"),
+                Some("explicit-password")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(LegacyAuthPasswordAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
         });
     }
 
@@ -1313,6 +1657,50 @@ mod user_auth_authorization_code_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI",
+                Some("bad\r\nvalue"),
+            ),
+        ];
+        with_variables(&unusable, || {
+            assert!(UserAuthAuthorizationCodeAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-client_id"),
+                Some("explicit-client_secret"),
+                Some("explicit-redirect_uri")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(UserAuthAuthorizationCodeAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(UserAuthAuthorizationCodeAuthenticator::new(
@@ -1413,6 +1801,36 @@ mod browser_auth_implicit_authenticator {
                 Some("explicit-client_id")
             )
             .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID",
+            Some("bad\r\nvalue"),
+        )];
+        with_variables(&unusable, || {
+            assert!(BrowserAuthImplicitAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-client_id")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(BrowserAuthImplicitAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
         });
     }
 
@@ -1524,6 +1942,50 @@ mod sso_auth_authenticator {
                 Some("explicit-redirect_uri")
             )
             .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI",
+                Some("bad\r\nvalue"),
+            ),
+        ];
+        with_variables(&unusable, || {
+            assert!(SsoAuthAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-client_id"),
+                Some("explicit-client_secret"),
+                Some("explicit-redirect_uri")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(SsoAuthAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
         });
     }
 

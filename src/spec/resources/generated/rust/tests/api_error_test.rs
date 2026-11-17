@@ -216,6 +216,22 @@ fn test_bhv_errors_046_oauth2_server_error_message_has_three_forms() {
     );
 }
 
+/// A token server error names the status and the error code.
+#[test]
+fn test_bhv_errors_049_oauth2_server_error_names_the_status_and_the_code() {
+    let code = OAuth2ServerError::new(
+        400,
+        Some("invalid_grant".to_string()),
+        None,
+        None,
+        r#"{"error":"invalid_grant"}"#.to_string(),
+    );
+    assert_eq!(
+        "Token request failed with status 400: invalid_grant",
+        code.to_string()
+    );
+}
+
 /// A JSON body that is a scalar rather than an object is still a parsed body.
 #[test]
 fn test_bhv_errors_010_api_error_scalar_json_body_parses() {

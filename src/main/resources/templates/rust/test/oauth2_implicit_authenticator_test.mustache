@@ -139,6 +139,15 @@ async fn test_bhv_authoauthtwoimplicit_014_rejects_a_non_ascii_access_token_with
     assert_eq!("Bearer kept", headers.get("Authorization").unwrap());
 }
 
+/// RFC 7230 section 3.2.6 allows a horizontal tab inside a field value, so a token with one is accepted.
+#[tokio::test]
+async fn test_bhv_authoauthtwoimplicit_016_an_access_token_may_contain_a_tab() {
+    let auth = create_authenticator();
+    auth.set_access_token("tok\tkey").expect("a tab is allowed inside a token");
+    let headers = auth.auth_headers().await;
+    assert_eq!("Bearer tok\tkey", headers.get("Authorization").unwrap());
+}
+
 #[test]
 fn test_bhv_authoauthtwoimplicit_008_get_host_returns_configured_host() {
     let auth = create_authenticator();

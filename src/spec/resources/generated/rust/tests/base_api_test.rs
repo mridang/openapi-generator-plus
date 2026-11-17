@@ -1149,7 +1149,7 @@ impl petstore::auth::Authenticator for InvalidCookieAuthenticator {
 /// mistake: `ConfigurationError::InvalidArgument` before any request is sent,
 /// never a panic.
 #[tokio::test]
-async fn test_base_api_invalid_auth_cookie_is_invalid_argument() {
+async fn test_bhv_authintegration_019_base_api_invalid_auth_cookie_is_invalid_argument() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -2193,7 +2193,7 @@ async fn test_bhv_authintegration_006_base_api_configured_bearer_authenticator_r
 // the credential in a header (X-API-Key, as the spec's apiKeyHeader scheme
 // defines) must likewise reach the outbound request.
 #[tokio::test]
-async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
+async fn test_bhv_authintegration_018_base_api_configured_apikey_authenticator_reaches_wire() {
     use petstore::auth::api_key_authenticator::ApiKeyAuthenticator;
     use petstore::auth::api_key_location::ApiKeyLocation;
     let client = Arc::new(CapturingApiClient::new());

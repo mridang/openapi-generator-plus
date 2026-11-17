@@ -1032,3 +1032,90 @@ async fn test_bhv_authoidc_005_discovery_refuses_clear_text_endpoints_except_loo
         );
     }
 }
+
+/// A discovery document served with max-age=0 is fetched again on every use.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_030_max_age_zero_refetches_discovery_on_every_use() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "public, max-age=0");
+    client.enqueue_cached(DISCOVERY, "public, max-age=0");
+    client.enqueue_cached(DISCOVERY, "public, max-age=0");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    for _ in 0..3 {
+        auth.build_authorization_url("")
+            .await
+            .expect("should succeed");
+    }
+
+    assert_eq!(3, client.get_count());
+}
+
+/// A cached discovery document is fetched again once its Cache-Control max-age has elapsed.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_031_discovery_is_fetched_again_once_max_age_has_elapsed() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "public, max-age=1");
+    client.enqueue_cached(DISCOVERY, "public, max-age=1");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+
+    assert_eq!(2, client.get_count());
+}
+
+/// A discovered endpoint that is not https is rejected before any credential is sent to it.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_032_a_discovered_endpoint_that_is_not_https_is_rejected() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"http://auth.example.com/token"}"#,
+        200,
+    );
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a clear-text token endpoint must be refused");
+    let serialization_error = err
+        .downcast_ref::<SerializationError>()
+        .unwrap_or_else(|| panic!("expected SerializationError, got: {}", err));
+    assert!(
+        serialization_error.message().contains(
+            "OIDC discovery token_endpoint 'http://auth.example.com/token' must use https"
+        ),
+        "got: {}",
+        serialization_error.message()
+    );
+}
+
+/// A failed discovery request names its method and URL in the error.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_033_a_failed_discovery_request_names_its_method_and_path() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("<html><body>Internal Server Error</body></html>", 500);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a 500 discovery response must produce an error");
+    let internal = err
+        .downcast_ref::<InternalServerError>()
+        .unwrap_or_else(|| panic!("expected InternalServerError, got: {}", err));
+    assert_eq!(
+        "API returned status code 500 for GET https://auth.example.com/.well-known/openid-configuration",
+        internal.server_error().api_error().message()
+    );
+}

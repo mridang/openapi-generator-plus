@@ -350,7 +350,7 @@ async fn test_bhv_authoauthtwopassword_017_refresh_grant_goes_to_the_refresh_url
 /// The scheme wrapper sends the first grant and the refresh grant to the URLs
 /// its security scheme declares.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
+async fn test_bhv_authoauthtwopassword_022_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
@@ -662,5 +662,21 @@ async fn test_bhv_authoauthtwopassword_005_token_body_keeps_the_tilde_and_encode
         body.split('&').any(|pair| pair == expected_pair),
         "{}",
         body
+    );
+}
+
+/// The password grant body is written in the canonical key order on every run.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwopassword_021_password_grant_body_uses_the_fixed_parameter_order() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.auth_headers().await;
+
+    assert_eq!(
+        "grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+        client.last_body().expect("should have body")
     );
 }

@@ -70,6 +70,22 @@ mod {{module}} {
     }
 
     #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
+        with_variables(&unusable, || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));

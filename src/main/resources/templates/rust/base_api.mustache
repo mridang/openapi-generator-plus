@@ -1537,6 +1537,14 @@ mod tests {
         assert_eq!(query, "q=a:b/c");
     }
 
+    #[test]
+    fn test_bhv_serializationparam_107_query_value_keeps_only_the_unreserved_set_literal() {
+        /* The unreserved set (ALPHA, DIGIT, '-', '.', '_', '~') stays literal; every
+         * other sub-delimiter, including * ! ' ( ), is percent-encoded. */
+        let query = build_query_string(&[("q".to_string(), "a*b!c'd(e)f~g-h.i_j".to_string(), false)]);
+        assert_eq!(query, "q=a%2Ab%21c%27d%28e%29f~g-h.i_j");
+    }
+
     /* Authenticators that name themselves, so a test can tell which one a call used. */
     struct NamedAuthenticator(&'static str);
 
