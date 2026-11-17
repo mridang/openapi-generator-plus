@@ -589,7 +589,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun nonJsonTokenResponseDoesNotEchoTheBody() {
+    fun bhvAuthoauthtwotokenmgr041NonJsonTokenResponseDoesNotEchoTheBody() {
         // A form-encoded 2xx answer carries the token in its body; the parser's
         // own message quotes an excerpt of its input, so it must not be kept.
         val client = FakeApiClient()

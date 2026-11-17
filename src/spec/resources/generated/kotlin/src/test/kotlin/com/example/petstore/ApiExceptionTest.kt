@@ -315,7 +315,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+    fun bhvErrors044EveryErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
         val errors =
             listOf(
                 OpenAPIException::class.java,

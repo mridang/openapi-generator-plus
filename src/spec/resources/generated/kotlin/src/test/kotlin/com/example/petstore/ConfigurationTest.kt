@@ -31,6 +31,20 @@ class ConfigurationTest {
         }
 
         @Test
+        @DisplayName("bhvConfig017 default headers cannot be changed through the configuration")
+        fun defaultHeadersAreUnmodifiable() {
+            val config =
+                Configuration
+                    .builder()
+                    .defaultHeader("X-Key", "value")
+                    .defaultHeader("X-Other", "other")
+                    .build()
+            assertThrows(UnsupportedOperationException::class.java) {
+                (config.defaultHeaders as MutableMap<String, String>)["X-New"] = "value"
+            }
+        }
+
+        @Test
         @DisplayName("bhvConfig005 builder produces correct defaults")
         fun builderProducesCorrectDefaults() {
             val config = Configuration.builder().build()

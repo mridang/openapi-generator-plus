@@ -131,7 +131,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun setAccessTokenRejectsControlAndNonAsciiCharacters() {
+    fun bhvAuthoauthtwoimplicit014SetAccessTokenRejectsControlAndNonAsciiCharacters() {
         // The token comes from a redirect fragment: CR/LF, other control
         // characters and non-ASCII are refused so they cannot reach the
         // Authorization header, and nothing is stored.

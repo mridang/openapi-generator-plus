@@ -128,7 +128,7 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: an empty variable counts as unset and fails naming the variable")
+    @DisplayName("bhvAuthbasic012 an empty variable counts as unset and fails naming the variable")
     fun emptyUsernameVariableFails() {
         val ex = withEnvironment(mapOf("{{envVarPrefix}}_USERNAME" to "", "{{envVarPrefix}}_PASSWORD" to "x")) {
             assertThrows(IllegalArgumentException::class.java) { BasicAuthenticator("https://api.example.com") }

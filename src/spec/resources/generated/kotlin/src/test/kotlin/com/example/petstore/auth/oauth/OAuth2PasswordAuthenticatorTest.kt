@@ -297,6 +297,21 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
+    fun bhvAuthoauthtwopassword020WithoutARefreshUrlTheRefreshGrantAlsoGoesToTokenUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"r1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("https://auth.example.com/token", client.lastUrl)
+        assertTrue(client.lastBody!!.contains("refresh_token=r1"), client.lastBody)
+    }
+
+    @Test
     fun bhvAuthoauthtwopassword001BasicAuthKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
         // RFC 6749 section 2.3.1 plus the shared unreserved set: '-._~' stay
         // literal and '*' '!' ''' '(' ')' are percent-encoded in both parts.

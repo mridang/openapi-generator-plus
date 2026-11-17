@@ -869,6 +869,46 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationwire054 decodes a little-endian BOM utf-16 body as little-endian")
+        fun decodesLittleEndianBomUtf16AsLittleEndian() {
+            val littleEndianWithBom = byteArrayOf(0xFF.toByte(), 0xFE.toByte(), 0x44, 0x00, 0x6F, 0x00, 0x63, 0x00)
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = littleEndianWithBom,
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=utf-16"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/utf16-le-bom", emptyMap(), null)
+                }
+            assertEquals("Doc", response.body)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject183 handles a null body")
+        fun handlesANullBody() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "ok",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=utf-8"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/null-body", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+            assertEquals("ok", response.body)
+        }
+
+        @Test
         @DisplayName("bhvSerializationwire034 defaults to UTF-8 when Content-Type has no charset")
         fun defaultsToUtf8WhenNoCharset() {
             val engine =
@@ -2811,21 +2851,13 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("the backoff starts at 0.5 s, doubles and stops at 8 s")
-        fun backoffDoublesUpToEightSeconds() {
+        @DisplayName("bhvRetries027 backoff doubles from half a second to eight seconds with quarter jitter")
+        fun backoffDoublesUpToEightSecondsWithQuarterJitter() {
             val apiClient = retrying(listOf(503), maxRetries = 6, jitter = 0.0)
 
             get(apiClient)
 
             assertEquals(listOf(500L, 1000L, 2000L, 4000L, 8000L, 8000L), sleeps)
-        }
-
-        @Test
-        @DisplayName("the jitter takes at most a quarter off the backoff")
-        fun jitterTakesAtMostAQuarterOff() {
-            val longest = retrying(listOf(503), maxRetries = 1, jitter = 0.0)
-            get(longest)
-            assertEquals(listOf(500L), sleeps)
 
             sleeps.clear()
             requestCount = 0
@@ -2836,7 +2868,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Retry-After in seconds replaces the backoff")
+        @DisplayName("bhvRetries026 Retry-After in seconds replaces the backoff")
         fun retryAfterSecondsIsHonoured() {
             val apiClient = retrying(listOf(429, 200), retryAfter = "2")
 
@@ -2910,7 +2942,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("cancelling the caller during the wait stops the retrying")
+        @DisplayName("bhvRetries028 cancelling the caller during the wait stops the retrying")
         fun cancellationStopsTheRetrying() {
             val apiClient = retrying(listOf(503), retryAfter = "30")
             apiClient.sleeper = { kotlinx.coroutines.delay(it) }

@@ -209,13 +209,23 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject172 unknown enum value " +
+            "bhvSerializationobject182 unknown enum value " +
                 "throws SerializationException",
         )
         fun unknownEnumValueThrowsSerializationException() {
             val ex =
                 assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                     serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}")
+                }
+            assertInstanceOf(OpenAPIException::class.java, ex)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject172 unknown enum value raises SerializationError")
+        fun unknownEnumValueRaisesSerializationError() {
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"banana\"}")
                 }
             assertInstanceOf(OpenAPIException::class.java, ex)
         }

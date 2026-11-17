@@ -861,7 +861,7 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("F833: cookie keeps only the unreserved set literal and encodes the rest as UTF-8")
+        @DisplayName("bhvSerializationparam104 cookie keeps only the unreserved set literal and encodes the rest as UTF-8")
         fun cookieKeepsOnlyTheUnreservedSetLiteral() {
             assertEquals(
                 "%22a%20b~%2A%C3%A9%22",

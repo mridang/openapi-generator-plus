@@ -118,7 +118,7 @@ class Configuration private constructor(
          *
          * @return the configured instance
          */
-        fun build(): Configuration = Configuration(baseUrl, defaultHeaders.toMap())
+        fun build(): Configuration = Configuration(baseUrl, java.util.Collections.unmodifiableMap(defaultHeaders.toMap()))
     }
 
     /**
