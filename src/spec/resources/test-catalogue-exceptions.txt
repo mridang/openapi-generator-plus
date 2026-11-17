@@ -60,3 +60,5 @@ go | *unnumbered | tests beyond the shared catalogue: language-specific behaviou
 rust | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 swift | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 elixir | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
+dart | serializationobject002 | Dart decodes a bare type: number to double, a binary float (D83, FD-11), so it cannot be exact and written in plain notation the way the java, csharp and kotlin BigDecimal decoders are
+dart | models009 | Dart types additional properties as Map<String, dynamic> so each value keeps its JSON type (models001 round trip); a string-only additional-properties type is not the dart contract, as with rust

@@ -1197,6 +1197,57 @@ void main() {
       }
     });
 
+    test('bhv retries 020 refuses to replay a POST body when redirected from https to http', () async {
+      final certDir = 'test/fixtures/certs';
+      final tlsContext = SecurityContext()
+        ..useCertificateChain('$certDir/server.pem')
+        ..usePrivateKey('$certDir/server-key.pem');
+
+      var targetHits = 0;
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        targetHits++;
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      final source = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      source.listen((request) {
+        request.response
+          ..statusCode = 308
+          ..headers.set(
+              'Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder().verifySsl(false).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        await expectLater(
+          client.sendRequest(
+            'POST',
+            'https://127.0.0.1:${source.port}/submit',
+            {'Content-Type': 'application/json'},
+            Uint8List.fromList(utf8.encode('{"token":"hunter2"}')),
+          ),
+          throwsA(
+            isA<ApiException>().having((e) => e.statusCode, 'statusCode', 308),
+          ),
+        );
+        expect(targetHits, equals(0),
+            reason: 'plain-HTTP target must not be contacted after '
+                'an HTTPS->HTTP downgrade with a POST body');
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
     /* T-D1: exceeding maxRedirects must raise a typed ApiException, not
      * silently return the last 3xx as a normal response. */
     test('bhv redirects 026 throws ApiException when maxRedirects is exceeded', () async {
