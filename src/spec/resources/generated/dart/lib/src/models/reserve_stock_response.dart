@@ -26,7 +26,8 @@ class ReserveStockResponse {
   Object? get actualInstance => _value;
 
   /// Wraps a [Reservation] as this union.
-  const ReserveStockResponse.reservation(Reservation value) : _value = value;
+  const ReserveStockResponse.fromReservation(Reservation value)
+    : _value = value;
 
   /// Whether this union holds a [Reservation].
   bool get isReservation => _value is Reservation;
@@ -38,7 +39,7 @@ class ReserveStockResponse {
   }
 
   /// Wraps a [ReservationReceipt] as this union.
-  const ReserveStockResponse.reservationReceipt(ReservationReceipt value)
+  const ReserveStockResponse.fromReservationReceipt(ReservationReceipt value)
     : _value = value;
 
   /// Whether this union holds a [ReservationReceipt].
