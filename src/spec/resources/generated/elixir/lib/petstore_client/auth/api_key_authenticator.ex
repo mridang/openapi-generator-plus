@@ -48,7 +48,11 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
   @spec new(String.t(), String.t(), String.t() | nil | (-> String.t()), atom()) :: t()
   def new(host, key_param_name, api_key, location) do
     api_key = PetstoreClient.Auth.BaseAuthenticator.credential(api_key, "API_KEY")
-    if not is_function(api_key, 0), do: validate_key!(api_key, key_param_name, location)
+
+    api_key =
+      if is_function(api_key, 0),
+        do: api_key,
+        else: validate_key!(api_key, key_param_name, location)
 
     %__MODULE__{
       host: host,

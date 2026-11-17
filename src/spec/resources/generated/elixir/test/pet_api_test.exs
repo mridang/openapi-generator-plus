@@ -265,13 +265,13 @@ defmodule PetstoreClient.Api.PetApiTest do
     server = %PetstoreClient.ServerConfiguration{url_template: "http://other.example.com"}
 
     assert_raise ArgumentError,
-                 ~r/unknown keys \[:server\] in .*, the allowed keys are: \[\]/,
+                 ~r/unknown keys \[:server\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries\]/,
                  fn -> PetstoreClient.Api.PetApi.update_pet(api, 1, pet, server: server) end
   end
 
   test "an operation rejects a misspelt :content_type opt", %{api: api} do
     assert_raise ArgumentError,
-                 ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:content_type\]/,
+                 ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries, :content_type\]/,
                  fn ->
                    PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>,
                      contnet_type: "image/png"

@@ -43,7 +43,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
   @spec new(String.t(), String.t() | nil | (-> String.t())) :: t()
   def new(host, token) do
     token = PetstoreClient.Auth.BaseAuthenticator.credential(token, "TOKEN")
-    if not is_function(token, 0), do: validate_token!(token)
+    token = if is_function(token, 0), do: token, else: validate_token!(token)
 
     %__MODULE__{
       host: host,

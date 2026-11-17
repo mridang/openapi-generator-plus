@@ -51,7 +51,9 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `account` - Account
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -154,7 +156,9 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of the order to delete
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -254,7 +258,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -430,7 +436,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -524,7 +532,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -618,7 +628,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -712,7 +724,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -806,7 +820,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -901,7 +917,9 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of order to return
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1015,7 +1033,9 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `tracking_id` - String.t()
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1134,7 +1154,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1255,7 +1277,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1349,7 +1373,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1443,7 +1469,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1537,7 +1565,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1632,7 +1662,9 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order` - Order
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1726,7 +1758,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1822,7 +1856,9 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
   ## Returns
 

@@ -181,7 +181,7 @@ defmodule PetstoreClient.ApiErrorTest do
 
     assert from_url.request_method == "GET"
     assert from_url.request_path == "/items/7"
-    refute PetstoreClient.Errors.ApiError.message(from_url) =~ "hunter2"
+    refute Exception.message(from_url) =~ "hunter2"
 
     from_path = PetstoreClient.Errors.ApiError.with_request(err, "post", "/items?page=2")
     assert from_path.request_method == "POST"
