@@ -151,6 +151,69 @@ void main() {
     );
 
     test(
+      'bhv operations 128 a content query parameter that cannot be serialized raises a serialization error and sends no request',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final api = _storeApiFor(server);
+
+          await expectLater(
+            api.searchStore(
+              SearchStoreOptions(
+                q: PhotoMetadata(
+                  location: PhotoMetadataLocation(lat: double.nan),
+                ),
+              ),
+            ),
+            throwsA(isA<SerializationException>()),
+          );
+          expect(requests, equals(0));
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test(
+      'bhv operations 139 a time query parameter keeps its fractional seconds when non-zero',
+      () async {
+        String? query;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          query = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final api = _storeApiFor(server);
+
+          await api.searchStore(SearchStoreOptions(at: '10:30:00.123'));
+
+          expect(
+            Uri.decodeQueryComponent(query ?? ''),
+            contains('at=10:30:00.123'),
+          );
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test(
       'bhv operations 107 getBySwatch omits the optional query parameter and header when they are not set',
       () async {
         String? query;

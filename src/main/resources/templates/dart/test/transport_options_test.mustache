@@ -146,7 +146,30 @@ void main() {
       expect(opts.maxRedirects, isNull);
     });
 
-    test('a negative timeout throws ArgumentError', () {
+    test('bhv options 045 a negative maxRedirects is rejected at configuration', () {
+      expect(
+        () => TransportOptionsBuilder().maxRedirects(-1),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          'Invalid maxRedirects: must not be negative (got -1)',
+        )),
+      );
+      expect(TransportOptionsBuilder().maxRedirects(0).build().maxRedirects, equals(0));
+    });
+
+    test('bhv options 051 a proxy URL with a scheme other than http or https is rejected', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('socks5://proxy.example.com:1080').build(),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          'Invalid proxy URL (must use http or https scheme)',
+        )),
+      );
+    });
+
+    test('bhv options 047 a negative timeout throws ArgumentError', () {
       expect(
         () => TransportOptionsBuilder().timeout(-1),
         throwsA(isA<ArgumentError>().having(

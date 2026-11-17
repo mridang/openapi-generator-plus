@@ -922,6 +922,37 @@ void main() {
     });
 
     test(
+      'bhv operations 131 a request with no body sends no Content-Type header',
+      () async {
+        String? contentType = 'unset';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await request.drain<void>();
+          contentType = request.headers.value('content-type');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{}')
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/test/echo',
+            {'Content-Type': 'application/json'},
+            null,
+          );
+
+          expect(contentType, isNull);
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test(
       'bhv operations 002 all headers from selector flow through to request',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3974,15 +4005,18 @@ void main() {
       headers: {'content-type': 'application/json'},
     );
 
-    test('a 200 body is decoded as the schema of 200', () async {
-      final client = _ScriptedApiClient([
-        jsonReply(200, '{"reservationId":1,"quantity":2}'),
-      ]);
+    test(
+      'bhv operations 129 a 200 response from reserveStock decodes as the existing reservation',
+      () async {
+        final client = _ScriptedApiClient([
+          jsonReply(200, '{"reservationId":1,"quantity":2}'),
+        ]);
 
-      final result = await storeApi(client).reserveStock(null);
+        final result = await storeApi(client).reserveStock(null);
 
-      expect(result.actualInstance, isA<Reservation>());
-    });
+        expect(result.actualInstance, isA<Reservation>());
+      },
+    );
 
     test(
       'bhv operations 120 a 201 body is decoded as the schema of 201',

@@ -189,7 +189,21 @@ void main() {
 
   group('SKILLS.md', () {
     test(
-      'the error section names the root type and every branch of the tree',
+      'bhv skills 002 documents the retries in the configuration section',
+      () {
+        final skills = File(
+          '${Directory.current.path}/SKILLS.md',
+        ).readAsStringSync();
+        final start = skills.indexOf('## Configuration');
+        expect(start, greaterThanOrEqualTo(0));
+        final end = skills.indexOf('\n## ', start + 1);
+        final section = skills.substring(start, end < 0 ? skills.length : end);
+        expect(section, contains('### Retries'));
+      },
+    );
+
+    test(
+      'bhv skills 001 the error section names the root type and every branch of the tree',
       () {
         final skills = File(
           '${Directory.current.path}/SKILLS.md',

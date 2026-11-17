@@ -25,6 +25,27 @@ void main() {
     });
 
     test(
+      'bhv serializationobject 188 an empty object serializes to an empty JSON object',
+      () {
+        expect(serialize(const Category()), equals('{}'));
+        expect(serialize(<String, dynamic>{}), equals('{}'));
+      },
+    );
+
+    test(
+      'bhv serializationobject 189 mutually recursive models decode from nested JSON',
+      () {
+        final department = deserialize<Department>(
+          '{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}',
+          Department.fromJson,
+        );
+        expect(department?.name, equals('d'));
+        expect(department?.lead?.name, equals('e'));
+        expect(department?.lead?.department?.name, equals('d2'));
+      },
+    );
+
+    test(
       'bhv serializationobject 125 a required nullable property keeps an explicit null and always writes the key',
       () {
         final decoded = deserialize<RequiredNullable>(
