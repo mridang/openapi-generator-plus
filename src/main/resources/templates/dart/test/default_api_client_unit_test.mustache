@@ -1913,7 +1913,7 @@ void main() {
       return latin1.decode(bytes).toLowerCase();
     }
 
-    test('bhv serializationwire 039 multipart .png field sets image/png Content-Type', () async {
+    test('bhv serializationwire 039 bhv serializationwire 047 multipart .png field sets image/png Content-Type', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
@@ -1937,7 +1937,7 @@ void main() {
       }
     });
 
-    test('bhv serializationwire 038 multipart .pdf field sets application/pdf Content-Type', () async {
+    test('bhv serializationwire 038 bhv serializationwire 037 multipart .pdf field sets application/pdf Content-Type', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
@@ -1981,6 +1981,84 @@ void main() {
           {'blob': Uint8List.fromList([0x00, 0x01, 0x02])},
         );
         expect(body, contains('content-type: application/octet-stream'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv serializationwire 036 multipart file extension is matched case-insensitively', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {'PHOTO.PNG': Uint8List.fromList([0x89, 0x50, 0x4E, 0x47])},
+        );
+        expect(body, contains('content-type: image/png'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv serializationwire 045 multipart model part uses wire property names and date-time format', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {
+            'meta': <String, Object?>{
+              'created_at': DateTime.utc(2024, 1, 15, 14, 30, 45),
+            },
+          },
+        );
+        expect(body, contains('"created_at"'));
+        expect(body, contains('2024-01-15T14:30:45'));
+        expect(body, isNot(contains('"createdAt"')));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv serializationwire 046 multipart non-ASCII field name is preserved as UTF-8', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {'nombre_ñ': 'x'},
+        );
+        expect(body, contains(latin1.decode(utf8.encode('nombre_ñ'))));
       } finally {
         await server.close();
       }
