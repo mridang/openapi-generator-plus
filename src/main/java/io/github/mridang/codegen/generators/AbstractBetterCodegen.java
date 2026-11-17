@@ -223,6 +223,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         + "language's own suffix is appended, so the default yields "
                         + "OpenAPIException or OpenAPIError (default: OpenAPI).")
                 .defaultValue(DEFAULT_ERROR_PREFIX));
+        cliOptions.add(CliOption.newString("envVarPrefix",
+                "Prefix of the environment variables each security scheme credential may "
+                        + "default from; a variable is {PREFIX}_{FIELD} in upper snake case "
+                        + "(default: the API title without a trailing SDK, else API).")
+                .defaultValue(""));
         cliOptions.add(CliOption.newBoolean("generateTests",
                 "Whether to generate the full test suite — spec-independent unit "
                         + "tests plus the petstore-coupled API/model tests used to "
@@ -655,6 +660,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put(
                 "appNameBase",
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
+        computeSchemeEnvVars(openAPI);
         // Gap AZ — degrade OAS 3.1 `prefixItems` tuple arrays to plain
         // array-of-Object before the rest of the pipeline inspects schemas.
         // See NormalizePrefixItemsRule for the chosen cross-language strategy.
@@ -838,6 +844,50 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         || hasOAuth2Password
                         || hasOAuth2AuthorizationCode
                         || hasOAuth2Implicit;
+    }
+
+    /** Environment variable of every credential field of every scheme (F862). */
+    private List<Map<String, Object>> schemeEnvVars = new ArrayList<>();
+
+    /**
+     * Computes once, for all twelve languages, the environment variable each credential field of
+     * each security scheme may default from, and exposes it as the {@code securitySchemeEnvVars}
+     * additional property (scheme id, field, upper snake field and variable name) with
+     * {@code envVarPrefix} and {@code hasSecuritySchemeEnvVars}. The prefix is the
+     * {@code envVarPrefix} option, else the API title without a trailing SDK (the same in every
+     * language, unlike a package name), else {@code API}. {@link #baseSchemeContext} hands each
+     * scheme's own entries to its template as {@code envVars}.
+     */
+    private void computeSchemeEnvVars(OpenAPI openAPI) {
+        final Map<String, List<String>> fieldsByScheme = new LinkedHashMap<>();
+        if (openAPI.getComponents() != null
+                && openAPI.getComponents().getSecuritySchemes() != null) {
+            for (final Map.Entry<String, SecurityScheme> entry :
+                    openAPI.getComponents().getSecuritySchemes().entrySet()) {
+                final SchemeAuthSpec spec =
+                        buildSchemeAuthSpec(entry.getKey(), entry.getValue(), false);
+                if (spec == null) {
+                    continue;
+                }
+                final List<String> fields = new ArrayList<>();
+                for (final String name : spec.paramNames()) {
+                    if (!"host".equals(name)) {
+                        fields.add(name);
+                    }
+                }
+                fieldsByScheme.put(entry.getKey(), fields);
+            }
+        }
+        final Object configured = additionalProperties.get("envVarPrefix");
+        final String candidate =
+                configured != null && !configured.toString().isBlank()
+                        ? configured.toString()
+                        : String.valueOf(additionalProperties.getOrDefault("appNameBase", ""));
+        final String prefix = EnvVarNames.prefix(candidate);
+        schemeEnvVars = EnvVarNames.compute(prefix, fieldsByScheme);
+        additionalProperties.put("envVarPrefix", prefix);
+        additionalProperties.put("securitySchemeEnvVars", schemeEnvVars);
+        additionalProperties.put("hasSecuritySchemeEnvVars", !schemeEnvVars.isEmpty());
     }
 
     // =========================================================================
@@ -1166,9 +1216,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * Returns {@code null} for unsupported / unrecognised scheme types.
      */
     @Nullable
+    protected SchemeAuthSpec buildSchemeAuthSpec(String schemeName, SecurityScheme scheme) {
+        return buildSchemeAuthSpec(schemeName, scheme, true);
+    }
+
+    @Nullable
     @SuppressFBWarnings(value = "IMPROPER_UNICODE",
             justification = "Comparing with ASCII-only HTTP scheme constants (basic/bearer)")
-    protected SchemeAuthSpec buildSchemeAuthSpec(String schemeName, SecurityScheme scheme) {
+    private SchemeAuthSpec buildSchemeAuthSpec(
+            String schemeName, SecurityScheme scheme, boolean warn) {
         final String cls = NamingConvention.PASCAL_CASE.apply(schemeName);
         if (scheme.getType() == SecurityScheme.Type.HTTP) {
             if ("basic".equalsIgnoreCase(scheme.getScheme())) {
@@ -1189,19 +1245,67 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     scheme.getName(), location, null, null, null, null, null);
         } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
                 && scheme.getFlows() != null) {
-            return buildOAuthSpec(schemeName, cls, scheme);
+            return buildOAuthSpec(schemeName, cls, scheme, warn);
         } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
             return new SchemeAuthSpec(schemeName, cls, "", "OpenIdConnectAuthenticator", true,
                     List.of("host", "clientId", "clientSecret", "redirectUri"),
                     null, null, null, null, null, scheme.getOpenIdConnectUrl(), null);
         }
-        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
+        if (warn) {
+            LOGGER.warn("{}", unsupportedSchemeMessage(schemeName, scheme));
+        }
         return null;
+    }
+
+    /** The flows an OAuth2 scheme declares, in the order {@link #buildOAuthSpec} prefers them. */
+    static List<String> declaredOAuthFlows(SecurityScheme scheme) {
+        final List<String> flows = new ArrayList<>();
+        if (scheme.getFlows() == null) {
+            return flows;
+        }
+        if (scheme.getFlows().getClientCredentials() != null) {
+            flows.add("clientCredentials");
+        }
+        if (scheme.getFlows().getPassword() != null) {
+            flows.add("password");
+        }
+        if (scheme.getFlows().getAuthorizationCode() != null) {
+            flows.add("authorizationCode");
+        }
+        if (scheme.getFlows().getImplicit() != null) {
+            flows.add("implicit");
+        }
+        return flows;
+    }
+
+    /** F1060: the message for an OAuth2 scheme whose other flows get no authenticator. */
+    static String droppedOAuthFlowsMessage(String schemeName, List<String> declared) {
+        return "OAuth2 security scheme '" + schemeName + "' declares the flows "
+                + String.join(", ", declared) + "; only " + declared.get(0)
+                + " gets an authenticator, the flows " + String.join(", ", declared.subList(1, declared.size()))
+                + " are dropped";
+    }
+
+    /** F1061: the message for a security scheme no authenticator is generated for. */
+    static String unsupportedSchemeMessage(String schemeName, SecurityScheme scheme) {
+        if (scheme.getType() == SecurityScheme.Type.HTTP) {
+            return "Unsupported http security scheme '" + scheme.getScheme() + "' for '"
+                    + schemeName + "': only basic and bearer get an authenticator";
+        }
+        return "Unsupported security scheme type " + scheme.getType() + " for '" + schemeName
+                + "': no authenticator is generated";
     }
 
     @Nullable
     private SchemeAuthSpec buildOAuthSpec(
-            String schemeName, String cls, SecurityScheme scheme) {
+            String schemeName, String cls, SecurityScheme scheme, boolean warn) {
+        if (warn) {
+            final List<String> declared = declaredOAuthFlows(scheme);
+            if (declared.size() > 1) {
+                LOGGER.warn(
+                        "{}", droppedOAuthFlowsMessage(schemeName, declared));
+            }
+        }
         if (scheme.getFlows().getClientCredentials() != null) {
             final var flow = scheme.getFlows().getClientCredentials();
             return new SchemeAuthSpec(schemeName, cls, "ClientCredentials",
@@ -1336,6 +1440,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         ctx.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
         ctx.put("baseClass", spec.baseClass());
         ctx.put("isOAuth", spec.isOAuth());
+        final List<Map<String, Object>> own = new ArrayList<>();
+        for (final Map<String, Object> e : schemeEnvVars) {
+            if (spec.schemeName().equals(e.get("schemeId"))) {
+                own.add(e);
+            }
+        }
+        ctx.put("envVars", own);
+        ctx.put("hasEnvVars", !own.isEmpty());
         return ctx;
     }
 
@@ -3383,6 +3495,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         d.put("optionsParamRequired", anyRequired);
         d.put("hasOptionsParam", !optionsParams.isEmpty());
+        // F827 - an operation with no query/header/form/cookie parameter and no security has
+        // no Options fields of its own. optionsCallSettingsOnly says so, and optionsMinted
+        // says the generator emits an Options object for it anyway (the language opted in
+        // through mintsOptionsForEveryOperation) so it has a slot for per-call settings.
+        final boolean callSettingsOnly = optionsParams.isEmpty() && !op.hasAuthMethods;
+        d.put("optionsCallSettingsOnly", callSettingsOnly);
+        d.put("optionsMinted", callSettingsOnly && mintsOptionsForEveryOperation());
+        d.put("optionsForEveryOperation", mintsOptionsForEveryOperation());
 
         // O7 — Per-operation server presence
         d.put("hasPerOperationServer", op.servers != null && !op.servers.isEmpty());
@@ -3423,9 +3543,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // since its type varies per auth method (resolved from the outer
         // {{#authMethods}} scope at render time).
         final List<Map<String, Object>> sigArgs =
-                computeSignatureArgs(op, true, optionsClassName, serverClassName);
+                computeSignatureArgs(
+                        op, true, optionsClassName, serverClassName, mintsOptionsForEveryOperation());
         final List<Map<String, Object>> sigArgsNoServer =
-                computeSignatureArgs(op, false, optionsClassName, serverClassName);
+                computeSignatureArgs(
+                        op, false, optionsClassName, serverClassName, mintsOptionsForEveryOperation());
         d.put("signatureArgs", sigArgs);
         d.put("signatureArgsNoServer", sigArgsNoServer);
 
@@ -3819,7 +3941,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             CodegenOperation op,
             boolean includeServer,
             String optionsClassName,
-            String serverClassName) {
+            String serverClassName,
+            boolean optionsForEveryOperation) {
         final List<Map<String, Object>> args = new ArrayList<>();
         if (op.pathParams != null) {
             for (final CodegenParameter p : op.pathParams) {
@@ -3842,7 +3965,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // The Options object now also carries the optional per-operation auth
         // field (the generic Authenticator), so authed operations that have no
         // query/header/form/cookie params still need a (minted) Options arg.
-        if (hasQuery || hasHeader || hasForm || hasCookie || op.hasAuthMethods) {
+        if (hasQuery
+                || hasHeader
+                || hasForm
+                || hasCookie
+                || op.hasAuthMethods
+                || optionsForEveryOperation) {
             // The Options arg is REQUIRED (non-nullable) iff the Options object
             // has at least one required field; otherwise it is optional. The
             // optional `auth` field never forces the arg to be required.
@@ -4448,12 +4576,25 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     @SuppressWarnings("rawtypes")
     private void captureRefSiblingDefault(CodegenProperty property, Schema p) {
-        if (property == null || p == null || p.get$ref() == null || p.getDefault() == null) {
+        if (property == null || p == null || p.getDefault() == null) {
+            return;
+        }
+        // By the time a property reaches here the parser and normaliser have usually moved the
+        // $ref into a one-element allOf and left the sibling default on the wrapper, so both
+        // spellings are the same schema.
+        String ref = p.get$ref();
+        if (ref == null && p.getAllOf() != null && p.getAllOf().size() == 1) {
+            final Object only = p.getAllOf().get(0);
+            if (only instanceof Schema) {
+                ref = ((Schema) only).get$ref();
+            }
+        }
+        if (ref == null) {
             return;
         }
         final String wire = String.valueOf(p.getDefault());
         property.vendorExtensions.put("siblingDefault", wire);
-        final String refName = ModelUtils.getSimpleRef(p.get$ref());
+        final String refName = ModelUtils.getSimpleRef(ref);
         final Schema target = this.openAPI == null ? null : ModelUtils.getSchema(this.openAPI, refName);
         final boolean isEnum = target != null && target.getEnum() != null && !target.getEnum().isEmpty();
         property.vendorExtensions.put("siblingDefaultIsEnum", isEnum);
@@ -4777,7 +4918,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             // Authed operations always get an Options class minted (even with
             // no query/header/form/cookie params) because the class carries
             // the optional per-operation `auth` field.
-            if (optionsParams.isEmpty() && !op.hasAuthMethods) {
+            if (optionsParams.isEmpty()
+                    && !op.hasAuthMethods
+                    && !mintsOptionsForEveryOperation()) {
                 continue;
             }
             // Whether any Options-class field is required is exposed to
@@ -5405,6 +5548,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected String generateOptionsFileContent(
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         return null;
+    }
+
+    /**
+     * Opt-in flag (F827): when {@code true}, every operation gets an Options object
+     * and an {@code options} signature entry, even one with no query, header, form
+     * or cookie parameter and no security, so each call has a slot for the per-call
+     * timeout, headers and retry budget. The operation decorator exposes
+     * {@code optionsMinted} (this operation got the object only because of this
+     * flag), {@code optionsCallSettingsOnly} (it has no fields of its own) and
+     * {@code optionsForEveryOperation}. Default {@code false}, so a language keeps
+     * its output until its templates can render the minted object.
+     */
+    protected boolean mintsOptionsForEveryOperation() {
+        return false;
     }
 
     /**

@@ -409,6 +409,27 @@ class AbstractBetterCodegenTest {
   }
 
   @Test
+  @DisplayName("a default on the allOf wrapper the parser leaves around a $ref reaches the property")
+  void aWrappedRefSiblingDefaultIsCarriedOntoTheProperty() {
+    final StringSchema availability = new StringSchema();
+    availability.setEnum(List.of("available", "on-hold"));
+    final AbstractBetterCodegen codegen = codegen("java");
+    codegen.setOpenAPI(
+        new OpenAPI().components(new Components().addSchemas("Availability", availability)));
+    final Schema<?> reference = new Schema<>();
+    reference.set$ref("#/components/schemas/Availability");
+    final Schema<?> wrapper = new Schema<>();
+    wrapper.addAllOfItem(reference);
+    wrapper.setDefault("on-hold");
+
+    final CodegenProperty property = codegen.fromProperty("availability", wrapper, false, false);
+
+    assertEquals("on-hold", property.vendorExtensions.get("siblingDefault"));
+    assertEquals(true, property.vendorExtensions.get("siblingDefaultIsEnum"));
+    assertEquals("Availability", property.vendorExtensions.get("siblingDefaultEnumType"));
+  }
+
+  @Test
   @DisplayName("QUERY is a safe and idempotent method, POST and PATCH are neither")
   void httpMethodClassificationIsShared() {
     for (final String safe : List.of("GET", "HEAD", "OPTIONS", "TRACE", "QUERY", "query")) {
@@ -437,5 +458,76 @@ class AbstractBetterCodegenTest {
     assertEquals("optionsParam", codegen("java").toParamName("options"));
     assertEquals("petId", codegen("java").toParamName("pet_id"));
     assertEquals("petId", codegen("csharp").toParamName("pet_id"));
+  }
+
+  @Test
+  @DisplayName("a scheme with several OAuth2 flows names the dropped ones")
+  void droppedOAuthFlowsAreNamed() {
+    final io.swagger.v3.oas.models.security.OAuthFlows flows =
+        new io.swagger.v3.oas.models.security.OAuthFlows()
+            .authorizationCode(new io.swagger.v3.oas.models.security.OAuthFlow())
+            .clientCredentials(new io.swagger.v3.oas.models.security.OAuthFlow());
+    final io.swagger.v3.oas.models.security.SecurityScheme scheme =
+        new io.swagger.v3.oas.models.security.SecurityScheme()
+            .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.OAUTH2)
+            .flows(flows);
+
+    final List<String> declared = AbstractBetterCodegen.declaredOAuthFlows(scheme);
+
+    assertEquals(List.of("clientCredentials", "authorizationCode"), declared);
+    assertEquals(
+        "OAuth2 security scheme 'sso' declares the flows clientCredentials, authorizationCode;"
+            + " only clientCredentials gets an authenticator, the flows authorizationCode"
+            + " are dropped",
+        AbstractBetterCodegen.droppedOAuthFlowsMessage("sso", declared));
+  }
+
+  @Test
+  @DisplayName("an http scheme other than basic and bearer is named in the warning")
+  void unsupportedHttpSchemeIsNamed() {
+    final io.swagger.v3.oas.models.security.SecurityScheme digest =
+        new io.swagger.v3.oas.models.security.SecurityScheme()
+            .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.HTTP)
+            .scheme("digest");
+    assertEquals(
+        "Unsupported http security scheme 'digest' for 'legacy': only basic and bearer get an"
+            + " authenticator",
+        AbstractBetterCodegen.unsupportedSchemeMessage("legacy", digest));
+    assertEquals(null, codegen("java").buildSchemeAuthSpec("legacy", digest));
+  }
+
+  @Test
+  @DisplayName("every SDK exposes one environment variable per credential field")
+  void environmentVariableNamesAreExposedToEveryLanguage() {
+    final io.swagger.v3.oas.models.security.SecurityScheme bearer =
+        new io.swagger.v3.oas.models.security.SecurityScheme()
+            .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.HTTP)
+            .scheme("bearer");
+    final io.swagger.v3.oas.models.security.SecurityScheme key =
+        new io.swagger.v3.oas.models.security.SecurityScheme()
+            .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.APIKEY)
+            .in(io.swagger.v3.oas.models.security.SecurityScheme.In.HEADER)
+            .name("X-Key");
+    for (final String language : CODEGENS.keySet()) {
+      final AbstractBetterCodegen codegen = codegen(language);
+      codegen.additionalProperties().put("envVarPrefix", "Acme SDK");
+      codegen.processOpts();
+      codegen.processOpenAPI(
+          new OpenAPI()
+              .info(new io.swagger.v3.oas.models.info.Info().title("Acme").version("1"))
+              .components(
+                  new Components().addSecuritySchemes("tok", bearer).addSecuritySchemes("key", key)));
+
+      @SuppressWarnings("unchecked")
+      final List<Map<String, Object>> vars =
+          (List<Map<String, Object>>)
+              Objects.requireNonNull(codegen.additionalProperties().get("securitySchemeEnvVars"));
+      assertEquals(
+          List.of("ACME_SDK_API_KEY", "ACME_SDK_TOKEN"),
+          vars.stream().map(v -> String.valueOf(v.get("envName"))).collect(Collectors.toList()),
+          language);
+      assertEquals("key", vars.get(0).get("schemeId"), language);
+      assertEquals("apiKey", vars.get(0).get("field"), language);
+    }
   }
 }
