@@ -375,7 +375,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBasicAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthbasic013PetStoreBasicAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(PetStoreBasicAuthenticatorVariables, PetStoreBasicAuthenticatorFields),
@@ -482,7 +482,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void AdminBasicAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthbasic013AdminBasicAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(AdminBasicAuthenticatorVariables, AdminBasicAuthenticatorFields),
@@ -585,7 +585,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBearerAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthbearer018PetStoreBearerAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(PetStoreBearerAuthenticatorVariables, PetStoreBearerAuthenticatorFields),
@@ -712,6 +712,24 @@ public sealed class SchemeAuthenticatorTest
         Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BhvLifecycle025PetStoreBearerAuthenticatorReadsItsVariableOnceWhenBuilt()
+    {
+        WithEnvironment(
+            Complete(PetStoreBearerAuthenticatorVariables, PetStoreBearerAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host);
+                Environment.SetEnvironmentVariable(
+                    PetStoreBearerAuthenticatorVariables[0],
+                    "changed-later"
+                );
+
+                Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+            }
+        );
+    }
+
     private static readonly string[] ServiceTokenAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN",
@@ -733,7 +751,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ServiceTokenAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthbearer018ServiceTokenAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(ServiceTokenAuthenticatorVariables, ServiceTokenAuthenticatorFields),
@@ -856,6 +874,24 @@ public sealed class SchemeAuthenticatorTest
         Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BhvLifecycle025ServiceTokenAuthenticatorReadsItsVariableOnceWhenBuilt()
+    {
+        WithEnvironment(
+            Complete(ServiceTokenAuthenticatorVariables, ServiceTokenAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.ServiceTokenAuthenticator(Host);
+                Environment.SetEnvironmentVariable(
+                    ServiceTokenAuthenticatorVariables[0],
+                    "changed-later"
+                );
+
+                Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+            }
+        );
+    }
+
     private static readonly string[] ApiKeyHeaderAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
@@ -877,7 +913,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ApiKeyHeaderAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvSerializationobject187ApiKeyHeaderAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(ApiKeyHeaderAuthenticatorVariables, ApiKeyHeaderAuthenticatorFields),
@@ -971,7 +1007,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void InternalApiKeyAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvSerializationobject187InternalApiKeyAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(InternalApiKeyAuthenticatorVariables, InternalApiKeyAuthenticatorFields),
@@ -1065,7 +1101,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ApiKeyQueryAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvSerializationobject187ApiKeyQueryAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(ApiKeyQueryAuthenticatorVariables, ApiKeyQueryAuthenticatorFields),
@@ -1159,7 +1195,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SessionCookieAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvSerializationobject187SessionCookieAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(SessionCookieAuthenticatorVariables, SessionCookieAuthenticatorFields),
@@ -1267,7 +1303,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void MachineAuthClientCredentialsAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002MachineAuthClientCredentialsAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -1402,7 +1438,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void LegacyAuthPasswordAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002LegacyAuthPasswordAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -1537,7 +1573,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void UserAuthAuthorizationCodeAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002UserAuthAuthorizationCodeAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -1655,7 +1691,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BrowserAuthImplicitAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002BrowserAuthImplicitAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -1773,7 +1809,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SsoAuthAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002SsoAuthAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(SsoAuthAuthenticatorVariables, SsoAuthAuthenticatorFields),

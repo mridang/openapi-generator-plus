@@ -38,6 +38,23 @@ public class ServerVariableTest
     }
 
     [Fact]
+    public void BhvServers018EnumValuesAreExposedForValidation()
+    {
+        var variable = new ServerVariable("v3", null, ["v2", "v3"]);
+
+        Assert.Contains("v2", variable.EnumValues);
+        Assert.Contains("v3", variable.EnumValues);
+    }
+
+    [Fact]
+    public void BhvServers019EnumDoesNotContainAValueOutsideTheAllowedSet()
+    {
+        var variable = new ServerVariable("v3", null, ["v2", "v3"]);
+
+        Assert.DoesNotContain("dev", variable.EnumValues);
+    }
+
+    [Fact]
     public void RecordEqualityComparesByValue()
     {
         var first = new ServerVariable("v3", "API version", ["v2", "v3"]);

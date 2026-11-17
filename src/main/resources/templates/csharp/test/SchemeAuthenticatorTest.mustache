@@ -137,7 +137,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void {{className}}PrefersTheArgumentsOverTheEnvironment()
+    public void {{#isBasic}}BhvAuthbasic013{{/isBasic}}{{#isBearer}}BhvAuthbearer018{{/isBearer}}{{#isApiKey}}BhvSerializationobject187{{/isApiKey}}{{#isOAuth}}BhvAuthscheme002{{/isOAuth}}{{className}}PrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
         {
@@ -224,6 +224,18 @@ public sealed class SchemeAuthenticatorTest
 
         Assert.Equal("Bearer " + token, auth.GetAuthHeaders()["Authorization"]);
         Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvLifecycle025{{className}}ReadsItsVariableOnceWhenBuilt()
+    {
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+            Environment.SetEnvironmentVariable({{className}}Variables[0], "changed-later");
+
+            Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+        });
     }
 {{/isBearer}}
 {{#isBasic}}

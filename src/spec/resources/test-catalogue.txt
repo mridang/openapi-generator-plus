@@ -1023,16 +1023,16 @@ serializationobject185 | Deserialize: canonical padded base64 is accepted
 serializationobject186 | Request JSON escapes only the quote, the backslash and controls
 lifecycle024 | A supplied psr18 client conflicts with sdk proxy and tls settings
 errors047 | Name is ApiError
-serializationobject187 | An explicit key wins over the environment
+serializationobject187 | An explicit key wins over the environment | multi
 errors048 | 418 throws ClientException
-authbasic013 | Explicit credentials win over the environment
-authbearer018 | An explicit token wins over the environment
+authbasic013 | Explicit credentials win over the environment | multi
+authbearer018 | An explicit token wins over the environment | multi
 transport059 | Authenticating proxy refuses a request without credentials
 servers018 | EnumValues are exposed for validation
 servers019 | Enum does not contain a value outside the allowed set
 serializationparam105 | SerializeStyled form scalar
 serializationwire055 | #3 space in a form value encodes as plus
-lifecycle025 | Reads the environment once, when the authenticator is built
+lifecycle025 | Reads the environment once, when the authenticator is built | multi
 serializationwire056 | Falls back to application/octet-stream when extension is unknown
 serializationparam106 | Path with null style behaves like simple
 authoidc029 | Concurrent callers on a cold authenticator share one discovery request

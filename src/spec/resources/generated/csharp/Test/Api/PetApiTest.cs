@@ -1738,6 +1738,22 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvSerializationwire055FormValueSpaceEncodesAsPlus()
+    {
+        var client = new BodyCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions { Nickname = "a b" }
+        );
+
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("nickname=a+b", client.CapturedBody!.ToString());
+    }
+
+    [Fact]
     public async Task BhvOperations075SetPetPreferencesFormWireFormat()
     {
         // Wire-format parity lock for the application/x-www-form-urlencoded

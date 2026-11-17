@@ -708,6 +708,35 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvSerializationwire056MultipartRawBytesPartWithAnUnknownExtensionFallsBackToOctetStream()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "blob", new byte[] { 0x00, 0x01, 0x02 } },
+        };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "Content-Type: application/octet-stream",
+            wireText,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task BhvSerializationwire049MultipartRawBytesPartReusesFieldNameAsFilenameAndOctetStream()
     {
         // Cross-language contract: a raw-bytes part with NO explicit filename
@@ -3627,6 +3656,21 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(TimeSpan.FromSeconds(0.375), DefaultApiClient.RetryDelay(0, none, now, 1));
         Assert.Equal(TimeSpan.FromSeconds(6), DefaultApiClient.RetryDelay(9, none, now, 1));
+    }
+
+    [Fact]
+    public void BhvRetries029AnUnreadableRetryAfterFallsBackToTheBackoff()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Equal(
+            TimeSpan.FromSeconds(0.5),
+            DefaultApiClient.RetryDelay(0, Header("soon"), now, 0)
+        );
+        Assert.Equal(
+            TimeSpan.FromSeconds(2),
+            DefaultApiClient.RetryDelay(2, Header("not a date or a number"), now, 0)
+        );
     }
 
     [Fact]
