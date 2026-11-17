@@ -249,15 +249,32 @@ void main() {
       },
     );
 
-    test('the third global server resolves to the raw characters', () {
-      final server = allServers[2];
+    test(
+      'bhv servers 021 the third global server resolves to the raw characters',
+      () {
+        final server = allServers[2];
 
-      expect(server.url(), equals('https://o\'neil.example.com/api'));
-      expect(
-        server.url({'tenant': 'a&b'}),
-        equals('https://a&b.example.com/api'),
-      );
-    });
+        expect(server.url(), equals('https://o\'neil.example.com/api'));
+        expect(
+          server.url({'tenant': 'a&b'}),
+          equals('https://a&b.example.com/api'),
+        );
+      },
+    );
+
+    test(
+      'bhv servers 023 a server variable value containing replacement patterns is substituted literally',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{host}/v1',
+          variables: {'host': ServerVariable(defaultValue: 'api.example.com')},
+        );
+        expect(
+          config.url({'host': r'x$&y$1$$'}),
+          equals(r'https://x$&y$1$$/v1'),
+        );
+      },
+    );
 
     test(
       'bhv servers 005 does not expand a placeholder that a substituted value introduces',

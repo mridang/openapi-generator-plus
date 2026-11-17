@@ -437,18 +437,48 @@ void main() {
       expect(result, equals(['red', 'green']));
     });
 
-    test('serializeStyled form Set no explode joins with commas', () {
-      final result = serializeStyled(
-        'color',
-        <String>{'red', 'green'},
-        'query',
-        'array',
-        '',
-        'form',
-        false,
-      );
-      expect(result, equals('red,green'));
-    });
+    test(
+      'bhv serializationparam 117 serializeStyled form Set no explode joins with commas',
+      () {
+        final result = serializeStyled(
+          'color',
+          <String>{'red', 'green'},
+          'query',
+          'array',
+          '',
+          'form',
+          false,
+        );
+        expect(result, equals('red,green'));
+      },
+    );
+
+    test(
+      'bhv serializationparam 115 a csv query array keeps an empty slot for a null element',
+      () {
+        expect(
+          serializeValue(<Object?>[1, null, 3], 'query', 'array', 'csv'),
+          equals('1,,3'),
+        );
+      },
+    );
+
+    test(
+      'bhv serializationparam 119 a tilde is kept literal in a path parameter value',
+      () {
+        expect(serializeValue('a~b', 'path', 'string', ''), equals('a~b'));
+      },
+    );
+
+    test(
+      'bhv serializationparam 120 an array of date values is written with each element as YYYY-MM-DD',
+      () {
+        expect(
+          stringifyDates([DateTime.utc(2024, 1, 15), DateTime.utc(2024, 2, 1)]),
+          equals(['2024-01-15', '2024-02-01']),
+        );
+      },
+    );
 
     test(
       'bhv serializationparam 083 serializeValue expands a Set like a List',
@@ -687,27 +717,46 @@ void main() {
       },
     );
 
-    test('serializeStyled refuses a nested object leaf', () {
-      final nested = <String, Object?>{
-        'a': {'b': 1},
-      };
-      expect(
-        () => serializeStyled(
-          'criteria',
-          nested,
-          'query',
-          'object',
-          '',
-          'form',
-          true,
-        ),
-        throwsA(isA<SerializationException>()),
-      );
-      expect(
-        () => serializeDeepObject('criteria', nested),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+    test(
+      'bhv serializationparam 108 serializeStyled refuses a nested object leaf',
+      () {
+        final nested = <String, Object?>{
+          'a': {'b': 1},
+        };
+        expect(
+          () => serializeStyled(
+            'criteria',
+            nested,
+            'query',
+            'object',
+            '',
+            'form',
+            true,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => serializeDeepObject('criteria', nested),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serializationparam 111 a deepObject parameter writes each property as name[key]',
+      () {
+        expect(
+          serializeDeepObject('filter', <String, Object?>{
+            'status': 'active',
+            'type': 'dog',
+          }),
+          equals(<String, String>{
+            'filter[status]': 'active',
+            'filter[type]': 'dog',
+          }),
+        );
+      },
+    );
 
     test(
       'bhv serializationparam 048 parameterObject leaves scalars, lists and dates alone',
@@ -722,18 +771,21 @@ void main() {
 
     // Fallback
 
-    test('serializeStyled unknown style fallback', () {
-      final result = serializeStyled(
-        'id',
-        '5',
-        'query',
-        'string',
-        '',
-        'unknownStyle',
-        false,
-      );
-      expect(result, equals('5'));
-    });
+    test(
+      'bhv serializationparam 109 serializeStyled unknown style fallback',
+      () {
+        final result = serializeStyled(
+          'id',
+          '5',
+          'query',
+          'string',
+          '',
+          'unknownStyle',
+          false,
+        );
+        expect(result, equals('5'));
+      },
+    );
 
     test('bhv serializationparam 035 serializeStyled empty style', () {
       final result = serializeStyled(
@@ -1072,10 +1124,13 @@ void main() {
         expect(stringifyDate(date), equals('2024-01-15'));
       });
 
-      test('midnight UTC DateTime returns YYYY-MM-DD', () {
-        final date = DateTime.utc(2024, 1, 15);
-        expect(stringifyDate(date), equals('2024-01-15'));
-      });
+      test(
+        'bhv serializationparam 110 midnight UTC DateTime returns YYYY-MM-DD',
+        () {
+          final date = DateTime.utc(2024, 1, 15);
+          expect(stringifyDate(date), equals('2024-01-15'));
+        },
+      );
 
       test(
         'bhv serializationparam 027 a date at a day and year boundary still emits date-only',

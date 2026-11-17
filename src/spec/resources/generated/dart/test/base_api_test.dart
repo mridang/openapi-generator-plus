@@ -15,6 +15,8 @@ import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
 import 'package:petstore_client/src/api/base_api.dart';
 import 'package:petstore_client/src/object_serializer.dart' show deserialize;
+import 'package:petstore_client/src/value_serializer.dart'
+    show maybeAllowReserved;
 
 import 'testcontainers_helper.dart';
 
@@ -1318,6 +1320,22 @@ void main() {
       },
     );
 
+    test(
+      'bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/api/search',
+          queryParams: {'v': maybeAllowReserved('v1.0/beta:rc1', true)},
+        );
+
+        expect(client.capturedUrl, endsWith('?v=v1.0/beta:rc1'));
+      },
+    );
+
     test('bhv serializationwire 009 expands array query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
@@ -1794,23 +1812,26 @@ void main() {
       );
     });
 
-    test('form value keeps only the unreserved set literal', () async {
-      final client = _CapturingApiClient();
-      final api = PetApi(
-        apiClient: client,
-        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
-      );
+    test(
+      'bhv serializationwire 057 form value keeps only the unreserved set literal',
+      () async {
+        final client = _CapturingApiClient();
+        final api = PetApi(
+          apiClient: client,
+          config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+        );
 
-      await api.setPetPreferences(
-        1,
-        const SetPetPreferencesOptions(nickname: "a~b*c!d'e(f)g h"),
-      );
+        await api.setPetPreferences(
+          1,
+          const SetPetPreferencesOptions(nickname: "a~b*c!d'e(f)g h"),
+        );
 
-      expect(
-        client.capturedBody,
-        contains('nickname=a~b%2Ac%21d%27e%28f%29g+h'),
-      );
-    });
+        expect(
+          client.capturedBody,
+          contains('nickname=a~b%2Ac%21d%27e%28f%29g+h'),
+        );
+      },
+    );
 
     test('query key keeps only the unreserved set literal', () async {
       final client = _CapturingApiClient();
@@ -2517,6 +2538,29 @@ void main() {
 
       expect(result.data, isNull);
     });
+
+    test(
+      'bhv serializationwire 060 a binary return type gets the raw bytes of a JSON body',
+      () async {
+        final client = _ScriptedApiClient([
+          ApiHttpResponse(
+            statusCode: 200,
+            body: '{"k":1}',
+            headers: {'content-type': 'application/json'},
+          ),
+        ]);
+        final api = _RecordingApi(client);
+
+        final result = await api.invokeApiForResult<Uint8List>(
+          method: 'GET',
+          path: '/api/bin',
+          accepts: const ['application/json'],
+          returnType: 'Uint8List',
+        );
+
+        expect(result.data, equals(utf8.encode('{"k":1}')));
+      },
+    );
 
     /* byte-response-top-level (Case 13): getPetAvatarThumbnail returns a
      * top-level `format: byte` schema as application/json, so the body is a

@@ -2520,6 +2520,16 @@ void main() {
     );
 
     test(
+      'bhv serializationwire 061 a multipart filename with an embedded quote is backslash-escaped',
+      () {
+        expect(
+          buildFilenameDirective('a"b.txt'),
+          equals('filename="a\\"b.txt"'),
+        );
+      },
+    );
+
+    test(
       'bhv serializationwire 043 rejects multipart filename containing CRLF',
       () {
         expect(
