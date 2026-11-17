@@ -759,6 +759,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "ValueSerializerTest.php"));
             supportingFiles.add(
                     new SupportingFile(
+                            "tests/SerializerProbe.mustache",
+                            "tests",
+                            "SerializerProbe.php"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "tests/HeaderSelectorTest.mustache",
                             "tests",
                             "HeaderSelectorTest.php"));
