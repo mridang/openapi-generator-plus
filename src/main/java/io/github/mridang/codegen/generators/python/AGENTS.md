@@ -22,7 +22,7 @@ This generator emits a Python client package: pydantic v2 models, an `async` ope
 | `value_serializer.mustache` | path, query, header styles, allowReserved encoder | parameter encoding |
 | `base_api.mustache`, `api/api.mustache`, `api/options*.mustache` | the request pipeline and the per-tag operations and options classes | operation signatures, content-type selection, server enums |
 | `default_api_client.mustache`, `api_client.mustache`, `transport_options.mustache`, `configuration.mustache` | transport: redirects, proxy, TLS, timeout, decompression, redaction | anything on the wire below the operation |
-| `errors.mustache`, `errors/*.mustache` | `ApiError` hierarchy, OAuth2 errors, header rendering | error classes and messages |
+| `errors.mustache`, `errors/*.mustache` | `ApiError` hierarchy, OAuth2 errors, header rendering, `ErrorFactory`, `is_retryable`, `request_id`; `errors/schema_exception.mustache` renders one class per declared error schema (issue 123) | error classes and messages |
 | `auth/*.mustache`, `auth/oauth/*.mustache` | authenticators, token manager, OIDC | auth behaviour |
 | `server_configuration.mustache`, `servers.mustache` | server list and variables | server constants |
 | `readme.mustache`, `skills*.mustache`, `pyproject_toml.mustache`, `makefile.mustache` | README, SKILLS.md, manifest, Makefile (`typecheck`, `docs`) | docs, dependencies, ruff and mypy config |
@@ -86,6 +86,9 @@ Rule: OAuth scopes keep the spec's declared order (generator side, D04); uuid is
 Why: `str.strip()` also removes non-ASCII whitespace, which the other eleven keep.
 Where: `auth/api_key_authenticator.mustache`, `auth/bearer_authenticator.mustache`, `errors.mustache`, `AbstractBetterCodegen` (scopes).
 Test: `test_api_key_authenticator.mustache`, `test_bearer_authenticator.mustache`, `test_api_error.mustache`.
+
+### Typed errors per declared schema (issue 123)
+Rule: each operation passes its own `{status: factory}` map as `error_schemas` to `_invoke_api_for_result`, and `ApiException.from_response` picks the factory by exact status, then `4XX`/`5XX`, then `default`. A schema error class subclasses its status class, its `error_body` property returns the decoded model, and a body that does not match leaves the status exception with the raw body and `__cause__`. `SerializationException` raised while decoding a response carries `status_code`, `response_headers`, `response_body`, `request_method` and `request_path` (no query), filled in `_invoke_api_for_result`. Where: `errors.mustache`, `errors/schema_exception.mustache`, `errors/serialization_exception.mustache`, `base_api.mustache`, `api/api.mustache`. Test: `test_api_error.mustache` (errors201 to errors204) and `test_base_api.mustache` (errors205).
 
 ### Required plus nullable (S5, D66, 2026-11-16)
 Rule: the key must be present on decode, explicit `null` is legal and kept, and encode writes the key (`null` when unset).

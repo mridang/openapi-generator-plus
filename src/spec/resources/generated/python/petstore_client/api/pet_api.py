@@ -223,6 +223,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
         """
         result = await self.add_pet_with_http_info(
             pet,
@@ -252,6 +253,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
         """
         if pet is None:
             raise ValueError(
@@ -288,6 +290,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Photo]
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.add_pet_photos_with_http_info(
             pet_id,
@@ -318,6 +321,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -456,6 +460,7 @@ class PetApi(BaseApi):
         :param pet_id: Pet id to delete (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
         """
         result = await self.delete_pet_with_http_info(
             pet_id,
@@ -474,6 +479,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
         """
         if pet_id is None:
             raise ValueError(
@@ -547,6 +553,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: bytes
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.download_pet_document_with_http_info(
             pet_id,
@@ -580,6 +587,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -712,6 +720,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Pet]
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
 
         .. deprecated::
             This operation is deprecated.
@@ -744,6 +753,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
 
         .. deprecated::
             This operation is deprecated.
@@ -1006,6 +1016,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: bytes
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.get_pet_avatar_with_http_info(
             pet_id,
@@ -1036,6 +1047,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -1080,6 +1092,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: bytes
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.get_pet_avatar_thumbnail_with_http_info(
             pet_id,
@@ -1110,6 +1123,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -1161,6 +1175,8 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
+        :raises NotFoundException: on HTTP 404
 
         .. deprecated::
             This operation is deprecated.
@@ -1196,6 +1212,8 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
+        :raises NotFoundException: on HTTP 404
 
         .. deprecated::
             This operation is deprecated.
@@ -1363,6 +1381,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: PetPassport
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.get_pet_passport_with_http_info(
             pet_id,
@@ -1393,6 +1412,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -1439,6 +1459,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: bytes
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.get_pet_photo_with_http_info(
             pet_id,
@@ -1472,6 +1493,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -1531,6 +1553,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: StrictStr
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.get_pet_summary_with_http_info(
             pet_id,
@@ -1564,6 +1587,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -1999,6 +2023,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (image/jpeg, image/png, application/json); defaults to the first declared type when omitted.
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.set_pet_avatar_with_http_info(
             pet_id,
@@ -2024,6 +2049,7 @@ class PetApi(BaseApi):
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (image/jpeg, image/png, application/json); defaults to the first declared type when omitted.
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -2091,6 +2117,7 @@ class PetApi(BaseApi):
         :param set_pet_avatar_thumbnail_request:  (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.set_pet_avatar_thumbnail_with_http_info(
             pet_id,
@@ -2113,6 +2140,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -2162,6 +2190,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResponse
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.set_pet_preferences_with_http_info(
             pet_id,
@@ -2192,6 +2221,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -2252,6 +2282,8 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.update_pet_with_http_info(
             pet_id,
@@ -2284,6 +2316,8 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -2333,6 +2367,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResponse
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.upload_pet_certificate_with_http_info(
             pet_id,
@@ -2363,6 +2398,7 @@ class PetApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(
@@ -2416,6 +2452,7 @@ class PetApi(BaseApi):
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (multipart/form-data, application/octet-stream); defaults to the first declared type when omitted.
         :return: ApiResponse
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.upload_pet_document_with_http_info(
             pet_id,
@@ -2449,6 +2486,7 @@ class PetApi(BaseApi):
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (multipart/form-data, application/octet-stream); defaults to the first declared type when omitted.
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises NotFoundException: on HTTP 404
         """
         if pet_id is None:
             raise ValueError(

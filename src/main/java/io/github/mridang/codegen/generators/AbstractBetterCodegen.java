@@ -3477,6 +3477,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return null;
     }
 
+    /**
+     * Lets a language add template keys to one entry of {@code errorSchemas}, such as the file
+     * name the language gives the error type. The default adds nothing.
+     *
+     * @param schema one entry of {@code errorSchemas}, with {@code className} and {@code schemaName}
+     */
+    protected void decorateErrorSchema(Map<String, Object> schema) {
+        // no extra keys by default
+    }
+
     /** Names of the error schema classes already written, so each is written once. */
     private final java.util.Set<String> writtenErrorSchemas = new java.util.HashSet<>();
 
@@ -3545,6 +3555,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final List<Map<String, Object>> schemas =
                 ErrorResponses.distinctSchemas(
                         new ArrayList<>(declaredErrorsByOperation.values()), suffix, this::statusClassName);
+        for (final Map<String, Object> schema : schemas) {
+            decorateErrorSchema(schema);
+        }
         additionalProperties.put("errorSchemas", schemas);
         additionalProperties.put("hasErrorSchemas", !schemas.isEmpty());
         writeErrorSchemaFiles(schemas);
