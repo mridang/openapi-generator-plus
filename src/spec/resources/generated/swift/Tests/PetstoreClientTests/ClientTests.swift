@@ -327,14 +327,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015PetStoreBasicAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try PetStoreBasicAuthenticator(
-      host: "https://api.example.com",
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "env-value",
-      ])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015PetStoreBasicAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> PetStoreBasicAuthenticator = {
+      try PetStoreBasicAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004PetStoreBasicAuthenticatorFailsWhenACredentialIsMissing() {
@@ -383,14 +381,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015AdminBasicAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try AdminBasicAuthenticator(
-      host: "https://api.example.com",
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "env-value",
-      ])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015AdminBasicAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> AdminBasicAuthenticator = {
+      try AdminBasicAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004AdminBasicAuthenticatorFailsWhenACredentialIsMissing() {
@@ -435,11 +431,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       host: "https://api.example.com", token: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015PetStoreBearerAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try PetStoreBearerAuthenticator(
-      host: "https://api.example.com",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-value"])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015PetStoreBearerAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> PetStoreBearerAuthenticator = {
+      try PetStoreBearerAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004PetStoreBearerAuthenticatorFailsWhenACredentialIsMissing() {
@@ -481,11 +478,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       host: "https://api.example.com", token: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015ServiceTokenAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try ServiceTokenAuthenticator(
-      host: "https://api.example.com",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-value"])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015ServiceTokenAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> ServiceTokenAuthenticator = {
+      try ServiceTokenAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004ServiceTokenAuthenticatorFailsWhenACredentialIsMissing() {
@@ -527,11 +525,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015ApiKeyHeaderAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try ApiKeyHeaderAuthenticator(
-      host: "https://api.example.com",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY": "env-value"])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015ApiKeyHeaderAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> ApiKeyHeaderAuthenticator = {
+      try ApiKeyHeaderAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004ApiKeyHeaderAuthenticatorFailsWhenACredentialIsMissing() {
@@ -573,11 +572,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015InternalApiKeyAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try InternalApiKeyAuthenticator(
-      host: "https://api.example.com",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY": "env-value"])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015InternalApiKeyAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> InternalApiKeyAuthenticator = {
+      try InternalApiKeyAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004InternalApiKeyAuthenticatorFailsWhenACredentialIsMissing() {
@@ -619,11 +619,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015ApiKeyQueryAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try ApiKeyQueryAuthenticator(
-      host: "https://api.example.com",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY": "env-value"])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015ApiKeyQueryAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> ApiKeyQueryAuthenticator = {
+      try ApiKeyQueryAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004ApiKeyQueryAuthenticatorFailsWhenACredentialIsMissing() {
@@ -665,11 +666,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015SessionCookieAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try SessionCookieAuthenticator(
-      host: "https://api.example.com",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY": "env-value"])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015SessionCookieAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> SessionCookieAuthenticator = {
+      try SessionCookieAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004SessionCookieAuthenticatorFailsWhenACredentialIsMissing() {
@@ -717,17 +719,13 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
+  /* The credential keyword is optional: the public initializer takes the host alone. */
   @Test
-  func testBhvLifecycle015MachineAuthClientCredentialsAuthenticatorCredentialKeywordCanBeOmitted()
-    throws
-  {
-    _ = try MachineAuthClientCredentialsAuthenticator(
-      host: "https://api.example.com",
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET": "env-value",
-      ])
+  func testBhvLifecycle015MachineAuthClientCredentialsAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> MachineAuthClientCredentialsAuthenticator = {
+      try MachineAuthClientCredentialsAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test
@@ -781,18 +779,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       username: "explicit-value", password: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015LegacyAuthPasswordAuthenticatorCredentialKeywordCanBeOmitted()
-    throws
-  {
-    _ = try LegacyAuthPasswordAuthenticator(
-      host: "https://api.example.com",
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD": "env-value",
-      ])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015LegacyAuthPasswordAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> LegacyAuthPasswordAuthenticator = {
+      try LegacyAuthPasswordAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004LegacyAuthPasswordAuthenticatorFailsWhenACredentialIsMissing() {
@@ -848,18 +840,13 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       redirectUri: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
+  /* The credential keyword is optional: the public initializer takes the host alone. */
   @Test
-  func testBhvLifecycle015UserAuthAuthorizationCodeAuthenticatorCredentialKeywordCanBeOmitted()
-    throws
-  {
-    _ = try UserAuthAuthorizationCodeAuthenticator(
-      host: "https://api.example.com",
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI": "env-value",
-      ])
+  func testBhvLifecycle015UserAuthAuthorizationCodeAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> UserAuthAuthorizationCodeAuthenticator = {
+      try UserAuthAuthorizationCodeAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test
@@ -908,13 +895,12 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       host: "https://api.example.com", clientId: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015BrowserAuthImplicitAuthenticatorCredentialKeywordCanBeOmitted()
-    throws
-  {
-    _ = try BrowserAuthImplicitAuthenticator(
-      host: "https://api.example.com",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID": "env-value"])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015BrowserAuthImplicitAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> BrowserAuthImplicitAuthenticator = {
+      try BrowserAuthImplicitAuthenticator(host: $0)
+    }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004BrowserAuthImplicitAuthenticatorFailsWhenACredentialIsMissing() {
@@ -960,15 +946,10 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       redirectUri: "explicit-value", environment: [:])
   }
 
-  /* The credential keyword is optional: leaving it out reads the environment. */
-  @Test func testBhvLifecycle015SsoAuthAuthenticatorCredentialKeywordCanBeOmitted() throws {
-    _ = try SsoAuthAuthenticator(
-      host: "https://api.example.com",
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI": "env-value",
-      ])
+  /* The credential keyword is optional: the public initializer takes the host alone. */
+  @Test func testBhvLifecycle015SsoAuthAuthenticatorCredentialKeywordCanBeOmitted() {
+    let hostAlone: (String) throws -> SsoAuthAuthenticator = { try SsoAuthAuthenticator(host: $0) }
+    _ = hostAlone
   }
 
   @Test func testBhvLifecycle004SsoAuthAuthenticatorFailsWhenACredentialIsMissing() {
