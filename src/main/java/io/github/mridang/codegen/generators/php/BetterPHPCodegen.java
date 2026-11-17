@@ -1492,6 +1492,24 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
+    protected String errorSchemaModelName(String dataType) {
+        return dataType.substring(dataType.lastIndexOf('\\') + 1);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/SchemaException.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, SRC_BASE_PATH, "Errors", className + ".php").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         return Path.of(outputFolder, SRC_BASE_PATH, "Api", "Options", optionsClassName + ".php")
                 .toString();

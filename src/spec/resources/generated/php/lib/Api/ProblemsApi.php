@@ -37,6 +37,7 @@ class ProblemsApi extends BaseApi
      * Read a fallback, declaring a default response
      * @param GetFallbackOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\UnexpectedFailureException on HTTP default with a {@see \PetstoreClient\Models\UnexpectedFailure} body
      */
     public function getFallback(string $fallbackId, ?GetFallbackOptions $options = null): \PetstoreClient\Models\Result
     {
@@ -63,6 +64,7 @@ class ProblemsApi extends BaseApi
      * @param GetFallbackOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\UnexpectedFailureException on HTTP default with a {@see \PetstoreClient\Models\UnexpectedFailure} body
      */
     public function getFallbackWithHttpInfo(string $fallbackId, ?GetFallbackOptions $options = null): ApiResult
     {
@@ -119,6 +121,9 @@ class ProblemsApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            errorSchemas: [
+                'default' => \PetstoreClient\Errors\UnexpectedFailureException::fromErrorResponse(...),
+            ],
         );
         return $result;
     }
@@ -127,6 +132,7 @@ class ProblemsApi extends BaseApi
      * Read a member, declaring a 404 with a different schema
      * @param GetMemberOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\MemberNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\MemberNotFound} body
      */
     public function getMember(string $memberId, ?GetMemberOptions $options = null): \PetstoreClient\Models\Result
     {
@@ -153,6 +159,7 @@ class ProblemsApi extends BaseApi
      * @param GetMemberOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\MemberNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\MemberNotFound} body
      */
     public function getMemberWithHttpInfo(string $memberId, ?GetMemberOptions $options = null): ApiResult
     {
@@ -209,6 +216,9 @@ class ProblemsApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            errorSchemas: [
+                '404' => \PetstoreClient\Errors\MemberNotFoundException::fromErrorResponse(...),
+            ],
         );
         return $result;
     }
@@ -217,6 +227,7 @@ class ProblemsApi extends BaseApi
      * Read a project, declaring a 404 with its own schema
      * @param GetProjectOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\ProjectNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\ProjectNotFound} body
      */
     public function getProject(string $projectId, ?GetProjectOptions $options = null): \PetstoreClient\Models\Result
     {
@@ -243,6 +254,7 @@ class ProblemsApi extends BaseApi
      * @param GetProjectOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\ProjectNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\ProjectNotFound} body
      */
     public function getProjectWithHttpInfo(string $projectId, ?GetProjectOptions $options = null): ApiResult
     {
@@ -299,6 +311,9 @@ class ProblemsApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            errorSchemas: [
+                '404' => \PetstoreClient\Errors\ProjectNotFoundException::fromErrorResponse(...),
+            ],
         );
         return $result;
     }
@@ -307,6 +322,7 @@ class ProblemsApi extends BaseApi
      * Read a range, declaring one schema for every 4XX status
      * @param GetRangeOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\RejectedRequestException on HTTP 4XX with a {@see \PetstoreClient\Models\RejectedRequest} body
      */
     public function getRange(string $rangeId, ?GetRangeOptions $options = null): \PetstoreClient\Models\Result
     {
@@ -333,6 +349,7 @@ class ProblemsApi extends BaseApi
      * @param GetRangeOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\RejectedRequestException on HTTP 4XX with a {@see \PetstoreClient\Models\RejectedRequest} body
      */
     public function getRangeWithHttpInfo(string $rangeId, ?GetRangeOptions $options = null): ApiResult
     {
@@ -389,6 +406,9 @@ class ProblemsApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            errorSchemas: [
+                '4XX' => \PetstoreClient\Errors\RejectedRequestException::fromErrorResponse(...),
+            ],
         );
         return $result;
     }
@@ -397,6 +417,7 @@ class ProblemsApi extends BaseApi
      * Read an upstream, declaring one schema for every 5XX status
      * @param GetUpstreamOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\UpstreamFailureException on HTTP 5XX with a {@see \PetstoreClient\Models\UpstreamFailure} body
      */
     public function getUpstream(string $upstreamId, ?GetUpstreamOptions $options = null): \PetstoreClient\Models\Result
     {
@@ -423,6 +444,7 @@ class ProblemsApi extends BaseApi
      * @param GetUpstreamOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\UpstreamFailureException on HTTP 5XX with a {@see \PetstoreClient\Models\UpstreamFailure} body
      */
     public function getUpstreamWithHttpInfo(string $upstreamId, ?GetUpstreamOptions $options = null): ApiResult
     {
@@ -479,6 +501,9 @@ class ProblemsApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            errorSchemas: [
+                '5XX' => \PetstoreClient\Errors\UpstreamFailureException::fromErrorResponse(...),
+            ],
         );
         return $result;
     }
@@ -487,6 +512,8 @@ class ProblemsApi extends BaseApi
      * Take a lock, declaring one schema under two statuses
      * @param TakeLockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\StateConflictException on HTTP 409 with a {@see \PetstoreClient\Models\StateConflict} body
+     * @throws \PetstoreClient\Errors\StateConflictException on HTTP 423 with a {@see \PetstoreClient\Models\StateConflict} body
      */
     public function takeLock(string $lockId, ?TakeLockOptions $options = null): \PetstoreClient\Models\Result
     {
@@ -513,6 +540,8 @@ class ProblemsApi extends BaseApi
      * @param TakeLockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\StateConflictException on HTTP 409 with a {@see \PetstoreClient\Models\StateConflict} body
+     * @throws \PetstoreClient\Errors\StateConflictException on HTTP 423 with a {@see \PetstoreClient\Models\StateConflict} body
      */
     public function takeLockWithHttpInfo(string $lockId, ?TakeLockOptions $options = null): ApiResult
     {
@@ -569,6 +598,10 @@ class ProblemsApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            errorSchemas: [
+                '409' => \PetstoreClient\Errors\StateConflictException::fromErrorResponse(...),
+                '423' => \PetstoreClient\Errors\StateConflictException::fromErrorResponse(...),
+            ],
         );
         return $result;
     }
