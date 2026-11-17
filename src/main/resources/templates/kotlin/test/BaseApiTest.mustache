@@ -699,6 +699,66 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvAuthintegration003 a scheme credential wins over the client-level authenticator")
+        fun schemeCredentialWinsOverTheClientLevelAuthenticator() {
+            val client = CapturingApiClient()
+            val clientAuth = TestAuthenticator(mapOf("X-Client-Auth" to "client-level-token"), emptyMap(), emptyMap())
+            val schemeAuth = TestAuthenticator(mapOf("X-Client-Auth" to "scheme-token"), emptyMap(), emptyMap())
+            val api = TestableApiWithSchemes(client, "http://localhost", clientAuth, mapOf("a" to schemeAuth))
+            runBlocking { api.call("/test/echo", api.pick("a")) }
+            assertEquals("scheme-token", client.capturedHeaders["X-Client-Auth"])
+        }
+
+        @Test
+        @DisplayName("bhvAuthintegration004 appends auth cookies to a Cookie header the operation already set")
+        fun appendsAuthCookiesToAnExistingCookieHeader() {
+            val client = CapturingApiClient()
+            val auth = TestAuthenticator(emptyMap(), emptyMap(), mapOf("session" to "abc123"))
+            runBlocking {
+                TestableApiWithClient(client, "http://localhost").call(
+                    "GET", "/test/echo",
+                    headerParams = mutableMapOf("Cookie" to "theme=dark"),
+                    auth = auth
+                )
+            }
+            assertEquals("theme=dark; session=abc123", client.capturedHeaders["Cookie"])
+        }
+
+        @Test
+        @DisplayName("bhvAuthintegration013 a per-call auth overrides the client-level authenticator")
+        fun perCallAuthOverridesClientLevelAuthenticator() {
+            val client = CapturingApiClient()
+            val clientAuth = TestAuthenticator(mapOf("X-Client-Auth" to "client-level-token"), emptyMap(), emptyMap())
+            val perCallAuth = TestAuthenticator(mapOf("X-Client-Auth" to "per-call-token"), emptyMap(), emptyMap())
+            val testApi = TestableApiWithAuth(client, "http://localhost", clientAuth)
+            runBlocking {
+                testApi.call("GET", "/test/echo", auth = perCallAuth)
+            }
+            assertEquals("per-call-token", client.capturedHeaders["X-Client-Auth"])
+        }
+
+        @Test
+        @DisplayName("bhvAuthintegration015 a security none operation suppresses a configured api-key client authenticator (header and query)")
+        fun securityNoneOperationSuppressesApiKeyHeaderAndQuery() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val authenticator = TestAuthenticator(
+                mapOf("api-key" to "header-key"),
+                mapOf("api_key" to "query-key"),
+                emptyMap(),
+            )
+            val api = StoreApi(client, config, authenticator)
+            try {
+                runBlocking { api.getInventory() }
+            } catch (_: Exception) {
+                // The capturing client returns {} which may fail deserialization;
+                // we only assert on the outbound credential.
+            }
+            assertFalse(client.capturedHeaders.containsKey("api-key"))
+            assertFalse(client.capturedUrl.contains("api_key="))
+        }
+
+        @Test
         @DisplayName("bhvAuthintegration009 falls back to client-level authenticator when no per-call auth is supplied")
         fun fallsBackToClientLevelAuthenticator() {
             val client = CapturingApiClient()
@@ -1127,6 +1187,32 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationwire011 form optional null field is omitted")
+        fun formOptionalNullFieldIsOmitted() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/test/echo",
+                    body = mapOf("name" to "alice", "nickname" to null),
+                    contentType = "application/x-www-form-urlencoded")
+            }
+            assertEquals("name=alice", client.capturedBody.toString())
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire013 form-urlencoded body keeps a well-formed surrogate pair")
+        fun formUrlencodedBodyKeepsSurrogatePair() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/test/echo",
+                    body = mapOf("emoji" to "😀"),
+                    contentType = "application/x-www-form-urlencoded")
+            }
+            assertEquals("emoji=%F0%9F%98%80", client.capturedBody.toString())
+        }
+
+        @Test
         @DisplayName("bhvOperations014 passes binary body as-is")
         fun passesBinaryBody() {
             val client = CapturingApiClient()
@@ -1261,6 +1347,21 @@ class BaseApiTest {
             }
             assertFalse(client.capturedUrl.contains("status="),
                 "Expected no status= in URL when allowEmptyValue param is omitted, got: ${client.capturedUrl}")
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire001 AllowEmptyValue param omitted when value is null in options")
+        fun allowEmptyValueOmittedWhenOptionIsNull() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(client, config)
+            try {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions(status = null)) }
+            } catch (_: Exception) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertFalse(client.capturedUrl.contains("status="),
+                "Expected no status= in URL when the option is null, got: ${client.capturedUrl}")
         }
 
         @Test
@@ -1409,6 +1510,34 @@ class BaseApiTest {
             val decoded = java.util.Base64.getDecoder().decode(response.body)
             assertNotNull(decoded)
             assertTrue(decoded.isNotEmpty())
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire017 octet-stream binary response roundtrips exactly via base64 decode")
+        fun octetStreamResponseRoundtripsThroughCallForResult() {
+            val original = byteArrayOf(0x00, 0xFF.toByte(), 0x42, 0x0A, 0x0D)
+            val encoded = java.util.Base64.getEncoder().encodeToString(original)
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
+                ): ApiHttpResponse = ApiHttpResponse(200, encoded, mapOf("Content-Type" to "application/octet-stream"))
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking { testApi.callForResult<ByteArray>("GET", "/test/echo") }
+            assertArrayEquals(original, result.data!!)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire006 empty binary body yields null")
+        fun emptyBinaryBodyYieldsNull() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
+                ): ApiHttpResponse = ApiHttpResponse(200, "", mapOf("Content-Type" to "application/octet-stream"))
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking { testApi.callForResult<ByteArray>("GET", "/test/echo") }
+            assertNull(result.data)
         }
 
         @Test
