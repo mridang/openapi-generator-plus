@@ -40,6 +40,12 @@ var authenticator = new BearerAuthenticator("https://api.example.com", "your-tok
 var client = new Client(authenticator);
 ```
 
+A token that rotates comes from a callback that runs before every request (pass either a token or a callback, never both):
+
+```java
+var authenticator = new BearerAuthenticator("https://api.example.com", () -> secretStore.currentToken());
+```
+
 ### Basic Auth
 
 ```java
@@ -125,6 +131,38 @@ var authenticator = new OpenIdConnectAuthenticator(
 var client = new Client(authenticator);
 authenticator.exchangeCode("authorization-code");
 ```
+
+### Credentials from the environment
+
+The authenticator generated for a security scheme (in the `auth` package, named after the scheme) reads a credential you pass as `null` or an empty string from an environment variable, once, when it is built. A value you pass wins. A credential found in neither place throws `IllegalArgumentException` naming the variable.
+
+| Scheme | Credential | Variable |
+| --- | --- | --- |
+| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `browserAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `legacyAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
+| `legacyAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
+| `legacyAuth` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` |
+| `legacyAuth` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` |
+| `machineAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` |
+| `machineAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` |
+| `petStoreBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+| `ssoAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` |
+| `ssoAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` |
+| `ssoAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` |
+| `userAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` |
+| `userAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
+| `userAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
+
+The base `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` never read the environment; A rotating token comes from a callback instead: `new BearerAuthenticator(host, tokenProvider)`.
 
 ### OAuth2 token lifecycle
 
@@ -273,7 +311,7 @@ task.cancel(true);
 
 ### Per-call options
 
-An operation's options object also takes `timeout(millis)`, `maxRetries(n)` and `headers(map)`, which apply to that call only.
+Every operation takes an optional trailing `<Operation>Options` object, even one with no parameters of its own and no security. It also takes `timeout(millis)`, `maxRetries(n)` and `headers(map)`, which apply to that call only; leave it out or pass `null` to use the client's settings.
 
 ### Raw responses, timeouts and the request id
 

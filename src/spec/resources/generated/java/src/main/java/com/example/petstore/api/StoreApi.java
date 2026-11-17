@@ -11,8 +11,23 @@ package com.example.petstore.api;
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
+import com.example.petstore.api.options.CreateAccountOptions;
+import com.example.petstore.api.options.DeleteOrderOptions;
 import com.example.petstore.api.options.GetBySwatchOptions;
+import com.example.petstore.api.options.GetDefaultsOptions;
+import com.example.petstore.api.options.GetDepartmentOptions;
+import com.example.petstore.api.options.GetGroupedCategoriesOptions;
+import com.example.petstore.api.options.GetInventoryOptions;
+import com.example.petstore.api.options.GetMatrixOptions;
+import com.example.petstore.api.options.GetOrderByIdOptions;
+import com.example.petstore.api.options.GetOrderByTrackingIdOptions;
 import com.example.petstore.api.options.GetStockItemOptions;
+import com.example.petstore.api.options.GetSwatchGroupsOptions;
+import com.example.petstore.api.options.GetSwatchOptions;
+import com.example.petstore.api.options.GetTimestampGroupsOptions;
+import com.example.petstore.api.options.GetTreeOptions;
+import com.example.petstore.api.options.PlaceOrderOptions;
+import com.example.petstore.api.options.ReserveStockOptions;
 import com.example.petstore.api.options.SearchStoreOptions;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.ApiException;
@@ -118,22 +133,53 @@ public class StoreApi extends BaseApi {
   /**
    * Create an account
    *
-   * @param account (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Account}
    * @throws ApiException if fails to make API call
    */
   public Account createAccount(Account account) {
-    return requireBody(createAccountWithHttpInfo(account), "createAccount");
+    return createAccount(account, null);
+  }
+
+  /**
+   * Create an account
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Account}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Account> createAccountWithHttpInfo(Account account) {
+    return createAccountWithHttpInfo(account, null);
   }
 
   /**
    * Create an account
    *
    * @param account (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Account}
+   * @throws ApiException if fails to make API call
+   */
+  public Account createAccount(Account account, @Nullable CreateAccountOptions options) {
+    return requireBody(createAccountWithHttpInfo(account, options), "createAccount");
+  }
+
+  /**
+   * Create an account
+   *
+   * @param account (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Account}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Account> createAccountWithHttpInfo(Account account) {
+  public ApiResult<Account> createAccountWithHttpInfo(
+      Account account, @Nullable CreateAccountOptions options) {
     if (account == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'account' when calling StoreApi.createAccount");
@@ -141,6 +187,12 @@ public class StoreApi extends BaseApi {
     String path = "/store/account";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "createAccount",
         "POST",
@@ -152,29 +204,59 @@ public class StoreApi extends BaseApi {
         "application/json",
         createAccountTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Delete purchase order by ID
    *
-   * @param orderId ID of the order to delete (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @throws ApiException if fails to make API call
    */
   public void deleteOrder(Long orderId) {
-    deleteOrderWithHttpInfo(orderId);
+    deleteOrder(orderId, null);
+  }
+
+  /**
+   * Delete purchase order by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) {
+    return deleteOrderWithHttpInfo(orderId, null);
   }
 
   /**
    * Delete purchase order by ID
    *
    * @param orderId ID of the order to delete (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  public void deleteOrder(Long orderId, @Nullable DeleteOrderOptions options) {
+    deleteOrderWithHttpInfo(orderId, options);
+  }
+
+  /**
+   * Delete purchase order by ID
+   *
+   * @param orderId ID of the order to delete (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) {
+  public ApiResult<Void> deleteOrderWithHttpInfo(
+      Long orderId, @Nullable DeleteOrderOptions options) {
     if (orderId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'orderId' when calling StoreApi.deleteOrder");
@@ -188,6 +270,12 @@ public class StoreApi extends BaseApi {
                         "orderId", orderId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "deleteOrder",
         "DELETE",
@@ -199,8 +287,8 @@ public class StoreApi extends BaseApi {
         "application/json",
         null,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -208,7 +296,8 @@ public class StoreApi extends BaseApi {
    * Echoes a swatch supplied via path, query and header parameters.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return {@code Category}
    * @throws ApiException if fails to make API call
@@ -221,7 +310,8 @@ public class StoreApi extends BaseApi {
    * Echoes a swatch supplied via path, query and header parameters.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return the API result wrapping {@code Category}
    * @throws ApiException if fails to make API call
@@ -311,23 +401,59 @@ public class StoreApi extends BaseApi {
   /**
    * Returns a model exercising schema defaults on deserialize.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Defaults}
    * @throws ApiException if fails to make API call
    */
   public Defaults getDefaults() {
-    return requireBody(getDefaultsWithHttpInfo(), "getDefaults");
+    return getDefaults(null);
   }
 
   /**
    * Returns a model exercising schema defaults on deserialize.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code Defaults}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Defaults> getDefaultsWithHttpInfo() {
+    return getDefaultsWithHttpInfo(null);
+  }
+
+  /**
+   * Returns a model exercising schema defaults on deserialize.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Defaults}
+   * @throws ApiException if fails to make API call
+   */
+  public Defaults getDefaults(@Nullable GetDefaultsOptions options) {
+    return requireBody(getDefaultsWithHttpInfo(options), "getDefaults");
+  }
+
+  /**
+   * Returns a model exercising schema defaults on deserialize.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Defaults}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Defaults> getDefaultsWithHttpInfo(@Nullable GetDefaultsOptions options) {
     String path = "/store/defaults";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getDefaults",
         "GET",
@@ -339,31 +465,67 @@ public class StoreApi extends BaseApi {
         "application/json",
         getDefaultsTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Returns a department (mutual-recursion codegen fixture).
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Department}
    * @throws ApiException if fails to make API call
    */
   public Department getDepartment() {
-    return requireBody(getDepartmentWithHttpInfo(), "getDepartment");
+    return getDepartment(null);
   }
 
   /**
    * Returns a department (mutual-recursion codegen fixture).
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code Department}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Department> getDepartmentWithHttpInfo() {
+    return getDepartmentWithHttpInfo(null);
+  }
+
+  /**
+   * Returns a department (mutual-recursion codegen fixture).
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Department}
+   * @throws ApiException if fails to make API call
+   */
+  public Department getDepartment(@Nullable GetDepartmentOptions options) {
+    return requireBody(getDepartmentWithHttpInfo(options), "getDepartment");
+  }
+
+  /**
+   * Returns a department (mutual-recursion codegen fixture).
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Department}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Department> getDepartmentWithHttpInfo(@Nullable GetDepartmentOptions options) {
     String path = "/store/department";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getDepartment",
         "GET",
@@ -375,31 +537,69 @@ public class StoreApi extends BaseApi {
         "application/json",
         getDepartmentTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Returns categories grouped into an array of string-keyed maps.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code List<Map<String, Category>>}
    * @throws ApiException if fails to make API call
    */
   public List<Map<String, Category>> getGroupedCategories() {
-    return requireBody(getGroupedCategoriesWithHttpInfo(), "getGroupedCategories");
+    return getGroupedCategories(null);
   }
 
   /**
    * Returns categories grouped into an array of string-keyed maps.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code List<Map<String, Category>>}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<List<Map<String, Category>>> getGroupedCategoriesWithHttpInfo() {
+    return getGroupedCategoriesWithHttpInfo(null);
+  }
+
+  /**
+   * Returns categories grouped into an array of string-keyed maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<Map<String, Category>>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Map<String, Category>> getGroupedCategories(
+      @Nullable GetGroupedCategoriesOptions options) {
+    return requireBody(getGroupedCategoriesWithHttpInfo(options), "getGroupedCategories");
+  }
+
+  /**
+   * Returns categories grouped into an array of string-keyed maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<Map<String, Category>>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Map<String, Category>>> getGroupedCategoriesWithHttpInfo(
+      @Nullable GetGroupedCategoriesOptions options) {
     String path = "/store/grouped-categories";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getGroupedCategories",
         "GET",
@@ -411,31 +611,68 @@ public class StoreApi extends BaseApi {
         "application/json",
         getGroupedCategoriesTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Returns pet inventories by status
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
   public Map<String, Integer> getInventory() {
-    return requireBody(getInventoryWithHttpInfo(), "getInventory");
+    return getInventory(null);
   }
 
   /**
    * Returns pet inventories by status
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() {
+    return getInventoryWithHttpInfo(null);
+  }
+
+  /**
+   * Returns pet inventories by status
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Map<String, Integer>}
+   * @throws ApiException if fails to make API call
+   */
+  public Map<String, Integer> getInventory(@Nullable GetInventoryOptions options) {
+    return requireBody(getInventoryWithHttpInfo(options), "getInventory");
+  }
+
+  /**
+   * Returns pet inventories by status
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Map<String, Integer>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo(
+      @Nullable GetInventoryOptions options) {
     String path = "/store/inventory";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getInventory",
         "GET",
@@ -447,31 +684,67 @@ public class StoreApi extends BaseApi {
         "application/json",
         getInventoryTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Returns a matrix as an array of integer arrays.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code List<List<Integer>>}
    * @throws ApiException if fails to make API call
    */
   public List<List<Integer>> getMatrix() {
-    return requireBody(getMatrixWithHttpInfo(), "getMatrix");
+    return getMatrix(null);
   }
 
   /**
    * Returns a matrix as an array of integer arrays.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code List<List<Integer>>}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<List<List<Integer>>> getMatrixWithHttpInfo() {
+    return getMatrixWithHttpInfo(null);
+  }
+
+  /**
+   * Returns a matrix as an array of integer arrays.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<List<Integer>>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<List<Integer>> getMatrix(@Nullable GetMatrixOptions options) {
+    return requireBody(getMatrixWithHttpInfo(options), "getMatrix");
+  }
+
+  /**
+   * Returns a matrix as an array of integer arrays.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<List<Integer>>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<List<Integer>>> getMatrixWithHttpInfo(@Nullable GetMatrixOptions options) {
     String path = "/store/matrix";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getMatrix",
         "GET",
@@ -483,30 +756,61 @@ public class StoreApi extends BaseApi {
         "application/json",
         getMatrixTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Find purchase order by ID
    *
-   * @param orderId ID of order to return (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
   public Order getOrderById(Long orderId) {
-    return requireBody(getOrderByIdWithHttpInfo(orderId), "getOrderById");
+    return getOrderById(orderId, null);
+  }
+
+  /**
+   * Find purchase order by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) {
+    return getOrderByIdWithHttpInfo(orderId, null);
   }
 
   /**
    * Find purchase order by ID
    *
    * @param orderId ID of order to return (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public Order getOrderById(Long orderId, @Nullable GetOrderByIdOptions options) {
+    return requireBody(getOrderByIdWithHttpInfo(orderId, options), "getOrderById");
+  }
+
+  /**
+   * Find purchase order by ID
+   *
+   * @param orderId ID of order to return (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) {
+  public ApiResult<Order> getOrderByIdWithHttpInfo(
+      Long orderId, @Nullable GetOrderByIdOptions options) {
     if (orderId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'orderId' when calling StoreApi.getOrderById");
@@ -520,6 +824,12 @@ public class StoreApi extends BaseApi {
                         "orderId", orderId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getOrderById",
         "GET",
@@ -531,30 +841,63 @@ public class StoreApi extends BaseApi {
         "application/json",
         getOrderByIdTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Find purchase order by tracking id
    *
-   * @param trackingId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
   public Order getOrderByTrackingId(UUID trackingId) {
-    return requireBody(getOrderByTrackingIdWithHttpInfo(trackingId), "getOrderByTrackingId");
+    return getOrderByTrackingId(trackingId, null);
+  }
+
+  /**
+   * Find purchase order by tracking id
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Order> getOrderByTrackingIdWithHttpInfo(UUID trackingId) {
+    return getOrderByTrackingIdWithHttpInfo(trackingId, null);
   }
 
   /**
    * Find purchase order by tracking id
    *
    * @param trackingId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public Order getOrderByTrackingId(
+      UUID trackingId, @Nullable GetOrderByTrackingIdOptions options) {
+    return requireBody(
+        getOrderByTrackingIdWithHttpInfo(trackingId, options), "getOrderByTrackingId");
+  }
+
+  /**
+   * Find purchase order by tracking id
+   *
+   * @param trackingId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Order> getOrderByTrackingIdWithHttpInfo(UUID trackingId) {
+  public ApiResult<Order> getOrderByTrackingIdWithHttpInfo(
+      UUID trackingId, @Nullable GetOrderByTrackingIdOptions options) {
     if (trackingId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'trackingId' when calling StoreApi.getOrderByTrackingId");
@@ -568,6 +911,12 @@ public class StoreApi extends BaseApi {
                         "trackingId", trackingId, "path", "UUID", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getOrderByTrackingId",
         "GET",
@@ -579,8 +928,8 @@ public class StoreApi extends BaseApi {
         "application/json",
         getOrderByTrackingIdTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -588,7 +937,8 @@ public class StoreApi extends BaseApi {
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return {@code StockItem}
    * @throws ApiException if fails to make API call
@@ -601,7 +951,8 @@ public class StoreApi extends BaseApi {
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return the API result wrapping {@code StockItem}
    * @throws ApiException if fails to make API call
@@ -665,23 +1016,59 @@ public class StoreApi extends BaseApi {
   /**
    * Returns a bare enum (value-type response codegen fixture).
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Swatch}
    * @throws ApiException if fails to make API call
    */
   public Swatch getSwatch() {
-    return requireBody(getSwatchWithHttpInfo(), "getSwatch");
+    return getSwatch(null);
   }
 
   /**
    * Returns a bare enum (value-type response codegen fixture).
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code Swatch}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Swatch> getSwatchWithHttpInfo() {
+    return getSwatchWithHttpInfo(null);
+  }
+
+  /**
+   * Returns a bare enum (value-type response codegen fixture).
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Swatch}
+   * @throws ApiException if fails to make API call
+   */
+  public Swatch getSwatch(@Nullable GetSwatchOptions options) {
+    return requireBody(getSwatchWithHttpInfo(options), "getSwatch");
+  }
+
+  /**
+   * Returns a bare enum (value-type response codegen fixture).
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Swatch}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Swatch> getSwatchWithHttpInfo(@Nullable GetSwatchOptions options) {
     String path = "/store/swatch";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getSwatch",
         "GET",
@@ -693,31 +1080,68 @@ public class StoreApi extends BaseApi {
         "application/json",
         getSwatchTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Returns swatches grouped as an array of string-keyed enum maps.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code List<Map<String, Swatch>>}
    * @throws ApiException if fails to make API call
    */
   public List<Map<String, Swatch>> getSwatchGroups() {
-    return requireBody(getSwatchGroupsWithHttpInfo(), "getSwatchGroups");
+    return getSwatchGroups(null);
   }
 
   /**
    * Returns swatches grouped as an array of string-keyed enum maps.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code List<Map<String, Swatch>>}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<List<Map<String, Swatch>>> getSwatchGroupsWithHttpInfo() {
+    return getSwatchGroupsWithHttpInfo(null);
+  }
+
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<Map<String, Swatch>>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Map<String, Swatch>> getSwatchGroups(@Nullable GetSwatchGroupsOptions options) {
+    return requireBody(getSwatchGroupsWithHttpInfo(options), "getSwatchGroups");
+  }
+
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<Map<String, Swatch>>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Map<String, Swatch>>> getSwatchGroupsWithHttpInfo(
+      @Nullable GetSwatchGroupsOptions options) {
     String path = "/store/swatch-groups";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getSwatchGroups",
         "GET",
@@ -729,31 +1153,69 @@ public class StoreApi extends BaseApi {
         "application/json",
         getSwatchGroupsTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Returns timestamps grouped as an array of string-keyed maps.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code List<Map<String, OffsetDateTime>>}
    * @throws ApiException if fails to make API call
    */
   public List<Map<String, OffsetDateTime>> getTimestampGroups() {
-    return requireBody(getTimestampGroupsWithHttpInfo(), "getTimestampGroups");
+    return getTimestampGroups(null);
   }
 
   /**
    * Returns timestamps grouped as an array of string-keyed maps.
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code List<Map<String, OffsetDateTime>>}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<List<Map<String, OffsetDateTime>>> getTimestampGroupsWithHttpInfo() {
+    return getTimestampGroupsWithHttpInfo(null);
+  }
+
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<Map<String, OffsetDateTime>>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Map<String, OffsetDateTime>> getTimestampGroups(
+      @Nullable GetTimestampGroupsOptions options) {
+    return requireBody(getTimestampGroupsWithHttpInfo(options), "getTimestampGroups");
+  }
+
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<Map<String, OffsetDateTime>>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Map<String, OffsetDateTime>>> getTimestampGroupsWithHttpInfo(
+      @Nullable GetTimestampGroupsOptions options) {
     String path = "/store/timestamp-groups";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getTimestampGroups",
         "GET",
@@ -765,31 +1227,67 @@ public class StoreApi extends BaseApi {
         "application/json",
         getTimestampGroupsTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * Returns a self-referential tree (recursive-type codegen fixture)
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code TreeNode}
    * @throws ApiException if fails to make API call
    */
   public TreeNode getTree() {
-    return requireBody(getTreeWithHttpInfo(), "getTree");
+    return getTree(null);
   }
 
   /**
    * Returns a self-referential tree (recursive-type codegen fixture)
    *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code TreeNode}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<TreeNode> getTreeWithHttpInfo() {
+    return getTreeWithHttpInfo(null);
+  }
+
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code TreeNode}
+   * @throws ApiException if fails to make API call
+   */
+  public TreeNode getTree(@Nullable GetTreeOptions options) {
+    return requireBody(getTreeWithHttpInfo(options), "getTree");
+  }
+
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code TreeNode}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<TreeNode> getTreeWithHttpInfo(@Nullable GetTreeOptions options) {
     String path = "/store/tree";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getTree",
         "GET",
@@ -801,9 +1299,37 @@ public class StoreApi extends BaseApi {
         "application/json",
         getTreeTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
+  }
+
+  /**
+   * Place an order for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public Order placeOrder(@Nullable Order order) {
+    return placeOrder(order, null);
+  }
+
+  /**
+   * Place an order for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) {
+    return placeOrderWithHttpInfo(order, null);
   }
 
   /**
@@ -834,24 +1360,33 @@ public class StoreApi extends BaseApi {
    * Place an order for a pet
    *
    * @param order (optional)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
-  public Order placeOrder(@Nullable Order order) {
-    return requireBody(placeOrderWithHttpInfo(order), "placeOrder");
+  public Order placeOrder(@Nullable Order order, @Nullable PlaceOrderOptions options) {
+    return requireBody(placeOrderWithHttpInfo(order, options), "placeOrder");
   }
 
   /**
    * Place an order for a pet
    *
    * @param order (optional)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) {
+  public ApiResult<Order> placeOrderWithHttpInfo(
+      @Nullable Order order, @Nullable PlaceOrderOptions options) {
     String path = "/store/order";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "placeOrder",
         "POST",
@@ -863,21 +1398,37 @@ public class StoreApi extends BaseApi {
         "application/json",
         placeOrderTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
-   * Reserve stock, answering with the existing or a new reservation Answers 200 with the existing
-   * Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies
-   * have different schemas.
+   * Reserve stock, answering with the existing or a new reservation
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return {@code ReserveStockResponse}
    * @throws ApiException if fails to make API call
    */
   public ReserveStockResponse reserveStock() {
-    return requireBody(reserveStockWithHttpInfo(), "reserveStock");
+    return reserveStock(null);
+  }
+
+  /**
+   * Reserve stock, answering with the existing or a new reservation
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code ReserveStockResponse}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<ReserveStockResponse> reserveStockWithHttpInfo() {
+    return reserveStockWithHttpInfo(null);
   }
 
   /**
@@ -885,13 +1436,34 @@ public class StoreApi extends BaseApi {
    * Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies
    * have different schemas.
    *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code ReserveStockResponse}
+   * @throws ApiException if fails to make API call
+   */
+  public ReserveStockResponse reserveStock(@Nullable ReserveStockOptions options) {
+    return requireBody(reserveStockWithHttpInfo(options), "reserveStock");
+  }
+
+  /**
+   * Reserve stock, answering with the existing or a new reservation Answers 200 with the existing
+   * Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies
+   * have different schemas.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code ReserveStockResponse}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<ReserveStockResponse> reserveStockWithHttpInfo() {
+  public ApiResult<ReserveStockResponse> reserveStockWithHttpInfo(
+      @Nullable ReserveStockOptions options) {
     String path = "/store/reservation";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     /* More than one 2xx response is declared with its own schema, so the body is
      * decoded as the schema of the status that arrived and wrapped in the union. */
     java.util.function.BiFunction<Integer, String, ReserveStockResponse> successDecoder =
@@ -918,8 +1490,8 @@ public class StoreApi extends BaseApi {
         "application/json",
         reserveStockTypeRef,
         NO_AUTH,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         successDecoder);
   }
 
@@ -927,7 +1499,8 @@ public class StoreApi extends BaseApi {
    * Searches the store; exercises content-encoded, Set and time-of-day parameters.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return {@code List<Order>}
    * @throws ApiException if fails to make API call
@@ -940,7 +1513,8 @@ public class StoreApi extends BaseApi {
    * Searches the store; exercises content-encoded, Set and time-of-day parameters.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return the API result wrapping {@code List<Order>}
    * @throws ApiException if fails to make API call

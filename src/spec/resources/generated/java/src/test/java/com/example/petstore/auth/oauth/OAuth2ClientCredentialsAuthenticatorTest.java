@@ -11,6 +11,7 @@ package com.example.petstore.auth.oauth;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -346,5 +347,74 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
     assertEquals("Bearer at2", auth.getAuthHeaders().get("Authorization"));
     assertEquals(2, posts.get());
+  }
+
+  private static final String CLIENT_ID_VARIABLE =
+      "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID";
+  private static final String CLIENT_SECRET_VARIABLE =
+      "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET";
+
+  private static String requestBodyOf(MachineAuthClientCredentialsAuthenticator auth) {
+    AtomicReference<String> captured = new AtomicReference<>();
+    auth.setApiClient(
+        (method, url, headers, body) -> {
+          captured.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        });
+    auth.getAuthHeaders();
+    return java.util.Objects.requireNonNull(captured.get());
+  }
+
+  @Test
+  void schemeWrapperReadsTheClientCredentialsFromItsEnvironmentVariables() {
+    MachineAuthClientCredentialsAuthenticator auth =
+        new MachineAuthClientCredentialsAuthenticator(
+            "https://api.example.com",
+            null,
+            null,
+            Map.of(CLIENT_ID_VARIABLE, "env-id", CLIENT_SECRET_VARIABLE, "env-client-secret"));
+    String body = requestBodyOf(auth);
+    assertTrue(body.contains("client_id=env-id"), body);
+    assertTrue(body.contains("client_secret=env-client-secret"), body);
+  }
+
+  @Test
+  void schemeWrapperPrefersWhatYouPassToTheEnvironmentAndTreatsEmptyAsNotPassed() {
+    MachineAuthClientCredentialsAuthenticator auth =
+        new MachineAuthClientCredentialsAuthenticator(
+            "https://api.example.com",
+            "explicit-id",
+            "",
+            Map.of(CLIENT_ID_VARIABLE, "env-id", CLIENT_SECRET_VARIABLE, "env-client-secret"));
+    String body = requestBodyOf(auth);
+    assertTrue(body.contains("client_id=explicit-id"), body);
+    assertTrue(body.contains("client_secret=env-client-secret"), body);
+  }
+
+  @Test
+  void schemeWrapperRefusesAMissingOrEmptyCredentialNamingTheVariable() {
+    IllegalArgumentException missing =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new MachineAuthClientCredentialsAuthenticator(
+                    "https://api.example.com", null, "x", Map.of()));
+    assertEquals(
+        "The 'clientId' credential of the 'machineAuth' security scheme is required: "
+            + "pass it or set the "
+            + CLIENT_ID_VARIABLE
+            + " environment variable",
+        missing.getMessage());
+
+    IllegalArgumentException empty =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new MachineAuthClientCredentialsAuthenticator(
+                    "https://api.example.com", "x", null, Map.of(CLIENT_SECRET_VARIABLE, "")));
+    assertTrue(
+        java.util.Objects.requireNonNull(empty.getMessage()).contains(CLIENT_SECRET_VARIABLE),
+        empty.getMessage());
   }
 }

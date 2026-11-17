@@ -1620,6 +1620,30 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("a $ref property with a sibling default starts at that default")
+    void refPropertyWithSiblingDefaultStartsAtTheDefault() {
+      com.example.petstore.models.StockItem built =
+          new com.example.petstore.models.StockItem(com.example.petstore.models.Priority.NUMBER_1);
+      assertEquals(com.example.petstore.models.Availability.ON_HOLD, built.availability);
+
+      com.example.petstore.models.StockItem decoded =
+          serializer.deserialize(
+              "{\"priority\":1}",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.StockItem>() {}.getType());
+      assertNotNull(decoded);
+      assertEquals(com.example.petstore.models.Availability.ON_HOLD, decoded.availability);
+
+      com.example.petstore.models.StockItem supplied =
+          serializer.deserialize(
+              "{\"priority\":1,\"availability\":\"Sold\"}",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.StockItem>() {}.getType());
+      assertNotNull(supplied);
+      assertEquals(com.example.petstore.models.Availability.SOLD, supplied.availability);
+    }
+
+    @Test
     @DisplayName("non-lowercase string enum preserves wire casing on round-trip")
     void stringEnumPreservesWireCasing() {
       com.example.petstore.models.StockItem item =

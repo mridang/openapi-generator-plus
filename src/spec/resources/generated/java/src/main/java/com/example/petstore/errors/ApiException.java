@@ -30,10 +30,10 @@ public class ApiException extends OpenAPIException {
   @Nullable private final transient Object errorBody;
 
   /** The HTTP method of the request that drew this error, or {@code null} when unknown. */
-  @Nullable private String requestMethod;
+  @Nullable private final String requestMethod;
 
   /** The path of that request with the query string stripped, or {@code null} when unknown. */
-  @Nullable private String requestPath;
+  @Nullable private final String requestPath;
 
   /**
    * Construct an exception with a detail message and no response context.
@@ -46,6 +46,8 @@ public class ApiException extends OpenAPIException {
     this.responseHeaders = null;
     this.responseBody = null;
     this.errorBody = null;
+    this.requestMethod = null;
+    this.requestPath = null;
   }
 
   /**
@@ -64,6 +66,8 @@ public class ApiException extends OpenAPIException {
     this.responseHeaders = null;
     this.responseBody = null;
     this.errorBody = null;
+    this.requestMethod = null;
+    this.requestPath = null;
   }
 
   /**
@@ -83,6 +87,8 @@ public class ApiException extends OpenAPIException {
     this.responseHeaders = null;
     this.responseBody = null;
     this.errorBody = null;
+    this.requestMethod = null;
+    this.requestPath = null;
   }
 
   /**
@@ -136,6 +142,31 @@ public class ApiException extends OpenAPIException {
       @Nullable String responseBody,
       @Nullable Object errorBody,
       @Nullable Throwable cause) {
+    this(statusCode, message, responseHeaders, responseBody, errorBody, cause, null, null);
+  }
+
+  /**
+   * Construct an exception with full response context, the underlying failure and the request that
+   * drew the error.
+   *
+   * @param statusCode the HTTP status code
+   * @param message the detail message
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param errorBody the deserialized error body, if available
+   * @param cause the underlying failure, if any
+   * @param requestMethod the HTTP method of the request, if known
+   * @param requestPath the path or URL of the request, if known; a query string is stripped
+   */
+  public ApiException(
+      int statusCode,
+      String message,
+      @Nullable Map<String, String> responseHeaders,
+      @Nullable String responseBody,
+      @Nullable Object errorBody,
+      @Nullable Throwable cause,
+      @Nullable String requestMethod,
+      @Nullable String requestPath) {
     super(message);
     if (cause != null) {
       initCause(cause);
@@ -146,6 +177,8 @@ public class ApiException extends OpenAPIException {
     this.responseHeaders = responseHeaders == null ? null : Map.copyOf(responseHeaders);
     this.responseBody = responseBody;
     this.errorBody = errorBody;
+    this.requestMethod = requestMethod;
+    this.requestPath = requestPath == null ? null : stripQuery(requestPath);
   }
 
   /**
@@ -166,7 +199,7 @@ public class ApiException extends OpenAPIException {
       int statusCode,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
-    return build(statusCode, responseHeaders, responseBody);
+    return build(null, null, statusCode, responseHeaders, responseBody);
   }
 
   /**
@@ -190,10 +223,7 @@ public class ApiException extends OpenAPIException {
       int statusCode,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
-    ApiException exception = build(statusCode, responseHeaders, responseBody);
-    exception.requestMethod = requestMethod;
-    exception.requestPath = stripQuery(requestPath);
-    return exception;
+    return build(requestMethod, requestPath, statusCode, responseHeaders, responseBody);
   }
 
   /** The path of a request path or URL, without its scheme, host, query string or fragment. */
@@ -217,6 +247,8 @@ public class ApiException extends OpenAPIException {
   }
 
   private static ApiException build(
+      @Nullable String requestMethod,
+      @Nullable String requestPath,
       int statusCode,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
@@ -234,24 +266,104 @@ public class ApiException extends OpenAPIException {
     }
     if (statusCode >= 400 && statusCode < 500) {
       return switch (statusCode) {
-        case 400 -> new BadRequestException(message, responseHeaders, responseBody, errorBody);
-        case 401 -> new UnauthorizedException(message, responseHeaders, responseBody, errorBody);
-        case 403 -> new ForbiddenException(message, responseHeaders, responseBody, errorBody);
-        case 404 -> new NotFoundException(message, responseHeaders, responseBody, errorBody);
-        case 409 -> new ConflictException(message, responseHeaders, responseBody, errorBody);
+        case 400 ->
+            new BadRequestException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 401 ->
+            new UnauthorizedException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 403 ->
+            new ForbiddenException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 404 ->
+            new NotFoundException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 409 ->
+            new ConflictException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
         case 422 ->
-            new UnprocessableEntityException(message, responseHeaders, responseBody, errorBody);
-        case 429 -> new TooManyRequestsException(message, responseHeaders, responseBody, errorBody);
+            new UnprocessableEntityException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 429 ->
+            new TooManyRequestsException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
         default ->
-            new ClientException(statusCode, message, responseHeaders, responseBody, errorBody);
+            new ClientException(
+                statusCode,
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
       };
     }
     if (statusCode >= 500 && statusCode < 600) {
       return statusCode == 500
-          ? new InternalServerErrorException(message, responseHeaders, responseBody, errorBody)
-          : new ServerException(statusCode, message, responseHeaders, responseBody, errorBody);
+          ? new InternalServerErrorException(
+              message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+          : new ServerException(
+              statusCode,
+              message,
+              responseHeaders,
+              responseBody,
+              errorBody,
+              null,
+              requestMethod,
+              requestPath);
     }
-    return new ApiException(statusCode, message, responseHeaders, responseBody, errorBody);
+    return new ApiException(
+        statusCode,
+        message,
+        responseHeaders,
+        responseBody,
+        errorBody,
+        null,
+        requestMethod,
+        requestPath);
   }
 
   /**

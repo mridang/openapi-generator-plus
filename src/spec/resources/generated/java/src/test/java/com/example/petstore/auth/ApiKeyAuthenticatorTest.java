@@ -136,22 +136,31 @@ class ApiKeyAuthenticatorTest {
   @Test
   void schemeWrappersRejectAnEmptyKeyAtConstruction() {
     String host = "https://api.example.com";
-    assertEquals(
-        "API key value for 'X-API-Key' must not be empty",
-        assertThrows(IllegalArgumentException.class, () -> new ApiKeyHeaderAuthenticator(host, ""))
-            .getMessage());
+    /* An empty key counts as not passed, so with no variable either the credential is missing. */
+    for (String message :
+        new String[] {
+          assertThrows(
+                  IllegalArgumentException.class,
+                  () -> new ApiKeyHeaderAuthenticator(host, "", Map.of()))
+              .getMessage(),
+          assertThrows(
+                  IllegalArgumentException.class,
+                  () -> new ApiKeyQueryAuthenticator(host, "", Map.of()))
+              .getMessage(),
+          assertThrows(
+                  IllegalArgumentException.class,
+                  () -> new SessionCookieAuthenticator(host, "", Map.of()))
+              .getMessage()
+        }) {
+      assertNotNull(message);
+      assertTrue(message.contains("credential of the"), message);
+      assertTrue(message.contains("is required"), message);
+    }
+    /* A blank key is a value, and the base authenticator refuses it. */
     assertEquals(
         "API key value for 'X-Internal-Key' must not be empty",
         assertThrows(
                 IllegalArgumentException.class, () -> new InternalApiKeyAuthenticator(host, " "))
-            .getMessage());
-    assertEquals(
-        "API key value for 'api_key' must not be empty",
-        assertThrows(IllegalArgumentException.class, () -> new ApiKeyQueryAuthenticator(host, ""))
-            .getMessage());
-    assertEquals(
-        "API key value for 'SESSION_ID' must not be empty",
-        assertThrows(IllegalArgumentException.class, () -> new SessionCookieAuthenticator(host, ""))
             .getMessage());
   }
 
@@ -280,5 +289,79 @@ class ApiKeyAuthenticatorTest {
         "ApiKeyAuthenticator(host=https://api.example.com, keyParamName=X-API-Key,"
             + " apiKey=***, location=HEADER)",
         repr);
+  }
+
+  private static final String API_KEY_VARIABLE =
+      "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY";
+
+  @Test
+  void schemeWrapperReadsTheKeyFromItsEnvironmentVariable() {
+    ApiKeyHeaderAuthenticator auth =
+        new ApiKeyHeaderAuthenticator(
+            "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "env-key"));
+    assertEquals("env-key", auth.getAuthHeaders().get("X-API-Key"));
+  }
+
+  @Test
+  void schemeWrapperPrefersTheKeyYouPassToTheEnvironment() {
+    ApiKeyHeaderAuthenticator auth =
+        new ApiKeyHeaderAuthenticator(
+            "https://api.example.com", "explicit", Map.of(API_KEY_VARIABLE, "env-key"));
+    assertEquals("explicit", auth.getAuthHeaders().get("X-API-Key"));
+  }
+
+  @Test
+  void schemeWrapperTreatsAnEmptyKeyAsNotPassed() {
+    ApiKeyHeaderAuthenticator auth =
+        new ApiKeyHeaderAuthenticator(
+            "https://api.example.com", "", Map.of(API_KEY_VARIABLE, "env-key"));
+    assertEquals("env-key", auth.getAuthHeaders().get("X-API-Key"));
+  }
+
+  @Test
+  void schemeWrapperTreatsAnEmptyEnvironmentVariableAsNotSet() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new ApiKeyHeaderAuthenticator(
+                    "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "")));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage()).contains(API_KEY_VARIABLE),
+        ex.getMessage());
+  }
+
+  @Test
+  void schemeWrapperWithNoKeyAndNoVariableNamesTheVariable() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new ApiKeyHeaderAuthenticator("https://api.example.com", null, Map.of()));
+    assertEquals(
+        "The 'apiKey' credential of the 'apiKeyHeader' security scheme is required: "
+            + "pass it or set the "
+            + API_KEY_VARIABLE
+            + " environment variable",
+        ex.getMessage());
+  }
+
+  @Test
+  void schemeWrappersOfOneKindEachReadTheirOwnVariable() {
+    Map<String, String> environment = Map.of(API_KEY_VARIABLE, "header-key");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new InternalApiKeyAuthenticator("https://api.example.com", null, environment));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new SessionCookieAuthenticator("https://api.example.com", null, environment));
+  }
+
+  @Test
+  void schemeWrapperStillValidatesAnEnvironmentKey() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyHeaderAuthenticator(
+                "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "abc\r\ndef")));
   }
 }

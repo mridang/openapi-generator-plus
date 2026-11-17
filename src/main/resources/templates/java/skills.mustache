@@ -40,6 +40,12 @@ var authenticator = new BearerAuthenticator("https://api.example.com", "your-tok
 var client = new {{clientClassName}}(authenticator);
 ```
 
+A token that rotates comes from a callback that runs before every request (pass either a token or a callback, never both):
+
+```java
+var authenticator = new BearerAuthenticator("https://api.example.com", () -> secretStore.currentToken());
+```
+
 {{#hasBasicAuth}}
 ### Basic Auth
 
@@ -140,6 +146,20 @@ authenticator.exchangeCode("authorization-code");
 ```
 
 {{/hasOpenIdConnect}}
+{{#hasSecuritySchemeEnvVars}}
+### Credentials from the environment
+
+The authenticator generated for a security scheme (in the `auth` package, named after the scheme) reads a credential you pass as `null` or an empty string from an environment variable, once, when it is built. A value you pass wins. A credential found in neither place throws `IllegalArgumentException` naming the variable.
+
+| Scheme | Credential | Variable |
+| --- | --- | --- |
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+The base `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` never read the environment; A rotating token comes from a callback instead: `new BearerAuthenticator(host, tokenProvider)`.
+
+{{/hasSecuritySchemeEnvVars}}
 {{#hasAnyOAuth2}}
 ### OAuth2 token lifecycle
 
@@ -293,7 +313,7 @@ task.cancel(true);
 
 ### Per-call options
 
-An operation's options object also takes `timeout(millis)`, `maxRetries(n)` and `headers(map)`, which apply to that call only.
+Every operation takes an optional trailing `<Operation>Options` object, even one with no parameters of its own and no security. It also takes `timeout(millis)`, `maxRetries(n)` and `headers(map)`, which apply to that call only; leave it out or pass `null` to use the client's settings.
 
 ### Raw responses, timeouts and the request id
 

@@ -2879,18 +2879,6 @@
   },
   {
    "element": [
-    "*options.timeout",
-    "*options.maxretries",
-    "*options.headers"
-   ],
-   "aspect": "member",
-   "languages": [
-    "java"
-   ],
-   "reason": "F827: per-call timeout, maxRetries and headers on every per-operation Options object; new public API in java that lands in the other eleven in the same wave, then this rule is dropped"
-  },
-  {
-   "element": [
     "apiclient.sendrequest",
     "defaultapiclient.sendrequest"
    ],
@@ -2899,17 +2887,6 @@
     "java"
    ],
    "reason": "F827 and F860: java overloads sendRequest (no default headers for OIDC discovery, per-call timeout and retries) instead of one method with optional arguments, which java lacks; the extractor reports the longest overload"
-  },
-  {
-   "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath"
-   ],
-   "aspect": "member",
-   "languages": [
-    "java"
-   ],
-   "reason": "F830: the request method and path on ApiException; java names the accessors getRequestMethod and getRequestPath (the extractor sees the getter) and the other eleven add the same two fields in the same wave, then this rule is dropped"
   },
   {
    "element": "apierror.fromresponse",
@@ -3445,6 +3422,51 @@
    ],
    "value": "extra*",
    "reason": "F878: a kotlin oneOf wrapper holds an Any, so each variant gets a typed from<Variant> factory on its companion object and an is<Variant> property and an as<Variant>() accessor (a generic variant, which is erased at run time, only the factory), like swift, csharp and php; languages with native unions (node, rust, elixir) or isinstance (python) need none"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "php"
+   ],
+   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "optional",
+   "languages": [
+    "php"
+   ],
+   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
+  },
+  {
+   "element": "*options",
+   "aspect": "type",
+   "languages": [
+    "java"
+   ],
+   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying the per-call timeout, headers and maxRetries; java mints one for each operation the shared pass would leave without (mintsOptionsForEveryOperation). Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "*api.*",
+   "aspect": "params",
+   "languages": [
+    "java"
+   ],
+   "value": "*options)",
+   "reason": "owner decision F827 (2026-11-17): every operation, with or without parameters, takes the trailing nullable Options argument that carries the per-call settings (after the server, S8); java has an overload that omits it. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "petapi.setpetavatar",
+    "petapi.setpetavatarwithhttpinfo"
+   ],
+   "aspect": "params",
+   "languages": [
+    "java"
+   ],
+   "value": "*options, requestcontenttype)",
+   "reason": "owner decision F827 (2026-11-17): the trailing nullable Options argument that carries the per-call settings, ahead of the content-type selector, which java keeps last. Remove the rule when the other eleven SDKs land the same decision."
   }
  ]
 }

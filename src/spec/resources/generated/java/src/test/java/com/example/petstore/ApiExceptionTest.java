@@ -448,6 +448,42 @@ class ApiExceptionTest {
   }
 
   @Test
+  void everyExceptionConstructorTakesTheRequestMethodAndPath() {
+    java.io.IOException cause = new java.io.IOException("root cause");
+    ApiException[] errors = {
+      new ApiException(418, "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.BadRequestException(
+          "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.UnauthorizedException(
+          "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.ForbiddenException(
+          "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.NotFoundException(
+          "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.ConflictException(
+          "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.UnprocessableEntityException(
+          "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.TooManyRequestsException(
+          "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.InternalServerErrorException(
+          "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.ClientException(
+          418, "m", null, null, null, cause, "PUT", "/a?q=1"),
+      new com.example.petstore.errors.ServerException(
+          503, "m", null, null, null, cause, "PUT", "/a?q=1"),
+    };
+    for (ApiException ex : errors) {
+      String name = ex.getClass().getSimpleName();
+      assertEquals("PUT", ex.getRequestMethod(), name);
+      assertEquals("/a", ex.getRequestPath(), name);
+      assertEquals(cause, ex.getCause(), name);
+    }
+    assertEquals(400, errors[1].getStatusCode());
+    assertEquals(503, errors[10].getStatusCode());
+  }
+
+  @Test
   void anErrorWithoutARequestRendersNoRequestLine() {
     ApiException ex = ApiException.fromResponse(500, Map.of(), "");
 

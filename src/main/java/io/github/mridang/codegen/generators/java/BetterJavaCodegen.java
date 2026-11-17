@@ -389,6 +389,16 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 "headers");
     }
 
+    /**
+     * Every operation gets a {@code <Operation>Options} object, so each call has a slot for the
+     * per-call timeout, headers and retry budget even when the operation has no query, header,
+     * form or cookie parameter and no security (F827).
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
@@ -1267,15 +1277,25 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             imports = List.of();
         }
         ctx.put("imports", imports);
-        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        final Map<String, String> envNameByField = new HashMap<>();
+        for (final Map<String, Object> entry : schemeEnvVars(ctx)) {
+            envNameByField.put((String) entry.get("field"), (String) entry.get("envName"));
+        }
+        final List<Map<String, Object>> constructorParams = new ArrayList<>();
         for (final String name : spec.paramNames()) {
-            final Map<String, String> param = new HashMap<>();
+            final Map<String, Object> param = new HashMap<>();
             param.put("type", "String");
             param.put("name", name);
+            final String envName = envNameByField.get(name);
+            param.put("hasEnv", envName != null);
+            if (envName != null) {
+                param.put("envName", envName);
+            }
             constructorParams.add(param);
         }
         ctx.put("constructorParams", constructorParams);
-        ctx.put("superArgs", buildJavaSuperArgs(spec));
+        ctx.put("schemeNameLiteral", escapeJavaLiteral(spec.schemeName()));
+        ctx.put("superArgs", schemeSuperArgs(spec, envNameByField));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
@@ -1298,6 +1318,36 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
         return text.replace("\\", "\\\\").replace("\"", "\\\"")
                 .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
+    }
+
+    /** The per-field environment variable entries {@link #baseSchemeContext} gave this scheme. */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> schemeEnvVars(Map<String, Object> ctx) {
+        final Object own = ctx.get("envVars");
+        return own instanceof List ? (List<Map<String, Object>>) own : List.of();
+    }
+
+    /**
+     * The arguments a scheme wrapper hands to its base authenticator: each credential that has an
+     * environment variable goes through {@code resolveCredential} (the caller's value, else the
+     * variable, else a refusal).
+     */
+    private List<String> schemeSuperArgs(SchemeAuthSpec spec, Map<String, String> envNameByField) {
+        final List<String> resolved = new ArrayList<>();
+        for (final String arg : buildJavaSuperArgs(spec)) {
+            final String envName = envNameByField.get(arg);
+            resolved.add(
+                    envName == null
+                            ? arg
+                            : "resolveCredential("
+                                    + arg
+                                    + ", \""
+                                    + arg
+                                    + "\", \""
+                                    + escapeJavaLiteral(envName)
+                                    + "\", environment)");
+        }
+        return resolved;
     }
 
     private List<String> buildJavaSuperArgs(SchemeAuthSpec spec) {

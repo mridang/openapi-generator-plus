@@ -85,7 +85,7 @@ public class StockItem {
       creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
   public static final class Builder {
     @Nullable private Priority priority;
-    @Nullable private Availability availability;
+    @Nullable private Availability availability = Availability.ON_HOLD;
     @Nullable private List<List<Integer>> matrix;
 
     private Builder() {}

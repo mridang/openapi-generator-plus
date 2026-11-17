@@ -9,16 +9,58 @@
 package com.example.petstore.auth.oauth;
 
 import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
 
-/** Authenticator for the {@code browserAuth} security scheme. */
+/**
+ * Authenticator for the {@code browserAuth} security scheme.
+ *
+ * <p>A credential that is {@code null} or empty is read once, when the authenticator is built, from
+ * its environment variable. A credential found nowhere raises an {@link IllegalArgumentException}.
+ */
 public final class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator {
   /**
    * Creates an authenticator for the {@code browserAuth} security scheme.
    *
    * @param host the host credential
-   * @param clientId the clientId credential
+   * @param clientId the clientId credential; when {@code null} or empty it is read from the {@code
+   *     SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID} environment variable
    */
-  public BrowserAuthImplicitAuthenticator(String host, String clientId) {
-    super(host, clientId, "https://auth.example.com/authorize", List.of("read"));
+  public BrowserAuthImplicitAuthenticator(String host, @Nullable String clientId) {
+    this(host, clientId, System.getenv());
+  }
+
+  /* Package-private so a test can supply the environment instead of the process one. */
+  BrowserAuthImplicitAuthenticator(
+      String host, @Nullable String clientId, Map<String, String> environment) {
+    super(
+        host,
+        resolveCredential(
+            clientId,
+            "clientId",
+            "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID",
+            environment),
+        "https://auth.example.com/authorize",
+        List.of("read"));
+  }
+
+  /* A credential comes from the caller first, then from its environment variable; an empty
+   * value counts as unset, and a credential found nowhere is refused. */
+  private static String resolveCredential(
+      @Nullable String explicit, String field, String envName, Map<String, String> environment) {
+    if (explicit != null && !explicit.isEmpty()) {
+      return explicit;
+    }
+    String fromEnvironment = environment.get(envName);
+    if (fromEnvironment != null && !fromEnvironment.isEmpty()) {
+      return fromEnvironment;
+    }
+    throw new IllegalArgumentException(
+        "The '"
+            + field
+            + "' credential of the 'browserAuth' security scheme is required: "
+            + "pass it or set the "
+            + envName
+            + " environment variable");
   }
 }
