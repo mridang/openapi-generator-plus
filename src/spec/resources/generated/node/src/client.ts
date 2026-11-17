@@ -8,6 +8,7 @@
 import type { Authenticator } from "./auth/authenticator.js";
 import { isHttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
 import { BearerAuthenticator } from "./auth/bearer-authenticator.js";
+import type { CredentialProvider } from "./auth/credentials.js";
 import { Configuration } from "./configuration.js";
 import { DefaultApiClient } from "#transport";
 import { TransportOptions } from "./transport-options.js";
@@ -134,17 +135,23 @@ export class Client {
   }
 
   /**
-   * Creates a client authenticated with a static Bearer token.
+   * Creates a client authenticated with a Bearer token.
+   *
+   * The token is the argument, or else the `PETSTORE_CLIENT_TOKEN` environment
+   * variable (an empty variable counts as unset), read once here. A provider
+   * function in its place is called for every request, so a token that
+   * rotates is always current. A missing token throws here, when the client is
+   * built.
    *
    * @param host API base URL
-   * @param accessToken Bearer token
+   * @param accessToken Bearer token, a provider called for every request, or omitted to read the environment variable
    * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @param clientOptions optional client-level options (e.g. a cancellation `signal`)
    * @returns configured client instance
    */
   static withToken(
     host: string,
-    accessToken: string,
+    accessToken?: string | CredentialProvider,
     transportOptions?: TransportOptions,
     clientOptions?: ClientOptions,
   ): Client {

@@ -37,9 +37,9 @@ export class DryFood {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "foodType" })
-  foodType: string = "dry";
+  readonly foodType: string = "dry";
   @Expose({ name: "weightKg" })
-  weightKg!: number;
+  readonly weightKg!: number;
 
   constructor(data?: Partial<DryFood>) {
     Object.assign(
@@ -66,6 +66,26 @@ export class DryFood {
         `weightKg must be a number, got ${typeof this.weightKg}`,
       );
     }
+    /* A JSON number too large for a double (1e400) decodes to Infinity. */
+    if (this.weightKg != null && !Number.isFinite(this.weightKg)) {
+      throw new TypeError(
+        `weightKg must be a finite number, got ${this.weightKg}`,
+      );
+    }
+  }
+
+  /**
+   * A copy of this DryFood with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new DryFood
+   */
+  with(patch: Partial<DryFood>): DryFood {
+    const copy = new DryFood({ ...this, ...patch });
+    return copy;
   }
 
   /**

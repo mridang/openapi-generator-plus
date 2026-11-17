@@ -37,13 +37,13 @@ export class Photo {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "id" })
-  id?: number;
+  readonly id?: number;
   @Expose({ name: "caption" })
-  caption?: string;
+  readonly caption?: string;
   @Expose({ name: "isPrimary" })
-  isPrimary?: boolean;
+  readonly isPrimary?: boolean;
   @Expose({ name: "url" })
-  url?: string;
+  readonly url?: string;
 
   constructor(data?: Partial<Photo>) {
     Object.assign(
@@ -75,6 +75,20 @@ export class Photo {
     if (this.url != null && typeof this.url !== "string") {
       throw new TypeError(`url must be a string, got ${typeof this.url}`);
     }
+  }
+
+  /**
+   * A copy of this Photo with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Photo
+   */
+  with(patch: Partial<Photo>): Photo {
+    const copy = new Photo({ ...this, ...patch });
+    return copy;
   }
 
   /**

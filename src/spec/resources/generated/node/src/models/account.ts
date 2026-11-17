@@ -41,12 +41,12 @@ export class Account {
 
   /** @readonly */
   @Expose({ name: "id" })
-  id?: number;
+  readonly id?: number;
   @Expose({ name: "username" })
-  username!: string;
+  readonly username!: string;
   /** @writeOnly */
   @Expose({ name: "password" })
-  password?: string;
+  readonly password?: string;
 
   constructor(data?: Partial<Account>) {
     Object.assign(
@@ -80,6 +80,20 @@ export class Account {
         `password must be a string, got ${typeof this.password}`,
       );
     }
+  }
+
+  /**
+   * A copy of this Account with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Account
+   */
+  with(patch: Partial<Account>): Account {
+    const copy = new Account({ ...this, ...patch });
+    return copy;
   }
 
   /**

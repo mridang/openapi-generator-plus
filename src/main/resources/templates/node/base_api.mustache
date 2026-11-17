@@ -66,8 +66,10 @@ export abstract class BaseApi {
    * @param returnKind how a non-JSON success body is read: `string` for a plain
    *   string return, `binary` for a `format: binary` return, `model` otherwise
    * @param operationName the operation name, used in error messages
-   * @param requestOptions per-call options; its `signal` cancels this call and is
-   *   merged with the client-level signal of the {@link Configuration}
+   * @param requestOptions per-call options: its `signal` cancels this call and is
+   *   merged with the client-level signal of the {@link Configuration}; its
+   *   `timeout` and `maxRetries` replace the transport's for this call; its
+   *   `headers` are sent in addition to the operation's own headers
    * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
   protected async invokeApiForResult<T>(
@@ -85,6 +87,9 @@ export abstract class BaseApi {
     operationName = '',
     requestOptions?: RequestOptions
   ): Promise<ApiResult<T>> {
+    BaseApi.checkCallLimits(requestOptions);
+    const callTimeout = requestOptions?.timeout;
+    const callMaxRetries = requestOptions?.maxRetries;
     let url: string;
     if (path.startsWith('http://') || path.startsWith('https://')) {
       url = path;
@@ -166,7 +171,14 @@ export abstract class BaseApi {
     };
     overlay(this.config.defaultHeaders);
     overlay(headerParams);
-    const credentialHeaderNames: string[] = Object.keys(this.config.defaultHeaders);
+    /* Per-call headers replace a header of the same name set by the client
+     * defaults or the operation, but never the authentication headers below. */
+    const callHeaders = BaseApi.checkedCallHeaders(requestOptions?.headers);
+    overlay(callHeaders);
+    const credentialHeaderNames: string[] = [
+      ...Object.keys(this.config.defaultHeaders),
+      ...Object.keys(callHeaders)
+    ];
     if (effectiveAuth) {
       const authHeaders = await effectiveAuth.getAuthHeadersAsync();
       credentialHeaderNames.push(...Object.keys(authHeaders));
@@ -214,6 +226,8 @@ export abstract class BaseApi {
     const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
     const sendOptions = {
       ...(signal ? { signal } : {}),
+      ...(callTimeout !== undefined ? { timeout: callTimeout } : {}),
+      ...(callMaxRetries !== undefined ? { maxRetries: callMaxRetries } : {}),
       credentialHeaderNames,
       ...(effectiveAuth ? { refreshAuthHeaders: () => effectiveAuth.getAuthHeadersAsync() } : {})
     };
@@ -254,7 +268,7 @@ export abstract class BaseApi {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      this.throwApiError(response);
+      this.throwApiError(response, method, url);
     }
 
     let data: T | undefined;
@@ -332,8 +346,10 @@ export abstract class BaseApi {
    * @param returnKind how a non-JSON success body is read: `string` for a plain
    *   string return, `binary` for a `format: binary` return, `model` otherwise
    * @param operationName the operation name, used in error messages
-   * @param requestOptions per-call options; its `signal` cancels this call and is
-   *   merged with the client-level signal of the {@link Configuration}
+   * @param requestOptions per-call options: its `signal` cancels this call and is
+   *   merged with the client-level signal of the {@link Configuration}; its
+   *   `timeout` and `maxRetries` replace the transport's for this call; its
+   *   `headers` are sent in addition to the operation's own headers
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -375,8 +391,68 @@ export abstract class BaseApi {
    * (e.g. from a `default` response schema) is available via
    * {@link ApiError.errorBody}.
    */
-  private throwApiError(response: { statusCode: number; body: string | null; headers: Record<string, string> }): never {
-    throw ApiError.fromResponse(response.statusCode, response.headers, response.body);
+  private throwApiError(
+    response: { statusCode: number; body: string | null; headers: Record<string, string> },
+    method: string,
+    url: string
+  ): never {
+    throw ApiError.fromResponse(response.statusCode, response.headers, response.body, {
+      method,
+      path: BaseApi.pathOf(url)
+    });
+  }
+
+  /**
+   * The path of a request URL without its query string or fragment: the
+   * part of an absolute URL after the host, or a relative URL up to the
+   * first `?` or `#`.
+   *
+   * @param url the URL the request was sent to
+   * @returns the path
+   */
+  private static pathOf(url: string): string {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url.split(/[?#]/)[0]!;
+    }
+  }
+
+  /**
+   * Validate the per-call `timeout` and `maxRetries` with the rules the
+   * transport options apply to their own values.
+   *
+   * @param requestOptions the per-call options, if any
+   * @throws TypeError if the timeout is not a positive number (or null), or
+   *   the retry count is not a non-negative integer
+   */
+  private static checkCallLimits(requestOptions: RequestOptions | undefined): void {
+    const timeout = requestOptions?.timeout;
+    if (timeout !== undefined && timeout !== null && !(timeout > 0)) {
+      throw new TypeError(`Invalid timeout: must be a positive number of milliseconds (got ${timeout})`);
+    }
+    const maxRetries = requestOptions?.maxRetries;
+    if (maxRetries !== undefined && (!Number.isInteger(maxRetries) || maxRetries < 0)) {
+      throw new TypeError(`Invalid maxRetries: must be a non-negative integer (got ${maxRetries})`);
+    }
+  }
+
+  /**
+   * The per-call headers as a plain map, each name and value a string.
+   *
+   * @param headers the per-call headers, if any
+   * @returns the headers, or an empty map
+   * @throws TypeError if a header name is empty or a value is not a string
+   */
+  private static checkedCallHeaders(headers: Readonly<Record<string, string>> | undefined): Record<string, string> {
+    const checked: Record<string, string> = {};
+    for (const [name, value] of Object.entries(headers ?? {})) {
+      if (name === '' || typeof value !== 'string') {
+        throw new TypeError(`Invalid per-call header '${name}': the name must not be empty and the value must be a string`);
+      }
+      checked[name] = value;
+    }
+    return checked;
   }
 
   /**

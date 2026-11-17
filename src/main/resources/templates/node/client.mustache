@@ -3,6 +3,7 @@
 import type { Authenticator } from './auth/authenticator{{importFileExtension}}';
 import { isHttpAwareAuthenticator } from './auth/http-aware-authenticator{{importFileExtension}}';
 import { BearerAuthenticator } from './auth/bearer-authenticator{{importFileExtension}}';
+import type { CredentialProvider } from './auth/credentials{{importFileExtension}}';
 import { Configuration } from './configuration{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
 import { TransportOptions } from './transport-options{{importFileExtension}}';
@@ -143,17 +144,23 @@ export class {{clientClassName}} {
   }
 
   /**
-   * Creates a client authenticated with a static Bearer token.
+   * Creates a client authenticated with a Bearer token.
+   *
+   * The token is the argument, or else the `{{envPrefix}}_TOKEN` environment
+   * variable (an empty variable counts as unset), read once here. A provider
+   * function in its place is called for every request, so a token that
+   * rotates is always current. A missing token throws here, when the client is
+   * built.
    *
    * @param host API base URL
-   * @param accessToken Bearer token
+   * @param accessToken Bearer token, a provider called for every request, or omitted to read the environment variable
    * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @param clientOptions optional client-level options (e.g. a cancellation `signal`)
    * @returns configured client instance
    */
   static withToken(
     host: string,
-    accessToken: string,
+    accessToken?: string | CredentialProvider,
     transportOptions?: TransportOptions,
     clientOptions?: {{clientClassName}}Options,
   ): {{clientClassName}} {

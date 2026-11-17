@@ -89,11 +89,87 @@ token is dropped (the refresh token is kept) and the request is sent once more
 with fresh headers. A second 401 is raised as `UnauthorizedError`. A multipart
 body is not replayed, and API key, basic and bearer authenticators never replay.
 
+### Response compression
+
+The SDK asks for a compressed response (`Accept-Encoding: gzip, deflate, br`, and `zstd` where
+the running Node.js decodes it) unless you set your own `Accept-Encoding`, and decodes the body
+before it reaches you, so `ApiResult.rawBody` is always the decoded text. A body whose
+`Content-Encoding` does not match its bytes fails with an `ApiError` instead of being passed on
+corrupt.
+
+### Logging
+
+The SDK writes nothing to the console or to a logger. To log requests, wrap the `fetch` you pass
+to `TransportOptions.builder().fetch(...)`; log the method and URL, never the headers, which carry
+credentials. An `ApiError` renders its response headers with the credential-bearing ones masked
+(`***`), so logging `error.toString()` is safe.
+
+### Versioning and support
+
+The package follows [semantic versioning](https://semver.org): a patch release fixes bugs, a minor
+release adds API without breaking any, and a breaking change is a major release. The supported
+runtimes are the Node.js releases that are not end-of-life (`engines.node >= 22`); a release that
+drops one is a major release.
+
 ### Request id
 
 `TransportOptions.builder().injectRequestId(true)` adds a unique `X-Request-ID`
 header to every request unless you set your own (header names are matched
 case-insensitively). Quote it when you report a problem with a call.
+
+### Per-call options
+
+Every operation takes a trailing `RequestOptions` object. Besides the `signal` below it
+carries three overrides for that one call: `timeout` (milliseconds, a positive number,
+or `null` to wait indefinitely), `maxRetries` (a non-negative integer, `0` disables
+retries) and `headers` (extra request headers). They replace the transport's `timeout`
+and `maxRetries` for the call; `headers` replace a client default or an operation header
+of the same name, whatever its case, but never the authentication headers. A value that
+is not valid throws a `TypeError` before anything is sent.
+
+```typescript
+await client.pet.addPet(new Pet(), {
+  timeout: 2000,
+  maxRetries: 0,
+  headers: { "X-Trace-Id": "abc" },
+});
+```
+
+### Credentials
+
+An authenticator takes its credential from the argument you pass. When you pass none, it
+reads the environment variable `PETSTORE_CLIENT_<FIELD>` once, when it is built (an empty
+variable counts as unset): `PETSTORE_CLIENT_TOKEN` for `Client.withToken` and
+`BearerAuthenticator`, `PETSTORE_CLIENT_API_KEY` for `ApiKeyAuthenticator`, and
+`PETSTORE_CLIENT_USERNAME` with `PETSTORE_CLIENT_PASSWORD` for `BasicAuthenticator`. A scheme-specific
+authenticator reads `PETSTORE_CLIENT_<SCHEME>_<FIELD>`, so two schemes never share a variable. A
+credential that is missing from both throws a `TypeError` when the authenticator (and so the client)
+is built, never at the first call. `BearerAuthenticator` and `withToken` also take a function in place
+of the token; it is called for every request, so a token that rotates is always current:
+
+```typescript
+const client = Client.withToken(
+  "https://api.example.com",
+  async () => await readTokenFromVault(),
+);
+```
+
+### Models
+
+Models are immutable: every field is `readonly`, so a changed model is a new one. `with` returns a
+copy with the given fields replaced and leaves the original alone; the copy goes through the
+constructor, so it is validated like any other instance.
+
+```typescript
+const renamed = original.with({ name: "new name" });
+```
+
+### Dates
+
+A `format: date` value is a plain `YYYY-MM-DD` string, in models and in parameters alike. It is
+validated (it must name a real calendar day; a date-time is refused), sent exactly as given and
+read back as the same string, so it never moves with a time zone. A `Date` is also accepted where
+a date goes in, and is sent as its UTC date. A `format: date-time` value is a `Date`.
 
 ### Cancellation
 
@@ -158,6 +234,7 @@ npm audit --omit=dev   # or: make audit
 
 - Name: `petstore-client`
 - Version: `1.0.0`
+- License: MIT
 
 ## Caveats
 
@@ -177,6 +254,39 @@ require returning `bigint` instead of `number`, which breaks the
 arithmetic operators (`+`, `<`, etc.) for every existing consumer.
 
 Source: ECMA-262 §6.1.6.1.
+
+### Optional versus nullable
+
+A property that is optional and nullable cannot tell "absent" from "null" on the way out: a
+`null` or `undefined` value is left out of the request body in both cases. Only a property
+that is required and nullable is always sent, as `null` when it has no value. On the way in,
+a `null` on the wire is kept as `null` and a missing key stays `undefined`.
+
+### Unknown enum values and discriminators
+
+An enum value the spec does not list, and a discriminator value that maps to no model, fail
+loudly with a `SerializationError`. They are never coerced to a default or kept as a raw string,
+so a server that adds a value is noticed instead of silently mishandled.
+
+### Repeated response headers
+
+`ApiResult.headers` is a map of lower-cased names to one string each. A header the server
+repeats (`Set-Cookie`, `Link`, `Vary`) is joined into one value with `", "`; the SDK does not keep
+a list of the separate values.
+
+### No streaming
+
+The SDK reads each response body fully before it returns, and sends each request body whole, so
+there is no streaming API (server-sent events, chunked downloads and uploads). To stream an
+endpoint, send that one request through your own HTTP client, or inject your own transport with
+`TransportOptions.builder().fetch(myFetch)`, and keep the SDK for the rest.
+
+### Configuration and TransportOptions are separate
+
+`Configuration` holds what belongs to the API (the base URL, the default headers, the client
+signal) and `TransportOptions` holds what belongs to the connection (TLS, proxy, timeout, retries,
+redirects, the request id). They stay two objects on purpose: the same API can be reached through
+different transports and one transport can serve several APIs. Pass each to the place that takes it.
 
 ### Schema constraints
 

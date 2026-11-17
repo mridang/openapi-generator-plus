@@ -37,9 +37,9 @@ export class PhotoMetadataLocation {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "lat" })
-  lat?: number;
+  readonly lat?: number;
   @Expose({ name: "lng" })
-  lng?: number;
+  readonly lng?: number;
 
   constructor(data?: Partial<PhotoMetadataLocation>) {
     Object.assign(
@@ -51,9 +51,31 @@ export class PhotoMetadataLocation {
     if (this.lat != null && typeof this.lat !== "number") {
       throw new TypeError(`lat must be a number, got ${typeof this.lat}`);
     }
+    /* A JSON number too large for a double (1e400) decodes to Infinity. */
+    if (this.lat != null && !Number.isFinite(this.lat)) {
+      throw new TypeError(`lat must be a finite number, got ${this.lat}`);
+    }
     if (this.lng != null && typeof this.lng !== "number") {
       throw new TypeError(`lng must be a number, got ${typeof this.lng}`);
     }
+    /* A JSON number too large for a double (1e400) decodes to Infinity. */
+    if (this.lng != null && !Number.isFinite(this.lng)) {
+      throw new TypeError(`lng must be a finite number, got ${this.lng}`);
+    }
+  }
+
+  /**
+   * A copy of this PhotoMetadataLocation with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new PhotoMetadataLocation
+   */
+  with(patch: Partial<PhotoMetadataLocation>): PhotoMetadataLocation {
+    const copy = new PhotoMetadataLocation({ ...this, ...patch });
+    return copy;
   }
 
   /**

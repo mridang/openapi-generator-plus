@@ -389,6 +389,26 @@ describe('DefaultApiClient transport-failure responseHeaders', () => {
     global.fetch = originalFetch;
   });
 
+  it('a per-call timeout replaces the transport timeout', async () => {
+    const slow = http.createServer(() => {
+      /* never respond */
+    });
+    await new Promise<void>(resolve => slow.listen(0, '127.0.0.1', resolve));
+    const port = (slow.address() as { port: number }).port;
+    const client = new DefaultApiClient(TransportOptions.builder().timeout(60000).maxRetries(0).build());
+    let caught: unknown;
+    try {
+      await client.sendRequest('GET', `http://127.0.0.1:${port}/slow`, {}, null, { timeout: 50 });
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+      slow.closeAllConnections();
+      await new Promise<void>(resolve => slow.close(() => resolve()));
+    }
+    expect((caught as Error).constructor).toBe(NetworkTimeoutError);
+  });
+
   it('a request that exceeds the timeout throws NetworkTimeoutError', async () => {
     const slow = http.createServer(() => {
       /* never respond */
@@ -1878,6 +1898,32 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
 
     expect(response.statusCode).toBe(503);
     expect(calls).toHaveLength(1);
+  });
+
+  it('a per-call maxRetries of 0 disables the retries the transport allows', async () => {
+    const response = await send(clientPlaying([reply(503)]), { maxRetries: 0 });
+
+    expect(response.statusCode).toBe(503);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('a per-call maxRetries replaces the transport count in both directions', async () => {
+    await send(clientPlaying([reply(503)], (builder) => builder.maxRetries(0)), { maxRetries: 3 });
+    expect(calls).toHaveLength(4);
+
+    calls = [];
+    await send(clientPlaying([reply(503)], (builder) => builder.maxRetries(5)), { maxRetries: 1 });
+    expect(calls).toHaveLength(2);
+  });
+
+  it('a per-call timeout of null lifts the transport deadline for the backoff wait', async () => {
+    const response = await send(
+      clientPlaying([reply(503, { 'Retry-After': '5' }), reply(200)], (builder) => builder.timeout(1000)),
+      { timeout: null }
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
   });
 
   it('maxRetries(n) caps the attempts at n + 1', async () => {

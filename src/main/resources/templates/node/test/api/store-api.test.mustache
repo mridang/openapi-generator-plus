@@ -253,7 +253,7 @@ describe('StoreApi response shapes', () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
     try {
       const result = await mockApi.getStockItem();
-      expect(result.priority).toBe(Priority.NUMBER_2);
+      expect(result.priority).toBe(Priority.Number2);
       expect(result.availability).toBe(Availability.OnHold);
       expect(result.matrix).toEqual([[1, 2], [3]]);
     } finally {

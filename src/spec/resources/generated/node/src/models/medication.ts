@@ -37,11 +37,11 @@ export class Medication {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "drugName" })
-  drugName!: string;
+  readonly drugName!: string;
   @Expose({ name: "dosage" })
-  dosage?: string;
+  readonly dosage?: string;
   @Expose({ name: "notes" })
-  notes?: string;
+  readonly notes?: string;
 
   constructor(data?: Partial<Medication>) {
     Object.assign(
@@ -66,6 +66,20 @@ export class Medication {
     if (this.notes != null && typeof this.notes !== "string") {
       throw new TypeError(`notes must be a string, got ${typeof this.notes}`);
     }
+  }
+
+  /**
+   * A copy of this Medication with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Medication
+   */
+  with(patch: Partial<Medication>): Medication {
+    const copy = new Medication({ ...this, ...patch });
+    return copy;
   }
 
   /**

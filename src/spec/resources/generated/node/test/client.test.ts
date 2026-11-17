@@ -68,6 +68,46 @@ describe("Client", () => {
     ).toBeDefined();
   });
 
+  describe("withToken credentials", () => {
+    const variable = "PETSTORE_CLIENT_TOKEN";
+    const saved = process.env[variable];
+    afterEach(() => {
+      if (saved === undefined) {
+        delete process.env[variable];
+      } else {
+        process.env[variable] = saved;
+      }
+    });
+
+    test("reads the token from the environment when none is passed", () => {
+      process.env[variable] = "from-env";
+
+      expect(Client.withToken("/api/v3")).toBeDefined();
+    });
+
+    test("accepts a provider function in place of the token", () => {
+      expect(
+        Client.withToken("/api/v3", async () => "rotating-token"),
+      ).toBeDefined();
+    });
+
+    test("fails when the client is built with no token and no variable", () => {
+      delete process.env[variable];
+
+      expect(() => Client.withToken("/api/v3")).toThrow(
+        new TypeError(
+          `Bearer token is required: pass it explicitly or set ${variable}`,
+        ),
+      );
+    });
+
+    test("an empty variable counts as unset", () => {
+      process.env[variable] = "";
+
+      expect(() => Client.withToken("/api/v3")).toThrow(TypeError);
+    });
+  });
+
   test("construct with a custom fetch in the transport options", () => {
     const transport = TransportOptions.builder()
       .fetch((async () => new Response("{}")) as typeof fetch)

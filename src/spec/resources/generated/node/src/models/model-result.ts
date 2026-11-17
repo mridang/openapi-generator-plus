@@ -37,7 +37,7 @@ export class ModelResult {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "ok" })
-  ok?: boolean;
+  readonly ok?: boolean;
 
   constructor(data?: Partial<ModelResult>) {
     Object.assign(
@@ -49,6 +49,20 @@ export class ModelResult {
     if (this.ok != null && typeof this.ok !== "boolean") {
       throw new TypeError(`ok must be a boolean, got ${typeof this.ok}`);
     }
+  }
+
+  /**
+   * A copy of this ModelResult with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new ModelResult
+   */
+  with(patch: Partial<ModelResult>): ModelResult {
+    const copy = new ModelResult({ ...this, ...patch });
+    return copy;
   }
 
   /**

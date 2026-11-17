@@ -80,4 +80,100 @@ describe('BearerAuthenticator', () => {
     expect(JSON.stringify(auth)).not.toContain('super-secret-token');
     expect(util.inspect(auth)).toContain('***');
   });
+
+  describe('credential resolution', () => {
+    const variable = '{{envPrefix}}_TOKEN';
+    const saved = process.env[variable];
+    afterEach(() => {
+      if (saved === undefined) {
+        delete process.env[variable];
+      } else {
+        process.env[variable] = saved;
+      }
+    });
+
+    it('reads the token from the environment when none is passed', () => {
+      process.env[variable] = 'from-env';
+      const auth = new BearerAuthenticator('https://api.example.com');
+      expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Bearer from-env' });
+    });
+
+    it('an explicit token wins over the environment', () => {
+      process.env[variable] = 'from-env';
+      const auth = new BearerAuthenticator('https://api.example.com', 'explicit');
+      expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Bearer explicit' });
+    });
+
+    it('reads the environment once, when the authenticator is built', () => {
+      process.env[variable] = 'first';
+      const auth = new BearerAuthenticator('https://api.example.com');
+      process.env[variable] = 'second';
+      expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Bearer first' });
+    });
+
+    it.each([undefined, ''])('fails when it is built with no token and the variable is %p', (value) => {
+      if (value === undefined) {
+        delete process.env[variable];
+      } else {
+        process.env[variable] = value;
+      }
+      expect(() => new BearerAuthenticator('https://api.example.com')).toThrow(
+        new TypeError(`Bearer token is required: pass it explicitly or set ${variable}`)
+      );
+    });
+
+    it('validates a token read from the environment like an explicit one', () => {
+      process.env[variable] = 'tok\r\nInjected: yes';
+      expect(() => new BearerAuthenticator('https://api.example.com')).toThrow(TypeError);
+    });
+
+    it('reads another field when a scheme-specific variable is named', () => {
+      process.env['{{envPrefix}}_MY_SCHEME_TOKEN'] = 'scheme-token';
+      try {
+        const auth = new BearerAuthenticator('https://api.example.com', undefined, 'MY_SCHEME_TOKEN');
+        expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Bearer scheme-token' });
+      } finally {
+        delete process.env['{{envPrefix}}_MY_SCHEME_TOKEN'];
+      }
+    });
+
+    it('a provider is called for every request, so a rotating token is current', async () => {
+      let calls = 0;
+      const auth = new BearerAuthenticator('https://api.example.com', () => `token-${++calls}`);
+      expect(await auth.getAuthHeadersAsync()).toEqual({ Authorization: 'Bearer token-1' });
+      expect(await auth.getAuthHeadersAsync()).toEqual({ Authorization: 'Bearer token-2' });
+    });
+
+    it('a provider may return a promise', async () => {
+      const auth = new BearerAuthenticator('https://api.example.com', async () => 'late-token');
+      expect(await auth.getAuthHeadersAsync()).toEqual({ Authorization: 'Bearer late-token' });
+    });
+
+    it('a provider is used instead of the environment', async () => {
+      process.env[variable] = 'from-env';
+      const auth = new BearerAuthenticator('https://api.example.com', () => 'from-provider');
+      expect(await auth.getAuthHeadersAsync()).toEqual({ Authorization: 'Bearer from-provider' });
+    });
+
+    it('a synchronous provider also serves getAuthHeaders', () => {
+      const auth = new BearerAuthenticator('https://api.example.com', () => 'sync-token');
+      expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Bearer sync-token' });
+    });
+
+    it('an asynchronous provider is refused by getAuthHeaders', () => {
+      const auth = new BearerAuthenticator('https://api.example.com', async () => 'late-token');
+      expect(() => auth.getAuthHeaders()).toThrow('The token provider is asynchronous: use getAuthHeadersAsync');
+    });
+
+    it('validates what a provider returns', async () => {
+      const auth = new BearerAuthenticator('https://api.example.com', () => '   ');
+      await expect(auth.getAuthHeadersAsync()).rejects.toThrow('Bearer token must not be empty');
+    });
+
+    it('does not print the provider or the token', () => {
+      const auth = new BearerAuthenticator('https://api.example.com', () => 'provider-secret');
+      expect(util.inspect(auth)).toBe('BearerAuthenticator(host=https://api.example.com, token=***)');
+      expect(JSON.stringify(auth)).not.toContain('provider-secret');
+    });
+  });
 });

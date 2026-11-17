@@ -38,12 +38,12 @@ export class Category {
 
   /** @example 1 */
   @Expose({ name: "id" })
-  id?: number;
+  readonly id?: number;
   /** @example Dogs */
   /** @example Small breed - Chihuahua */
   /** @example Large breed - GreatDane */
   @Expose({ name: "name" })
-  name?: string;
+  readonly name?: string;
 
   constructor(data?: Partial<Category>) {
     Object.assign(
@@ -65,6 +65,20 @@ export class Category {
     if (this.name != null && typeof this.name !== "string") {
       throw new TypeError(`name must be a string, got ${typeof this.name}`);
     }
+  }
+
+  /**
+   * A copy of this Category with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Category
+   */
+  with(patch: Partial<Category>): Category {
+    const copy = new Category({ ...this, ...patch });
+    return copy;
   }
 
   /**

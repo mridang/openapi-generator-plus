@@ -39,9 +39,9 @@ export class PhotoMetadata {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "caption" })
-  caption?: string;
+  readonly caption?: string;
   @Expose({ name: "isPrimary" })
-  isPrimary?: boolean;
+  readonly isPrimary?: boolean;
   @Expose({ name: "takenAt" })
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
@@ -66,7 +66,7 @@ export class PhotoMetadata {
     },
     { toClassOnly: true },
   )
-  takenAt?: Date;
+  readonly takenAt?: Date;
   @Expose({ name: "location" })
   @Type(() => PhotoMetadataLocation)
   /* A nested model that declares additionalProperties keeps its free-form
@@ -79,7 +79,7 @@ export class PhotoMetadata {
       ),
     { toClassOnly: true },
   )
-  location?: PhotoMetadataLocation;
+  readonly location?: PhotoMetadataLocation;
 
   constructor(data?: Partial<PhotoMetadata>) {
     Object.assign(
@@ -116,6 +116,20 @@ export class PhotoMetadata {
         `takenAt must be a valid Date, got ${String(this.takenAt)}`,
       );
     }
+  }
+
+  /**
+   * A copy of this PhotoMetadata with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new PhotoMetadata
+   */
+  with(patch: Partial<PhotoMetadata>): PhotoMetadata {
+    const copy = new PhotoMetadata({ ...this, ...patch });
+    return copy;
   }
 
   /**

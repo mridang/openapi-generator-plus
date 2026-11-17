@@ -49,7 +49,7 @@ export class StoreApi extends BaseApi {
   /**
    * Create an account
    * @param account  (required)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Account
    * @throws {ApiError} if fails to make API call
    */
@@ -78,7 +78,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Create an account (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async createAccountWithHttpInfo(
@@ -113,7 +113,7 @@ export class StoreApi extends BaseApi {
   /**
    * Delete purchase order by ID
    * @param orderId ID of the order to delete (required)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async deleteOrder(
@@ -125,7 +125,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Delete purchase order by ID (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async deleteOrderWithHttpInfo(
@@ -176,7 +176,7 @@ export class StoreApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @param options.querySwatch  (optional)
    * @param options.preferredSwatch  (optional)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Category
    * @throws {ApiError} if fails to make API call
    */
@@ -207,7 +207,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Echoes a swatch supplied via path, query and header parameters. (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getBySwatchWithHttpInfo(
@@ -280,7 +280,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a model exercising schema defaults on deserialize.
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Defaults
    * @throws {ApiError} if fails to make API call
    */
@@ -304,7 +304,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a model exercising schema defaults on deserialize. (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getDefaultsWithHttpInfo(
@@ -332,7 +332,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a department (mutual-recursion codegen fixture).
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Department
    * @throws {ApiError} if fails to make API call
    */
@@ -356,7 +356,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a department (mutual-recursion codegen fixture). (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getDepartmentWithHttpInfo(
@@ -384,7 +384,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns categories grouped into an array of string-keyed maps.
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Array<{ [key: string]: Category }>
    * @throws {ApiError} if fails to make API call
    */
@@ -412,7 +412,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns categories grouped into an array of string-keyed maps. (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getGroupedCategoriesWithHttpInfo(
@@ -443,7 +443,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns pet inventories by status
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return { [key: string]: number }
    * @throws {ApiError} if fails to make API call
    */
@@ -469,7 +469,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns pet inventories by status (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getInventoryWithHttpInfo(
@@ -500,7 +500,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a matrix as an array of integer arrays.
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Array<Array<number>>
    * @throws {ApiError} if fails to make API call
    */
@@ -525,7 +525,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a matrix as an array of integer arrays. (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getMatrixWithHttpInfo(
@@ -559,7 +559,7 @@ export class StoreApi extends BaseApi {
   /**
    * Find purchase order by ID
    * @param orderId ID of order to return (required)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Order
    * @throws {ApiError} if fails to make API call
    */
@@ -588,7 +588,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Find purchase order by ID (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getOrderByIdWithHttpInfo(
@@ -636,7 +636,7 @@ export class StoreApi extends BaseApi {
   /**
    * Find purchase order by tracking id
    * @param trackingId  (required)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Order
    * @throws {ApiError} if fails to make API call
    */
@@ -663,7 +663,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Find purchase order by tracking id (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getOrderByTrackingIdWithHttpInfo(
@@ -712,7 +712,7 @@ export class StoreApi extends BaseApi {
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    * @param options options for query, header, form, and cookie parameters
    * @param options.asOf Only consider stock as of this instant (optional)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return StockItem
    * @throws {ApiError} if fails to make API call
    */
@@ -741,7 +741,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields. (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getStockItemWithHttpInfo(
@@ -784,7 +784,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a bare enum (value-type response codegen fixture).
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Swatch
    * @throws {ApiError} if fails to make API call
    */
@@ -807,7 +807,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a bare enum (value-type response codegen fixture). (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getSwatchWithHttpInfo(
@@ -839,7 +839,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns swatches grouped as an array of string-keyed enum maps.
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Array<{ [key: string]: Swatch }>
    * @throws {ApiError} if fails to make API call
    */
@@ -865,7 +865,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns swatches grouped as an array of string-keyed enum maps. (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getSwatchGroupsWithHttpInfo(
@@ -901,7 +901,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns timestamps grouped as an array of string-keyed maps.
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Array<{ [key: string]: Date }>
    * @throws {ApiError} if fails to make API call
    */
@@ -927,7 +927,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns timestamps grouped as an array of string-keyed maps. (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getTimestampGroupsWithHttpInfo(
@@ -960,7 +960,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a self-referential tree (recursive-type codegen fixture)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return TreeNode
    * @throws {ApiError} if fails to make API call
    */
@@ -983,7 +983,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a self-referential tree (recursive-type codegen fixture) (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async getTreeWithHttpInfo(
@@ -1012,7 +1012,7 @@ export class StoreApi extends BaseApi {
   /**
    * Place an order for a pet
    * @param order  (optional)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Order
    * @throws {ApiError} if fails to make API call
    */
@@ -1041,7 +1041,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Place an order for a pet (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async placeOrderWithHttpInfo(
@@ -1071,7 +1071,7 @@ export class StoreApi extends BaseApi {
   /**
    * Reserve stock, answering with the existing or a new reservation
    * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ReserveStockResponse
    * @throws {ApiError} if fails to make API call
    */
@@ -1097,7 +1097,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Reserve stock, answering with the existing or a new reservation (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async reserveStockWithHttpInfo(
@@ -1136,7 +1136,7 @@ export class StoreApi extends BaseApi {
    * @param options.labels  (optional)
    * @param options.at  (optional)
    * @param options.xFilter  (optional)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Array<Order>
    * @throws {ApiError} if fails to make API call
    */
@@ -1165,7 +1165,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Searches the store; exercises content-encoded, Set and time-of-day parameters. (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
    */
   async searchStoreWithHttpInfo(

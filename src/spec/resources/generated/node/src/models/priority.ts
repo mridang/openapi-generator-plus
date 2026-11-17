@@ -9,8 +9,8 @@
  * Task priority, integer-backed enum
  */
 export const Priority = {
-  NUMBER_1: 1,
-  NUMBER_2: 2,
-  NUMBER_3: 3,
+  Number1: 1,
+  Number2: 2,
+  Number3: 3,
 } as const;
 export type Priority = (typeof Priority)[keyof typeof Priority];

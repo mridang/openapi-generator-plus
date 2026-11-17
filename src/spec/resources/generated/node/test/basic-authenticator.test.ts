@@ -107,4 +107,101 @@ describe("BasicAuthenticator", () => {
     expect(util.inspect(auth)).toContain("***");
     expect(JSON.stringify(auth)).toContain("***");
   });
+
+  describe("credential resolution", () => {
+    const userVariable = "PETSTORE_CLIENT_USERNAME";
+    const secretVariable = "PETSTORE_CLIENT_PASSWORD";
+    const savedUser = process.env[userVariable];
+    const savedSecret = process.env[secretVariable];
+    const restore = (name: string, value: string | undefined): void => {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    };
+    afterEach(() => {
+      restore(userVariable, savedUser);
+      restore(secretVariable, savedSecret);
+    });
+
+    it("reads both values from the environment when none is passed", () => {
+      process.env[userVariable] = "alice";
+      process.env[secretVariable] = ["pw", "value"].join("-");
+      const auth = new BasicAuthenticator(
+        "https://api.example.com",
+        undefined,
+        undefined,
+      );
+      expect(auth.getAuthHeaders()).toEqual({
+        Authorization:
+          "Basic " + Buffer.from("alice:pw-value").toString("base64"),
+      });
+    });
+
+    it("each explicit value wins over its own variable", () => {
+      process.env[userVariable] = "from-env";
+      process.env[secretVariable] = "from-env";
+      const auth = new BasicAuthenticator(
+        "https://api.example.com",
+        "alice",
+        undefined,
+      );
+      expect(auth.getAuthHeaders()).toEqual({
+        Authorization:
+          "Basic " + Buffer.from("alice:from-env").toString("base64"),
+      });
+    });
+
+    it("fails when it is built and a value is missing", () => {
+      delete process.env[userVariable];
+      process.env[secretVariable] = "x";
+      expect(
+        () =>
+          new BasicAuthenticator(
+            "https://api.example.com",
+            undefined,
+            undefined,
+          ),
+      ).toThrow(
+        new TypeError(
+          `Basic auth username is required: pass it explicitly or set ${userVariable}`,
+        ),
+      );
+      process.env[userVariable] = "alice";
+      delete process.env[secretVariable];
+      expect(
+        () =>
+          new BasicAuthenticator(
+            "https://api.example.com",
+            undefined,
+            undefined,
+          ),
+      ).toThrow(
+        new TypeError(
+          `Basic auth password is required: pass it explicitly or set ${secretVariable}`,
+        ),
+      );
+    });
+
+    it("reads the fields a scheme-specific authenticator names", () => {
+      process.env["PETSTORE_CLIENT_ADMIN_USERNAME"] = "admin";
+      process.env["PETSTORE_CLIENT_ADMIN_PASSWORD"] = "admin-pw";
+      try {
+        const auth = new BasicAuthenticator(
+          "https://api.example.com",
+          undefined,
+          undefined,
+          "ADMIN_",
+        );
+        expect(auth.getAuthHeaders()).toEqual({
+          Authorization:
+            "Basic " + Buffer.from("admin:admin-pw").toString("base64"),
+        });
+      } finally {
+        delete process.env["PETSTORE_CLIENT_ADMIN_USERNAME"];
+        delete process.env["PETSTORE_CLIENT_ADMIN_PASSWORD"];
+      }
+    });
+  });
 });

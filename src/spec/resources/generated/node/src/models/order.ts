@@ -39,17 +39,17 @@ export class Order {
 
   /** @example 10 */
   @Expose({ name: "id" })
-  id?: number;
+  readonly id?: number;
   /** @example 198772 */
   @Expose({ name: "petId" })
-  petId?: number;
+  readonly petId?: number;
   /** @minimum 1 */
   /** @maximum 100 */
   /** @example 7 */
   @Expose({ name: "quantity" })
-  quantity?: number;
+  readonly quantity?: number;
   @Expose({ name: "trackingId" })
-  trackingId?: UUID;
+  readonly trackingId?: UUID;
   @Expose({ name: "shipDate" })
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
@@ -74,15 +74,15 @@ export class Order {
     },
     { toClassOnly: true },
   )
-  shipDate?: Date;
+  readonly shipDate?: Date;
   /**
    * Order Status
    * @example approved
    */
   @Expose({ name: "status" })
-  status?: OrderStatusEnum = OrderStatusEnum.Placed;
+  readonly status?: OrderStatusEnum = OrderStatusEnum.Placed;
   @Expose({ name: "complete" })
-  complete?: boolean;
+  readonly complete?: boolean;
 
   constructor(data?: Partial<Order>) {
     Object.assign(
@@ -185,6 +185,20 @@ export class Order {
         );
       }
     }
+  }
+
+  /**
+   * A copy of this Order with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Order
+   */
+  with(patch: Partial<Order>): Order {
+    const copy = new Order({ ...this, ...patch });
+    return copy;
   }
 
   /**

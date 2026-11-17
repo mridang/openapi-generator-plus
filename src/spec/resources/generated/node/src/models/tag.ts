@@ -42,9 +42,9 @@ export class Tag {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "id" })
-  id?: number;
+  readonly id?: number;
   @Expose({ name: "name" })
-  name?: string;
+  readonly name?: string;
 
   constructor(data?: Partial<Tag>) {
     Object.assign(
@@ -66,6 +66,20 @@ export class Tag {
     if (this.name != null && typeof this.name !== "string") {
       throw new TypeError(`name must be a string, got ${typeof this.name}`);
     }
+  }
+
+  /**
+   * A copy of this Tag with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Tag
+   */
+  with(patch: Partial<Tag>): Tag {
+    const copy = new Tag({ ...this, ...patch });
+    return copy;
   }
 
   /**

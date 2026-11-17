@@ -153,7 +153,7 @@ export class {{classname}} extends BaseApi {
 {{#vendorExtensions.op.hasContentTypeSelector}}
    * @param requestContentType optional request Content-Type; one of {{#vendorExtensions.op.contentTypeOptions}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.contentTypeOptions}}. Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when omitted.
 {{/vendorExtensions.op.hasContentTypeSelector}}
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
 {{#returnType}}
    * @return {{{returnType}}}
 {{/returnType}}
@@ -189,7 +189,7 @@ export class {{classname}} extends BaseApi {
 
   /**
    * {{&summary}} (with HTTP info)
-   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
 {{#isDeprecated}}
    * @deprecated This operation is deprecated.

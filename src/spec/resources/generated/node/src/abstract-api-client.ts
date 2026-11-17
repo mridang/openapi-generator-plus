@@ -256,11 +256,14 @@ export abstract class AbstractApiClient implements ApiClient {
       );
     }
     /* One end-to-end deadline covers every attempt: a retry never extends it. */
-    const timeout = this.transportOptions.timeout;
+    const timeout =
+      options?.timeout !== undefined
+        ? options.timeout
+        : this.transportOptions.timeout;
     const deadline = timeout != null ? AbortSignal.timeout(timeout) : undefined;
     const started = performance.now();
     const callerSignal = options?.signal;
-    const maxRetries = this.transportOptions.maxRetries;
+    const maxRetries = options?.maxRetries ?? this.transportOptions.maxRetries;
     for (let attempt = 0; ; attempt++) {
       /* Every retry is a fresh request: the headers are rebuilt from the
        * caller's, with the authentication headers asked for again. */

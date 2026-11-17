@@ -66,6 +66,7 @@ export * from "./errors/index.js";
 export type { Authenticator } from "./auth/authenticator.js";
 export type { HttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
 export { isHttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
+export type { CredentialProvider } from "./auth/credentials.js";
 export { BasicAuthenticator } from "./auth/basic-authenticator.js";
 export { BearerAuthenticator } from "./auth/bearer-authenticator.js";
 export { ApiKeyAuthenticator } from "./auth/api-key-authenticator.js";

@@ -20,11 +20,17 @@ import type { ApiHttpResponse } from './api-http-response{{importFileExtension}}
  *   the timeout error.
  * - `refreshAuthHeaders` -- called before each automatic retry for fresh
  *   authentication headers.
+ * - `timeout` -- the end-to-end timeout of this request in milliseconds,
+ *   replacing {@link TransportOptions.timeout}; `null` waits indefinitely.
+ * - `maxRetries` -- the retries after the first attempt for this request,
+ *   replacing {@link TransportOptions.maxRetries}; `0` disables retries.
  */
 export interface SendRequestOptions {
   readonly noRedirect?: boolean;
   readonly noDefaultHeaders?: boolean;
   readonly signal?: AbortSignal;
+  readonly timeout?: number | null;
+  readonly maxRetries?: number;
   /**
    * Names of headers the SDK attached from an authenticator or from default
    * headers. They are removed from a request that follows a redirect to
@@ -46,9 +52,21 @@ export interface SendRequestOptions {
  *   client-level signal set on the {@link Configuration}. Aborting rejects the
  *   call with the signal's reason (an `AbortError` by default), never with a
  *   timeout error.
+ * - `timeout` -- the end-to-end timeout of this call in milliseconds,
+ *   replacing the transport's default; `null` waits indefinitely. A positive
+ *   number.
+ * - `maxRetries` -- the retries after the first attempt for this call,
+ *   replacing the transport's default; `0` disables retries. A non-negative
+ *   integer.
+ * - `headers` -- extra headers sent with this call. They replace a header of
+ *   the same name from the client defaults or the operation, but never the
+ *   authentication headers.
  */
 export interface RequestOptions {
   readonly signal?: AbortSignal;
+  readonly timeout?: number | null;
+  readonly maxRetries?: number;
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
 /**

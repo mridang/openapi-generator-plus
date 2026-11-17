@@ -39,7 +39,7 @@ export class Employee {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "name" })
-  name!: string;
+  readonly name!: string;
   @Expose({ name: "department" })
   @Type(() => Department)
   /* A nested model that declares additionalProperties keeps its free-form
@@ -52,7 +52,7 @@ export class Employee {
       ),
     { toClassOnly: true },
   )
-  department?: Department;
+  readonly department?: Department;
 
   constructor(data?: Partial<Employee>) {
     Object.assign(
@@ -77,6 +77,20 @@ export class Employee {
         `department must be an object, got ${Array.isArray(this.department) ? "array" : typeof this.department}`,
       );
     }
+  }
+
+  /**
+   * A copy of this Employee with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Employee
+   */
+  with(patch: Partial<Employee>): Employee {
+    const copy = new Employee({ ...this, ...patch });
+    return copy;
   }
 
   /**

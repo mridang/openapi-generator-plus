@@ -6,6 +6,8 @@ import {
   ObjectSerializer,
   durationToProtoJson,
   durationFromProtoJson,
+  isPlainDate,
+  plainDate,
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
@@ -338,9 +340,7 @@ describe('ObjectSerializer', () => {
 
   describe('serialize', () => {
     test('serializes a model to JSON string', () => {
-      const category = new Category();
-      category.id = 1;
-      category.name = 'Dogs';
+      const category = new Category({ id: 1, name: 'Dogs' });
       const result = ObjectSerializer.serialize(category);
       expect(typeof result).toBe('string');
       const parsed = JSON.parse(result);
@@ -367,9 +367,7 @@ describe('ObjectSerializer', () => {
     });
 
     test('includes fields explicitly set to default values', () => {
-      const category = new Category();
-      category.id = 0;
-      category.name = '';
+      const category = new Category({ id: 0, name: '' });
       const result = ObjectSerializer.serialize(category);
       const parsed = JSON.parse(result);
       expect(parsed).toHaveProperty('id', 0);
@@ -437,16 +435,13 @@ describe('ObjectSerializer', () => {
       // A free-form value nested inside a model instance is data, so a string
       // whose key happens to match a Decimal field elsewhere (Pet.weightKg)
       // must keep its JSON string type.
-      const edge = new EdgeCases();
-      edge.freeFormAny = { weightKg: '12', note: 'x' };
+      const edge = new EdgeCases({ freeFormAny: { weightKg: '12', note: 'x' } });
       expect(ObjectSerializer.serialize(edge)).toBe('{"freeFormAny":{"weightKg":"12","note":"x"}}');
     });
 
     test('keeps a numeric-looking string in a free-form map inside a nested model a string', () => {
-      const passport = new PetPassport();
-      passport.pet = new Pet({ name: 'Fido', photoUrls: new Set<string>() });
-      const edge = new EdgeCases();
-      edge.freeFormAny = [{ weightKg: '7' }];
+      const passport = new PetPassport({ pet: new Pet({ name: 'Fido', photoUrls: new Set<string>() }) });
+      const edge = new EdgeCases({ freeFormAny: [{ weightKg: '7' }] });
       expect(ObjectSerializer.serialize({ passport, edge })).toContain('"freeFormAny":[{"weightKg":"7"}]');
     });
 
@@ -1136,7 +1131,7 @@ describe('ObjectSerializer', () => {
     });
 
     test('accepts a valid integer wire value', () => {
-      const item = new StockItem({ priority: Priority.NUMBER_2 });
+      const item = new StockItem({ priority: Priority.Number2 });
       expect(item.priority).toBe(2);
     });
 
@@ -1623,15 +1618,15 @@ describe('ObjectSerializer', () => {
   describe('Canonical #1 — integer-backed enum round-trips as a JSON NUMBER', () => {
     // Priority is `type: integer` enum [1,2,3]. The wire form must be a bare
     // JSON number (2), never the quoted string "2" nor the reverse-mapped
-    // member-name "NUMBER_2"; a server validating `type: integer` rejects a
-    // string. Deserializing the number 2 must yield the Priority.NUMBER_2
+    // member-name "Number2"; a server validating `type: integer` rejects a
+    // string. Deserializing the number 2 must yield the Priority.Number2
     // member (which is === 2 for a numeric TS enum).
     test('serialize emits the int enum field as an unquoted JSON number', () => {
-      const item = new StockItem({ priority: Priority.NUMBER_2 });
+      const item = new StockItem({ priority: Priority.Number2 });
       const text = ObjectSerializer.serialize(item);
       expect(text).toContain('"priority":2');
       expect(text).not.toContain('"priority":"2"');
-      expect(text).not.toContain('NUMBER_2');
+      expect(text).not.toContain('Number2');
       const parsed = JSON.parse(text) as { priority: unknown };
       expect(parsed.priority).toBe(2);
       expect(typeof parsed.priority).toBe('number');
@@ -1639,17 +1634,17 @@ describe('ObjectSerializer', () => {
 
     test('deserialize of the JSON number 2 yields the Priority member', () => {
       const item = ObjectSerializer.deserialize({ priority: 2 }, StockItem);
-      expect(item!.priority).toBe(Priority.NUMBER_2);
+      expect(item!.priority).toBe(Priority.Number2);
       expect(item!.priority).toBe(2);
     });
 
     test('round-trip: serialize then deserialize preserves the int enum member', () => {
-      const original = new StockItem({ priority: Priority.NUMBER_3 });
+      const original = new StockItem({ priority: Priority.Number3 });
       const restored = ObjectSerializer.deserialize(
         JSON.parse(ObjectSerializer.serialize(original)),
         StockItem,
       );
-      expect(restored!.priority).toBe(Priority.NUMBER_3);
+      expect(restored!.priority).toBe(Priority.Number3);
     });
   });
 
@@ -1660,13 +1655,13 @@ describe('ObjectSerializer', () => {
     // hyphenation, deserialize must map the wire string to the right member,
     // and an out-of-schema value must be rejected.
     test('serialize preserves the exact wire casing of each member', () => {
-      const available = new StockItem({ priority: Priority.NUMBER_1, availability: Availability.Available });
+      const available = new StockItem({ priority: Priority.Number1, availability: Availability.Available });
       expect(JSON.parse(ObjectSerializer.serialize(available)).availability).toBe('Available');
 
-      const sold = new StockItem({ priority: Priority.NUMBER_1, availability: Availability.Sold });
+      const sold = new StockItem({ priority: Priority.Number1, availability: Availability.Sold });
       expect(JSON.parse(ObjectSerializer.serialize(sold)).availability).toBe('Sold');
 
-      const onHold = new StockItem({ priority: Priority.NUMBER_1, availability: Availability.OnHold });
+      const onHold = new StockItem({ priority: Priority.Number1, availability: Availability.OnHold });
       expect(JSON.parse(ObjectSerializer.serialize(onHold)).availability).toBe('on-hold');
     });
 
@@ -1691,7 +1686,7 @@ describe('ObjectSerializer', () => {
     });
 
     test('round-trip preserves the member through serialize then deserialize', () => {
-      const original = new StockItem({ priority: Priority.NUMBER_2, availability: Availability.OnHold });
+      const original = new StockItem({ priority: Priority.Number2, availability: Availability.OnHold });
       const restored = ObjectSerializer.deserialize(
         JSON.parse(ObjectSerializer.serialize(original)),
         StockItem,
@@ -1841,6 +1836,17 @@ describe('ObjectSerializer', () => {
       expect(loc!.lat).toBe(12.5);
       expect(loc!.lng).toBe(5);
     });
+
+    test('an overflowing double (1e400) is rejected instead of decoding to Infinity', () => {
+      const json = ObjectSerializer.parseJson('{"lat":1e400,"lng":0}');
+      expect(() => ObjectSerializer.deserialize(json, PhotoMetadataLocation)).toThrow(
+        'Failed to deserialize JSON: lat must be a finite number, got Infinity'
+      );
+    });
+
+    test.each([Infinity, -Infinity, Number.NaN])('a hand-built model refuses %p', (value) => {
+      expect(() => new PhotoMetadataLocation({ lat: value, lng: 0 })).toThrow(TypeError);
+    });
   });
 
   describe('Canonical #5 — additionalProperties re-serialize at the TOP level', () => {
@@ -1939,6 +1945,150 @@ describe('a wire key named __proto__ is data, never a prototype', () => {
     const category = new Category(data);
     expect(Object.getPrototypeOf(category)).toBe(Category.prototype);
     expect(typeof category.equals).toBe('function');
+  });
+});
+
+describe('model with (copy)', () => {
+  test('returns a copy with the given fields replaced and leaves the original alone', () => {
+    const original = new Category({ id: 1, name: 'Dogs' });
+    const renamed = original.with({ name: 'Cats' });
+
+    expect(renamed).toBeInstanceOf(Category);
+    expect(renamed).not.toBe(original);
+    expect(renamed.id).toBe(1);
+    expect(renamed.name).toBe('Cats');
+    expect(original.name).toBe('Dogs');
+  });
+
+  test('an empty patch copies every field', () => {
+    const original = new Category({ id: 1, name: 'Dogs' });
+    const copy = original.with({});
+
+    expect(copy).not.toBe(original);
+    expect(copy.equals(original)).toBe(true);
+  });
+
+  test('a field can be cleared with undefined', () => {
+    expect(new Category({ id: 1, name: 'Dogs' }).with({ name: undefined }).name).toBeUndefined();
+  });
+
+  test('the copy is validated like any other instance', () => {
+    const original = new Category({ id: 1, name: 'Dogs' });
+
+    expect(() => original.with({ id: 'one' as unknown as number })).toThrow(TypeError);
+    expect(original.id).toBe(1);
+  });
+
+  test('a required field of the copy is still checked', () => {
+    const pet = new Pet({ name: 'Fido', photoUrls: new Set(['u']) });
+
+    expect(() => pet.with({ name: undefined })).toThrow(TypeError);
+    expect(pet.with({ name: 'Rex' }).name).toBe('Rex');
+  });
+
+  test('a nested model is shared, not cloned', () => {
+    const category = new Category({ id: 1, name: 'Dogs' });
+    const pet = new Pet({ name: 'Fido', photoUrls: new Set(['u']), category });
+
+    expect(pet.with({ name: 'Rex' }).category).toBe(category);
+  });
+
+  test('free-form keys of a model declaring additionalProperties survive the copy', () => {
+    const metadata = new Metadata({ region: 'eu' } as Partial<Metadata>);
+    const copy = metadata.with({});
+
+    expect((copy as unknown as Record<string, unknown>)['region']).toBe('eu');
+    expect(copy.equals(metadata)).toBe(true);
+  });
+
+  test('the copy serializes like the original with the change applied', () => {
+    const copy = new Category({ id: 1, name: 'Dogs' }).with({ name: 'Cats' });
+
+    expect(JSON.parse(ObjectSerializer.serialize(copy))).toEqual({ id: 1, name: 'Cats' });
+  });
+});
+
+describe('format: date', () => {
+  test.each(['2024-01-15', '2024-02-29', '0001-01-01', '9999-12-31', '2000-02-29'])('%p is a plain date', (value) => {
+    expect(isPlainDate(value)).toBe(true);
+    expect(plainDate(value)).toBe(value);
+  });
+
+  test.each([
+    '2023-02-29',
+    '1900-02-29',
+    '2024-04-31',
+    '2024-13-01',
+    '2024-00-01',
+    '2024-01-00',
+    '2024-01-32',
+    '2024-1-5',
+    '2024-01-15T00:00:00Z',
+    '2024-01-15T00:00:00',
+    '20240115',
+    ' 2024-01-15',
+    '2024-01-15\n',
+    ''
+  ])('%p is not a plain date', (value) => {
+    expect(isPlainDate(value)).toBe(false);
+    expect(() => plainDate(value)).toThrow(TypeError);
+  });
+
+  test('a string is returned exactly as given', () => {
+    const value = '2024-03-05';
+    expect(plainDate(value)).toBe(value);
+  });
+
+  test('a Date is read as its UTC date', () => {
+    expect(plainDate(new Date(Date.UTC(2024, 11, 31, 23, 59, 59)))).toBe('2024-12-31');
+    expect(plainDate(new Date(Date.UTC(2024, 0, 1, 0, 0, 0)))).toBe('2024-01-01');
+    expect(plainDate(new Date('0005-01-01T00:00:00Z'))).toBe('0005-01-01');
+  });
+
+  test.each([[null], [undefined], [20240115], [true], [{}], [new Date(Number.NaN)]])('%p is refused', (value) => {
+    expect(() => plainDate(value)).toThrow(TypeError);
+  });
+
+  test('the error names the value', () => {
+    expect(() => plainDate('2024-02-30', 'renewalDate')).toThrow('renewalDate must be a YYYY-MM-DD date, got "2024-02-30"');
+  });
+
+  test('a date leaf decodes to the string it came as', () => {
+    expect(ObjectSerializer.deserializeLeaf<string>('2024-01-15', 'plainDate')).toBe('2024-01-15');
+  });
+
+  test('a date leaf keeps a null so a nullable container is not corrupted', () => {
+    expect(ObjectSerializer.deserializeLeaf<string | null>(null, 'plainDate')).toBeNull();
+  });
+
+  test.each(['2024-01-15T00:00:00Z', '2024-02-30', 'tomorrow', 20240115, true])('a date leaf refuses %p', (value) => {
+    expect(() => ObjectSerializer.deserializeLeaf(value, 'plainDate')).toThrow(SerializationError);
+  });
+});
+
+describe('format: double decode', () => {
+  test('a double leaf accepts a finite number', () => {
+    expect(ObjectSerializer.deserializeLeaf<number>(1.5, 'double')).toBe(1.5);
+    expect(ObjectSerializer.deserializeLeaf<number>(0, 'double')).toBe(0);
+    expect(ObjectSerializer.deserializeLeaf<number>(-7, 'double')).toBe(-7);
+  });
+
+  test('a double leaf refuses an overflowing number such as 1e400', () => {
+    const decoded = ObjectSerializer.parseJson('[1e400]') as unknown[];
+    expect(decoded[0]).toBe(Infinity);
+    expect(() => ObjectSerializer.deserializeLeaf(decoded[0], 'double')).toThrow(SerializationError);
+    expect(() => ObjectSerializer.deserializeLeaf(-Infinity, 'double')).toThrow(SerializationError);
+    expect(() => ObjectSerializer.deserializeLeaf(Number.NaN, 'double')).toThrow(SerializationError);
+  });
+
+  test('a double leaf refuses a string and a boolean', () => {
+    expect(() => ObjectSerializer.deserializeLeaf('1.5', 'double')).toThrow(SerializationError);
+    expect(() => ObjectSerializer.deserializeLeaf(true, 'double')).toThrow(SerializationError);
+  });
+
+  test('a null double leaf is refused unless the element is nullable', () => {
+    expect(() => ObjectSerializer.deserializeLeaf(null, 'double')).toThrow(SerializationError);
+    expect(ObjectSerializer.deserializeLeaf<number | null>(null, 'double', true)).toBeNull();
   });
 });
 
@@ -2223,7 +2373,7 @@ describe('toBinary', () => {
 
       expect(literal).toBe('a-b');
       expect(member).toBe('a_b');
-      expect(numeric).toBe(Priority.NUMBER_2);
+      expect(numeric).toBe(Priority.Number2);
       // @ts-expect-error a string that is not a wire value is not a Separator
       const unknownValue: Separator = 'not-a-separator';
       expect(unknownValue).toBe('not-a-separator');

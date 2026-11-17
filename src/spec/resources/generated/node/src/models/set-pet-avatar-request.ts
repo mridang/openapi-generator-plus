@@ -51,10 +51,10 @@ export class SetPetAvatarRequest {
       Buffer.isBuffer(value) ? (value as Buffer).toString("base64") : value,
     { toPlainOnly: true },
   )
-  data!: Buffer;
+  readonly data!: Buffer;
   /** @example image/jpeg */
   @Expose({ name: "mimeType" })
-  mimeType!: string;
+  readonly mimeType!: string;
 
   constructor(data?: Partial<SetPetAvatarRequest>) {
     Object.assign(
@@ -90,6 +90,20 @@ export class SetPetAvatarRequest {
         `mimeType must be a string, got ${typeof this.mimeType}`,
       );
     }
+  }
+
+  /**
+   * A copy of this SetPetAvatarRequest with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new SetPetAvatarRequest
+   */
+  with(patch: Partial<SetPetAvatarRequest>): SetPetAvatarRequest {
+    const copy = new SetPetAvatarRequest({ ...this, ...patch });
+    return copy;
   }
 
   /**

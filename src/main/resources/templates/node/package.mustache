@@ -8,6 +8,23 @@
   "description": "Generated API client for {{#appName}}{{appName}}{{/appName}}{{^appName}}{{npmName}}{{/appName}}",
 {{/appDescription}}
   "license": "{{licenseId}}",
+{{#authorsJson}}
+  "author": "{{{authorsJson}}}",
+{{/authorsJson}}
+{{#homepageUrlJson}}
+  "homepage": "{{{homepageUrlJson}}}",
+{{/homepageUrlJson}}
+{{#repositoryUrlJson}}
+  "repository": {
+    "type": "git",
+    "url": "{{{repositoryUrlJson}}}"
+  },
+{{/repositoryUrlJson}}
+{{#issueTrackerUrlJson}}
+  "bugs": {
+    "url": "{{{issueTrackerUrlJson}}}"
+  },
+{{/issueTrackerUrlJson}}
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
   "exports": {

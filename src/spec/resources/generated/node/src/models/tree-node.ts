@@ -38,7 +38,7 @@ export class TreeNode {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "value" })
-  value!: string;
+  readonly value!: string;
   @Expose({ name: "child" })
   @Type(() => TreeNode)
   /* A nested model that declares additionalProperties keeps its free-form
@@ -51,7 +51,7 @@ export class TreeNode {
       ),
     { toClassOnly: true },
   )
-  child?: TreeNode;
+  readonly child?: TreeNode;
 
   constructor(data?: Partial<TreeNode>) {
     Object.assign(
@@ -76,6 +76,20 @@ export class TreeNode {
         `child must be an object, got ${Array.isArray(this.child) ? "array" : typeof this.child}`,
       );
     }
+  }
+
+  /**
+   * A copy of this TreeNode with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new TreeNode
+   */
+  with(patch: Partial<TreeNode>): TreeNode {
+    const copy = new TreeNode({ ...this, ...patch });
+    return copy;
   }
 
   /**

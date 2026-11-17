@@ -37,9 +37,9 @@ export class PetCriteria {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "breed" })
-  breed?: string;
+  readonly breed?: string;
   @Expose({ name: "min_age" })
-  min_age?: number;
+  readonly min_age?: number;
 
   constructor(data?: Partial<PetCriteria>) {
     Object.assign(
@@ -72,6 +72,20 @@ export class PetCriteria {
         `min_age is outside the 32-bit integer range, got ${this.min_age}`,
       );
     }
+  }
+
+  /**
+   * A copy of this PetCriteria with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new PetCriteria
+   */
+  with(patch: Partial<PetCriteria>): PetCriteria {
+    const copy = new PetCriteria({ ...this, ...patch });
+    return copy;
   }
 
   /**

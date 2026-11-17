@@ -40,28 +40,29 @@ export class Defaults {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "retries" })
-  retries?: number = 3;
+  readonly retries?: number = 3;
   @Expose({ name: "mode" })
-  mode?: DefaultsModeEnum = DefaultsModeEnum.Medium;
+  readonly mode?: DefaultsModeEnum = DefaultsModeEnum.Medium;
   @Expose({ name: "label" })
-  label?: string = "untitled";
+  readonly label?: string = "untitled";
   @Expose({ name: "greeting" })
-  greeting?: string = 'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b';
+  readonly greeting?: string =
+    'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b';
   @Expose({ name: "swatch" })
-  swatch?: Swatch = Swatch.Green;
+  readonly swatch?: Swatch = Swatch.Green;
   @Expose({ name: "ratio" })
   /* A bare `type: number` is a JSON number: decode keeps its exact text (no
    * float coercion) and rejects a quoted string. */
   @Transform(({ obj }) => decodePlainNumber(obj, "ratio"), {
     toClassOnly: true,
   })
-  ratio?: Decimal = "1.5" as Decimal;
+  readonly ratio?: Decimal = "1.5" as Decimal;
   @Expose({ name: "scale" })
-  scale?: number = 0.25;
+  readonly scale?: number = 0.25;
   @Expose({ name: "weight" })
-  weight?: number = 2;
+  readonly weight?: number = 2;
   @Expose({ name: "ceiling" })
-  ceiling?: number = 9000000000;
+  readonly ceiling?: number = 9000000000;
 
   constructor(data?: Partial<Defaults>) {
     Object.assign(
@@ -143,8 +144,16 @@ export class Defaults {
     if (this.scale != null && typeof this.scale !== "number") {
       throw new TypeError(`scale must be a number, got ${typeof this.scale}`);
     }
+    /* A JSON number too large for a double (1e400) decodes to Infinity. */
+    if (this.scale != null && !Number.isFinite(this.scale)) {
+      throw new TypeError(`scale must be a finite number, got ${this.scale}`);
+    }
     if (this.weight != null && typeof this.weight !== "number") {
       throw new TypeError(`weight must be a number, got ${typeof this.weight}`);
+    }
+    /* A JSON number too large for a double (1e400) decodes to Infinity. */
+    if (this.weight != null && !Number.isFinite(this.weight)) {
+      throw new TypeError(`weight must be a finite number, got ${this.weight}`);
     }
     if (this.ceiling != null && typeof this.ceiling !== "number") {
       throw new TypeError(
@@ -176,6 +185,20 @@ export class Defaults {
         );
       }
     }
+  }
+
+  /**
+   * A copy of this Defaults with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Defaults
+   */
+  with(patch: Partial<Defaults>): Defaults {
+    const copy = new Defaults({ ...this, ...patch });
+    return copy;
   }
 
   /**

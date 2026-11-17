@@ -11,8 +11,8 @@ export interface FindPetsByStatusOptions {
   /** Filter criteria as key-value pairs */
   readonly filter?: { [key: string]: string };
   /** Only return pets born on or after this date */
-  readonly bornAfter?: Date;
+  readonly bornAfter?: string | Date;
   readonly n2ndPage?: number;
   /** Reference date for the report */
-  readonly reportDate?: Date;
+  readonly reportDate?: string | Date;
 }

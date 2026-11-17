@@ -37,9 +37,9 @@ export class ModelError {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "code" })
-  code?: number;
+  readonly code?: number;
   @Expose({ name: "message" })
-  message?: string;
+  readonly message?: string;
 
   constructor(data?: Partial<ModelError>) {
     Object.assign(
@@ -72,6 +72,20 @@ export class ModelError {
         `message must be a string, got ${typeof this.message}`,
       );
     }
+  }
+
+  /**
+   * A copy of this ModelError with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new ModelError
+   */
+  with(patch: Partial<ModelError>): ModelError {
+    const copy = new ModelError({ ...this, ...patch });
+    return copy;
   }
 
   /**
