@@ -39,7 +39,15 @@ interface GoSpec extends LanguageSpec, DockerImageSpec {
          * rewriting them (it exits non-zero and prints the diff when they are
          * untidy), so every spec runs on the manifest as committed. */
         return List.of(
-                "find .out/reports -mindepth 1 -delete 2>/dev/null; true", "go mod tidy -diff");
+                "find .out/reports -mindepth 1 -delete 2>/dev/null; true",
+                "go mod tidy -diff",
+                /* The Go image is Alpine and ships without make, which the SDK's own
+                 * docs target needs. Installed once with the shared container, with
+                 * retries because the package mirror is flaky on CI runners. */
+                "for i in 1 2 3 4 5; do apk add --no-cache make && break;"
+                        + " echo \"apk attempt $i failed; retrying\" >&2; sleep 3; done;"
+                        + " command -v make > /dev/null"
+                        + " || { echo \"make missing after retries\" >&2; exit 1; }");
     }
 
     @Override
