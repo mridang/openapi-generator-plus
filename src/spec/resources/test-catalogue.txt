@@ -942,7 +942,7 @@ transport029 | A response body that stalls after the headers throws NetworkTimeo
 transport030 | AL: content-encoding gzip lie with plaintext body surfaces ApiException
 transport031 | Connect deadline raises network timeout exception
 transport032 | Connection refused raises NetworkError
-transport033 | Content-Encoding: identity passes the body through undecoded
+transport033 | Content-Encoding: identity passes the body through undecoded | multi
 transport034 | Decompresses a valid gzip-encoded response body
 transport035 | Decompresses a zlib-wrapped deflate response
 transport036 | Does not inject request id when disabled
