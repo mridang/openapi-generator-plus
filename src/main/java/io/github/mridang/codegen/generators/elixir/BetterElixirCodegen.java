@@ -46,6 +46,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterElixirCodegen extends AbstractBetterCodegen {
 
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterElixirCodegen.class);
 
     /**

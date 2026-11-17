@@ -50,6 +50,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
 
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRustCodegen.class);
 
     private static final String OPTION_REPOSITORY_URL = "repositoryUrl";

@@ -44,6 +44,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
 
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
 
     /**

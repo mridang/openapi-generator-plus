@@ -54,6 +54,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterRubyCodegen extends AbstractBetterCodegen implements WithTypeSignatureSupport {
 
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRubyCodegen.class);
 
     private static final String DEFAULT_GEM_VERSION = "1.0.0";

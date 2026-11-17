@@ -45,6 +45,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterSwiftCodegen extends AbstractBetterCodegen {
 
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterSwiftCodegen.class);
 
     protected String packageName = "OpenApiClient";

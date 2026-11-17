@@ -3433,6 +3433,61 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * The suffix this language gives every error type: {@code Exception} by
+     * default, {@code Error} where the language's convention says so.
+     *
+     * @return {@code Exception} or {@code Error}
+     */
+    protected String errorSuffix() {
+        return "Exception";
+    }
+
+    /** Rows of declared error responses per operation, keyed by operation, in generation order. */
+    private final Map<String, List<Map<String, Object>>> declaredErrorsByOperation =
+            new java.util.LinkedHashMap<>();
+
+    /**
+     * Exposes the error responses an operation declares on its decorator map:
+     * {@code errorResponses} (one row per distinct status, a default response
+     * last: {@code status}, {@code statusClass}, {@code statusClassName},
+     * {@code schemaName}, {@code schemaClassName}, {@code hasSchema},
+     * {@code isDefault}, {@code isRange}, {@code isFirst}, {@code isLast}),
+     * {@code hasErrorResponses} and {@code errorSchemaResponses}, the rows that
+     * carry a schema. The spec-level {@code errorSchemas} list (one entry per
+     * distinct schema with the status class it subclasses) is refreshed in
+     * {@code additionalProperties} every time an operation is seen.
+     */
+    private void populateErrorResponses(CodegenOperation op, Map<String, Object> d) {
+        final List<ErrorResponses.Declared> declared = new ArrayList<>();
+        if (op.responses != null) {
+            for (final org.openapitools.codegen.CodegenResponse response : op.responses) {
+                if (response.code == null || !ErrorResponses.isErrorStatus(response.code)) {
+                    continue;
+                }
+                final boolean model = response.isModel && response.dataType != null;
+                declared.add(new ErrorResponses.Declared(response.code, model ? response.dataType : null));
+            }
+        }
+        final String suffix = errorSuffix();
+        final List<Map<String, Object>> rows = ErrorResponses.operationRows(declared, suffix);
+        final List<Map<String, Object>> withSchema = new ArrayList<>();
+        for (final Map<String, Object> row : rows) {
+            if (Boolean.TRUE.equals(row.get("hasSchema"))) {
+                withSchema.add(row);
+            }
+        }
+        d.put("errorResponses", rows);
+        d.put("hasErrorResponses", !rows.isEmpty());
+        d.put("errorSchemaResponses", withSchema);
+        d.put("hasErrorSchemaResponses", !withSchema.isEmpty());
+        declaredErrorsByOperation.put(op.httpMethod + " " + op.path, rows);
+        final List<Map<String, Object>> schemas =
+                ErrorResponses.distinctSchemas(new ArrayList<>(declaredErrorsByOperation.values()), suffix);
+        additionalProperties.put("errorSchemas", schemas);
+        additionalProperties.put("hasErrorSchemas", !schemas.isEmpty());
+    }
+
+    /**
      * Populates operation-level decorator properties on
      * {@code op.vendorExtensions["op"]}. Idempotent — safe to invoke
      * multiple times per operation. Templates consume via
@@ -3530,6 +3585,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
         // F1062 — per-status success variants for multi-2xx operations.
         populateSuccessResponses(op, d);
+
+        // Declared error responses: the status class and schema of each non-2xx response.
+        populateErrorResponses(op, d);
 
         // O10 — Return kind classification
         d.put("returnKind", deriveReturnKind(op));
