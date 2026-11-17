@@ -1207,7 +1207,31 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             vars.add(var);
         }
         entry.put("envVars", vars);
+        /* The environment-variable rejection carries one behaviour id per scheme kind: the four
+         * OAuth2 flows, the second bearer and the second API-key scheme. */
+        final long bearersBefore = schemeAuthTests.stream().filter(e -> Boolean.TRUE.equals(e.get("isBearer"))).count();
+        final long apiKeysBefore = schemeAuthTests.stream().filter(e -> Boolean.TRUE.equals(e.get("isApiKey"))).count();
+        entry.put("failsId", failsNamingId(spec.baseClass(), isBearer && bearersBefore == 1, isApiKey && apiKeysBefore == 1));
         schemeAuthTests.add(entry);
+    }
+
+    /** The behaviour id that names a scheme's FailsNamingAVariableThatIsEmptyOrUnset test, or empty. */
+    private static String failsNamingId(final String baseClass, final boolean secondBearer, final boolean secondApiKey) {
+        final Map<String, String> flows = new HashMap<>();
+        flows.put("OAuth2ClientCredentialsAuthenticator", "BhvAuthscheme013_");
+        flows.put("OAuth2PasswordAuthenticator", "BhvAuthscheme014_");
+        flows.put("OAuth2AuthorizationCodeAuthenticator", "BhvAuthscheme015_");
+        flows.put("OAuth2ImplicitAuthenticator", "BhvAuthscheme016_");
+        if (flows.containsKey(baseClass)) {
+            return flows.get(baseClass);
+        }
+        if (secondBearer) {
+            return "BhvAuthscheme011_";
+        }
+        if (secondApiKey) {
+            return "BhvAuthscheme012_";
+        }
+        return "";
     }
 
     /**

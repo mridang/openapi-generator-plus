@@ -183,7 +183,7 @@ func Test{{#firstApiKey}}BhvAuthapikey019_{{/firstApiKey}}SchemeAuthenticator_{{
 }
 {{/isApiKey}}
 
-func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}{{#failsId}}{{.}}{{/failsId}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range scheme{{className}}Variables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {

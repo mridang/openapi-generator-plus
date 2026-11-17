@@ -581,6 +581,29 @@ func (c *contentTypeApiClient) SendRequestWithOptions(method, url string, header
 // Close satisfies the ApiClient contract; this stub holds no resources.
 func (c *contentTypeApiClient) Close() error { return nil }
 
+// An unexpected content type error names the operation rather than the HTTP verb.
+func TestBhvErrors054_BaseApi_UnexpectedContentTypeNamesTheOperation(t *testing.T) {
+	t.Parallel()
+	client := &contentTypeApiClient{
+		responseContentType: "text/plain",
+		responseBody:        "hello plain text",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
+
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if !strings.Contains(serErr.Message(), "GetPetById") {
+		t.Errorf("expected the error to name the operation, got %q", serErr.Message())
+	}
+	if strings.Contains(serErr.Message(), "GET") {
+		t.Errorf("expected no HTTP verb in the error, got %q", serErr.Message())
+	}
+}
+
 func TestBhvSerializationwire025_BaseApi_SkipsDeserializationForNonJSON(t *testing.T) {
 	t.Parallel()
 	client := &contentTypeApiClient{
