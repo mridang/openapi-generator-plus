@@ -7,18 +7,12 @@
 
 from __future__ import annotations
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    TypeAdapter,
-    ValidationError,
-    field_validator,
-)
-from petstore_client._types import hash_model
+from pydantic import ConfigDict, TypeAdapter, ValidationError, field_validator
+from petstore_client._types import ApiModel, hash_model, lenient_init
 from typing import Any, ClassVar, List, Optional, Tuple, Union
 
 
-class SetPetAvatarThumbnailRequest(BaseModel):
+class SetPetAvatarThumbnailRequest(ApiModel):
     """
     SetPetAvatarThumbnailRequest
     """
@@ -60,6 +54,7 @@ class SetPetAvatarThumbnailRequest(BaseModel):
     def __hash__(self) -> int:
         return hash_model(self)
 
+    @lenient_init
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
             if len(args) > 1:

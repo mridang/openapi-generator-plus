@@ -7,9 +7,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 from pydantic import StrictBool, StrictInt
-from petstore_client._types import hash_model
+from petstore_client._types import ApiModel, hash_model
 from typing import Optional
 from enum import Enum
 
@@ -26,7 +26,7 @@ class OrderStatusEnum(str, Enum):
         return str(self.value)
 
 
-class Order(BaseModel):
+class Order(ApiModel):
     """
     Order
     """

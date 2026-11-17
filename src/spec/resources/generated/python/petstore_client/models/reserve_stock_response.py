@@ -7,12 +7,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, field_validator
-from petstore_client._types import hash_model
+from pydantic import ConfigDict, field_validator
+from petstore_client._types import ApiModel, hash_model, lenient_init
 from typing import Any, ClassVar, Optional, Tuple, Union
 
 
-class ReserveStockResponse(BaseModel):
+class ReserveStockResponse(ApiModel):
     """
     One of the success responses of reserveStock.
     """
@@ -54,6 +54,7 @@ class ReserveStockResponse(BaseModel):
     def __hash__(self) -> int:
         return hash_model(self)
 
+    @lenient_init
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
             if len(args) > 1:

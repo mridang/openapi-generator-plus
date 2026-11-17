@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 from pydantic import StrictInt, StrictStr
 
 from petstore_client.models.api_response import ApiResponse
@@ -211,8 +211,9 @@ class PetApi(BaseApi):
         api_client: Optional[ApiClient] = None,
         config: Optional[Configuration] = None,
         authenticator: Optional[Authenticator] = None,
+        scheme_authenticators: Optional[Mapping[str, Authenticator]] = None,
     ):
-        super().__init__(api_client, config, authenticator)
+        super().__init__(api_client, config, authenticator, scheme_authenticators)
 
     async def add_pet(
         self,
@@ -221,7 +222,7 @@ class PetApi(BaseApi):
     ) -> Pet:
         """Add a new pet to the store
         :param pet: Create a new pet in the store (required)
-        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -250,7 +251,7 @@ class PetApi(BaseApi):
     ) -> "ApiResult[Pet]":
         """Add a new pet to the store (with HTTP info)
         :param pet: Create a new pet in the store (required)
-        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -273,7 +274,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            (options.auth if options is not None else None),
+            self._scheme_authenticator("apiKeyHeader", "petStoreBearer"),
             operation_name="add_pet",
             request_options=options,
         )
@@ -361,7 +362,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "multipart/form-data",
             "List[Photo]",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="add_pet_photos",
             request_options=options,
         )
@@ -375,7 +376,7 @@ class PetApi(BaseApi):
         """Record a treatment for a pet
         :param pet_id:  (required)
         :param pet_treatment:  (required)
-        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: PetTreatment
         :raises ApiException: if fails to make API call
         """
@@ -407,7 +408,7 @@ class PetApi(BaseApi):
         """Record a treatment for a pet (with HTTP info)
         :param pet_id:  (required)
         :param pet_treatment:  (required)
-        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -443,7 +444,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "PetTreatment",
-            (options.auth if options is not None else None),
+            None,
             operation_name="add_pet_treatment",
             request_options=options,
         )
@@ -455,7 +456,7 @@ class PetApi(BaseApi):
     ) -> None:
         """Deletes a pet
         :param pet_id: Pet id to delete (required)
-        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
         """
         result = await self.delete_pet_with_http_info(
@@ -472,7 +473,7 @@ class PetApi(BaseApi):
     ) -> "ApiResult[None]":
         """Deletes a pet (with HTTP info)
         :param pet_id: Pet id to delete (required)
-        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -513,7 +514,8 @@ class PetApi(BaseApi):
             )
             if not _is_valid_cookie_value(cookie_value):
                 raise ValueError(
-                    "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+                    "Cookie value for 'api_key' contains characters outside the "
+                    "RFC 6265 cookie-octet set; percent-encode the value before passing it"
                 )
             cookie_parts.append(f"api_key={cookie_value}")
         if cookie_parts:
@@ -529,7 +531,7 @@ class PetApi(BaseApi):
             [],
             "application/json",
             None,
-            (options.auth if options is not None else None),
+            self._scheme_authenticator("adminBasic", "machineAuth"),
             operation_name="delete_pet",
             request_options=options,
         )
@@ -627,7 +629,7 @@ class PetApi(BaseApi):
             ["application/octet-stream"],
             "application/json",
             "bytes",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="download_pet_document",
             request_options=options,
         )
@@ -699,7 +701,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "List[Pet]",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="find_pets_born_on",
             request_options=options,
         )
@@ -832,7 +834,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "List[Pet]",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="find_pets_by_status",
             request_options=options,
         )
@@ -911,7 +913,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_external_pet_info",
             request_options=options,
         )
@@ -990,7 +992,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_multi_server_pet_info",
             request_options=options,
         )
@@ -1064,7 +1066,7 @@ class PetApi(BaseApi):
             ["image/jpeg", "image/png"],
             "application/json",
             "bytes",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_avatar",
             request_options=options,
         )
@@ -1138,7 +1140,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "bytes",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_avatar_thumbnail",
             request_options=options,
         )
@@ -1231,7 +1233,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_by_id",
             request_options=options,
         )
@@ -1347,7 +1349,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_by_name",
             request_options=options,
         )
@@ -1421,7 +1423,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "PetPassport",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_passport",
             request_options=options,
         )
@@ -1513,7 +1515,7 @@ class PetApi(BaseApi):
             ["image/jpeg", "image/png", "application/json"],
             "application/json",
             "bytes",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_photo",
             request_options=options,
         )
@@ -1638,7 +1640,8 @@ class PetApi(BaseApi):
             )
             if not _is_valid_cookie_value(cookie_value):
                 raise ValueError(
-                    "Cookie value for 'session' contains characters forbidden by RFC 6265"
+                    "Cookie value for 'session' contains characters outside the "
+                    "RFC 6265 cookie-octet set; percent-encode the value before passing it"
                 )
             cookie_parts.append(f"session={cookie_value}")
         if cookie_parts:
@@ -1654,7 +1657,7 @@ class PetApi(BaseApi):
             ["text/plain"],
             "application/json",
             "StrictStr",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_summary",
             request_options=options,
         )
@@ -1900,7 +1903,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_tag",
             request_options=options,
         )
@@ -1979,7 +1982,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_staging_pet_info",
             request_options=options,
         )
@@ -2072,7 +2075,7 @@ class PetApi(BaseApi):
             [],
             content_type,
             None,
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             raw_body=True,
             operation_name="set_pet_avatar",
             request_options=options,
@@ -2145,7 +2148,7 @@ class PetApi(BaseApi):
             [],
             "application/json",
             None,
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="set_pet_avatar_thumbnail",
             request_options=options,
         )
@@ -2234,7 +2237,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/x-www-form-urlencoded",
             "ApiResponse",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="set_pet_preferences",
             request_options=options,
         )
@@ -2316,7 +2319,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "application/json",
             "Pet",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="update_pet",
             request_options=options,
         )
@@ -2397,7 +2400,7 @@ class PetApi(BaseApi):
             ["application/json"],
             "multipart/form-data",
             "ApiResponse",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="upload_pet_certificate",
             request_options=options,
         )
@@ -2511,7 +2514,7 @@ class PetApi(BaseApi):
             ["application/json"],
             content_type,
             "ApiResponse",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="upload_pet_document",
             request_options=options,
         )

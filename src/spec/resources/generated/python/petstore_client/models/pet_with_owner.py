@@ -8,9 +8,9 @@
 from __future__ import annotations
 
 import re
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 from pydantic import StrictInt, StrictStr
-from petstore_client._types import hash_model
+from petstore_client._types import ApiModel, hash_model
 from typing import Any, List, Optional, Set
 from enum import Enum
 
@@ -27,7 +27,7 @@ class PetWithOwnerStatusEnum(str, Enum):
         return str(self.value)
 
 
-class PetWithOwner(BaseModel):
+class PetWithOwner(ApiModel):
     """
     A pet record extended with owner information
     """

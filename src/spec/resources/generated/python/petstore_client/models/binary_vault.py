@@ -7,12 +7,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
-from petstore_client._types import hash_model
+from pydantic import ConfigDict, Field
+from petstore_client._types import ApiModel, hash_model
 from typing import Dict, List, Optional
 
 
-class BinaryVault(BaseModel):
+class BinaryVault(ApiModel):
     """
     BinaryVault
     """

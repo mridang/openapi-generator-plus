@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import os
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
@@ -26,16 +26,28 @@ def _from_environment(field: str) -> Optional[str]:
 class {{clientClassName}}:
     """Unified entry point for all API services.
 
-    Takes an :class:`Authenticator` and optionally :class:`TransportOptions`,
-    then exposes each API group as a typed property. If the authenticator
-    implements :class:`HttpAwareAuthenticator`, the shared :class:`ApiClient`
-    is injected so that authentication HTTP calls (token exchange, discovery)
-    use the same transport configuration as regular API calls.
+    Takes credentials and optionally :class:`TransportOptions`, then exposes
+    each API group as a typed property. Each security scheme of the API has one
+    optional credential, a keyword argument named after the scheme{{#clientSchemes}}{{#-first}} (``{{/-first}}{{paramName}}{{^-last}}``, ``{{/-last}}{{#-last}}``){{/-last}}{{/clientSchemes}}.
+    An operation uses the credential of the first scheme its spec lists that
+    you configured; there is no per-call override. A single ``authenticator``
+    is the default for an operation none of whose schemes you configured. If a
+    credential implements :class:`HttpAwareAuthenticator`, the shared
+    :class:`ApiClient` is injected so that authentication HTTP calls (token
+    exchange, discovery) use the same transport configuration as regular API
+    calls.
 
     Usage::
 
-        # Default transport
+        # One default authenticator, default transport
         client = {{clientClassName}}(authenticator)
+{{#clientSchemes}}
+{{#-first}}
+
+        # One credential per security scheme
+        client = {{clientClassName}}({{paramName}}={{className}}(...))
+{{/-first}}
+{{/clientSchemes}}
 
         # Custom transport (proxy, timeouts, etc.)
         transport = TransportOptions.builder() \\
@@ -50,18 +62,32 @@ class {{clientClassName}}:
 
     def __init__(
         self,
-        authenticator: Authenticator,
+        authenticator: Optional[Authenticator] = None,
         transport_options: Optional[TransportOptions] = None,
         pool_manager: Optional[Any] = None,
+{{#hasClientSchemes}}
+        *,
+{{#clientSchemes}}
+        {{paramName}}: Optional[Authenticator] = None,
+{{/clientSchemes}}
+{{/hasClientSchemes}}
     ) -> None:
-        """Creates a new client with the given authenticator and transport options.
+        """Creates a new client from its credentials and transport options.
 
-        If the authenticator implements :class:`HttpAwareAuthenticator`, the
-        shared :class:`ApiClient` is injected so that token exchange and
-        discovery requests use the same proxy, TLS, and timeout settings.
+        Each security scheme of the API has one optional credential, named
+        after the scheme. An operation uses the credential of the first scheme
+        its spec lists that you configured, and there is no per-call override.
+        When none of its schemes is configured it uses ``authenticator`` if you
+        give one, and otherwise sends no credential. The base URL comes from the
+        first credential given, ``authenticator`` first.
+
+        If a credential implements :class:`HttpAwareAuthenticator`, the shared
+        :class:`ApiClient` is injected so that token exchange and discovery
+        requests use the same proxy, TLS, and timeout settings.
 
         Args:
-            authenticator: Provides host URL and auth headers.
+            authenticator: The default credential, used by an operation that
+                no scheme credential matches.
             transport_options: HTTP transport configuration (proxy, TLS,
                 timeouts, etc.).
             pool_manager: A ``urllib3.PoolManager`` you own. The SDK defaults
@@ -69,26 +95,44 @@ class {{clientClassName}}:
                 on top of it and the SDK never closes it. It cannot be
                 combined with a proxy or TLS setting in ``transport_options``;
                 a conflict raises :class:`ValueError`.
+{{#clientSchemes}}
+            {{paramName}}: The credential of the ``{{{schemeId}}}`` security scheme.
+{{/clientSchemes}}
+
+        Raises:
+            ValueError: If no credential is given at all.
         """
+        schemes: Dict[str, Authenticator] = {}
+{{#clientSchemes}}
+        if {{paramName}} is not None:
+            schemes["{{{schemeLiteral}}}"] = {{paramName}}
+{{/clientSchemes}}
+        credentials = ([authenticator] if authenticator is not None else []) + list(schemes.values())
+        if not credentials:
+            raise ValueError('At least one credential is required')
+
         if transport_options is None:
             transport_options = TransportOptions.builder().build()
 
         api_client = DefaultApiClient(transport_options, pool_manager)
         self._api_client = api_client
 
-        if isinstance(authenticator, HttpAwareAuthenticator):
-            authenticator.set_api_client(api_client)
+        for credential in credentials:
+            if isinstance(credential, HttpAwareAuthenticator):
+                credential.set_api_client(api_client)
 
         config = (
             Configuration.builder()
-            .base_url(authenticator.get_host())
+            .base_url(credentials[0].get_host())
             .build()
         )
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
         # API operations for the {{classname}} group.
-        self.{{clientPropertyName}}: {{classname}} = {{classname}}(api_client, config, authenticator)
+        self.{{clientPropertyName}}: {{classname}} = {{classname}}(
+            api_client, config, authenticator, schemes
+        )
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
@@ -176,9 +220,12 @@ class {{clientClassName}}:
         return cls(authenticator, transport_options, pool_manager)
 
     def close(self) -> None:
-        """Cancels in-flight requests and closes the pool this client created.
+        """Closes the client gracefully; calling it again does nothing.
 
-        A ``pool_manager`` you supplied is left open. Idempotent.
+        Requests already in flight finish, and the pool this client created is
+        released when the last of them completes. A request started afterwards
+        raises :class:`RuntimeError`. A ``pool_manager`` you supplied is never
+        closed. To abandon one request, cancel the asyncio task awaiting it.
         """
         self._api_client.close()
 

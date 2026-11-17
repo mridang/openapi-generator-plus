@@ -73,12 +73,20 @@ Every operation has a `<operation>_with_http_info` variant returning an `ApiResu
 
 ### Cancellation
 
-Cancelling the asyncio task that awaits an operation aborts the request
+Cancelling the asyncio task that awaits an operation aborts that request
 itself: its socket is shut down and the connection dropped, instead of the
-call running on in a worker thread. `Client.close()` (also `with Client(...)`)
-cancels every request still in flight; those calls raise `RuntimeError`. To
-bound how long a call can take, set the request timeout on `TransportOptions`;
-a call that exceeds it fails with `NetworkTimeoutException`.
+call running on in a worker thread. To bound how long a call can take, set the
+request timeout on `TransportOptions`; a call that exceeds it fails with
+`NetworkTimeoutException`.
+
+### Closing the client
+
+`Client.close()` (also `with Client(...)`) is graceful and safe to call again.
+It marks the client closed at once; calls already in flight, retries included,
+run to their end, and the transport the SDK created is released when the last
+of them completes. A call started afterwards raises `RuntimeError`
+(`ApiClient has been closed and can no longer send requests`). A
+`urllib3.PoolManager` you passed in is never closed.
 
 ### Credentials
 
@@ -114,6 +122,18 @@ The authenticator written for each security scheme in the API does the same for 
 
 Set `envVarPrefix` when generating to change the `SWAGGER_PETSTORE_OPEN_API_3_0` prefix.
 
+### Credentials per security scheme
+
+`Client` takes one optional credential for each security scheme of the API, as a keyword argument named after the scheme: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. Each operation uses the credential of the first scheme its spec lists that you configured; there is no per-call override. A single `authenticator` is the default for an operation none of whose schemes you configured, and a call with no matching credential and no default sends none. The base URL comes from the first credential given, `authenticator` first, and a client built with no credential at all raises `ValueError`.
+
+```python
+client = Client(pet_store_basic=PetStoreBasicAuthenticator())
+```
+
+### Cookie parameters
+
+A cookie parameter is sent exactly as you give it when every character is a legal RFC 6265 cookie-octet. A value with any other character (a space, comma, semicolon, double quote, backslash or a non-ASCII character) raises `ValueError` before anything is sent, so percent-encode it yourself first.
+
 ### Per-call options
 
 Every operation takes an optional `options` argument, an Options object that also carries three settings for that one call: `timeout` (milliseconds, one end-to-end budget of at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off). `None` keeps the client's setting.
@@ -132,9 +152,13 @@ An API error (`ApiException` and every subclass) carries `status_code`, `respons
 
 When an operation declares more than one 2xx response with different schemas, it returns a union (a generated `<Operation>Response` model with the decoded value in `actual_instance`), and the body is decoded by the status code the server answered with, never by guessing from its shape.
 
+### Constructing and decoding models
+
+Constructing a model never validates and never raises on a value: a value that fits its field is coerced as usual (a list given for a set field becomes a set), and one that does not, such as a wrong type, an unknown enum string or a value outside a constraint, is kept exactly as given and sent to the server. Only a required field you leave out raises `TypeError`. Validation happens when a document is decoded, which raises `SerializationException`, and an unknown enum value fails there loudly.
+
 ### Models are immutable
 
-Models are frozen pydantic models: assigning a field raises `pydantic.ValidationError`, and they are hashable (a model that holds a list, map or set is hashed by value), so they work as dict keys and set members. Make a changed copy with `model.model_copy(update={"name": "new"})`; the update is not validated, so validate by constructing the model again when the value comes from outside.
+Models are frozen pydantic models: assigning a field raises `pydantic.ValidationError`, and they are hashable (a model that holds a list, map or set is hashed by value), so they work as dict keys and set members. Make a changed copy with `model.model_copy(update={"name": "new"})`; the update is not validated, and neither is a constructor, so validate a value that comes from outside with `Model.model_validate(...)`.
 
 ### Logging and tracing
 
@@ -214,9 +238,9 @@ represents the full 64-bit range (and beyond) without loss.
 The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
 `multipleOf`, `minItems` and `maxItems` are validated by the server, which stays
 the authority. This SDK also checks them in the generated models, because
-pydantic does so natively (`Field(...)` constraints): constructing a model that
-violates one raises `pydantic.ValidationError`, and decoding a response that
-violates one raises `SerializationException`.
+pydantic does so natively (`Field(...)` constraints): decoding a response that
+violates one raises `SerializationException`, while constructing a model never
+validates and sends the value you gave.
 Request parameters outside a model are not checked client-side. `uniqueItems`
 arrays are sent in the collection's natural order (a Python `set` in iteration
 order), never sorted.

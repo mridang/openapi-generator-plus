@@ -1,9 +1,16 @@
+import asyncio
+import inspect
+import threading
+from typing import Any
+
 import pytest
 import urllib3
+from urllib3._collections import HTTPHeaderDict
 
 from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator
 from {{packageName}}.auth.api_key_location import ApiKeyLocation
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
+from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
 from {{packageName}}.transport_options import TransportOptions
 
@@ -85,6 +92,11 @@ def _authorization(client: {{clientClassName}}) -> str:
     return api._authenticator.get_auth_headers()['Authorization']
 
 
+def _schemes(client: {{clientClassName}}) -> dict[str, Any]:
+    api = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+    return dict(api._scheme_authenticators)
+
+
 def _host(client: {{clientClassName}}) -> str:
     api = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
     return api._config.base_url
@@ -148,6 +160,236 @@ class TestClientCredentials:
     def test_a_token_and_a_token_provider_together_are_rejected(self) -> None:
         with pytest.raises(ValueError, match='not both'):
             {{clientClassName}}.with_token('https://arg.example.com', 'arg-token', token_provider=lambda: 'live')
+
+
+class TestClientSchemeCredentials:
+    """F857: one optional credential per security scheme, named after the scheme."""
+
+    def test_a_client_built_with_no_credential_is_refused(self) -> None:
+        with pytest.raises(ValueError, match='At least one credential is required'):
+            {{clientClassName}}()
+
+    def test_the_default_authenticator_alone_is_enough(self) -> None:
+        client = {{clientClassName}}(authenticator=BearerAuthenticator('https://default.example.com', 'tok'))
+
+        assert _host(client) == 'https://default.example.com'
+{{#hasClientSchemes}}
+
+    def test_the_client_takes_one_keyword_argument_per_security_scheme(self) -> None:
+        parameters = inspect.signature({{clientClassName}}.__init__).parameters
+
+        assert list(parameters) == [
+            'self', 'authenticator', 'transport_options', 'pool_manager'{{#clientSchemes}}, '{{paramName}}'{{/clientSchemes}},
+        ]
+
+    def test_the_scheme_credentials_are_keyword_only(self) -> None:
+        parameters = inspect.signature({{clientClassName}}.__init__).parameters
+
+        for name in [{{#clientSchemes}}'{{paramName}}', {{/clientSchemes}}]:
+            assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY
+            assert parameters[name].default is None
+
+    def test_each_scheme_names_the_scheme_it_is_the_credential_of(self) -> None:
+{{#clientSchemes}}
+        held = BearerAuthenticator('https://{{paramName}}.example.com', 'tok')
+
+        client = {{clientClassName}}({{paramName}}=held)
+
+        assert _schemes(client) == {"{{{schemeLiteral}}}": held}
+{{/clientSchemes}}
+
+    def test_the_base_url_comes_from_the_first_credential_the_authenticator_first(self) -> None:
+        scheme = BearerAuthenticator('https://scheme.example.com', 'tok')
+        default = BearerAuthenticator('https://default.example.com', 'tok')
+
+        with_default = {{clientClassName}}(default, {{#clientSchemes}}{{#-first}}{{paramName}}=scheme{{/-first}}{{/clientSchemes}})
+        scheme_only = {{clientClassName}}({{#clientSchemes}}{{#-first}}{{paramName}}=scheme{{/-first}}{{/clientSchemes}})
+
+        assert _host(with_default) == 'https://default.example.com'
+        assert _host(scheme_only) == 'https://scheme.example.com'
+
+    def test_every_api_group_holds_the_same_credentials(self) -> None:
+        held = BearerAuthenticator('https://scheme.example.com', 'tok')
+        default = BearerAuthenticator('https://default.example.com', 'tok')
+
+        client = {{clientClassName}}(default, {{#clientSchemes}}{{#-first}}{{paramName}}=held{{/-first}}{{/clientSchemes}})
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assert client.{{clientPropertyName}}._authenticator is default
+        assert list(client.{{clientPropertyName}}._scheme_authenticators.values()) == [held]
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    def test_a_credential_that_needs_the_transport_is_given_it(self) -> None:
+        class _NeedsTransport(HttpAwareAuthenticator):
+            def __init__(self) -> None:
+                self.api_client: Any = None
+
+            def get_host(self) -> str:
+                return 'https://needs.example.com'
+
+            def get_auth_headers(self) -> dict[str, str]:
+                return {}
+
+            def get_query_params(self) -> dict[str, str]:
+                return {}
+
+            def get_cookie_params(self) -> dict[str, str]:
+                return {}
+
+            def set_api_client(self, api_client: Any) -> None:
+                self.api_client = api_client
+
+        credential = _NeedsTransport()
+
+        client = {{clientClassName}}({{#clientSchemes}}{{#-first}}{{paramName}}=credential{{/-first}}{{/clientSchemes}})
+
+        assert credential.api_client is client._api_client
+{{/hasClientSchemes}}
+
+
+class _Reply:
+    """The response a urllib3 pool manager hands back."""
+
+    status = 200
+    headers = HTTPHeaderDict({'content-type': 'application/json'})
+
+    def read(self) -> bytes:
+        return b'{}'
+
+    def release_conn(self) -> None:
+        pass
+
+
+class _SlowPool:
+    """A pool manager double whose request waits until the test lets it finish."""
+
+    def __init__(self) -> None:
+        self.started = threading.Event()
+        self.finish = threading.Event()
+        self.requests = 0
+        self.clears = 0
+
+    def request(self, method: str, url: str, **kwargs: Any) -> _Reply:
+        self.requests += 1
+        self.started.set()
+        self.finish.wait(10)
+        return _Reply()
+
+    def clear(self) -> None:
+        self.clears += 1
+
+
+def _owning(pool: Any) -> {{clientClassName}}:
+    """A client that owns ``pool`` as the transport it built itself."""
+    client = {{clientClassName}}(BearerAuthenticator('{{{basePath}}}', 'test-token'))
+    client._api_client._pool_manager = pool
+    client._api_client._owns_pool = True
+    return client
+
+
+async def _send(client: {{clientClassName}}) -> Any:
+    return await asyncio.to_thread(client._api_client.send_request, 'GET', '{{{basePath}}}/x', {}, None)
+
+
+class TestClientClose:
+    """F1078: closing is graceful and idempotent; requests in flight finish."""
+
+    async def test_a_request_in_flight_finishes_and_the_transport_is_released_after_it(self) -> None:
+        pool = _SlowPool()
+        client = _owning(pool)
+        request = asyncio.ensure_future(_send(client))
+        await asyncio.to_thread(pool.started.wait, 5)
+
+        client.close()
+
+        assert pool.clears == 0
+        pool.finish.set()
+        assert (await request).status_code == 200
+        assert pool.clears == 1
+
+    async def test_the_transport_is_released_when_the_last_of_several_requests_ends(self) -> None:
+        pool = _SlowPool()
+        client = _owning(pool)
+        first = asyncio.ensure_future(_send(client))
+        second = asyncio.ensure_future(_send(client))
+        while pool.requests < 2:
+            await asyncio.sleep(0.01)
+
+        client.close()
+        pool.finish.set()
+        await asyncio.gather(first, second)
+
+        assert pool.clears == 1
+
+    def test_closing_with_nothing_in_flight_releases_the_transport_at_once(self) -> None:
+        pool = _SlowPool()
+
+        _owning(pool).close()
+
+        assert pool.clears == 1
+
+    async def test_a_second_close_does_nothing(self) -> None:
+        pool = _SlowPool()
+        client = _owning(pool)
+        request = asyncio.ensure_future(_send(client))
+        await asyncio.to_thread(pool.started.wait, 5)
+
+        client.close()
+        client.close()
+        pool.finish.set()
+        await request
+        client.close()
+
+        assert pool.clears == 1
+
+    async def test_a_closed_client_rejects_a_new_request_with_the_client_closed_error(self) -> None:
+        pool = _SlowPool()
+        client = _owning(pool)
+        client.close()
+
+        with pytest.raises(RuntimeError) as error:
+            await _send(client)
+
+        assert str(error.value) == 'ApiClient has been closed and can no longer send requests'
+        assert pool.requests == 0
+
+    async def test_a_request_in_flight_is_not_aborted_by_close(self) -> None:
+        pool = _SlowPool()
+        client = _owning(pool)
+        request = asyncio.ensure_future(_send(client))
+        await asyncio.to_thread(pool.started.wait, 5)
+
+        client.close()
+        await asyncio.sleep(0.2)
+
+        assert not request.done()
+        pool.finish.set()
+        await request
+
+    async def test_a_pool_manager_the_caller_supplied_is_never_cleared(self) -> None:
+        pool = _SlowPool()
+        client = {{clientClassName}}(BearerAuthenticator('{{{basePath}}}', 'test-token'), pool_manager=pool)
+        request = asyncio.ensure_future(_send(client))
+        await asyncio.to_thread(pool.started.wait, 5)
+
+        client.close()
+        client.close()
+        pool.finish.set()
+        await request
+
+        assert pool.clears == 0
+
+    def test_leaving_the_with_block_closes_the_client(self) -> None:
+        pool = _SlowPool()
+
+        with _owning(pool):
+            assert pool.clears == 0
+
+        assert pool.clears == 1
 
 
 class _OwnedPool(urllib3.PoolManager):

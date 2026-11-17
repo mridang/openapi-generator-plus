@@ -18,6 +18,10 @@ client = Client.with_token("https://api.example.com", "your-token")
 
 All authentication is handled via `Authenticator` implementations passed to the client constructor.
 
+### Credentials per security scheme
+
+`Client` takes one optional credential for each security scheme of the API, as a keyword argument named after the scheme: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. Each operation uses the credential of the first scheme its spec lists that you configured; there is no per-call override. A single `authenticator` is the default for an operation none of whose schemes you configured, and a call with no matching credential and no default sends none. The client is refused (`ValueError`) when it gets no credential at all.
+
 ### Bearer Token
 
 ```python
@@ -297,11 +301,19 @@ Responses are decoded for you (`gzip` and `deflate`; `br` and `zstd` with `pip i
 
 ### Cancellation
 
+Cancelling the asyncio task awaiting an operation aborts that request.
+
+### Closing the client
+
 ```python
 client.close()
 ```
 
-Cancelling the asyncio task awaiting an operation aborts its request, and `client.close()` cancels every request still in flight (those calls raise `RuntimeError`). It never closes a pool manager you supplied.
+`client.close()` is graceful and safe to call again: calls already in flight finish, the transport the SDK created is released when the last of them completes, and a call started afterwards raises `RuntimeError`. It never closes a pool manager you supplied.
+
+### Cookie parameters
+
+A cookie parameter is sent as given when every character is a legal RFC 6265 cookie-octet; any other value raises `ValueError` before anything is sent, so percent-encode it yourself.
 
 ## API Methods
 
@@ -322,7 +334,7 @@ model = Account(username="example")
 model.username
 ```
 
-Required fields must be passed to the constructor; a missing one raises `pydantic.ValidationError`.
+Required fields must be passed to the constructor; a missing one raises `TypeError`. A constructor never validates: a value that does not fit its field is kept as given. Decoding validates (`SerializationException`).
 
 ## Binary / File Uploads
 

@@ -7,13 +7,13 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, SerializationInfo, model_serializer
+from pydantic import ConfigDict, Field, SerializationInfo, model_serializer
 from pydantic import StrictStr
-from petstore_client._types import hash_model
+from petstore_client._types import ApiModel, hash_model
 from typing import Any, Callable, Dict, Optional
 
 
-class RequiredNullable(BaseModel):
+class RequiredNullable(ApiModel):
     """
     RequiredNullable
     """

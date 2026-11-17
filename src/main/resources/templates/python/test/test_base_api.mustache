@@ -10,6 +10,8 @@ from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Iterator, Optional, Union
 
+from urllib3._collections import HTTPHeaderDict
+
 from {{packageName}}.api.base_api import BaseApi, NO_AUTH, _NoAuth
 from {{packageName}}.api.pet_api import PetApi
 from {{packageName}}.api.store_api import StoreApi
@@ -704,6 +706,208 @@ class TestSecurityNoneAuthSuppression:
             f'secured op must still send the client credential, got: {client.captured_headers}'
 
 
+class TestSchemeCredentials:
+    """F857: the client holds one credential per security scheme, and each
+    operation uses the credential of the first scheme its own spec lists that
+    the client holds, falling back to the client-level authenticator."""
+
+    @staticmethod
+    def _token(value: str) -> StubAuthenticator:
+        return StubAuthenticator(headers={'Authorization': value})
+
+    @staticmethod
+    def _api(client: ApiClient, **kwargs: Any) -> PetApi:
+        return PetApi(api_client=client, config=Configuration(base_url='http://localhost'), **kwargs)
+
+    @staticmethod
+    def _pet() -> Pet:
+        return Pet(name='rex', photoUrls={'http://example.com/p.png'})
+
+    async def test_each_operation_sends_the_credential_of_its_own_scheme(self) -> None:
+        schemes = {'petStoreBearer': self._token('Bearer b'), 'adminBasic': self._token('Basic a')}
+        client = JsonReplyApiClient(_PET_REPLY)
+        api = self._api(client, scheme_authenticators=schemes)
+
+        await api.add_pet(self._pet())
+        assert client.captured_headers['Authorization'] == 'Bearer b'
+
+        await api.delete_pet(1)
+        assert client.captured_headers['Authorization'] == 'Basic a'
+
+    async def test_the_first_scheme_the_operation_lists_wins(self) -> None:
+        # add_pet lists apiKeyHeader before petStoreBearer; the order of the
+        # mapping the caller built is irrelevant.
+        schemes = {
+            'petStoreBearer': self._token('Bearer b'),
+            'apiKeyHeader': StubAuthenticator(headers={'X-API-Key': 'k'}),
+        }
+        client = JsonReplyApiClient(_PET_REPLY)
+
+        await self._api(client, scheme_authenticators=schemes).add_pet(self._pet())
+
+        assert client.captured_headers['X-API-Key'] == 'k'
+        assert 'Authorization' not in client.captured_headers
+
+    async def test_the_default_authenticator_serves_an_operation_no_scheme_matches(self) -> None:
+        client = JsonReplyApiClient(_PET_REPLY)
+        api = self._api(
+            client,
+            authenticator=self._token('Bearer default'),
+            scheme_authenticators={'adminBasic': self._token('Basic a')},
+        )
+
+        await api.add_pet(self._pet())
+
+        assert client.captured_headers['Authorization'] == 'Bearer default'
+
+    async def test_a_scheme_credential_wins_over_the_default_authenticator(self) -> None:
+        client = JsonReplyApiClient(_PET_REPLY)
+        api = self._api(
+            client,
+            authenticator=self._token('Bearer default'),
+            scheme_authenticators={'petStoreBearer': self._token('Bearer b')},
+        )
+
+        await api.add_pet(self._pet())
+
+        assert client.captured_headers['Authorization'] == 'Bearer b'
+
+    async def test_no_credential_is_sent_when_no_scheme_matches_and_there_is_no_default(self) -> None:
+        client = JsonReplyApiClient(_PET_REPLY)
+        api = self._api(client, scheme_authenticators={'adminBasic': self._token('Basic a')})
+
+        await api.add_pet(self._pet())
+
+        assert 'Authorization' not in client.captured_headers
+
+    async def test_an_operation_naming_only_an_undeclared_scheme_uses_the_default(self) -> None:
+        # add_pet_treatment requires petstore_auth, which the spec never declares.
+        from {{packageName}}.models.pet_treatment import PetTreatment
+        from {{packageName}}.models.medication import Medication
+
+        client = JsonReplyApiClient('{"drugName":"m"}')
+        api = self._api(
+            client,
+            authenticator=self._token('Bearer default'),
+            scheme_authenticators={'petStoreBearer': self._token('Bearer b')},
+        )
+
+        try:
+            await api.add_pet_treatment(1, PetTreatment(Medication(drugName='m')))
+        except Exception:
+            pass  # The reply is not the model; only the request matters here.
+
+        assert client.captured_headers['Authorization'] == 'Bearer default'
+
+    async def test_a_security_none_operation_sends_no_scheme_credential(self) -> None:
+        schemes = {name: self._token('Bearer ' + name) for name in ('petStoreBasic', 'petStoreBearer')}
+        client = JsonReplyApiClient('{"available":1}')
+        api = StoreApi(
+            api_client=client,
+            config=Configuration(base_url='http://localhost'),
+            authenticator=self._token('Bearer default'),
+            scheme_authenticators=schemes,
+        )
+
+        await api.get_inventory()
+
+        assert 'Authorization' not in client.captured_headers
+
+    def test_the_first_credential_the_client_holds_is_returned(self) -> None:
+        held = self._token('Bearer b')
+        api = self._api(CapturingApiClient(), scheme_authenticators={'b': held})
+
+        assert api._scheme_authenticator('a', 'b', 'c') is held
+        assert api._scheme_authenticator('a', 'c') is None
+        assert api._scheme_authenticator() is None
+
+    async def test_a_scheme_credential_is_given_the_apis_transport_when_it_needs_one(self) -> None:
+        class _NeedsTransport(StubAuthenticator, HttpAwareAuthenticator):
+            def __init__(self) -> None:
+                super().__init__(headers={'Authorization': 'Bearer t'})
+                self.api_client: Optional[ApiClient] = None
+
+            def set_api_client(self, api_client: ApiClient) -> None:
+                self.api_client = api_client
+
+        credential = _NeedsTransport()
+        client = JsonReplyApiClient(_PET_REPLY)
+
+        await self._api(client, scheme_authenticators={'petStoreBearer': credential}).add_pet(self._pet())
+
+        assert credential.api_client is client
+
+
+class _GatedResponse:
+    """A response double that carries a status, headers and a body."""
+
+    def __init__(self, status: int, headers: dict[str, str], body: bytes) -> None:
+        self.status = status
+        self.headers = HTTPHeaderDict(headers)
+        self._body = body
+
+    def read(self) -> bytes:
+        return self._body
+
+    def release_conn(self) -> None:
+        pass
+
+
+class _GatedPool:
+    """A pool manager double: its first request waits for the test, then each request replays the script."""
+
+    def __init__(self, script: list[_GatedResponse]) -> None:
+        self._script = list(script)
+        self.started = threading.Event()
+        self.gate = threading.Event()
+        self.requests = 0
+        self.cleared = False
+
+    def request(self, method: str, url: str, **kwargs: Any) -> _GatedResponse:
+        self.requests += 1
+        if self.requests == 1:
+            self.started.set()
+            self.gate.wait(10)
+        return self._script.pop(0)
+
+    def clear(self) -> None:
+        self.cleared = True
+
+
+class TestCloseFinishesCallsInFlight:
+    """F1078: a call that started before close() runs to its end, retries included."""
+
+    async def test_a_call_that_retries_after_close_still_finishes(self) -> None:
+        pool = _GatedPool([
+            _GatedResponse(503, {'retry-after': '0'}, b''),
+            _GatedResponse(200, {'content-type': 'application/json'}, _PET_REPLY.encode()),
+        ])
+        client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=pool)
+        client._owns_pool = True
+        api = PetApi(api_client=client, config=Configuration(base_url='http://localhost'))
+        call = asyncio.ensure_future(api.get_pet_by_id(1))
+        await asyncio.to_thread(pool.started.wait, 5)
+
+        client.close()
+        pool.gate.set()
+        pet = await call
+
+        assert pet.name == 'sample'
+        assert pool.requests == 2
+        assert pool.cleared is True
+
+    async def test_a_call_started_after_close_raises_the_client_closed_error(self) -> None:
+        pool = _GatedPool([])
+        client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=pool)
+        api = PetApi(api_client=client, config=Configuration(base_url='http://localhost'))
+
+        client.close()
+
+        with pytest.raises(RuntimeError, match='ApiClient has been closed'):
+            await api.get_pet_by_id(1)
+        assert pool.requests == 0
+
+
 class TestBodySerialization:
 
     async def test_serializes_json_body(self, api: Any) -> None:
@@ -1334,9 +1538,45 @@ class TestOperationCookieParam:
 
         assert type(excinfo.value) is ValueError
         assert str(excinfo.value) == (
-            "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+            "Cookie value for 'api_key' contains characters outside the RFC 6265 "
+            "cookie-octet set; percent-encode the value before passing it"
         )
         assert client.captured_url == ""
+
+    @pytest.mark.parametrize("value", ["a b", "a,b", "a;b", 'a"b', "a\\b", "caf\u00e9"])
+    async def test_a_value_outside_the_cookie_octets_is_refused_before_sending(
+        self, value: str
+    ) -> None:
+        from {{packageName}}.api.options.delete_pet_options import DeletePetOptions
+
+        client = JsonReplyApiClient("")
+        api = PetApi(api_client=client, config=Configuration(base_url="http://localhost"))
+
+        with pytest.raises(ValueError, match="cookie-octet"):
+            await api.delete_pet(1, DeletePetOptions(api_key=value))
+
+        assert client.captured_url == ""
+
+    @pytest.mark.parametrize("value", ["a=b==", "100%25", "a/b+c", "!#$%&'()*+-./:<=>?@[]^_`{|}~"])
+    async def test_a_value_made_of_cookie_octets_is_sent_raw(self, value: str) -> None:
+        from {{packageName}}.api.options.delete_pet_options import DeletePetOptions
+
+        client = JsonReplyApiClient("")
+        api = PetApi(api_client=client, config=Configuration(base_url="http://localhost"))
+
+        await api.delete_pet(1, DeletePetOptions(api_key=value))
+
+        assert client.captured_headers["Cookie"] == "api_key=" + value
+
+    async def test_a_value_the_caller_percent_encoded_is_sent_as_given(self) -> None:
+        from {{packageName}}.api.options.delete_pet_options import DeletePetOptions
+
+        client = JsonReplyApiClient("")
+        api = PetApi(api_client=client, config=Configuration(base_url="http://localhost"))
+
+        await api.delete_pet(1, DeletePetOptions(api_key="a%20b"))
+
+        assert client.captured_headers["Cookie"] == "api_key=a%20b"
 
 
 class TestOperationServerVariants:

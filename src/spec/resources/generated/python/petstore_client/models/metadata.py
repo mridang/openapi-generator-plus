@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 from pydantic import (
-    BaseModel,
     ConfigDict,
     Field,
     SerializationInfo,
@@ -16,11 +15,11 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
-from petstore_client._types import hash_model
+from petstore_client._types import ApiModel, hash_model
 from typing import Any, Callable, Dict, Optional, Set
 
 
-class Metadata(BaseModel):
+class Metadata(ApiModel):
     """
     Metadata
     """

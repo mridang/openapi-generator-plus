@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 from pydantic import AwareDatetime, StrictInt
 
 from petstore_client.models.account import Account
@@ -59,8 +59,9 @@ class StoreApi(BaseApi):
         api_client: Optional[ApiClient] = None,
         config: Optional[Configuration] = None,
         authenticator: Optional[Authenticator] = None,
+        scheme_authenticators: Optional[Mapping[str, Authenticator]] = None,
     ):
-        super().__init__(api_client, config, authenticator)
+        super().__init__(api_client, config, authenticator, scheme_authenticators)
 
     async def create_account(
         self,
@@ -181,7 +182,7 @@ class StoreApi(BaseApi):
             [],
             "application/json",
             None,
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="delete_order",
             request_options=options,
         )
@@ -625,7 +626,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Order",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_order_by_id",
             request_options=options,
         )
@@ -1050,7 +1051,7 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "Order",
-            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="place_order",
             request_options=options,
         )

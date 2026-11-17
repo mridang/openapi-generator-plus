@@ -10,10 +10,10 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Tuple, Union
 
-from petstore_client._types import hash_model
+from petstore_client._types import ApiModel, hash_model, lenient_init
 
 
-class PetTreatment(BaseModel):
+class PetTreatment(ApiModel):
     """
     A treatment that can match a medication, a surgery, or both
     """
@@ -50,6 +50,7 @@ class PetTreatment(BaseModel):
     def __hash__(self) -> int:
         return hash_model(self)
 
+    @lenient_init
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
             if len(args) > 1:
@@ -111,6 +112,7 @@ class PetTreatment(BaseModel):
                     by_alias=True,
                     exclude_none=True,
                     context={"exact_numbers": True} if exact_numbers else None,
+                    warnings=False,
                 )
             else:
                 part = instance

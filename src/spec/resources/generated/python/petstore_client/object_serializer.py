@@ -217,8 +217,14 @@ class ObjectSerializer:
                     )
                 if hasattr(obj, "actual_instance"):
                     return self._serialize_marked(obj.actual_instance)
+                # A model keeps the values it was built with, valid or not, so a
+                # value that does not fit its field goes out as it is, without
+                # pydantic's serializer warning about it.
                 return obj.model_dump_json(
-                    by_alias=True, exclude_none=True, context=EXACT_NUMBER_CONTEXT
+                    by_alias=True,
+                    exclude_none=True,
+                    context=EXACT_NUMBER_CONTEXT,
+                    warnings=False,
                 )
             return json.dumps(
                 ObjectSerializer._sanitize_for_serialization(obj),
@@ -585,7 +591,7 @@ class ObjectSerializer:
         else:
             return data
 
-    def _deserialize_composed(self, data: Any, klass: type) -> Any:
+    def _deserialize_composed(self, data: Any, klass: type[BaseModel]) -> Any:
         """Deserialize data for oneOf/anyOf composed schemas.
 
         oneOf and a discriminated union keep FIRST-match semantics: the first
@@ -615,7 +621,7 @@ class ObjectSerializer:
             mapped = get_discriminator_value(data)
             if mapped:
                 instance = self._deserialize(data, mapped)
-                return klass(instance)
+                return klass.model_validate({"actual_instance": instance})
 
         if any_of_schemas:
             # Retain-all: collect every variant the payload satisfies.
@@ -626,16 +632,21 @@ class ObjectSerializer:
                 except Exception:
                     continue
             if matched:
-                return klass(matched)
-            return klass(data)
+                return klass.model_validate(
+                    {"actual_instance": matched[0], "matched_instances": matched}
+                )
+            return klass.model_validate({"actual_instance": data})
 
+        # The wrapper's constructor keeps whatever it is given, so decoding
+        # goes through model_validate: it is the validator that rejects a
+        # value no declared variant accepts.
         for schema_name in one_of_schemas:
             try:
                 instance = self._deserialize(data, schema_name)
-                return klass(instance)
+                return klass.model_validate({"actual_instance": instance})
             except Exception:
                 continue
-        return klass(data)
+        return klass.model_validate({"actual_instance": data})
 
     @classmethod
     def stringify(cls, value: Any) -> str:

@@ -1772,14 +1772,6 @@
    "reason": "S5 required plus nullable: the property is a nullable type (T?, *T, Option<T>) so an explicit null is legal, while decode still requires the key and encode always writes it; the surface check reads the nullable spelling as optional (same as the already allowed kotlin `String?`)"
   },
   {
-   "element": "requesthandle",
-   "aspect": "type",
-   "languages": [
-    "python"
-   ],
-   "reason": "S7 cancellation: python adds no operation parameter; RequestHandle is the thread-safe abort handle behind `close()` cancelling in-flight requests of the synchronous urllib3 client that asyncio.to_thread calls into"
-  },
-  {
    "element": "requestoptions",
    "aspect": "type",
    "languages": [
@@ -2994,27 +2986,6 @@
    "reason": "owner decision F868 (2026-11-17): models are immutable values with a copy method per property; rust spells it a consuming with_<property>(value) method (Java toBuilder, Kotlin copy, Dart copyWith), since the fields stay public for struct-update syntax. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
-   "element": "*api.*",
-   "aspect": "params",
-   "languages": [
-    "python"
-   ],
-   "value": "*options)",
-   "reason": "owner decision F827 (2026-11-17): every operation, with or without parameters, takes the trailing optional Options argument that carries the per-call settings. Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": [
-    "petapi.setpetavatar",
-    "petapi.setpetavatarwithhttpinfo"
-   ],
-   "aspect": "params",
-   "languages": [
-    "python"
-   ],
-   "value": "*options, requestcontenttype)",
-   "reason": "owner decision F827 (2026-11-17): the trailing optional Options argument that carries the per-call settings, ahead of the content-type selector (S8 keeps the selector last in python). Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
    "element": "apierror.fromresponse",
    "aspect": "params",
    "languages": [
@@ -3271,14 +3242,6 @@
    "reason": "F827 adoption: every operation takes the optional Options argument, so an operation with no parameter of its own takes (options); ruby lands first and the other languages add it in their own adoption branches, after which this rule is deleted"
   },
   {
-   "element": "*options",
-   "aspect": "type",
-   "languages": [
-    "python"
-   ],
-   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying timeout, headers and max_retries; python opts in through mintsOptionsForEveryOperation() and the shared pass mints one for each operation. Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
    "element": [
     "*authenticator.<ctor>"
    ],
@@ -3327,19 +3290,6 @@
     "node"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
-  },
-  {
-   "element": [
-    "reservestockresponse.reservation",
-    "reservestockresponse.reservationreceipt",
-    "reservestockresponse.asreservation",
-    "reservestockresponse.asreservationreceipt"
-   ],
-   "aspect": "member",
-   "languages": [
-    "python"
-   ],
-   "reason": "F878 (python/AGENTS.md): a oneOf wrapper holds its variant in actual_instance, a typed Union that isinstance narrows for mypy, so python has no per-variant is/as accessors, like node, rust and elixir whose unions are native; the member only reads as missing here because the languages with wrapper objects are the majority"
   },
   {
    "element": "apierror.fromresponse",
@@ -3606,6 +3556,75 @@
     "kotlin"
    ],
    "reason": "F862 owner decision (a token-provider callback beside the static credential): kotlin takes it as a trailing suspend lambda (apiKeyProvider, tokenProvider) on each api key and bearer scheme authenticator, as it does on the base authenticators; drop this row once the majority has a provider on the per-scheme authenticators"
+  },
+  {
+   "element": "requesthandle",
+   "aspect": "type",
+   "languages": [
+    "python"
+   ],
+   "reason": "S7 cancellation: python adds no operation parameter; RequestHandle is the thread-safe abort handle behind cancelling one request of the synchronous urllib3 client that asyncio.to_thread calls into (cancelling the awaiting task shuts its socket down); close() no longer cancels (F1078)"
+  },
+  {
+   "element": [
+    "reservestockresponse.reservation",
+    "reservestockresponse.reservationreceipt",
+    "reservestockresponse.asreservation",
+    "reservestockresponse.asreservationreceipt",
+    "petfood.dryfood",
+    "petfood.wetfood",
+    "petfood.asdryfood",
+    "petfood.aswetfood",
+    "pettreatment.medication",
+    "pettreatment.surgery",
+    "pettreatment.asmedication",
+    "pettreatment.assurgery",
+    "treatmentrecord.medication",
+    "treatmentrecord.surgery",
+    "treatmentrecord.asmedication",
+    "treatmentrecord.assurgery",
+    "reservestockresponse.fromreservation",
+    "reservestockresponse.fromreservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python"
+   ],
+   "reason": "F878 (python/AGENTS.md): a oneOf wrapper holds its variant in actual_instance, a typed Union that isinstance narrows for mypy, so python has no per-variant is/as accessors, like node, rust and elixir whose unions are native; the member only reads as missing here because the languages with wrapper objects are the majority"
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python"
+   ],
+   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so python's Options objects carry no per-call authenticator; the other eleven drop the field in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "baseapi.<ctor>",
+    "petapi.<ctor>",
+    "storeapi.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "python"
+   ],
+   "reason": "F857: the trailing scheme_authenticators mapping hands the client's credential per security scheme to each API group, which picks the one its spec names; the other languages pass it in their own way (dart a named argument, csharp an optional argument) and add it in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "calloptions"
+   ],
+   "aspect": "type",
+   "languages": [
+    "python"
+   ],
+   "reason": "internal support type: a typing.Protocol that names the timeout, headers and max_retries every generated Options dataclass carries, so BaseApi reads them from any Options object without importing each class; other languages reach the per-call settings through a shared base type or generated code, not a structural protocol"
   }
  ]
 }
