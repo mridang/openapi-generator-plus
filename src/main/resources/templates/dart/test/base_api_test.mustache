@@ -2139,6 +2139,26 @@ void main() {
       }
     });
 
+    test('bhv serializationwire 006 empty binary body yields null', () async {
+      final client = _ScriptedApiClient([
+        ApiHttpResponse(
+          statusCode: 200,
+          body: '',
+          headers: {'content-type': 'application/octet-stream'},
+        ),
+      ]);
+      final api = _RecordingApi(client);
+
+      final result = await api.invokeApiForResult<Uint8List>(
+        method: 'GET',
+        path: '/api/bin',
+        accepts: const ['application/octet-stream'],
+        returnType: 'Uint8List',
+      );
+
+      expect(result.data, isNull);
+    });
+
     /* byte-response-top-level (Case 13): getPetAvatarThumbnail returns a
      * top-level `format: byte` schema as application/json, so the body is a
      * JSON string literal carrying base64 (`"dGVzdC1pbWFnZQ=="`, quotes
