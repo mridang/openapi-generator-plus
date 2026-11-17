@@ -1354,7 +1354,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Gives every oneOf variant a PascalCase name for the typed
+     * Gives every oneOf and anyOf variant a PascalCase name for the typed
      * {@code From<Variant>}, {@code Is<Variant>} and {@code As<Variant>}
      * members of the union wrapper: the variant type with every non-letter
      * and non-digit dropped and each word capitalised, so {@code Reservation}
@@ -1362,10 +1362,18 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
      * {@code ListString}.
      */
     private static void nameUnionVariants(CodegenModel model) {
-        if (model.getComposedSchemas() == null || model.getComposedSchemas().getOneOf() == null) {
+        if (model.getComposedSchemas() == null) {
             return;
         }
-        for (final CodegenProperty variant : model.getComposedSchemas().getOneOf()) {
+        nameVariants(model.getComposedSchemas().getOneOf());
+        nameVariants(model.getComposedSchemas().getAnyOf());
+    }
+
+    private static void nameVariants(List<CodegenProperty> variants) {
+        if (variants == null) {
+            return;
+        }
+        for (final CodegenProperty variant : variants) {
             final StringBuilder name = new StringBuilder();
             boolean startOfWord = true;
             final String type = String.valueOf(variant.dataType);
