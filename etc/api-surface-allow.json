@@ -2735,17 +2735,6 @@
    "reason": "go cannot enumerate the constants of a named type: the allowed values of an inline enum are listed by an exported All<Enum>Values(), as for a top-level enum, F881"
   },
   {
-   "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath"
-   ],
-   "aspect": "member",
-   "languages": [
-    "go"
-   ],
-   "reason": "F830 request context: canonical in every SDK, allowed until the other eleven land it in the same pass"
-  },
-  {
    "element": "apierror.attachrequest",
    "aspect": "member",
    "languages": [
@@ -3193,6 +3182,55 @@
    ],
    "value": "missing*",
    "reason": "a oneOf in node is a TypeScript union alias of the variant types, so there is no wrapper to hold isX/asX accessors; the caller narrows the union with a structural or discriminator check"
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.headers",
+    "*options.maxretries"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has no optional fields on an options struct for per-call settings: the same timeout, headers and maxRetries are passed as variadic functional options (WithTimeout, WithHeaders, WithMaxRetries), the Go idiom for optional call arguments"
+  },
+  {
+   "element": "bearerauthenticator.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has no overloaded constructors: the token-provider callback is the separate constructor NewBearerAuthenticatorWithProvider(host, provider) beside NewBearerAuthenticator(host, token)"
+  },
+  {
+   "element": "bearerauthenticator.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "elixir has no overloads and no optional constructor arguments: new(host, token) accepts either a string or a zero-argument function as the token, the function being the token provider"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "go",
+    "elixir"
+   ],
+   "reason": "go has no optional arguments and elixir structs are immutable values: the request method and path are attached after the error is built (go AttachRequest, elixir with_request/3), the same RequestMethod and RequestPath members the other languages set through trailing arguments"
+  },
+  {
+   "element": [
+    "apierror.<ctor>",
+    "networkerror.<ctor>",
+    "networktimeouterror.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has no optional constructor arguments: NewApiError, NewNetworkError and NewNetworkTimeoutError take the required fields only, and AttachRequest sets requestMethod and requestPath afterwards"
   }
  ]
 }
