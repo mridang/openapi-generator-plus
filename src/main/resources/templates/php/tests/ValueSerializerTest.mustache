@@ -3,9 +3,20 @@
 declare(strict_types=1);
 
 use {{invokerPackage}}\ObjectSerializer;
+
+use {{invokerPackage}}\Models\PetCriteria;
 use {{invokerPackage}}\ValueSerializer;
 
 // -- path location --
+
+test('bhv serializationparam 004 an already percent-encoded path value is encoded again', function (): void {
+    expect(ValueSerializer::serialize('a%20b', 'path', 'string'))->toBe('a%2520b');
+    expect(ValueSerializer::serialize('50%', 'path', 'string'))->toBe('50%25');
+});
+
+test('bhv serializationparam 071 path value is segment-encoded once', function (): void {
+    expect(ValueSerializer::serialize('a/b c', 'path', 'string'))->toBe('a%2Fb%20c');
+});
 
 test('bhv serializationparam 062 path null returns empty string', function (): void {
     expect(ValueSerializer::serialize(null, 'path', 'string'))->toBe('');
@@ -290,6 +301,24 @@ test('bhv serializationparam 040 form style null returns null for query', functi
     expect(ValueSerializer::serializeStyled('color', null, 'query', 'string', null, 'form', true))->toBeNull();
 });
 
+test('bhv serializationparam 036 form style exploded object expands to one entry per property', function (): void {
+    $criteria = new PetCriteria(breed: 'lab', minAge: 3);
+    expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'PetCriteria', null, 'form', true))
+        ->toBe(['breed' => 'lab', 'min_age' => '3']);
+});
+
+test('bhv serializationparam 039 form style object without explode is one comma separated list', function (): void {
+    $criteria = new PetCriteria(breed: 'lab', minAge: 3);
+    expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'PetCriteria', null, 'form', false))
+        ->toBe('breed,lab,min_age,3');
+});
+
+test('bhv serializationparam 082 simple style object renders as a header list', function (): void {
+    $criteria = new PetCriteria(breed: 'lab', minAge: 3);
+    expect(ValueSerializer::serializeStyled('X-Criteria', $criteria, 'header', 'PetCriteria', null, 'simple', false))
+        ->toBe('breed,lab,min_age,3');
+});
+
 // -- serializeStyled: simple style backward compatibility --
 
 test('bhv serializationparam 086 simple scalar returns stringified value', function (): void {
@@ -408,6 +437,11 @@ test('bhv serializationparam 081 encode path segment preserves oas sub delimiter
     expect(ValueSerializer::encodePathSegment('a b'))->toBe('a%20b');
     expect(ValueSerializer::encodePathSegment('a/b'))->toBe('a%2Fb');
     expect(ValueSerializer::encodePathSegment('a#b'))->toBe('a%23b');
+});
+
+test('bhv serializationparam 080 reserved characters stay literal and other characters are encoded', function (): void {
+    expect(ValueSerializer::encodeQueryAllowingReserved(":/?@!$&'()*+,;="))->toBe(":/?@!$&'()*+,;=");
+    expect(ValueSerializer::encodeQueryAllowingReserved('a#b[c]d e'))->toBe('a%23b%5Bc%5Dd%20e');
 });
 
 test('styled path scalar preserves sub delimiters not over encoded', function (): void {

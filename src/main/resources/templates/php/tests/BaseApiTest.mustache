@@ -669,7 +669,7 @@ test('bhv operations 016 sends no body when null', function (): void {
     expect(true)->toBeTrue();
 });
 
-test('bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query', function (): void {
+test('bhv serializationwire 010 bhv operations 041 bhv serializationwire 001 findPetsByStatus omitting status sends no status= in query', function (): void {
     // findPetsByStatus has an optional `status` query param declared
     // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
     // value IF the client chooses to send the key — it does NOT mean the SDK
@@ -687,7 +687,7 @@ test('bhv serializationwire 010 findPetsByStatus omitting status sends no status
     expect($client->capturedUrl)->not->toContain('status=');
 });
 
-test('findPetsByStatus with explicit empty status sends status= in query', function (): void {
+test('bhv operations 040 bhv operations 003 findPetsByStatus with explicit empty status sends status= in query', function (): void {
     // When the caller explicitly supplies an empty value for the
     // allowEmptyValue param, the key IS present with an empty value: `status=`.
     $client = new CapturingApiClient();
@@ -1067,6 +1067,34 @@ test('bhv operations 004 an explicit Accept header parameter wins over the confi
     expect($client->capturedHeaders['Accept'] ?? null)->toBe('text/csv');
     expect(array_keys(array_change_key_case($client->capturedHeaders, CASE_LOWER)))
         ->toContain('accept');
+});
+
+test('bhv operations 001 a per call header replaces a default header of the same name', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('X-Tenant', 'default-tenant')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], ['X-Tenant' => 'per-call-tenant'], null,
+        ['application/json'], 'application/json', null);
+    $tenantValues = array_filter(
+        $client->capturedHeaders,
+        static fn (string $name): bool => strcasecmp($name, 'X-Tenant') === 0,
+        ARRAY_FILTER_USE_KEY
+    );
+    expect(array_values($tenantValues))->toBe(['per-call-tenant']);
+});
+
+test('bhv serializationwire 013 form urlencoded body keeps a well formed surrogate pair', function (): void {
+    // U+1F600 is a surrogate pair in UTF-16 and four UTF-8 bytes; the form body must carry
+    // exactly those bytes percent-encoded, with no lone surrogate.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['q' => "\u{1F600}"],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('q=%F0%9F%98%80');
 });
 
 // -- BinaryResponseTests --
