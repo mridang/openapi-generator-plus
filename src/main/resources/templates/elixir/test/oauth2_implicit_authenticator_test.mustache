@@ -143,6 +143,14 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       refute inspect(auth) =~ "implicit-tok"
       assert inspect(auth) =~ ~s(access_token: "***")
     end
+
+    test "bhv authoauthtwoimplicit 011 the redacted repr shows the non-secret fields" do
+      shown = create_authenticator() |> inspect()
+
+      assert shown =~ ~s(host: "https://api.example.com")
+      assert shown =~ ~s(client_id: "my-client-id")
+      assert shown =~ ~s(authorization_url: "https://auth.example.com/authorize")
+    end
   end
 end
 {{/generateTests}}
