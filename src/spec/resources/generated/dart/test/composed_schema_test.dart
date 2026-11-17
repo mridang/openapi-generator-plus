@@ -195,6 +195,23 @@ void main() {
       expect(treatment.actualInstance, isA<Medication>());
     });
 
+    test(
+      'bhv unions 003 a payload matching one anyOf variant is its own actual and matched instance',
+      () {
+        final treatment = PetTreatment.fromJson(<String, dynamic>{
+          'drugName': 'Amoxicillin',
+          'dosage': '250mg',
+        });
+
+        expect(treatment.matchedInstances, hasLength(1));
+        expect(
+          treatment.actualInstance,
+          same(treatment.matchedInstances.first),
+        );
+        expect(treatment.actualInstance, isA<Medication>());
+      },
+    );
+
     test('bhv unions 006 PetTreatment deserialize surgery', () {
       final json = <String, dynamic>{
         'procedureName': 'Spay',
@@ -317,6 +334,21 @@ void main() {
         });
 
         expect(record.matchedInstances, [isA<Surgery>(), isA<Medication>()]);
+      },
+    );
+
+    test(
+      'bhv unions 005 an anyOf keeps its variants in declaration order, not alphabetical order',
+      () {
+        // TreatmentRecord declares Surgery before Medication, the reverse of
+        // alphabetical order. The first declared match is the actual instance.
+        final record = TreatmentRecord.fromJson(<String, dynamic>{
+          'drugName': 'Amoxicillin',
+          'procedureName': 'Spay',
+        });
+
+        expect(record.matchedInstances, [isA<Surgery>(), isA<Medication>()]);
+        expect(record.actualInstance, isA<Surgery>());
       },
     );
 

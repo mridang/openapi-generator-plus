@@ -411,7 +411,7 @@ class TestPerCallOptions:
         assert "X-Tenant" not in client.sent[0]
         assert client.sent[0]["X-Keep"] == "yes"
 
-    async def test_bhv_retries_004_bhv_retries_009_per_call_max_retries_overrides_the_transport_budget(
+    async def test_bhv_retries_004_per_call_max_retries_overrides_the_transport_budget(
         self,
     ) -> None:
         client = _ScriptedApiClient(
@@ -435,6 +435,29 @@ class TestPerCallOptions:
 
         assert result.status_code == 200
         assert len(client.sent) == 2
+
+    async def test_bhv_retries_009_per_call_timeout_reaches_the_transport_deadline(
+        self,
+    ) -> None:
+        client = _DeadlineCapturingClient()
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        await api.call_result(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            request_options=FindPetsByStatusOptions(timeout=1500),
+        )
+
+        assert client.deadline is not None
+        assert client.deadline - time.monotonic() <= 1.5
 
     async def test_per_call_max_retries_zero_turns_retrying_off(self) -> None:
         client = _ScriptedApiClient(
@@ -494,7 +517,9 @@ class TestPerCallOptions:
         assert short - time.monotonic() <= 1.5
         assert client.deadline - time.monotonic() > 5
 
-    async def test_an_operation_without_parameters_takes_per_call_options(self) -> None:
+    async def test_bhv_operations_096_an_operation_without_parameters_takes_per_call_options(
+        self,
+    ) -> None:
         client = _ScriptedApiClient(_json(200, '{"reservationId":1,"quantity":2}'))
         api = StoreApi(
             api_client=client, config=Configuration(base_url="https://example.test")

@@ -1290,6 +1290,67 @@ void main() {
       },
     );
 
+    test(
+      'bhv retries 020 refuses to replay a POST body when redirected from https to http',
+      () async {
+        final certDir = 'test/fixtures/certs';
+        final tlsContext = SecurityContext()
+          ..useCertificateChain('$certDir/server.pem')
+          ..usePrivateKey('$certDir/server-key.pem');
+
+        var targetHits = 0;
+        final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        target.listen((request) {
+          targetHits++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        final source = await HttpServer.bindSecure(
+          InternetAddress.loopbackIPv4,
+          0,
+          tlsContext,
+        );
+        source.listen((request) {
+          request.response
+            ..statusCode = 308
+            ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder().verifySsl(false).build();
+          final client = DefaultApiClient(transportOptions: transport);
+          await expectLater(
+            client.sendRequest(
+              'POST',
+              'https://127.0.0.1:${source.port}/submit',
+              {'Content-Type': 'application/json'},
+              Uint8List.fromList(utf8.encode('{"token":"hunter2"}')),
+            ),
+            throwsA(
+              isA<ApiException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                308,
+              ),
+            ),
+          );
+          expect(
+            targetHits,
+            equals(0),
+            reason:
+                'plain-HTTP target must not be contacted after '
+                'an HTTPS->HTTP downgrade with a POST body',
+          );
+        } finally {
+          await source.close();
+          await target.close();
+        }
+      },
+    );
+
     /* T-D1: exceeding maxRedirects must raise a typed ApiException, not
      * silently return the last 3xx as a normal response. */
     test(
@@ -2505,6 +2566,36 @@ void main() {
     );
 
     test(
+      'bhv serializationwire 047 a png file part beside a text field gets image/png',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {
+              'caption': 'hello',
+              'avatar.png': Uint8List.fromList([0x89, 0x50, 0x4E, 0x47]),
+            },
+          );
+          expect(body, contains('content-type: image/png'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv serializationwire 038 multipart .pdf field sets application/pdf Content-Type',
       () async {
         String body = '';
@@ -2556,6 +2647,33 @@ void main() {
             },
           );
           expect(body, contains('content-type: application/octet-stream'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv serializationwire 037 multipart text file part sets text/plain Content-Type from its extension',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {'notes.txt': Uint8List.fromList(utf8.encode('hello'))},
+          );
+          expect(body, contains('content-type: text/plain'));
         } finally {
           await server.close();
         }

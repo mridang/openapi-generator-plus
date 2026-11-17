@@ -42,31 +42,34 @@ void main() {
     // value directly (no outer re-encode), so a space must yield `%20`
     // (single-encoded) and never `%2520` (double-encoded), and `a/b` must
     // yield `a%2Fb` and never `a%252Fb`.
-    test('serializeStyled simple path scalar is single-encoded', () {
-      final space = serializeStyled(
-        'p',
-        'a b',
-        'path',
-        'string',
-        '',
-        'simple',
-        false,
-      );
-      expect(space, equals('a%20b'));
-      expect(space, isNot(contains('%2520')));
+    test(
+      'bhv serializationparam 073 serializeStyled simple path scalar is single-encoded',
+      () {
+        final space = serializeStyled(
+          'p',
+          'a b',
+          'path',
+          'string',
+          '',
+          'simple',
+          false,
+        );
+        expect(space, equals('a%20b'));
+        expect(space, isNot(contains('%2520')));
 
-      final slash = serializeStyled(
-        'p',
-        'a/b',
-        'path',
-        'string',
-        '',
-        'simple',
-        false,
-      );
-      expect(slash, equals('a%2Fb'));
-      expect(slash, isNot(contains('%252F')));
-    });
+        final slash = serializeStyled(
+          'p',
+          'a/b',
+          'path',
+          'string',
+          '',
+          'simple',
+          false,
+        );
+        expect(slash, equals('a%2Fb'));
+        expect(slash, isNot(contains('%252F')));
+      },
+    );
 
     test('bhv serializationparam 044 serializeValue path integer', () {
       final result = serializeValue(42, 'path', 'integer', '');
@@ -1082,6 +1085,14 @@ void main() {
     // yield `%20`, never `+`.
     group('allowReserved query encoding', () {
       test(
+        'bhv serializationparam 002 allowReserved leaves reserved characters literal but still encodes others',
+        () {
+          expect(encodeQueryAllowingReserved('k=v&x=1;2'), equals('k=v&x=1;2'));
+          expect(encodeQueryAllowingReserved('a b'), equals('a%20b'));
+        },
+      );
+
+      test(
         'bhv serializationparam 080 reserved characters left literal, other characters still encoded',
         () {
           expect(
@@ -1242,6 +1253,37 @@ void main() {
         },
       );
     });
+
+    test(
+      'bhv serializationparam 011 an array keeps an empty slot for a null element with multi',
+      () {
+        expect(
+          serializeValue([null, 'b', null], 'query', 'array', 'multi'),
+          equals(['', 'b', '']),
+        );
+      },
+    );
+
+    test(
+      'bhv serializationparam 032 an empty array returns an empty string for csv',
+      () {
+        expect(serializeValue(<String>[], 'query', 'array', 'csv'), equals(''));
+      },
+    );
+
+    test(
+      'bhv serializationparam 081 a semicolon is kept literal in a path segment',
+      () {
+        expect(serializeValue('a;b', 'path', 'string', ''), equals('a;b'));
+      },
+    );
+
+    test(
+      'bhv serializationparam 070 path encoding parity null returns an empty string',
+      () {
+        expect(serializeValue(null, 'path', 'string', ''), equals(''));
+      },
+    );
 
     test(
       'bhv serializationparam 004 an already percent-encoded value is encoded exactly once',

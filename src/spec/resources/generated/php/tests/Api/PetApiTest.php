@@ -546,7 +546,7 @@ test('bhv operations 067 get pet tag sends object valued parameters in their dec
     expect($captured->headers['X-Criteria'] ?? null)->toBe('breed,lab,min_age,3');
 });
 
-test('bhv operations 044 bhv operations 021 find pets by status sends a deepObject filter and a digit-leading query name', function (): void {
+test('bhv operations 044 find pets by status sends a deepObject filter and a digit-leading query name', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {
@@ -559,6 +559,19 @@ test('bhv operations 044 bhv operations 021 find pets by status sends a deepObje
     }
 
     expect($captured->url)->toContain('filter%5Bcolor%5D=blue&filter%5Bsize%5D=large');
+    expect($captured->url)->toContain('2ndPage=2');
+    expect($captured->url)->not->toContain('n2ndPage');
+});
+
+test('bhv operations 021 a digit-leading query parameter keeps its wire name', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(n2ndPage: 2));
+    } catch (\Throwable) {
+        // Only the captured URL matters here.
+    }
+
     expect($captured->url)->toContain('2ndPage=2');
     expect($captured->url)->not->toContain('n2ndPage');
 });
@@ -1365,10 +1378,21 @@ test('a per call timeout and retry count must be valid', function (): void {
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
 });
 
-test('bhv operations 078 bhv operations 081 auth omitted from options falls back to configuration credentials', function (): void {
+test('bhv operations 078 auth omitted from options falls back to configuration credentials', function (): void {
     // With no Options (or an Options carrying a null auth) the operation must
     // fall back to the client's configured credentials — here the default
     // Authorization header set on the Configuration.
+    [$api, $captured] = newHeaderCapturingPetApi();
+
+    $pet = new Pet(name: 'DefaultDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
+    $pet = $pet->withId(1);
+    $api->addPet($pet);
+
+    expect($captured->headers['Authorization'] ?? null)->toBe('Bearer default-token');
+});
+
+test('bhv operations 081 test add pet using configured credentials', function (): void {
+    // With no Options the operation falls back to the client's configured credentials.
     [$api, $captured] = newHeaderCapturingPetApi();
 
     $pet = new Pet(name: 'DefaultDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
@@ -1711,7 +1735,7 @@ test('bhv operations 024 add pet treatment sends the chosen anyOf variant as the
     expect($captured->body)->toContain('"dosage":"5mg"');
 });
 
-test('bhv operations 032 bhv operations 033 deprecated operations, parameters and models carry the deprecation marker', function (): void {
+test('bhv operations 032 deprecated operations, parameters and models carry the deprecation marker', function (): void {
     foreach (['findPetsByStatus', 'findPetsByStatusWithHttpInfo', 'getPetById', 'getPetByIdWithHttpInfo'] as $method) {
         $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
         expect($doc)->toBeString();
@@ -1727,4 +1751,13 @@ test('bhv operations 032 bhv operations 033 deprecated operations, parameters an
     expect($tag)->toBeString();
     assert(is_string($tag));
     expect($tag)->toContain('@deprecated This schema is deprecated.');
+});
+
+test('bhv operations 033 deprecation markers sit on every variant of a deprecated operation', function (): void {
+    foreach (['findPetsByStatus', 'findPetsByStatusWithHttpInfo', 'getPetById', 'getPetByIdWithHttpInfo'] as $method) {
+        $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
+        expect($doc)->toBeString();
+        assert(is_string($doc));
+        expect($doc)->toContain('@deprecated This operation is deprecated.');
+    }
 });

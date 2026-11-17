@@ -132,6 +132,9 @@ module Petstore::Client
                          else
                            auth || @authenticator
                          end
+        # A per-call credential that needs HTTP (an OAuth2 token exchange, a discovery
+        # request) is handed the API's client here, as the client-level one is at construction.
+        effective_auth.api_client = @api_client if effective_auth.is_a?(::Petstore::Client::Auth::HttpAwareAuthenticator)
         effective_auth&.query_params&.each { |k, v| query_params[k] = v }
 
         query_string = build_query_string(query_params)

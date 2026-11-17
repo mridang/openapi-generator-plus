@@ -883,7 +883,7 @@ class TestNoRedirectOnTokenPost:
 
         return _Pool()
 
-    def test_bhv_redirects_021_307_returned_as_is_when_no_redirect(self) -> None:
+    def test_bhv_redirects_021_no_redirect_returns_a_307_as_is(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._make_pool(
             [
@@ -904,7 +904,7 @@ class TestNoRedirectOnTokenPost:
         assert result.headers.get("location") == "https://attacker.example.com/steal"
         assert len(pool.calls) == 1
 
-    def test_bhv_redirects_022_308_returned_as_is_when_no_redirect(self) -> None:
+    def test_bhv_redirects_022_no_redirect_returns_a_308_as_is(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._make_pool(
             [
@@ -922,7 +922,7 @@ class TestNoRedirectOnTokenPost:
         assert result.status_code == 308
         assert len(pool.calls) == 1
 
-    def test_bhv_redirects_015_303_returned_as_is_when_no_redirect(self) -> None:
+    def test_bhv_redirects_015_no_redirect_returns_a_303_as_is(self) -> None:
         # no_redirect disables redirect following entirely, so even a 303
         # is returned to the caller rather than coerced-to-GET and followed.
         transport = TransportOptions.builder().follow_redirects(True).build()

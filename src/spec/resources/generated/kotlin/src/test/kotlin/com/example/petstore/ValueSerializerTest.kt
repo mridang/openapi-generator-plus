@@ -262,6 +262,12 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject167 ToQueryValue string returns the value unchanged")
+        fun queryStringValueIsReturnedUnchanged() {
+            assertEquals("abc123", ValueSerializer.serialize("abc123", "query", "string", null))
+        }
+
+        @Test
         @DisplayName("bhvSerializationparam067 null returns null")
         fun nullReturnsNull() {
             assertNull(ValueSerializer.serialize(null, "query", "string", null))
@@ -304,6 +310,12 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject169 ToQueryValue string slice SSV joins with spaces")
+        fun stringSliceJoinsWithSpacesForSsv() {
+            assertEquals("x y", ValueSerializer.serialize(listOf("x", "y"), "query", "array", "ssv"))
+        }
+
+        @Test
         @DisplayName("bhvSerializationparam010 array joins with tab for tsv")
         fun arrayJoinsWithTabForTsv() {
             assertEquals("a\tb\tc", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "tsv"))
@@ -319,6 +331,12 @@ class ValueSerializerTest {
         @DisplayName("bhvSerializationparam007 array joins with comma for csv")
         fun arrayJoinsWithCommaForCsv() {
             assertEquals("a,b,c", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "csv"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject168 ToQueryValue string slice CSV joins with commas")
+        fun stringSliceJoinsWithCommasForCsv() {
+            assertEquals("x,y", ValueSerializer.serialize(listOf("x", "y"), "query", "array", "csv"))
         }
 
         @Test

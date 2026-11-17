@@ -64,7 +64,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject107 datetime with +05:30 offset preserves offset in " +
+            "bhvSerializationobject116 datetime with +05:30 offset preserves offset in " +
                 "serialized string",
         )
         fun positiveOffsetPreserved() {
@@ -79,6 +79,27 @@ class ObjectSerializerTest {
             val dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00")
             val result = serializer.stringify(dt)
             assertEquals("2024-01-01T12:30:45.000-08:00", result)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject107 negative offset is preserved in serialized string")
+        fun negativeOffsetIsPreservedInTheSerializedString() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45-03:30")
+            assertEquals("2024-01-01T12:30:45.000-03:30", serializer.stringify(dt))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject151 a datetime serializes in the canonical date-time form")
+        fun dateTimeSerializesInTheCanonicalDateTimeForm() {
+            val dt = OffsetDateTime.parse("2024-03-10T08:05:09+02:00")
+            assertEquals("2024-03-10T08:05:09.000+02:00", serializer.stringify(dt))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject179 a whole-second datetime serializes with a fixed three-digit fraction")
+        fun wholeSecondDateTimeHasAFixedThreeDigitFraction() {
+            val dt = OffsetDateTime.parse("2024-06-30T23:59:59Z")
+            assertEquals("2024-06-30T23:59:59.000+00:00", serializer.stringify(dt))
         }
 
         @Test
@@ -111,6 +132,15 @@ class ObjectSerializerTest {
             val result = serializer.stringify(dt)
             assertEquals("2024-01-01T12:30:45.000+00:00", result)
             assertFalse(result.endsWith("Z"), "must not use the Z designator: $result")
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject064 deserialize time as OffsetDateTime preserves the time portion and offset")
+        fun deserializedDateTimePreservesTimeAndOffset() {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{\"shipDate\":\"2024-01-15T10:30:00.123+05:30\"}")
+            assertNotNull(order)
+            assertEquals(java.time.LocalTime.of(10, 30, 0, 123_000_000), order!!.shipDate!!.toLocalTime())
+            assertEquals(ZoneOffset.ofHoursMinutes(5, 30), order.shipDate!!.offset)
         }
 
         @Test
@@ -428,6 +458,57 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject049 an explicit null decodes to nil for an optional property")
+        fun explicitNullDecodesToNil() {
+            val decoded = serializer.deserialize<com.example.petstore.models.Category>("{\"id\":null,\"name\":null}")
+            assertNotNull(decoded)
+            assertNull(decoded!!.id)
+            assertNull(decoded.name)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject050 a payload without a defaulted property gives it the default")
+        fun absentDefaultedPropertyTakesItsDefault() {
+            val defaults = serializer.deserialize<com.example.petstore.models.Defaults>("{\"label\":\"x\"}")
+            assertNotNull(defaults)
+            assertEquals(3, defaults!!.retries)
+            assertEquals(com.example.petstore.models.Defaults.ModeEnum.MEDIUM, defaults.mode)
+            assertEquals("x", defaults.label)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject056 an explicit null wins over the default of an enum property")
+        fun explicitNullOverridesEnumDefault() {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{\"id\":10,\"status\":null}")
+            assertNotNull(order)
+            assertNull(order!!.status)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject066 invalid JSON text raises the SDK SerializationException")
+        fun invalidJsonRaisesSerializationException() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Category>("not json")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject084 an explicit null for a required container property throws")
+        fun explicitNullRequiredContainerThrows() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"n\",\"photoUrls\":null}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject089 an incomplete JSON object raises the SDK SerializationException")
+        fun incompleteObjectRaisesSerializationException() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Category>("{\"id\":1,\"name\":\"Dogs\"")
+            }
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject138 returns null for null input")
         fun returnsNullForNullInput() {
             val result: String? = serializer.deserialize(null)
@@ -670,6 +751,46 @@ class ObjectSerializerTest {
             assertThrows(SerializationException::class.java) {
                 serializer.deserialize<com.example.petstore.models.Pet>("{\"photoUrls\":[]}")
             }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject092 integer-backed enum deserializes from a JSON number to the member")
+        fun integerBackedEnumDeserializesFromANumber() {
+            val item = serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1}")
+            assertEquals(com.example.petstore.models.Priority.NUMBER_1, item!!.priority)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject111 numeric schema defaults are exact typed values")
+        fun numericSchemaDefaultsAreExactTypedValues() {
+            val defaults = serializer.deserialize<com.example.petstore.models.Defaults>("{}")
+            assertNotNull(defaults)
+            assertEquals(3, defaults!!.retries)
+            assertEquals(0.25f, defaults.scale)
+            assertEquals(2.0, defaults.weight)
+            assertEquals(9000000000L, defaults.ceiling)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject173 uri-reference field still accepts a relative reference")
+        fun uriReferenceFieldAcceptsARelativeReference() {
+            val pet =
+                serializer.deserialize<com.example.petstore.models.Pet>(
+                    "{\"name\":\"n\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb.png\"}",
+                )
+            assertEquals("/assets/thumb.png", pet!!.thumbnailRef)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject177 a weight survives a serialize and deserialize round trip as a number")
+        fun weightSurvivesARoundTripAsANumber() {
+            val json =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .DryFood(weightKg = 2.5),
+                )
+            val back = serializer.deserialize<com.example.petstore.models.DryFood>(json)
+            assertEquals(2.5, back!!.weightKg)
         }
 
         @Test
@@ -931,6 +1052,24 @@ class ObjectSerializerTest {
         @DisplayName("bhvSerializationobject181 zero Duration stringifies as 0s")
         fun zeroDurationStringifiesAsZeroSeconds() {
             assertEquals("0s", serializer.stringify(java.time.Duration.ZERO))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject105 negative duration carries the sign")
+        fun negativeDurationCarriesTheSign() {
+            assertEquals("-90s", serializer.stringify(java.time.Duration.ofSeconds(-90)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject158 stringify emits the canonical protobuf duration for a Duration")
+        fun durationStringifiesAsCanonicalProtobufDuration() {
+            assertEquals("1.500s", serializer.stringify(java.time.Duration.ofMillis(1500)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject159 stringify returns a string unchanged, quotes and backslashes included")
+        fun stringStringifiesUnchanged() {
+            assertEquals("a \"quoted\" \\ value", serializer.stringify("a \"quoted\" \\ value"))
         }
 
         @Test
@@ -1227,6 +1366,15 @@ class ObjectSerializerTest {
             assertNotNull(decoded)
             assertEquals(original.id, decoded!!.id)
             assertEquals(original.optional, decoded.optional)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject048 a malformed uuid in an optional property is rejected on decode")
+        fun malformedOptionalUuidThrows() {
+            val raw = "{\"id\":\"550e8400-e29b-41d4-a716-446655440000\",\"optional\":\"not-a-uuid\"}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<UuidHolder>(raw)
+            }
         }
 
         @Test
@@ -1622,6 +1770,16 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject024 an unknown inline enum value is rejected")
+        fun unknownInlineEnumValueIsRejected() {
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"phase\":\"sold-out\"}")
+                }
+            assertInstanceOf(OpenAPIException::class.java, ex)
+        }
+
+        @Test
         @DisplayName(
             "bhvSerializationobject032 constraint keywords are not enforced: slug, " +
                 "nickname and quantity decode as given",
@@ -1639,6 +1797,17 @@ class ObjectSerializerTest {
             assertTrue(serializer.serialize(pet).contains("\"nickname\":\"ZZZZZZZZZZ\""))
             val order = serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":500}")
             assertEquals(500, order!!.quantity)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject010 a nickname longer than its declared maximum still decodes and round-trips")
+        fun overlongNicknameDecodesAndRoundTrips() {
+            val pet =
+                serializer.deserialize<com.example.petstore.models.Pet>(
+                    "{\"name\":\"n\",\"photoUrls\":[\"u\"],\"nickname\":\"ZZZZZZZZZZ\"}",
+                )
+            assertEquals("ZZZZZZZZZZ", pet!!.nickname)
+            assertEquals("ZZZZZZZZZZ", serializer.deserialize<com.example.petstore.models.Pet>(serializer.serialize(pet))!!.nickname)
         }
 
         @Test
@@ -1968,6 +2137,36 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject073 a duration round-trips through a model body")
+        fun durationRoundTripsThroughAModelBody() {
+            val wire =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .EdgeCases(retryAfter = java.time.Duration.ofSeconds(90)),
+                )
+            assertTrue(wire.contains("\"retryAfter\":\"90s\""), "got: $wire")
+            val decoded = serializer.deserialize<com.example.petstore.models.EdgeCases>(wire)
+            assertEquals(java.time.Duration.ofSeconds(90), decoded!!.retryAfter)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject081 a duration field in a model body is written as whole protobuf seconds")
+        fun durationFieldIsWrittenAsWholeSeconds() {
+            val wire =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .EdgeCases(retryAfter = java.time.Duration.ofHours(1)),
+                )
+            assertTrue(wire.contains("\"retryAfter\":\"3600s\""), "got: $wire")
+        }
+
+        @DisplayName("bhvSerializationobject113 parses a negative protobuf-JSON duration of whole seconds")
+        fun negativeWholeSecondProtobufDurationParses() {
+            val edge = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"retryAfter\":\"-90s\"}")
+            assertEquals(java.time.Duration.ofSeconds(-90), edge!!.retryAfter)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject080 format:duration that is malformed or overflows raises the SDK SerializationException")
         fun malformedOrOverflowingDurationRaisesSerializationException() {
             // Neither kotlinx's SerializationException nor a raw
@@ -2006,6 +2205,15 @@ class ObjectSerializerTest {
                     "{\"id\":1,\"name\":\"x\"}",
                 )
             assertEquals("x", ok!!.name)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject047 declared keys decode on an unevaluatedProperties:false model")
+        fun declaredKeysDecode() {
+            val tag = serializer.deserialize<com.example.petstore.models.StrictTag>("{\"id\":7,\"name\":\"x\"}")
+            assertNotNull(tag)
+            assertEquals(7L, tag!!.id)
+            assertEquals("x", tag.name)
         }
 
         @Test
@@ -2346,6 +2554,24 @@ class ObjectSerializerTest {
             val withPassword =
                 serializer.deserialize<com.example.petstore.models.Account>("{\"id\":7,\"username\":\"u\",\"password\":\"p\"}")
             assertEquals("p", withPassword!!.password)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject014 a readOnly property is decoded from a response")
+        fun readOnlyPropertyIsDecoded() {
+            val decoded = serializer.deserialize<com.example.petstore.models.Account>("{\"id\":7,\"username\":\"u\"}")
+            assertEquals(7L, decoded!!.id)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject018 a writeOnly property is serialized on the wire")
+        fun writeOnlyPropertyIsSerialized() {
+            val json =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .Account(username = "u", password = "p"),
+                )
+            assertTrue(json.contains("\"password\":\"p\""), json)
         }
 
         // A payload nested ~600 deep parses fine; ~1500 deep exceeds the 1000

@@ -1685,7 +1685,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("bhvRedirects010 300 and 305 with a Location are returned as-is, never followed")
+        @DisplayName("300 and 305 with a Location are returned as-is, never followed")
         fun nonRedirectThreeXxStatusesAreNotFollowed() {
             for (status in listOf(HttpStatusCode.MultipleChoices, HttpStatusCode.UseProxy)) {
                 var hopCount = 0
@@ -1706,6 +1706,35 @@ class DefaultApiClientUnitTest {
                     }
                 assertEquals(status.value, response.statusCode)
                 assertEquals(1, hopCount, "${status.value} must not be followed")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects010 a 3xx whose Location is absent or unparseable comes back as the redirect response")
+        fun unusableLocationReturnsTheRedirectResponse() {
+            for (location in listOf<String?>(null, "http://[bad")) {
+                var hopCount = 0
+                val engine =
+                    MockEngine { _ ->
+                        hopCount++
+                        if (location == null) {
+                            respond(content = "", status = HttpStatusCode.Found)
+                        } else {
+                            respond(
+                                content = "",
+                                status = HttpStatusCode.Found,
+                                headers = headersOf("Location", location),
+                            )
+                        }
+                    }
+                val transport = TransportOptions.builder().followRedirects(true).build()
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                val response =
+                    runBlocking {
+                        apiClient.sendRequest("GET", "http://localhost/start", emptyMap(), null)
+                    }
+                assertEquals(302, response.statusCode, "Location=$location")
+                assertEquals(1, hopCount, "Location=$location must not be followed")
             }
         }
 
@@ -2736,18 +2765,13 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("bhvRetries021 408, 409, 429 and every 5xx but 501 are retried")
+        @DisplayName("bhvRetries021 retries exactly 408, 409, 429 and every 5xx but 501, and no other status")
         fun retryableStatusesAreRetried() {
             for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {
                 requestCount = 0
                 get(retrying(listOf(status), maxRetries = 1))
                 assertEquals(2, requestCount, "status $status must be retried once")
             }
-        }
-
-        @Test
-        @DisplayName("bhvRetries021 200, 201, 301, 400, 401, 403, 404, 422 and 501 are not retried")
-        fun otherStatusesAreNotRetried() {
             for (status in listOf(200, 201, 301, 400, 401, 403, 404, 422, 501)) {
                 requestCount = 0
                 get(retrying(listOf(status)))

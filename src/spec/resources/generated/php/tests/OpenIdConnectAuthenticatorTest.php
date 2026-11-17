@@ -30,7 +30,7 @@ function makeOpenIdConnectMockClientWithDiscovery(): MockTokenApiClient
     return $client;
 }
 
-test('bhv authoidc 002 bhv authoidc 008 builds authorization url from discovery without default headers', function (): void {
+test('bhv authoidc 002 builds authorization url from discovery', function (): void {
     $client = makeOpenIdConnectMockClientWithDiscovery();
 
     $authenticator = new OpenIdConnectAuthenticator(
@@ -396,6 +396,27 @@ test('bhv authoidc 014 get host returns configured host', function (): void {
     );
 
     expect($authenticator->getHost())->toBe('https://api.example.com');
+});
+
+test('bhv authoidc 008 does not send the transport default headers to the discovery endpoint', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl('state-123');
+
+    expect($client->capturedRequests)->toHaveCount(1);
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/.well-known/openid-configuration');
+    /* The API's default headers (an Authorization or API key) must not reach the identity provider. */
+    expect($client->capturedRequests[0]['noDefaultHeaders'])->toBeTrue();
 });
 
 test('bhv authoidc 025 oidc throws when discovery omits authorization_endpoint', function (): void {

@@ -207,7 +207,7 @@ test('an explicit api key wins over the environment', function (): void {
     });
 });
 
-test('the api key is read from the environment when none is passed', function (): void {
+test('bhv authscheme 001 the api key is read from the environment when none is passed', function (): void {
     withApiKeyEnvironment('from-environment', function (): void {
         $auth = new ApiKeyHeaderAuthenticator('https://api.example.com');
         expect(sentApiKeys($auth))->toBe(['from-environment']);

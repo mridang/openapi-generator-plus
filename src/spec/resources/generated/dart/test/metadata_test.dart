@@ -425,6 +425,17 @@ void main() {
     );
   });
 
+  group('Metadata serialization', () {
+    test(
+      'bhv serializationobject 020 an additional property re-serializes at the top level, not nested',
+      () {
+        final decoded = Metadata.fromJson({'region': 'eu'});
+        expect(decoded.additionalProperties, equals({'region': 'eu'}));
+        expect(decoded.toJson(), equals({'region': 'eu'}));
+      },
+    );
+  });
+
   group('Metadata value equality', () {
     test('instances differing only in additionalProperties are not equal', () {
       const first = Metadata(additionalProperties: {'region': 'eu'});

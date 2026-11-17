@@ -710,7 +710,7 @@ describe Petstore::Client::DefaultApiClient do
       Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
     end
 
-    it 'bhv_redirects_001 302 HTTPS -> HTTP with a body proceeds (body dropped, becomes GET)' do
+    it 'bhv_redirects_001 a 302 HTTPS to HTTP redirect with a body proceeds (body dropped, becomes GET)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/r') do
           [302, { 'location' => 'http://localhost/landing' }, '']
@@ -727,7 +727,7 @@ describe Petstore::Client::DefaultApiClient do
       end
     end
 
-    it 'bhv_retries_010 307 HTTPS -> HTTP with a body raises ApiError (TLS downgrade)' do
+    it 'bhv_retries_010 a 307 HTTPS to HTTP redirect with a body raises ApiError (TLS downgrade)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/upload') do
           [307, { 'location' => 'http://insecure.example.com/upload' }, '']
@@ -743,7 +743,7 @@ describe Petstore::Client::DefaultApiClient do
       end
     end
 
-    it 'bhv_retries_011 308 HTTPS -> HTTP with a body raises ApiError (TLS downgrade)' do
+    it 'bhv_retries_011 a 308 HTTPS to HTTP redirect with a body raises ApiError (TLS downgrade)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/upload') do
           [308, { 'location' => 'http://insecure.example.com/upload' }, '']

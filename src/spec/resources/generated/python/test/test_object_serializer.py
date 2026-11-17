@@ -246,11 +246,17 @@ class TestDeserializationErrorWrapping:
         assert type(exc_info.value) is SerializationException
         assert isinstance(exc_info.value, OpenAPIException)
 
-    def test_bhv_serializationobject_170_bhv_serializationobject_066_truncated_json_raises_serialization_error(
+    def test_bhv_serializationobject_170_truncated_json_raises_serialization_error(
         self,
     ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize("{", "Category")
+
+    def test_bhv_serializationobject_066_invalid_json_raises_serialization_error(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize("not json", "Category")
 
     def test_bhv_serializationobject_095_invalid_json_structure_raises_serialization_error(
         self,
@@ -746,13 +752,21 @@ class TestSerialize:
 
 
 class TestUuidRoundtrip:
-    def test_bhv_serializationobject_148_bhv_serializationobject_175_serializes_uuid_to_string(
-        self,
-    ) -> None:
+    def test_bhv_serializationobject_148_serializes_uuid_to_string(self) -> None:
         import uuid
 
         u = uuid.UUID("12345678-1234-5678-1234-567812345678")
         assert ObjectSerializer.stringify(u) == "12345678-1234-5678-1234-567812345678"
+
+    def test_bhv_serializationobject_175_uuid_returns_string_representation(
+        self,
+    ) -> None:
+        import uuid
+
+        u = uuid.UUID("550e8400-e29b-41d4-a716-446655440000")
+        result = ObjectSerializer.stringify(u)
+        assert isinstance(result, str)
+        assert result == "550e8400-e29b-41d4-a716-446655440000"
 
     def test_bhv_serializationobject_065_deserializes_uuid_string(self) -> None:
         import uuid
@@ -1113,19 +1127,33 @@ class TestRequiredFieldNullRejection:
     Pydantic 2 already rejects None for non-Optional typed fields; this test
     locks in that behaviour as a regression guard."""
 
-    def test_bhv_serializationobject_062_bhv_serializationobject_084_bhv_serializationobject_086_null_on_required_field_raises(
-        self,
-    ) -> None:
+    def test_bhv_serializationobject_062_null_on_required_field_raises(self) -> None:
         json_str = '{"name": null, "photoUrls": ["x"]}'
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "Pet")
 
-    def test_bhv_serializationobject_063_bhv_serializationobject_083_missing_required_field_raises(
+    def test_bhv_serializationobject_084_explicit_null_on_a_required_field_raises(
         self,
     ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"username": null}', "Account")
+
+    def test_bhv_serializationobject_086_null_on_a_required_non_nullable_field_throws(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"username": null, "id": 7}', "Account")
+
+    def test_bhv_serializationobject_063_missing_required_field_raises(self) -> None:
         json_str = '{"photoUrls": ["x"]}'
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "Pet")
+
+    def test_bhv_serializationobject_083_a_required_field_absent_from_the_payload_throws(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"id": 7}', "Account")
 
 
 class TestUnknownEnumRejection:
@@ -2426,7 +2454,7 @@ class TestNicknameConstraints:
 
 
 class TestPasswordFormatSendsTheRealValue:
-    def test_bhv_serializationobject_007_bhv_serializationobject_018_serialize_writes_the_password_not_the_mask(
+    def test_bhv_serializationobject_007_serialize_writes_the_password_not_the_mask(
         self,
     ) -> None:
         from petstore_client.models.account import Account
@@ -2436,6 +2464,17 @@ class TestPasswordFormatSendsTheRealValue:
         )
 
         assert out == '{"username":"u","password":"p"}'
+
+    def test_bhv_serializationobject_018_a_write_only_property_is_serialized(
+        self,
+    ) -> None:
+        from petstore_client.models.account import Account
+
+        out = ObjectSerializer().serialize(
+            Account(username="u", password=SecretStr("p"))
+        )
+
+        assert '"password":"p"' in out
 
     def test_repr_still_masks_the_password(self) -> None:
         from petstore_client.models.account import Account

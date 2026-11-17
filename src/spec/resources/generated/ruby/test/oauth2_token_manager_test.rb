@@ -728,9 +728,20 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 2
   end
 
-  it 'bhv_authoauthtwotokenmgr_017 bhv_authoauthtwotokenmgr_020 ignores a non-string refresh_token' do
+  it 'bhv_authoauthtwotokenmgr_017 ignores a numeric refresh_token' do
     client = FakeTokenClient.new([
                                    { status: 200, body: { 'access_token' => 'tok', 'refresh_token' => 12_345, 'expires_in' => 3600 } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(manager.refresh_token).must_be_nil
+  end
+
+  it 'bhv_authoauthtwotokenmgr_020 non string refresh token is ignored for a structured value too' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'tok', 'refresh_token' => %w[not a string], 'expires_in' => 3600 } }
                                  ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client

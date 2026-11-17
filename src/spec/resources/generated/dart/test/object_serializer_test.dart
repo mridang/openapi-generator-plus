@@ -396,6 +396,14 @@ void main() {
       expect(toHeaderValue(42), equals('42'));
     });
 
+    test('bhv serializationobject 034 toHeaderValue bool false', () {
+      expect(toHeaderValue(false), equals('false'));
+    });
+
+    test('bhv serializationobject 043 toHeaderValue bool true', () {
+      expect(toHeaderValue(true), equals('true'));
+    });
+
     test(
       'bhv serializationobject 132 toHeaderValue null returns empty string',
       () {
@@ -434,6 +442,14 @@ void main() {
 
     test('bhv serializationobject 143 toCookieValue string', () {
       expect(toCookieValue('hello'), equals('hello'));
+    });
+
+    test('bhv serializationobject 033 toCookieValue bool false', () {
+      expect(toCookieValue(false), equals('false'));
+    });
+
+    test('bhv serializationobject 041 toCookieValue bool true', () {
+      expect(toCookieValue(true), equals('true'));
     });
 
     test(
@@ -613,6 +629,19 @@ void main() {
     });
 
     test(
+      'bhv serializationobject 045 a date-time model field keeps its sub-second fraction on the wire',
+      () {
+        final metadata = Metadata(
+          createdAt: DateTime.utc(2024, 1, 2, 3, 4, 5, 678),
+        );
+        expect(
+          jsonDecode(serialize(metadata)),
+          equals({'createdAt': '2024-01-02T03:04:05.678+00:00'}),
+        );
+      },
+    );
+
+    test(
       'bhv serializationobject 144 round-trip: serialize then deserialize yields equivalent instant',
       () {
         final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
@@ -689,6 +718,17 @@ void main() {
         expect(defaults.scale, equals(0.25));
         expect(defaults.weight, equals(2.0));
         expect(defaults.ceiling, equals(9000000000));
+      },
+    );
+
+    test(
+      'bhv serializationobject 050 decoding a payload without the property gives the default',
+      () {
+        final defaults = deserialize<Defaults>(
+          '{"retries":5}',
+          Defaults.fromJson,
+        )!;
+        expect(defaults.label, equals('untitled'));
       },
     );
 
@@ -784,6 +824,23 @@ void main() {
           ),
           throwsA(isA<SerializationException>()),
         );
+      },
+    );
+
+    test(
+      'bhv serializationobject 022 an inline enum (EdgeCases.phase) round-trips every member through its wire value',
+      () {
+        for (final member in EdgeCasesPhaseEnum.values) {
+          final decoded = deserialize<EdgeCases>(
+            jsonEncode({'phase': member.value}),
+            EdgeCases.fromJson,
+          )!;
+          expect(decoded.phase, equals(member));
+          expect(
+            jsonDecode(serialize(decoded)),
+            equals(<String, Object?>{'phase': member.value}),
+          );
+        }
       },
     );
 
@@ -1112,6 +1169,18 @@ void main() {
           ),
           throwsA(isA<SerializationException>()),
         );
+      },
+    );
+
+    test(
+      'bhv serializationobject 052 deserialize accepts a strict model when every key is declared',
+      () {
+        final tag = deserialize<StrictTag>(
+          '{"id":1,"name":"x"}',
+          StrictTag.fromJson,
+        )!;
+        expect(tag.id, equals(1));
+        expect(tag.name, equals('x'));
       },
     );
 
@@ -2252,6 +2321,16 @@ void main() {
       );
     }
 
+    test(
+      'bhv serializationobject 003 a date-time without an offset is rejected',
+      () {
+        expect(
+          () => parseDateTime('2024-01-01T10:00:00'),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
     test('an RFC 3339 date-time with any fraction and offset is accepted', () {
       expect(
         parseDateTime('2024-01-01T10:00:00Z'),
@@ -2337,6 +2416,108 @@ void main() {
         expect(parseJson(within), isNotNull);
         final beyond = '[' * 1500 + ']' * 1500;
         expect(() => parseJson(beyond), throwsA(isA<SerializationException>()));
+      },
+    );
+
+    test(
+      'bhv serializationobject 056 an explicit null is kept over the schema default',
+      () {
+        final decoded = deserialize<Defaults>(
+          '{"label":null}',
+          Defaults.fromJson,
+        );
+        expect(decoded!.label, isNull);
+      },
+    );
+
+    test(
+      'bhv serializationobject 064 a time value keeps its time portion as written',
+      () {
+        final decoded = deserialize<EdgeCases>(
+          '{"cutoff":"23:59:59.999"}',
+          EdgeCases.fromJson,
+        )!;
+        expect(decoded.cutoff, equals('23:59:59.999'));
+      },
+    );
+
+    test(
+      'bhv serializationobject 065 a uuid string decodes to a UuidValue with the same text',
+      () {
+        final order = deserialize<Order>(
+          '{"trackingId":"3f2504e0-4f89-11d3-9a0c-0305e82c3301"}',
+          Order.fromJson,
+        )!;
+        expect(order.trackingId, isA<UuidValue>());
+        expect(
+          order.trackingId.toString(),
+          equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'),
+        );
+      },
+    );
+
+    test(
+      'bhv serializationobject 070 a JSON object deserializes to the typed model',
+      () {
+        final pet = deserialize<Pet>(
+          '{"name":"Fido","photoUrls":["u"]}',
+          Pet.fromJson,
+        );
+        expect(pet, isA<Pet>());
+        expect(pet!.name, equals('Fido'));
+      },
+    );
+
+    test(
+      'bhv serializationobject 086 a null on a required non-nullable field throws SerializationException',
+      () {
+        expect(
+          () =>
+              deserialize<Pet>('{"name":null,"photoUrls":["u"]}', Pet.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serializationobject 091 an integer returns its string representation',
+      () {
+        expect(stringify(42), equals('42'));
+      },
+    );
+
+    test(
+      'bhv serializationobject 095 a JSON array where an object is expected throws SerializationException',
+      () {
+        expect(
+          () => deserialize<Pet>('[1,2]', Pet.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serializationobject 096 an array joins with a comma in a header value',
+      () {
+        expect(toHeaderValue([1, 2, 3]), equals('1,2,3'));
+      },
+    );
+
+    test('bhv serializationobject 098 an array joins with a comma for csv', () {
+      expect(toQueryValue(['a', 'b'], 'csv'), equals('a,b'));
+    });
+
+    test('bhv serializationobject 100 an array joins with a space for ssv', () {
+      expect(toQueryValue(['a', 'b'], 'ssv'), equals('a b'));
+    });
+
+    test(
+      'bhv serializationobject 103 a malformed uuid string raises SerializationException on decode',
+      () {
+        expect(
+          () => deserialize<Order>('{"trackingId":"12345"}', Order.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
       },
     );
   });

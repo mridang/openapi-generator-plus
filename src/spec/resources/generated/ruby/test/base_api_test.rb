@@ -59,6 +59,20 @@ class FixedResponseApiClient
   end
 end
 
+class PerCallHttpAwareAuthenticator < Petstore::Client::Auth::Authenticator
+  include Petstore::Client::Auth::HttpAwareAuthenticator
+
+  attr_reader :injected
+
+  def api_client=(client)
+    @injected = client
+  end
+
+  def auth_headers
+    {}
+  end
+end
+
 class TestAuthenticator < Petstore::Client::Auth::Authenticator
   def initialize(headers: {}, query_params: {}, cookies: {})
     super()
@@ -305,6 +319,16 @@ describe Petstore::Client::Api::BaseApi do
     test_api.call('GET', '/test/echo', {}, {}, nil,
                   ['application/json'], 'application/json', nil)
     _(client.captured_headers['X-Client-Auth']).must_equal 'client-level-token'
+  end
+
+  it 'bhv_authintegration_002 a per-call HTTP-aware authenticator is given the API client' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    per_call = PerCallHttpAwareAuthenticator.new
+    test_api = TestableApi.new(client, config, nil)
+    test_api.call('GET', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil, per_call)
+    _(per_call.injected).must_be_same_as client
   end
 
   it 'bhv_authintegration_013 a scheme authenticator passed to invoke_api overrides the client-level authenticator' do

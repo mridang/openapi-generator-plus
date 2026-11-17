@@ -8,12 +8,23 @@ from urllib.parse import parse_qs, urlsplit
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any
 from pydantic import SecretStr
+from petstore_client.api.options.get_by_swatch_options import GetBySwatchOptions
 from petstore_client.api.options.search_store_options import SearchStoreOptions
 from petstore_client.api.store_api import StoreApi
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
+from petstore_client.errors import OpenAPIException
 from petstore_client.errors import SerializationException
+from petstore_client.errors.bad_request_exception import BadRequestException
+from petstore_client.errors.client_exception import ClientException
+from petstore_client.errors.conflict_exception import ConflictException
+from petstore_client.errors.forbidden_exception import ForbiddenException
+from petstore_client.errors.server_exception import ServerException
+from petstore_client.errors.unauthorized_exception import UnauthorizedException
+from petstore_client.errors.unprocessable_entity_exception import (
+    UnprocessableEntityException,
+)
 from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
@@ -22,6 +33,7 @@ from petstore_client.models.account import Account
 from petstore_client.models.availability import Availability
 from petstore_client.models.category import Category
 from petstore_client.models.priority import Priority
+from petstore_client.models.reservation_receipt import ReservationReceipt
 from petstore_client.models.swatch import Swatch
 from petstore_client.models.order import Order, OrderStatusEnum
 from petstore_client.models.photo_metadata import PhotoMetadata
@@ -162,6 +174,28 @@ class TestStoreApiErrorHandling:
         )
         with pytest.raises(NotFoundException):
             await api.delete_order(99999)
+
+    @pytest.mark.parametrize(
+        ("status", "error_class"),
+        [
+            (400, BadRequestException),
+            (401, UnauthorizedException),
+            (403, ForbiddenException),
+            (409, ConflictException),
+            (418, ClientException),
+            (422, UnprocessableEntityException),
+            (502, ServerException),
+        ],
+    )
+    async def test_bhv_operations_110_get_order_by_id_picks_the_status_specific_error_class(
+        self, status: int, error_class: type
+    ) -> None:
+        api, _ = _create_mock_server(
+            status, "application/json", '{"message":"refused"}'
+        )
+        with pytest.raises(OpenAPIException) as exc_info:
+            await api.get_order_by_id(1)
+        assert type(exc_info.value) is error_class
 
 
 class TestStoreApiNestedContainer:
@@ -329,6 +363,45 @@ class TestStoreApiFixtureOperations:
         assert item.availability == Availability.ON_HOLD
         assert item.matrix == [[1, 2], [3]]
 
+    async def test_bhv_operations_109_get_matrix_decodes_an_array_of_integer_arrays(
+        self,
+    ) -> None:
+        api, _ = _recording_server("[[1,2],[3]]")
+
+        result = await api.get_matrix()
+
+        assert result == [[1, 2], [3]]
+        assert all(isinstance(number, int) for row in result for number in row)
+
+    async def test_bhv_operations_120_reserve_stock_decodes_a_201_body_as_the_new_receipt(
+        self,
+    ) -> None:
+        api, _ = _create_mock_server(
+            201,
+            "application/json",
+            '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+        )
+
+        result = await api.reserve_stock()
+
+        assert isinstance(result.actual_instance, ReservationReceipt)
+        assert result.actual_instance.receipt_code == "R-1"
+
+    async def test_bhv_operations_122_get_by_swatch_sends_the_enum_wire_value_in_path_query_and_header(
+        self,
+    ) -> None:
+        api, seen = _recording_server('{"id":1,"name":"echo"}')
+
+        await api.get_by_swatch(
+            Swatch.RED,
+            GetBySwatchOptions(query_swatch=Swatch.GREEN, preferred_swatch=Swatch.BLUE),
+        )
+
+        url = urlsplit(seen["path"])
+        assert url.path == "/store/by-swatch/red"
+        assert parse_qs(url.query)["querySwatch"] == ["green"]
+        assert seen["headers"]["preferred-swatch"] == "blue"
+
 
 def _capture_server() -> tuple[StoreApi, dict[str, Any]]:
     seen: dict[str, Any] = {}
@@ -358,7 +431,7 @@ class TestStoreApiContentParameters:
     """A `content: application/json` parameter goes through the SDK's own
     object serializer in every location."""
 
-    async def test_query_content_uses_the_wire_form(self) -> None:
+    async def test_bhv_operations_097_query_content_uses_the_wire_form(self) -> None:
         api, seen = _capture_server()
         photo = PhotoMetadata(
             caption="a<b>&c",

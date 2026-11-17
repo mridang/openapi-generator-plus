@@ -350,7 +350,21 @@ test('bhv options 005 caller headers override defaults', function (): void {
     expect($capturedHeaders['Accept'] ?? null)->toBe('application/json');
 });
 
-test('bhv serializationwire 032 bhv serializationwire 033 decodes iso 8859 1 body to utf 8 when charset declared', function (): void {
+test('bhv serializationwire 032 decodes iso 8859 1 body to utf 8 when charset declared', function (): void {
+    $body = "\xE9"; // ISO-8859-1 'é'
+    $mockResponse = new MockResponse($body, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'text/plain; charset=ISO-8859-1'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/iso', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe("\xC3\xA9"); // UTF-8 'é'
+});
+
+test('bhv serializationwire 033 decodes response body using declared charset', function (): void {
     $body = "\xE9"; // ISO-8859-1 'é'
     $mockResponse = new MockResponse($body, [
         'http_code' => 200,
@@ -1321,6 +1335,15 @@ test('bhv errors 041 non-existent caCertPath throws invalid argument exception a
         });
 });
 
+test('bhv errors 040 malformed request URL raises invalid argument exception', function (): void {
+    /* parse_url() rejects an unterminated IPv6 literal, and the transport refuses the URL before any
+     * connection is attempted; it is a caller mistake, so the type is \InvalidArgumentException. */
+    $client = new DefaultApiClient();
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://[bad', [], null))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
 test('an unreadable caCertPath names the path and the cause', function (): void {
     $transport = TransportOptions::builder()->caCertPath('/nonexistent/ca.pem')->build();
 
@@ -1959,6 +1982,25 @@ test('bhv retries 018 maxRetries 0 sends a failing request once', function (): v
     expect($response->statusCode)->toBe(503);
     expect(count($log))->toBe(1);
     expect($client->pauses)->toBe([]);
+});
+
+test('bhv retries 009 timeout and maxRetries reach the transport', function (): void {
+    /** @var list<float> $seen */
+    $seen = [];
+    $calls = 0;
+    $factory = function (string $method, string $url, array $options) use (&$seen, &$calls): MockResponse {
+        $calls++;
+        $seen[] = (float) $options['timeout'];
+
+        return new MockResponse('{}', ['http_code' => 503]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->timeout(1000)->build());
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null, timeoutMs: 60000, maxRetries: 0);
+
+    expect($response->statusCode)->toBe(503);
+    expect($calls)->toBe(1);
+    expect($seen[0])->toBeGreaterThan(30.0);
 });
 
 test('a negative maxRetries is rejected', function (): void {

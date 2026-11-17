@@ -226,6 +226,41 @@ describe 'scheme authenticators' do
     end
   end
 
+  it 'bhv_authscheme_002 explicit arguments need no environment' do
+    environment_schemes.each do |name, base, _credentials|
+      klass = scheme_class(name)
+      case base
+      when 'BearerAuthenticator'
+        _(klass.new('https://api.example.com', 'given', env: {}).auth_headers).must_equal({ 'Authorization' => 'Bearer given' }, name)
+      when 'ApiKeyAuthenticator'
+        auth = klass.new('https://api.example.com', 'given', env: {})
+        _([auth.auth_headers, auth.query_params, auth.cookie_params].flat_map(&:values)).must_equal ['given'], name
+      when 'BasicAuthenticator'
+        auth = klass.new('https://api.example.com', 'given', 'pw', env: {})
+        _(auth.auth_headers['Authorization']).must_equal "Basic #{Base64.strict_encode64('given:pw')}", name
+      end
+    end
+  end
+
+  it 'bhv_authoauthtwoimplicit_006 an implicit wrapper builds its authorization url with its spec scopes' do
+    wrappers_of(Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator).each do |klass|
+      url = klass.new('https://api.example.com', 'wrapper_id').build_authorization_url
+      _(url).must_match(%r{\Ahttps://}, klass.name)
+      _(url).must_match(/[?&]scope=\S+/, klass.name)
+    end
+  end
+
+  it 'bhv_authoauthtwopassword_012 a password wrapper sends its spec scopes and urls' do
+    wrappers_of(Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator).each do |klass|
+      client = SchemeRecordingClient.new
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret', 'wrapper_user', 'wrapper_pass')
+      auth.api_client = client
+      auth.auth_headers
+      _(client.url).must_match(%r{\Ahttps://}, klass.name)
+      _(client.body).must_match(/scope=\S+/, klass.name)
+    end
+  end
+
   it 'bhv_authoidc_012 an openid connect wrapper discovers from its spec url and sends the openid scope' do
     wrappers_of(Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator).each do |klass|
       client = SchemeRecordingClient.new

@@ -74,7 +74,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
-  def test_redacts_secret
+  it 'bhv_authoauthtwoimplicit_010 redacts the access token in inspect and to_s' do
     auth = Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -102,7 +102,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     end
   end
 
-  it 'bhv_authoauthtwoimplicit_010 bhv_authoauthtwoimplicit_011 shows the host, client id, authorization URL and scopes but not the token in inspect' do
+  it 'bhv_authoauthtwoimplicit_011 shows the host, client id, authorization URL and scopes but not the token in inspect' do
     auth.access_token = 'leaky_token'
     _(auth.inspect).must_equal(
       "#<#{auth.class.name} host=\"https://api.example.com\" client_id=\"my_client_id\" " \

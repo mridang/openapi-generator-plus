@@ -11,6 +11,7 @@ from petstore_client.models.pet_treatment import PetTreatment
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest,
 )
+from petstore_client.models.reserve_stock_response import ReserveStockResponse
 
 
 class TestOneOfPetFood:
@@ -294,6 +295,12 @@ class TestOneOfNonDiscriminatorValidator:
         """The no-match error path is preserved by the first-match rewrite."""
         with pytest.raises(ValidationError):
             SetPetAvatarThumbnailRequest.model_validate({"actual_instance": object()})
+
+    def test_bhv_serializationobject_127_resolve_any_of_throws_when_no_variant_matches(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"unrelated": 1}', ReserveStockResponse)
 
     def test_the_constructor_keeps_a_value_no_variant_accepts(self) -> None:
         """F316: building a wrapper never validates; decoding does."""

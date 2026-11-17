@@ -482,6 +482,34 @@ void main() {
     );
 
     test(
+      'bhv authoauthtwoauthcode 009 every authorization URL starts a new verifier and the exchange uses the last',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        final first = Uri.parse(
+          auth.buildAuthorizationUrl(),
+        ).queryParameters['code_challenge']!;
+        final last = Uri.parse(
+          auth.buildAuthorizationUrl(),
+        ).queryParameters['code_challenge']!;
+        expect(last, isNot(equals(first)));
+
+        await auth.exchangeCode('one');
+
+        final verifier = Uri.splitQueryString(
+          client.bodies.single,
+        )['code_verifier']!;
+        expect(
+          OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier),
+          equals(last),
+        );
+      },
+    );
+
+    test(
       'bhv authoauthtwoauthcode 016 invalidateAccessToken drops the access token and keeps the refresh token',
       () async {
         final client = _FakeApiClient();
