@@ -115,6 +115,30 @@ defmodule {{moduleName}}.Api.StoreApiTest do
              {{moduleName}}.Api.StoreApi.place_order(api, order)
   end
 
+  test "reserve_stock decodes the 200 body and the 201 body as their own schemas" do
+    existing = new_store_api_for_mock(200, "application/json", ~s({"reservationId":7,"quantity":2}))
+
+    assert {:ok, %{{moduleName}}.Models.Reservation{reservation_id: 7, quantity: 2}} =
+             {{moduleName}}.Api.StoreApi.reserve_stock(existing)
+
+    created =
+      new_store_api_for_mock(
+        201,
+        "application/json",
+        ~s({"receiptCode":"r-1","expiresAt":"2030-01-01T00:00:00.000+00:00"})
+      )
+
+    assert {:ok, %{{moduleName}}.Models.ReservationReceipt{receipt_code: "r-1"}} =
+             {{moduleName}}.Api.StoreApi.reserve_stock(created)
+  end
+
+  test "an error response names the request" do
+    api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
+
+    assert {:error, %{{moduleName}}.Errors.NotFoundError{request_method: "GET", request_path: "/store/order/99999"}} =
+             {{moduleName}}.Api.StoreApi.get_order_by_id(api, 99_999)
+  end
+
   # F1161: the typed status routes of the mock answer getOrderById with each
   # status, and the matching status-specific error struct is chosen. The route
   # /test/status/<code>/store/order/<id> is reached by putting the status in

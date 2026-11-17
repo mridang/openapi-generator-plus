@@ -9,6 +9,14 @@
 defmodule PetstoreClient.Api.Options.FindPetsByStatusOptions do
   @moduledoc """
   Options for the `find_pets_by_status` operation.
+
+  ### `status` example — Available only
+
+      available
+
+  ### `status` example — Sold pets
+
+      sold
   """
 
   @type t :: %__MODULE__{
@@ -17,12 +25,23 @@ defmodule PetstoreClient.Api.Options.FindPetsByStatusOptions do
           filter: map() | nil,
           born_after: Date.t() | nil,
           n2nd_page: integer() | nil,
-          report_date: Date.t() | nil
+          report_date: Date.t() | nil,
+          timeout: pos_integer() | nil,
+          headers: %{optional(String.t()) => String.t()} | nil,
+          max_retries: non_neg_integer() | nil
         }
 
   defstruct status: nil,
             filter: nil,
             born_after: nil,
             n2nd_page: nil,
-            report_date: nil
+            report_date: nil,
+            # Per-call settings: milliseconds for this call (replacing the transport's
+            # timeout), headers added to this call, and how many times it is retried
+            # (0 for none, replacing the transport's `max_retries`). nil keeps the
+            # client's own setting. The `opts` keyword list of the operation takes the
+            # same three keys and wins over these.
+            timeout: nil,
+            headers: nil,
+            max_retries: nil
 end

@@ -175,7 +175,7 @@ Rule: the Elixir rules in the allow-list are settled and the API-surface check m
 
 - Charsets: `shift_jis` and the other `iso-8859-x` labels return the raw bytes, because Erlang's `:unicode` has no multi-charset support (F258, partial).
 - Struct fields are not validated on construction beyond inline enums: untyped fields and wrong-typed scalars pass (F316).
-- Int32 and int64 range and fractional rejection on decode is intended (F213, F006) but not in the template; locking today's behaviour was refused because it pins an undecided result. The probe operation it needs is a spec change (needs-spec).
+- Fractional and quoted values are rejected on decode, in containers too (F006, wave 2). An int32 or int64 range check is not possible: the descriptor is the width-less `integer()`.
 - Object-valued query and header parameters (F063), `format: time` sub-millisecond truncation (F071) and `format: uri` validation (F132) are parked or not reached.
 - The warnings-fatal docs build is not run by any spec (F191, deferred): `makefile.mustache` runs `mix docs --warnings-as-errors`, but no `ElixirLintingSpec` step does.
 - Spec gates differ from the client `Makefile`: `make build` and `make lint` run plain `mix compile`, while `ElixirLintingSpec` adds `--warnings-as-errors` (F382). The client suite does not use `--warnings-as-errors` because it calls deprecated operations.
@@ -350,6 +350,54 @@ F1073 and F1074 (`test/bearer_authenticator_test.mustache`: a Unicode-space toke
 ### Skipped in batch 10
 
 F057, F827, F828, F830, F834 to F837, F840, F843, F857, F862, F865, F866, F868, F894, F1058, F1060, F1062 (cross-language decisions or shared Java); F858 nonce, F1056, F1061, F1081, F1085, F1087, F1157, F1172 (shared generator, fixtures, gates or a floor policy); F872 (rests on a compile check that was not run); F1048 (size bounds are cross-language); F1140 and F1151 (Req reads the whole body and Elixir takes upload bytes, so there is no response or handle to release); F831 (the 429 type exists; the `retry_after` accessor is a cross-language shape); F1154 (the apiKey escaping test exists; S8 server-before-options does not apply because the server is the `:server` keyword). F855, F1180, F1080 and F823 were finished in batch 9.
+
+## Decisions taken in wave 2
+
+Owner decisions of 2026-11-17 and the triaged parity findings for elixir. Test names are generated-test names (templates under `templates/elixir/test/`) unless a generator test class is named.
+
+### Error context on every API error (F830)
+Rule: `ApiError` and every error that specialises it (the 4xx and 5xx errors, `NetworkError`, `NetworkTimeoutError`) carry `request_method` (upper case, `"GET"`) and `request_path` (the URL's path, query string and fragment dropped). `ApiError.with_request/3` sets them and leaves an error that already has them alone; `Api.BaseApi` calls it on every error it returns, a response error and a transport error alike. `ApiError.message/1` adds a `Request: GET /path` line after the `HTTP status code:` line when both are set; the detail message is unchanged (`API returned status code N`). The line wording is the java one; the integrator reconciles it with the other eleven. Not done: OpenID Connect discovery failures do not carry the request, because they are built outside `BaseApi` from `ApiError.from_response/3`.
+Where: `errors/*.mustache`, `base_api.mustache`. Test: `test/api_error_test.mustache` (message line, `with_request`, every error module), `test/base_api_test.mustache` (response and network errors, query stripped), `test/api/pet_api_test.mustache`, `test/api/store_api_test.mustache`.
+
+### Per-call options (F827)
+Rule: every operation takes `:timeout` (positive milliseconds), `:headers` (a map) and `:max_retries` (not negative) in its trailing `opts` keyword list, and every options struct has the same three fields (`timeout`, `headers`, `max_retries`). The `opts` key wins over the struct field, a nil is the client's own setting, and a bad value raises `ArgumentError` with the transport's wording before any request is built (`BaseApi.call_settings/2`). `timeout` replaces the transport's connect, idle and total deadlines for that call (`send_request/6` option `:timeout`); `max_retries` replaces the retry count (a client with no transport options is retried only when the call asks); `headers` are merged after the default and operation headers and before the authentication headers, replacing a header of the same name in any casing. `invoke_api/11` and `invoke_api_for_result/11` take the settings as their last argument. A parameter named `timeout`, `headers`, `max_retries` or `call` gets the `_param` suffix (`getInjectedArgumentNames`).
+Idiom: the options struct exists only for an operation with query, header, form or cookie parameters or with security (the shared generator decides that), so the `opts` list is the slot every operation has; java and the others have no such slot on an operation without options.
+Where: `api/options.mustache`, `api/api.mustache`, `base_api.mustache`, `default_api_client.mustache`, `BetterElixirCodegen.getInjectedArgumentNames`. Test: `test/base_api_test.mustache` (retries, headers, timeout, `call_settings`), `test/api/pet_api_test.mustache`, `GenerateElixirClientTest.everyOptionsStructCarriesThePerCallSettings`, `BetterElixirCodegenTest.suffixesAParameterNamedLikeABindingTheOperationMakesItself`.
+
+### Several 2xx responses decode by the status (F1062)
+Rule: an operation with more than one 2xx schema passes `{union_type, [{status, type}, ...]}` as its return type. `BaseApi` decodes the body as the type of the status that arrived (a `"2XX"` row matches the whole range, listed last) and as the union when no row names the status. The result is the decoded variant itself, as for any union here (no wrapper), so a 200 gives the first schema's struct and a 201 the second's.
+Where: `api/api.mustache` (`vendorExtensions.op.successResponses`), `base_api.mustache` (`return_type_for_status/2`). Test: `test/base_api_test.mustache`, `test/api/store_api_test.mustache` (`reserve_stock`), `GenerateElixirClientTest.severalSuccessResponsesDecodeByStatus`.
+
+### Credentials (F862)
+Rule: an authenticator constructor takes `nil` for a credential and then reads `{PREFIX}_{FIELD}` once, at construction: `{PREFIX}` is the upper-case snake error prefix (`envPrefix`), `{FIELD}` is `TOKEN`, `API_KEY`, `USERNAME`, `PASSWORD`, `CLIENT_ID` or `CLIENT_SECRET`. A value that was passed always wins (an explicit empty string still fails its own check), an empty variable is unset, and a credential found nowhere raises `ArgumentError` (`Missing the credential 'token': pass it, or set the environment variable X_TOKEN`) when the authenticator is built, so before the client. A bearer token and an API key may also be a zero-argument function (the token-provider callback), called for every request and checked like a passed value at call time; `inspect/1` still shows `***`. Not done: a provider for the OAuth2 client credentials or password (they are exchanged for a token already), and the other languages' spelling of the variable names is for the integrator to reconcile.
+Where: `auth/base_authenticator.mustache` (`credential/2`), `auth/*_authenticator.mustache`, `auth/oauth/*_authenticator.mustache`, `BetterElixirCodegen` (`envPrefix`). Test: the bearer, API key, basic and client credentials authenticator tests.
+
+### Manifest options (F894)
+Rule: the generator options `repositoryUrl`, `homepageUrl`, `documentationUrl`, `issueTrackerUrl` and `authors` (comma separated) are written to `mix.exs` (`source_url`, `homepage_url`, Hex `maintainers` and a `links` map with Repository, Homepage, Documentation and Issues) and to the README `Package` list; an option that is not set writes nothing. The license is the shared `licenseId`, which already feeds `licenses` and the README. Every value goes through `toElixirStringLiteral`. The options live in `BetterElixirCodegen` (`putManifestProperties`) because the shared plumbing in `AbstractBetterCodegen` does not exist yet: when it lands, drop `putManifestProperties` and keep the template variables `authorList`, `packageLinksLiteral`, `repositoryUrlLiteral`, `homepageUrlLiteral`, `hasAuthors`, `hasPackageLinks` or rename them there.
+Where: `mix_exs.mustache`, `readme.mustache`, `BetterElixirCodegen`. Test: `GenerateElixirClientTest.manifestOptionsReachTheMixProjectAndTheReadme` (the golden is generated with the five options).
+
+### Container returns are strict (S1, F006)
+Rule: already satisfied by `convert_element/2`: a map or list of integers is checked element by element with the scalar `integer()` clause, so a fractional, quoted or boolean element raises `SerializationError` (`Expected Integer, got 1.5`). The out-of-range element row does not apply: the descriptor is the format-less `integer()` and Elixir integers have no width, so there is no int32 limit to check (forced).
+Test: `test/object_serializer_test.mustache` (map and grid rows).
+
+### Immutable models (F868)
+Rule: already satisfied. A model is a struct and never mutates; the copy method is the struct update `%{model | field: value}`, documented in the README and SKILLS. No generated `with_` helper: it would only rename the language's own syntax.
+
+### Unions (F878)
+Rule: no change. A oneOf or anyOf here is the matched variant itself (see Union models above), so the typed factory is the variant's own struct constructor and the typed accessor is a pattern match or `is_struct/2`. A `Models.<Union>.build/1` that finds no variant raises `SerializationError`, which is the "rejects non-variants" rule.
+
+### Documentation notes (F834, F835, F836, F837, F828, F889)
+README `Behaviours that differ from what you may expect` states the optional-versus-nullable collapse, the loud failure on an unknown enum or discriminator value, the joined repeated response header, that streaming is not supported (inject a transport), and that `Configuration` and `TransportOptions` stay separate; README `Response compression` and `Versioning` and the `Raw responses` section name the compression negotiation, that the SDK does not log, and the support policy.
+
+### Floor (F1087)
+Rule: the Elixir floor stays `~> 1.17` and OTP 27: 1.17 still gets security fixes, so it is not newer than the oldest supported release.
+
+### Skipped in wave 2, with the reason
+- F1153, F1174, F1172, F1157 (shared Java tests, `etc/`, the shared specs and the petstore spec), F866 and F1060, F1061 (shared generator, `AbstractBetterCodegen`): not elixir code.
+- F1151: Elixir takes upload bytes, never a handle, so there is nothing for the SDK to close and nothing to test. F1140: Req reads each redirect response whole, so a hop holds no connection to release. Both are the language's limit.
+- F1154: the S8 rule is checked on the golden (`GenerateElixirClientTest.theServerTravelsInTheTrailingOptsAfterTheOptionsStruct`); there is no positional server argument.
+- F893: already landed in batch 10 (`### <name> example` blocks in the options modules).
+- F057, F840, F857, F1078, F316, F1085: not decided, not implemented.
 
 ## Gate lessons (what broke the gate and how to avoid it)
 

@@ -69,17 +69,21 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
 
   @doc """
   Create a new authorization code authenticator.
+
+  `client_id` and `client_secret` may be `nil`; they are then read from the
+  environment variables `OPEN_API_CLIENT_ID` and `OPEN_API_CLIENT_SECRET`.
   """
   @spec new(
           String.t(),
-          String.t(),
-          String.t(),
+          String.t() | nil,
+          String.t() | nil,
           String.t(),
           String.t(),
           String.t(),
           [String.t()],
           keyword()
-        ) :: t()
+        ) ::
+          t()
   def new(
         host,
         client_id,
@@ -90,6 +94,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
         scopes,
         opts \\ []
       ) do
+    client_id = PetstoreClient.Auth.BaseAuthenticator.credential(client_id, "CLIENT_ID")
+
+    client_secret =
+      PetstoreClient.Auth.BaseAuthenticator.credential(client_secret, "CLIENT_SECRET")
+
     {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
 
     %__MODULE__{

@@ -252,13 +252,13 @@ defmodule {{moduleName}}.Api.PetApiTest do
     server = %{{moduleName}}.ServerConfiguration{url_template: "http://other.example.com"}
 
     assert_raise ArgumentError,
-                 ~r/unknown keys \[:server\] in .*, the allowed keys are: \[\]/,
+                 ~r/unknown keys \[:server\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries\]/,
                  fn -> {{moduleName}}.Api.PetApi.update_pet(api, 1, pet, server: server) end
   end
 
   test "an operation rejects a misspelt :content_type opt", %{api: api} do
     assert_raise ArgumentError,
-                 ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:content_type\]/,
+                 ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries, :content_type\]/,
                  fn ->
                    {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>, contnet_type: "image/png")
                  end
@@ -621,6 +621,51 @@ defmodule {{moduleName}}.Api.PetApiTest do
     api = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
     assert {:error, %{{moduleName}}.Errors.NotFoundError{status_code: 404}} =
              {{moduleName}}.Api.PetApi.get_pet_by_id(api, 99_999)
+  end
+
+  test "error handling 404 names the request" do
+    api = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
+
+    assert {:error, %{{moduleName}}.Errors.NotFoundError{request_method: "GET", request_path: "/pet/99999"}} =
+             {{moduleName}}.Api.PetApi.get_pet_by_id(api, 99_999)
+  end
+
+  test "an operation takes the per-call timeout, headers and max_retries in opts", %{api: api} do
+    assert {:ok, result} =
+             {{moduleName}}.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000),
+               timeout: 30_000,
+               headers: %{"X-Trace" => "1"},
+               max_retries: 0
+             )
+
+    assert result != nil
+
+    assert_raise ArgumentError, "Invalid timeout: must be a positive number of milliseconds (got 0)", fn ->
+      {{moduleName}}.Api.PetApi.get_pet_by_id(api, 1, timeout: 0)
+    end
+
+    assert_raise ArgumentError, ~r/unknown keys \[:retries\]/, fn ->
+      {{moduleName}}.Api.PetApi.get_pet_by_id(api, 1, retries: 1)
+    end
+  end
+
+  test "an options struct takes the per-call timeout, headers and max_retries", %{api: api} do
+    options = %{{moduleName}}.Api.Options.FindPetsByStatusOptions{
+      status: "available",
+      timeout: 30_000,
+      headers: %{"X-Trace" => "1"},
+      max_retries: 0
+    }
+
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.find_pets_by_status(api, options)
+    assert is_list(result)
+
+    assert_raise ArgumentError, "Invalid max_retries: must be a non-negative integer (got -1)", fn ->
+      {{moduleName}}.Api.PetApi.find_pets_by_status(
+        api,
+        %{{moduleName}}.Api.Options.FindPetsByStatusOptions{status: "available", max_retries: -1}
+      )
+    end
   end
 
   test "error handling 500 server error" do

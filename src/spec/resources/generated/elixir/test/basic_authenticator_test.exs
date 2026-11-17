@@ -12,6 +12,54 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert headers["Authorization"] == "Basic YWxpY2U6czNjcmV0"
     end
 
+    test "nil credentials are read once from the environment and passed ones win" do
+      user = "OPEN_API_USERNAME"
+      pass = "OPEN_API_PASSWORD"
+      System.put_env(user, "alice")
+      System.put_env(pass, "from-env")
+
+      on_exit(fn ->
+        System.delete_env(user)
+        System.delete_env(pass)
+      end)
+
+      auth = BasicAuthenticator.new("https://api.example.com", nil, nil)
+
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] ==
+               "Basic " <> Base.encode64("alice:from-env")
+
+      System.put_env(pass, "changed")
+
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] ==
+               "Basic " <> Base.encode64("alice:from-env")
+
+      mixed = BasicAuthenticator.new("https://api.example.com", "bob", nil)
+
+      assert BasicAuthenticator.auth_headers(mixed)["Authorization"] ==
+               "Basic " <> Base.encode64("bob:changed")
+    end
+
+    test "an empty or absent environment variable fails when the authenticator is built" do
+      user = "OPEN_API_USERNAME"
+      pass = "OPEN_API_PASSWORD"
+
+      on_exit(fn ->
+        System.delete_env(user)
+        System.delete_env(pass)
+      end)
+
+      System.put_env(user, "")
+      System.delete_env(pass)
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'username': pass it, or set the environment variable #{user}",
+                   fn -> BasicAuthenticator.new("https://api.example.com", nil, "p") end
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'password': pass it, or set the environment variable #{pass}",
+                   fn -> BasicAuthenticator.new("https://api.example.com", "alice", nil) end
+    end
+
     test "non-ASCII credentials are encoded as UTF-8" do
       auth = BasicAuthenticator.new("https://api.example.com", "ünïcødé", "pässwörd")
       headers = BasicAuthenticator.auth_headers(auth)

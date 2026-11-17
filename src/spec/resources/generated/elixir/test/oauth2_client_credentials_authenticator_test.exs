@@ -45,6 +45,56 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
   end
 
   describe "OAuth2ClientCredentialsAuthenticator" do
+    test "nil client credentials are read from the environment and a missing one fails at construction" do
+      id = "OPEN_API_CLIENT_ID"
+      secret = "OPEN_API_CLIENT_SECRET"
+
+      on_exit(fn ->
+        System.delete_env(id)
+        System.delete_env(secret)
+      end)
+
+      System.put_env(id, "env-client")
+      System.put_env(secret, "env-secret")
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+          "https://api.example.com",
+          nil,
+          nil,
+          "https://auth.example.com/token",
+          []
+        )
+
+      assert auth.client_id == "env-client"
+      assert auth.client_secret == "env-secret"
+
+      explicit =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          nil,
+          "https://auth.example.com/token",
+          []
+        )
+
+      assert explicit.client_id == "my-client-id"
+
+      System.put_env(secret, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'client_secret': pass it, or set the environment variable #{secret}",
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+                       "https://api.example.com",
+                       "my-client-id",
+                       nil,
+                       "https://auth.example.com/token",
+                       []
+                     )
+                   end
+    end
+
     # The authenticator generated for the spec's client credentials scheme
     # carries the scopes the spec declares for that flow.
     test "scheme authenticator keeps the declared scopes" do

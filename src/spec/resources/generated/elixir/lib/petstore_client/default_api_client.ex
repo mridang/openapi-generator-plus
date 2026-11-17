@@ -176,6 +176,8 @@ defmodule PetstoreClient.DefaultApiClient do
       whole call, redirects included, must be over. Without it the call has
       `TransportOptions.timeout` from now. Used by the retry loop in
       `Api.BaseApi`, so the attempts of one operation share a single budget.
+    * `:timeout` -- milliseconds for this call only, replacing
+      `TransportOptions.timeout` for its connect, idle and total deadlines.
   """
   @impl PetstoreClient.ApiClient
   @spec send_request(
@@ -284,7 +286,7 @@ defmodule PetstoreClient.DefaultApiClient do
           merged,
           serialized_body,
           opts.max_redirects || 20,
-          {no_redirect, Keyword.get(request_opts, :deadline)}
+          {no_redirect, Keyword.get(request_opts, :deadline), Keyword.get(request_opts, :timeout)}
         )
       rescue
         e in [
@@ -805,16 +807,25 @@ defmodule PetstoreClient.DefaultApiClient do
   # reads only the proxy tuple's options for it, and Finch receives
   # synchronously, so that connection must be passive. An https:// target
   # tunnels through CONNECT, which needs the proxy connection left active.
-  defp proxy_request_options(client, url) do
+  #
+  # A per-call timeout replaces the transport's connect and idle deadlines for
+  # this request, so a call may be given more time than the client default.
+  defp proxy_request_options(client, url, call_timeout) do
     connect_options = Map.get(client.base_req.options, :connect_options, [])
+
+    {timeout_options, connect_options} =
+      if call_timeout,
+        do:
+          {[receive_timeout: call_timeout], Keyword.put(connect_options, :timeout, call_timeout)},
+        else: {[], connect_options}
 
     case {URI.parse(url).scheme, Keyword.get(connect_options, :proxy)} do
       {"http", {scheme, host, port, proxy_opts}} ->
         proxy = {scheme, host, port, Keyword.put(proxy_opts, :mode, :passive)}
-        [connect_options: Keyword.put(connect_options, :proxy, proxy)]
+        timeout_options ++ [connect_options: Keyword.put(connect_options, :proxy, proxy)]
 
       _ ->
-        []
+        if call_timeout, do: timeout_options ++ [connect_options: connect_options], else: []
     end
   end
 
@@ -825,13 +836,13 @@ defmodule PetstoreClient.DefaultApiClient do
          headers,
          body,
          max_redirects,
-         {no_redirect, given_deadline}
+         {no_redirect, given_deadline, call_timeout}
        ) do
     # One end-to-end budget for the whole call: the deadline is fixed here and
     # every redirect hop spends what is left of it, never a fresh timeout. A
     # deadline handed in by the caller (a retry of the same operation) is kept.
     deadline =
-      case {given_deadline, client.transport_options.timeout} do
+      case {given_deadline, call_timeout || client.transport_options.timeout} do
         {nil, nil} -> nil
         {nil, total} -> System.monotonic_time(:millisecond) + total
         {given, _total} -> given
@@ -845,7 +856,7 @@ defmodule PetstoreClient.DefaultApiClient do
       headers,
       body,
       {max_redirects, 0},
-      {no_redirect, deadline}
+      {no_redirect, deadline, call_timeout}
     )
   end
 
@@ -857,7 +868,7 @@ defmodule PetstoreClient.DefaultApiClient do
          headers,
          body,
          {max, hops},
-         {no_redirect, deadline}
+         {no_redirect, deadline, call_timeout}
        ) do
     # Catch inside the task so it always returns a tagged value and never
     # crashes the linked caller: Task.async links, so an uncaught raise
@@ -872,7 +883,7 @@ defmodule PetstoreClient.DefaultApiClient do
              url: url,
              headers: Enum.map(headers, fn {k, v} -> {k, v} end),
              body: body
-           ] ++ proxy_request_options(client, url)
+           ] ++ proxy_request_options(client, url, call_timeout)
          )}
       rescue
         exception -> {:raised, exception, __STACKTRACE__}
@@ -907,7 +918,7 @@ defmodule PetstoreClient.DefaultApiClient do
             nil ->
               raise PetstoreClient.Errors.NetworkTimeoutError,
                 message:
-                  "request exceeded total timeout of #{client.transport_options.timeout}ms",
+                  "request exceeded total timeout of #{call_timeout || client.transport_options.timeout}ms",
                 status_code: 0
           end
       end
@@ -990,7 +1001,7 @@ defmodule PetstoreClient.DefaultApiClient do
                 next_headers,
                 next_body,
                 {max, hops + 1},
-                {no_redirect, deadline}
+                {no_redirect, deadline, call_timeout}
               )
           end
       end

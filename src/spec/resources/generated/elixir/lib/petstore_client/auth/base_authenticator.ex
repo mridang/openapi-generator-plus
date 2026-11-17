@@ -25,4 +25,27 @@ defmodule PetstoreClient.Auth.BaseAuthenticator do
       defoverridable query_params: 1, cookie_params: 1
     end
   end
+
+  @doc false
+  # Resolves one credential of an authenticator. A value that was passed is used
+  # as it is. A `nil` is read once, now, from the environment variable
+  # `OPEN_API_<FIELD>` (for the field "TOKEN", `OPEN_API_TOKEN`); an
+  # empty variable counts as unset. A credential found in neither place raises,
+  # so a client that is missing one fails when it is built and not on its first
+  # request.
+  @spec credential(term(), String.t()) :: term()
+  def credential(nil, field) do
+    name = "OPEN_API_" <> field
+
+    case System.get_env(name) do
+      value when value in [nil, ""] ->
+        raise ArgumentError,
+              "Missing the credential '#{String.downcase(field)}': pass it, or set the environment variable #{name}"
+
+      value ->
+        value
+    end
+  end
+
+  def credential(value, _field), do: value
 end

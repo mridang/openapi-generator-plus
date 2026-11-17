@@ -48,6 +48,12 @@ mix hex.audit
 
 - Name: `petstore_client`
 - Version: `1.0.0`
+- License: MIT
+- Authors: Ada Lovelace, Grace Hopper
+- Repository: <https://example.com/acme/petstore-client>
+- Homepage: <https://example.com/petstore>
+- Documentation: <https://example.com/petstore/docs>
+- Issue tracker: <https://example.com/acme/petstore-client/issues>
 
 ## Usage
 
@@ -71,6 +77,18 @@ A failed call is retried up to `max_retries` times (default `2`; `0` turns retri
 transport = PetstoreClient.TransportOptions.new(max_retries: 0)
 ```
 
+### Per-call options
+
+Every operation takes the per-call settings `:timeout` (milliseconds), `:headers` (a map) and `:max_retries` in its trailing `opts` keyword list, and the options struct of an operation that has one carries the same three fields. A setting replaces the client's own for that call only; the `opts` key wins over the options struct. `headers` are merged after the default headers and before the authentication headers, and replace a header of the same name in any casing.
+
+```elixir
+PetstoreClient.Api.ItemsApi.get_item(api, 7, timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0)
+```
+
+### Credentials
+
+An authenticator takes its credentials as arguments. An argument that is `nil` is read once, when the authenticator is built, from the environment variable `OPEN_API_<FIELD>` (`OPEN_API_TOKEN`, `OPEN_API_API_KEY`, `OPEN_API_USERNAME`, `OPEN_API_PASSWORD`, `OPEN_API_CLIENT_ID`, `OPEN_API_CLIENT_SECRET`); an empty variable counts as unset, and an argument you pass always wins. A required credential found nowhere raises `ArgumentError` when the authenticator, and so the client, is built. A bearer token or an API key may also be a zero-argument function, called for every request, so a token that rotates is read fresh each time.
+
 ### Cancellation
 
 There is no cancellation argument. A caller stops a call by terminating the process that made it (a process exit signal, the idiom here), and `timeout` on `TransportOptions` ends a call with `NetworkTimeoutError`.
@@ -81,7 +99,29 @@ There is no cancellation argument. A caller stops a call by terminating the proc
 
 ### Raw responses, request id and logging
 
-Every operation has a `_with_http_info` variant that returns the status, headers and body as an `ApiResult`. With `inject_request_id: true` on `TransportOptions`, the SDK sends an `X-Request-ID` it generates, unless the caller already set one. The SDK sends `Accept-Encoding` for the codecs it can decode and decodes them. It does not log.
+Every operation has a `_with_http_info` variant that returns the status, headers and body as an `ApiResult`. With `inject_request_id: true` on `TransportOptions`, the SDK sends an `X-Request-ID` it generates, unless the caller already set one. It does not log: wrap a call, or give `TransportOptions` a Req `:adapter` or step through `req_options`, to log requests.
+
+An error carries the request it answers: `request_method` and `request_path` (the path without the query string), and its message has a `Request: GET /path` line after the status line.
+
+### Response compression
+
+The SDK sends `Accept-Encoding` for the codecs it can decode (`gzip` and `deflate`, `br` when the optional `:brotli` dependency is present, `zstd` on OTP 28) and decodes the body before it returns; the returned headers no longer carry `content-encoding` or `content-length`. A caller-supplied `Accept-Encoding` header, in any casing, replaces the SDK's.
+
+### Versioning
+
+The package follows semantic versioning: a new operation or field is a minor release, a removed or renamed one is a major release, and a deprecated operation is marked `@deprecated` before it goes. The Elixir floor is the oldest release that still gets security fixes (1.17 today) and moves up when that release reaches end of life.
+
+### Models are immutable
+
+A model is a struct, and a struct never changes in place. Make a changed copy with the update syntax, `%{model | name: "new"}`, which leaves the original as it was.
+
+### Behaviours that differ from what you may expect
+
+- An optional property that is absent and a property that is `null` both decode to `nil`; the model cannot tell them apart. A required property that is also nullable must be present, and an explicit `null` is kept.
+- An enum value or a discriminator value the SDK does not know raises a `SerializationError` instead of passing through, so a spec that is out of date fails loudly.
+- A response header that repeats arrives as one entry in `headers`, its values joined with `, ` and its name in lower case.
+- Request and response bodies are held in memory. Streaming a body is not supported; to stream, pass your own transport through `req_options`.
+- `Configuration` (the base URL and the headers of API calls) and `TransportOptions` (proxy, TLS, timeouts, retries) stay separate structs on purpose: the first describes the API, the second the connection.
 
 ## Caveats
 
@@ -145,11 +185,6 @@ through a local HTTP-CONNECT bridge or configure it at the OS level.
 
 XML request and response bodies (including `xml` `nodeType` annotations),
 OpenAPI Link Objects and `mutualTLS` security schemes are not generated.
-
-### Per-call options
-
-There is no per-call timeout or header override. Set `timeout` and
-`default_headers` on `TransportOptions` for the whole client.
 
 ### `LICENSE` file is not auto-emitted
 

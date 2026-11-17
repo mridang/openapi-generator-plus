@@ -75,14 +75,22 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
 
     * `host` - API base URL.
     * `openid_connect_url` - OIDC discovery document URL.
-    * `client_id` - OAuth2 client ID.
-    * `client_secret` - OAuth2 client secret.
+    * `client_id` - OAuth2 client ID. `nil` reads it from the environment variable
+      `OPEN_API_CLIENT_ID`.
+    * `client_secret` - OAuth2 client secret. `nil` reads it from the environment variable
+      `OPEN_API_CLIENT_SECRET`.
     * `redirect_uri` - Redirect URI registered with the provider.
     * `scopes` - Requested scopes.
 
   """
-  @spec new(String.t(), String.t(), String.t(), String.t(), String.t(), [String.t()]) :: t()
+  @spec new(String.t(), String.t(), String.t() | nil, String.t() | nil, String.t(), [String.t()]) ::
+          t()
   def new(host, openid_connect_url, client_id, client_secret, redirect_uri, scopes) do
+    client_id = PetstoreClient.Auth.BaseAuthenticator.credential(client_id, "CLIENT_ID")
+
+    client_secret =
+      PetstoreClient.Auth.BaseAuthenticator.credential(client_secret, "CLIENT_SECRET")
+
     # The struct is immutable and build_authorization_url/2 returns only the
     # URL, so the resolved discovery document is cached in a process that
     # every copy of this struct shares, like the token manager's token. The

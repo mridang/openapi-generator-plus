@@ -3043,6 +3043,14 @@
    ],
    "value": "extra  (*",
    "reason": "F878: typed factory ofVariant(v) and accessors isVariant() and asVariant() on a oneOf or anyOf wrapper; java's idiom for a union that holds an Object, with an Optional for the typed read"
+  },
+  {
+   "element": "baseapi.invokeapi",
+   "aspect": "optional",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "elixir passes the per-call settings (timeout, headers, max_retries) to the shared invoke function as a trailing keyword list; it is a support function called only by the generated operations, and the other languages carry the same settings in their own per-call options object"
   }
  ]
 }

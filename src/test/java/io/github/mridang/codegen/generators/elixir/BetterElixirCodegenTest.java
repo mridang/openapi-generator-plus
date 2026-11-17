@@ -69,7 +69,11 @@ class BetterElixirCodegenTest {
   @Test
   void suffixesAParameterNamedLikeABindingTheOperationMakesItself() {
     final BetterElixirCodegen codegen = new BetterElixirCodegen();
-    for (final String bound : new String[] {"api", "opts", "options", "auth", "path", "server"}) {
+    for (final String bound :
+        new String[] {
+          "api", "opts", "options", "auth", "path", "server", "call", "timeout", "headers",
+          "max_retries"
+        }) {
       assertThat(codegen.toParamName(bound)).isEqualTo(bound + "_param");
     }
     assertThat(codegen.toParamName("petId")).isEqualTo("pet_id");
@@ -87,5 +91,24 @@ class BetterElixirCodegenTest {
     assertThat(BetterElixirCodegen.toExampleDocs(parameter))
         .containsExactly(Map.of("summary", "Only \\#{open} ones", "value", "open"));
     assertThat(BetterElixirCodegen.toExampleDocs(new CodegenParameter())).isEmpty();
+  }
+
+  @Test
+  void readsTheNamedExamplesFromTheParameterBeforeTheSharedPassCopiesThem() {
+    final CodegenParameter parameter = new CodegenParameter();
+    final io.swagger.v3.oas.models.examples.Example example =
+        new io.swagger.v3.oas.models.examples.Example();
+    example.setSummary("Sold pets");
+    example.setValue("sold");
+    parameter.examples = new java.util.LinkedHashMap<>();
+    parameter.examples.put("sold", example);
+
+    assertThat(BetterElixirCodegen.toExampleDocs(parameter))
+        .hasSize(1)
+        .allSatisfy(
+            doc -> {
+              assertThat(doc).containsEntry("summary", "Sold pets");
+              assertThat(doc).containsEntry("value", "sold");
+            });
   }
 }
