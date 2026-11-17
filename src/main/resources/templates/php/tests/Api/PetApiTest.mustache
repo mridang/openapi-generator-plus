@@ -704,7 +704,7 @@ function newBodyCapturingPetApi(): array
     return [new PetApi(apiClient: $client, config: $config), $captured];
 }
 
-test('form array field serializes as repeated keys', function (): void {
+test('bhv serializationwire 053 form array field serializes as repeated keys', function (): void {
     // Canonical behavior #1: tags=[friendly, calm] must serialize to
     // tags=friendly&tags=calm — one repeated key per element.
     [$api, $captured] = newBodyCapturingPetApi();

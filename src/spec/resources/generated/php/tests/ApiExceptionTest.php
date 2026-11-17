@@ -306,7 +306,7 @@ test('bhv errors 009 fromResponse decodes an error body nested exactly at the de
     expect(ApiException::fromResponse(400, [], $pastCap)->getErrorBody())->toBeNull();
 });
 
-test('every error type lives in the Errors namespace under the root', function (string $error): void {
+test('bhv errors 044 every error type lives in the Errors namespace under the root', function (string $error): void {
     $namespace = substr($error, 0, (int) strrpos($error, '\\'));
 
     expect($namespace)->toBe('PetstoreClient\\Errors');

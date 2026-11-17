@@ -86,7 +86,7 @@ test('bhv authapikey 002 crlf in cookie key throws at construction', function ()
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('api key header rejects crlf at construction', function (): void {
+test('bhv authapikey 018 api key header rejects crlf at construction', function (): void {
     // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER))
         ->toThrow(\InvalidArgumentException::class);
@@ -171,6 +171,44 @@ test('bhv authapikey 007 every generated api key wrapper emits its key at exactl
         expect(print_r($auth, true))->not->toContain('wrapper-key-1');
         expect(fn () => $reflection->newInstance('https://api.example.com', ''))
             ->toThrow(\InvalidArgumentException::class);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authapikey 019 wrappers reject an empty key at construction', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        expect(fn () => $reflection->newInstance('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class, 'must not be empty');
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authapikey 020 every api key wrapper validates eagerly and redacts the key', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        expect(fn () => $reflection->newInstance('https://api.example.com', "wrapper\r\nkey"))
+            ->toThrow(\InvalidArgumentException::class);
+
+        $auth = $reflection->newInstance('https://api.example.com', 'wrapper-key-2');
+        ob_start();
+        var_dump($auth);
+        $dump = (string) ob_get_clean();
+        expect($dump)->not->toContain('wrapper-key-2');
     }
     expect($wrappers)->toBeGreaterThan(0);
 });

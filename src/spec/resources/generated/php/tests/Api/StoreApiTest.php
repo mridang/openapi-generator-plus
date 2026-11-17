@@ -176,6 +176,36 @@ test('bhv operations 119 place order with http info', function (): void {
     expect($result->data)->toBeInstanceOf(Order::class);
 });
 
+test('bhv operations 126 place order without an argument sends no body', function (): void {
+    $captured = new \stdClass();
+    $captured->body = 'unset';
+    $captured->headers = [];
+
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
+        {
+            $this->captured->body = $body;
+            $this->captured->headers = $headers;
+
+            return new \PetstoreClient\ApiHttpResponse(200, '{"id":1}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $api = new StoreApi(apiClient: $client, config: Configuration::builder()->baseUrl('http://localhost:9999')->build());
+
+    $api->placeOrder();
+
+    expect($captured->body)->toBeNull();
+    expect($captured->headers)->not->toHaveKey('Content-Type');
+});
+
 test('bhv operations 117 place order', function (): void {
     $order = new Order(
         id: 1,

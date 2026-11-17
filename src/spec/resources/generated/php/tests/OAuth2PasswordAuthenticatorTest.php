@@ -547,6 +547,36 @@ test('bhv authoauthtwopassword 017 the first grant goes to the token url and the
     expect($client->capturedRequests[1]['body'] ?? '')->toContain('grant_type=refresh_token');
 });
 
+test('bhv authoauthtwopassword 020 without a refreshUrl the refresh grant also goes to tokenUrl', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-1',
+        'refresh_token' => 'refresh-1',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/token');
+    expect($client->capturedRequests[1]['body'] ?? '')->toContain('grant_type=refresh_token');
+});
+
 test('bhv authoauthtwopassword 012 scheme wrapper sends the spec scopes and urls', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([

@@ -110,7 +110,7 @@ test('bhv authoauthtwoimplicit 010 redacts secret', function (): void {
     expect($printR)->toContain('***');
 });
 
-test('set access token rejects a token outside printable ascii', function (string $token): void {
+test('bhv authoauthtwoimplicit 014 set access token rejects a token outside printable ascii', function (string $token): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     expect(fn () => $authenticator->setAccessToken($token))
