@@ -189,7 +189,7 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void crlfInHeaderKeyThrowsAtConstruction() {
+  void bhvAuthApiKey018CrlfInHeaderKeyThrowsAtConstruction() {
     assertThrows(
         IllegalArgumentException.class,
         () ->

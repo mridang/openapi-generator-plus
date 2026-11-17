@@ -152,7 +152,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void crlfInHeaderKeyThrowsAtConstruction() {
+    void bhvAuthApiKey018CrlfInHeaderKeyThrowsAtConstruction() {
         assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
                 "https://api.example.com", "X-API-Key", "abc\rdef", ApiKeyLocation.HEADER));
     }

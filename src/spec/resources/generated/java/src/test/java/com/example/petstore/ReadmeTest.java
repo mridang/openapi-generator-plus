@@ -60,7 +60,7 @@ class ReadmeTest {
   }
 
   @Test
-  void socksNoteNamesTheJavaProxySetter() throws IOException {
+  void bhvOptions044SocksNoteNamesTheJavaProxySetter() throws IOException {
     String readme = flattened();
     assertTrue(
         readme.contains(

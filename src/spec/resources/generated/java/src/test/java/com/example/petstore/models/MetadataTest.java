@@ -160,7 +160,7 @@ class MetadataTest {
   }
 
   @Test
-  void testToStringDumpsTheAdditionalProperties() {
+  void bhvModels012ToStringDumpsTheAdditionalProperties() {
     Metadata metadata = Metadata.builder().putAdditionalProperty("customField", "hello").build();
 
     assertThat(metadata.toString())

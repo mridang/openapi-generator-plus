@@ -536,7 +536,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+  void bhvErrors044EveryErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
     java.util.List<Class<? extends RuntimeException>> errors =
         java.util.List.of(
             OpenAPIException.class,

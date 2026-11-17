@@ -199,7 +199,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void configurationDefaultHeadersAreUnmodifiable() {
+  void bhvConfig017ConfigurationDefaultHeadersAreUnmodifiable() {
     Configuration config = Configuration.builder().defaultHeader("X-Key", "value").build();
 
     assertThrows(

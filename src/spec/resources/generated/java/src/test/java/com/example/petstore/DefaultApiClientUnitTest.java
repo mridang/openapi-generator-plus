@@ -249,6 +249,18 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/utf16-le-bom",
+        exchange -> {
+          // A little-endian byte-order mark (FF FE) makes the BOM-less body that follows it
+          // little-endian.
+          byte[] body = new byte[] {(byte) 0xFF, (byte) 0xFE, 0x44, 0x00, 0x6F, 0x00, 0x63, 0x00};
+          exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-16");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
         "/content-encoding-lie",
         exchange -> {
           // Gap AL: the server claims gzip but sends plain (non-gzip) bytes.
@@ -2028,6 +2040,23 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvSerializationWire054DecodesLittleEndianBomUtf16AsLittleEndian() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf16-le-bom", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals(
+        "Doc", response.body(), "a little-endian BOM must decode the body as little-endian");
+  }
+
+  @Test
+  void bhvSerializationObject183HandlesANullBody() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf8-default", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("héllo", response.body());
+  }
+
+  @Test
   void bhvTransport030ContentEncodingLieSurfacesApiException() {
     // Gap AL: a response that advertises `Content-Encoding: gzip` but carries
     // non-gzip plain bytes must surface a typed ApiException — never crash
@@ -2548,7 +2577,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void retryAfterSecondsSetTheWait() throws Exception {
+  void bhvRetries026RetryAfterSecondsSetTheWait() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted =
         scriptedServer(n -> n == 1 ? new Reply(429, "1") : new Reply(200, ""), hits);
@@ -2587,7 +2616,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void backoffDoublesFromHalfASecondToEightSecondsWithQuarterJitter() {
+  void bhvRetries027BackoffDoublesFromHalfASecondToEightSecondsWithQuarterJitter() {
     assertEquals(500L, DefaultApiClient.backoffMillis(0, 0.0));
     assertEquals(1000L, DefaultApiClient.backoffMillis(1, 0.0));
     assertEquals(2000L, DefaultApiClient.backoffMillis(2, 0.0));
@@ -2706,7 +2735,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void cancellationDuringTheBackoffWaitSurfacesAsCancellation() throws Exception {
+  void bhvRetries028CancellationDuringTheBackoffWaitSurfacesAsCancellation() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "30"), hits);
     Thread caller = Thread.currentThread();
