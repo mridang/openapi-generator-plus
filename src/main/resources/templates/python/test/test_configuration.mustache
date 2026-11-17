@@ -156,6 +156,22 @@ class TestConfigurationServerResolution:
 
         assert config.base_url == 'https://staging.example.com/api/v2'
 
+    def test_bhv_config_016_invalid_server_variable_enum_value_throws(self) -> None:
+        server = ServerConfiguration(
+            url_template='https://{env}.example.com/api',
+            variables={
+                'env': ServerVariable(
+                    default_value='api',
+                    enum_values=['api', 'staging'],
+                ),
+            },
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            Configuration.builder().server(server, {'env': 'dev'})
+
+        assert type(exc_info.value) is ValueError
+
     def test_bhv_config_001_builder_base_url_overrides_server(self) -> None:
         server = ServerConfiguration(url_template='https://api.example.com')
 

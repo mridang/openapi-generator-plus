@@ -1345,6 +1345,79 @@ class TestUseAfterClose:
         # The request must never have been issued against the closed client.
         assert pool.calls == 0
 
+    def test_bhv_lifecycle_019_close_lets_an_in_flight_request_finish_and_refuses_a_new_one(self) -> None:
+        import threading
+
+        started = threading.Event()
+        release = threading.Event()
+        results: list[Any] = []
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                started.set()
+                release.wait(5)
+                return _FakeResp(200, {})
+
+            def clear(self) -> None:
+                return None
+
+        client = DefaultApiClient(pool_manager=_Pool())
+
+        def run() -> None:
+            results.append(client.send_request("GET", "https://example.com/x", {}, None))
+
+        worker = threading.Thread(target=run)
+        worker.start()
+        assert started.wait(5)
+
+        client.close()
+        with pytest.raises(RuntimeError) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        assert type(excinfo.value) is RuntimeError
+        assert str(excinfo.value) == "ApiClient has been closed and can no longer send requests"
+
+        release.set()
+        worker.join(5)
+        assert [response.status_code for response in results] == [200]
+
+    def test_bhv_lifecycle_021_closing_the_client_lets_a_running_request_finish(self) -> None:
+        import threading
+
+        started = threading.Event()
+        release = threading.Event()
+        results: list[Any] = []
+
+        class _Pool:
+            cleared = False
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                started.set()
+                release.wait(5)
+                return _FakeResp(200, {})
+
+            def clear(self) -> None:
+                self.cleared = True
+
+        pool = _Pool()
+        client = DefaultApiClient()
+        client._pool_manager = pool
+        client._owns_pool = True
+
+        def run() -> None:
+            results.append(client.send_request("GET", "https://example.com/x", {}, None))
+
+        worker = threading.Thread(target=run)
+        worker.start()
+        assert started.wait(5)
+
+        client.close()
+        assert pool.cleared is False
+
+        release.set()
+        worker.join(5)
+        assert [response.status_code for response in results] == [200]
+        assert pool.cleared is True
+
     def test_close_is_idempotent(self) -> None:
         client = DefaultApiClient()
         client.close()
