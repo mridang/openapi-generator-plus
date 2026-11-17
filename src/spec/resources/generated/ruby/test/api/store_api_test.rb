@@ -133,7 +133,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_inventory' do
-    it 'returns inventory' do
+    it 'get_inventory' do
       result = @api.get_inventory
 
       _(result).must_be_kind_of(Hash)
@@ -177,7 +177,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#place_order' do
-    it 'places an order' do
+    it 'place_order' do
       order = Petstore::Client::Models::Order.new(
         id: 1,
         pet_id: 12_345,
@@ -195,7 +195,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_inventory_with_http_info' do
-    it 'returns inventory with status and data' do
+    it 'get_inventory_with_http_info' do
       result = @api.get_inventory_with_http_info
 
       _(result).wont_be_nil
@@ -206,7 +206,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#place_order_with_http_info' do
-    it 'places an order with status and data' do
+    it 'place_order_with_http_info' do
       order = Petstore::Client::Models::Order.new(
         id: 1,
         pet_id: 12_345,
@@ -226,7 +226,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_order_by_id' do
-    it 'returns an order by id' do
+    it 'get_order_by_id' do
       result = @api.get_order_by_id(1)
 
       _(result).wont_be_nil
@@ -235,7 +235,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_order_by_id_with_http_info' do
-    it 'returns an order by id with status and data' do
+    it 'get_order_by_id_with_http_info' do
       result = @api.get_order_by_id_with_http_info(1)
 
       _(result).wont_be_nil
@@ -246,7 +246,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#delete_order' do
-    it 'deletes an order' do
+    it 'delete_order' do
       @api.delete_order(1)
     end
   end
@@ -327,7 +327,7 @@ describe Petstore::Client::Api::StoreApi do
       [api, server, thread]
     end
 
-    it 'raises error on get_order_by_id 404' do
+    it 'get_order_not_found' do
       api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
       begin
         _(-> { api.get_order_by_id(99_999) }).must_raise Petstore::Client::Errors::NotFoundError
@@ -337,7 +337,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'raises error on place_order 500' do
+    it 'place_order_server_error' do
       api, server, thread = new_store_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
       begin
         order = Petstore::Client::Models::Order.new(
@@ -354,7 +354,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'raises error on delete_order 404' do
+    it 'delete_order_not_found' do
       api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
       begin
         _(-> { api.delete_order(99_999) }).must_raise Petstore::Client::Errors::NotFoundError

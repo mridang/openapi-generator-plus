@@ -276,7 +276,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
-  it 'authorize URL with existing query string uses ampersand separator' do
+  it 'authorize URL with existing query string uses amp separator' do
     auth_with_query = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',
       'my_client_id',

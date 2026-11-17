@@ -23,10 +23,10 @@ class ClientTestHttpAwareCredential < Petstore::Client::Auth::Authenticator
   end
 end
 
-describe Petstore::Client::Petstore do
+describe 'Client' do
   parallelize_me!
 
-  it 'constructs with authenticator only' do
+  it 'construct with authenticator only' do
     authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
 
     client = Petstore::Client::Petstore.new(authenticator)
@@ -34,7 +34,7 @@ describe Petstore::Client::Petstore do
     _(client).wont_be_nil
   end
 
-  it 'constructs with authenticator and nil transport options' do
+  it 'construct with authenticator and nil transport options' do
     authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
 
     client = Petstore::Client::Petstore.new(authenticator, nil)
@@ -42,7 +42,7 @@ describe Petstore::Client::Petstore do
     _(client).wont_be_nil
   end
 
-  it 'constructs with authenticator and transport options' do
+  it 'construct with authenticator and transport options' do
     authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
     transport = Petstore::Client::TransportOptions.builder.build
 

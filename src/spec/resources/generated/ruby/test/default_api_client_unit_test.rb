@@ -37,7 +37,7 @@ class MultipartModelPart < Dry::Struct
   attribute :recorded_at, ::Petstore::Client::Types::Any.optional.meta(omittable: true)
 end
 
-describe Petstore::Client::DefaultApiClient do
+describe 'DefaultApiClientUnit' do
   parallelize_me!
 
   def stub_connection(stubs)
@@ -2011,7 +2011,7 @@ end
 
 # The SDK follows redirects itself (so credentials can be stripped per origin),
 # so it must not depend on, or load, Faraday's own redirect middleware.
-describe 'Petstore::Client redirect dependencies' do
+describe 'DefaultApiClientUnit', 'redirect dependencies' do
   it 'does not load the Faraday follow_redirects middleware' do
     _($LOADED_FEATURES.grep(%r{faraday/follow_redirects})).must_be_empty
   end

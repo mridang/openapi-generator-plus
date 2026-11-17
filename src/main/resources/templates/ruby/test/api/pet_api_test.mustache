@@ -82,7 +82,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#add_pet' do
-    it 'creates a new pet' do
+    it 'add_pet' do
       pet = {{moduleName}}::Models::Pet.new(
         id: 12_345,
         name: 'TestDog',
@@ -98,7 +98,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#find_pets_by_status' do
-    it 'returns pets by status' do
+    it 'find_pets_by_status' do
       result = @api.find_pets_by_status({{moduleName}}::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
 
       _(result).must_be_kind_of(Array)
@@ -166,7 +166,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#get_pet_by_id' do
-    it 'returns a pet by id' do
+    it 'get_pet_by_id' do
       result = @api.get_pet_by_id(1)
 
       _(result).wont_be_nil
@@ -176,7 +176,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#update_pet' do
-    it 'updates an existing pet' do
+    it 'update_pet' do
       pet = {{moduleName}}::Models::Pet.new(
         id: 1,
         name: 'UpdatedDog',
@@ -191,13 +191,13 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#delete_pet' do
-    it 'deletes a pet' do
+    it 'delete_pet' do
       @authed_api.delete_pet(1)
     end
   end
 
   describe '#set_pet_avatar' do
-    it 'uploads binary image data' do
+    it 'set_pet_avatar' do
       @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"))
     end
 
@@ -256,7 +256,7 @@ describe {{moduleName}}::Api::PetApi do
       [api, server, thread, captured_body, captured_content_type]
     end
 
-    it 'streams raw bytes with the declared content type' do
+    it 'set_pet_avatar streams raw bytes with declared content type' do
       api, server, thread, captured_body, captured_content_type = capture_avatar_request
       begin
         # JPEG SOI marker — a known, non-trivial binary payload. The high bytes
@@ -340,7 +340,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#get_pet_avatar' do
-    it 'downloads the pet avatar as binary' do
+    it 'get_pet_avatar' do
       result = @api.get_pet_avatar(1)
 
       _(result).wont_be_nil
@@ -348,7 +348,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#get_pet_avatar_thumbnail' do
-    it 'base64-decodes the top-level byte response to raw bytes' do
+    it 'get_pet_avatar_thumbnail' do
       # The response is a top-level `type: string, format: byte` schema served
       # as application/json, so it arrives as a JSON string literal
       # ("dGVzdC1pbWFnZQ=="). The SDK must JSON-parse then base64-decode it to
@@ -382,7 +382,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#set_pet_avatar_thumbnail' do
-    it 'uploads a thumbnail from raw bytes (base64-encoded on the wire)' do
+    it 'set_pet_avatar_thumbnail' do
       # SetPetAvatarThumbnailRequest is a oneOf [scalar format:byte, array of
       # format:byte]. The caller supplies RAW bytes; the SDK base64-encodes
       # the byte variant on the wire (the round-trip is asserted directly on
@@ -394,7 +394,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#upload_pet_certificate' do
-    it 'uploads a certificate via multipart' do
+    it 'upload_pet_certificate' do
       options = {{moduleName}}::Api::Options::UploadPetCertificateOptions.new(
         file: StringIO.new('cert-data')
       )
@@ -405,7 +405,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#upload_pet_document' do
-    it 'uploads a document with metadata via multipart' do
+    it 'upload_pet_document' do
       result = @api.upload_pet_document(
         1,
         {{moduleName}}::Api::Options::UploadPetDocumentOptions.new(
@@ -565,7 +565,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#add_pet_photos' do
-    it 'uploads photos with metadata via multipart' do
+    it 'add_pet_photos' do
       metadata = {{moduleName}}::Models::PhotoMetadata.new(caption: 'Test photo', is_primary: true)
 
       result = @api.add_pet_photos(
@@ -582,7 +582,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#download_pet_document' do
-    it 'downloads a document as binary' do
+    it 'download_pet_document' do
       result = @api.download_pet_document(1, 1)
 
       _(result).wont_be_nil
@@ -590,7 +590,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#get_pet_photo' do
-    it 'returns a photo via content negotiation' do
+    it 'get_pet_photo' do
       result = @api.get_pet_photo(1, 1)
 
       _(result).wont_be_nil
@@ -598,7 +598,7 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#get_pet_passport' do
-    it 'returns a passport with embedded byte fields' do
+    it 'get_pet_passport' do
       result = @api.get_pet_passport(1)
 
       _(result).wont_be_nil
@@ -894,7 +894,7 @@ describe {{moduleName}}::Api::PetApi do
       [api, server, thread]
     end
 
-    it 'raises error on 404 response' do
+    it 'error_handling_not_found' do
       api, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
       begin
         _(-> { api.get_pet_by_id(99_999) }).must_raise {{moduleName}}::Errors::NotFoundError
@@ -914,7 +914,7 @@ describe {{moduleName}}::Api::PetApi do
       end
     end
 
-    it 'handles binary download from mock' do
+    it 'download_binary_mock' do
       api, server, thread = new_pet_api_for_mock(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
       begin
         result = api.get_pet_avatar(1)
@@ -925,7 +925,7 @@ describe {{moduleName}}::Api::PetApi do
       end
     end
 
-    it 'handles multipart upload from mock' do
+    it 'upload_multipart_mock' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"code":200,"type":"","message":"success"}')
       begin
         options = {{moduleName}}::Api::Options::UploadPetCertificateOptions.new(
@@ -1089,7 +1089,7 @@ describe {{moduleName}}::Api::PetApi do
 
   describe 'with_http_info methods' do
     describe '#get_pet_by_id_with_http_info' do
-      it 'returns HTTP info along with the response' do
+      it 'get_pet_by_id_with_http_info' do
         result = @api.get_pet_by_id_with_http_info(1)
 
         _(result).wont_be_nil
@@ -1100,7 +1100,7 @@ describe {{moduleName}}::Api::PetApi do
     end
 
     describe '#add_pet_with_http_info' do
-      it 'returns HTTP info on successful pet creation' do
+      it 'add_pet_with_http_info' do
         pet = {{moduleName}}::Models::Pet.new(
           id: 99,
           name: 'HttpInfoDog',
@@ -1118,7 +1118,7 @@ describe {{moduleName}}::Api::PetApi do
     end
 
     describe '#update_pet_with_http_info' do
-      it 'returns HTTP info on successful update' do
+      it 'update_pet_with_http_info' do
         pet = {{moduleName}}::Models::Pet.new(
           id: 1,
           name: 'UpdatedDog',
@@ -1135,7 +1135,7 @@ describe {{moduleName}}::Api::PetApi do
     end
 
     describe '#delete_pet_with_http_info' do
-      it 'returns HTTP info on successful deletion' do
+      it 'delete_pet_with_http_info' do
         result = @authed_api.delete_pet_with_http_info(1)
 
         _(result).wont_be_nil
@@ -1145,7 +1145,7 @@ describe {{moduleName}}::Api::PetApi do
     end
 
     describe '#find_pets_by_status_with_http_info' do
-      it 'returns HTTP info along with the list' do
+      it 'find_pets_by_status_with_http_info' do
         result = @api.find_pets_by_status_with_http_info(
           {{moduleName}}::Api::Options::FindPetsByStatusOptions.new(status: 'available')
         )
@@ -1156,7 +1156,7 @@ describe {{moduleName}}::Api::PetApi do
     end
 
     describe '#get_pet_passport_with_http_info' do
-      it 'returns HTTP info along with the passport' do
+      it 'get_pet_passport_with_http_info' do
         result = @api.get_pet_passport_with_http_info(1)
 
         _(result).wont_be_nil
