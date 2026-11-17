@@ -191,7 +191,7 @@ beforeAll(async () => {
   }
 }, 30_000);
 
-describe("BaseApi exception dispatch", () => {
+describe("BaseApi", () => {
   const cases: [number, new (...args: never[]) => ApiError][] = [
     [400, BadRequestError],
     [401, UnauthorizedError],
@@ -230,7 +230,7 @@ describe("BaseApi exception dispatch", () => {
   );
 });
 
-describe("BaseApi error body parsing", () => {
+describe("BaseApi", () => {
   test("parses JSON error body", async () => {
     try {
       await api().call(
@@ -295,7 +295,7 @@ describe("BaseApi exception hierarchy", () => {
   });
 });
 
-describe("BaseApi success deserialization", () => {
+describe("BaseApi", () => {
   test("deserializes JSON response", async () => {
     const result = await api().call(
       "GET",
@@ -464,8 +464,8 @@ describe("BaseApi query parameters", () => {
   });
 });
 
-describe("BaseApi allowEmptyValue", () => {
-  test("omits query param when options is null", async () => {
+describe("BaseApi", () => {
+  test("null options omits allowEmptyValue param", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const petApi = new PetApi(client, config);
@@ -518,7 +518,7 @@ describe("BaseApi allowEmptyValue", () => {
   });
 });
 
-describe("BaseApi query serialization", () => {
+describe("BaseApi", () => {
   test("expands array query params", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
@@ -607,7 +607,7 @@ describe("BaseApi query serialization", () => {
     expect(client.capturedUrl).not.toContain("?");
   });
 
-  test("collapses double-slash when baseUrl has trailing /", async () => {
+  test("collapses double-slash when baseUrl has trailing slash", async () => {
     // Gap Z — baseUrl='http://x/' + path='/y' must produce
     // 'http://x/y', not 'http://x//y' which most servers route to 404.
     const client = new CapturingApiClient();
@@ -627,7 +627,7 @@ describe("BaseApi query serialization", () => {
   });
 });
 
-describe("BaseApi auth injection", () => {
+describe("BaseApi", () => {
   test("forwards auth headers", async () => {
     const auth = new TestAuthenticator({ "X-Custom": "auth-value" });
     const result = await api().call(
@@ -1012,7 +1012,7 @@ describe("BaseApi auth injection", () => {
   });
 });
 
-describe("BaseApi body serialization", () => {
+describe("BaseApi", () => {
   test("serializes JSON body for POST", async () => {
     const result = await api().call(
       "POST",
@@ -1237,43 +1237,6 @@ describe("BaseApi body serialization", () => {
     expect(client.capturedBody).toBeDefined();
   });
 
-  // Canonical binary-request-body regression: setPetAvatar (PUT
-  // /pet/{petId}/avatar) declares a type:string format:binary body with a
-  // declared Content-Type of image/jpeg. The raw bytes must reach the wire
-  // UNCHANGED — never JSON-marshaled to a `[255,216,...]` int-array, never the
-  // literal "{}", never base64 — and the declared Content-Type must survive
-  // intact, never overridden to application/octet-stream or application/json.
-  // The CapturingApiClient records exactly what BaseApi hands to the transport,
-  // so these assertions check the real outgoing request for the actual
-  // operation, not a synthetic call().
-  test("setPetAvatar streams raw bytes with declared content type", async () => {
-    const client = new CapturingApiClient();
-    const config = new Configuration({ baseUrl: "http://localhost" });
-    const petApi = new PetApi(client, config);
-    // JPEG SOI marker + APP0 segment start: a known, non-trivial payload.
-    const payload = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
-    try {
-      await petApi.setPetAvatar(1, payload);
-    } catch {
-      // setPetAvatar returns void; the capturing client returns '{}' as the
-      // body, so nothing should throw here, but mirror the neighbouring
-      // capture tests and stay capture-only regardless.
-    }
-    // (1) The body is the EXACT raw bytes — the same Buffer instance, byte for
-    // byte — not a JSON int-array, not "{}", not base64, not JSON-marshaled.
-    expect(Buffer.isBuffer(client.capturedBody)).toBe(true);
-    expect(Buffer.from(client.capturedBody as Buffer)).toEqual(payload);
-    expect((client.capturedBody as Buffer).toString("latin1")).toBe(
-      payload.toString("latin1"),
-    );
-    // (2) The declared Content-Type is preserved verbatim, not overridden.
-    expect(client.capturedHeaders["Content-Type"]).toBe("image/jpeg");
-    expect(client.capturedHeaders["Content-Type"]).not.toBe(
-      "application/octet-stream",
-    );
-    expect(client.capturedHeaders["Content-Type"]).not.toBe("application/json");
-  });
-
   // Optional request-content-type selector. setPetAvatar declares THREE
   // request content-types (image/jpeg, image/png, application/json). Without a
   // selector the operation collapses to the first declared type and the others
@@ -1467,7 +1430,7 @@ describe("BaseApi content-type deserialization guard", () => {
   });
 });
 
-describe("BaseApi header flow-through", () => {
+describe("BaseApi", () => {
   test("empty content-type defaults to application/json", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
@@ -1485,7 +1448,7 @@ describe("BaseApi header flow-through", () => {
     expect(client.capturedHeaders["Content-Type"]).toBe("application/json");
   });
 
-  test("all headers from selector flow through to request", async () => {
+  test("all headers flow through", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1504,7 +1467,7 @@ describe("BaseApi header flow-through", () => {
   });
 });
 
-describe("Configuration server variable overrides", () => {
+describe("BaseApi", () => {
   const variableServer = new ServerConfiguration(
     "https://{environment}.example.com/api/{version}",
     "Test server with variables",
@@ -1518,14 +1481,14 @@ describe("Configuration server variable overrides", () => {
     },
   );
 
-  test("server variable overrides resolve in base URL", () => {
+  test("server variable overrides resolve in the base URL", () => {
     const config = Configuration.builder()
       .server(variableServer, { environment: "staging" })
       .build();
     expect(config.baseUrl).toBe("https://staging.example.com/api/v3");
   });
 
-  test("default server variables produce correct base URL", () => {
+  test("default server variables produce the correct base URL", () => {
     const config = Configuration.builder().server(variableServer).build();
     expect(config.baseUrl).toBe("https://api.example.com/api/v3");
   });
@@ -1548,7 +1511,7 @@ describe("Configuration server variable overrides", () => {
   });
 });
 
-describe("BinaryResponseTests", () => {
+describe("BaseApi", () => {
   test("octet-stream response roundtrips bytes exactly", async () => {
     const original = new Uint8Array([0x00, 0xff, 0x42, 0x7f, 0x80, 0xc3, 0xa9]);
     const client = new CapturingApiClient();
@@ -1681,7 +1644,7 @@ describe("ConvenienceEmptyBodyTests", () => {
   });
 });
 
-describe("NullBodyContentTypeTests", () => {
+describe("BaseApi", () => {
   test("null body POST does not send Content-Type", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
@@ -1716,7 +1679,7 @@ describe("NullBodyContentTypeTests", () => {
     expect(client.capturedHeaders["Content-Type"]).toBeDefined();
   });
 
-  test("empty JSON object body includes Content-Type and correct body", async () => {
+  test("empty JSON object body includes Content-Type", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);

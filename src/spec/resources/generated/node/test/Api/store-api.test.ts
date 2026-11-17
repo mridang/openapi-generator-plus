@@ -697,8 +697,8 @@ describe("StoreApi error dispatch through the typed status routes", () => {
   );
 });
 
-describe("StoreApi error handling", () => {
-  test("getOrderById 404 throws error", async () => {
+describe("StoreApi", () => {
+  test("get order not found", async () => {
     const { api: mockApi, close } = await createMockServer(
       404,
       "application/json",
@@ -713,7 +713,7 @@ describe("StoreApi error handling", () => {
     }
   });
 
-  test("placeOrder 500 throws error", async () => {
+  test("place order server error", async () => {
     const { api: mockApi, close } = await createMockServer(
       500,
       "application/json",
@@ -736,7 +736,7 @@ describe("StoreApi error handling", () => {
     }
   });
 
-  test("deleteOrder 404 throws error", async () => {
+  test("delete order not found", async () => {
     const { api: mockApi, close } = await createMockServer(
       404,
       "application/json",

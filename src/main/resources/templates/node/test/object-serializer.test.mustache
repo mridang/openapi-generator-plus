@@ -458,115 +458,113 @@ describe('ObjectSerializer', () => {
     });
   });
 
-  describe('deserialize', () => {
-    test('deserializes JSON to typed model', () => {
-      const json = { id: 1, name: 'Dogs' };
-      const category = ObjectSerializer.deserialize(json, Category);
-      expect(category).toBeDefined();
-      expect(category!.id).toBe(1);
-      expect(category!.name).toBe('Dogs');
-    });
+  test('deserializes JSON to typed model', () => {
+    const json = { id: 1, name: 'Dogs' };
+    const category = ObjectSerializer.deserialize(json, Category);
+    expect(category).toBeDefined();
+    expect(category!.id).toBe(1);
+    expect(category!.name).toBe('Dogs');
+  });
 
-    test('accepts a valid enum value on a model property', () => {
-      const json = { name: 'Fido', photoUrls: [], status: 'available' };
-      const pet = ObjectSerializer.deserialize(json, Pet);
-      expect(pet!.status).toBe(PetStatusEnum.Available);
-    });
+  test('accepts a valid enum value on a model property', () => {
+    const json = { name: 'Fido', photoUrls: [], status: 'available' };
+    const pet = ObjectSerializer.deserialize(json, Pet);
+    expect(pet!.status).toBe(PetStatusEnum.Available);
+  });
 
-    test('throws on an unknown enum wire value instead of silently keeping it', () => {
-      // enum-unknown-value-silent-vs-throw: an out-of-spec enum value (e.g.
-      // status:"banana") must surface as a deserialize error rather than
-      // being stored verbatim on the typed field (type confusion).
-      const json = { name: 'Fido', photoUrls: [], status: 'banana' };
-      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
-    });
+  test('throws on an unknown enum wire value instead of silently keeping it', () => {
+    // enum-unknown-value-silent-vs-throw: an out-of-spec enum value (e.g.
+    // status:"banana") must surface as a deserialize error rather than
+    // being stored verbatim on the typed field (type confusion).
+    const json = { name: 'Fido', photoUrls: [], status: 'banana' };
+    expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
+  });
 
-    test('deserializing a complete object still succeeds (no regression)', () => {
-      // Divergence #10 control: the strict required-field guard must not
-      // affect a payload that supplies every required field. Pet requires
-      // name + photoUrls; both are present here.
-      const json = { id: 5, name: 'Rex', photoUrls: ['http://example.com/rex.jpg'] };
-      const pet = ObjectSerializer.deserialize(json, Pet);
-      expect(pet).toBeDefined();
-      expect(pet!.name).toBe('Rex');
-    });
+  test('deserializing a complete object still succeeds (no regression)', () => {
+    // Divergence #10 control: the strict required-field guard must not
+    // affect a payload that supplies every required field. Pet requires
+    // name + photoUrls; both are present here.
+    const json = { id: 5, name: 'Rex', photoUrls: ['http://example.com/rex.jpg'] };
+    const pet = ObjectSerializer.deserialize(json, Pet);
+    expect(pet).toBeDefined();
+    expect(pet!.name).toBe('Rex');
+  });
 
-    test('throws when a required field is ABSENT from the payload', () => {
-      // Divergence #10: a required, non-nullable field missing from the wire
-      // payload must hard-fail with the SDK serialization error rather than
-      // silently building a partial object. Pet requires `name`; it is
-      // omitted here while the other required field (photoUrls) is present.
-      const json = { id: 5, photoUrls: ['http://example.com/rex.jpg'] };
-      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
-    });
+  test('throws when a required field is ABSENT from the payload', () => {
+    // Divergence #10: a required, non-nullable field missing from the wire
+    // payload must hard-fail with the SDK serialization error rather than
+    // silently building a partial object. Pet requires `name`; it is
+    // omitted here while the other required field (photoUrls) is present.
+    const json = { id: 5, photoUrls: ['http://example.com/rex.jpg'] };
+    expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+  });
 
-    test('throws when a required field is explicitly NULL in the payload', () => {
-      // Divergence #10: a required, non-nullable field present but explicitly
-      // null on the wire is just as invalid as an absent one and must
-      // hard-fail rather than store null on a non-null-typed field.
-      const json = { id: 5, name: null, photoUrls: ['http://example.com/rex.jpg'] };
-      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
-    });
+  test('throws when a required field is explicitly NULL in the payload', () => {
+    // Divergence #10: a required, non-nullable field present but explicitly
+    // null on the wire is just as invalid as an absent one and must
+    // hard-fail rather than store null on a non-null-typed field.
+    const json = { id: 5, name: null, photoUrls: ['http://example.com/rex.jpg'] };
+    expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+  });
 
-    test('canonical AJ: {"name":null,"photoUrls":["u"]} into Pet throws', () => {
-      // Canonical scenario AJ — a JSON null on the required, non-nullable
-      // `name` field is a silent contract violation in go (zero-inits ""),
-      // python (pydantic accepts) and kotlin (explicitNulls=false accepts);
-      // the other 9 SDKs, Node included, throw. This pins Node on the
-      // throw side with the exact canonical input/expected pair so the
-      // behaviour cannot regress in any direction.
-      const json = { name: null, photoUrls: ['u'] };
-      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
-    });
+  test('canonical AJ: {"name":null,"photoUrls":["u"]} into Pet throws', () => {
+    // Canonical scenario AJ — a JSON null on the required, non-nullable
+    // `name` field is a silent contract violation in go (zero-inits ""),
+    // python (pydantic accepts) and kotlin (explicitNulls=false accepts);
+    // the other 9 SDKs, Node included, throw. This pins Node on the
+    // throw side with the exact canonical input/expected pair so the
+    // behaviour cannot regress in any direction.
+    const json = { name: null, photoUrls: ['u'] };
+    expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+  });
 
-    test('deserialize applies schema default for absent field', () => {
-      // default-on-deserialize: Order.status carries a schema `default: placed`.
-      // When the wire payload OMITS status, deserialize must populate it with
-      // the enum default (OrderStatusEnum.Placed) rather than leaving it
-      // null/undefined. status is absent from this payload.
-      const json = { id: 10, petId: 198772 };
-      const order = ObjectSerializer.deserialize(json, Order);
-      expect(order!.status).toBe(OrderStatusEnum.Placed);
-    });
+  test('deserialize applies schema default for absent field', () => {
+    // default-on-deserialize: Order.status carries a schema `default: placed`.
+    // When the wire payload OMITS status, deserialize must populate it with
+    // the enum default (OrderStatusEnum.Placed) rather than leaving it
+    // null/undefined. status is absent from this payload.
+    const json = { id: 10, petId: 198772 };
+    const order = ObjectSerializer.deserialize(json, Order);
+    expect(order!.status).toBe(OrderStatusEnum.Placed);
+  });
 
-    test('Defaults: absent fields take the schema default, explicit null is preserved', () => {
-      // default-vs-explicit-null contract: a schema `default` applies ONLY when
-      // the property is ABSENT from the payload. An explicit JSON null is a
-      // provided value and must be PRESERVED (the field stays null), not
-      // replaced by the default. This matches go/rust/python.
-      const fromEmpty = ObjectSerializer.deserialize({}, Defaults);
-      expect(fromEmpty!.retries).toBe(3);
-      expect(fromEmpty!.mode).toBe(DefaultsModeEnum.Medium);
-      expect(fromEmpty!.label).toBe('untitled');
-      expect(fromEmpty!.greeting).toBe(
-        'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b',
-      );
-      expect(fromEmpty!.ratio).toBe('1.5');
-      expect(fromEmpty!.scale).toBe(0.25);
-      expect(fromEmpty!.weight).toBe(2.0);
-      expect(fromEmpty!.ceiling).toBe(9000000000);
+  test('Defaults: absent fields take the schema default, explicit null is preserved', () => {
+    // default-vs-explicit-null contract: a schema `default` applies ONLY when
+    // the property is ABSENT from the payload. An explicit JSON null is a
+    // provided value and must be PRESERVED (the field stays null), not
+    // replaced by the default. This matches go/rust/python.
+    const fromEmpty = ObjectSerializer.deserialize({}, Defaults);
+    expect(fromEmpty!.retries).toBe(3);
+    expect(fromEmpty!.mode).toBe(DefaultsModeEnum.Medium);
+    expect(fromEmpty!.label).toBe('untitled');
+    expect(fromEmpty!.greeting).toBe(
+      'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b',
+    );
+    expect(fromEmpty!.ratio).toBe('1.5');
+    expect(fromEmpty!.scale).toBe(0.25);
+    expect(fromEmpty!.weight).toBe(2.0);
+    expect(fromEmpty!.ceiling).toBe(9000000000);
 
-      const fromNull = ObjectSerializer.deserialize(
-        { label: null, retries: 7 },
-        Defaults,
-      );
-      expect(fromNull!.label).toBeNull();
-      expect(fromNull!.retries).toBe(7);
-    });
+    const fromNull = ObjectSerializer.deserialize(
+      { label: null, retries: 7 },
+      Defaults,
+    );
+    expect(fromNull!.label).toBeNull();
+    expect(fromNull!.retries).toBe(7);
+  });
 
-    test('deserializes a self-referential model and decodes the nesting', () => {
-      // recursive-self-ref: TreeNode.child is a $ref back to TreeNode. The
-      // nested child object on the wire must decode into a TreeNode instance,
-      // not be left as a raw plain object, so the recursion is honoured all
-      // the way down. The leaf's own child is absent and must stay null.
-      const json = { value: 'root', child: { value: 'leaf' } };
-      const top = ObjectSerializer.deserialize(json, TreeNode);
-      expect(top).toBeDefined();
-      expect(top!.value).toBe('root');
-      expect(top!.child).toBeInstanceOf(TreeNode);
-      expect(top!.child!.value).toBe('leaf');
-      expect(top!.child!.child == null).toBe(true);
-    });
+  test('deserializes a self-referential model and decodes the nesting', () => {
+    // recursive-self-ref: TreeNode.child is a $ref back to TreeNode. The
+    // nested child object on the wire must decode into a TreeNode instance,
+    // not be left as a raw plain object, so the recursion is honoured all
+    // the way down. The leaf's own child is absent and must stay null.
+    const json = { value: 'root', child: { value: 'leaf' } };
+    const top = ObjectSerializer.deserialize(json, TreeNode);
+    expect(top).toBeDefined();
+    expect(top!.value).toBe('root');
+    expect(top!.child).toBeInstanceOf(TreeNode);
+    expect(top!.child!.value).toBe('leaf');
+    expect(top!.child!.child == null).toBe(true);
   });
 
   describe('SerializeDiscardsNullFields', () => {

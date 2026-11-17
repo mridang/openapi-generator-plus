@@ -272,69 +272,11 @@
    ]
   },
   "node": {
-   "missingGroups": [
-    {
-     "reason": "tracked in #118",
-     "keys": [
-      "baseapi",
-      "metadata"
-     ]
-    }
-   ],
    "extraGroups": [
-    {
-     "reason": "tracked in #118",
-     "keys": [
-      "baseapierrordispatch",
-      "perschemeauthenticators"
-     ]
-    },
-    {
-     "reason": "package.json is a Node-only manifest, so only the Node SDK tests it",
-     "keys": [
-      "packagejsonmanifest"
-     ]
-    },
     {
      "reason": "the portable web (fetch) transport exists only in the Node SDK",
      "keys": [
       "webportabletransport"
-     ]
-    }
-   ],
-   "missingTests": [
-    {
-     "reason": "tracked in #118",
-     "keys": [
-      "basicauthenticator::redactssecret",
-      "bearerauthenticator::mixedcasebearerprefixisstripped",
-      "defaultapiclient::closereleasesunderlyingclient",
-      "defaultapiclient::decompressesgzipresponse",
-      "defaultapiclient::followsredirectswhenenabled",
-      "defaultapiclient::injectscustomuseragentheader",
-      "defaultapiclient::makeshttprequestthroughproxy",
-      "defaultapiclient::makeshttpsrequestthroughproxywithverifysslfalse",
-      "defaultapiclient::makeshttpsrequestwithcustomcacert",
-      "defaultapiclient::makeshttpsrequestwithverifysslfalse",
-      "defaultapiclient::multipartfieldnamewithcrlfrejectedonstringvalue",
-      "defaultapiclient::postwithnullbodysendscontentlengthzero",
-      "defaultapiclient::proxywithcredentialsinjectsbasicauthorization",
-      "defaultapiclient::respectsmaxredirectslimit",
-      "defaultapiclient::sendsmultipartformdata",
-      "defaultapiclient::timesoutonslowendpoint",
-      "oauth2authorizationcodeauthenticator::authorizeurlwithexistingquerystringusesampseparator",
-      "objectserializer::deserializeappliesschemadefaultforabsentfield",
-      "petapi::downloadbinarymock",
-      "petapi::errorhandlingnotfound",
-      "petapi::getpetphoto",
-      "petapi::setpetavatarstreamsrawbyteswithdeclaredcontenttype",
-      "petapi::uploadmultipartmock",
-      "storeapi::deleteordernotfound",
-      "storeapi::getordernotfound",
-      "storeapi::placeorderservererror",
-      "transportoptions::invalidproxyurlthrowserror",
-      "transportoptions::settingproxyissupportedonallplatforms",
-      "valueserializer::patharrayitemwithreservedcharispercentencoded"
      ]
     }
    ]

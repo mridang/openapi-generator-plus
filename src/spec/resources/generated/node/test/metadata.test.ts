@@ -10,271 +10,281 @@ import * as path from "node:path";
 import { ObjectSerializer } from "../src/object-serializer.js";
 import { Metadata, Pet } from "../src/models/index.js";
 
-describe("package.json manifest", () => {
-  test("declares a non-empty description", () => {
-    // manifest-description-missing: the published manifest must carry a
-    // description (wired from the spec's appDescription) so registries do
-    // not show an empty description.
-    const pkgPath = path.resolve(__dirname, "..", "package.json");
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
-      description?: string;
-    };
-    expect(typeof pkg.description).toBe("string");
-    expect(pkg.description!.length).toBeGreaterThan(0);
-  });
-
-  test("declares sideEffects so a bundler can drop unused operations", () => {
-    // The only module with an import-time side effect is the serializer, which
-    // loads reflect-metadata; everything else may be tree-shaken.
-    const pkgPath = path.resolve(__dirname, "..", "package.json");
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
-      sideEffects?: string[];
-    };
-    expect(pkg.sideEffects).toEqual(["./dist/src/object-serializer.js"]);
-  });
-});
-
-describe("generated model docblocks (L1 parity)", () => {
-  test("the file header prints the info description verbatim, without a backslash before a quote", () => {
-    const source = fs.readFileSync(
-      path.resolve(__dirname, "..", "src", "models", "account.ts"),
-      "utf-8",
-    );
-    const header = source.split("\n").slice(0, 3).join("\n");
-
-    expect(header).toContain('"quoted" text');
-    expect(header).not.toContain('\\"');
-  });
-
-  test('no generated model carries a literal "@example null" / "Example: null" doc line', () => {
-    // A property whose schema example is the JSON null literal must not leak a
-    // useless `@example null` JSDoc line into the generated model. The shared
-    // codegen nulls such an example so the template's example section is
-    // falsy and emits nothing; this asserts that contract holds across every
-    // generated model file rather than re-appearing as documentation noise.
-    const modelsDir = path.resolve(__dirname, "..", "src", "models");
-    const modelFiles = fs
-      .readdirSync(modelsDir)
-      .filter((f) => f.endsWith(".ts") && f !== "index.ts");
-    expect(modelFiles.length).toBeGreaterThan(0);
-    for (const file of modelFiles) {
-      const source = fs.readFileSync(path.join(modelsDir, file), "utf-8");
-      expect(source).not.toMatch(/@example\s+null\b/);
-      expect(source).not.toMatch(/Example:\s+null\b/);
-    }
-  });
-
-  test("a model externalDocs description is rendered raw, without HTML entities", () => {
-    const source = fs.readFileSync(
-      path.resolve(__dirname, "..", "src", "models", "account.ts"),
-      "utf-8",
-    );
-
-    expect(source).toContain(
-      `* @see {@link https://example.com/docs/account} Account <docs> & "notes" it's here\n`,
-    );
-  });
-});
-
-describe("schema constraints in model doc comments (documentation only)", () => {
-  test("a constrained property lists its pattern and bounds as doc tags", () => {
-    const source = fs.readFileSync(
-      path.resolve(__dirname, "..", "src", "models", "pet.ts"),
-      "utf-8",
-    );
-
-    expect(source).toContain("@minLength 2");
-    expect(source).toContain("@maxLength 8");
-    expect(source).toMatch(/@pattern .*\(\?!admin\)/);
-  });
-
-  test("the constraints are not enforced at runtime", () => {
-    expect(
-      () =>
-        new Pet({ name: "Fido", photoUrls: new Set<string>(), nickname: "x" }),
-    ).not.toThrow();
-  });
-});
-
-describe("FindPetsByStatusOptions deprecated parameter (L3)", () => {
-  test("deprecated param status is marked deprecated in options", () => {
-    // L3: the spec declares the findPetsByStatus `status` query parameter
-    // deprecated:true. The deprecation must propagate onto the per-operation
-    // Options field — not just operations and model properties — so callers
-    // referencing `options.status` get an editor strikethrough / deprecation
-    // warning. This asserts the generated Options carries an `@deprecated`
-    // JSDoc tag on the `status` member.
-    const optionsPath = path.resolve(
-      __dirname,
-      "..",
-      "src",
-      "api",
-      "options",
-      "find-pets-by-status-options.ts",
-    );
-    const source = fs.readFileSync(optionsPath, "utf-8");
-    // The `@deprecated` tag must appear immediately above the `status` field.
-    expect(source).toMatch(/@deprecated[\s\S]*?readonly status\b/);
-  });
-});
-
-describe("Metadata model (typed additionalProperties)", () => {
-  test("serializes empty metadata", () => {
-    const metadata = new Metadata();
-    const json = ObjectSerializer.serialize(metadata);
-    expect(json).toBeDefined();
-  });
-
-  test("deserializes empty object", () => {
-    const metadata = ObjectSerializer.deserialize({}, Metadata);
-    expect(metadata).toBeDefined();
-  });
-
-  test("deserializes additional string properties", () => {
-    const json = {
-      createdAt: "2024-01-01T00:00:00Z",
-      customField: "hello",
-    };
-    const metadata = ObjectSerializer.deserialize(json, Metadata);
-    expect(metadata).toBeDefined();
-    expect(metadata!.createdAt instanceof Date).toBe(true);
-    expect(metadata!.createdAt!.toISOString()).toBe("2024-01-01T00:00:00.000Z");
-  });
-
-  test("round-trip preserves additional properties", () => {
-    const original = new Metadata({
-      createdAt: new Date("2024-01-15T10:30:00Z"),
+describe("Metadata", () => {
+  describe("package.json manifest", () => {
+    test("declares a non-empty description", () => {
+      // manifest-description-missing: the published manifest must carry a
+      // description (wired from the spec's appDescription) so registries do
+      // not show an empty description.
+      const pkgPath = path.resolve(__dirname, "..", "package.json");
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
+        description?: string;
+      };
+      expect(typeof pkg.description).toBe("string");
+      expect(pkg.description!.length).toBeGreaterThan(0);
     });
-    (original as Record<string, unknown>)["customField"] = "test-value";
-    const serialized = ObjectSerializer.serialize(original);
-    expect(typeof serialized).toBe("string");
-    const deserialized = ObjectSerializer.deserialize(
-      JSON.parse(serialized),
-      Metadata,
-    );
-    expect(deserialized).toBeDefined();
-    expect(deserialized!.createdAt instanceof Date).toBe(true);
-    expect(deserialized!.createdAt!.toISOString()).toBe(
-      "2024-01-15T10:30:00.000Z",
-    );
-  });
 
-  test("compiles with typed additional properties index signature", () => {
-    const metadata = new Metadata({
-      createdAt: new Date("2024-01-01T00:00:00Z"),
+    test("declares sideEffects so a bundler can drop unused operations", () => {
+      // The only module with an import-time side effect is the serializer, which
+      // loads reflect-metadata; everything else may be tree-shaken.
+      const pkgPath = path.resolve(__dirname, "..", "package.json");
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
+        sideEffects?: string[];
+      };
+      expect(pkg.sideEffects).toEqual(["./dist/src/object-serializer.js"]);
     });
-    const additionalValue: string =
-      (metadata as Record<string, string>)["anyKey"] ?? "";
-    expect(typeof additionalValue).toBe("string");
-  });
-});
-
-describe("Metadata additionalProperties round-trip (H11)", () => {
-  test("undeclared wire keys survive deserialize instead of being dropped", () => {
-    // H11: Metadata declares `additionalProperties: {type: string}`, so keys
-    // beyond the declared `createdAt` are free-form data that must SURVIVE a
-    // round-trip. plainToInstance(excludeExtraneousValues) drops every key
-    // without an @Expose decorator — the index signature is not exposed — so
-    // without the re-attach those extras are silently lost (data corruption).
-    const wire = {
-      createdAt: "2020-01-02T03:04:05.000Z",
-      region: "eu-west",
-      tier: "gold",
-    };
-    const restored = ObjectSerializer.deserialize(wire, Metadata) as Metadata &
-      Record<string, unknown>;
-
-    expect(restored.createdAt).toBeInstanceOf(Date);
-    expect(restored.region).toBe("eu-west");
-    expect(restored.tier).toBe("gold");
-
-    // And they survive a full serialize -> parse -> deserialize round-trip.
-    const roundTripped = ObjectSerializer.deserialize(
-      ObjectSerializer.parseJson(ObjectSerializer.serialize(restored)),
-      Metadata,
-    ) as Metadata & Record<string, unknown>;
-    expect(roundTripped.region).toBe("eu-west");
-    expect(roundTripped.tier).toBe("gold");
-  });
-});
-
-describe("Metadata additionalProperties accessor", () => {
-  test("exposes the undeclared keys of a deserialized instance", () => {
-    const metadata = ObjectSerializer.deserialize(
-      { createdAt: "2024-01-01T00:00:00Z", customField: "hello" },
-      Metadata,
-    ) as Metadata;
-    expect(metadata.additionalProperties).toEqual({ customField: "hello" });
   });
 
-  test("exposes the undeclared keys of a constructed instance", () => {
-    const metadata = new Metadata({
-      createdAt: new Date("2024-01-01T00:00:00Z"),
-      foo: 1,
+  describe("generated model docblocks (L1 parity)", () => {
+    test("the file header prints the info description verbatim, without a backslash before a quote", () => {
+      const source = fs.readFileSync(
+        path.resolve(__dirname, "..", "src", "models", "account.ts"),
+        "utf-8",
+      );
+      const header = source.split("\n").slice(0, 3).join("\n");
+
+      expect(header).toContain('"quoted" text');
+      expect(header).not.toContain('\\"');
     });
-    expect(metadata.additionalProperties).toEqual({ foo: 1 });
-  });
 
-  test("is an empty record, never undefined, when there are no extras", () => {
-    const metadata = new Metadata({
-      createdAt: new Date("2024-01-01T00:00:00Z"),
+    test('no generated model carries a literal "@example null" / "Example: null" doc line', () => {
+      // A property whose schema example is the JSON null literal must not leak a
+      // useless `@example null` JSDoc line into the generated model. The shared
+      // codegen nulls such an example so the template's example section is
+      // falsy and emits nothing; this asserts that contract holds across every
+      // generated model file rather than re-appearing as documentation noise.
+      const modelsDir = path.resolve(__dirname, "..", "src", "models");
+      const modelFiles = fs
+        .readdirSync(modelsDir)
+        .filter((f) => f.endsWith(".ts") && f !== "index.ts");
+      expect(modelFiles.length).toBeGreaterThan(0);
+      for (const file of modelFiles) {
+        const source = fs.readFileSync(path.join(modelsDir, file), "utf-8");
+        expect(source).not.toMatch(/@example\s+null\b/);
+        expect(source).not.toMatch(/Example:\s+null\b/);
+      }
     });
-    expect(metadata.additionalProperties).toEqual({});
-    expect(new Metadata().additionalProperties).toEqual({});
-  });
 
-  test("is typed like the index signature so typed values read without a cast", () => {
-    const metadata = new Metadata({ foo: "a", bar: "b" });
-    const extras: Record<string, Metadata[string]> =
-      metadata.additionalProperties;
-    expect(extras).toEqual({ foo: "a", bar: "b" });
-  });
+    test("a model externalDocs description is rendered raw, without HTML entities", () => {
+      const source = fs.readFileSync(
+        path.resolve(__dirname, "..", "src", "models", "account.ts"),
+        "utf-8",
+      );
 
-  test("returns a fresh record on every read", () => {
-    const metadata = new Metadata({ foo: 1 });
-    metadata.additionalProperties["bar"] = 2;
-    expect(metadata.additionalProperties).toEqual({ foo: 1 });
-  });
-
-  test("is not serialised as a data key", () => {
-    const metadata = new Metadata({
-      createdAt: new Date("2024-01-01T00:00:00Z"),
-      foo: 1,
+      expect(source).toContain(
+        `* @see {@link https://example.com/docs/account} Account <docs> & "notes" it's here\n`,
+      );
     });
-    const wire = JSON.parse(ObjectSerializer.serialize(metadata)) as Record<
-      string,
-      unknown
-    >;
-    expect(Object.keys(wire).sort()).toEqual(["createdAt", "foo"]);
-    expect(wire).not.toHaveProperty("additionalProperties");
-    const empty = JSON.parse(
-      ObjectSerializer.serialize(new Metadata()),
-    ) as Record<string, unknown>;
-    expect(empty).not.toHaveProperty("additionalProperties");
   });
 
-  test("does not affect equality", () => {
-    const left = new Metadata({ foo: 1 });
-    const right = new Metadata({ foo: 1 });
-    expect(left.equals(right)).toBe(true);
-    expect(left.equals(new Metadata({ foo: 2 }))).toBe(false);
+  describe("schema constraints in model doc comments (documentation only)", () => {
+    test("a constrained property lists its pattern and bounds as doc tags", () => {
+      const source = fs.readFileSync(
+        path.resolve(__dirname, "..", "src", "models", "pet.ts"),
+        "utf-8",
+      );
+
+      expect(source).toContain("@minLength 2");
+      expect(source).toContain("@maxLength 8");
+      expect(source).toMatch(/@pattern .*\(\?!admin\)/);
+    });
+
+    test("the constraints are not enforced at runtime", () => {
+      expect(
+        () =>
+          new Pet({
+            name: "Fido",
+            photoUrls: new Set<string>(),
+            nickname: "x",
+          }),
+      ).not.toThrow();
+    });
   });
 
-  test("a wire key literally named additionalProperties is kept as data", () => {
-    const metadata = ObjectSerializer.deserialize(
-      { createdAt: "2024-01-01T00:00:00Z", additionalProperties: "x" },
-      Metadata,
-    ) as Metadata;
-    expect(metadata.additionalProperties).toEqual({
-      additionalProperties: "x",
+  describe("FindPetsByStatusOptions deprecated parameter (L3)", () => {
+    test("deprecated param status is marked deprecated in options", () => {
+      // L3: the spec declares the findPetsByStatus `status` query parameter
+      // deprecated:true. The deprecation must propagate onto the per-operation
+      // Options field — not just operations and model properties — so callers
+      // referencing `options.status` get an editor strikethrough / deprecation
+      // warning. This asserts the generated Options carries an `@deprecated`
+      // JSDoc tag on the `status` member.
+      const optionsPath = path.resolve(
+        __dirname,
+        "..",
+        "src",
+        "api",
+        "options",
+        "find-pets-by-status-options.ts",
+      );
+      const source = fs.readFileSync(optionsPath, "utf-8");
+      // The `@deprecated` tag must appear immediately above the `status` field.
+      expect(source).toMatch(/@deprecated[\s\S]*?readonly status\b/);
     });
-    expect(JSON.parse(ObjectSerializer.serialize(metadata))).toEqual({
-      createdAt: "2024-01-01T00:00:00.000+00:00",
-      additionalProperties: "x",
+  });
+
+  describe("Metadata model (typed additionalProperties)", () => {
+    test("serializes empty metadata", () => {
+      const metadata = new Metadata();
+      const json = ObjectSerializer.serialize(metadata);
+      expect(json).toBeDefined();
     });
-    const built = new Metadata({
-      additionalProperties: "y",
-    } as unknown as Partial<Metadata>);
-    expect(built.additionalProperties).toEqual({ additionalProperties: "y" });
+
+    test("deserializes empty object", () => {
+      const metadata = ObjectSerializer.deserialize({}, Metadata);
+      expect(metadata).toBeDefined();
+    });
+
+    test("deserializes additional string properties", () => {
+      const json = {
+        createdAt: "2024-01-01T00:00:00Z",
+        customField: "hello",
+      };
+      const metadata = ObjectSerializer.deserialize(json, Metadata);
+      expect(metadata).toBeDefined();
+      expect(metadata!.createdAt instanceof Date).toBe(true);
+      expect(metadata!.createdAt!.toISOString()).toBe(
+        "2024-01-01T00:00:00.000Z",
+      );
+    });
+
+    test("round-trip preserves additional properties", () => {
+      const original = new Metadata({
+        createdAt: new Date("2024-01-15T10:30:00Z"),
+      });
+      (original as Record<string, unknown>)["customField"] = "test-value";
+      const serialized = ObjectSerializer.serialize(original);
+      expect(typeof serialized).toBe("string");
+      const deserialized = ObjectSerializer.deserialize(
+        JSON.parse(serialized),
+        Metadata,
+      );
+      expect(deserialized).toBeDefined();
+      expect(deserialized!.createdAt instanceof Date).toBe(true);
+      expect(deserialized!.createdAt!.toISOString()).toBe(
+        "2024-01-15T10:30:00.000Z",
+      );
+    });
+
+    test("compiles with typed additional properties index signature", () => {
+      const metadata = new Metadata({
+        createdAt: new Date("2024-01-01T00:00:00Z"),
+      });
+      const additionalValue: string =
+        (metadata as Record<string, string>)["anyKey"] ?? "";
+      expect(typeof additionalValue).toBe("string");
+    });
+  });
+
+  describe("Metadata additionalProperties round-trip (H11)", () => {
+    test("undeclared wire keys survive deserialize instead of being dropped", () => {
+      // H11: Metadata declares `additionalProperties: {type: string}`, so keys
+      // beyond the declared `createdAt` are free-form data that must SURVIVE a
+      // round-trip. plainToInstance(excludeExtraneousValues) drops every key
+      // without an @Expose decorator — the index signature is not exposed — so
+      // without the re-attach those extras are silently lost (data corruption).
+      const wire = {
+        createdAt: "2020-01-02T03:04:05.000Z",
+        region: "eu-west",
+        tier: "gold",
+      };
+      const restored = ObjectSerializer.deserialize(
+        wire,
+        Metadata,
+      ) as Metadata & Record<string, unknown>;
+
+      expect(restored.createdAt).toBeInstanceOf(Date);
+      expect(restored.region).toBe("eu-west");
+      expect(restored.tier).toBe("gold");
+
+      // And they survive a full serialize -> parse -> deserialize round-trip.
+      const roundTripped = ObjectSerializer.deserialize(
+        ObjectSerializer.parseJson(ObjectSerializer.serialize(restored)),
+        Metadata,
+      ) as Metadata & Record<string, unknown>;
+      expect(roundTripped.region).toBe("eu-west");
+      expect(roundTripped.tier).toBe("gold");
+    });
+  });
+
+  describe("Metadata additionalProperties accessor", () => {
+    test("exposes the undeclared keys of a deserialized instance", () => {
+      const metadata = ObjectSerializer.deserialize(
+        { createdAt: "2024-01-01T00:00:00Z", customField: "hello" },
+        Metadata,
+      ) as Metadata;
+      expect(metadata.additionalProperties).toEqual({ customField: "hello" });
+    });
+
+    test("exposes the undeclared keys of a constructed instance", () => {
+      const metadata = new Metadata({
+        createdAt: new Date("2024-01-01T00:00:00Z"),
+        foo: 1,
+      });
+      expect(metadata.additionalProperties).toEqual({ foo: 1 });
+    });
+
+    test("is an empty record, never undefined, when there are no extras", () => {
+      const metadata = new Metadata({
+        createdAt: new Date("2024-01-01T00:00:00Z"),
+      });
+      expect(metadata.additionalProperties).toEqual({});
+      expect(new Metadata().additionalProperties).toEqual({});
+    });
+
+    test("is typed like the index signature so typed values read without a cast", () => {
+      const metadata = new Metadata({ foo: "a", bar: "b" });
+      const extras: Record<string, Metadata[string]> =
+        metadata.additionalProperties;
+      expect(extras).toEqual({ foo: "a", bar: "b" });
+    });
+
+    test("returns a fresh record on every read", () => {
+      const metadata = new Metadata({ foo: 1 });
+      metadata.additionalProperties["bar"] = 2;
+      expect(metadata.additionalProperties).toEqual({ foo: 1 });
+    });
+
+    test("is not serialised as a data key", () => {
+      const metadata = new Metadata({
+        createdAt: new Date("2024-01-01T00:00:00Z"),
+        foo: 1,
+      });
+      const wire = JSON.parse(ObjectSerializer.serialize(metadata)) as Record<
+        string,
+        unknown
+      >;
+      expect(Object.keys(wire).sort()).toEqual(["createdAt", "foo"]);
+      expect(wire).not.toHaveProperty("additionalProperties");
+      const empty = JSON.parse(
+        ObjectSerializer.serialize(new Metadata()),
+      ) as Record<string, unknown>;
+      expect(empty).not.toHaveProperty("additionalProperties");
+    });
+
+    test("does not affect equality", () => {
+      const left = new Metadata({ foo: 1 });
+      const right = new Metadata({ foo: 1 });
+      expect(left.equals(right)).toBe(true);
+      expect(left.equals(new Metadata({ foo: 2 }))).toBe(false);
+    });
+
+    test("a wire key literally named additionalProperties is kept as data", () => {
+      const metadata = ObjectSerializer.deserialize(
+        { createdAt: "2024-01-01T00:00:00Z", additionalProperties: "x" },
+        Metadata,
+      ) as Metadata;
+      expect(metadata.additionalProperties).toEqual({
+        additionalProperties: "x",
+      });
+      expect(JSON.parse(ObjectSerializer.serialize(metadata))).toEqual({
+        createdAt: "2024-01-01T00:00:00.000+00:00",
+        additionalProperties: "x",
+      });
+      const built = new Metadata({
+        additionalProperties: "y",
+      } as unknown as Partial<Metadata>);
+      expect(built.additionalProperties).toEqual({ additionalProperties: "y" });
+    });
   });
 });
