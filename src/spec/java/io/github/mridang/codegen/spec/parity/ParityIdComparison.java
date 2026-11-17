@@ -29,7 +29,7 @@ public final class ParityIdComparison {
    * green; unknown ids, stale exceptions, unreadable reports and empty suites always fail. Set to
    * true when issue 121 is closed.
    */
-  public static final boolean STRICT = false;
+  public static final boolean STRICT = true;
 
   private ParityIdComparison() {}
 
