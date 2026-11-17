@@ -213,6 +213,33 @@ void main() {
       expect(auth.queryParams(), isEmpty);
     });
 
+    test('bhv authapikey 003 a CR, LF or NUL in a query key throws at construction', () {
+      for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
+        expect(() => build(key, ApiKeyLocation.query), throwsA(isA<ArgumentError>()));
+      }
+    });
+
+    test('bhv authapikey 004 an empty cookie key throws at construction', () {
+      expect(() => build('', ApiKeyLocation.cookie), throwsA(isA<ArgumentError>()));
+    });
+
+    test('bhv authapikey 011 a key made only of ASCII whitespace such as a vertical tab is blank', () {
+      expect(() => build('\v', ApiKeyLocation.query), throwsA(isA<ArgumentError>()));
+      expect(() => build('\v', ApiKeyLocation.cookie), throwsA(isA<ArgumentError>()));
+    });
+
+    test('bhv authapikey 013 a valid cookie key passes and is emitted as a cookie', () {
+      expect(build('abc', ApiKeyLocation.cookie).cookieParams(), equals({'k': 'abc'}));
+    });
+
+    test('bhv authapikey 016 a valid query key passes and is emitted as a query parameter', () {
+      expect(build('abc', ApiKeyLocation.query).queryParams(), equals({'k': 'abc'}));
+    });
+
+    test('bhv authapikey 017 a whitespace-only key throws at construction', () {
+      expect(() => build('   ', ApiKeyLocation.header), throwsA(isA<ArgumentError>()));
+    });
+
     test('bhv authapikey 014 a header key is emitted only as a header', () {
       final auth = build('abc', ApiKeyLocation.header);
 
@@ -242,6 +269,19 @@ void main() {
       'SessionCookieAuthenticator': (key) =>
           SessionCookieAuthenticator(host: '{{{basePath}}}', apiKey: key),
     };
+
+    test('bhv authapikey 007 every scheme wrapper emits its key at exactly one location', () {
+      for (final build in builders.values) {
+        final auth = build('k1');
+        final placed = [
+          auth.authHeaders(),
+          auth.queryParams(),
+          auth.cookieParams(),
+        ].where((m) => m.isNotEmpty).length;
+
+        expect(placed, equals(1));
+      }
+    });
 
     test('ApiKeyHeaderAuthenticator sends X-API-Key as a header', () {
       final auth = builders['ApiKeyHeaderAuthenticator']!('k1');
