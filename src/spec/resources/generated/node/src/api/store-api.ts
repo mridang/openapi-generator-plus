@@ -42,8 +42,9 @@ export class StoreApi extends BaseApi {
     apiClient?: ApiClient,
     config?: Configuration,
     authenticator?: Authenticator | null,
+    schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null,
   ) {
-    super(apiClient, config, authenticator);
+    super(apiClient, config, authenticator, schemeAuthenticators);
   }
 
   /**
@@ -162,7 +163,7 @@ export class StoreApi extends BaseApi {
       [],
       "application/json",
       null,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       undefined,
       "deleteOrder",
@@ -625,7 +626,7 @@ export class StoreApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getOrderById",
@@ -1060,7 +1061,7 @@ export class StoreApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "placeOrder",

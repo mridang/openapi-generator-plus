@@ -30,6 +30,26 @@ export class PetFood {
     return this.actualInstance;
   }
 
+  /** Whether this union holds a {@link DryFood}. */
+  isDryFood(): boolean {
+    return this.actualInstance instanceof DryFood;
+  }
+
+  /** The held {@link DryFood}, or null when this union holds another variant. */
+  asDryFood(): DryFood | null {
+    return this.actualInstance instanceof DryFood ? this.actualInstance : null;
+  }
+
+  /** Whether this union holds a {@link WetFood}. */
+  isWetFood(): boolean {
+    return this.actualInstance instanceof WetFood;
+  }
+
+  /** The held {@link WetFood}, or null when this union holds another variant. */
+  asWetFood(): WetFood | null {
+    return this.actualInstance instanceof WetFood ? this.actualInstance : null;
+  }
+
   /**
    * Value equality: two wrappers are equal when they hold equal variants.
    * The held variant's own equals() decides, so a variant without one is

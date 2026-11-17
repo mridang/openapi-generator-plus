@@ -130,6 +130,31 @@ class BetterNodeCodegenTest {
     }
 
     @Test
+    void securityAddsNoArgumentToTheSignature() {
+        final CodegenOperation op = operation(false, false, false);
+        op.hasAuthMethods = true;
+        new BetterNodeCodegen().populateRequestWrapper(op);
+        assertEquals(List.of("thingId", "requestOptions"), names(wrapperFields(op)));
+    }
+
+    @Test
+    void anOptionsObjectNeverCarriesAPerCallAuthenticator() {
+        final CodegenOperation op = operation(false, true, false);
+        op.hasAuthMethods = true;
+        final Map<String, Object> context = new HashMap<>();
+        final BetterNodeCodegen codegen = new BetterNodeCodegen();
+        codegen.injectAuthFieldContext(op, context);
+        assertEquals(false, context.get("hasAuthField"));
+    }
+
+    @Test
+    void anOperationWithNoParametersOfItsOwnHasNoOptionsFile() {
+        final CodegenOperation op = operation(false, false, false);
+        op.hasAuthMethods = true;
+        assertEquals(null, new BetterNodeCodegen().generateOptionsFileContent(op, List.of(), "GetThingOptions"));
+    }
+
+    @Test
     void aServerBeforeARequiredOptionsObjectIsSpelledOutNotOptional() {
         final CodegenOperation op = operation(true, true, true);
         new BetterNodeCodegen().populateRequestWrapper(op);
@@ -290,15 +315,32 @@ class BetterNodeCodegenTest {
     }
 
     @Test
-    void aDateFieldIsAPlainStringTheConstructorChecks() throws IOException {
+    void aDateFieldIsAPlainStringTheDecodeCheckValidates() throws IOException {
         final String model = generatedFile(generateDateSpec("model"), "src/models/booking.ts");
         assertTrue(model.contains("readonly checkIn!: string;"), model);
-        assertTrue(model.contains("this.checkIn = plainDate(this.checkIn, 'checkIn');"), model);
+        assertTrue(
+                model.contains("Object.assign(this, { checkIn: plainDate(this.checkIn, 'checkIn') });"),
+                model);
         assertTrue(model.contains("readonly holidays?: Array<string>;"), model);
         assertTrue(model.contains("plainDate(__e, 'holidays element')"), model);
         assertTrue(model.contains("plainDate"), model);
         assertTrue(model.matches("(?s).*import \\{[^}]*\\bplainDate\\b[^}]*} from '../object-serializer.js';.*"), model);
         assertTrue(model.contains("readonly stamp?: Date;"), model);
+    }
+
+    @Test
+    void theConstructorValidatesNothingAndTheDecodeCheckDoes() throws IOException {
+        final String model = generatedFile(generateDateSpec("construct"), "src/models/booking.ts");
+        final int constructor = model.indexOf("constructor(data?: Partial<Booking>) {");
+        final int validate = model.indexOf("__validate(): void {");
+        final int copy = model.indexOf("with(patch: Partial<Booking>)");
+        assertTrue(constructor > 0 && constructor < validate && validate < copy, model);
+        final String constructorBody = model.substring(constructor, validate);
+        assertFalse(constructorBody.contains("throw "), constructorBody);
+        assertFalse(constructorBody.contains("plainDate"), constructorBody);
+        final String validateBody = model.substring(validate, copy);
+        assertTrue(validateBody.contains("throw new TypeError('checkIn is required');"), validateBody);
+        assertTrue(validateBody.contains("ratio must be a finite number"), validateBody);
     }
 
     @Test
@@ -402,5 +444,28 @@ class BetterNodeCodegenTest {
         final String paint = generatedFile(generateSchemeSpec("sibling", Map.of()), "src/models/paint.ts");
         assertTrue(paint.contains("readonly colour?: Colour = Colour.DarkGreen;"), paint);
         assertTrue(paint.contains("this.colour = Colour.DarkGreen;"), paint);
+    }
+
+    @Test
+    void theClientTakesOneOptionalCredentialPerSchemeNamedAfterTheScheme() throws IOException {
+        final String client = generatedFile(generateSchemeSpec("client", Map.of()), "src/client.ts");
+        for (final String scheme : List.of("partnerToken", "serviceToken", "ledgerKey", "adminLogin")) {
+            assertTrue(client.contains("readonly " + scheme + "?: Authenticator;"), client);
+            assertTrue(client.contains("['" + scheme + "', '" + scheme + "'],"), client);
+        }
+        assertTrue(client.contains("readonly authenticator?: Authenticator;"), client);
+        assertTrue(client.contains("throw new TypeError('At least one credential is required');"), client);
+    }
+
+    @Test
+    void anOperationResolvesTheCredentialOfTheSchemeItsSpecNames() throws IOException {
+        final Path out = generateSchemeSpec("operation", Map.of());
+        final String api = generatedFile(out, "src/api/default-api.ts");
+        assertTrue(api.contains("this.resolveSchemeAuth(['partnerToken'])"), api);
+        assertTrue(api.contains("async listInvoices(requestOptions?: RequestOptions)"), api);
+        assertFalse(api.contains("options?.auth"), api);
+        assertFalse(
+                Files.exists(out.resolve("src/api/options/list-invoices-options.ts")),
+                "an operation with no parameters of its own has no Options file");
     }
 }

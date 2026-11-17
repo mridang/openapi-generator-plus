@@ -24,12 +24,13 @@ import {
   UploadPetDocumentDocumentTypeEnum,
 } from "../../src/api/pet-api.js";
 import type {
-  AddPetOptions,
   UploadPetDocumentOptions,
   SetPetPreferencesOptions,
 } from "../../src/api/options/index.js";
 import type { ApiClient } from "../../src/api-client.js";
 import type { ApiHttpResponse } from "../../src/api-http-response.js";
+import { ApiKeyAuthenticator } from "../../src/auth/api-key-authenticator.js";
+import { ApiKeyLocation } from "../../src/auth/api-key-location.js";
 import { BearerAuthenticator } from "../../src/auth/bearer-authenticator.js";
 import { Configuration } from "../../src/configuration.js";
 import { DefaultApiClient } from "../../src/default-api-client.js";
@@ -55,7 +56,6 @@ const config = Configuration.builder()
   .defaultHeader("Authorization", "Bearer test-token")
   .build();
 const api = new PetApi(undefined, config);
-const auth = new BearerAuthenticator(baseUrl, "test-token");
 
 describe("PetApi", () => {
   beforeAll(async () => {
@@ -77,7 +77,7 @@ describe("PetApi", () => {
       status: PetStatusEnum.Available,
     });
 
-    const result = await api.addPet(pet, { auth });
+    const result = await api.addPet(pet);
 
     expect(result).toBeDefined();
     expect(result.name).toBeDefined();
@@ -114,7 +114,7 @@ describe("PetApi", () => {
   });
 
   test("deletePet", async () => {
-    await api.deletePet(1, { auth });
+    await api.deletePet(1);
   });
 
   test("setPetAvatar", async () => {
@@ -365,7 +365,7 @@ describe("PetApi", () => {
       status: PetStatusEnum.Available,
     });
 
-    const result = await api.addPetWithHttpInfo(pet, { auth });
+    const result = await api.addPetWithHttpInfo(pet);
 
     expect(result.statusCode).toBeGreaterThanOrEqual(200);
     expect(result.statusCode).toBeLessThan(300);
@@ -395,7 +395,7 @@ describe("PetApi", () => {
   });
 
   test("deletePetWithHttpInfo", async () => {
-    const result = await api.deletePetWithHttpInfo(1, { auth });
+    const result = await api.deletePetWithHttpInfo(1);
 
     expect(result.statusCode).toBeGreaterThanOrEqual(200);
     expect(result.statusCode).toBeLessThan(300);
@@ -663,151 +663,18 @@ describe("PetApi error handling", () => {
     );
   });
 
-  // per-call-auth-override: an authenticator passed to the BASE operation method
-  // (not just WithHttpInfo) must be applied to the outgoing request. The default
-  // header carries one token; the per-call authenticator carries a different one
-  // and must win on the wire.
-  test("addPet per-call auth override", async () => {
-    let capturedAuth: string | undefined;
-    const server = http.createServer((req, res) => {
-      capturedAuth = req.headers["authorization"];
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end('{"id":1,"name":"x","photoUrls":[]}');
-    });
-    await new Promise<void>((resolve) =>
-      server.listen(0, "127.0.0.1", resolve),
-    );
-    try {
-      const addr = server.address() as { port: number };
-      const overrideUrl = `http://127.0.0.1:${addr.port}`;
-      const overrideConfig = Configuration.builder()
-        .baseUrl(overrideUrl)
-        .defaultHeader("Authorization", "Bearer default-token")
-        .build();
-      const overrideApi = new PetApi(undefined, overrideConfig);
-      const perCallAuth = new BearerAuthenticator(
-        overrideUrl,
-        "per-call-token",
-      );
-
-      const pet = new Pet({
-        id: 1,
-        name: "OverrideDog",
-        photoUrls: new Set(["http://example.com/p.jpg"]),
-      });
-      await overrideApi.addPet(pet, { auth: perCallAuth });
-
-      expect(capturedAuth).toBe("Bearer per-call-token");
-    } finally {
-      server.close();
-    }
-  });
-
-  // auth-in-options: the per-operation authenticator is supplied through the
-  // Options object (options.auth), not a standalone argument. It must reach the
-  // wire and win over the client's configured default credentials.
-  test("addPet auth supplied via Options reaches the wire", async () => {
-    let capturedAuth: string | undefined;
-    const server = http.createServer((req, res) => {
-      capturedAuth = req.headers["authorization"];
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end('{"id":1,"name":"x","photoUrls":[]}');
-    });
-    await new Promise<void>((resolve) =>
-      server.listen(0, "127.0.0.1", resolve),
-    );
-    try {
-      const addr = server.address() as { port: number };
-      const url = `http://127.0.0.1:${addr.port}`;
-      const cfg = Configuration.builder()
-        .baseUrl(url)
-        .defaultHeader("Authorization", "Bearer default-token")
-        .build();
-      const optionsApi = new PetApi(undefined, cfg);
-      const optionsAuth = new BearerAuthenticator(url, "options-token");
-
-      const pet = new Pet({
-        id: 1,
-        name: "OptionsDog",
-        photoUrls: new Set(["http://example.com/p.jpg"]),
-      });
-      await optionsApi.addPet(pet, { auth: optionsAuth });
-
-      expect(capturedAuth).toBe("Bearer options-token");
-    } finally {
-      server.close();
-    }
-  });
-
-  // auth-omitted-falls-back: when no per-operation auth is provided (options
-  // omitted entirely), the request must fall back to the client's configured
-  // default credentials rather than sending no Authorization header.
-  test("addPet without Options falls back to Configuration credentials", async () => {
-    let capturedAuth: string | undefined;
-    const server = http.createServer((req, res) => {
-      capturedAuth = req.headers["authorization"];
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end('{"id":1,"name":"x","photoUrls":[]}');
-    });
-    await new Promise<void>((resolve) =>
-      server.listen(0, "127.0.0.1", resolve),
-    );
-    try {
-      const addr = server.address() as { port: number };
-      const url = `http://127.0.0.1:${addr.port}`;
-      const cfg = Configuration.builder()
-        .baseUrl(url)
-        .defaultHeader("Authorization", "Bearer default-token")
-        .build();
-      const defaultApi = new PetApi(undefined, cfg);
-
-      const pet = new Pet({
-        id: 1,
-        name: "DefaultDog",
-        photoUrls: new Set(["http://example.com/p.jpg"]),
-      });
-      await defaultApi.addPet(pet);
-
-      expect(capturedAuth).toBe("Bearer default-token");
-    } finally {
-      server.close();
-    }
-  });
-
-  // unsecured-op-has-no-auth-field: getPetById is not a secured operation, so
-  // its generated signature must NOT accept a per-operation auth field. This is
-  // a compile-time guarantee enforced by tsc — a stray `auth` key on its
-  // (absent) Options object would fail type-checking. The runtime assertion
-  // simply confirms the unsecured call still works.
-  test("getPetById is unsecured and exposes no auth field", async () => {
-    const { api: mockApi, close } = await createMockServer(
-      200,
-      "application/json",
-      '{"id":1,"name":"x","photoUrls":[]}',
-    );
-    try {
-      const result = await mockApi.getPetById(1);
-      expect(result).toBeDefined();
-    } finally {
-      close();
-    }
-  });
-
   // options-are-readonly: the generated per-operation Options interfaces expose
   // only `readonly` members. This test constructs an Options object literal (a
-  // secured op's `auth` field plus a multipart op's params) and reads each back,
-  // which compiles under tsc precisely because readonly members are still
-  // assignable via object literals; only post-construction mutation is rejected.
+  // multipart op's params) and reads each back, which compiles under tsc
+  // precisely because readonly members are still assignable via object
+  // literals; only post-construction mutation is rejected.
   test("Options object literals are constructible and readable", () => {
-    const auth = new BearerAuthenticator(baseUrl, "literal-token");
-    const addPetOptions: AddPetOptions = { auth };
     const uploadOptions: UploadPetDocumentOptions = {
       file: Buffer.from("doc"),
       documentType: "invoice",
       notes: "a note",
     };
 
-    expect(addPetOptions.auth).toBe(auth);
     expect(uploadOptions.file.toString()).toBe("doc");
     expect(uploadOptions.documentType).toBe("invoice");
     expect(uploadOptions.notes).toBe("a note");
@@ -1246,11 +1113,7 @@ describe("PetApi doc comments", () => {
   test.each([
     [
       "deletePet",
-      "* @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator\n",
-    ],
-    [
-      "addPet",
-      "* @param options options carrying an optional per-call authenticator\n",
+      "* @param options options for query, header, form, and cookie parameters\n",
     ],
     [
       "getPetSummary",
@@ -1706,4 +1569,115 @@ describe("PetApi against a recording client", () => {
       expect(recorded).toHaveLength(0);
     },
   );
+  test.each(["abc123", "a%20b%3Bc", "a=b", "x/y:z"])(
+    "deletePet sends the cookie value %p exactly as given",
+    async (value) => {
+      await recordingApi.deletePet(1, { apiKey: value });
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.headers["Cookie"]).toBe(`api_key=${value}`);
+    },
+  );
+
+  test.each(["a b", "a;b", "a,b", 'a"b', "a\\b", "café", "a\tb"])(
+    "deletePet refuses the cookie value %p before sending",
+    async (value) => {
+      const error = await recordingApi
+        .deletePet(1, { apiKey: value })
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(TypeError);
+      expect((error as Error).message).toBe(
+        "Cookie value for 'api_key' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it",
+      );
+      expect(recorded).toHaveLength(0);
+    },
+  );
+
+  describe("credentials per security scheme", () => {
+    const host = "https://client-base.example.com";
+    const config = Configuration.builder().baseUrl(host).build();
+    const bearer = new BearerAuthenticator(host, "bearer-token");
+    const apiKey = new ApiKeyAuthenticator(
+      host,
+      "X-Api-Key",
+      "key-token",
+      ApiKeyLocation.HEADER,
+    );
+    const fallback = new BearerAuthenticator(host, "fallback-token");
+    const newPet = () =>
+      new Pet({ id: 1, name: "x", photoUrls: new Set<string>() });
+
+    test("an operation uses the credential of the scheme its spec names", async () => {
+      const petApi = new PetApi(recordingClient, config, null, {
+        petStoreBearer: bearer,
+      });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
+    });
+
+    test("an operation uses the first scheme of its own list that the client holds", async () => {
+      const petApi = new PetApi(recordingClient, config, null, {
+        petStoreBearer: bearer,
+        apiKeyHeader: apiKey,
+      });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers["X-Api-Key"]).toBe("key-token");
+      expect(recorded[0]!.headers["Authorization"]).toBeUndefined();
+    });
+
+    test("a credential held for a scheme the operation does not name is never sent", async () => {
+      const petApi = new PetApi(recordingClient, config, null, {
+        adminBasic: apiKey,
+      });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers["X-Api-Key"]).toBeUndefined();
+      expect(recorded[0]!.headers["Authorization"]).toBeUndefined();
+    });
+
+    test("an operation no scheme credential matches uses the client-level authenticator", async () => {
+      const petApi = new PetApi(recordingClient, config, fallback, {
+        adminBasic: apiKey,
+      });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers["Authorization"]).toBe(
+        "Bearer fallback-token",
+      );
+      expect(recorded[0]!.headers["X-Api-Key"]).toBeUndefined();
+    });
+
+    test("a scheme credential wins over the client-level authenticator", async () => {
+      const petApi = new PetApi(recordingClient, config, fallback, {
+        petStoreBearer: bearer,
+      });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
+    });
+
+    test("there is no per-call authenticator: no Options object has an auth member", async () => {
+      const options = fs.readFileSync(
+        path.join(process.cwd(), "src/api/options/delete-pet-options.ts"),
+        "utf8",
+      );
+
+      expect(options).not.toMatch(/\bauth\b/);
+      expect(
+        fs.existsSync(
+          path.join(process.cwd(), "src/api/options/add-pet-options.ts"),
+        ),
+      ).toBe(false);
+      // @ts-expect-error an Options object takes no per-call authenticator
+      await recordingApi.deletePet(1, { auth: bearer });
+    });
+  });
 });

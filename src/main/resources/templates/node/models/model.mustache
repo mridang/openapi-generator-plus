@@ -94,6 +94,18 @@ export class {{classname}} {
   getActualInstance(): {{classname}}Type {
     return this.actualInstance;
   }
+{{#oneOf}}
+
+  /** Whether this union holds a {@link {{{.}}}}. */
+  is{{{.}}}(): boolean {
+    return this.actualInstance instanceof {{{.}}};
+  }
+
+  /** The held {@link {{{.}}}}, or null when this union holds another variant. */
+  as{{{.}}}(): {{{.}}} | null {
+    return this.actualInstance instanceof {{{.}}} ? this.actualInstance : null;
+  }
+{{/oneOf}}
 
   /**
    * Value equality: two wrappers are equal when they hold equal variants.
@@ -214,6 +226,20 @@ export class {{classname}} {
   getMatchedInstances(): {{classname}}Type[] {
     return this.matchedInstances;
   }
+{{#composedSchemas.anyOf}}
+{{#isModel}}
+
+  /** Whether one of the matched variants is a {@link {{{dataType}}}}. */
+  is{{{dataType}}}(): boolean {
+    return this.matchedInstances.some((instance) => instance instanceof {{{dataType}}});
+  }
+
+  /** The first matched {@link {{{dataType}}}}, or null when no matched variant is one. */
+  as{{{dataType}}}(): {{{dataType}}} | null {
+    return this.matchedInstances.find((instance): instance is {{{dataType}}} => instance instanceof {{{dataType}}}) ?? null;
+  }
+{{/isModel}}
+{{/composedSchemas.anyOf}}
 
   /**
    * Value equality: two composites are equal when they retain equal variants
@@ -499,7 +525,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
    * into an epoch-millisecond instant, so hand the raw wire value on and let the
-   * constructor reject anything that is not a string. A string must be an RFC
+   * decode-time validation reject anything that is not a string. A string must be an RFC
    * 3339 date-time with an explicit offset; anything else (no offset, a bare
    * date, free text) is handed on raw too, so it never resolves against the
    * host time zone or the current date. */
@@ -756,16 +782,34 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vendorExtensions.siblingDefaultIsEnum}}
 {{/defaultValue}}
 {{/vars}}
+  }
+
+  /**
+   * Decode-time validation, run by {@link ObjectSerializer.deserialize} on the
+   * instance it built from the wire. The constructor itself checks nothing, so
+   * a model can be built from any value and a wrong type or an unknown enum
+   * string never raises there. This is the wire boundary: a missing required
+   * field, a value of the wrong type, an unknown enum string, a malformed
+   * date, UUID, URI or base64 value all fail here, loudly, and the checked
+   * values are stored back in their final form (a Set for a `uniqueItems`
+   * array, a Buffer for a base64 string, a lower-case UUID).
+   *
+   * @throws TypeError when the decoded value breaks the schema
+   */
+  __validate(): void {
+{{#parent}}
+    super.__validate();
+{{/parent}}
 {{! Divergence #10: a REQUIRED, non-nullable field that is missing
     (undefined) or explicitly null in the wire payload must hard-fail.
-    ObjectSerializer.deserialize routes plainToInstance output back
-    through this constructor, so a loose-equality null check (which
-    matches both undefined and null) surfaces a missing-or-null required
-    field as a thrown error that deserialize wraps in a
-    SerializationError. Required-but-nullable fields are excluded so an
-    explicit null is accepted for them; optional fields are never checked. }}
+    ObjectSerializer.deserialize calls this method on the instance it built
+    from the payload, so a loose-equality null check (which matches both
+    undefined and null) surfaces a missing-or-null required field as a
+    thrown error that deserialize wraps in a SerializationError.
+    Required-but-nullable fields are excluded so an explicit null is
+    accepted for them; optional fields are never checked. }}
 {{#hasRequired}}
-    if (data !== undefined) {
+    {
 {{#requiredVars}}
 {{^isNullable}}
       if (this.{{name}} == null) {
@@ -782,9 +826,10 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/hasRequired}}
 {{! Gap S: strict primitive type checks. class-transformer is
     lenient and silently passes string-for-int / number-for-bool
-    through. ObjectSerializer routes plainToInstance output back
-    through this constructor so wire-type bugs ({"id": "42"} on an
-    int field) raise TypeError instead of corrupting the instance. }}
+    through. ObjectSerializer runs this method on the plainToInstance
+    output so wire-type bugs ({"id": "42"} on an int field) raise
+    TypeError instead of corrupting the instance. The constructor never
+    does: building a model by hand validates nothing (F316). }}
 {{#vars}}
 {{^isEnum}}
 {{#isPrimitiveType}}
@@ -851,7 +896,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      * here so downstream typed-string ops are safe.
      */
     if (this.{{name}} != null && typeof this.{{name}} === 'number') {
-      this.{{name}} = String(this.{{name}}) as unknown as {{{dataType}}};
+      Object.assign(this, { {{name}}: String(this.{{name}}) });
     } else if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
       throw new TypeError(`{{name}} must be a Decimal string or number, got ${typeof this.{{name}}}`);
     }
@@ -894,7 +939,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      * (ByteArray to Buffer) flips isString to false at codegen time.
      */
     if (this.{{name}} != null && typeof this.{{name}} === 'string') {
-      this.{{name}} = decodeBase64(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
+      Object.assign(this, { {{name}}: decodeBase64(this.{{name}} as unknown as string) });
     } else if (this.{{name}} != null && !Buffer.isBuffer(this.{{name}})) {
       throw new TypeError(`{{name}} must be a Buffer or base64 string, got ${typeof this.{{name}}}`);
     }
@@ -914,7 +959,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
         throw new TypeError(`{{name}} is not a canonical UUID: ${JSON.stringify(this.{{name}})}`);
       }
       /* Input is case-insensitive; the canonical form is lowercase. */
-      this.{{name}} = (this.{{name}} as unknown as string).toLowerCase() as unknown as {{{dataType}}};
+      Object.assign(this, { {{name}}: (this.{{name}} as unknown as string).toLowerCase() });
     }
 {{/isUuid}}
 {{#vendorExtensions.isTimeFormat}}
@@ -927,7 +972,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      */
     if (this.{{name}} != null) {
       if (typeof this.{{name}} === 'string') {
-        this.{{name}} = Temporal.PlainTime.from(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
+        Object.assign(this, { {{name}}: Temporal.PlainTime.from(this.{{name}} as unknown as string) });
       } else if (!isTemporalValue(this.{{name}}, 'PlainTime')) {
         throw new TypeError(`{{name}} must be a Temporal.PlainTime or ISO time string, got ${typeof this.{{name}}}`);
       }
@@ -942,7 +987,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      */
     if (this.{{name}} != null) {
       if (typeof this.{{name}} === 'string') {
-        this.{{name}} = durationFromProtoJson(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
+        Object.assign(this, { {{name}}: durationFromProtoJson(this.{{name}} as unknown as string) });
       } else if (!isTemporalValue(this.{{name}}, 'Duration')) {
         throw new TypeError(`{{name}} must be a Temporal.Duration or protobuf-JSON duration string, got ${typeof this.{{name}}}`);
       }
@@ -964,7 +1009,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      * non-string elements.
      */
     if (this.{{name}} != null && Array.isArray(this.{{name}})) {
-      this.{{name}} = (this.{{name}} as unknown as unknown[]).map((__e) => {
+      const decoded = (this.{{name}} as unknown as unknown[]).map((__e) => {
         if (typeof __e === 'string') {
           return decodeBase64(__e);
         }
@@ -975,7 +1020,8 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       {{! The map produces an array of decoded Buffers; cast to the array type
           (the surrounding field is byte[] -> Buffer[]), not the item's scalar
           Buffer dataType which is what the items-context dataType resolves to. }}
-      }) as unknown as Buffer[];
+      });
+      Object.assign(this, { {{name}}: decoded });
     }
 {{/isByteArray}}
 {{/items}}
@@ -990,7 +1036,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      * already-Set value (re-construction) is left untouched.
      */
     if (this.{{name}} != null && Array.isArray(this.{{name}})) {
-      this.{{name}} = new Set(this.{{name}} as unknown as unknown[]) as unknown as {{{dataType}}};
+      Object.assign(this, { {{name}}: new Set(this.{{name}} as unknown as unknown[]) });
     }
 {{/uniqueItems}}
 {{/isArray}}
@@ -1018,8 +1064,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      * `Record<string, {{vendorExtensions.prop.mapValueComplexType}}>`, the wire
      * payload arrives as a plain JSON object whose values are bag-of-keys, not
      * `{{vendorExtensions.prop.mapValueComplexType}}` instances. Walk each entry
-     * and route it back through the model's constructor so the resulting record
-     * actually contains typed model instances.
+     * and build each as a model instance (the nested decode check then
+     * validates it) so the resulting record actually contains typed model
+     * instances.
      */
     if (this.{{name}} != null && typeof this.{{name}} === 'object' && !Array.isArray(this.{{name}})) {
       const __raw_{{name}} = this.{{name}} as unknown as Record<string, unknown>;
@@ -1032,7 +1079,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
           __out_{{name}}[__k] = new {{vendorExtensions.prop.mapValueComplexType}}(__v as Partial<{{vendorExtensions.prop.mapValueComplexType}}>);
         }
       }
-      this.{{name}} = __out_{{name}} as unknown as {{{dataType}}};
+      Object.assign(this, { {{name}}: __out_{{name}} });
     }
 {{/vendorExtensions.prop.isMapOfModel}}
 {{/isEnum}}
@@ -1051,7 +1098,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     /* `format: date` is a plain YYYY-MM-DD string, kept exactly as it came: it
      * must be a real calendar day. A Date is accepted and read as its UTC date. */
     if (this.{{name}} != null) {
-      this.{{name}} = plainDate(this.{{name}}, '{{name}}');
+      Object.assign(this, { {{name}}: plainDate(this.{{name}}, '{{name}}') });
     }
 {{/isDate}}
 {{/isDateTime}}
@@ -1079,7 +1126,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       const dates = Array.from(this.{{name}} as Iterable<unknown>, (__e) =>
         __e == null ? __e : plainDate(__e, '{{name}} element')
       );
-      this.{{name}} = ((this.{{name}} as unknown) instanceof Set ? new Set(dates) : dates) as unknown as {{{dataType}}};
+      Object.assign(this, { {{name}}: (this.{{name}} as unknown) instanceof Set ? new Set(dates) : dates });
     }
 {{/items.isDate}}
 {{#items.isModel}}
@@ -1160,13 +1207,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vendorExtensions.prop.itemsComplexTypeIsEnum}}
 {{/isEnum}}
 {{/vars}}
+  
   }
 
   /**
    * A copy of this {{classname}} with the given fields replaced. The fields are
    * read-only, so a changed model is a new one: this instance is never changed.
-   * The copy is built through the constructor, so it is validated like any
-   * other instance.
+   * The copy is built through the constructor, which validates nothing, like
+   * any other instance built by hand.
    *
    * @param patch the fields to replace; the others keep their value
    * @returns the new {{classname}}

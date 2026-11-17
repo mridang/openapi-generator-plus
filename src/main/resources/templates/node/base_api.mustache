@@ -30,8 +30,17 @@ export abstract class BaseApi {
   /** Content negotiation logic for Accept and Content-Type headers. */
   protected readonly headerSelector: HeaderSelector;
 
-  /** Optional authenticator for request-level auth when not passed per-call. */
+  /**
+   * The client-level authenticator: the credential of any operation that no
+   * scheme credential matches.
+   */
   protected readonly authenticator: Authenticator | null;
+
+  /**
+   * The credential the client holds for each security scheme, by the scheme's
+   * name in the spec.
+   */
+  protected readonly schemeAuthenticators: Readonly<Record<string, Authenticator>>;
 
   /**
    * Create an API instance.
@@ -40,13 +49,40 @@ export abstract class BaseApi {
    *   When omitted a {@link DefaultApiClient} with default transport options is used.
    * @param config API-level configuration (base URL and default headers).
    *   When omitted the {@link Configuration.defaultConfiguration default configuration} is used.
-   * @param authenticator default authenticator for operations without explicit auth.
+   * @param authenticator default authenticator for operations whose scheme has no credential.
+   * @param schemeAuthenticators the credential for each security scheme, keyed by the scheme's name in the spec.
    */
-  protected constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null) {
+  protected constructor(
+    apiClient?: ApiClient,
+    config?: Configuration,
+    authenticator?: Authenticator | null,
+    schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null
+  ) {
     this.apiClient = apiClient ?? new DefaultApiClient();
     this.config = config ?? Configuration.defaultConfiguration();
     this.headerSelector = new HeaderSelector();
     this.authenticator = authenticator ?? null;
+    this.schemeAuthenticators = schemeAuthenticators ?? {};
+  }
+
+  /**
+   * Returns the credential the client holds for the first of the given scheme
+   * names that has one, or `undefined` when it holds none (the operation then
+   * uses the client-level authenticator). An operation passes the schemes its
+   * spec requires, in the order its own security block lists them, so it
+   * always uses the scheme the spec names and a caller cannot pick another per
+   * call.
+   *
+   * @param schemes the names of the security schemes the operation accepts
+   * @returns the authenticator of the first scheme the client holds a credential for
+   */
+  protected resolveSchemeAuth(schemes: readonly string[]): Authenticator | undefined {
+    for (const scheme of schemes) {
+      if (Object.prototype.hasOwnProperty.call(this.schemeAuthenticators, scheme)) {
+        return this.schemeAuthenticators[scheme];
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -61,7 +97,9 @@ export abstract class BaseApi {
    * @param accepts acceptable response content types
    * @param contentType request content type
    * @param returnType deserialization function (or null for void)
-   * @param auth optional authenticator for operation-specific auth
+   * @param auth the authenticator the operation resolved for its security
+   *   scheme, `NO_AUTH` for an operation that sends no credential, or
+   *   undefined to use the client-level authenticator
    * @param rawBody whether the body is `format: binary` bytes sent unchanged
    * @param returnKind how a non-JSON success body is read: `string` for a plain
    *   string return, `binary` for a `format: binary` return, `model` otherwise
@@ -107,13 +145,15 @@ export abstract class BaseApi {
      *   - auth IS the NO_AUTH sentinel  -> apply NO credentials; the
      *     operation is `security: []` and must never pick up the
      *     client-level authenticator.
-     *   - auth is null/undefined        -> no per-call override; fall
-     *     back to the configured client authenticator (secured op).
-     *   - auth is a real authenticator  -> per-call override; use it. */
+     *   - auth is null/undefined        -> the client holds no credential for
+     *     the operation's schemes; fall back to the client-level
+     *     authenticator, if any.
+     *   - auth is a real authenticator  -> the credential of the scheme the
+     *     operation names; use it. */
     const effectiveAuth = isNoAuth(auth) ? null : (auth ?? this.authenticator);
-    /* The client injects its transport into the authenticator it was built
-     * with. A per-call OAuth2 or OpenID Connect authenticator was never given
-     * one, so hand it this API's own client before it fetches a token. */
+    /* The client injects its transport into the credentials it was built
+     * with. A scheme credential handed straight to an API class was never
+     * given one, so hand it this API's own client before it fetches a token. */
     if (auth != null && effectiveAuth === auth && isHttpAwareAuthenticator(auth)) {
       auth.setApiClient(this.apiClient);
     }
@@ -341,7 +381,9 @@ export abstract class BaseApi {
    * @param accepts acceptable response content types
    * @param contentType request content type
    * @param returnType deserialization function (or null for void)
-   * @param auth optional authenticator for operation-specific auth
+   * @param auth the authenticator the operation resolved for its security
+   *   scheme, `NO_AUTH` for an operation that sends no credential, or
+   *   undefined to use the client-level authenticator
    * @param rawBody whether the body is `format: binary` bytes sent unchanged
    * @param returnKind how a non-JSON success body is read: `string` for a plain
    *   string return, `binary` for a `format: binary` return, `model` otherwise

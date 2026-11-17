@@ -277,19 +277,33 @@ function formatPlainTime(time: Temporal.PlainTime): string {
 }
 
 /**
+ * Decode-time validation. A generated model's constructor validates nothing
+ * (F316), so a model can be built by hand from any value; the checks run only
+ * when a payload is decoded, through the model's `__validate` method.
+ * `validateDecoded` runs it on a model built from the wire and returns the
+ * model; a value without the method (a oneOf/anyOf wrapper, a plain object) is
+ * returned untouched.
+ */
+function validateDecoded<T>(model: T): T {
+  const validate = (model as { __validate?: unknown } | null)?.__validate;
+  if (typeof validate === 'function') {
+    (validate as () => void).call(model);
+  }
+  return model;
+}
+
+/**
  * Nested-model validation. class-transformer builds every nested `@Type`
- * model with a no-argument `new X()`, so the nested model's constructor runs
- * with `data === undefined`: its required-field check is skipped and its
- * type, enum, Set and Decimal handling runs on an empty object before the
- * fields are assigned. Only the root model is re-run through its constructor
- * by {@link ObjectSerializer.deserialize}, so a nested model with a missing
+ * model with a no-argument `new X()` and then assigns the fields, so no
+ * validation has run on a nested model. Only the root model is validated by
+ * {@link ObjectSerializer.deserialize}, so a nested model with a missing
  * required field or a wrong-typed field would otherwise decode silently.
  *
  * {@link revalidateNestedFields} walks a freshly built model graph (model
- * fields, arrays, Sets and plain maps) and re-runs each nested generated
+ * fields, arrays, Sets and plain maps) and rebuilds each nested generated
  * model through its own constructor with the populated instance as `data`,
- * which fires the same checks the root gets and stores the coerced result
- * back. oneOf/anyOf wrappers are left alone: they are resolved by their own
+ * then validates it like the root and stores the coerced result back.
+ * oneOf/anyOf wrappers are left alone: they are resolved by their own
  * variant routing.
  */
 let modelClassRegistry: ReadonlySet<unknown> | undefined;
@@ -329,7 +343,7 @@ function revalidateNestedValue(value: unknown): unknown {
   }
   const ctor = (value as { constructor?: unknown }).constructor;
   if (isNestedModelClass(ctor)) {
-    const rebuilt = new ctor(value);
+    const rebuilt = validateDecoded(new ctor(value));
     revalidateNestedFields(rebuilt as Record<string, unknown>);
     return rebuilt;
   }
@@ -799,12 +813,15 @@ export class ObjectSerializer {
             if (targetCls) {
               const instance = plainToInstance(targetCls, json, { excludeExtraneousValues: true });
               /**
-               * plainToInstance bypasses the variant's constructor, so its
-               * required-field and primitive-type checks never ran. Build the
-               * selected variant through its own constructor (as the
-               * non-discriminated path below does) before wrapping it.
+               * plainToInstance bypasses the variant's constructor, and the
+               * constructor validates nothing, so its required-field and
+               * primitive-type checks never ran. Build the selected variant
+               * and validate it (as the non-discriminated path below does)
+               * before wrapping it.
                */
-              const variant = new (targetCls as unknown as new (i: unknown) => Record<string, unknown>)(instance);
+              const variant = validateDecoded(
+                new (targetCls as unknown as new (i: unknown) => Record<string, unknown>)(instance)
+              );
               revalidateNestedFields(variant);
               return new (cls as unknown as new (i: unknown) => T)(variant);
             }
@@ -864,14 +881,14 @@ export class ObjectSerializer {
                  * Gap S (union): class-transformer's plainToInstance bypasses
                  * the variant model's constructor, so a candidate with a
                  * type-wrong field (e.g. a string on a numeric field) would be
-                 * silently retained. Route the candidate through the variant
-                 * model's own constructor so its primitive-type assertions
-                 * fire; if they throw, this variant doesn't match and we fall
-                 * through to the next candidate (and ultimately the no-match
-                 * throw below) — matching the strict validate-each-variant
-                 * canonical used by the other SDKs.
+                 * silently retained. Validate the candidate through the
+                 * variant model's own decode check so its primitive-type
+                 * assertions fire; if they throw, this variant doesn't match
+                 * and we fall through to the next candidate (and ultimately
+                 * the no-match throw below) — matching the strict
+                 * validate-each-variant canonical used by the other SDKs.
                  */
-                new (schemaCls as unknown as new (i: unknown) => unknown)(instance);
+                validateDecoded(new (schemaCls as unknown as new (i: unknown) => unknown)(instance));
                 if (isAnyOf) {
                   matched.push(instance);
                 } else {
@@ -932,14 +949,13 @@ export class ObjectSerializer {
 
       const instance = plainToInstance(cls, json, { excludeExtraneousValues: true });
       /**
-       * Gap S: re-run the model constructor on the plain-instance so the
-       * model's primitive-type assertions fire. class-transformer bypasses
-       * constructor side-effects, leaving wire-type bugs ({"id": "42"} on
-       * an int field) silent. Routing through the class's own constructor
-       * enforces them.
+       * Gap S: validate the plain-instance so the model's primitive-type
+       * assertions fire. class-transformer bypasses the constructor and the
+       * constructor checks nothing, leaving wire-type bugs ({"id": "42"} on
+       * an int field) silent. The model's own decode check enforces them.
        */
       if (instance && typeof instance === 'object' && typeof cls === 'function') {
-        const built = new (cls as unknown as new (i: unknown) => T)(instance);
+        const built = validateDecoded(new (cls as unknown as new (i: unknown) => T)(instance));
         revalidateNestedFields(built as Record<string, unknown>);
         /**
          * H11: a model declaring `additionalProperties` carries free-form wire

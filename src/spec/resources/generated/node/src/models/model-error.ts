@@ -48,6 +48,21 @@ export class ModelError {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
+  }
+
+  /**
+   * Decode-time validation, run by {@link ObjectSerializer.deserialize} on the
+   * instance it built from the wire. The constructor itself checks nothing, so
+   * a model can be built from any value and a wrong type or an unknown enum
+   * string never raises there. This is the wire boundary: a missing required
+   * field, a value of the wrong type, an unknown enum string, a malformed
+   * date, UUID, URI or base64 value all fail here, loudly, and the checked
+   * values are stored back in their final form (a Set for a `uniqueItems`
+   * array, a Buffer for a base64 string, a lower-case UUID).
+   *
+   * @throws TypeError when the decoded value breaks the schema
+   */
+  __validate(): void {
     if (this.code != null && typeof this.code !== "number") {
       throw new TypeError(`code must be a number, got ${typeof this.code}`);
     }
@@ -77,8 +92,8 @@ export class ModelError {
   /**
    * A copy of this ModelError with the given fields replaced. The fields are
    * read-only, so a changed model is a new one: this instance is never changed.
-   * The copy is built through the constructor, so it is validated like any
-   * other instance.
+   * The copy is built through the constructor, which validates nothing, like
+   * any other instance built by hand.
    *
    * @param patch the fields to replace; the others keep their value
    * @returns the new ModelError

@@ -159,16 +159,13 @@ export class DefaultApiClient extends AbstractApiClient {
   }
 
   /**
-   * Closes the undici dispatcher (and any underlying connection pool) if one
-   * was created, then marks the client closed. After calling this the client
-   * must not be reused. A request still running through that dispatcher is
-   * aborted (it fails with a {@link NetworkError}) rather than waited for, so
-   * closing never hangs on a call that has no timeout.
+   * Releases the undici dispatcher (and its connection pool) this client built,
+   * once the last running request has completed. A fetch the caller supplied
+   * is never closed.
    */
-  override async close(): Promise<void> {
-    this.closed = true;
+  protected override async releaseTransport(): Promise<void> {
     if (this.dispatcher != null) {
-      await this.dispatcher.destroy();
+      await this.dispatcher.close();
     }
   }
 }

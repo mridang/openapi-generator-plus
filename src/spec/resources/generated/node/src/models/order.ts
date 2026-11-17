@@ -54,7 +54,7 @@ export class Order {
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
    * into an epoch-millisecond instant, so hand the raw wire value on and let the
-   * constructor reject anything that is not a string. A string must be an RFC
+   * decode-time validation reject anything that is not a string. A string must be an RFC
    * 3339 date-time with an explicit offset; anything else (no offset, a bare
    * date, free text) is handed on raw too, so it never resolves against the
    * host time zone or the current date. */
@@ -94,6 +94,21 @@ export class Order {
     if (this.status === undefined) {
       this.status = OrderStatusEnum.Placed;
     }
+  }
+
+  /**
+   * Decode-time validation, run by {@link ObjectSerializer.deserialize} on the
+   * instance it built from the wire. The constructor itself checks nothing, so
+   * a model can be built from any value and a wrong type or an unknown enum
+   * string never raises there. This is the wire boundary: a missing required
+   * field, a value of the wrong type, an unknown enum string, a malformed
+   * date, UUID, URI or base64 value all fail here, loudly, and the checked
+   * values are stored back in their final form (a Set for a `uniqueItems`
+   * array, a Buffer for a base64 string, a lower-case UUID).
+   *
+   * @throws TypeError when the decoded value breaks the schema
+   */
+  __validate(): void {
     if (this.id != null && typeof this.id !== "number") {
       throw new TypeError(`id must be a number, got ${typeof this.id}`);
     }
@@ -156,9 +171,9 @@ export class Order {
         );
       }
       /* Input is case-insensitive; the canonical form is lowercase. */
-      this.trackingId = (
-        this.trackingId as unknown as string
-      ).toLowerCase() as unknown as UUID;
+      Object.assign(this, {
+        trackingId: (this.trackingId as unknown as string).toLowerCase(),
+      });
     }
     if (this.complete != null && typeof this.complete !== "boolean") {
       throw new TypeError(
@@ -190,8 +205,8 @@ export class Order {
   /**
    * A copy of this Order with the given fields replaced. The fields are
    * read-only, so a changed model is a new one: this instance is never changed.
-   * The copy is built through the constructor, so it is validated like any
-   * other instance.
+   * The copy is built through the constructor, which validates nothing, like
+   * any other instance built by hand.
    *
    * @param patch the fields to replace; the others keep their value
    * @returns the new Order

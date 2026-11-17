@@ -331,4 +331,41 @@ describe('Composed Schema', () => {
     expect(a.equals(b)).toBe(true);
     expect(a.equals(other)).toBe(false);
   });
+  test('oneOf: a wrapper tells which variant it holds and hands it back', () => {
+    const food = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
+
+    expect(food.isDryFood()).toBe(true);
+    expect(food.isWetFood()).toBe(false);
+    expect(food.asDryFood()).toBe(food.getActualInstance());
+    expect(food.asWetFood()).toBeNull();
+  });
+
+  test('oneOf: a wrapper built in code answers the same way', () => {
+    const food = new PetFood(new WetFood({ volumeMl: 400 }));
+
+    expect(food.isWetFood()).toBe(true);
+    expect(food.asWetFood()!.volumeMl).toBe(400);
+    expect(food.isDryFood()).toBe(false);
+    expect(food.asDryFood()).toBeNull();
+  });
+
+  test('anyOf: a composite tells which variants matched and hands each back', () => {
+    const both = ObjectSerializer.deserialize({ drugName: 'Amoxicillin', procedureName: 'Spay' }, PetTreatment)!;
+    const only = ObjectSerializer.deserialize({ drugName: 'Amoxicillin' }, PetTreatment)!;
+
+    expect(both.isMedication()).toBe(true);
+    expect(both.isSurgery()).toBe(true);
+    expect(both.asSurgery()!.procedureName).toBe('Spay');
+    expect(only.isMedication()).toBe(true);
+    expect(only.asMedication()!.drugName).toBe('Amoxicillin');
+    expect(only.isSurgery()).toBe(false);
+    expect(only.asSurgery()).toBeNull();
+  });
+
+  test('anyOf: the declaration order of the variants does not change the accessors', () => {
+    const record = ObjectSerializer.deserialize({ drugName: 'Amoxicillin', procedureName: 'Spay' }, TreatmentRecord)!;
+
+    expect(record.isMedication()).toBe(true);
+    expect(record.isSurgery()).toBe(true);
+  });
 });

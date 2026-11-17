@@ -334,6 +334,18 @@ Every operation takes a trailing `RequestOptions` object: `{ signal?, timeout?, 
 
 An authenticator without an explicit credential reads an environment variable once, when it is built (an empty variable is unset): `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` (`Client.withToken`, `BearerAuthenticator`), `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY` (`ApiKeyAuthenticator`), `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` and `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` (`BasicAuthenticator`). The authenticator of a security scheme reads the variable named for that scheme: `PetStoreBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD`; `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD`; `PetStoreBearerAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN`; `ServiceTokenAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN`; `ApiKeyHeaderAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY`; `InternalApiKeyAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY`; `ApiKeyQueryAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY`; `SessionCookieAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY`; the OAuth 2.0 and OpenID Connect authenticators take their credentials as arguments only. A missing credential throws a `TypeError` when the authenticator is built. `BearerAuthenticator` and `withToken` also take a function returning the token (or a promise of it), called for every request.
 
+### Credentials per security scheme
+
+`Client` takes one optional credential for each security scheme, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Pass an object in place of the authenticator: `new Client({ petStoreBasic: schemeAuthenticator })`. An operation uses the credential of the first scheme in its own security requirement that was given; there is no per-call override. An optional `authenticator` in the same object serves an operation no scheme credential matches, and an operation that needs no authentication never sends a credential. A client with no credential at all throws a `TypeError`.
+
+### Cookie parameters
+
+A cookie parameter is sent raw when every character is an RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash); otherwise the call throws a `TypeError` before sending, so percent-encode the value first.
+
+### Closing
+
+`await client.close()` (or `await using client = ...`) is graceful and idempotent: new calls fail with `ApiClient has been closed and can no longer send requests`, a call already running finishes, the connection pool the SDK built is released when the last one completes, and a `fetch` you supplied is never closed. Cancel one call with its own `signal`.
+
 ### Cancellation
 
 Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSignal }` plus the per-call options above). A client-level signal goes in the third constructor argument and is merged with the per-call signal; either one cancels the call. Cancellation rejects with the signal's reason (an `AbortError` by default), never `NetworkTimeoutError`.
@@ -359,7 +371,7 @@ All API methods are asynchronous; call them with `await`.
 
 ## Models
 
-Models are generated as TypeScript classes in the `src/models/` directory. Every field is `readonly`; `model.with({ field: value })` returns a validated copy with the fields replaced. A `format: date` field or parameter is a plain `YYYY-MM-DD` string (a `Date` is accepted on input and sent as its UTC date); `format: date-time` is a `Date`.
+Models are generated as TypeScript classes in the `src/models/` directory. Every field is `readonly`; `model.with({ field: value })` returns a copy with the fields replaced. A model constructor validates nothing; a missing required field, a wrong type or an unknown enum string fails when a response is decoded. A `format: date` field or parameter is a plain `YYYY-MM-DD` string (a `Date` is accepted on input and sent as its UTC date); `format: date-time` is a `Date`.
 
 ```typescript
 import { Account } from "petstore-client";
