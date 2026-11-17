@@ -174,7 +174,18 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: an explicit token wins over the environment")
+    @DisplayName("bhvLifecycle025 reads the environment once, when the authenticator is built")
+    fun environmentIsReadOnceWhenTheAuthenticatorIsBuilt() {
+        val env = mutableMapOf("{{envVarPrefix}}_TOKEN" to "first")
+        withEnvironment(env) {
+            val auth = BearerAuthenticator("https://api.example.com")
+            env["{{envVarPrefix}}_TOKEN"] = "second"
+            assertEquals("Bearer first", runBlocking { auth.getAuthHeaders()["Authorization"] })
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer018 F862: an explicit token wins over the environment")
     fun explicitTokenWinsOverTheEnvironment() {
         val auth = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "from-env")) {
             BearerAuthenticator("https://api.example.com", "explicit")

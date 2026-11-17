@@ -176,6 +176,13 @@ class ObjectSerializerTest {
             val result = serializer.serialize("a\tb")
             assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: $result")
         }
+
+        @Test
+        @DisplayName("bhvSerializationobject186 request JSON escapes only the quote, the backslash and controls")
+        fun requestJsonEscapesOnlyTheQuoteTheBackslashAndControls() {
+            val result = serializer.serialize(mapOf("k" to "q\"b\\\n"))
+            assertEquals("{\"k\":\"q\\\"b\\\\\\n\"}", result)
+        }
     }
 
     @Nested
@@ -2191,6 +2198,16 @@ class ObjectSerializerTest {
                 assertTrue(ex is OpenAPIException, "must extend the SDK root, was: $ex")
             }
         }
+
+        @Test
+        @DisplayName("bhvSerializationobject184 an ISO-8601 duration string is rejected")
+        fun iso8601DurationStringIsRejected() {
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"retryAfter\":\"PT1H\"}")
+                }
+            assertTrue(ex is OpenAPIException, "must extend the SDK root, was: $ex")
+        }
     }
 
     @Nested
@@ -2514,7 +2531,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a byte field accepts only padded standard-alphabet base64 without whitespace")
+        @DisplayName("bhvSerializationobject185 a byte field accepts only padded standard-alphabet base64 without whitespace")
         fun byteFieldDecodeIsStrictBase64() {
             for (bad in listOf("dGVzdA", "dGVz dA==", "dGVz\\ndA==", "-_8=", "!!!!")) {
                 assertThrowsExactly(SerializationException::class.java, {

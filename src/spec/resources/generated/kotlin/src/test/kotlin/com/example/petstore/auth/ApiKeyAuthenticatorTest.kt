@@ -362,7 +362,7 @@ class ApiKeyAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: an explicit key wins over the environment, and a missing key fails at construction")
+    @DisplayName("bhvSerializationobject187 F862: an explicit key wins over the environment, and a missing key fails at construction")
     fun explicitKeyWinsAndAMissingKeyFails() {
         val auth =
             withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY" to "from-env")) {

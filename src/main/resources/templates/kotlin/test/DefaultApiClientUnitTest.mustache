@@ -329,6 +329,12 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationwire056 falls back to application/octet-stream when the extension is unknown")
+        fun unknownExtensionFallsBackToOctetStream() {
+            assertEquals("application/octet-stream", contentTypeForFilename("blob.unknownext").toString())
+        }
+
+        @Test
         @DisplayName("bhvSerializationwire047 avatar.png file part Content-Type is image/png")
         fun avatarPngFileSetsImagePng() {
             // Parity rule 4: a multipart file part keyed by a name carrying an
@@ -2662,6 +2668,16 @@ class DefaultApiClientUnitTest {
             get(apiClient)
 
             assertEquals(listOf(2000L), sleeps)
+        }
+
+        @Test
+        @DisplayName("bhvRetries029 falls back to the backoff when Retry-After is not understood")
+        fun unreadableRetryAfterFallsBackToTheBackoff() {
+            val apiClient = retrying(listOf(503, 200), retryAfter = "soon")
+
+            get(apiClient)
+
+            assertEquals(listOf(500L), sleeps)
         }
 
         @Test

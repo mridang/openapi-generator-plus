@@ -250,6 +250,12 @@ class ValueSerializerTest {
             assertEquals("a%2Fb", slash)
             assertFalse((slash as String).contains("%252F"))
         }
+
+        @Test
+        @DisplayName("bhvSerializationparam106 a path value with a null style behaves like simple")
+        fun pathWithNullStyleBehavesLikeSimple() {
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false))
+        }
     }
 
     @Nested
@@ -657,6 +663,12 @@ class ValueSerializerTest {
         @DisplayName("bhvSerializationparam041 scalar with explode true returns string not list")
         fun scalarExplodeTrueReturnsString() {
             assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam105 SerializeStyled form scalar returns the value as it is")
+        fun serializeStyledFormScalar() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", "", "form", true))
         }
 
         @Test

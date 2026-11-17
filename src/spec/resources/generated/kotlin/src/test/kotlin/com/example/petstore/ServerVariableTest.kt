@@ -63,4 +63,20 @@ class ServerVariableTest {
             )
         assertEquals("https://example.com/v3", server.getUrl())
     }
+
+    @Test
+    @DisplayName("bhvServers018 enumValues are exposed for validation")
+    fun enumValuesAreExposedForValidation() {
+        val variable = ServerVariable("prod", "deployment environment", listOf("prod", "staging"))
+        assertEquals(listOf("prod", "staging"), variable.enumValues)
+        assertTrue(variable.enumValues.contains("prod"))
+        assertTrue(variable.enumValues.contains("staging"))
+    }
+
+    @Test
+    @DisplayName("bhvServers019 enum does not contain a value outside the allowed set")
+    fun enumDoesNotContainAValueOutsideTheAllowedSet() {
+        val variable = ServerVariable("prod", null, listOf("prod", "staging"))
+        assertFalse(variable.enumValues.contains("dev"))
+    }
 }
