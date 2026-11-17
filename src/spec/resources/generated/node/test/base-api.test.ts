@@ -1180,7 +1180,7 @@ describe("BaseApi", () => {
     ).not.toContain("content-type");
   });
 
-  test("a POST with a null body sends no body and no Content-Type", async () => {
+  test("bhv operations 131 a request with a null body sends no body and no Content-Type header", async () => {
     const client = new CapturingApiClient();
     const testApi = new TestableApi(
       client,

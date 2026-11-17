@@ -5,7 +5,7 @@ import { StoreApi } from '../../src/api/store-api{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
 import { DefaultApiClient } from '../../src/default-api-client{{importFileExtension}}';
 import { TransportOptions } from '../../src/transport-options{{importFileExtension}}';
-import { Account, Availability, Defaults, DefaultsModeEnum, Order, OrderStatusEnum, Category, PhotoMetadata, Priority, Reservation, ReservationReceipt, Swatch, TreeNode } from '../../src/models/index{{importFileExtension}}';
+import { Account, Availability, Defaults, DefaultsModeEnum, Order, OrderStatusEnum, Category, PhotoMetadata, PhotoMetadataLocation, Priority, Reservation, ReservationReceipt, Swatch, TreeNode } from '../../src/models/index{{importFileExtension}}';
 import { BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NotFoundError, SerializationError, ServerError, UnauthorizedError, UnprocessableEntityError } from '../../src/errors/index{{importFileExtension}}';
 import { uuid, type UUID } from '../../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
@@ -276,7 +276,7 @@ describe('StoreApi response shapes', () => {
     }
   });
 
-  test('reserveStock decodes a 200 body as the existing reservation', async () => {
+  test('bhv operations 129 a 200 response from reserveStock decodes as the existing reservation', async () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"reservationId":31,"quantity":4}');
     try {
       const result = await mockApi.reserveStock();
@@ -420,6 +420,22 @@ describe('StoreApi content-encoded query parameters', () => {
 
     expect(url).toContain(expected);
     expect(url).not.toContain(`${expected}0`);
+  });
+
+  test('bhv operations 139 searchStore keeps the fractional seconds of a time parameter when non-zero', async () => {
+    const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from('10:30:00.25') }));
+
+    expect(url).toContain('at=10%3A30%3A00.250');
+  });
+
+  test('bhv operations 128 searchStore with an unserializable content query raises SerializationError and sends no request', async () => {
+    hits = 0;
+    const call = captureRequest((s) =>
+      s.searchStore({ q: new PhotoMetadata({ location: new PhotoMetadataLocation({ lat: Number.NaN }) }) }),
+    );
+
+    await expect(call).rejects.toBeInstanceOf(SerializationError);
+    expect(hits).toBe(0);
   });
 
   test('bhv operations 124 getOrderByTrackingId puts the lowercase uuid in the path', async () => {

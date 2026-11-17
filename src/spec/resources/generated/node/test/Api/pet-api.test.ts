@@ -47,7 +47,17 @@ import {
   Swatch,
 } from "../../src/models/index.js";
 import { ApiError } from "../../src/errors/api-error.js";
-import { InternalServerError, NotFoundError } from "../../src/errors/index.js";
+import {
+  BadRequestError,
+  ClientError,
+  ConflictError,
+  ForbiddenError,
+  InternalServerError,
+  NotFoundError,
+  ServerError,
+  UnauthorizedError,
+  UnprocessableEntityError,
+} from "../../src/errors/index.js";
 import { SerializationError } from "../../src/errors/serialization-error.js";
 
 const baseUrl = process.env.API_BASE_URL || "http://localhost:4010";
@@ -526,6 +536,33 @@ describe("PetApi", () => {
     }
   });
 
+  test.each([
+    [400, BadRequestError],
+    [401, UnauthorizedError],
+    [403, ForbiddenError],
+    [404, NotFoundError],
+    [409, ConflictError],
+    [418, ClientError],
+    [422, UnprocessableEntityError],
+    [500, InternalServerError],
+    [502, ServerError],
+  ])(
+    "bhv operations 138 getPetById picks the status-specific error for status %i",
+    async (status, expected) => {
+      const statusApi = new PetApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder()
+          .baseUrl(`${baseUrl}/test/status/${status}`)
+          .build(),
+      );
+
+      const error = await statusApi.getPetById(1).catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(expected);
+      expect((error as ClientError).statusCode).toBe(status);
+    },
+  );
+
   test("bhv operations 034 download binary mock", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
@@ -593,13 +630,29 @@ describe("PetApi", () => {
     }
   });
 
+  test("bhv operations 136 a bare JSON null body from a model operation throws an ApiError naming the operation", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      "null",
+    );
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+      await expect(mockApi.getPetById(1)).rejects.toThrow(
+        "Expected a response body for getPetById but received none",
+      );
+    } finally {
+      close();
+    }
+  });
+
   // Canonical #11 — a malformed 2xx response body must FAIL LOUD. The
   // convenience method routes the body through ObjectSerializer.parseJson and
   // the model deserializer; both throw, so the error propagates instead of the
   // raw string being returned. Two failure modes are exercised: syntactically
   // broken JSON (parse error) and well-formed JSON of the wrong shape (a Pet
   // payload missing the required `name`, which the deserializer rejects).
-  test("malformed JSON 2xx body propagates the deserialize error", async () => {
+  test("bhv operations 130 a malformed 2xx JSON body propagates the deserialization error", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -615,7 +668,7 @@ describe("PetApi", () => {
     }
   });
 
-  test("well-formed-but-invalid 2xx body fails loud, not returned raw", async () => {
+  test("bhv operations 127 a malformed 2xx body fails loud with a serialization error, not returned raw", async () => {
     // 200 with valid JSON whose shape violates the Pet contract (required
     // `name` absent). The model deserializer must throw rather than hand back
     // a partial object or the raw dict.
@@ -1066,6 +1119,31 @@ describe("PetApi request content-type selector", () => {
     }
   });
 
+  test("bhv operations 147 multipart parts are sent in declaration order", async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      // The options are handed over in the reverse of the declared order.
+      const options: UploadPetDocumentOptions = {
+        notes: "n",
+        documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
+        file: Buffer.from([0x25, 0x50, 0x44, 0x46]),
+      };
+
+      await api
+        .uploadPetDocument(1, options, "multipart/form-data")
+        .catch(() => undefined);
+
+      const bodyText = getCapture().body.toString("latin1");
+      const positions = ["file", "documentType", "notes"].map((name) =>
+        bodyText.indexOf(`name="${name}"`),
+      );
+      expect(positions.every((position) => position >= 0)).toBe(true);
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    } finally {
+      close();
+    }
+  });
+
   test("bhv operations 072 setPetAvatar with the JSON selector sends the binary body verbatim", async () => {
     const { api, getCapture, close } = await captureRawBody();
     try {
@@ -1460,6 +1538,25 @@ describe("PetApi against a recording client", () => {
     expect(recorded).toHaveLength(0);
   });
 
+  test("bhv operations 132 a missing required options object or body names the first required field", async () => {
+    const optionsError = await recordingApi
+      .getPetByName("x", undefined as never)
+      .catch((e: unknown) => e);
+    const bodyError = await recordingApi
+      .addPet(undefined as never)
+      .catch((e: unknown) => e);
+
+    expect((optionsError as Error).constructor).toBe(TypeError);
+    expect((optionsError as Error).message).toBe(
+      "Missing the required parameter 'category' when calling PetApi.getPetByName",
+    );
+    expect((bodyError as Error).constructor).toBe(TypeError);
+    expect((bodyError as Error).message).toBe(
+      "Missing the required parameter 'pet' when calling PetApi.addPet",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
   test("bhv operations 056 getPetSummary without the required session cookie sends no request", async () => {
     const error = await recordingApi
       .getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {} as never)
@@ -1574,7 +1671,7 @@ describe("PetApi against a recording client", () => {
     );
   });
 
-  test("without a variant the client base URL is used", async () => {
+  test("bhv operations 153 an operation with no chosen server is sent to the client base URL", async () => {
     await recordingApi.getExternalPetInfo(1);
 
     expect(

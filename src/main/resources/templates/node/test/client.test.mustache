@@ -134,7 +134,7 @@ describe('{{clientClassName}}', () => {
       expect(seen[0]!.headers['Authorization']).toBe('Bearer bearer-token');
     });
 
-    test('an operation uses the first scheme of its own list that the client holds', async () => {
+    test('bhv operations 148 an operation uses the first scheme of its own list that the client holds', async () => {
       const { transport, seen } = recordingTransport();
       const client = new {{clientClassName}}(
         {
@@ -623,7 +623,7 @@ describe('generated documentation', () => {
     expect(skills).toContain('} else if (error instanceof ApiError) {');
   });
 
-  test('SKILLS error handling names the root error and every branch of the tree', () => {
+  test('bhv skills 001 SKILLS error handling names the root error and the error types that are siblings of ApiError', () => {
     for (const name of [
       '`{{errorPrefix}}Error` (root)',
       '`SerializationError`',
@@ -633,6 +633,13 @@ describe('generated documentation', () => {
     ]) {
       expect(skills).toContain(name);
     }
+  });
+
+  test('bhv skills 002 SKILLS documents the retries in its Configuration section', () => {
+    const configuration = skills.slice(skills.indexOf('## Configuration'), skills.indexOf('## API Methods'));
+
+    expect(configuration).toContain('### Retries');
+    expect(configuration).toContain('`TransportOptions.builder().maxRetries(n)`');
   });
 
   test('README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client', () => {
