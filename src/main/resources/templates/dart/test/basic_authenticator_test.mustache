@@ -80,6 +80,17 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw2')));
     });
 
+    test('bhv authbasic 018 a basic password may contain a colon', () {
+      final secret = ['pa', 'ss'].join(':');
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: secret,
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals(basic('alice:$secret')));
+    });
+
     test('bhv authbasic 011 valid credentials produce basic header', () {
       final auth = BasicAuthenticator(
         host: 'https://api.example.com',
@@ -248,6 +259,33 @@ void main() {
             '$name(host: https://api.example.com, username: alice, password: ***)',
           ),
         );
+      });
+    });
+
+    test('bhv authbasic 019 generated basic scheme wrappers emit the same Basic header as the base authenticator', () {
+      final secret = ['s3', 'cret'].join();
+      final base = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: secret,
+      );
+      builders.forEach((name, build) {
+        expect(build('alice', secret).authHeaders(), equals(base.authHeaders()));
+      });
+    });
+
+    test('bhv authbasic 020 a basic authenticator masks the password in its debug output', () {
+      final secret = ['s3', 'cret'].join();
+      final base = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: secret,
+      );
+      expect(base.toString(), isNot(contains(secret)));
+      builders.forEach((name, build) {
+        final repr = build('alice', secret).toString();
+        expect(repr, startsWith('$name('));
+        expect(repr, isNot(contains(secret)));
       });
     });
   });
