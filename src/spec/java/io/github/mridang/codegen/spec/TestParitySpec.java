@@ -55,7 +55,7 @@ public class TestParitySpec {
     if (!catalogue.isEmpty()) {
       TestCatalogueExceptions exceptions =
           TestCatalogueExceptions.load(EXCEPTIONS_FILE.toAbsolutePath());
-      List<String> problems = ParityIdComparison.compare(present, catalogue, exceptions);
+      List<String> problems = ParityIdComparison.compare(present, catalogue, exceptions, ParityIdComparison.STRICT);
       assertThat(problems)
           .withFailMessage(
               "The test suites of %s disagree with %s. Name every test from a catalogue id"

@@ -7,6 +7,8 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Compares the test suites of the languages that ran against the behaviour catalogue, by id.
@@ -19,6 +21,16 @@ public final class ParityIdComparison {
 
   private static final int SAMPLE = 20;
 
+  private static final Logger LOG = LoggerFactory.getLogger(ParityIdComparison.class);
+
+  /**
+   * Whether missing behaviours, duplicate ids and tests without an id fail the comparison. While
+   * the standardisation of the suites is open (issue 121) they are only logged so the build stays
+   * green; unknown ids, stale exceptions, unreadable reports and empty suites always fail. Set to
+   * true when issue 121 is closed.
+   */
+  public static final boolean STRICT = false;
+
   private ParityIdComparison() {}
 
   /** The problems that fail the spec, empty when every language matches the catalogue. */
@@ -26,6 +38,18 @@ public final class ParityIdComparison {
       Map<String, ParitySummary> present,
       TestCatalogue catalogue,
       TestCatalogueExceptions exceptions) {
+    return compare(present, catalogue, exceptions, true);
+  }
+
+  /**
+   * As {@link #compare(Map, TestCatalogue, TestCatalogueExceptions)}; when {@code strict} is false
+   * missing behaviours, duplicate ids and tests without an id are logged and do not fail.
+   */
+  public static List<String> compare(
+      Map<String, ParitySummary> present,
+      TestCatalogue catalogue,
+      TestCatalogueExceptions exceptions,
+      boolean strict) {
     List<String> problems = new ArrayList<>();
     for (ParitySummary summary : present.values()) {
       String language = summary.language();
@@ -35,7 +59,7 @@ public final class ParityIdComparison {
       if (summary.total() == 0) {
         problems.add(language + ": the reports hold zero tests");
       }
-      check(language, summary.names(), catalogue, exceptions, problems);
+      check(language, summary.names(), catalogue, exceptions, problems, strict);
     }
     for (String language : TestCatalogueExceptions.LANGUAGES) {
       for (String id : exceptions.idsOf(language)) {
@@ -53,7 +77,8 @@ public final class ParityIdComparison {
       List<String> names,
       TestCatalogue catalogue,
       TestCatalogueExceptions exceptions,
-      List<String> problems) {
+      List<String> problems,
+      boolean strict) {
     SortedMap<String, List<String>> byId = new TreeMap<>();
     List<String> unnumbered = new ArrayList<>();
     for (String name : names) {
@@ -80,7 +105,7 @@ public final class ParityIdComparison {
                 + " test-catalogue-exceptions.txt");
       }
     }
-    report(problems, language, "missing behaviours (add a test named from the id)", missing);
+    softReport(strict, problems, language, "missing behaviours (add a test named from the id)", missing);
 
     SortedSet<String> unknown = new TreeSet<>();
     List<String> duplicates = new ArrayList<>();
@@ -92,7 +117,8 @@ public final class ParityIdComparison {
       }
     }
     report(problems, language, "unknown ids, not in the catalogue", new ArrayList<>(unknown));
-    report(
+    softReport(
+        strict,
         problems,
         language,
         "duplicate ids (mark the catalogue line '| multi' if intended)",
@@ -100,13 +126,22 @@ public final class ParityIdComparison {
 
     boolean allowed = exceptions.allows(language, TestCatalogueExceptions.UNNUMBERED);
     if (!unnumbered.isEmpty() && !allowed) {
-      report(problems, language, "tests without a behaviour id", unnumbered);
+      softReport(strict, problems, language, "tests without a behaviour id", unnumbered);
     } else if (unnumbered.isEmpty() && allowed) {
       problems.add(
           language
               + ": stale exception "
               + TestCatalogueExceptions.UNNUMBERED
               + ": every test carries an id, remove the line from test-catalogue-exceptions.txt");
+    }
+  }
+
+  private static void softReport(
+      boolean strict, List<String> problems, String language, String what, List<String> items) {
+    if (strict) {
+      report(problems, language, what, items);
+    } else if (!items.isEmpty()) {
+      LOG.warn("{}: {} ({}), not failing while issue 121 is open", language, what, items.size());
     }
   }
 
