@@ -319,7 +319,9 @@ module {{moduleName}}
         serialized_body = body
       end
 
-      merged['Accept-Encoding'] ||= self.class.supported_encodings
+      # Field names are case-insensitive: a caller's accept-encoding in any casing
+      # suppresses the SDK's own, so the two never go out as duplicate headers.
+      merged['Accept-Encoding'] = self.class.supported_encodings unless header?(merged, 'Accept-Encoding')
 
       begin
         response = run_hop(method.downcase.to_sym, url, serialized_body, merged, deadline, timeout_ms)
