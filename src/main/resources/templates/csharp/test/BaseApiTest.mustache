@@ -1591,6 +1591,16 @@ public class BaseApiTest
         Assert.Equal("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", encoded);
     }
 
+    [Fact]
+    public void BhvSerializationobject224ContentCookieValueIsJsonPercentEncodedKeepingOnlyTheUnreservedSet()
+    {
+        var api = new TestableApi("http://localhost");
+
+        var encoded = api.ContentParameter(new Dictionary<string, string> { ["k"] = "~*" }, "cookie");
+
+        Assert.Equal("%7B%22k%22%3A%22~%2A%22%7D", encoded);
+    }
+
     [Theory]
     [InlineData("path")]
     [InlineData("header")]

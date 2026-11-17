@@ -933,6 +933,8 @@ internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan
 
     private const long TicksPerSecond = 10_000_000L;
     private const long NanosPerTick = 100L;
+    /* protobuf bounds a Duration to +/-315576000000 seconds inclusive, even where TimeSpan could hold more. */
+    private const long MaxProtobufSeconds = 315_576_000_000L;
 
     public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -984,7 +986,7 @@ internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan
     /// Parses a protobuf-JSON duration string into a <see cref="TimeSpan"/>.
     /// Throws <see cref="JsonException"/> on anything not matching
     /// <c>^-?[0-9]+(\.[0-9]{1,9})?s$</c> (e.g. ISO-8601 or unsuffixed numbers)
-    /// and on a value too large for <see cref="TimeSpan"/>;
+    /// and on a value past the protobuf bound of +/-315576000000 seconds or too large for <see cref="TimeSpan"/>;
     /// <see cref="ObjectSerializer"/> surfaces it as a
     /// <see cref="SerializationException"/>.
     /// </summary>
@@ -1016,6 +1018,11 @@ internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan
                  * its nanosecond weight (".5" → 500_000_000ns). */
                 string fracText = body[(dot + 1)..].PadRight(9, '0');
                 nanos = long.Parse(fracText, System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            if (secs > MaxProtobufSeconds || (secs == MaxProtobufSeconds && nanos > 0L))
+            {
+                throw new JsonException($"Invalid protobuf duration: {text}");
             }
 
             /* checked: a second count past TimeSpan's range must fail, not wrap. */
