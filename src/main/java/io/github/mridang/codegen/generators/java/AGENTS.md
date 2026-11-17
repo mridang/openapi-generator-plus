@@ -5,7 +5,7 @@ The java generator (`java-plus`) emits a Maven project for Java 21 or newer (the
 ## Read first
 
 - [Shared generator rules](../AGENTS.md), where every cross-language decision is written once.
-- [Repository root rules](../../../../../../../../AGENTS.md).
+- [Repository root rules](../../../../../../../../../AGENTS.md).
 - Codegen class: [BetterJavaCodegen.java](BetterJavaCodegen.java).
 - Templates: `src/main/resources/templates/java/` (the pointer file there leads back to this one).
 - Spec classes: `src/spec/java/io/github/mridang/codegen/spec/java/` (`JavaSpec`, `JavaBuildSpec`, `JavaClientSpec`, `JavaStaticAnalysisSpec`, `JavaFormattingSpec`, `JavaReservedWordsSpec`).
@@ -33,79 +33,79 @@ The java generator (`java-plus`) emits a Maven project for Java 21 or newer (the
 |---|---|---|
 | Error suffix and caller mistakes | `*Exception`; caller mistakes raise `IllegalArgumentException` or `IllegalStateException` | the JDK's own exception classes |
 | Cancellation | a thread interrupt surfaces as `java.util.concurrent.CancellationException`, never the timeout error (S7) | the platform primitive; the SDK adds no cancellation API |
-| Lifecycle | `AutoCloseable.close()`, graceful and idempotent (F1078) | try-with-resources |
-| Client credentials per scheme | `Client.builder(host)` with one setter per scheme, `.transportOptions(...)`, `.build()` (F857) | java has no named or optional constructor arguments; a builder is how it spells one optional argument per scheme (allow rules for the extra `Client.builder` and the fourth API-class constructor argument) |
-| Optional arguments | `@Nullable` parameters plus overloads; the caller passes `null` | java has no default arguments (allow rule `optional`) |
+| Lifecycle | `AutoCloseable.close()`, graceful and idempotent | try-with-resources |
+| Client credentials per scheme | `Client.builder(host)` with one setter per scheme, `.transportOptions(...)`, `.build()` | java has no named or optional constructor arguments; a builder is how it spells one optional argument per scheme |
+| Optional arguments | `@Nullable` parameters plus overloads; the caller passes `null` | java has no default arguments |
 | Per-operation optionals | a generated `<Operation>Options` class passed last | no named or optional arguments |
 | `ServerVariable` | its own file `ServerVariable.java` | one public top-level class per `.java` file |
-| Union wrappers | no `actualInstance` member: the decoded value is itself the variant through a polymorphic base class | Jackson polymorphic deserialization (allow rule `*.actualinstance`) |
-| `ObjectSerializer`, `ValueSerializer`, `HeaderSelector` | package-private | hides Jackson from the public surface (allow rule `type`) |
-| `parseJson` | no separate helper; Jackson parses and applies the depth limit | standard library parser (allow rule `objectserializer.parsejson`) |
+| Union wrappers | no `actualInstance` member: the decoded value is itself the variant through a polymorphic base class | Jackson polymorphic deserialization |
+| `ObjectSerializer`, `ValueSerializer`, `HeaderSelector` | package-private | hides Jackson from the public surface |
+| `parseJson` | no separate helper; Jackson parses and applies the depth limit | standard library parser |
 | Cause chaining | no `cause` member on `SerializationException`; `OAuth2TokenException` takes an optional cause in its constructors | `Throwable.getCause` already exists |
 | Auth-header accessor | one synchronous `getAuthHeaders` | the HTTP client is synchronous |
-| Per-scheme authenticator wrappers | composed (hold a base authenticator), not subclasses; `instanceof` the base is false (F400) | the three base authenticators are `final` so SpotBugs `CT_CONSTRUCTOR_THROW` stays quiet |
-| Model named `Error` | generated as `ModelError` | would shadow `java.lang.Error` (Error Prone `JavaLangClash`); allow rule `error` |
+| Per-scheme authenticator wrappers | composed (hold a base authenticator), not subclasses; `instanceof` the base is false | the three base authenticators are `final` so SpotBugs `CT_CONSTRUCTOR_THROW` stays quiet |
+| Model named `Error` | generated as `ModelError` | would shadow `java.lang.Error` (Error Prone `JavaLangClash`) |
 | Reserved words | `true`, `false`, `null` and `_` are escaped too | they are illegal identifiers though not keywords (D44) |
 | `format: number`, `decimal` | `BigDecimal` | precision-preserving, like kotlin and csharp |
-| `format: binary` | `InputStream` (request and response) | stream-typed; changing to `byte[]` is a public API change (F332, parked) |
+| `format: binary` | `InputStream` (request and response) | stream-typed; changing to `byte[]` is a public API change (parked) |
 | Doc comments | `///` markdown doc-comments allowed; `//` line comments rejected in `src/main` | Java 23+ markdown doc-comments and `JavaFormattingSpec` |
 
 ## Settled decisions (do not re-open in review)
 
-The 2026-11-16 session decisions come first. The rules are written once in the shared file; each entry here says how java realises it. Where the ledger item is still open, java has not landed the change yet and the entry says so.
+The 2026-11-16 session decisions come first. The rules are written once in the shared file; each entry here says how java realises it. Where a decision is not landed in java yet, the entry says so.
 
-### Injected transport is `java.net.http.HttpClient` (S9, F405, 2026-11-16)
+### Injected transport is `java.net.http.HttpClient` (S9, 2026-11-16)
 Rule: the client builder accepts a caller-supplied `java.net.http.HttpClient`, keeps the SDK defaults applied, never closes the caller's client and fails fast when it conflicts with the SDK's own proxy, TLS or pool settings.
 Why: every SDK generator compared (OpenAI, Stainless, Speakeasy, Fern, Azure, Stripe) accepts the standard client object.
 Where: `client.mustache`, `default_api_client.mustache`, `transport_options.mustache` (`TransportOptions.builder().httpClient(...)`). Landed.
 Test: `ClientTest`, `DefaultApiClientUnitTest` (add rows there).
 
-### Cancellation is the platform's interrupt (S7, F228, 2026-11-16)
+### Cancellation is the platform's interrupt (S7, 2026-11-16)
 Rule: java has no new parameter; a thread interrupt during a request surfaces as `CancellationException` and is never rewrapped as `NetworkTimeoutException`.
 Why: the interrupt is what Java callers already use; a shared `RequestOptions` wrapper is less natural than the native handle.
 Where: `default_api_client.mustache` (the `InterruptedException` branch builds the `CancellationException`).
 Test: `DefaultApiClientUnitTest`.
 
-### Parameter order is fixed (S8, F803, 2026-11-16)
+### Parameter order is fixed (S8, 2026-11-16)
 Rule: required parameters, then the server, then the `*Options` object, always, whether or not the operation has security; adding security never moves an argument.
 Why: a positional options parameter inserted before the server silently broke existing server-only call sites.
 Where: `api/api.mustache`, `BetterJavaCodegen.populateOperationDecorators` (`serverBeforeOptions`, `callArgsNullServer`). Landed.
 Test: `test/api/*ApiTest.mustache` (golden `PetApiTest`).
 
-### allOf with a discriminator uses class inheritance, once (S4, F057, F802, 2026-11-16)
+### allOf with a discriminator uses class inheritance, once (S4, 2026-11-16)
 Rule: only the allOf-plus-discriminator parent is a superclass (`extends {{parent}}` in `model.mustache`); a model reused in two unions is not re-parented, unions use the polymorphic base and `@JsonTypeInfo`/`@JsonSubTypes`.
 Why: a Java class has one parent. F802 (the `DeprecatedFood` union re-parents `DryFood` and `WetFood`) is the bug this closes.
 Where: `models/model.mustache`. Not landed: F802 needs a shared-Java fix (`AbstractBetterCodegen.setParentOnChild` keeps the first union that claims a child).
 Test: `test/ComposedSchemaTest.mustache`.
 
-### Required plus nullable keeps the key (S5, F215, D66, 2026-11-16)
+### Required plus nullable keeps the key (S5, D66, 2026-11-16)
 Rule: a required nullable property must be present on decode (missing is an error), an explicit null is a legal value and is kept, and encode always writes the key, null when unset.
 Why: OpenAPI separates required from nullable; java used to accept a missing key. D66 puts `@JsonInclude(ALWAYS)` and `required = true` on the creator parameter without `requireNonNull`.
 Where: `models/model.mustache`, `object_serializer.mustache`. F215 is open for the decode side.
 Test: golden model tests and `ObjectSerializerTest`.
 
-### Strict containers (S1, F006, 2026-11-16)
+### Strict containers (S1, 2026-11-16)
 Rule: a response that is a container of primitives (`Map<String,Integer>`, `List<List<Integer>>`) is checked element by element like a single primitive.
 Why: container returns bypassed the strict primitive checks in seven SDKs, java among them.
 Where: `object_serializer.mustache`, `base_api.mustache`. Landed in wave 2: the mapper's coercion rules already apply to every container element (see Decisions taken in wave 2).
 Test: `ObjectSerializerTest`, `BaseApiTest`.
 
-### Content parameters use the SDK serializer (S2, F054, D50, D80, 2026-11-16)
+### Content parameters use the SDK serializer (S2, D50, D80, 2026-11-16)
 Rule: a `content:` parameter is encoded through `ObjectSerializer.serialize` in every location (query, header, path, cookie), the same bytes as the other eleven.
-Why: twelve different JSON encoders produced twelve byte forms. The query branch is already canonical; header, path and cookie are open (F054).
+Why: twelve different JSON encoders produced twelve byte forms. The query branch is already canonical; header, path and cookie are open.
 Where: `api/api.mustache`, `value_serializer.mustache`.
 Test: `ValueSerializerTest`, golden `PetApiTest`.
 
-### Schema constraints are not enforced (S3, D55, F056, 2026-11-16)
+### Schema constraints are not enforced (S3, D55, 2026-11-16)
 Rule: `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems` and `maxItems` are never checked client-side; the server owns validation. The README documents it in the section "Schema constraints".
 Why: only python enforces them (natively through pydantic); java would need Bean Validation at the cost of a dependency and a second source of truth.
 Where: `models/model.mustache`, `readme.mustache`.
 Test: none by design; do not add enforcement.
 
-### `uniqueItems` order is left unspecified (S6, F319, 2026-11-16)
+### `uniqueItems` order is left unspecified (S6, 2026-11-16)
 Rule: a `Set` is sent in the collection's natural order (`LinkedHashSet`, insertion order); do not sort. This supersedes D69, which proposed sorting.
 Why: the order carries no meaning and sorting is work with no contract behind it. The READMEs say so.
-Where: `object_serializer.mustache` (no sorting module), `readme.mustache`. Landed in batch 6 (F871, F892).
+Where: `object_serializer.mustache` (no sorting module), `readme.mustache`. Landed in batch 6.
 Test: `ObjectSerializerTest` (`uniqueScalarArrayKeepsInsertionOrder`).
 
 ### Dependencies: pure JVM libraries only (S10, 2026-11-16)
@@ -144,7 +144,7 @@ Why: OIDC Core 3.1.2.1, RFC 6749 sections 4.1.1 and 5.1, and byte-identical wire
 Where: `auth/oauth/*.mustache`.
 Test: the per-flow `OAuth2*AuthenticatorTest`, `OAuth2TokenManagerTest`.
 
-### The error carries the real response (D13, F099)
+### The error carries the real response (D13)
 Rule: an `ApiException` for a response that arrived but was unusable (decompress failure, redirect refusals) carries the real status and the lower-cased response header map, null body, and the failure as cause; `ApiException(int, String, Map, Throwable)` replaces the old three-argument constructor. `responseHeaders` null means no HTTP response arrived and is never defaulted to an empty map (see the shared "Forced divergences").
 Why: callers branch on null headers to tell a transport failure from a bad response.
 Where: `api_error.mustache`, `default_api_client.mustache`.
@@ -156,7 +156,7 @@ Why: RFC 9110 5.1; the published package name is the identifier users can look u
 Where: `default_api_client.mustache`, `transport_options.mustache`, `BetterJavaCodegen` (`artifactId`, `userAgentDefault`).
 Test: `DefaultApiClientTest`, `TransportOptionsTest`.
 
-### Models: string form, equality, any-properties (D23, D24, D63, F321, F322, F400)
+### Models: string form, equality, any-properties (D23, D24, D63)
 Rule: `toString` dumps `ClassName{prop=value, ...}` over all vars plus the additionalProperties bucket, a top-level `byte[]` through `Arrays.toString` and containers through `ObjectSerializer.structuralToString`; oneOf/anyOf wrappers delegate equality and hash to the held variant with `Objects.deepEquals`; the `@JsonAnyGetter` omits keys that equal declared property names so the declared value wins and the key is written once; a composed scheme wrapper prints the redacted base repr under its own class name.
 Why: identity hashes and type names in logs look like data; equality on a decoded union must not be identity.
 Where: `models/model.mustache`, `auth/scheme_authenticator.mustache`.
@@ -168,7 +168,7 @@ Why: the transport hands text-class media types over as decoded text; every othe
 Where: `base_api.mustache`, `api/api.mustache`, `default_api_client.mustache`.
 Test: `BaseApiTest`, `DefaultApiClientTest`, `ApiResultTest`.
 
-### Multipart and form encoding (D36, D39, D53, D90, F253)
+### Multipart and form encoding (D36, D39, D53, D90)
 Rule: a multipart primitive is a plain text part (`ObjectSerializer.toFormValue`, no part Content-Type), only models and maps are `application/json` parts; a form-urlencoded nested object or map is rejected with `SerializationException`; query, form and multipart parts use `LinkedHashMap` in declaration order; the multipart filename directive replaces each non-ASCII or control code point with one `_` (iterating `codePoints()`).
 Why: one stringify form and one deterministic order across twelve SDKs.
 Where: `default_api_client.mustache` (`addMultipartField`, `buildFilenameDirective`), `base_api.mustache`, `api/api.mustache`.
@@ -186,7 +186,7 @@ Why: a second `@Deprecated` on one method is a compile error ("not a repeatable 
 Where: `api/api.mustache`, `default_api_client.mustache`. Do not add a per-branch guard.
 Test: golden `PetApiTest`, `StoreApiTest`.
 
-### Codegen escaping and names (D40, D41, D42, D43, D44, D46, F309)
+### Codegen escaping and names (D40, D41, D42, D43, D44, D46)
 Rule: spec strings in code literals go through one escaper (`escapeText`; quote and backslash escaped, tab, newline and CR become a space, `*/` becomes `*_/`); doc prose is HTML-unescaped once in `preprocessOpenAPI` and kept `*/`-safe; the pom description uses `lambda.escapeXml`; per-operation server enums are emitted once from `serverEnums`; a digit-leading name gets an `n` prefix before casing; `java.txt` plus `null`, `true`, `false`, `_` are reserved; enum string literals escape backslash and quote, and the javadoc `{@code ...}` sink uses a comment-safe value.
 Why: a literal must evaluate to exactly the spec's bytes; a keyword or literal as an identifier fails the compile.
 Where: `AbstractBetterCodegen`, `BetterJavaCodegen`, `api/api.mustache`, `servers.mustache`, `pom.mustache`, `models/model.mustache`, `reserved-words/java.txt`.
@@ -232,17 +232,17 @@ Test: a real client's CI gates; the golden does not run them.
 
 Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50).
 
-These java gaps are known and not hidden by the allow list:
+These java gaps are known:
 
-- An optional request body can be omitted only on an operation that takes nothing else (`placeOrder()`), because an overload that drops the body from a longer signature makes a literal `null` ambiguous (D26, F324, wave 2). With path, options, server or content-type arguments the body stays `@Nullable`.
-- A model with required properties has no no-argument constructor: it is built with its required-argument constructor or `builder()`, and a missing required property fails in `build()` (D68, F227, wave 2).
-- `refreshUrl` keeps its position in the public OAuth2 constructors (F287); moving it breaks positional callers.
-- `format: binary` stays `InputStream` rather than `byte[]` (F332).
-- Only a model named `Error` is prefixed (`ModelError`); other collisions with `java.lang` or SDK type names are unguarded (D45, F173, open).
-- Object-valued query and header parameters are unsupported (D47, F063, parked); `Set` order is unspecified (S6).
+- An optional request body can be omitted only on an operation that takes nothing else (`placeOrder()`), because an overload that drops the body from a longer signature makes a literal `null` ambiguous (D26, wave 2). With path, options, server or content-type arguments the body stays `@Nullable`.
+- A model with required properties has no no-argument constructor: it is built with its required-argument constructor or `builder()`, and a missing required property fails in `build()` (D68, wave 2).
+- `refreshUrl` keeps its position in the public OAuth2 constructors; moving it breaks positional callers.
+- `format: binary` stays `InputStream` rather than `byte[]`.
+- Only a model named `Error` is prefixed (`ModelError`); other collisions with `java.lang` or SDK type names are unguarded (D45, open).
+- Object-valued query and header parameters are unsupported (D47, parked); `Set` order is unspecified (S6).
 - `BigDecimal` is written with `toString`, so a value such as `1E+3` may appear in exponent notation; `WRITE_BIGDECIMAL_AS_PLAIN` is not enabled (D83 proposed it).
-- The `FormattingSpec` and static-analysis specs do not gate tests as strictly as sources: SpotBugs does not run over generated tests (F193, about 140 findings), javadoc with `failOnWarnings` and the OpenRewrite recipe are in the pom but run by no spec (F191, F196).
-- OAuth2 authenticator repr field sets and the per-model oneOf/anyOf no-match wording differ from other languages (F285, F396); not harmonised.
+- The `FormattingSpec` and static-analysis specs do not gate tests as strictly as sources: SpotBugs does not run over generated tests (about 140 findings), javadoc with `failOnWarnings` and the OpenRewrite recipe are in the pom but run by no spec.
+- OAuth2 authenticator repr field sets and the per-model oneOf/anyOf no-match wording differ from other languages; not harmonised.
 
 ## Build-breaking rules
 
@@ -260,54 +260,53 @@ These java gaps are known and not hidden by the allow list:
 ```
 etc/ci-local.sh check Java
 etc/ci-local.sh mvn -B test
-python3 etc/api-surface.py check
 ```
 
 Language-specific: `mvn verify -Dgroups=java`; inside a generated SDK `mvn compile`, `mvn test`, `mvn spotless:check`, `mvn spotbugs:check checkstyle:check`.
 
-### Batch 5 (F824, F831, F832, F833, F839)
-Rule: the `Client` facade is `AutoCloseable` and closes the `DefaultApiClient` it built, gracefully (F1078, see round 4; a caller-supplied `HttpClient` is never closed; a closed client throws `IllegalStateException`). HTTP 429 maps to `TooManyRequestsException` (a `ClientException`). The "Unexpected response Content-Type" error names `Class.operationId`, passed as the first argument of `invokeApi`/`invokeApiForResult`. A `content:` cookie is encoded by `BaseApi.encodeContentCookie` (only `A-Z a-z 0-9 - . _ ~` literal, UTF-8 percent-encoded). Redirects follow RFC 9110 15.4: 301/302 rewrite only POST to GET, 303 rewrites everything but HEAD, 307/308 keep method and body.
+### Batch 5
+Rule: the `Client` facade is `AutoCloseable` and closes the `DefaultApiClient` it built, gracefully (see round 4; a caller-supplied `HttpClient` is never closed; a closed client throws `IllegalStateException`). HTTP 429 maps to `TooManyRequestsException` (a `ClientException`). The "Unexpected response Content-Type" error names `Class.operationId`, passed as the first argument of `invokeApi`/`invokeApiForResult`. A `content:` cookie is encoded by `BaseApi.encodeContentCookie` (only `A-Z a-z 0-9 - . _ ~` literal, UTF-8 percent-encoded). Redirects follow RFC 9110 15.4: 301/302 rewrite only POST to GET, 303 rewrites everything but HEAD, 307/308 keep method and body.
 Where: `client.mustache`, `errors/TooManyRequestsException.mustache`, `api_error.mustache`, `base_api.mustache`, `api/api.mustache`, `default_api_client.mustache`.
 Test: `ClientTest`, `ApiExceptionTest`, `BaseApiTest`, `DefaultApiClientUnitTest`.
 
 ## Decisions taken in batch 6
 
-Where the ledger needed an owner decision, java took the audit's own proposal. Each rule is scoped to java and written once.
+Where an owner decision was needed, java took the audit's own proposal. Each rule is scoped to java and written once.
 
-### Token expiry uses one margin (F854, F895, F1045, F1046, F896)
-Rule: `OAuth2TokenManager` stores `expiry - min(60 s, ceil(expires_in / 2))` and serves the token while `now` is before it, so a 60 s token is reused for 30 s and a 1 s or 0 s token is never reused. A grant response without `expires_in` clears the expiry (cached until `invalidateAccessToken`), so a refresh answer without it no longer keeps the lapsed expiry. A `token_type` other than `bearer` (any case) raises `OAuth2TokenException("Unsupported token_type in token response")`; an absent one is accepted (F863).
+### Token expiry uses one margin
+Rule: `OAuth2TokenManager` stores `expiry - min(60 s, ceil(expires_in / 2))` and serves the token while `now` is before it, so a 60 s token is reused for 30 s and a 1 s or 0 s token is never reused. A grant response without `expires_in` clears the expiry (cached until `invalidateAccessToken`), so a refresh answer without it no longer keeps the lapsed expiry. A `token_type` other than `bearer` (any case) raises `OAuth2TokenException("Unsupported token_type in token response")`; an absent one is accepted.
 Where: `auth/oauth/oauth2_token_manager.mustache`. Test: `OAuth2TokenManagerTest` (`expiresInAppliesOneMarginCappedAtHalfTheLifetime`, `refreshResponseWithoutExpiresInKeepsNoExpiry`, `tokenTypeOtherThanBearerIsRejected`).
 
-### OIDC discovery is checked (F859)
+### OIDC discovery is checked
 Rule: a discovery document whose `issuer` (when present) differs from the discovery URL minus `/.well-known/openid-configuration` (trailing slash ignored) raises `SerializationException`; `authorization_endpoint`, `token_endpoint` and the discovery URL must be https unless the host is `localhost`, `127.0.0.1` or `[::1]`. The base OAuth2 constructors do not check their URLs yet.
 Where: `auth/oauth/openid_connect_authenticator.mustache`. Test: `OpenIdConnectAuthenticatorTest`.
 
-### One end-to-end budget for the stale-connection retry (F907, D76)
-Rule: `sendWithRetry` takes the deadline; the one replay after "header parser received no bytes" gets the remaining nanos (rebuilt with `HttpRequest.newBuilder(request, ...)`) and raises `NetworkTimeoutException` when the budget is spent. `QUERY` counts as idempotent (F838, partial: the shared classification is not done).
+### One end-to-end budget for the stale-connection retry (D76)
+Rule: `sendWithRetry` takes the deadline; the one replay after "header parser received no bytes" gets the remaining nanos (rebuilt with `HttpRequest.newBuilder(request, ...)`) and raises `NetworkTimeoutException` when the budget is spent. `QUERY` counts as idempotent (partial: the shared classification is not done).
 Where: `default_api_client.mustache`. Test: `DefaultApiClientUnitTest` (`staleConnectionRetryDrawsFromTheRemainingBudget`, `queryIsReplayedAsAnIdempotentMethodAndPostIsNot`).
 
-### Redirect budget, wording and header case (F902, F904, F905, F901, D16, D29, D70, D77)
+### Redirect budget, wording and header case (D16, D29, D70, D77)
 Rule: "too many redirects" fires only when the budget is exhausted and a usable `Location` is present; a bare 3xx is returned. Messages are `Too many redirects (exceeded <N>)`, `Refusing to replay request body across HTTPS->HTTP redirect: <current> -> <next>`, `Refusing to follow redirect to non-HTTP(S) URL: <next>` and `ApiClient has been closed and can no longer send requests`. `maxRedirects` below zero and `timeout <= 0` are rejected in the builder (`Invalid maxRedirects: must not be negative (got N)`, `Invalid timeout: must be a positive number of milliseconds (got N)`). A caller's `Accept-Encoding` in any case suppresses the SDK's. Proxy userinfo is percent-decoded without turning `+` into a space.
 Where: `default_api_client.mustache`, `transport_options.mustache`. Test: `DefaultApiClientUnitTest`, `TransportOptionsTest`. The HTTPS-to-HTTP message is not pinned end to end (it needs a TLS fixture).
 
-### Error and serializer messages (F922, F933, D15, D17)
+### Error and serializer messages (D15, D17)
 Rule: `ApiException.toString` renders `Response headers: {"a":"b"}` as compact JSON with sorted keys; the serializer says `Failed to serialize object to JSON: <detail>`, `Failed to deserialize JSON: <detail>` and `JSON nesting depth <N> exceeds limit 1000`.
 Where: `api_error.mustache`, `object_serializer.mustache`. Test: `ApiExceptionTest`, `ObjectSerializerTest`.
 
-### Models (F864, F867, F869, F173, F278)
-Rule: additional properties are written with the builder (`putAdditionalProperty`, `putAllAdditionalProperties`, `removeAdditionalProperty`, `additionalProperties(map)`), `setAdditionalProperty` is gone and the read accessor is unmodifiable (F1178, wave 2); the string form of an enum constant is its wire value; a `format: password` field prints as `***` in the model's `toString` (the wire still carries the value); a schema named like a `java.lang` type (`Error`, `Exception`, `Throwable`, `String`, `Object`, the boxed numbers, `Class`, `Enum`, `Record`, `Override`, `Deprecated`, `Thread`, `System`) is prefixed `Model`; apiKey header names are escaped as Java literals in the redirect strip list.
+### Models
+Rule: additional properties are written with the builder (`putAdditionalProperty`, `putAllAdditionalProperties`, `removeAdditionalProperty`, `additionalProperties(map)`), `setAdditionalProperty` is gone and the read accessor is unmodifiable (wave 2); the string form of an enum constant is its wire value; a `format: password` field prints as `***` in the model's `toString` (the wire still carries the value); a schema named like a `java.lang` type (`Error`, `Exception`, `Throwable`, `String`, `Object`, the boxed numbers, `Class`, `Enum`, `Record`, `Override`, `Deprecated`, `Thread`, `System`) is prefixed `Model`; apiKey header names are escaped as Java literals in the redirect strip list.
 Where: `models/model.mustache`, `BetterJavaCodegen` (`JAVA_LANG_CLASHES`, `processOpenAPI`). Test: `MetadataTest`, `ObjectSerializerTest`, `BetterJavaCodegenTest`.
 
-### Per-call authenticators get the client (F856)
+### Per-call authenticators get the client
 Rule: `BaseApi` hands its `ApiClient` to a per-call `HttpAwareAuthenticator` before using it, so a per-call OAuth2 or OIDC authenticator works.
 Where: `base_api.mustache`. Test: `BaseApiTest` (`perCallHttpAwareAuthenticatorReceivesTheClient`).
 
-### README and SKILLS (F883, F884, F885, F888, F889, F890)
+### README and SKILLS
 Rule: the README order is Requirements, Installation, Usage (quick start, raw responses, timeouts, request id, cancellation, custom HTTP client), Build, Test, Package, Caveats, Not supported. Cancellation is documented as the thread interrupt raising `CancellationException`; "Not supported" lists retries, XML bodies and `nodeType`, Link Objects and mutual TLS. SKILLS gains custom HTTP client, cancellation and raw-response sections.
 Where: `readme.mustache`, `skills.mustache`.
 
-### Already conforming or skipped in batch 6
-Already conforming: F803 (server before options), F054 (content parameters in every location), F149 and F832 (`Class.operationId` in the Content-Type error), F215 (required plus nullable keeps the key), F824, F831, F833, F839, F868 (superseded in wave 2: final fields and a builder). Skipped, needing a shared or cross-language decision: F802, F823, F826, F827, F828, F830, F834 to F838, F840, F843, F855, F857, F858, F860, F862, F865, F866, F893, F894, F908, F929 (java has one synchronous accessor, so D12 does not apply).
+### Already conforming in batch 6
+Already conforming: F803 (server before options), F054 (content parameters in every location), F149 and F832 (`Class.operationId` in the Content-Type error), F215 (required plus nullable keeps the key), F824, F831, F833, F839, F868 (superseded in wave 2: final fields and a builder). F929 (java has one synchronous accessor, so D12 does not apply).
 
 
 ## Decisions taken in batch 7
@@ -324,24 +323,21 @@ Already conforming: F803 (server before options), F054 (content parameters in ev
 
 ## Decisions taken in batch 9
 
-### A 401 on an OAuth2 or OIDC call drops the token and replays once (F855)
+### A 401 on an OAuth2 or OIDC call drops the token and replays once
 Rule: `HttpAwareAuthenticator` gains `default void invalidateAccessToken()` (a no-op), overridden by the client-credentials, password, auth-code and OIDC authenticators, which drop the cached access token and keep the refresh token (OIDC drops through its current delegate and never triggers discovery). `BaseApi.sendReplayingOnUnauthorized` calls it on a 401 from an `HttpAwareAuthenticator`, rebuilds the auth headers and sends the request once more; a second 401 is the usual `UnauthorizedException`. The request is not replayed when its body is not null, a `String` or a `byte[]` (stream, `File` and multipart are not), or when the fresh auth headers equal the ones just sent (the implicit flow has no fresher credential). API key, basic and bearer authenticators are not `HttpAwareAuthenticator`, so they never replay.
 Where: `auth/http_aware_authenticator.mustache`, `auth/oauth/*`, `base_api.mustache`. Test: `BaseApiTest` (`UnauthorizedReplay`), the four `OAuth2*AuthenticatorTest`/`OpenIdConnectAuthenticatorTest` `invalidatingTheToken...` rows.
 
-### PKCE S256 on the authorization-code flow (F858)
+### PKCE S256 on the authorization-code flow
 Rule: `buildAuthorizationUrl` always appends `code_challenge` and `code_challenge_method=S256` after `state`, from a fresh 43-character verifier (32 `SecureRandom` bytes, unpadded base64url) held in the authenticator; `exchangeCode` sends it once as `code_verifier` and forgets it (no verifier when no URL was built first). The challenge is `BASE64URL(SHA-256(verifier))` through `MessageDigest` (JDK only). OIDC rediscovery with new endpoints builds a new delegate and hands it the pending verifier (`adoptPkceVerifierFrom`). No nonce is sent.
 Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`, `auth/oauth/openid_connect_authenticator.mustache`. Test: `OAuth2AuthCodeAuthenticatorTest` (RFC 7636 appendix B vector, verifier shape, challenge proved by the exchange, single use), `OpenIdConnectAuthenticatorTest` (`rediscoveryKeepsThePkceVerifierOfTheAuthorizationUrl`).
 
-### Automatic retries with backoff (F823)
+### Automatic retries with backoff
 Rule: `TransportOptions.Builder.maxRetries(int)` (default 2, 0 disables, negative rejected) and `getMaxRetries()`. `DefaultApiClient.sendWithBackoff` wraps every send (first hop and redirect hops) and retries an `IOException` before a response (never a timeout, a `SSLHandshakeException` or an interrupt) and the statuses 408, 409, 429 and 500 to 599 except 501. The delay is `min(8 s, 0.5 s * 2^n)` reduced by up to 25% jitter, or `Retry-After` (seconds, or an HTTP date through `RFC_1123_DATE_TIME`, capped at 60 s). The wait and the retry draw from the single end-to-end deadline: when the remaining budget cannot cover the wait, the last response is returned (or the last error thrown) instead of retrying, so retrying never extends the timeout; an interrupt during the wait is the `CancellationException`. A stream body, or a multipart map holding a stream, is never retried (`isReplayableBody`). A retry is a fresh `HttpRequest` built from the first one, so it carries the same headers, authentication headers included (the transport never sees an authenticator; an expired token is replaced by the 401 replay above). The one stale-connection replay of `sendWithRetry` stays inside each attempt. README "Automatic retries" and SKILLS "Retries" replace the old "Not supported" entry.
 Where: `transport_options.mustache`, `default_api_client.mustache`, `readme.mustache`, `skills.mustache`. Test: `DefaultApiClientUnitTest` (retry count, retryable statuses, `Retry-After`, budget, stream, fresh request, cancellation), `TransportOptionsTest`. Existing tests that expect one failing request now build the client with `maxRetries(0)` (`BaseApiTest.TestableApi`, `PetApiTest` typed routes, the dropped-connection rows).
 
-### Rendered error text (F1080, already conforming, two gaps closed)
+### Rendered error text (already conforming, two gaps closed)
 Rule: the rendered `ApiException` already capped the body at 1 KiB with `... (N more bytes)`, escaped CR, LF and control characters, and masked authorization, proxy-authorization, cookie, set-cookie and any name containing key, token or secret. Added `www-authenticate` and `proxy-authenticate` to the masked list and a `\t` escape (the same `\n`, `\r`, `\t`, `\uNNNN` forms node and rust render; java does not use `\xNN`). The fields keep the real values.
 Where: `api_error.mustache`. Test: `ApiExceptionTest`.
-
-### F825 skipped
-Rust only.
 
 ## Decisions taken in batch 10
 
@@ -352,7 +348,7 @@ Rust only.
 - F1094: the jar manifest carries `Automatic-Module-Name` set to the invoker package (maven-jar-plugin 3.4.2). No `module-info.java`. Where: `pom.mustache`.
 - F1096 (half): `jackson-jaxrs-json-provider` is gone (nothing used it). `jsr305` stays a compile dependency because the public types carry `javax.annotation.Nullable`; moving it to `provided` is a decision for the owner.
 - F1055: `BetterJavaCodegen.getInjectedArgumentNames` is `options`, `server` and `requestContentType`, so a path or body parameter of that name becomes `optionsParam` and so on. Test: `BetterJavaCodegenTest.renamesAParameterNamedLikeAnInjectedArgument`.
-- F893 (java half): the named examples of an optional parameter are rendered on its Options setter (`Example — <summary>: {@code <value>}`). Where: `api/options.mustache`, `BetterJavaCodegen.generateOptionsFileContent`. Test: `JavaFormattingSpec.pluralExamplesShouldBeAttributedToParameter` (F1071, required `petId` examples on the operation); the optional-parameter rendering shows in the regenerated golden.
+- F893 (java half): the named examples of an optional parameter are rendered on its Options setter (`Example — <summary>: {@code <value>}`). Where: `api/options.mustache`, `BetterJavaCodegen.generateOptionsFileContent`. Test: `JavaFormattingSpec.pluralExamplesShouldBeAttributedToParameter` (required `petId` examples on the operation); the optional-parameter rendering shows in the regenerated golden.
 - F1072: `BetterJavaCodegenTypeMappingTest` is now `BetterJavaCodegenTest` (mirrors its source) and covers the generator identity, naming conventions, collection templates, discriminator flags and the injected names.
 
 ### Tests added for behaviour that already conformed
@@ -361,11 +357,9 @@ F901 (`proxyPasswordKeepsALiteralPlusSign`), F926 (`unusableTokenResponseHasTheC
 ### Already conforming
 F215 (`ObjectSerializerTest` `requiredNullableKeepsExplicitNull`, `requiredNullableRejectsMissingKey`), F855 and F858 (batch 9), F1124 (the `o'neil` server, `ZZZZZZZZZZ` nickname and the slug rows are in the java tests), F1080 (batch 9).
 
-### Skipped, with the reason
-- F332 (binary response type): public API shape across every operation variant and a cross-language decision.
-- F831 (502, 503, 504 types), F843, F865, F866, F908, F1056, F1058, F1060, F1061, F1081, F1153, F1157, F1172, F1180: owner decision or shared Java (`AbstractBetterCodegen`, the OpenAPI rules, the petstore spec, `etc/`). F840 and F857 landed in round 4 (below). 
-- F1078 (`close()` cancels in-flight requests): superseded by the owner decision of round 4, which makes `close()` graceful: nothing in flight is cancelled.
-- F1077, F1085: new generated build gates and shared fixtures, cross-language.
+### Not done in java, with the reason
+- Binary response type: the stream-versus-bytes question for all twelve is settled together with streaming in #114.
+- A vulnerability and unused-dependency audit is #105.
 - F1140: java reads each redirect body whole (`BodyHandlers.ofByteArray`), so a hop holds no connection to release and there is nothing to count.
 
 ## Gate lessons (what broke the gate and how to avoid it)
@@ -391,52 +385,52 @@ Generated Java is verified only by the Docker specs (`JavaBuildSpec`, `JavaClien
 
 Owner decisions of 2026-11-17 and the triaged parity findings for java. Test names are generated-test names (templates under `templates/java/test/`) unless a generator test class is named.
 
-### Error context on every API error (F830)
+### Error context on every API error
 Rule: `ApiException` and every subclass carry `getRequestMethod()` and `getRequestPath()` (the path without scheme, host, query string or fragment). `BaseApi` sets them through `ApiException.fromResponse(method, path, status, headers, body)`; the older three-argument `fromResponse` leaves them `null`. `toString()` adds a `Request: GET /items/7` line after the status line when both are set; `getMessage()` is unchanged (`API returned status code N`), as the class comment already requires. The OpenID Connect discovery failure sets them too.
 Where: `api_error.mustache`, `base_api.mustache`, `auth/oauth/openid_connect_authenticator.mustache`. Test: `ApiExceptionTest` (`fromResponseRecordsTheRequestMethodAndPathWithoutTheQueryString`, `everyStatusExceptionCarriesTheRequestContext`, `anAbsoluteRequestUrlIsReducedToItsPath`, `anErrorWithoutARequestRendersNoRequestLine`), `OpenIdConnectAuthenticatorTest` (`aFailedDiscoveryNamesTheRequestInTheError`). The canonical line wording is `Request: <METHOD> <path>`; the integrator reconciles it with the other eleven.
 
-### `forUnusableResponse` is gone (F1177)
+### `forUnusableResponse` is gone
 Rule: the public factory is removed; `DefaultApiClient` builds the error with the public six-argument constructor. The F1177 and F1178 allow rows are dropped.
 Test: the existing `ApiExceptionTest` constructor rows and `DefaultApiClientUnitTest` (`zlibWrappedDeflateBodyIsDecompressed`).
 
-### Per-call options (F827)
-Rule: every per-operation Options object carries `timeout(Integer millis)` (positive), `maxRetries(Integer)` (not negative) and `headers(Map)`, each with a getter. `timeout` and `maxRetries` replace the transport's value for that call (`TransportOptions` stays the default); `headers` are merged after the default headers and before the authentication headers. `ApiClient` gains two default methods, `sendRequest(..., Integer timeoutMillis, Integer maxRetries)` and `sendRequest(..., boolean noRedirect, boolean noDefaultHeaders)`; a transport that ignores them keeps working. `BaseApi` calls the four-argument method when no override is set. A parameter named `timeout`, `maxRetries` or `headers` becomes `timeoutParam` and so on (`getInjectedArgumentNames`; `auth` left the list when the per-call authenticator did, F857).
-Limit: superseded by wave 3: `mintsOptionsForEveryOperation()` is true, so an operation with no query, header, form or cookie parameter and no security has an Options object too (see "Every operation has an Options object (F827)" below).
+### Per-call options
+Rule: every per-operation Options object carries `timeout(Integer millis)` (positive), `maxRetries(Integer)` (not negative) and `headers(Map)`, each with a getter. `timeout` and `maxRetries` replace the transport's value for that call (`TransportOptions` stays the default); `headers` are merged after the default headers and before the authentication headers. `ApiClient` gains two default methods, `sendRequest(..., Integer timeoutMillis, Integer maxRetries)` and `sendRequest(..., boolean noRedirect, boolean noDefaultHeaders)`; a transport that ignores them keeps working. `BaseApi` calls the four-argument method when no override is set. A parameter named `timeout`, `maxRetries` or `headers` becomes `timeoutParam` and so on (`getInjectedArgumentNames`; `auth` left the list when the per-call authenticator did).
+Limit: superseded by wave 3: `mintsOptionsForEveryOperation()` is true, so an operation with no query, header, form or cookie parameter and no security has an Options object too (see "Every operation has an Options object" below).
 Where: `api/options.mustache`, `api/api.mustache`, `base_api.mustache`, `api_client.mustache`, `default_api_client.mustache`, `BetterJavaCodegen`. Test: `BaseApiTest` (`PerCallOptions`), `DefaultApiClientUnitTest` (`aPerCallRetryCountReplacesTheTransportsForThatCallOnly`, `aPerCallRetryCountCanRaiseWhatTheTransportSet`, `aPerCallTimeoutAppliesWhenTheTransportHasNone`), `BetterJavaCodegenTest` (`renamesAParameterNamedLikeAPerCallSetting`).
 
-### OIDC discovery keeps the default headers off the identity provider (F860)
+### OIDC discovery keeps the default headers off the identity provider
 Rule: discovery calls `sendRequest(..., false, true)`, a request that follows redirects but carries none of the transport's default headers. The token POST already skipped them through `noRedirect`.
 Test: `DefaultApiClientUnitTest` (`aRequestWithoutDefaultHeadersSendsOnlyItsOwn`), `OpenIdConnectAuthenticatorTest` (`discoveryKeepsTheTransportsDefaultHeadersOffTheIdentityProvider`).
 
-### Models are immutable with `toBuilder` (F868, F1178, D68, F227)
+### Models are immutable with `toBuilder` (D68)
 Rule: a model's fields are `public final`; `Model.builder()` and `model.toBuilder()` build and copy; `build()` (and the required-argument constructor) check the required properties, so a missing one fails with `<name> is required` whether it comes from code or from JSON. Jackson decodes through the nested `Builder` (`@JsonDeserialize(builder)`, `@JsonPOJOBuilder(withPrefix = "")`, auto-detection off on the builder so only annotated methods are properties). A required nullable property needs an explicit set (`<name>IsSet`), which keeps the D66 rule. A collection is copied into an unmodifiable one when the instance is built (`copyKind` and `copyImpl` come from `postProcessModelProperty`); a `byte[]` is cloned. A defaulted property keeps its default in the builder. A model with additional properties writes them through `putAdditionalProperty` (the any-setter), `putAllAdditionalProperties`, `removeAdditionalProperty` and `additionalProperties(map)`, reads them through the unmodifiable `getAdditionalProperties()`, and has no public `setAdditionalProperty`.
 Where: `models/model.mustache`, `BetterJavaCodegen.postProcessModelProperty`. Test: `MetadataTest` (additional-property rows, `testModelFieldsAreFinal`, `testToBuilderCopiesWithOnePropertyChanged`, `testCollectionPropertyIsCopiedAndUnmodifiable`, `testBuilderRejectsAMissingRequiredProperty`, `testBuilderMethodsAreNotJsonProperties`), `BetterJavaCodegenTest` (`recordsHowACollectionPropertyIsCopiedIntoTheImmutableModel`).
 
-### Typed union factories and accessors (F878)
+### Typed union factories and accessors
 Rule: a `oneOf` or `anyOf` wrapper gains `ofVariant(v)` per variant and, for a variant that is a bare class name, `isVariant()` and `asVariant()` (an `Optional`); a generic or array variant has only the factory because `instanceof` is not legal for it. The variant name is the Java type read as words (`ListOfString`, `ByteArray`). The `(Object)` constructor stays, so nothing breaks; java does not reject a non-variant in the constructor.
 Where: `models/model.mustache`, `BetterJavaCodegen.nameUnionVariants`. Test: `ComposedSchemaTest` (`TypedVariantTests`), `BetterJavaCodegenTest` (`namesTheVariantsOfAUnionForTheTypedFactories`).
 
-### Several 2xx responses decode by the status that arrived (F1062)
+### Several 2xx responses decode by the status that arrived
 Rule: for an operation with `hasMultiple2xx` the generated method passes `BaseApi` a decoder that decodes the body as the schema of the actual status (a `2XX` range last) and wraps it with the union's `(Object)` constructor; the other statuses and the empty body are unchanged. A body that does not match the schema of its status is a `SerializationException`, never a fall-through to another variant.
 Where: `api/api.mustache`, `base_api.mustache` (`decodeVariant`). Test: `StoreApiTest` (`testReserveStockDecodesTheBodyAsTheSchemaOfTheStatusThatArrived`, `testReserveStockRejectsABodyThatDoesNotMatchTheSchemaOfItsStatus`).
 
-### Optional body with no other argument (F324)
+### Optional body with no other argument
 Rule: an operation whose only argument is an optional request body also has `op()` and `opWithHttpInfo()` (`hasOptionalBodyOnly`, computed after the shared pass because that is what removes inherited global security).
 Test: `StoreApiTest` (`testPlaceOrderWithoutAnArgumentSendsNoBody`), `BetterJavaCodegenTest` (`onlyAnOperationWithNothingButAnOptionalBodyGetsTheNoArgumentOverload`).
 
-### Non-finite decode and strict containers (F390, F006)
+### Non-finite decode and strict containers
 Rule: a `float` or `double` literal that overflows to infinity (`1e400`, `1e40` for a float) fails the decode with `Number is out of range for Double`; the stock deserializer still does everything else, so every coercion rule stays. F006: the mapper's strict coercion (`ALLOW_COERCION_OF_SCALARS` off, `ACCEPT_FLOAT_AS_INT` off) already applies to each element of a `Map` or `List`, so no extra walk is needed; the new rows pin a fractional, a quoted and an out-of-range map value.
 Where: `object_serializer.mustache` (`FiniteNumberDeserializer`). Test: `ObjectSerializerTest` (`overflowingNumberLiteralIsRejected`, `wrongTypedMapValueThrows`, the matrix row).
 
-### Package metadata and the sources jar (F894, F1094)
+### Package metadata and the sources jar
 Rule: the options `repositoryUrl`, `homepageUrl` (defaults to `repositoryUrl`), `authors` (comma separated, one pom `developer` each), `documentationUrl` and `issueTrackerUrl` are wired into `pom.xml` (`url`, `scm`, `developers`, `issueManagement`) and the README Package list; `licenseId` already existed. The pom builds a sources jar (`maven-source-plugin` `jar-no-fork`). Nothing is rendered for an option that is not given.
 Where: `BetterJavaCodegen` (`cliOptions`, `processOpts`), `pom.mustache`, `readme.mustache`. Test: `BetterJavaCodegenTest` (`homepageDefaultsToTheRepositoryAndAuthorsBecomeAList`), the generated pom in the golden.
 
-### Named examples reach the Options setter (F893)
+### Named examples reach the Options setter
 Rule: batch 10 rendered the examples in `options.mustache` but the shared pass captures them only after the Options files are written, so the golden showed none. `generateOptionsFileContent` now captures them first (`capturePluralExamplesForParameters`), so `FindPetsByStatusOptions.status` carries `Example — Available only: {@code available}`.
 Where: `BetterJavaCodegen`. Test: the generated Options javadoc in the golden (`JavaFormattingSpec.pluralExamplesShouldBeAttributedToParameter` covers the required ones).
 
-### README notes (F834, F835, F836, F837, F828, F889)
+### README notes
 Rule: the README Caveats say that optional and nullable are one `null` (except required plus nullable), that an unknown enum or discriminator value fails, that repeated response headers are joined with `, `, which compression is negotiated, that the SDK has no logging hook, that streaming is not supported, that `Configuration` and `TransportOptions` stay separate, and what the version means; a Usage section covers per-call options, error context, immutable models and unions.
 Where: `readme.mustache`, `skills.mustache`.
 
@@ -444,7 +438,6 @@ Where: `readme.mustache`, `skills.mustache`.
 - F862 (credential environment variables and token provider): landed in wave 3 (see below).
 - F1087 (runtime floor): java stays at 21. The floor is forced by `HttpClient.close()` (JDK 21), which `DefaultApiClient.close()` and the injected-transport rule depend on; the code otherwise needs 17 (sealed interfaces, records, pattern matching). 21 is a current LTS, so lowering it to 17 would mean giving up `close()` on the built-in client.
 - F1060 and F1061 (warning for dropped OAuth2 flows and unnamed HTTP schemes): the warning is emitted by `AbstractBetterCodegen.buildOAuthSpec` and the security mapping, shared code.
-- F1153 (unit tests for the OAS 3.1 normaliser rules) and F1172 (a spec scanning every golden for blanket disables) and F1174 (api-surface check in `etc/ci-local.sh` and the lint workflow): shared test and CI files, not java.
 - F866 ($ref sibling default): landed in wave 3 (see below).
 - F1157 (`petstore_auth` in the petstore spec): the spec is shared by all twelve.
 - F889 (compression, logging, versioning): done for java in the README Caveats above.
@@ -453,19 +446,19 @@ Where: `readme.mustache`, `skills.mustache`.
 
 The shared generator now hands every language the data for F827, F862 and F866; java adopts it in its own templates only.
 
-### Every operation has an Options object (F827)
-Rule: `BetterJavaCodegen.mintsOptionsForEveryOperation()` returns true, so each operation takes a trailing `<Operation>Options` (nullable, with an overload that omits it) carrying `timeout`, `maxRetries` and `headers`, even with no query, header, form or cookie parameter and no security. Such an Options object has a public no-argument constructor; no Options object has an `auth` field any more (F857, see "Decisions taken in round 4"). The operation javadoc documents `@param options` for it (`vendorExtensions.op.optionsMinted`).
+### Every operation has an Options object
+Rule: `BetterJavaCodegen.mintsOptionsForEveryOperation()` returns true, so each operation takes a trailing `<Operation>Options` (nullable, with an overload that omits it) carrying `timeout`, `maxRetries` and `headers`, even with no query, header, form or cookie parameter and no security. Such an Options object has a public no-argument constructor; no Options object has an `auth` field any more (see "Decisions taken in round 4"). The operation javadoc documents `@param options` for it (`vendorExtensions.op.optionsMinted`).
 Where: `BetterJavaCodegen`, `api/api.mustache`, `api/operation_doc*.mustache`. Test: `BaseApiTest` (`PerCallOptions`: `anOperationWithNothingElseTakesThePerCallSettings`, `anOperationWithNothingElseWorksWithoutOptions`, `anInvalidTimeoutOrRetryCountIsRefused`), `BetterJavaCodegenTest` (`everyOperationGetsAnOptionsObject`).
 
-### Credentials default from the environment (F862)
+### Credentials default from the environment
 Rule: the generated per-scheme authenticator reads each credential it is given as `null` or empty from its `{PREFIX}_{FIELD}` variable (`securitySchemeEnvVars`, computed once for all twelve languages): the caller's value wins, then the variable, read once when the authenticator is built from `System.getenv()`; an empty variable counts as unset; a credential found nowhere throws `IllegalArgumentException` that names the scheme, the field and the variable. The package-private constructor `(…, Map<String, String> environment)` is the seam tests use, because a JVM cannot change its own environment; the public constructors pass `System.getenv()`. The general `BasicAuthenticator`, `BearerAuthenticator` and `ApiKeyAuthenticator` never read the environment. `BearerAuthenticator` gains `(host, tokenProvider)` and `(host, token, tokenProvider)` where the `Supplier<String>` runs before every request, each result validated like a fixed token; exactly one of token and provider is allowed. The per-scheme wrappers do not take the callback: a rotating token uses `BearerAuthenticator` directly, so the wrapper surface stays the majority `(host, token)`.
 Where: `auth/scheme_authenticator.mustache`, `auth/bearer_authenticator.mustache`, `BetterJavaCodegen.renderSchemeAuthenticator`. Test: `BearerAuthenticatorTest`, `ApiKeyAuthenticatorTest`, `BasicAuthenticatorTest`, `OAuth2ClientCredentialsAuthenticatorTest` (precedence, empty string, missing), `BetterJavaCodegenTest` (the three `...Wrapper...` rows).
 
-### A `$ref` with a sibling default starts at the default (F866)
+### A `$ref` with a sibling default starts at the default
 Rule: a property that is a `$ref` to a string enum with a `default` written next to it is initialised in the builder to `Enum.MEMBER` (`vendorExtensions.siblingDefaultIsEnum`, `siblingDefaultEnumType`, `siblingDefaultEnumVar`), so both the required-argument constructor and a decode that omits the key carry the default. A sibling default on a `$ref` to something other than an enum is still ignored.
 Where: `models/model.mustache`. Test: `ObjectSerializerTest` (`refPropertyWithSiblingDefaultStartsAtTheDefault`).
 
-### Error constructors take the request (F830, surface)
+### Error constructors take the request (surface)
 Rule: `ApiException(statusCode, message, headers, body, errorBody, cause, requestMethod, requestPath)` is the full constructor (the path loses its query string there), the request fields are `final`, and each status exception has the matching `(message, headers, body, errorBody, cause, requestMethod, requestPath)` constructor, as the other eleven take them.
 Where: `api_error.mustache`, `errors/*Exception.mustache`. Test: `ApiExceptionTest` (`everyExceptionConstructorTakesTheRequestMethodAndPath`).
 
@@ -473,21 +466,21 @@ Where: `api_error.mustache`, `errors/*Exception.mustache`. Test: `ApiExceptionTe
 
 Owner decisions of 2026-11-17 that the shared generator now backs with data (`clientSchemes`, `hasClientSchemes` on the additional properties; `securitySchemeOrder`, `hasSecuritySchemes` and `securityNone` on each operation's `vendorExtensions.op`). java adopts them in its own templates only.
 
-### The client takes one optional credential per security scheme (F857)
+### The client takes one optional credential per security scheme
 Rule: `Client.builder(host)` returns a `Client.Builder` with one setter per distinct security scheme, named after the scheme in camel case (`petStoreBasic`, `apiKeyHeader`; a name that is a Java reserved word or one of the builder's own methods gets `Credential` appended, `BetterJavaCodegen.javaClientSchemes`), each typed as that scheme's generated authenticator (OAuth 2 and OpenID Connect ones live in `auth.oauth`), plus `transportOptions(...)` and `build()`. A `null` argument leaves the scheme unset. `new Client(authenticator[, transportOptions])` stays for one credential that applies to every operation. Each operation resolves its credential with `BaseApi.resolveSchemeAuth("a", "b")`, passing the schemes of its own security list in the order the spec lists them: the first one the client holds wins, and `null` falls back to the client-level authenticator and then to no credential. `security: []` passes the `NO_AUTH` sentinel. The API classes take the per-scheme map as an optional fourth constructor argument (`(apiClient, config, authenticator, schemeAuthenticators)`). An OAuth 2 or OpenID Connect scheme credential is handed the shared `ApiClient` like the single authenticator. There is no per-call scheme override: no Options object has an `auth` field, `injectAuthFieldContext` is no longer called, `auth` is no longer an injected argument name, and the `Internal` method split that existed only to read `options.auth()` is gone. Every per-scheme wrapper also gains a `(String host)` constructor that reads every credential from its environment variable, which is how java expresses the canonical "all credentials optional" shape.
-Where: `BetterJavaCodegen` (`processOpenAPI`, `javaClientSchemes`, `generateOptionsFileContent`, `getInjectedArgumentNames`), `client.mustache`, `base_api.mustache`, `api/api.mustache`, `api/options.mustache`, `api/operation_doc*.mustache`, `auth/scheme_authenticator.mustache`, `readme.mustache`, `skills.mustache`. Allow rules: the extra fourth API-class constructor argument, the missing `*options.auth`, and the `PetFood` and `ReserveStockResponse` member differences (S4, F878).
+Where: `BetterJavaCodegen` (`processOpenAPI`, `javaClientSchemes`, `generateOptionsFileContent`, `getInjectedArgumentNames`), `client.mustache`, `base_api.mustache`, `api/api.mustache`, `api/options.mustache`, `api/operation_doc*.mustache`, `auth/scheme_authenticator.mustache`, `readme.mustache`, `skills.mustache`. Idiom differences: the extra fourth API-class constructor argument, the missing `*options.auth`, and the `PetFood` and `ReserveStockResponse` member differences (S4).
 Test: golden `PetApiTest` (`testAddPetUsesTheCredentialOfTheSchemeTheSpecRequires`, `testAddPetUsesTheFirstDeclaredSchemeTheClientHoldsACredentialFor`, `testAddPetIgnoresACredentialHeldForAnotherScheme`, `testAddPetFallsBackToTheClientLevelAuthenticatorWhenNoSchemeMatches`, `testTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt`, `testAClientWithNoCredentialSendsNoAuthenticationHeader`, `testNoOperationOptionsOffersAPerCallAuthenticator`), `ClientTest` (`builderTakesOneSetterPerSecuritySchemeNamedAfterIt`), `BetterJavaCodegenTest` (`clientSchemesCarryTheAuthenticatorImportAndTheBuilderSetterName`, `everyWrapperCanBeBuiltFromTheHostAlone`, `aParameterNamedAuthKeepsItsNameBecauseNoOptionsObjectHasAnAuthSetting`).
 
-### Cookie parameters are sent raw or refused (F840)
+### Cookie parameters are sent raw or refused
 Rule: a cookie parameter is sent exactly as given when every character is a legal RFC 6265 cookie-octet (`%` is one, so a value the caller percent-encoded stays as written); any other value (space, quote, comma, semicolon, backslash, control or non-ASCII character) throws `IllegalArgumentException` before the request, with the message `Cookie value for '<name>' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it`. The SDK never encodes a cookie value (a `content:` cookie is the exception: the SDK serialises it and encodes it itself, batch 5). The check already existed (`BaseApi.isValidCookieValue`); round 4 added the message hint and the tests.
 Where: `api/api.mustache`. Test: golden `PetApiTest` (`deletePetRefusesACookieValueWithAnIllegalCookieOctet`, `deletePetSendsALegalCookieValueRaw`).
 
-### Closing is graceful and idempotent (F1078)
+### Closing is graceful and idempotent
 Rule: `DefaultApiClient.close()` marks the client closed and returns at once. A request is counted in (`beginRequest`) before it starts and out (`endRequest`) when it ends, both under one lock; the SDK-created `HttpClient` is released when the last in-flight request completes (immediately when none is), exactly once. A request after closing throws `IllegalStateException("ApiClient has been closed and can no longer send requests")`; a second `close()` does nothing; a caller-supplied `HttpClient` is never closed. `HttpClient.close()` on the JDK blocks until its own requests finish, so releasing only after the last one means `close()` itself never waits. `isTransportReleased()` is package-private, for tests.
 Where: `default_api_client.mustache`, `client.mustache`. Test: `DefaultApiClientUnitTest` (`closingTheClientLetsARunningRequestFinish`, `closingTwiceIsANoOpAndReleasesTheTransportOnce`, `closingNeverReleasesACallerSuppliedTransport`), `ClientTest` (`closedClientRejectsFurtherRequests` pins the message, `closingTheClientLeavesASuppliedHttpClientOpenWhenBuiltFromTheBuilder`).
 
-### Models are not validated when built (F316)
-Rule: java is statically typed, so a model's builder and constructors cannot be handed a wrong type or an enum string that is not a constant, and they check no schema constraint (S3). Nothing in them raises on a value. A payload is validated only when decoded: a wrong-typed value, an unknown enum string and a missing or `null` required property fail with `SerializationException`. A model built in code without a required property still fails in `build()` (the settled D68 and F227 rule, `<name> is required`); the owner decision does not name it and java has not changed it, because turning the check off needs the required fields to hold `null` under NullAway, which the null checker forbids without relaxing it. Raise it with the owner before changing it.
+### Models are not validated when built
+Rule: java is statically typed, so a model's builder and constructors cannot be handed a wrong type or an enum string that is not a constant, and they check no schema constraint (S3). Nothing in them raises on a value. A payload is validated only when decoded: a wrong-typed value, an unknown enum string and a missing or `null` required property fail with `SerializationException`. A model built in code without a required property still fails in `build()` (the settled D68 and  rule, `<name> is required`); the owner decision does not name it and java has not changed it, because turning the check off needs the required fields to hold `null` under NullAway, which the null checker forbids without relaxing it. Raise it with the owner before changing it.
 Test: `ObjectSerializerTest` (`constructionNeverValidatesTheValuesItIsGiven`, `constructionAcceptsEveryDeclaredEnumConstant`, `decodingAWrongTypedValueFailsLoudly`, `unknownEnumStringIsRefusedByTheEnumDecodeFactory`, beside the existing `unknownEnumValueThrowsSerializationException` and `missingRequiredFieldThrowsSerializationException`).
 
 ### Not adopted in round 4

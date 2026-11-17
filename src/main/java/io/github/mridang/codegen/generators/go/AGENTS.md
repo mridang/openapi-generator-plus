@@ -10,7 +10,6 @@
 - Templates: `src/main/resources/templates/go/`
 - Specs: `src/spec/java/io/github/mridang/codegen/spec/go/` (`GoSpec`, `GoBuildSpec`, `GoClientSpec`, `GoFormattingSpec`, `GoLintingSpec`, `GoReservedWordsSpec`, `GoWasmSpec`)
 - Golden: `src/spec/resources/generated/go/`
-- Parity ledger: `PARITY_DECISIONS.md` / `.json` (the D and F ids below), `PARITY_FINDINGS.json`, `etc/api-surface-allow.json` (the go API-surface allowances)
 
 ## Layout
 
@@ -39,7 +38,7 @@
 | Inheritance | `BaseAuthenticator` is an embedded empty struct; no implementation inheritance for models | embedding, not subclassing |
 | Unions | oneOf is a struct holding an `any` value with `MarshalJSON` and `UnmarshalJSON` that tries each variant in declaration order or dispatches on the discriminator | no sum types |
 | Support types | generic `Set[T]`, `DateTime`, `Duration` (ISO-8601 and protobuf forms), `iso8601` helpers, a `TraceContextPropagatorFunc` hook | stdlib gaps; no optional import to detect OpenTelemetry |
-| Zero values | a model struct can be built without its required properties; decode enforces them | the zero-value struct is forced (F227) |
+| Zero values | a model struct can be built without its required properties; decode enforces them | the zero-value struct is forced |
 | Immutability | `ApiResult.headers` is a `maps.Clone` and documented "do not mutate" | Go has no immutable map |
 | Numbers | `format: number` is `float64`, documented lossy | no stdlib decimal |
 | Optional description | `ServerConfiguration`/`ServerVariable` description is an empty string when absent | empty-string sentinel shared with rust, swift and dart; metadata only |
@@ -47,59 +46,59 @@
 
 ## Settled decisions (do not re-open in review)
 
-Each cross-language decision is stated once in the shared file; here only how go realises it. Where the Rule line says "intended" the rule is the ledger's canonical behaviour for go and the templates were not confirmed to implement it when this file was written; check the template before relying on it. Decisions on which go needs no go-specific rule are listed at the end of this section.
+Each cross-language decision is stated once in the shared file; here only how go realises it. Where the Rule line says "intended" the rule is the canonical behaviour for go and the templates were not confirmed to implement it when this file was written; check the template before relying on it. Decisions on which go needs no go-specific rule are listed at the end of this section.
 
-### Strict containers (S1, F006, 2026-11-16)
-Rule (intended): a container-of-primitives response (`map[string]int32`, `[][]int32`) is checked element by element like a single primitive, so a fractional, quoted or out-of-range leaf is a `*SerializationError`. A single primitive already behaves this way (F006, F076, F205, F213, F310 recorded as conformant in the ledger).
+### Strict containers (S1, 2026-11-16)
+Rule (intended): a container-of-primitives response (`map[string]int32`, `[][]int32`) is checked element by element like a single primitive, so a fractional, quoted or out-of-range leaf is a `*SerializationError`. A single primitive already behaves this way (recorded as conformant in the ledger).
 Why: the container path bypassed the primitive check in seven languages; all twelve now behave alike.
 Where: `object_serializer.mustache`, `base_api.mustache`.
 Test: `test/object_serializer_test.mustache` and the `getInventory`/`getMatrix` rows in `test/api/store_api_test.mustache`.
 
-### Content parameters use the SDK serializer (S2, F054, F068, D50, D80)
-Rule: a `content: application/json` parameter is encoded by the package `serialize()` (an `Encoder` with HTML escaping off) and its `*SerializationError` is returned from the operation before any request. The query, options and required arms are landed; header and path arms are intended (F054 is open in the ledger). A `content:` cookie is serialised by `serialize()` and then percent-encoded by `encodeContentCookieValue`, keeping only A-Z a-z 0-9 - . _ ~ literal (F833, D52), and still passes `isValidCookieValue`.
+### Content parameters use the SDK serializer (S2, D50, D80)
+Rule: a `content: application/json` parameter is encoded by the package `serialize()` (an `Encoder` with HTML escaping off) and its `*SerializationError` is returned from the operation before any request. The query, options and required arms are landed; header and path arms are intended. A `content:` cookie is serialised by `serialize()` and then percent-encoded by `encodeContentCookieValue`, keeping only A-Z a-z 0-9 - . _ ~ literal (D52), and still passes `isValidCookieValue`.
 Why: `json.Marshal` escaped `<`, `>`, `&` and its error was discarded, so the bytes differed from the other eleven.
 Where: `api/api.mustache`, `object_serializer.mustache`.
 Test: `searchStore.q` rows in `test/api/store_api_test.mustache`.
 
-### Schema constraints are not enforced (S3, F056, D55)
+### Schema constraints are not enforced (S3, D55)
 Rule: the client does not enforce `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`; go has no native enforcement, so the server owns validation. The README must carry a "Schema constraints" section (intended; confirm the heading in `readme.mustache`).
 Why: only python gets it natively and cheaply through pydantic; hand-written enforcement would differ per language.
 Where: `readme.mustache`.
 Test: none: asserting absence is not worth a test; the README text is the contract (`test/readme_test.mustache` pins its sections).
 
-### allOf with a discriminator (S4, F057, F802)
+### allOf with a discriminator (S4)
 Rule (intended, not implemented): a child embeds a shared base struct, and decoding goes through an interface plus a function that reads the discriminator; a model reused in two unions is never re-parented. Today only oneOf with a discriminator is realised: `models/model.mustache` generates an `UnmarshalJSON` that reads the discriminator, dispatches on `mappedModels`, and returns `unknown discriminator value %q for <Class>` for an unmapped value (the other eleven also reject it).
-Why: structs cannot subclass; embedding keeps the shared fields once and the interface gives callers the common surface. F057 is still open in the ledger.
+Why: structs cannot subclass; embedding keeps the shared fields once and the interface gives callers the common surface. Classic allOf with a discriminator is #104.
 Where: `models/model.mustache`, `BetterGoCodegen.java`.
 Test: `test/composed_schema_test.mustache` (oneOf cases only).
 
-### Required and nullable (S5, F215, D66)
-Rule (intended): a required nullable property is a pointer with a JSON tag without `omitempty`; decode requires the key (absent is an error), an explicit `null` is kept as `nil`, and encode always writes the key (`null` when `nil`). A required non-nullable property already fails on a missing key or `null` in the generated `UnmarshalJSON`, and a required property with a default (a synthetic discriminator default) is filled when absent (F129, F170, F320, intended).
-Why: the canonical behaviour is shared by all twelve; F215 is open in the ledger.
+### Required and nullable (S5, D66)
+Rule (intended): a required nullable property is a pointer with a JSON tag without `omitempty`; decode requires the key (absent is an error), an explicit `null` is kept as `nil`, and encode always writes the key (`null` when `nil`). A required non-nullable property already fails on a missing key or `null` in the generated `UnmarshalJSON`, and a required property with a default (a synthetic discriminator default) is filled when absent (intended).
+Why: the canonical behaviour is shared by all twelve.
 Where: `models/model.mustache`, `models/json_marshal.mustache`.
 Test: `test/model_test.mustache`, `test/composed_schema_test.mustache` nullable `label` case.
 
-### uniqueItems order (S6, F319, D69)
+### uniqueItems order (S6, D69)
 Rule: sets are sent in the language's natural order; for go `Set[T].MarshalJSON` sorts a copy of scalar members (string, int, uint, float, bool kinds, enums included) and leaves other members in insertion order. Do not sort elsewhere.
 Why: a `map`-backed set iterates in random order, so unsorted bytes would differ per run. `T` stays `comparable`, so there is no public type change.
 Where: `models/set.mustache`.
 Test: the `Set` tests in `test/model_test.mustache`.
 
-### Cancellation (S7, F228)
-Rule: every operation takes `ctx context.Context` as its FIRST parameter, before the path parameters, body, options and server. Cancelling that context cancels the call and returns `request cancelled: context.Canceled`, never `*NetworkTimeoutError`. The client owns no base context any more (F1078): `Close()` is graceful and cancels nothing. Landed in batch 4.
+### Cancellation (S7)
+Rule: every operation takes `ctx context.Context` as its FIRST parameter, before the path parameters, body, options and server. Cancelling that context cancels the call and returns `request cancelled: context.Canceled`, never `*NetworkTimeoutError`. The client owns no base context any more: `Close()` is graceful and cancels nothing. Landed in batch 4.
 Why: `ctx` first is the Go convention and what every go caller already passes; a wrapper handle would be less natural. F228 was open for go before batch 4.
 Where: `api/api.mustache`, `default_api_client.mustache`, `client.mustache`.
 Test: `test/default_api_client_test.mustache`, `test/default_api_client_unit_test.mustache`, `test/api/pet_api_test.mustache`.
 
-### Parameter order (S8, F803, owner confirmation pending)
+### Parameter order (S8, owner confirmation pending)
 Rule (intended): required parameters, then `server`, then the options struct, then the trailing `requestContentType ...string` on multi-consumes operations; `ctx` stays first. Adding security never moves an argument.
-Why: callers must not break when a spec gains security on an operation. F803 is still open in the ledger.
+Why: callers must not break when a spec gains security on an operation.
 Where: `api/api.mustache` (the `signatureArgs` loop), `api/options.mustache`.
 Test: server-override rows in `test/api/pet_api_test.mustache`.
 
-### Injected transport (S9, F405)
+### Injected transport (S9)
 Rule: `TransportOptionsBuilder.HttpClient(HttpDoer)` accepts any value with `Do(*http.Request) (*http.Response, error)` (an `*http.Client` is wrapped), and `TransportOptionsBuilder.RoundTripper(http.RoundTripper)` wraps the caller's round tripper with the SDK defaults. Supplying both, or combining one with the SDK's own proxy, TLS or pool settings, fails `Build()` with `ErrTransportConflict`; the SDK never closes a caller-supplied client. Landed.
-Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client. Ledger F405 still lists the other languages; go is done.
+Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client. Go is done.
 Where: `transport_options.mustache`, `default_api_client.mustache` (`newPolicyClient`, `locationGuardTransport`), `client.mustache`, `readme.mustache`.
 Test: `test/transport_options_test.mustache`, `test/default_api_client_test.mustache`.
 
@@ -121,104 +120,104 @@ Why: a logged client must not leak credentials.
 Where: `configuration.mustache`, `transport_options.mustache`.
 Test: `test/configuration_test.mustache`, `test/transport_options_test.mustache`.
 
-### Timeouts, redirects, validation timing (S16, D76, D77, D79, D72, D73, F121)
-Rule: one end-to-end timeout budget; a caller-supplied stream or file handle is never closed; proxy URL validation happens in `Build()`, not in the builder setter (the setter stores `proxyErr`); `caCertPath` is validated even when `verifySsl` is false. `Build()` rejects a zero or negative timeout with `ErrInvalidTimeout` and the canonical text `invalid timeout: must be a positive number of milliseconds (got N)` (D77, F121, F924, batch 6); `nil` is the only way to ask for no timeout.
+### Timeouts, redirects, validation timing (S16, D76, D77, D79, D72, D73)
+Rule: one end-to-end timeout budget; a caller-supplied stream or file handle is never closed; proxy URL validation happens in `Build()`, not in the builder setter (the setter stores `proxyErr`); `caCertPath` is validated even when `verifySsl` is false. `Build()` rejects a zero or negative timeout with `ErrInvalidTimeout` and the canonical text `invalid timeout: must be a positive number of milliseconds (got N)` (D77, batch 6); `nil` is the only way to ask for no timeout.
 Why: the budget used to apply per hop; redirects could multiply it.
 Where: `default_api_client.mustache`, `transport_options.mustache`.
 Test: `test/transport_options_test.mustache`, `test/default_api_client_test.mustache`.
 
-### OIDC rediscovery keeps the session (D01, F016, F230)
-Rule (intended): the token manager owns the exchanged flag (an `atomic.Bool`), and `resolveDelegate` builds the replacement authenticator around the previous delegate's `*OAuth2TokenManager`; the mutex is already held across the discovery fetch. The api-surface allowance still lists the flag as kept on the authorization-code authenticator, which is today's shape.
+### OIDC rediscovery keeps the session (D01)
+Rule (intended): the token manager owns the exchanged flag (an `atomic.Bool`), and `resolveDelegate` builds the replacement authenticator around the previous delegate's `*OAuth2TokenManager`; the mutex is already held across the discovery fetch.
 Why: replacing the delegate reset the session, so every call after the discovery max-age failed with "Must call ExchangeCode()".
 Where: `auth/oauth/openid_connect_authenticator.mustache`, `oauth2_auth_code_authenticator.mustache`, `oauth2_token_manager.mustache`.
 Test: `test/openid_connect_authenticator_test.mustache`.
 
-### Refresh grant and exchange (D02, D03, F017, F119)
+### Refresh grant and exchange (D02, D03)
 Rule: `GetAccessTokenWithRefresh(tokenURL, refreshURL, params, headers)` posts a held refresh token to `refreshURL` with `client_id`/`client_secret` copied from the params and the same extra headers, and falls back to the original grant at `tokenURL`; `Exchange(tokenURL, params)` runs under `m.mu`, saves and clears the session, posts verbatim, and restores the old state on failure; `ExchangeCode` calls only it. The refresh method is landed (batch 6); the exchange is landed with the flag still on the authenticator.
-Why: RFC 6749 sec 6 and 3.2.1; go has no default arguments, hence the separate method (an API-surface allowance).
+Why: RFC 6749 sec 6 and 3.2.1; go has no default arguments, hence the separate method.
 Where: `auth/oauth/oauth2_token_manager.mustache`, `oauth2_password_authenticator.mustache`, `oauth2_auth_code_authenticator.mustache`.
 Test: `test/oauth2_token_manager_test.mustache`, `test/oauth2_auth_code_authenticator_test.mustache`.
 
-### OAuth wording, grammar and request order (D05, D07, D08, D09, D10, F292)
+### OAuth wording, grammar and request order (D05, D07, D08, D09, D10)
 Rule: the token body and the authorize URL are emitted in the fixed order grant_type, code, refresh_token, username, password, client_id, client_secret, redirect_uri, scope, then the rest sorted (`encodeTokenForm`, landed in batch 6), escaped with `url.QueryEscape` and never `url.Values.Encode`. Intended: OIDC always requests `openid`; token and discovery errors use the shared wording ("token response is not valid JSON", "is not a JSON object", "missing or empty access_token field") with no parser detail; `expires_in` and `max-age` use one digits-plus-fraction grammar with a one-year ceiling applied before the `int64` conversion; precondition texts are "authorization code must not be empty" and "must call ExchangeCode() before making API requests" (today the not-exchanged sentinel carries an `oauth2 authorization code:` prefix).
 Why: map order and per-language wording made bytes and messages differ.
 Where: `auth/oauth/*.mustache`, `errors/oauth2_token_error.mustache`.
 Test: the `test/oauth2_*_test.mustache` and `test/openid_connect_authenticator_test.mustache` files.
 
-### Implicit flow, empty state, sync auth accessor (D06, D11, D12, F290)
+### Implicit flow, empty state, sync auth accessor (D06, D11, D12)
 Rule: an empty implicit access token counts as unset (already conformant) and an empty `state` is absent in authorize URLs (already conformant). The infallible `AuthHeaders()` stays on the `Authenticator` interface and returns an empty map when the token cannot be obtained; `AuthHeadersOrError()` is the loud path and is the one the transport calls. Removing the `log.Printf` from the password and auth-code variants so all four are silent is intended.
 Why: the interface method cannot return an error. F290 is an open API-shape question, not a settled rule: failing loudly would change the interface signature in every authenticator and in every caller of the interface, and no decision has been taken.
 Where: `authenticator.mustache`, `auth/oauth/oauth2_implicit_authenticator.mustache`, `base_api.mustache`.
 Test: `test/oauth2_implicit_authenticator_test.mustache`.
 
-### Query, form and multipart order (F087)
+### Query, form and multipart order
 Rule: query parameters, `application/x-www-form-urlencoded` pairs and multipart parts are emitted in the spec's declaration order, never in map iteration order: `orderedKeys(m, order)` in `base_api.mustache` sorts the keys by the order the operation passes, array members expand in place, and the form body is joined in order with the same `QueryEscape` rules. Landed.
-Why: Go maps iterate in random order, so the wire bytes differed per run. The ledger still shows F087 parked for the shared step; go is done.
+Why: Go maps iterate in random order, so the wire bytes differed per run. Go is done.
 Where: `base_api.mustache`, `api/api.mustache`.
 Test: `test/base_api_test.mustache`, `searchStore` and `setPetPreferences` rows in the pet and store API tests.
 
-### Unusable responses carry the real headers (D13, F099)
+### Unusable responses carry the real headers (D13)
 Rule: a response that arrived and could not be used (decompress failure, redirect refusals) is an `ApiError` carrying the real status and the real lower-cased headers; go already passes the response headers on both paths.
 Why: a response that arrived is not a "no response" error.
 Where: `default_api_client.mustache`.
 Test: `test/default_api_client_test.mustache`.
 
-### Error text matrix (D14, D15, D16, D17, D20, D28, D29, F245, F260, F267)
-Rule: serializer messages are "failed to serialize object to JSON: ..." and "failed to deserialize JSON: ..." (lower case forced); redirect refusals read "refusing to follow redirect to non-HTTP(S) URL: <next>", "refusing to replay request body across HTTPS->HTTP redirect: <cur> -> <next>" and "too many redirects (exceeded N)" with the `*url.Error` unwrapped by `redirectRefusalMessage` and no `redirect refused:` prefix (landed, batch 6, F927); the "Response headers:" line is compact JSON with sorted keys written by a `json.Encoder` with `SetEscapeHTML(false)` (`compactHeadersJSON`, landed, batch 6, F922); list values render `[a, b, c]` through `strings.Join` (intended); the missing-parameter message names the caller-facing identifier; use-after-close wraps `ErrClientClosed`, whose text is "API client has been closed and can no longer send requests" (the forced "API client" wording).
+### Error text matrix (D14, D15, D16, D17, D20, D28, D29)
+Rule: serializer messages are "failed to serialize object to JSON: ..." and "failed to deserialize JSON: ..." (lower case forced); redirect refusals read "refusing to follow redirect to non-HTTP(S) URL: <next>", "refusing to replay request body across HTTPS->HTTP redirect: <cur> -> <next>" and "too many redirects (exceeded N)" with the `*url.Error` unwrapped by `redirectRefusalMessage` and no `redirect refused:` prefix (landed, batch 6); the "Response headers:" line is compact JSON with sorted keys written by a `json.Encoder` with `SetEscapeHTML(false)` (`compactHeadersJSON`, landed, batch 6); list values render `[a, b, c]` through `strings.Join` (intended); the missing-parameter message names the caller-facing identifier; use-after-close wraps `ErrClientClosed`, whose text is "API client has been closed and can no longer send requests" (the forced "API client" wording).
 Why: one message grammar across all twelve; the lower-case first letter is the only forced difference (ST1005).
 Where: `api_error.mustache`, `errors/*.mustache`, `object_serializer.mustache`, `default_api_client.mustache`, `server_configuration.mustache`, `api/api.mustache`.
 Test: `test/api_error_test.mustache`, `test/default_api_client_test.mustache`, `test/server_configuration_test.mustache`.
 
 ### Error bodies are depth-capped and HTML-unescaped
-Rule: `pkg/errors` carries its own `errorBodyJSONDepth` and `unmarshalErrorBody`, duplicated because the errors package cannot import the root package; `FromResponse` and `GetTypedErrorBody` never call a raw `json.Unmarshal`. The serializer uses `json.Encoder` with `SetEscapeHTML(false)`, so `<`, `>` and `&` go on the wire literally. A leading BOM is stripped in both the error path and the success path (F268, conformant).
+Rule: `pkg/errors` carries its own `errorBodyJSONDepth` and `unmarshalErrorBody`, duplicated because the errors package cannot import the root package; `FromResponse` and `GetTypedErrorBody` never call a raw `json.Unmarshal`. The serializer uses `json.Encoder` with `SetEscapeHTML(false)`, so `<`, `>` and `&` go on the wire literally. A leading BOM is stripped in both the error path and the success path (conformant).
 Why: a non-2xx body must not be a stack-overflow vector, and the bytes must match the other eleven.
 Where: `errors/*.mustache`, `object_serializer.mustache`.
 Test: `test/api_error_test.mustache`, `test/object_serializer_test.mustache`.
 
-### Header injection checks are case-insensitive (D21, F299)
+### Header injection checks are case-insensitive (D21)
 Rule: `hasHeader` compares names with `strings.EqualFold`; if the caller supplied any case variant of `User-Agent` or `X-Request-ID`, even empty, nothing is injected and the caller's key and value stay as written. Landed (batch 5).
 Why: RFC 9110 sec 5.1.
 Where: `default_api_client.mustache`.
 Test: `test/default_api_client_test.mustache`.
 
-### Response body decoding (D30, D31, D32, D33, F033, F085, F149, F150, F151, F155)
-Rule (intended, partly): a binary return is raw bytes and never JSON-parsed (an `isBinary` branch before the JSON test in `api/api.mustache`); a `format: byte` return is JSON by default with one strict base64 decoder and every failure a `*SerializationError` (already conformant); a text-class content type on a `*string` return gives the text (branch exists); any other non-JSON content type on a non-binary return is a `*SerializationError` naming the content type (intended; F149 is open); a binary request body is sent unchanged under any selected content type through `invokeApiParams.rawBody` (landed, batch 6).
+### Response body decoding (D30, D31, D32, D33)
+Rule (intended, partly): a binary return is raw bytes and never JSON-parsed (an `isBinary` branch before the JSON test in `api/api.mustache`); a `format: byte` return is JSON by default with one strict base64 decoder and every failure a `*SerializationError` (already conformant); a text-class content type on a `*string` return gives the text (branch exists); any other non-JSON content type on a non-binary return is a `*SerializationError` naming the content type (intended;  is open); a binary request body is sent unchanged under any selected content type through `invokeApiParams.rawBody` (landed, batch 6).
 Why: five different outcomes across the twelve SDKs.
 Where: `base_api.mustache`, `api/api.mustache`.
 Test: `test/base_api_test.mustache`.
 
-### Form values and multipart scalars (D39, D53, F216, F214, F254)
+### Form values and multipart scalars (D39, D53)
 Rule: a map, struct or array of composites in a form-urlencoded body is a `*SerializationError` ("form-urlencoded field <name> must be a scalar or array of scalars"), values with a `String` method (time, `DateTime`, uuid) count as scalars; in multipart a scalar (including date-time through `isTemporalScalar`) is a plain text part written with `stringify(v)` and only maps and model structs become `application/json` parts. Landed (batches 5 and 6).
 Why: `%v` emitted go-specific repr text.
 Where: `base_api.mustache`.
 Test: `test/base_api_test.mustache`, pet API tests for `setPetPreferences` and `uploadPetDocument`.
 
-### Parameter encoding (D49, D50, F066, F069, F086, F197, F199, F239, F341)
+### Parameter encoding (D49, D50)
 Rule: `format: byte` parameters (and each element of an array of them) are standard base64 with padding (`stringify` and `toStringSlice` treat `[]byte` as a scalar); `allowReserved` keeps only the RFC 3986 query-legal reserved set literal and always encodes `#`, `[` and `]` (`encodeQueryAllowingReserved`); query and form encoding keep exactly `A-Za-z0-9-._~` literal (already conformant, lock test intended).
 Why: the same bytes in all twelve.
 Where: `value_serializer.mustache`, `base_api.mustache`.
 Test: `test/value_serializer_test.mustache`, `test/base_api_test.mustache`.
 
-### Path parameter dot segments (D48, F064)
+### Path parameter dot segments (D48)
 Rule: a path parameter of exactly `.` or `..` returns `ErrInvalidPathParameter` ("path parameter '<name>' must not be '.' or '..'") from `requirePathParam` before any request; `a..b` and `.hidden` are accepted. Landed (batch 5).
 Why: a dot segment would be normalised away from the intended resource.
 Where: `value_serializer.mustache`, `path_utils.mustache`.
 Test: `test/value_serializer_test.mustache`.
 
-### Models: field remarks, additionalProperties, uri, byte (D56, D58, F025, F055, F132, F138, F081)
+### Models: field remarks, additionalProperties, uri, byte (D56, D58)
 Rule: `readOnly` and `writeOnly` properties carry only a doc remark and have no wire effect; `MarshalJSON` passes `AdditionalProperties` through `withoutDeclaredKeys` so a declared property wins and the key is written once; each `isUri` field is checked by `checkAbsoluteURIField` and stays a `string`; `[]byte` fields (`hasByteFields`) are checked by `checkBase64Fields` against a strict RFC 4648 pattern before decoding. Landed (batches 5 and 6).
 Why: one wire rule per feature in all twelve.
 Where: `models/model.mustache`, `models/json_marshal.mustache`, `BetterGoCodegen.java`.
 Test: `test/model_test.mustache`.
 
-### Per-operation server types (D42, F122, F145)
+### Per-operation server types (D42)
 Rule: a server variable gets one type per operation; a name occurring in two or more variants of the operation becomes `<VariantName><Var>`, a variable used once keeps its plain name (`enrichOperationServers`, computed once), so petstore gets `RegionalRegion`, `MirrorRegion` and `Channel`.
 Why: duplicate type names failed to compile.
 Where: `BetterGoCodegen.java`, `api/api.mustache`.
 Test: `getMultiServerPetInfo` rows in `test/api/pet_api_test.mustache`.
 
-### Identifiers, enums and literals (D40, D43, D44, D45, D46, F044, F047, F172, F363, F045)
-Rule: a digit-leading or empty sanitised name gets a deterministic letter `n` before casing and never goes through the reserved-word escape; go escapes nothing for variables because PascalCase fields never collide with keywords (F309, F364 conformant); a model named `Error` becomes `ModelError`; enum string values are escaped in order (backslash, CR/LF/TAB, then the enum escape table) and the quote is escaped, never stripped, and the value sits inside a `/* */` comment that must stay comment-safe; every spec string written into a code literal goes through one value-preserving escaper (`formatGoScopes`, `toDefaultValue`; routing control characters through the shared escaper is intended).
+### Identifiers, enums and literals (D40, D43, D44, D45, D46)
+Rule: a digit-leading or empty sanitised name gets a deterministic letter `n` before casing and never goes through the reserved-word escape; go escapes nothing for variables because PascalCase fields never collide with keywords (conformant); a model named `Error` becomes `ModelError`; enum string values are escaped in order (backslash, CR/LF/TAB, then the enum escape table) and the quote is escaped, never stripped, and the value sits inside a `/* */` comment that must stay comment-safe; every spec string written into a code literal goes through one value-preserving escaper (`formatGoScopes`, `toDefaultValue`; routing control characters through the shared escaper is intended).
 Why: stripping or double-escaping changed values; the escape prefix made digit names illegal.
 Where: `BetterGoCodegen.toModelName`, `toVarName`, `formatGoScopes`, `models/model.mustache`, `servers.mustache`.
 Test: `GoReservedWordsSpec`, the enum golden and `EdgeCases` rows.
@@ -230,7 +229,7 @@ Where: `api/api.mustache`.
 Test: `test/api/pet_api_test.mustache` (`uploadPetDocument`, `setPetAvatar`).
 
 ### Required-parameter messages
-Rule: the sentinel is `missing the required parameter` (lower case, with "the") and the operation layer wraps it with the parameter and `<Class>.<operation>`; an empty required path parameter comes from `requirePathParam` in `value_serializer` and is wrapped the same way (the clause shape `: path parameter '<x>' must not be empty` is the one accepted difference); a nil options struct is the distinct go-only message `options are required when calling <Class>.<op>` (forced, F323).
+Rule: the sentinel is `missing the required parameter` (lower case, with "the") and the operation layer wraps it with the parameter and `<Class>.<operation>`; an empty required path parameter comes from `requirePathParam` in `value_serializer` and is wrapped the same way (the clause shape `: path parameter '<x>' must not be empty` is the one accepted difference); a nil options struct is the distinct go-only message `options are required when calling <Class>.<op>` (forced).
 Why: ST1005 forces the lower case, and the other SDKs cannot receive a null options object.
 Where: `base_api.mustache`, `value_serializer.mustache`, `api/api.mustache`.
 Test: `test/base_api_test.mustache`, `test/value_serializer_test.mustache`.
@@ -248,8 +247,8 @@ Where: `default_api_client.mustache`, `transport_options.mustache`.
 Test: `test/default_api_client_test.mustache`, `test/transport_options_test.mustache`.
 
 ### ApiResult.headers is a copy
-Rule: `NewApiResult` stores `maps.Clone(headers)` (conformant, F325); the field is documented "do not mutate"; read-only is impossible in go.
-Why: a caller mutating the result must not alter the transport's map (F325).
+Rule: `NewApiResult` stores `maps.Clone(headers)` (conformant); the field is documented "do not mutate"; read-only is impossible in go.
+Why: a caller mutating the result must not alter the transport's map.
 Where: `api_result.mustache`.
 Test: `test/api_result_test.mustache`.
 
@@ -267,17 +266,16 @@ Test: `test/readme_test.mustache`.
 
 ### Decisions where go already conforms
 Rule: no go-specific rule beyond the shared one for D18 and F268 (BOM stripped in the shared helper), D22 and F300 (`User-Agent` token is the module name), D26 and F324 (no default arguments: an optional body is passed as `nil`, forced), F080 (date-time decode is RFC 3339), F174 (numeric default literals), F206, F217 (uuid), F071 and F072, F090, F091, F094, F295, F020 (the `CACertPath` comment is reworded), F155 and F153, F391 (no `*/` in a `/* */` comment).
-Why: confirmed against the ledger's per-language rows as already canonical.
+Why: confirmed already canonical.
 Where: see the named templates in Layout.
-Test: the matching generated tests; the ledger rows hold the per-decision lock.
 
 ## Known limitations and out of scope
 
 Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and loading 3.2 documents is issue #50 (the pinned swagger-parser rejects it).
 
-Open or deferred ledger items that touch go: F021 (`InjectTraceContext(headers)` takes no context, so the registered OpenTelemetry propagator never sees the caller's span; now that operations take `ctx` the hook can take it, deferred); F290 (the infallible `AuthHeaders()` returns an empty map on failure, open API-shape question, see Settled); F316 (a go model struct can be built with zero values and without validation, forced); F057 (allOf with a discriminator), F215, F054 and F803 are open in the ledger and described under Settled.
+Open or deferred items that touch go: F021 (`InjectTraceContext(headers)` takes no context, so the registered OpenTelemetry propagator never sees the caller's span; now that operations take `ctx` the hook can take it, deferred with the tracer and meter providers, #108); F290 (the infallible `AuthHeaders()` returns an empty map on failure, forced by the interface, see Settled); F316 (a go model struct can be built with zero values and without validation, forced); classic allOf with a discriminator is #104.
 
-Not harmonised on purpose: the multipart file part sends a real filename and a sniffed MIME through the `*os.File` options types (the other nine send the field name and `application/octet-stream`); the OAuth2 token decode is typed, so a numeric `access_token` or `refresh_token` fails the exchange where ten SDKs ignore the bad field (borderline-forced); `ClientAuthMethod` has no `String()` and the OAuth2 `String` forms differ (F285); go model `%v` prints pointer addresses for optional fields (F321, no decision); a oneOf or anyOf wrapper with no match returns `data does not match any oneOf schemas for <X>` while the central helper says `No oneOf/anyOf variant matched the JSON` (F396). `format: number` is `float64` and lossy by design. SOCKS proxies are not supported.
+Not harmonised on purpose: the multipart file part sends a real filename and a sniffed MIME through the `*os.File` options types (the other nine send the field name and `application/octet-stream`); the OAuth2 token decode is typed, so a numeric `access_token` or `refresh_token` fails the exchange where ten SDKs ignore the bad field (borderline-forced); `ClientAuthMethod` has no `String()` and the OAuth2 `String` forms differ; go model `%v` prints pointer addresses for optional fields (no decision); a oneOf or anyOf wrapper with no match returns `data does not match any oneOf schemas for <X>` while the central helper says `No oneOf/anyOf variant matched the JSON`. `format: number` is `float64` and lossy by design. SOCKS proxies are not supported.
 
 ## Build-breaking rules
 
@@ -293,56 +291,55 @@ Not harmonised on purpose: the multipart file part sends a real filename and a s
 
 The audit's own proposal was the default wherever no owner decision existed.
 
-- Header merge (F1044): every layer (transport defaults, configuration defaults, header selector, operation headers, auth headers) is merged by `mergeHeaders` in `default_api_client.mustache`: a key that differs only in case replaces the earlier one, the later layer keeps its spelling, and the keys of one layer are visited in sorted order so the result never depends on map iteration. `removeHeader` and `hasHeader` are case-insensitive, so a caller's `accept-encoding` suppresses the injected one and `Content-Type` is dropped on a bodyless request whatever its spelling. Test: `TestDefaultApiClient_HeaderSpellingsAreMergedCaseInsensitively` and `TestMergeHeaders_...` in `test/default_api_client_unit_test.mustache`.
-- Token expiry (F854, F1046, F1045): one margin, applied when the token is stored: `expiry = now + expires_in - min(60 s, expires_in / 2)`, so a 60 s token is reused for 30 s and a 120 s token for 60 s. A grant response without `expires_in` (first fetch, refresh or exchange) leaves no expiry and the token is cached until invalidated; `expires_in <= 0` or unparseable still means stale on arrival. Tests that need a stale token use `"expires_in":0`. Test: `TestOAuth2TokenManager_ShortLivedTokensAreStillReused`, `..._RefreshWithoutExpiresInCachesTheNewToken`.
-- OIDC rediscovery (F1052): when the discovery max-age lapses and the refetch fails, the previous delegate keeps serving (stale-if-error) and discovery is retried after 30 s; the first discovery still fails. `max-age=0` still refetches on every call (pinned by `TestOpenIdConnect_DiscoveryIsReusedForTheCacheControlMaxAge`; the floor the audit suggested was not taken). Test: `TestOpenIdConnect_FailedRediscoveryKeepsUsingThePreviousDelegate`.
-- Query secrets in errors (F861): `redactURL` replaces the query of a URL with `***` in transport-error messages (`request failed: ...`) and in the redirect refusal messages; the original `*url.Error` stays the cause. Test: `TestDefaultApiClient_NetworkErrorMessageRedactsTheQuery`.
-- Trace propagator (F880, race part): `traceContextPropagator` is an `atomic.Pointer`, so `SetTraceContextPropagator` may run while requests are in flight. Per-operation spans and metrics are not added. Test: `TestSetTraceContextPropagator_ConcurrentSetAndInjectIsRaceFree` (the suite runs with `-race`).
+- Header merge: every layer (transport defaults, configuration defaults, header selector, operation headers, auth headers) is merged by `mergeHeaders` in `default_api_client.mustache`: a key that differs only in case replaces the earlier one, the later layer keeps its spelling, and the keys of one layer are visited in sorted order so the result never depends on map iteration. `removeHeader` and `hasHeader` are case-insensitive, so a caller's `accept-encoding` suppresses the injected one and `Content-Type` is dropped on a bodyless request whatever its spelling. Test: `TestDefaultApiClient_HeaderSpellingsAreMergedCaseInsensitively` and `TestMergeHeaders_...` in `test/default_api_client_unit_test.mustache`.
+- Token expiry: one margin, applied when the token is stored: `expiry = now + expires_in - min(60 s, expires_in / 2)`, so a 60 s token is reused for 30 s and a 120 s token for 60 s. A grant response without `expires_in` (first fetch, refresh or exchange) leaves no expiry and the token is cached until invalidated; `expires_in <= 0` or unparseable still means stale on arrival. Tests that need a stale token use `"expires_in":0`. Test: `TestOAuth2TokenManager_ShortLivedTokensAreStillReused`, `..._RefreshWithoutExpiresInCachesTheNewToken`.
+- OIDC rediscovery: when the discovery max-age lapses and the refetch fails, the previous delegate keeps serving (stale-if-error) and discovery is retried after 30 s; the first discovery still fails. `max-age=0` still refetches on every call (pinned by `TestOpenIdConnect_DiscoveryIsReusedForTheCacheControlMaxAge`; the floor the audit suggested was not taken). Test: `TestOpenIdConnect_FailedRediscoveryKeepsUsingThePreviousDelegate`.
+- Query secrets in errors: `redactURL` replaces the query of a URL with `***` in transport-error messages (`request failed: ...`) and in the redirect refusal messages; the original `*url.Error` stays the cause. Test: `TestDefaultApiClient_NetworkErrorMessageRedactsTheQuery`.
+- Trace propagator (race part): `traceContextPropagator` is an `atomic.Pointer`, so `SetTraceContextPropagator` may run while requests are in flight. Per-operation spans and metrics are not added. Test: `TestSetTraceContextPropagator_ConcurrentSetAndInjectIsRaceFree` (the suite runs with `-race`).
 - F844 is already conforming: this file exists.
 
-Skipped in batch 6, each needing a public go-only API change that the api-surface check and the other eleven SDKs must agree on first (the allow rules live in `etc/`): F842 (move `requestContentType` into a per-call option), F875 (`models.Date`), F876 (named inline parameter enums), F877 (return slices and maps by value), F878 (typed union constructors and accessors), F879 (per-tag service interfaces), F881 (exported `AllValues`/`IsValid`; `TestModel_InlineEnumValueListIsNotExported` pins the helper unexported today), F874 and F1053 (a context-aware auth method), F1048 (a response size limit option). F873 (single-pass model decode), F882 (operation doc comment layout, which the generated-prose alignment rules in `CLAUDE.md` pin) and F930 (no petstore operation has a nested object form field, so the check cannot be driven through the public API from `test/base_api_test.mustache`) need a larger change than could be verified without the Docker gate.
+Deferred from batch 6 and not landed since: the `models.Date` type for `format: date` (#126), single-pass model decode (#107) and a response size limit option (#112). The rest of that list, a per-call content type, the context-aware auth method, named inline parameter enums, values instead of pointers, typed union constructors and accessors, the per-group interface, exported enum value lists and the operation doc comment layout, landed in the later batches described below.
 
 ## Decisions taken in batch 7
 
 The audit's own proposal was the default wherever no owner decision existed.
 
-- Decoded responses (F1165, D92): when the body was decompressed, the returned headers drop `content-encoding` and `content-length`; an empty body or `identity` leaves them. Tests: `assertDecompresses` in `test/default_api_client_test.mustache`, `TestDefaultApiClient_DecodesZlibWrappedDeflateResponse`.
-- Proxy URL in errors (F1086, D79): a rejected proxy value is shown with its `user:password@` part replaced by `***@` (`redactProxyUserinfo`, on the raw text because the value may not parse), and a `*url.Error` is unwrapped so the raw URL is not repeated. Test: `TestTransportOptions_ProxyRejectionMessages`.
-- Cross-origin redirects (F1093): besides the fixed allowlist and the spec's apiKey header names, every request header that `isSecretHeaderName` treats as a secret (S15: key, token, secret, Authorization, Cookie, Proxy-Authorization) is removed on a cross-origin hop. Test: `TestDefaultApiClient_StripsSecretNamedHeadersAcrossCrossOriginRedirect`.
-- Per-call authenticators (F856): `invokeApiForResult` injects the API's own client into a per-call override that implements `auth.HttpAwareAuthenticator`, so a per-call OAuth2 or OIDC authenticator no longer fails with `ErrApiClientNotInjected`. Test: `TestBaseApi_PerCallHttpAwareAuthenticatorIsInjected`.
-- Auth requests carry no caller default headers (F860): every request that goes through `authApiClientAdapter` (token endpoint, OIDC discovery) is marked with `authRequestContextKey` and `SendRequestWithOptions` then skips `TransportOptions.DefaultHeaders`; User-Agent, X-Request-ID and the SDK's own headers stay. No exported API changed. Test: `TestDefaultApiClient_AuthRequestsOmitTheCallersDefaultHeaders`.
-- File header (F1156): the info description in `api_info.mustache` goes through `unescapeDocComment`. Test: `TestMetadata_FileHeaderCarriesNoBackslashEscapedQuotes`.
+- Decoded responses (D92): when the body was decompressed, the returned headers drop `content-encoding` and `content-length`; an empty body or `identity` leaves them. Tests: `assertDecompresses` in `test/default_api_client_test.mustache`, `TestDefaultApiClient_DecodesZlibWrappedDeflateResponse`.
+- Proxy URL in errors (D79): a rejected proxy value is shown with its `user:password@` part replaced by `***@` (`redactProxyUserinfo`, on the raw text because the value may not parse), and a `*url.Error` is unwrapped so the raw URL is not repeated. Test: `TestTransportOptions_ProxyRejectionMessages`.
+- Cross-origin redirects: besides the fixed allowlist and the spec's apiKey header names, every request header that `isSecretHeaderName` treats as a secret (S15: key, token, secret, Authorization, Cookie, Proxy-Authorization) is removed on a cross-origin hop. Test: `TestDefaultApiClient_StripsSecretNamedHeadersAcrossCrossOriginRedirect`.
+- Per-call authenticators: `invokeApiForResult` injects the API's own client into a per-call override that implements `auth.HttpAwareAuthenticator`, so a per-call OAuth2 or OIDC authenticator no longer fails with `ErrApiClientNotInjected`. Test: `TestBaseApi_PerCallHttpAwareAuthenticatorIsInjected`.
+- Auth requests carry no caller default headers: every request that goes through `authApiClientAdapter` (token endpoint, OIDC discovery) is marked with `authRequestContextKey` and `SendRequestWithOptions` then skips `TransportOptions.DefaultHeaders`; User-Agent, X-Request-ID and the SDK's own headers stay. No exported API changed. Test: `TestDefaultApiClient_AuthRequestsOmitTheCallersDefaultHeaders`.
+- File header: the info description in `api_info.mustache` goes through `unescapeDocComment`. Test: `TestMetadata_FileHeaderCarriesNoBackslashEscapedQuotes`.
 - Tests only: F1169 (cookie from auth now asserts the header), F1063 (Set-Cookie is not replayed), F1067 (duplicate key keeps the last value), F1111 (StrictTag), F1144 (hostile Availability members), F1145, F1146, F1114, F1115, F1116, F1124 (slug), F1127 (required header and cookie guards), F1128 (createAccount), F1130 (trackingId), F1163 (offset-less date-time), F1075 (token request headers), F1159 (openid scope), F1151 (caller-owned handles stay open).
 - Already conforming in go: F054 (the query, header, path and cookie content arms all use `serialize()`), F833, F854, F1044, F1045, F861, F922, F924, F925, F927, F931, F1142, F1079 (`Build()` rejects zero).
-- Object-valued parameters (F1143, D47): `serializeStyled` and `serializeDeepObject` encode a model or string-keyed map property by property (`objectEntries`): exploded form query is `queryPairs` (one `name=value` per property in declaration order), comma form, simple header, label, matrix and the delimited styles are flat strings, deepObject is `name[prop]`. A null property is left out and a nested object or array keeps its JSON text (the D47 `SerializationError` for a nested leaf is not raised: these helpers have no error channel). Tests: `TestSerializeStyled_ObjectValuedParameterFollowsItsStyle`, `TestPetApi_GetPetTagSendsObjectValuedAndStyledParameters`.
-- apiKey names (F1154): the redirect allowlist and its tests render a spec apiKey header name through `goStringLiteral`, so a quote or backslash cannot break the file. Test: `BetterGoCodegenTest.escapesQuoteBackslashAndControlCharactersInAnApiKeyName`.
+- Object-valued parameters (D47): `serializeStyled` and `serializeDeepObject` encode a model or string-keyed map property by property (`objectEntries`): exploded form query is `queryPairs` (one `name=value` per property in declaration order), comma form, simple header, label, matrix and the delimited styles are flat strings, deepObject is `name[prop]`. A null property is left out and a nested object or array keeps its JSON text (the D47 `SerializationError` for a nested leaf is not raised: these helpers have no error channel). Tests: `TestSerializeStyled_ObjectValuedParameterFollowsItsStyle`, `TestPetApi_GetPetTagSendsObjectValuedAndStyledParameters`.
+- apiKey names: the redirect allowlist and its tests render a spec apiKey header name through `goStringLiteral`, so a quote or backslash cannot break the file. Test: `BetterGoCodegenTest.escapesQuoteBackslashAndControlCharactersInAnApiKeyName`.
 - More tests only: F1133 (redirect chain budget, chasm), F1161 (multi-value response headers and the typed status routes), F1069 (lowercase uuid path), F1158 (deepObject filter and matrix/label path), F1175 (prefixItems).
 - Already conforming or settled in go: F824 (`Client.Close`, batch 5), F826 (`io.Reader`, batch 5), F229 (done), F803 (S8), F056 (S3), F090 (ambient proxy ignored by design), F149 (`TestBinaryResponse_TextPlainBodyForModelReturnIsASerializationError`), F1150 (go sets no `Proxy-Authorization` header itself; the transport proxy authenticates every hop).
-- Skipped, shared or owner decision: F838 (verb classification), F840 (cookie style), F857, F858 (PKCE), F865 (typed additionalProperties), F1058, F1060, F1100, and the gates F1066, F1152, F1153, F1174.
-- Skipped, needing shared Java, the `etc/` allow rules or an owner decision: F057, F215 (settled S5), F228, F1062 (several 2xx schemas), F855 (401 replay), F1048 (response size limit option), F1080 (bounded error text), F1055 (injected-name collisions need `computeSignatureArgs`), F859, F867, F1084, F1121 (no operation takes an Accept header parameter, so it is not reachable from a go test).
+- Not done in go: 401 replay (F855, since landed for the OAuth authenticators in batch 9), the response size limit option (#112), a `String`/`GoString` on every model with a password field (F867: it needs a template flag for the field type, pointer or not, that cannot be verified without the gate), and more charsets (they need `golang.org/x/text`).
 
 ## Decisions taken in batch 9
 
-- A 401 replays once (F855). `auth.AccessTokenInvalidator` (public interface in `http_aware_authenticator.mustache`) has `InvalidateAccessToken()`, implemented by the OAuth2 client credentials, password, authorization code and OpenID Connect authenticators (the token manager already had it; it drops the access token and keeps the refresh token, so the next token call is a refresh grant first). `invokeApiForResult` calls it on a 401 and replays the request once with headers built again; a second 401 is the usual `*UnauthorizedError`, and a failed re-authentication leaves the original 401. API key, basic and bearer authenticators do not implement the interface and never replay. Go buffers every body (multipart and `io.Reader` bodies are read into a `[]byte` before the first send), so, like C#, no body is non-replayable and a multipart request is replayed too. Test: `TestBaseApi_A401OnOAuthRequestRenewsTheTokenAndReplaysOnce`, `TestBaseApi_ASecond401IsReportedAfterOneReplay`, `TestBaseApi_AFailedReauthenticationLeavesTheOriginal401`, `TestBaseApi_ABearerRequestIsNeverReplayedOnA401` and one `InvalidateAccessToken` test per authenticator.
-- PKCE S256 (F858). `BuildAuthorizationURL` makes a 43-character verifier (32 `crypto/rand` bytes, base64url), keeps it in the authenticator and appends `code_challenge` (SHA-256, base64url) and `code_challenge_method=S256` after `state`; `ExchangeCode` sends `code_verifier` (after `redirect_uri` in the form order) once and forgets it, success or not. The OIDC delegate rebuilt by rediscovery inherits the verifier; there is no nonce. Standard library only. Test: `TestOAuth2AuthCode_AuthorizeUrlCarriesAPkceChallengeThatTheExchangeProves`, `TestOAuth2AuthCode_EachAuthorizeUrlStartsANewChallengeAndTheVerifierIsSingleUse`, `TestOpenIdConnect_PkceVerifierSurvivesRediscovery`.
-- Retries (F823). `TransportOptionsBuilder.MaxRetries(n)` (default `DefaultMaxRetries` = 2, `0` disables, a negative value is `ErrInvalidMaxRetries` from `Build()`) and `TransportOptions.MaxRetries()`. The loop is in `baseApi.invokeApiForResult`, not in the transport, because every attempt must rebuild the headers and ask the authenticator again; `DefaultApiClient.retryPolicy()` hands it the limit and the timeout, so a custom `ApiClient` is never retried (its transport is the caller's). It retries a `*NetworkError` or `*NetworkTimeoutError` (not a cancellation or `ErrClientClosed`) and the statuses 408, 409, 429 and 500-599 except 501. The wait is 0.5 s doubling to 8 s minus up to 25% jitter, or the `Retry-After` header (seconds or HTTP date) capped at 60 s. With a timeout the whole loop runs under one `context.WithTimeout`, and a wait that would outlast the deadline ends the retries with the last failure; cancelling the context during the wait returns the cancellation error. A replayed 401 does not count as a retry. The README and SKILLS describe it. The 60 s cap of `Retry-After` is tested on `retryAfterDelay` in `default_api_client_unit_test.mustache` (the internal-package test file). Test: `TestBaseApi_RetriesTwiceByDefaultWithBackoff`, `TestBaseApi_StopsAfterMaxRetriesAndReturnsTheLastFailure`, `TestBaseApi_MaxRetriesZeroSendsOneRequest`, `TestBaseApi_RetriesOnlyTheTransientStatuses`, `TestBaseApi_RetryAfterSecondsReplacesTheBackoff`, `TestBaseApi_RetryAfterHttpDateReplacesTheBackoff`, `TestBaseApi_RetriesNeverExtendTheEndToEndTimeout`, `TestBaseApi_ARetryAfterBeyondTheTimeoutEndsTheRetries`, `TestBaseApi_CancellingDuringTheBackoffStopsTheRetries`, `TestBaseApi_ARetryAppliesTheAuthenticationHeadersAgain`, `TestBaseApi_RetriesANetworkErrorThatHappenedBeforeAResponse`, `TestTransportOptions_MaxRetriesDefaultsToTwoAndZeroDisablesThem`. The mock-server tests that expect one failing request build their client with `MaxRetries(0)`.
-- Error text cap (F1080). `ApiError.Error()` shows at most 1024 body bytes (cut on a character boundary) then `... (N more bytes)`, every control character (below 0x20 and 0x7f) as `\xNN`, and `***` for the value of authorization, proxy-authorization, cookie, set-cookie, www-authenticate, proxy-authenticate and any header name containing key, token or secret; `ResponseBody()` and `ResponseHeaders()` keep the real values. Test: `TestApiError_ErrorCapsTheBodyEscapesControlsAndMasksSecretHeaders`.
+- A 401 replays once. `auth.AccessTokenInvalidator` (public interface in `http_aware_authenticator.mustache`) has `InvalidateAccessToken()`, implemented by the OAuth2 client credentials, password, authorization code and OpenID Connect authenticators (the token manager already had it; it drops the access token and keeps the refresh token, so the next token call is a refresh grant first). `invokeApiForResult` calls it on a 401 and replays the request once with headers built again; a second 401 is the usual `*UnauthorizedError`, and a failed re-authentication leaves the original 401. API key, basic and bearer authenticators do not implement the interface and never replay. Go buffers every body (multipart and `io.Reader` bodies are read into a `[]byte` before the first send), so, like C#, no body is non-replayable and a multipart request is replayed too. Test: `TestBaseApi_A401OnOAuthRequestRenewsTheTokenAndReplaysOnce`, `TestBaseApi_ASecond401IsReportedAfterOneReplay`, `TestBaseApi_AFailedReauthenticationLeavesTheOriginal401`, `TestBaseApi_ABearerRequestIsNeverReplayedOnA401` and one `InvalidateAccessToken` test per authenticator.
+- PKCE S256. `BuildAuthorizationURL` makes a 43-character verifier (32 `crypto/rand` bytes, base64url), keeps it in the authenticator and appends `code_challenge` (SHA-256, base64url) and `code_challenge_method=S256` after `state`; `ExchangeCode` sends `code_verifier` (after `redirect_uri` in the form order) once and forgets it, success or not. The OIDC delegate rebuilt by rediscovery inherits the verifier; there is no nonce. Standard library only. Test: `TestOAuth2AuthCode_AuthorizeUrlCarriesAPkceChallengeThatTheExchangeProves`, `TestOAuth2AuthCode_EachAuthorizeUrlStartsANewChallengeAndTheVerifierIsSingleUse`, `TestOpenIdConnect_PkceVerifierSurvivesRediscovery`.
+- Retries. `TransportOptionsBuilder.MaxRetries(n)` (default `DefaultMaxRetries` = 2, `0` disables, a negative value is `ErrInvalidMaxRetries` from `Build()`) and `TransportOptions.MaxRetries()`. The loop is in `baseApi.invokeApiForResult`, not in the transport, because every attempt must rebuild the headers and ask the authenticator again; `DefaultApiClient.retryPolicy()` hands it the limit and the timeout, so a custom `ApiClient` is never retried (its transport is the caller's). It retries a `*NetworkError` or `*NetworkTimeoutError` (not a cancellation or `ErrClientClosed`) and the statuses 408, 409, 429 and 500-599 except 501. The wait is 0.5 s doubling to 8 s minus up to 25% jitter, or the `Retry-After` header (seconds or HTTP date) capped at 60 s. With a timeout the whole loop runs under one `context.WithTimeout`, and a wait that would outlast the deadline ends the retries with the last failure; cancelling the context during the wait returns the cancellation error. A replayed 401 does not count as a retry. The README and SKILLS describe it. The 60 s cap of `Retry-After` is tested on `retryAfterDelay` in `default_api_client_unit_test.mustache` (the internal-package test file). Test: `TestBaseApi_RetriesTwiceByDefaultWithBackoff`, `TestBaseApi_StopsAfterMaxRetriesAndReturnsTheLastFailure`, `TestBaseApi_MaxRetriesZeroSendsOneRequest`, `TestBaseApi_RetriesOnlyTheTransientStatuses`, `TestBaseApi_RetryAfterSecondsReplacesTheBackoff`, `TestBaseApi_RetryAfterHttpDateReplacesTheBackoff`, `TestBaseApi_RetriesNeverExtendTheEndToEndTimeout`, `TestBaseApi_ARetryAfterBeyondTheTimeoutEndsTheRetries`, `TestBaseApi_CancellingDuringTheBackoffStopsTheRetries`, `TestBaseApi_ARetryAppliesTheAuthenticationHeadersAgain`, `TestBaseApi_RetriesANetworkErrorThatHappenedBeforeAResponse`, `TestTransportOptions_MaxRetriesDefaultsToTwoAndZeroDisablesThem`. The mock-server tests that expect one failing request build their client with `MaxRetries(0)`.
+- Error text cap. `ApiError.Error()` shows at most 1024 body bytes (cut on a character boundary) then `... (N more bytes)`, every control character (below 0x20 and 0x7f) as `\xNN`, and `***` for the value of authorization, proxy-authorization, cookie, set-cookie, www-authenticate, proxy-authenticate and any header name containing key, token or secret; `ResponseBody()` and `ResponseHeaders()` keep the real values. Test: `TestApiError_ErrorCapsTheBodyEscapesControlsAndMasksSecretHeaders`.
 - F825 is rust only and skipped in go, where a caller already matches SDK errors with `errors.As` against the exported types.
 
 ## Decisions taken in batch 10
 
-- Token response errors (F1105, F926): the three 2xx token failures are the fixed texts `Token response is not valid JSON` (malformed body, no parser detail), `Token response is not a JSON object` and `Token response missing or empty access_token field`. Test: `TestOAuth2TokenManager_UnusableTokenResponsesUseTheFixedMessages`.
-- `token_type` (F863): a missing, null or case-insensitive `bearer` type is accepted; anything else is an `*OAuth2TokenError` `Unsupported token_type in token response` without the value. Test: `TestOAuth2TokenManager_ATokenTypeThatIsNotBearerIsRefusedWithoutEchoingIt`, `..._ABearerOrMissingTokenTypeIsAccepted`.
-- OIDC discovery (F859): an `issuer` that differs from the discovery URL minus `/.well-known/openid-configuration` (trailing slash ignored; no issuer is accepted) and an authorization or token endpoint that is not https (http on `localhost`, `*.localhost`, `127.0.0.1`, `::1` is allowed) are a `*SerializationError`. Test: `TestOpenIdConnect_DiscoveryIssuerMustMatchTheDiscoveryUrl`, `TestOpenIdConnect_DiscoveryRefusesClearTextEndpointsExceptLoopback`.
-- CA messages (F1103): `failed to read CA certificate from "<path>": <cause>` and `failed to parse CA certificate from "<path>": no PEM blocks found`, carried by an unexported `caCertificateError` that still matches `ErrInvalidCACertificate` (and the cause) through `errors.Is`. Test: `TestTransportOptions_GarbagePemCaCertFileIsRejected`, `..._EmptyCaCertFileAndDirectoryGetTheirOwnMessages`.
-- List rendering (F1102): the server-variable and content-type messages render lists as `[a, b, c]` through `bracketedList`. Tests: `TestServerConfiguration_RejectionMessageNamesValueVariableAndAllowedValues` and the two content-type rows in `test/api/pet_api_test.mustache`.
-- Server URL substitution (F1118): all placeholders are replaced in one pass (`strings.NewReplacer`), so a value that contains `{other}` is never expanded again and the result no longer depends on map iteration order. Test: `TestServerConfiguration_AValueIsNeverExpandedAgain`.
-- Cookies (F1089): the `Cookie` header from an authenticator is written sorted by cookie name. Test: `TestBaseApi_SeveralAuthCookiesAreWrittenSortedByName`.
-- `make lint` (F1088) runs `format-check` (`gofmt -s -l` and `gofumpt -l`, non-zero on any file listed), `vet` and `staticcheck` before golangci-lint.
-- SKILLS and README (F1084, F883, F884, F888, F889, F890): the error section names the `{{errorPrefix}}Error` root and its four direct kinds, with a catch of the root after the `ApiError` arms; the README follows the java layout (Installation, Usage, Configuration with Raw responses, Timeouts, Retries, Expired tokens, Request id, Cancellation, Custom HTTP client; Caveats; Not supported with XML, Link Objects and mutual TLS); SKILLS Configuration has Custom Transport Options, Retries, Custom HTTP client, Cancellation and Raw responses. Tests: `TestReadme_HasTheSharedSectionsInTheSharedOrder`, `TestSkills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder`, `TestSkills_ErrorHandlingNamesTheRootAndTheSiblingsOfApiError`.
+- Token response errors: the three 2xx token failures are the fixed texts `Token response is not valid JSON` (malformed body, no parser detail), `Token response is not a JSON object` and `Token response missing or empty access_token field`. Test: `TestOAuth2TokenManager_UnusableTokenResponsesUseTheFixedMessages`.
+- `token_type`: a missing, null or case-insensitive `bearer` type is accepted; anything else is an `*OAuth2TokenError` `Unsupported token_type in token response` without the value. Test: `TestOAuth2TokenManager_ATokenTypeThatIsNotBearerIsRefusedWithoutEchoingIt`, `..._ABearerOrMissingTokenTypeIsAccepted`.
+- OIDC discovery: an `issuer` that differs from the discovery URL minus `/.well-known/openid-configuration` (trailing slash ignored; no issuer is accepted) and an authorization or token endpoint that is not https (http on `localhost`, `*.localhost`, `127.0.0.1`, `::1` is allowed) are a `*SerializationError`. Test: `TestOpenIdConnect_DiscoveryIssuerMustMatchTheDiscoveryUrl`, `TestOpenIdConnect_DiscoveryRefusesClearTextEndpointsExceptLoopback`.
+- CA messages: `failed to read CA certificate from "<path>": <cause>` and `failed to parse CA certificate from "<path>": no PEM blocks found`, carried by an unexported `caCertificateError` that still matches `ErrInvalidCACertificate` (and the cause) through `errors.Is`. Test: `TestTransportOptions_GarbagePemCaCertFileIsRejected`, `..._EmptyCaCertFileAndDirectoryGetTheirOwnMessages`.
+- List rendering: the server-variable and content-type messages render lists as `[a, b, c]` through `bracketedList`. Tests: `TestServerConfiguration_RejectionMessageNamesValueVariableAndAllowedValues` and the two content-type rows in `test/api/pet_api_test.mustache`.
+- Server URL substitution: all placeholders are replaced in one pass (`strings.NewReplacer`), so a value that contains `{other}` is never expanded again and the result no longer depends on map iteration order. Test: `TestServerConfiguration_AValueIsNeverExpandedAgain`.
+- Cookies: the `Cookie` header from an authenticator is written sorted by cookie name. Test: `TestBaseApi_SeveralAuthCookiesAreWrittenSortedByName`.
+- `make lint` runs `format-check` (`gofmt -s -l` and `gofumpt -l`, non-zero on any file listed), `vet` and `staticcheck` before golangci-lint.
+- SKILLS and README: the error section names the `{{errorPrefix}}Error` root and its four direct kinds, with a catch of the root after the `ApiError` arms; the README follows the java layout (Installation, Usage, Configuration with Raw responses, Timeouts, Retries, Expired tokens, Request id, Cancellation, Custom HTTP client; Caveats; Not supported with XML, Link Objects and mutual TLS); SKILLS Configuration has Custom Transport Options, Retries, Custom HTTP client, Cancellation and Raw responses. Tests: `TestReadme_HasTheSharedSectionsInTheSharedOrder`, `TestSkills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder`, `TestSkills_ErrorHandlingNamesTheRootAndTheSiblingsOfApiError`.
 - Tests only: F927 (the downgrade message is pinned exactly), F1065 (IPv6 proxy), F1073 and F1074 (bearer), F1112 (`BinaryVault.Equal`), F1129 (`TreatmentRecord`), F1124 (third server, `nickname`), F1135 (identity), F1136 (non-BMP filename), F1141 (`GetDefaults`), F1107 (snake_case and `...RedactsSecret` names renamed to `Test<Subject>_<Camel>`).
-- Already conforming: F215 (`RequiredNullable` model and `TestDeserialize_RequiredNullableKeyMustBePresentAndNullIsKept`), F831 (`TooManyRequestsError`), F855 and F858 PKCE (batch 9), F1080 (batch 9), F1146 (`TestEdgeCases_InlinePhaseEnumRoundTripsItsWireValues`), F1180 (`auth.AccessTokenInvalidator`, batch 9; the etc allow rules are not go's to edit), F290 (`AuthHeaders()` is infallible by the interface and `AuthHeadersOrError` is the one `base_api` calls; a panic would break the interface).
-- Skipped: F057, F823 and the undecided F827, F828, F830, F834 to F837, F868, F1058, F1060, F1062; F867 (a `String`/`GoString` on every model with a password field needs a template flag for the field type, pointer or not, that cannot be verified without the gate); F258 (more charsets need `golang.org/x/text`); F930 (no operation has a nested form field); F1121 (no operation takes an Accept parameter); F1140 (net/http's client closes redirect bodies itself, and a closing double cannot be verified here); F1081 (default timeout stays 10 s until the per-call option F827 exists); F842, F873 to F882, F874, F1053, F1048 (public go-only API, see batch 6); F1056, F1055, F1061, F1157 and F894 (shared Java or spec); F1085, F1087, F1077, F1172, F843, F862, F865, F866, F840, F857 (owner decisions or shared Java).
+- Already conforming: F215 (`RequiredNullable` model and `TestDeserialize_RequiredNullableKeyMustBePresentAndNullIsKept`), F831 (`TooManyRequestsError`), F855 and F858 PKCE (batch 9), F1080 (batch 9), F1146 (`TestEdgeCases_InlinePhaseEnumRoundTripsItsWireValues`), F1180 (`auth.AccessTokenInvalidator`, batch 9), F290 (`AuthHeaders()` is infallible by the interface and `AuthHeadersOrError` is the one `base_api` calls; a panic would break the interface).
+- Not done in go: a `String`/`GoString` on every model with a password field (F867: it needs a template flag for the field type, pointer or not, that cannot be verified without the gate), more charsets (they need `golang.org/x/text`), a released redirect body (net/http's client closes redirect bodies itself, and a closing double cannot be verified here), the response size limit option (#112) and the `models.Date` type (#126).
 
 ## Decisions taken in wave 2
 
@@ -352,7 +349,7 @@ The "Skipped" lists of batches 6, 7, 9 and 10 above are history: every id implem
 
 ### Implemented
 - **F830 (request context on errors).** `ApiError` (so every subclass) has `RequestMethod()` and `RequestPath()` (the path without its query string or fragment), set by `AttachRequest(method, path)`, which keeps a value that is already set. `baseApi` calls it where it builds the error: a status error (`throwAPIError`), a refused redirect and a `*NetworkError` or `*NetworkTimeoutError` from the transport; the path is `params.path` after path substitution, or the URL path when a per-operation server made it absolute (`requestPathOf`). `Error()` gets a `Request: METHOD /path` line between the message and the status line, omitted when the request is unknown; the message text itself is unchanged (`API returned status code N`). The wording is the one python chose; csharp (`... for GET /path`) and dart (`GET /path returned status code N`) chose another, so the twelve still need one wording (shared decision). Test: `test/api_error_test.mustache`, `test/base_api_test.mustache` (`StatusErrorCarriesTheRequestMethodAndPath...`), `test/base_api_unit_test.mustache`.
-- **F827 and F842 (per-call options).** Every operation, convenience and `WithHTTPInfo`, ends in `callOptions ...RequestOption` (`request_option.mustache`): `WithTimeout(time.Duration)`, `WithHeaders(map)`, `WithMaxRetries(int)` and `WithRequestContentType(string)`. This frees the variadic slot `requestContentType ...string` held (F842) and gives an operation with no options struct a slot too. An invalid option (a timeout under one millisecond, a negative limit) returns `ErrInvalidTimeout` or `ErrInvalidMaxRetries` before any request is built. The timeout bounds the whole call, retries included, as a context deadline, and `RequestOptions.Timeout` hands it to `DefaultApiClient`, which gives that request a copy of its policy client with the timeout (so it can lengthen the client's too). The headers replace a header of the same name from any layer, after the authentication headers. A custom `ApiClient` is never retried, so `WithMaxRetries` does nothing for it. Test: `test/request_option_test.mustache`, `test/base_api_test.mustache` (`PerCall...`).
+- **F827 and F842 (per-call options).** Every operation, convenience and `WithHTTPInfo`, ends in `callOptions ...RequestOption` (`request_option.mustache`): `WithTimeout(time.Duration)`, `WithHeaders(map)`, `WithMaxRetries(int)` and `WithRequestContentType(string)`. This frees the variadic slot `requestContentType ...string` held and gives an operation with no options struct a slot too. An invalid option (a timeout under one millisecond, a negative limit) returns `ErrInvalidTimeout` or `ErrInvalidMaxRetries` before any request is built. The timeout bounds the whole call, retries included, as a context deadline, and `RequestOptions.Timeout` hands it to `DefaultApiClient`, which gives that request a copy of its policy client with the timeout (so it can lengthen the client's too). The headers replace a header of the same name from any layer, after the authentication headers. A custom `ApiClient` is never retried, so `WithMaxRetries` does nothing for it. Test: `test/request_option_test.mustache`, `test/base_api_test.mustache` (`PerCall...`).
 - **F868 (immutable models with a copy).** Every model property has `With<Property>(value)` with a value receiver returning the changed copy; an optional or nullable property also has `Without<Property>()`, and a model with additional properties has `WithAdditionalProperties(map)` (copies the map). The copy is shallow (the README says so). Test: `test/composed_schema_test.mustache` (`TestModel_With...`).
 - **F1062 (several 2xx responses).** For an operation with `vendorExtensions.op.hasMultiple2xx`, `api.mustache` emits `decodeSuccess(status, body, &data)`: it decodes the body as the schema of that status (a `2XX` range last) and wraps it with the typed constructor; an undeclared 2xx falls back to the union's own decode. Test: `test/api/store_api_test.mustache` (`ReserveStockDecodesTheBodyByItsStatus`, a body that fits both schemas).
 - **F878 (typed unions).** A oneOf or anyOf wrapper has `New<Variant><Union>(v)`, `As<Variant>() (v, ok)` and `Is<Variant>()` per variant (`goVariantName` lambda, `variantName` in `BetterGoCodegen`: `[]byte` is `ByteSlice`, `map[string]int32` is `Int32Map`); `MarshalJSON` rejects a value that is not a declared variant, the zero union included. The untyped `New<Union>(any)` stays. Test: `test/composed_schema_test.mustache`, `BetterGoCodegenTest`.
@@ -380,10 +377,10 @@ The "Skipped" lists of batches 6, 7, 9 and 10 above are history: every id implem
 ### Already satisfied or forced
 - **F1087.** go keeps its floor: `go.mod` says `go 1.25`, which is not newer than the oldest non-end-of-life Go.
 - **F1178, F1082.** java and node only.
-- **F875.** Not done: `format: date` stays a validated plain string. A `models.Date` type changes the type of every date parameter, option and model field and is not among the owner decisions; it needs one.
+- **F875.** Not done: `format: date` stays a validated plain string. A `models.Date` type changes the type of every date parameter, option and model field and is not among the owner decisions; it needs one (#126).
 
-### Needs the shared generator, the shared spec or the shared gate (not edited here)
-- **F1060** and **F1061** (warnings in `buildOAuthSpec` and the `http` scheme branch), **F1157** (the petstore spec names a scheme it never declares), **F1153** (unit tests for two normalisation rules), **F1172** (a shared spec scanning every golden for blanket disables), **F1174** (`etc/ci-local.sh` does not run `api-surface.py check`), **F894** (the shared option plumbing and the manifest text for the twelve), and the one wording of the F830 message (python, csharp and dart each chose another). The `etc/api-surface-allow.json` rows for the go public API added above (With/Without copies, typed union accessors, `All<Enum>Values`, `RequestOption`, `<Group>ApiInterface`, the request context on `ApiError`, the context-aware authenticator, the `calloptions` parameter) are in this change, each with its reason.
+### Shared, not go
+- **Shared, not go.** The petstore spec names a security scheme it never declares (#121), and the wording of the request-context message differs in python, csharp and dart. The go public API added above (With/Without copies, typed union accessors, `All<Enum>Values`, `RequestOption`, `<Group>ApiInterface`, the request context on `ApiError`, the context-aware authenticator, the `callOptions` parameter) is the shape the other languages are compared against.
 
 ## Verify
 
