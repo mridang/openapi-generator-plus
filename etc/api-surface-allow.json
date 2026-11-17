@@ -1916,39 +1916,6 @@
   },
   {
    "element": [
-    "*options.timeout",
-    "*options.headers",
-    "*options.maxretries"
-   ],
-   "aspect": "member",
-   "languages": [
-    "dart"
-   ],
-   "reason": "F827: per-call timeout, headers and maxRetries on every per-operation Options object; the same three fields land in all twelve SDKs, so the canonical entry follows when the other eleven do"
-  },
-  {
-   "element": [
-    "*options"
-   ],
-   "aspect": "type",
-   "languages": [
-    "dart"
-   ],
-   "reason": "F827 wave 3: dart mints an Options object for every operation (mintsOptionsForEveryOperation), so an operation with no parameters of its own has one too; the other eleven add the same objects in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "petapi.*",
-    "storeapi.*"
-   ],
-   "aspect": "params",
-   "languages": [
-    "dart"
-   ],
-   "reason": "F827 wave 3: every dart operation takes the options argument, also an operation with no query, header, form or cookie parameter and no security; the other eleven add it in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": [
     "baseapi.schemeauthenticator"
    ],
    "aspect": "member",
@@ -2001,14 +1968,6 @@
     "dart"
    ],
    "reason": "F830: requestMethod and requestPath on ApiException and every subclass are added to all twelve SDKs in this wave; the canonical entry follows when the other eleven land"
-  },
-  {
-   "element": "apierror.fromresponse",
-   "aspect": "params",
-   "languages": [
-    "dart"
-   ],
-   "reason": "F830: fromResponse takes the failed request as the named arguments requestMethod and requestPath"
   },
   {
    "element": [
@@ -2311,63 +2270,6 @@
   },
   {
    "element": [
-    "adminbasicauthenticator.<ctor>",
-    "apikeyheaderauthenticator.<ctor>",
-    "apikeyqueryauthenticator.<ctor>",
-    "internalapikeyauthenticator.<ctor>",
-    "petstorebasicauthenticator.<ctor>",
-    "sessioncookieauthenticator.<ctor>",
-    "browserauthimplicitauthenticator.<ctor>",
-    "legacyauthpasswordauthenticator.<ctor>",
-    "machineauthclientcredentialsauthenticator.<ctor>",
-    "ssoauthauthenticator.<ctor>",
-    "userauthauthorizationcodeauthenticator.<ctor>"
-   ],
-   "aspect": "ctor-optional",
-   "languages": [
-    "csharp"
-   ],
-   "reason": "F862: every credential argument of a per-scheme authenticator is optional so that it can default from its environment variable; the other languages make theirs optional in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "createaccountoptions",
-    "deleteorderoptions",
-    "downloadpetdocumentoptions",
-    "findpetsbornonoptions",
-    "getdefaultsoptions",
-    "getdepartmentoptions",
-    "getexternalpetinfooptions",
-    "getgroupedcategoriesoptions",
-    "getinventoryoptions",
-    "getmatrixoptions",
-    "getmultiserverpetinfooptions",
-    "getorderbyidoptions",
-    "getorderbytrackingidoptions",
-    "getpetavataroptions",
-    "getpetavatarthumbnailoptions",
-    "getpetbyidoptions",
-    "getpetpassportoptions",
-    "getpetphotooptions",
-    "getstagingpetinfooptions",
-    "getswatchgroupsoptions",
-    "getswatchoptions",
-    "gettimestampgroupsoptions",
-    "gettreeoptions",
-    "placeorderoptions",
-    "reservestockoptions",
-    "setpetavataroptions",
-    "setpetavatarthumbnailoptions",
-    "updatepetoptions"
-   ],
-   "aspect": "type",
-   "languages": [
-    "csharp"
-   ],
-   "reason": "F827: every operation gets an Options type, including one with no parameters and no security, so each call has a slot for timeout, headers and maxRetries; the other languages mint the same type in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": [
     "client.fromenvironment"
    ],
    "aspect": "member",
@@ -2375,17 +2277,6 @@
     "csharp"
    ],
    "reason": "F862 wave 2: credentials are read from {PREFIX}_HOST and {PREFIX}_TOKEN when the client is built; csharp lands first and the other languages add the same entry point in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "reservestockresponse.*",
-    "setpetavatarthumbnailrequest.*"
-   ],
-   "aspect": "member",
-   "languages": [
-    "csharp"
-   ],
-   "reason": "F878 wave 2: a oneOf wrapper gains a typed From<Variant> factory and Is<Variant>/As<Variant> accessors per variant; csharp lands first and the other languages add typed accessors in their idiom in their own wave branches, after which this rule is deleted"
   },
   {
    "element": "*.with",
@@ -2849,14 +2740,6 @@
     "java"
    ],
    "reason": "F857 owner decision: an API class also takes the per-scheme credentials the client holds (an optional fourth argument, a map keyed by scheme name), which an operation resolves for the first scheme its spec lists that the client holds; the (apiClient, config, authenticator) overload is kept, so a call site written against the canonical shape still compiles. Delete this rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": "*options.auth",
-   "aspect": "member",
-   "languages": [
-    "java"
-   ],
-   "reason": "F857 owner decision: no per-call scheme override. An operation uses the credential of the scheme its spec requires, so a java Options class carries no auth setter or getter; the other languages drop it when they adopt F857, after which this rule is deleted"
   },
   {
    "element": [
@@ -3655,19 +3538,6 @@
   },
   {
    "element": [
-    "addpetoptions.auth",
-    "addpettreatmentoptions.auth",
-    "deletepetoptions.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "dart",
-    "swift"
-   ],
-   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so the dart and swift Options objects carry no per-call authenticator; the other eleven drop the field in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": [
     "client.<ctor>"
    ],
    "aspect": "ctor",
@@ -3713,6 +3583,42 @@
    ],
    "value": "extra*",
    "reason": "elixir has no wrapper object for a oneOf or anyOf: the union value is the variant struct itself, so the typed factory is from_<variant>/1, a checked pass-through that raises ArgumentError for another value; the languages with a wrapper build it through its constructor or a cases enum, which the surface check does not read as a member"
+  },
+  {
+   "element": "client.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "java"
+   ],
+   "reason": "java builds a client with Client.builder(host) and one setter per security scheme (petStoreBasic(...), transportOptions(...)), the builder idiom for many optional arguments; the public constructors take the resolved authenticator and the transport options, and the per-scheme credentials are reached through the builder"
+  },
+  {
+   "element": [
+    "petfood.dryfood",
+    "petfood.wetfood",
+    "petfood.asdryfood",
+    "petfood.aswetfood"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "a discriminated oneOf is the abstract record PetFood with the records DryFood and WetFood as subtypes, so the decoded value is itself the variant and the caller reads it with a type pattern (is DryFood d); there is no wrapper to hold a per-variant accessor (csharp has no ActualInstance for it either, see the rules above)"
+  },
+  {
+   "element": [
+    "setpetavatarthumbnailrequest.byte",
+    "setpetavatarthumbnailrequest.asbyte",
+    "setpetavatarthumbnailrequest.listbyte",
+    "setpetavatarthumbnailrequest.aslistbyte",
+    "setpetavatarthumbnailrequest.frombyte",
+    "setpetavatarthumbnailrequest.fromlistbyte"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "a typed variant member is named after the language's own spelling of the variant type, and byte[] and List<byte[]> are spelled Byte and ListByte in C# (kotlin ByteArray, swift Data, go ByteSlice), so the names differ from every other language by idiom"
   }
  ]
 }

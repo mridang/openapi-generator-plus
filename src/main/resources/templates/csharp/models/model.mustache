@@ -300,6 +300,30 @@ public class {{classname}} : IEquatable<{{classname}}>
     {
         MatchedInstances = matchedInstances;
     }
+{{#composedSchemas.anyOf}}
+
+    /// <summary>Wraps a <c>{{#lambda.escapeXml}}{{{dataType}}}{{/lambda.escapeXml}}</c> value as this union.</summary>
+    /// <param name="value">The variant value.</param>
+    /// <returns>A union holding <paramref name="value"/>.</returns>
+    public static {{classname}} From{{vendorExtensions.variantName}}({{{dataType}}} value)
+    {
+        return new {{classname}}(value);
+    }
+
+    /// <summary>Whether a retained variant is a <c>{{#lambda.escapeXml}}{{{dataType}}}{{/lambda.escapeXml}}</c>.</summary>
+    /// <returns>True when one is.</returns>
+    public bool Is{{vendorExtensions.variantName}}()
+    {
+        return MatchedInstances.Any(instance => instance is {{{dataType}}});
+    }
+
+    /// <summary>The first retained variant that is a <c>{{#lambda.escapeXml}}{{{dataType}}}{{/lambda.escapeXml}}</c>.</summary>
+    /// <returns>The variant, or null when no retained variant is one.</returns>
+    public {{{dataType}}}? As{{vendorExtensions.variantName}}()
+    {
+        return MatchedInstances.OfType<{{{dataType}}}>().FirstOrDefault();
+    }
+{{/composedSchemas.anyOf}}
 
     private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
     {

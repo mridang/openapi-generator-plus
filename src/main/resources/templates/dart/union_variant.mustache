@@ -1,6 +1,6 @@
 {{^isArray}}{{^isMap}}{{^isByteArray}}
   /// Wraps a [{{{dataType}}}] as this union.
-  const {{classname}}.{{#lambda.camelcase}}{{{dataType}}}{{/lambda.camelcase}}({{{dataType}}} value) : _value = value;
+  const {{classname}}.from{{#lambda.pascalcase}}{{{dataType}}}{{/lambda.pascalcase}}({{{dataType}}} value) : _value = value;
 
   /// Whether this union holds a [{{{dataType}}}].
   bool get is{{#lambda.pascalcase}}{{{dataType}}}{{/lambda.pascalcase}} => _value is {{{dataType}}};
