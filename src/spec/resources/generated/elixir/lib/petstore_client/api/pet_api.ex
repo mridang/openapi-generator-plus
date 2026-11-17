@@ -238,12 +238,14 @@ defmodule PetstoreClient.Api.PetApi do
   @type t :: %__MODULE__{
           api_client: term(),
           config: PetstoreClient.Configuration.t(),
-          authenticator: term()
+          authenticator: term(),
+          scheme_authenticators: %{optional(String.t()) => term()}
         }
 
   defstruct api_client: nil,
             config: nil,
-            authenticator: nil
+            authenticator: nil,
+            scheme_authenticators: %{}
 
   @doc """
   Create a new PetApi instance.
@@ -252,18 +254,25 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `api_client` - The HTTP transport client (optional, defaults to DefaultApiClient).
     * `config` - API-level configuration (optional, defaults to Configuration.default()).
+    * `authenticator` - The default credential (optional): used by an operation
+      when none of `scheme_authenticators` matches the schemes it names.
+    * `scheme_authenticators` - The credential of each security scheme, by the
+      scheme's name in the spec (optional).
 
   """
-  @spec new(term(), PetstoreClient.Configuration.t(), term()) :: t()
+  @spec new(term(), PetstoreClient.Configuration.t(), term(), %{optional(String.t()) => term()}) ::
+          t()
   def new(
         api_client \\ nil,
         config \\ PetstoreClient.Configuration.default(),
-        authenticator \\ nil
+        authenticator \\ nil,
+        scheme_authenticators \\ %{}
       ) do
     %__MODULE__{
       api_client: api_client || PetstoreClient.DefaultApiClient.new(),
       config: config,
-      authenticator: authenticator
+      authenticator: authenticator,
+      scheme_authenticators: scheme_authenticators
     }
   end
 
@@ -273,9 +282,9 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet` - Pet - Create a new pet in the store
 
-    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`) and an optional per-operation authenticator in `auth`.
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
@@ -354,14 +363,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Per-operation auth is sourced solely from the Options struct's optional
-    # `auth` field (the uniform "auth folded into Options" model shared by every
-    # SDK). When the Options auth is absent it falls back to the API instance's
-    # configured authenticator so auth-omitted calls use the Configuration
-    # credentials. There is deliberately no separate `opts[:auth]` channel: a
-    # per-call keyword override would silently win over an explicit
-    # `options.auth`, which no other SDK permits.
-    auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["apiKeyHeader", "petStoreBearer"])
 
     if is_nil(pet) do
       raise ArgumentError,
@@ -477,9 +483,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -542,9 +550,9 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `pet_treatment` - PetTreatment
 
-    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`) and an optional per-operation authenticator in `auth`.
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
@@ -632,14 +640,9 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Per-operation auth is sourced solely from the Options struct's optional
-    # `auth` field (the uniform "auth folded into Options" model shared by every
-    # SDK). When the Options auth is absent it falls back to the API instance's
-    # configured authenticator so auth-omitted calls use the Configuration
-    # credentials. There is deliberately no separate `opts[:auth]` channel: a
-    # per-call keyword override would silently win over an explicit
-    # `options.auth`, which no other SDK permits.
-    auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
+    # The operation names no scheme the client can hold a credential for; pass
+    # nil so BaseApi falls back to the client-level authenticator.
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -699,9 +702,9 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer() - Pet id to delete
 
-    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie) and an optional per-operation authenticator in `auth`.
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
 
@@ -764,14 +767,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Per-operation auth is sourced solely from the Options struct's optional
-    # `auth` field (the uniform "auth folded into Options" model shared by every
-    # SDK). When the Options auth is absent it falls back to the API instance's
-    # configured authenticator so auth-omitted calls use the Configuration
-    # credentials. There is deliberately no separate `opts[:auth]` channel: a
-    # per-call keyword override would silently win over an explicit
-    # `options.auth`, which no other SDK permits.
-    auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["adminBasic", "machineAuth"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -950,9 +950,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1104,9 +1106,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(born_on) do
       raise ArgumentError,
@@ -1242,9 +1246,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
     path = "/pet/findByStatus"
     query_params = []
     # allowEmptyValue means the server tolerates an empty value IF the caller
@@ -1461,9 +1467,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1620,9 +1628,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1776,9 +1786,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1916,9 +1928,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2064,9 +2078,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2218,9 +2234,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(name) or name == "" do
       raise ArgumentError,
@@ -2410,9 +2428,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2555,9 +2575,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2715,9 +2737,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2943,9 +2967,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -3313,9 +3339,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -3457,9 +3485,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -3633,9 +3663,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -3778,9 +3810,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -3941,9 +3975,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -4081,9 +4117,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -4222,9 +4260,11 @@ defmodule PetstoreClient.Api.PetApi do
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
-    # Operation inherits the global security requirement; pass nil so BaseApi
-    # falls back to the client-level authenticator.
-    auth = nil
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
 
     if is_nil(pet_id) do
       raise ArgumentError,

@@ -5,8 +5,8 @@ defmodule {{moduleName}}.Api.Options.{{className}} do
   Options for the `{{operationId}}` operation.
 {{#callSettingsOnly}}
 
-  This operation has no query, header, form or cookie parameter and no security, so the
-  options carry only the per-call settings `timeout`, `headers` and `max_retries`.
+  This operation has no query, header, form or cookie parameter, so the options carry
+  only the per-call settings `timeout`, `headers` and `max_retries`.
 {{/callSettingsOnly}}
 {{#params}}
 {{#examples}}
@@ -27,10 +27,7 @@ defmodule {{moduleName}}.Api.Options.{{className}} do
 {{/params}}
           timeout: pos_integer() | nil,
           headers: %{optional(String.t()) => String.t()} | nil,
-          max_retries: non_neg_integer() | nil{{#hasAuthField}},{{/hasAuthField}}
-{{#hasAuthField}}
-          auth: term() | nil
-{{/hasAuthField}}
+          max_retries: non_neg_integer() | nil
         }
 
   defstruct [
@@ -44,11 +41,6 @@ defmodule {{moduleName}}.Api.Options.{{className}} do
     # same three keys and wins over these.
     timeout: nil,
     headers: nil,
-    max_retries: nil{{#hasAuthField}},{{/hasAuthField}}
-{{#hasAuthField}}
-    # Overrides the client's configured credentials for this call only.
-    # Falls back to the API instance's configured authenticator when nil.
-    auth: nil
-{{/hasAuthField}}
+    max_retries: nil
   ]
 end

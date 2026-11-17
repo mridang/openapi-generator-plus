@@ -17,6 +17,12 @@ defmodule PetstoreClient.Client do
   `ApiClient` is injected so that authentication HTTP calls (token exchange,
   discovery) use the same transport configuration as regular API calls.
 
+  Each security scheme of the API also has one optional credential, named
+  after the scheme: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. An operation uses the
+  credential of the first scheme its own security requirement lists that the
+  client holds. When it holds none of them, the operation uses the
+  authenticator. There is no per-call credential.
+
   ## Examples
 
       # Default transport
@@ -28,11 +34,15 @@ defmodule PetstoreClient.Client do
         timeout: 5000
       )
       client = PetstoreClient.Client.new(authenticator, transport)
+
+      # One credential per security scheme, no default authenticator
+      client = PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
   """
 
   @type t :: %__MODULE__{
           api_client: PetstoreClient.DefaultApiClient.t(),
-          authenticator: term(),
+          authenticator: term() | nil,
+          schemes: %{optional(String.t()) => term()},
           pet: PetstoreClient.Api.PetApi.t(),
           store: PetstoreClient.Api.StoreApi.t()
         }
@@ -41,7 +51,27 @@ defmodule PetstoreClient.Client do
     :api_client,
     :authenticator,
     :pet,
-    :store
+    :store,
+    schemes: %{}
+  ]
+
+  # The security schemes the client takes a credential for: the keyword that
+  # names one and the scheme's name in the spec, in the order the spec
+  # declares them.
+  @schemes [
+    {:pet_store_basic, "petStoreBasic"},
+    {:admin_basic, "adminBasic"},
+    {:pet_store_bearer, "petStoreBearer"},
+    {:service_token, "serviceToken"},
+    {:api_key_header, "apiKeyHeader"},
+    {:internal_api_key, "internalApiKey"},
+    {:api_key_query, "apiKeyQuery"},
+    {:session_cookie, "sessionCookie"},
+    {:machine_auth, "machineAuth"},
+    {:legacy_auth, "legacyAuth"},
+    {:user_auth, "userAuth"},
+    {:browser_auth, "browserAuth"},
+    {:sso_auth, "ssoAuth"}
   ]
 
   @doc """
@@ -53,33 +83,68 @@ defmodule PetstoreClient.Client do
 
   ## Parameters
 
-    * `authenticator` - Provides host URL and auth headers.
+    * `authenticator` - Provides host URL and auth headers. It is the default
+      credential: an operation uses it when the client holds no credential of
+      the security scheme the operation names. May be `nil` when `schemes`
+      gives at least one credential.
     * `transport_options` - HTTP transport configuration (proxy, TLS, timeouts,
       etc.).
+    * `schemes` - A keyword list with one optional credential per security
+      scheme, named after the scheme (`pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`). An operation
+      uses the credential of the first scheme its spec lists that is given
+      here. A key that is not a scheme of this API raises `ArgumentError`. The
+      base URL comes from the first credential given, `authenticator` first.
 
   """
-  @spec new(term(), PetstoreClient.TransportOptions.t() | nil) :: t()
-  def new(authenticator, transport_options \\ nil) do
+  @spec new(term() | nil, PetstoreClient.TransportOptions.t() | nil, keyword()) :: t()
+  def new(authenticator, transport_options \\ nil, schemes \\ []) do
+    schemes = Keyword.validate!(schemes, Keyword.keys(@schemes))
+
+    credentials =
+      Enum.flat_map(@schemes, fn {key, scheme_id} ->
+        case Keyword.get(schemes, key) do
+          nil -> []
+          credential -> [{scheme_id, credential}]
+        end
+      end)
+
+    if is_nil(authenticator) and credentials == [] do
+      raise ArgumentError,
+            "At least one credential is required: pass an authenticator or the credential of a security scheme"
+    end
+
     transport_options = transport_options || PetstoreClient.TransportOptions.new()
     api_client = PetstoreClient.DefaultApiClient.new(transport_options)
 
-    authenticator =
-      if is_map(authenticator) and Map.has_key?(authenticator, :__struct__) and
-           function_exported?(authenticator.__struct__, :set_api_client, 2) do
-        authenticator.__struct__.set_api_client(authenticator, api_client)
-      else
-        authenticator
-      end
+    authenticator = authenticator && inject_api_client(authenticator, api_client)
+
+    credentials =
+      Enum.map(credentials, fn {scheme_id, credential} ->
+        {scheme_id, inject_api_client(credential, api_client)}
+      end)
+
+    host_source = authenticator || credentials |> hd() |> elem(1)
+    credentials = Map.new(credentials)
 
     config =
-      PetstoreClient.Configuration.new(base_url: authenticator.__struct__.host(authenticator))
+      PetstoreClient.Configuration.new(base_url: host_source.__struct__.host(host_source))
 
     %__MODULE__{
       api_client: api_client,
       authenticator: authenticator,
-      pet: PetstoreClient.Api.PetApi.new(api_client, config, authenticator),
-      store: PetstoreClient.Api.StoreApi.new(api_client, config, authenticator)
+      schemes: credentials,
+      pet: PetstoreClient.Api.PetApi.new(api_client, config, authenticator, credentials),
+      store: PetstoreClient.Api.StoreApi.new(api_client, config, authenticator, credentials)
     }
+  end
+
+  defp inject_api_client(authenticator, api_client) do
+    if is_map(authenticator) and Map.has_key?(authenticator, :__struct__) and
+         function_exported?(authenticator.__struct__, :set_api_client, 2) do
+      authenticator.__struct__.set_api_client(authenticator, api_client)
+    else
+      authenticator
+    end
   end
 
   @doc """
@@ -128,20 +193,26 @@ defmodule PetstoreClient.Client do
   end
 
   @doc """
-  Releases the transport this client created and the processes its
-  authenticator started (OAuth2 token managers, OpenID Connect discovery).
+  Closes the client. Idempotent.
 
-  Idempotent. After it returns, a call through this client raises. A transport
-  supplied through `TransportOptions` `req_options` is never closed by the SDK.
+  A call that starts after `close/1` raises `RuntimeError` ("ApiClient has been
+  closed and can no longer send requests"). A call already in flight finishes
+  first. The processes the SDK started for the client (the token managers and
+  the discovery cache of the authenticators) are stopped when the last such
+  call is over, or at once when none is in flight. The HTTP pool belongs to Req
+  and Finch, and a transport supplied through `TransportOptions` `req_options`
+  is never closed by the SDK.
   """
   @spec close(t()) :: :ok
-  def close(%__MODULE__{api_client: api_client, authenticator: authenticator}) do
-    if is_map(authenticator) and Map.has_key?(authenticator, :__struct__) and
-         Code.ensure_loaded?(authenticator.__struct__) and
-         function_exported?(authenticator.__struct__, :close, 1) do
-      authenticator.__struct__.close(authenticator)
+  def close(%__MODULE__{api_client: api_client} = client) do
+    :ok = PetstoreClient.DefaultApiClient.close(api_client)
+
+    if PetstoreClient.DefaultApiClient.claim_release(api_client) do
+      PetstoreClient.Api.BaseApi.release_authenticators([
+        client.authenticator | Map.values(client.schemes)
+      ])
     end
 
-    PetstoreClient.DefaultApiClient.close(api_client)
+    :ok
   end
 end

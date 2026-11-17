@@ -3554,6 +3554,54 @@
    ],
    "value": "*?*",
    "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the credential arguments of each scheme authenticator are optional so the variable can supply them; a missing one throws ConfigurationError at construction. Drop this row once the majority has it, as the kotlin rows above"
+  },
+  {
+   "element": [
+    "client.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "F857 owner decision: the elixir client takes the optional credentials of the security schemes as one trailing keyword list named after the schemes (Client.new(authenticator, transport_options, pet_store_basic: credential)), because elixir has neither named optional arguments nor overloads on a function that already has two optional positional ones"
+  },
+  {
+   "element": [
+    "*api.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "F857 owner decision: an elixir API struct also takes the per-scheme credentials the client holds (an optional fourth scheme_authenticators map keyed by the scheme's name in the spec), which an operation resolves for the schemes its spec lists; the (api_client, config, authenticator) call site is unchanged"
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "F857 owner decision: no per-call scheme override. An operation uses the credential of the scheme its spec requires, so the elixir Options struct carries no auth field. Delete this rule when the other languages land the same decision."
+  },
+  {
+   "element": [
+    "petfood.fromdryfood",
+    "petfood.fromwetfood",
+    "pettreatment.frommedication",
+    "pettreatment.fromsurgery",
+    "treatmentrecord.frommedication",
+    "treatmentrecord.fromsurgery"
+   ],
+   "aspect": "member",
+   "languages": [
+    "elixir"
+   ],
+   "value": "extra*",
+   "reason": "elixir has no wrapper object for a oneOf or anyOf: the union value is the variant struct itself, so the typed factory is from_<variant>/1, a checked pass-through that raises ArgumentError for another value; the languages with a wrapper build it through its constructor or a cases enum, which the surface check does not read as a member"
   }
  ]
 }

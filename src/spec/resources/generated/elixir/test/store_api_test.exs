@@ -312,6 +312,48 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
+  # F857: an operation declared `security: []` sends no credential, however many
+  # a client holds; an operation that inherits the root requirement (petStoreBasic
+  # or petStoreBearer) uses the first of those two the client holds.
+  test "get_inventory (security: []) sends no credential even when the client holds several" do
+    {:ok, name} = StubApiClient.start(~s({"available":1}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    default = %{auth_headers: %{"Authorization" => "default"}}
+    schemes = %{"petStoreBasic" => %{auth_headers: %{"Authorization" => "basic"}}}
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config, default, schemes)
+
+    assert {:ok, _inventory} = PetstoreClient.Api.StoreApi.get_inventory(api)
+
+    refute Map.has_key?(StubApiClient.captured(name).headers, "Authorization")
+
+    Agent.stop(name)
+  end
+
+  test "an operation that inherits the root security uses the first scheme of that requirement the client holds" do
+    {:ok, name} = StubApiClient.start(~s({"id":1}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    bearer = %{auth_headers: %{"Authorization" => "bearer"}}
+    basic = %{auth_headers: %{"Authorization" => "basic"}}
+    order = %PetstoreClient.Models.Order{id: 1}
+
+    api =
+      PetstoreClient.Api.StoreApi.new(StubApiClient, config, nil, %{"petStoreBearer" => bearer})
+
+    assert {:ok, _order} = PetstoreClient.Api.StoreApi.place_order(api, order)
+    assert StubApiClient.captured(name).headers["Authorization"] == "bearer"
+
+    both =
+      PetstoreClient.Api.StoreApi.new(StubApiClient, config, nil, %{
+        "petStoreBearer" => bearer,
+        "petStoreBasic" => basic
+      })
+
+    assert {:ok, _order} = PetstoreClient.Api.StoreApi.place_order(both, order)
+    assert StubApiClient.captured(name).headers["Authorization"] == "basic"
+
+    Agent.stop(name)
+  end
+
   test "get_by_swatch without options sends only the path value" do
     {:ok, name} = StubApiClient.start(~s({"id":1,"name":"sample"}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")

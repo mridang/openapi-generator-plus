@@ -1821,6 +1821,45 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
+  # F316: building a model never validates. A value the schema would refuse (a
+  # wrong type, an atom outside an enum) builds fine; the unknown enum string
+  # fails loudly, and only when it is decoded.
+  describe "constructing a model does not validate, decoding does" do
+    test "wrong-typed and out-of-range values build without raising" do
+      assert %PetstoreClient.Models.Order{
+               id: "not a number",
+               quantity: :many,
+               status: :no_such_member
+             } =
+               %PetstoreClient.Models.Order{
+                 id: "not a number",
+                 quantity: :many,
+                 status: :no_such_member
+               }
+
+      assert %PetstoreClient.Models.StockItem{priority: 99, availability: "no-such-member"} =
+               %PetstoreClient.Models.StockItem{priority: 99, availability: "no-such-member"}
+
+      assert %PetstoreClient.Models.Pet{name: 7, photo_urls: "not a list"} =
+               %PetstoreClient.Models.Pet{name: 7, photo_urls: "not a list"}
+    end
+
+    test "an unknown enum string fails when it is decoded" do
+      error =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(~s({"status":"no-such-member"}), "Order")
+        end
+
+      assert Exception.message(error) =~ "no-such-member"
+    end
+
+    test "a wrong-typed property fails when it is decoded" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"id":"not a number"}), "Order")
+      end
+    end
+  end
+
   describe "discriminator is an enforced key" do
     test "building a subtype without the discriminator raises" do
       error =

@@ -21,6 +21,8 @@ defmodule {{moduleName}}.DefaultApiClient do
 
   @behaviour {{moduleName}}.ApiClient
 
+  @closed_message "ApiClient has been closed and can no longer send requests"
+
   # `base_req` holds a `Req.Request` and `closed` holds an `:atomics`
   # reference; both are internal transport plumbing. They are typed as
   # `term()` and the struct type is `@opaque` so the Req/atomics types never
@@ -32,11 +34,13 @@ defmodule {{moduleName}}.DefaultApiClient do
             closed: term()
           }
 
-  # `closed` carries an `:atomics` reference — a process-less piece of
-  # mutable shared state. `close/1` flips it to 1; `send_request` checks
-  # it and raises an SDK error on use-after-close. This gives the uniform
-  # closed-flag + SDK-error contract without a per-client process, despite
-  # the struct itself being immutable.
+  # `closed` carries an `:atomics` reference: process-less, shared mutable
+  # state for the struct, which is itself immutable. Slot 1 holds the call
+  # state: bit 0 is the closed flag and the rest counts the operations in
+  # flight (two per operation). Slot 2 is set once, by the one caller that
+  # claims the release of what the client started. `close/1` sets the closed
+  # flag; a call that starts after it raises an SDK error, a call admitted
+  # before it runs to the end.
   defstruct [:transport_options, :base_req, :proxy_auth_header, :closed]
 
   @doc """
@@ -57,7 +61,7 @@ defmodule {{moduleName}}.DefaultApiClient do
       transport_options: opts,
       base_req: Req.new(merge_req_options(opts.req_options, request_options(opts))),
       proxy_auth_header: build_proxy_auth_header(opts.proxy),
-      closed: :atomics.new(1, signed: false)
+      closed: :atomics.new(2, signed: false)
     }
   end
 
@@ -185,9 +189,11 @@ defmodule {{moduleName}}.DefaultApiClient do
       when is_list(request_opts) do
     # Close lifecycle: use-after-close is a wrong call order, so it
     # raises RuntimeError rather than letting the call proceed against a
-    # logically closed client.
+    # logically closed client. While an operation admitted before `close/1` is
+    # still in flight the client serves that operation's own requests (a token
+    # fetch, a retry), so only a closed client with nothing in flight refuses.
     if client.closed != nil and :atomics.get(client.closed, 1) == 1 do
-      raise RuntimeError, "ApiClient has been closed and can no longer send requests"
+      raise RuntimeError, @closed_message
     end
 
     # A malformed or non-HTTP request URL is a caller mistake, not a network
@@ -633,19 +639,75 @@ defmodule {{moduleName}}.DefaultApiClient do
   end
 
   @doc """
-  Releases any resources held by this client and marks it closed.
+  Marks this client closed. Idempotent.
 
   Req/Finch owns a globally supervised connection pool, so there is no
-  socket to tear down here, but `close/1` flips the client's closed flag
-  so any subsequent `send_request/5,6` raises a typed SDK error instead
-  of silently proceeding (uniform use-after-close contract). Idempotent.
+  socket to tear down here. A call that starts after `close/1` raises a typed
+  SDK error instead of silently proceeding (uniform use-after-close contract);
+  an operation already in flight finishes. What the SDK started for the client
+  (the authenticators' processes) is released by whoever wins
+  `claim_release/1`: `close/1` of the client when nothing is in flight, else
+  the last operation to finish.
   """
   @impl {{moduleName}}.ApiClient
   @spec close(t()) :: :ok
-  def close(%__MODULE__{closed: closed}) do
-    if closed != nil, do: :atomics.put(closed, 1, 1)
-    :ok
+  def close(%__MODULE__{closed: nil}), do: :ok
+
+  def close(%__MODULE__{closed: state}), do: set_closed(state)
+
+  defp set_closed(state) do
+    current = :atomics.get(state, 1)
+
+    cond do
+      band(current, 1) == 1 -> :ok
+      :atomics.compare_exchange(state, 1, current, bor(current, 1)) == :ok -> :ok
+      true -> set_closed(state)
+    end
   end
+
+  @doc false
+  # Admits one operation: it counts as in flight until `finish_request/1`. A
+  # closed client refuses with the canonical error, so a new call fails and an
+  # admitted one cannot be cut off. Any other transport (a custom `api_client`)
+  # is not counted and admits everything.
+  @spec begin_request(term()) :: :ok
+  def begin_request(%__MODULE__{closed: state} = client) when state != nil do
+    current = :atomics.get(state, 1)
+
+    cond do
+      band(current, 1) == 1 -> raise RuntimeError, @closed_message
+      :atomics.compare_exchange(state, 1, current, current + 2) == :ok -> :ok
+      true -> begin_request(client)
+    end
+  end
+
+  def begin_request(_client), do: :ok
+
+  @doc false
+  # Ends one admitted operation.
+  @spec finish_request(term()) :: :ok
+  def finish_request(%__MODULE__{closed: state} = client) when state != nil do
+    current = :atomics.get(state, 1)
+
+    cond do
+      current < 2 -> :ok
+      :atomics.compare_exchange(state, 1, current, current - 2) == :ok -> :ok
+      true -> finish_request(client)
+    end
+  end
+
+  def finish_request(_client), do: :ok
+
+  @doc false
+  # True for exactly one caller, once the client is closed and nothing is in
+  # flight: that caller releases what the SDK started for the client. False
+  # while it is open, while an operation is in flight and after the release.
+  @spec claim_release(term()) :: boolean()
+  def claim_release(%__MODULE__{closed: state}) when state != nil do
+    :atomics.get(state, 1) == 1 and :atomics.compare_exchange(state, 2, 0, 1) == :ok
+  end
+
+  def claim_release(_client), do: false
 
   @doc """
   The static portion of the Req options: everything that depends on

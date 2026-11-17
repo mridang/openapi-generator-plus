@@ -11,12 +11,12 @@ defmodule PetstoreClient.Api.PetApiTest do
         default_headers: %{"Authorization" => "Bearer test-token"}
       )
 
-    api = PetstoreClient.Api.PetApi.new(nil, config)
+    api = PetstoreClient.Api.PetApi.new(nil, config, auth)
 
-    %{api: api, auth: auth, base_url: base_url}
+    %{api: api, base_url: base_url}
   end
 
-  test "add_pet creates a new pet", %{api: api, auth: auth} do
+  test "add_pet creates a new pet", %{api: api} do
     pet = %PetstoreClient.Models.Pet{
       id: :rand.uniform(1_000_000_000),
       name: "TestDog",
@@ -24,8 +24,7 @@ defmodule PetstoreClient.Api.PetApiTest do
       status: "available"
     }
 
-    options = %PetstoreClient.Api.Options.AddPetOptions{auth: auth}
-    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet(api, pet, options)
+    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet(api, pet)
     assert result != nil
   end
 
@@ -58,10 +57,9 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "delete_pet deletes a pet", %{api: api, auth: auth} do
+  test "delete_pet deletes a pet", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
-    options = %PetstoreClient.Api.Options.DeletePetOptions{auth: auth}
-    assert {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet(api, pet_id, options)
+    assert {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet(api, pet_id)
   end
 
   test "set_pet_avatar uploads binary image data", %{api: api} do
@@ -199,8 +197,6 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
-  # The docs mention the per-operation authenticator only where the operation's
-  # Options struct has an `auth` field.
   defp function_docs(name) do
     {:docs_v1, _anno, _lang, _format, _moduledoc, _metadata, docs} =
       Code.fetch_docs(PetstoreClient.Api.PetApi)
@@ -210,42 +206,35 @@ defmodule PetstoreClient.Api.PetApiTest do
         do: text
   end
 
-  test "docs name the auth field only on operations whose options carry it" do
+  test "docs describe the options struct and never a per-call authenticator" do
     settings = "Optional per-call settings (`timeout`, `headers`, `max_retries`)"
-
-    options_auth =
-      "* `options` - " <> settings <> " and an optional per-operation authenticator in `auth`."
-
-    options_both =
-      "* `options` - " <>
-        settings <>
-        ", the optional parameters (query, header, form, cookie) and an optional per-operation authenticator in `auth`."
 
     options_plain =
       "* `options` - " <> settings <> ", the optional parameters (query, header, form, cookie)."
 
     options_settings_only = "* `options` - " <> settings <> "."
 
-    opts_auth =
-      "* `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here."
+    for name <- [:add_pet, :delete_pet, :get_pet_by_name, :get_pet_avatar] do
+      [doc] = function_docs(name)
+      refute doc =~ "`auth`"
+      refute doc =~ "per-operation authenticator"
+    end
 
     [add_pet] = function_docs(:add_pet)
-    assert add_pet =~ options_auth
-    assert add_pet =~ opts_auth
+    assert add_pet =~ options_settings_only
+    assert add_pet =~ "* `opts` - Keyword list.\n"
 
     [delete_pet] = function_docs(:delete_pet)
-    assert delete_pet =~ options_both
-    assert delete_pet =~ opts_auth
+    assert delete_pet =~ options_plain
+    assert delete_pet =~ "* `opts` - Keyword list.\n"
 
     [by_name] = function_docs(:get_pet_by_name)
     assert by_name =~ options_plain
     assert by_name =~ "* `opts` - Keyword list.\n"
-    refute by_name =~ "`auth`"
 
     [settings_only] = function_docs(:get_pet_avatar)
     assert settings_only =~ options_settings_only
     assert settings_only =~ "* `opts` - Keyword list.\n"
-    refute settings_only =~ "`auth`"
   end
 
   test "operation and parameter prose reaches the docs verbatim, never interpolated or entity-escaped" do
@@ -605,46 +594,55 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  # RFC-6265 cookie-value validation on an operation cookie param. deletePet
-  # declares an `api_key` cookie param that is interpolated raw into the Cookie
-  # header; a value carrying CR/LF or a control char is a header-injection
-  # vector and must FAIL CLOSED with the same ArgumentError the auth-cookie
-  # path raises, before any request reaches the wire. A clean value passes.
-  test "delete_pet cookie api_key with CRLF fails closed with ArgumentError" do
+  # RFC 6265 cookie values (F840). deletePet declares an `api_key` cookie
+  # parameter that goes into the Cookie header exactly as given when every
+  # character is a legal cookie-octet (printable ASCII except space, double
+  # quote, comma, semicolon and backslash). Anything else is a caller mistake
+  # (the caller pre-encodes) and fails closed with ArgumentError before any
+  # request reaches the wire.
+  @illegal_cookie_values [
+    "a\r\nX-Injected: yes",
+    "a\rb",
+    "a\nb",
+    "a" <> <<0>> <> "b",
+    "a;b",
+    "a b",
+    "a,b",
+    ~S(a"b),
+    ~S(a\b),
+    "caf\u00E9",
+    "tab\tvalue"
+  ]
+
+  @legal_cookie_values [
+    "session-abc123",
+    "a=b==",
+    "%41%2F",
+    "x/y+z",
+    "!#$%&'()*+-./:<=>?@[]^_`{|}~",
+    "A.B-C_D"
+  ]
+
+  test "delete_pet fails closed with ArgumentError for a cookie value that is not a legal cookie-octet string" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
-    auth = %{auth_headers: %{"Authorization" => "Bearer t"}}
 
-    for bad <- ["a\r\nX-Injected: yes", "a\rb", "a\nb", "a" <> <<0>> <> "b"] do
-      assert_raise ArgumentError, fn ->
-        PetstoreClient.Api.PetApi.delete_pet(
-          api,
-          1,
-          %PetstoreClient.Api.Options.DeletePetOptions{api_key: bad, auth: auth}
-        )
-      end
+    for bad <- @illegal_cookie_values do
+      error =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.Api.PetApi.delete_pet(
+            api,
+            1,
+            %PetstoreClient.Api.Options.DeletePetOptions{api_key: bad}
+          )
+        end
+
+      assert Exception.message(error) =~ "RFC 6265"
     end
 
     # No request reached the wire for any rejected value.
     assert PathCapturingApiClient.captured_url(name) == ""
-    Agent.stop(name)
-  end
-
-  test "delete_pet cookie api_key with a clean value is accepted" do
-    {:ok, name} = PathCapturingApiClient.start()
-    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
-    auth = %{auth_headers: %{"Authorization" => "Bearer t"}}
-
-    {:ok, _result} =
-      PetstoreClient.Api.PetApi.delete_pet(
-        api,
-        1,
-        %PetstoreClient.Api.Options.DeletePetOptions{api_key: "session-abc123", auth: auth}
-      )
-
-    refute PathCapturingApiClient.captured_url(name) == ""
     Agent.stop(name)
   end
 
@@ -811,7 +809,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.raw_body != nil
   end
 
-  test "add_pet_with_http_info returns http metadata", %{api: api, auth: auth} do
+  test "add_pet_with_http_info returns http metadata", %{api: api} do
     pet = %PetstoreClient.Models.Pet{
       id: :rand.uniform(1_000_000_000),
       name: "HttpInfoDog",
@@ -819,8 +817,7 @@ defmodule PetstoreClient.Api.PetApiTest do
       status: "available"
     }
 
-    options = %PetstoreClient.Api.Options.AddPetOptions{auth: auth}
-    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet_with_http_info(api, pet, options)
+    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet_with_http_info(api, pet)
     assert result.status_code >= 200
     assert result.status_code < 300
     assert result.data != nil
@@ -841,17 +838,10 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.status_code < 300
   end
 
-  test "delete_pet_with_http_info returns http metadata", %{api: api, auth: auth} do
+  test "delete_pet_with_http_info returns http metadata", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
-    options = %PetstoreClient.Api.Options.DeletePetOptions{auth: auth}
-
-    assert {:ok, result} =
-             PetstoreClient.Api.PetApi.delete_pet_with_http_info(
-               api,
-               pet_id,
-               options
-             )
+    assert {:ok, result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, pet_id)
 
     assert result.status_code >= 200
     assert result.status_code < 300
@@ -873,15 +863,16 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.data != nil
   end
 
-  # auth-folded-into-options: the uniform model puts a per-operation `auth`
-  # field on each authed operation's Options struct. These three tests verify
-  # (1) auth supplied via Options reaches the wire, (2) an auth-omitted call
-  # falls back to the API instance's configured authenticator, and (3) an
-  # unsecured operation takes no auth field/opt at all.
+  # F857: the client holds one credential per security scheme, named after the
+  # scheme, and an operation uses the credential of the FIRST scheme in its own
+  # security order that the client holds; when it holds none of them the
+  # operation uses the client-level authenticator. There is no per-call
+  # credential. deletePet accepts adminBasic or machineAuth (in that order), and
+  # addPet apiKeyHeader or petStoreBearer.
   #
-  # BaseApi merges auth headers only for a plain map carrying an `:auth_headers`
-  # key (`Map.has_key?(effective_auth, :auth_headers)`), so the authenticators
-  # below are plain maps rather than the generated authenticator structs.
+  # BaseApi merges the headers of a plain map carrying an `:auth_headers` key as
+  # well as those of an authenticator struct, so the credentials below are plain
+  # maps that name themselves in the header they send.
   defmodule HeaderCapturingApiClient do
     # A module-style api_client: BaseApi calls send_request/4 on it
     # directly. That shape is not the PetstoreClient.ApiClient behaviour,
@@ -909,98 +900,117 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
-  # per-call-auth-override: an authenticator struct passed to the BASE
-  # operation method applies its headers to the outgoing request, overriding
-  # the config default header.
-  test "per-call auth override is applied on the base method" do
-    {:ok, name} = HeaderCapturingApiClient.start()
+  defp credential(label), do: %{auth_headers: %{"Authorization" => label}}
 
-    config =
-      PetstoreClient.Configuration.new(
-        base_url: "http://localhost",
-        default_headers: %{"Authorization" => "Bearer config-default"}
-      )
-
-    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
-    call_auth = PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "per-call-token")
-
-    options = %PetstoreClient.Api.Options.DeletePetOptions{auth: call_auth}
-    {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet(api, 1, options)
-
-    headers = HeaderCapturingApiClient.captured_headers(name)
-    assert headers["Authorization"] == "Bearer per-call-token"
-
-    Agent.stop(name)
-  end
-
-  test "authed op: auth supplied via Options reaches the wire" do
+  defp delete_with(default, schemes) do
     {:ok, name} = HeaderCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
-
-    call_auth = %{auth_headers: %{"Authorization" => "Bearer per-call-token"}}
-
-    options = %PetstoreClient.Api.Options.DeletePetOptions{auth: call_auth}
-    {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, options)
-
-    headers = HeaderCapturingApiClient.captured_headers(name)
-    assert headers["Authorization"] == "Bearer per-call-token"
-
-    Agent.stop(name)
-  end
-
-  test "authed op: auth omitted falls back to the configured default credentials" do
-    {:ok, name} = HeaderCapturingApiClient.start()
-    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    default_auth = %{auth_headers: %{"Authorization" => "Bearer configured-default"}}
-    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config, default_auth)
-
-    # No Options auth and no :auth opt — must use the api's configured authenticator.
+    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config, default, schemes)
     {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1)
-
     headers = HeaderCapturingApiClient.captured_headers(name)
-    assert headers["Authorization"] == "Bearer configured-default"
-
     Agent.stop(name)
+    headers
   end
 
-  test "unsecured op (get_pet_by_id) takes no auth field or opt" do
-    {:ok, name} = HeaderCapturingApiClient.start()
-    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    # No configured authenticator: get_pet_by_id declares `security: []`, so it
-    # takes no Options arg and no `:auth` opt — the call below compiles only
-    # because the signature is (api, pet_id, opts) with no auth anywhere.
-    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
+  test "an operation uses the credential of the scheme its spec names" do
+    headers = delete_with(nil, %{"machineAuth" => credential("machine")})
 
-    {:ok, _result} = PetstoreClient.Api.PetApi.get_pet_by_id_with_http_info(api, 1)
+    assert headers["Authorization"] == "machine"
+  end
 
-    headers = HeaderCapturingApiClient.captured_headers(name)
+  test "an operation uses the first scheme of its own order that the client holds" do
+    both =
+      delete_with(nil, %{
+        "machineAuth" => credential("machine"),
+        "adminBasic" => credential("admin")
+      })
+
+    assert both["Authorization"] == "admin"
+
+    only_second = delete_with(nil, %{"machineAuth" => credential("machine")})
+    assert only_second["Authorization"] == "machine"
+  end
+
+  test "a credential for a scheme the operation does not name is never sent" do
+    headers =
+      delete_with(nil, %{
+        "petStoreBearer" => credential("bearer"),
+        "apiKeyHeader" => credential("key")
+      })
+
     refute Map.has_key?(headers, "Authorization")
+  end
+
+  test "an operation falls back to the client-level authenticator when no scheme matches" do
+    headers = delete_with(credential("default"), %{"petStoreBearer" => credential("bearer")})
+
+    assert headers["Authorization"] == "default"
+  end
+
+  test "a held scheme wins over the client-level authenticator" do
+    headers = delete_with(credential("default"), %{"adminBasic" => credential("admin")})
+
+    assert headers["Authorization"] == "admin"
+  end
+
+  test "an operation uses the scheme credential of its own security, not another operation's" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+
+    api =
+      PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config, nil, %{
+        "apiKeyHeader" => credential("key"),
+        "adminBasic" => credential("admin")
+      })
+
+    pet = %PetstoreClient.Models.Pet{name: "n", photo_urls: ["u"]}
+    {:ok, _result} = PetstoreClient.Api.PetApi.add_pet_with_http_info(api, pet)
+    assert HeaderCapturingApiClient.captured_headers(name)["Authorization"] == "key"
+
+    {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1)
+    assert HeaderCapturingApiClient.captured_headers(name)["Authorization"] == "admin"
 
     Agent.stop(name)
   end
 
-  # per-op-auth-precedence: per-operation auth is sourced SOLELY from the
-  # Options struct's `auth` field. There is no `opts[:auth]` channel — an
-  # `:auth` entry in the trailing keyword list is rejected as an unknown key, so
-  # it can never override an explicit `options.auth`. 11 sibling SDKs source
-  # per-op auth only from `options.auth`; this pins Elixir to the same contract.
-  test "per-op auth comes only from options.auth; opts[:auth] is rejected" do
+  test "a call without any credential sends none" do
+    headers = delete_with(nil, %{})
+
+    refute Map.has_key?(headers, "Authorization")
+  end
+
+  test "delete_pet sends a cookie value made only of legal cookie-octets exactly as given" do
     {:ok, name} = HeaderCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
 
-    options_auth = %{auth_headers: %{"Authorization" => "Bearer from-options"}}
-    opts_auth = %{auth_headers: %{"Authorization" => "Bearer from-opts"}}
+    for good <- @legal_cookie_values do
+      {:ok, _result} =
+        PetstoreClient.Api.PetApi.delete_pet(api, 1, %PetstoreClient.Api.Options.DeletePetOptions{
+          api_key: good
+        })
 
-    options = %PetstoreClient.Api.Options.DeletePetOptions{auth: options_auth}
-    {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, options)
+      assert HeaderCapturingApiClient.captured_headers(name)["Cookie"] == "api_key=" <> good
+    end
 
-    headers = HeaderCapturingApiClient.captured_headers(name)
-    assert headers["Authorization"] == "Bearer from-options"
+    Agent.stop(name)
+  end
+
+  # F857: no per-call scheme override. The options struct has no `auth` field,
+  # and an `:auth` entry in the trailing keyword list is rejected as an unknown
+  # key.
+  test "there is no per-call credential: no auth field on options and no :auth in opts" do
+    refute Map.has_key?(%PetstoreClient.Api.Options.DeletePetOptions{}, :auth)
+    refute Map.has_key?(%PetstoreClient.Api.Options.AddPetOptions{}, :auth)
+
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
 
     assert_raise ArgumentError, ~r/unknown keys \[:auth\]/, fn ->
-      PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, options, auth: opts_auth)
+      PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, nil,
+        auth: credential("per-call")
+      )
     end
 
     Agent.stop(name)
