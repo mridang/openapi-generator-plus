@@ -1204,6 +1204,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         ctx.put("hasCredentialEnvVars", !credentialEnvVars.isEmpty());
         recordCredentialScheme(
                 spec, spec.schemeClass() + spec.oauthSuffix() + "Authenticator", credentialEnvVars);
+        recordOAuthScheme(spec);
         ctx.put("constructorParams", constructorParams);
         final List<String> superArgs = buildPhpSuperArgs(spec);
         ctx.put("superArgs", superArgs);
@@ -1280,6 +1281,37 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 break;
         }
         additionalProperties.putIfAbsent(key, first);
+    }
+
+    /**
+     * Records the first scheme of each OAuth2 grant the tests can build ({@code
+     * oauthClientCredentialsScheme}, {@code oauthPasswordScheme}, {@code oauthAuthCodeScheme}):
+     * its generated class, the token and authorization URLs of the spec as PHP literals, and the
+     * spec scopes, so the scheme wrapper tests can assert what the wrapper sends.
+     */
+    private void recordOAuthScheme(SchemeAuthSpec spec) {
+        final String key;
+        switch (spec.baseClass()) {
+            case "OAuth2ClientCredentialsAuthenticator":
+                key = "oauthClientCredentialsScheme";
+                break;
+            case "OAuth2PasswordAuthenticator":
+                key = "oauthPasswordScheme";
+                break;
+            case "OAuth2AuthorizationCodeAuthenticator":
+                key = "oauthAuthCodeScheme";
+                break;
+            default:
+                return;
+        }
+        final Map<String, Object> scheme = new HashMap<>();
+        scheme.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        scheme.put("tokenUrlLiteral", toPhpStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")));
+        scheme.put("authorizationUrlLiteral",
+                toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")));
+        scheme.put("scopesLiteral", formatPhpScopes(spec.scopes()));
+        scheme.put("hasScopes", spec.scopes() != null && !spec.scopes().isEmpty());
+        additionalProperties.putIfAbsent(key, scheme);
     }
 
     private static String formatPhpScopes(@Nullable Map<String, String> scopes) {
