@@ -51,13 +51,16 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
   ## Parameters
 
     * `host` - API base URL.
-    * `client_id` - OAuth2 client ID.
+    * `client_id` - OAuth2 client ID. `nil` reads it from the environment variable
+      `OPEN_API_CLIENT_ID`.
     * `authorization_url` - Authorization endpoint URL.
     * `scopes` - Requested scopes.
 
   """
-  @spec new(String.t(), String.t(), String.t(), [String.t()]) :: t()
+  @spec new(String.t(), String.t() | nil, String.t(), [String.t()]) :: t()
   def new(host, client_id, authorization_url, scopes) do
+    client_id = PetstoreClient.Auth.BaseAuthenticator.credential(client_id, "CLIENT_ID")
+
     %__MODULE__{
       host: host,
       client_id: client_id,

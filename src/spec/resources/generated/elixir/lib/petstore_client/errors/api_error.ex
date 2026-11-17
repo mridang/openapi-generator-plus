@@ -44,10 +44,21 @@ defmodule PetstoreClient.Errors.ApiError do
           response_headers: %{optional(String.t()) => String.t()} | nil,
           response_body: String.t() | nil,
           error_body: term() | nil,
-          cause: Exception.t() | nil
+          cause: Exception.t() | nil,
+          request_method: String.t() | nil,
+          request_path: String.t() | nil
         }
 
-  defexception [:message, :status_code, :response_headers, :response_body, :error_body, :cause]
+  defexception [
+    :message,
+    :status_code,
+    :response_headers,
+    :response_body,
+    :error_body,
+    :cause,
+    :request_method,
+    :request_path
+  ]
 
   @impl true
   def exception(opts) when is_map(opts) do
@@ -59,7 +70,9 @@ defmodule PetstoreClient.Errors.ApiError do
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
       error_body: Map.get(opts, :error_body),
-      cause: Map.get(opts, :cause)
+      cause: Map.get(opts, :cause),
+      request_method: Map.get(opts, :request_method),
+      request_path: Map.get(opts, :request_path)
     }
   end
 
@@ -72,7 +85,9 @@ defmodule PetstoreClient.Errors.ApiError do
       response_headers: Keyword.get(opts, :response_headers),
       response_body: Keyword.get(opts, :response_body),
       error_body: Keyword.get(opts, :error_body),
-      cause: Keyword.get(opts, :cause)
+      cause: Keyword.get(opts, :cause),
+      request_method: Keyword.get(opts, :request_method),
+      request_path: Keyword.get(opts, :request_path)
     }
   end
 
@@ -93,6 +108,11 @@ defmodule PetstoreClient.Errors.ApiError do
       if error.status_code in [nil, 0],
         do: msg,
         else: msg <> "\nHTTP status code: #{error.status_code}"
+
+    msg =
+      if is_nil(error.request_method) or is_nil(error.request_path),
+        do: msg,
+        else: msg <> "\nRequest: #{error.request_method} #{error.request_path}"
 
     msg =
       if error.response_headers in [nil, %{}],
@@ -185,6 +205,44 @@ defmodule PetstoreClient.Errors.ApiError do
       response_headers: headers,
       error_body: parse_error_body(body)
     })
+  end
+
+  @doc """
+  Record the request an error answers: the HTTP method and the request path.
+
+  The path is the part of the URL after the host, with the query string and the
+  fragment dropped, so a credential carried in the query never lands in an error
+  message. `message/1` renders them as a `Request: GET /path` line after the
+  status line. Works on `ApiError` and on every error that specialises it; an
+  error that already carries a request is returned unchanged, and a term that is
+  not one of them is returned as it is.
+
+  ## Parameters
+
+    * `error` - The error to annotate.
+    * `method` - The HTTP method, an atom (`:get`) or a string; rendered upper case.
+    * `url_or_path` - The request URL or its path.
+
+  ## Returns
+
+    The error with `request_method` and `request_path` set.
+  """
+  @spec with_request(term(), atom() | String.t(), String.t()) :: term()
+  def with_request(%{request_method: nil, request_path: nil} = error, method, url_or_path) do
+    %{
+      error
+      | request_method: method |> to_string() |> String.upcase(),
+        request_path: request_path(url_or_path)
+    }
+  end
+
+  def with_request(error, _method, _url_or_path), do: error
+
+  defp request_path(url_or_path) do
+    case URI.parse(url_or_path) do
+      %URI{path: path} when is_binary(path) and path != "" -> path
+      _ -> "/"
+    end
   end
 
   defp exception_module(status_code) when is_map_key(@status_errors, status_code),

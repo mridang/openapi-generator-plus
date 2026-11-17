@@ -37,12 +37,17 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
   ## Parameters
 
     * `host` - API base URL.
-    * `username` - The username.
-    * `password` - The password.
+    * `username` - The username. `nil` reads it from the environment variable
+      `OPEN_API_USERNAME`.
+    * `password` - The password. `nil` reads it from the environment variable
+      `OPEN_API_PASSWORD`.
 
   """
-  @spec new(String.t(), String.t(), String.t()) :: t()
+  @spec new(String.t(), String.t() | nil, String.t() | nil) :: t()
   def new(host, username, password) do
+    username = PetstoreClient.Auth.BaseAuthenticator.credential(username, "USERNAME")
+    password = PetstoreClient.Auth.BaseAuthenticator.credential(password, "PASSWORD")
+
     # Validate eagerly at construction so a malformed credential surfaces
     # where it is supplied rather than lazily at first request.
     # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field

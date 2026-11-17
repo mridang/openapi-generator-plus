@@ -15,7 +15,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
 
   @type t :: %__MODULE__{
           host: String.t(),
-          token: String.t()
+          token: String.t() | (-> String.t())
         }
 
   # Credential fields are masked as `***` in the Inspect representation (they stay
@@ -35,11 +35,23 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
   ## Parameters
 
     * `host` - API base URL.
-    * `token` - Bearer token.
+    * `token` - Bearer token. `nil` reads it from the environment variable
+      `OPEN_API_TOKEN`. A zero-argument function is called for every request
+      and returns the token, so a token that rotates is always read fresh.
 
   """
-  @spec new(String.t(), String.t()) :: t()
+  @spec new(String.t(), String.t() | nil | (-> String.t())) :: t()
   def new(host, token) do
+    token = PetstoreClient.Auth.BaseAuthenticator.credential(token, "TOKEN")
+    if not is_function(token, 0), do: validate_token!(token)
+
+    %__MODULE__{
+      host: host,
+      token: token
+    }
+  end
+
+  defp validate_token!(token) do
     # Reject empty/whitespace-only tokens up front: an empty token would
     # otherwise emit the literal `Authorization: Bearer ` header, sending the
     # request effectively unauthenticated.
@@ -57,11 +69,11 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
             "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
     end
 
-    %__MODULE__{
-      host: host,
-      token: token
-    }
+    token
   end
+
+  defp current_token(provider) when is_function(provider, 0), do: validate_token!(provider.())
+  defp current_token(token), do: token
 
   @impl true
   def host(%__MODULE__{} = self), do: self.host
@@ -71,13 +83,15 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
     # Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read from
     # env files are commonly stored already-prefixed; emitting
     # "Bearer Bearer xyz" would otherwise silently break auth.
+    token = current_token(self.token)
+
     value =
-      case self.token do
+      case token do
         <<head::binary-size(7), rest::binary>> ->
-          if String.downcase(head) == "bearer ", do: rest, else: self.token
+          if String.downcase(head) == "bearer ", do: rest, else: token
 
         _ ->
-          self.token
+          token
       end
 
     %{"Authorization" => "Bearer #{value}"}

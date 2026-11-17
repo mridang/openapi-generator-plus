@@ -13,7 +13,16 @@ defmodule PetstoreClient.Errors.BadRequestError do
 
   alias PetstoreClient.Errors.ApiError
 
-  defexception [:message, :status_code, :response_headers, :response_body, :error_body, :cause]
+  defexception [
+    :message,
+    :status_code,
+    :response_headers,
+    :response_body,
+    :error_body,
+    :cause,
+    :request_method,
+    :request_path
+  ]
 
   @type t :: %__MODULE__{
           message: String.t(),
@@ -21,7 +30,9 @@ defmodule PetstoreClient.Errors.BadRequestError do
           response_headers: map() | nil,
           response_body: String.t() | nil,
           error_body: term() | nil,
-          cause: Exception.t() | nil
+          cause: Exception.t() | nil,
+          request_method: String.t() | nil,
+          request_path: String.t() | nil
         }
 
   @impl true
@@ -32,7 +43,9 @@ defmodule PetstoreClient.Errors.BadRequestError do
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
       error_body: Map.get(opts, :error_body),
-      cause: Map.get(opts, :cause)
+      cause: Map.get(opts, :cause),
+      request_method: Map.get(opts, :request_method),
+      request_path: Map.get(opts, :request_path)
     }
   end
 

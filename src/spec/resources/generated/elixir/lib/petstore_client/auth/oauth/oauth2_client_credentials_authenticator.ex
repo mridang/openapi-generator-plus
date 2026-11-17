@@ -62,16 +62,24 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator do
   ## Parameters
 
     * `host` - API base URL.
-    * `client_id` - OAuth2 client ID.
-    * `client_secret` - OAuth2 client secret.
+    * `client_id` - OAuth2 client ID. `nil` reads it from the environment variable
+      `OPEN_API_CLIENT_ID`.
+    * `client_secret` - OAuth2 client secret. `nil` reads it from the environment variable
+      `OPEN_API_CLIENT_SECRET`.
     * `token_url` - Token endpoint URL.
     * `scopes` - Requested scopes.
     * `opts` - Keyword list. Supported options:
       * `:client_auth_method` - `:body` (default) or `:basic` per RFC 6749 §2.3.1.
 
   """
-  @spec new(String.t(), String.t(), String.t(), String.t(), [String.t()], keyword()) :: t()
+  @spec new(String.t(), String.t() | nil, String.t() | nil, String.t(), [String.t()], keyword()) ::
+          t()
   def new(host, client_id, client_secret, token_url, scopes, opts \\ []) do
+    client_id = PetstoreClient.Auth.BaseAuthenticator.credential(client_id, "CLIENT_ID")
+
+    client_secret =
+      PetstoreClient.Auth.BaseAuthenticator.credential(client_secret, "CLIENT_SECRET")
+
     {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
 
     %__MODULE__{

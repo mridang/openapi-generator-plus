@@ -219,6 +219,8 @@ case PetstoreClient.Api.PetApi.add_pet(client.pet, pet) do
 end
 ```
 
+An error that answers a request carries `request_method` (`"GET"`) and `request_path` (the path without the query string); its message has a `Request: GET /path` line after the status line.
+
 The text of an `ApiError` (`Exception.message/1`) cuts the response body at 1 KiB with a `... (N more bytes)` suffix, writes control characters as `\xNN`, and masks credential response headers (`Authorization`, `Cookie`, `Set-Cookie`, `WWW-Authenticate` and any name containing key, token or secret). The full body stays on `response_body` and the full headers on `response_headers`.
 
 ## Configuration
@@ -253,6 +255,22 @@ transport = PetstoreClient.TransportOptions.new(req_options: [adapter: &MyApp.Ht
 client = PetstoreClient.Client.new(authenticator, transport)
 ```
 
+### Per-call options
+
+Every operation takes `:timeout` (milliseconds), `:headers` (a map) and `:max_retries` in its trailing `opts` keyword list; an operation's options struct has the same three fields, and the `opts` key wins. Each replaces the client's own setting for that one call.
+
+```elixir
+PetstoreClient.Api.ItemsApi.get_item(client.items, 7, timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0)
+```
+
+### Credentials
+
+Pass `nil` for a credential and the authenticator reads it once, when it is built, from `OPEN_API_<FIELD>` (`OPEN_API_TOKEN`, `OPEN_API_API_KEY`, `OPEN_API_USERNAME`, `OPEN_API_PASSWORD`, `OPEN_API_CLIENT_ID`, `OPEN_API_CLIENT_SECRET`). A value you pass wins, an empty variable counts as unset, and a missing required credential raises `ArgumentError` when the client is built. A bearer token or an API key may be a zero-argument function that returns it, called for every request.
+
+```elixir
+authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", fn -> MyApp.Tokens.current() end)
+```
+
 ### Cancellation
 
 There is no cancellation argument. The SDK uses the platform's own mechanism: stop the process that is making the call, or set `timeout` on `TransportOptions`, which ends the call with `NetworkTimeoutError`.
@@ -282,6 +300,8 @@ model = %PetstoreClient.Models.Account{
   username: nil,
 }
 ```
+
+Models never change in place. Make a changed copy with the struct update syntax: `%{model | name: "new"}`.
 
 ## Binary / File Uploads
 

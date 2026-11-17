@@ -10,6 +10,8 @@ defmodule PetstoreClient.MixProject do
       deps: deps(),
       package: package(),
       docs: docs(),
+      source_url: "https://example.com/acme/petstore-client",
+      homepage_url: "https://example.com/petstore",
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
         plt_add_apps: [:mix, :ex_unit],
@@ -43,7 +45,14 @@ defmodule PetstoreClient.MixProject do
     [
       description:
         "A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and \#{x}.",
-      licenses: ["MIT"]
+      licenses: ["MIT"],
+      maintainers: ["Ada Lovelace", "Grace Hopper"],
+      links: %{
+        "Repository" => "https://example.com/acme/petstore-client",
+        "Homepage" => "https://example.com/petstore",
+        "Documentation" => "https://example.com/petstore/docs",
+        "Issues" => "https://example.com/acme/petstore-client/issues"
+      }
     ]
   end
 

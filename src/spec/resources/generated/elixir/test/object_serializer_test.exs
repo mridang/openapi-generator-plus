@@ -333,6 +333,49 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert err.message == "Expected a JSON object for map type, got [1]"
     end
 
+    test "a fractional, quoted or boolean element of a map of integers raises" do
+      for {json, shown} <- [
+            {~s({"a":1.5}), "1.5"},
+            {~s({"a":"1"}), "\"1\""},
+            {~s({"a":true}), "true"}
+          ] do
+        err =
+          assert_raise PetstoreClient.Errors.SerializationError, fn ->
+            PetstoreClient.ObjectSerializer.deserialize(json, "%{String.t() => integer()}")
+          end
+
+        assert err.message == "Expected Integer, got " <> shown
+      end
+    end
+
+    test "a fractional, quoted or boolean leaf of a grid of integers raises" do
+      for {json, shown} <- [
+            {"[[1,2],[3,2.5]]", "2.5"},
+            {"[[1],[\"7\"]]", "\"7\""},
+            {"[[false]]", "false"}
+          ] do
+        err =
+          assert_raise PetstoreClient.Errors.SerializationError, fn ->
+            PetstoreClient.ObjectSerializer.deserialize(json, "[[integer()]]")
+          end
+
+        assert err.message == "Expected Integer, got " <> shown
+      end
+    end
+
+    test "every integer element of a map and of a grid decodes" do
+      assert PetstoreClient.ObjectSerializer.deserialize(
+               ~s({"a":1,"b":-2}),
+               "%{String.t() => integer()}"
+             ) ==
+               %{"a" => 1, "b" => -2}
+
+      assert PetstoreClient.ObjectSerializer.deserialize("[[1,2],[3]]", "[[integer()]]") == [
+               [1, 2],
+               [3]
+             ]
+    end
+
     test "thrown SerializationError has a message referencing the failure" do
       try do
         PetstoreClient.ObjectSerializer.deserialize("{", "Category")

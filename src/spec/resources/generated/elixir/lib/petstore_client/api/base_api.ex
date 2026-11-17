@@ -31,11 +31,73 @@ defmodule PetstoreClient.Api.BaseApi do
   # collide with a real credential. Callers never see it.
   @no_auth :"$openapi_generator_plus_no_auth$"
 
+  @typedoc "What a response body is decoded as: a type name, nil for no body, or a union with one type per 2xx status."
+  @type return_type :: String.t() | {String.t(), [{String.t(), String.t()}]} | nil
+
   @doc false
   # The no-auth sentinel (see @no_auth). Exposed so the generated per-resource
   # API modules can pass it for `security: []` operations.
   @spec no_auth() :: :"$openapi_generator_plus_no_auth$"
   def no_auth, do: @no_auth
+
+  @call_keys [:timeout, :headers, :max_retries]
+
+  @doc false
+  # The per-call settings of one operation call: `:timeout` (milliseconds),
+  # `:headers` and `:max_retries`, read from the operation's options struct and
+  # then from its `opts` keyword list, which wins. A setting that is nil is
+  # left out. An invalid one raises `ArgumentError` before any request is built.
+  @spec call_settings(term(), keyword()) :: keyword()
+  def call_settings(options, opts) do
+    from_options =
+      if is_map(options), do: options |> Map.take(@call_keys) |> Map.to_list(), else: []
+
+    from_options
+    |> Keyword.merge(Keyword.take(opts, @call_keys))
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Enum.map(&validate_call_setting/1)
+  end
+
+  defp validate_call_setting({:timeout, timeout}) when is_integer(timeout) and timeout > 0,
+    do: {:timeout, timeout}
+
+  defp validate_call_setting({:timeout, timeout}) do
+    raise ArgumentError,
+          "Invalid timeout: must be a positive number of milliseconds (got #{inspect(timeout)})"
+  end
+
+  defp validate_call_setting({:max_retries, retries}) when is_integer(retries) and retries >= 0,
+    do: {:max_retries, retries}
+
+  defp validate_call_setting({:max_retries, retries}) do
+    raise ArgumentError,
+          "Invalid max_retries: must be a non-negative integer (got #{inspect(retries)})"
+  end
+
+  defp validate_call_setting({:headers, headers}) when is_map(headers) or is_list(headers) do
+    if Enum.all?(headers, &match?({_name, _value}, &1)) do
+      {:headers, Map.new(headers, fn {name, value} -> {to_string(name), to_string(value)} end)}
+    else
+      raise ArgumentError,
+            "Invalid headers: must be a map of header names to values (got #{inspect(headers)})"
+    end
+  end
+
+  defp validate_call_setting({:headers, headers}) do
+    raise ArgumentError,
+          "Invalid headers: must be a map of header names to values (got #{inspect(headers)})"
+  end
+
+  # Sets one header, replacing any header of the same name in any casing, so a
+  # per-call header wins over the default and the selected one it names.
+  defp put_header(headers, name, value) do
+    lower = String.downcase(name)
+
+    headers
+    |> Enum.reject(fn {key, _value} -> String.downcase(to_string(key)) == lower end)
+    |> Map.new()
+    |> Map.put(name, value)
+  end
 
   @doc """
   Invoke an API operation.
@@ -53,8 +115,14 @@ defmodule PetstoreClient.Api.BaseApi do
     * `body` - Request body (model struct or `nil`).
     * `accepts` - Acceptable response content types.
     * `content_type` - Request content type.
-    * `return_type` - Return type for deserialization (`nil` for void).
+    * `return_type` - Return type for deserialization (`nil` for void). An
+      operation that declares several 2xx responses with their own schemas passes
+      `{union_type, [{status, type}, ...]}`: the body is decoded as the type of the
+      status that arrived (`"2XX"` matches a whole range), and as the union when
+      that status names none.
     * `auth` - Optional authenticator for operation-specific auth.
+    * `call` - Per-call settings (`:timeout`, `:headers`, `:max_retries`), as
+      built by `call_settings/2`. Defaults to none.
 
   ## Returns
 
@@ -69,8 +137,9 @@ defmodule PetstoreClient.Api.BaseApi do
           term(),
           [String.t()] | nil,
           String.t() | nil,
-          String.t() | nil,
-          map() | :"$openapi_generator_plus_no_auth$" | nil
+          return_type(),
+          map() | :"$openapi_generator_plus_no_auth$" | nil,
+          keyword()
         ) :: {:ok, term()} | {:error, Exception.t()}
   def invoke_api(
         state,
@@ -82,7 +151,8 @@ defmodule PetstoreClient.Api.BaseApi do
         accepts,
         content_type,
         return_type,
-        auth \\ nil
+        auth \\ nil,
+        call \\ []
       ) do
     case invoke_api_for_result(
            state,
@@ -94,7 +164,8 @@ defmodule PetstoreClient.Api.BaseApi do
            accepts,
            content_type,
            return_type,
-           auth
+           auth,
+           call
          ) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -105,7 +176,7 @@ defmodule PetstoreClient.Api.BaseApi do
   Invoke an API operation and return the full result including status code,
   headers, and raw body alongside the deserialized data.
 
-  Takes the same parameters as `invoke_api/10`.
+  Takes the same parameters as `invoke_api/11`.
 
   ## Returns
 
@@ -121,8 +192,9 @@ defmodule PetstoreClient.Api.BaseApi do
           term(),
           [String.t()] | nil,
           String.t() | nil,
-          String.t() | nil,
-          map() | :"$openapi_generator_plus_no_auth$" | nil
+          return_type(),
+          map() | :"$openapi_generator_plus_no_auth$" | nil,
+          keyword()
         ) :: {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def invoke_api_for_result(
         state,
@@ -134,7 +206,8 @@ defmodule PetstoreClient.Api.BaseApi do
         accepts,
         content_type,
         return_type,
-        auth \\ nil
+        auth \\ nil,
+        call \\ []
       ) do
     method =
       if is_atom(method),
@@ -174,29 +247,25 @@ defmodule PetstoreClient.Api.BaseApi do
       build_request(
         state,
         effective_auth,
-        url,
-        query_params,
-        header_params,
+        {url, query_params, header_params},
         body,
-        accepts,
-        content_type
+        {accepts, content_type},
+        call
       )
     end
 
-    result = send_with_retries(state, method, effective_auth, build_request)
+    result = send_with_retries(state, method, effective_auth, build_request, call)
 
     case result do
-      {:error, _} = error ->
-        error
+      {:error, error} ->
+        {:error, PetstoreClient.Errors.ApiError.with_request(error, method, url)}
 
       {:ok, response} ->
         if response.status_code < 200 or response.status_code >= 300 do
           {:error,
-           PetstoreClient.Errors.ApiError.from_response(
-             response.status_code,
-             response.headers,
-             response.body
-           )}
+           response.status_code
+           |> PetstoreClient.Errors.ApiError.from_response(response.headers, response.body)
+           |> PetstoreClient.Errors.ApiError.with_request(method, url)}
         else
           decode_success_body(response, return_type)
         end
@@ -209,12 +278,10 @@ defmodule PetstoreClient.Api.BaseApi do
   defp build_request(
          state,
          effective_auth,
-         url,
-         query_params,
-         header_params,
+         {url, query_params, header_params},
          body,
-         accepts,
-         content_type
+         {accepts, content_type},
+         call
        ) do
     query_params =
       case auth_credentials(effective_auth, :query_params) do
@@ -242,6 +309,11 @@ defmodule PetstoreClient.Api.BaseApi do
 
     headers = Map.merge(headers, state.config.default_headers)
     headers = Map.merge(headers, header_params)
+
+    headers =
+      Enum.reduce(Keyword.get(call, :headers, %{}), headers, fn {name, value}, acc ->
+        put_header(acc, name, value)
+      end)
 
     headers =
       case auth_credentials(effective_auth, :auth_headers) do
@@ -321,6 +393,7 @@ defmodule PetstoreClient.Api.BaseApi do
   @typep attempt_state :: %{
            max_retries: non_neg_integer(),
            retries: non_neg_integer(),
+           call_timeout: pos_integer() | nil,
            timeout: integer() | nil,
            deadline: integer() | nil | :unset,
            replayed: boolean()
@@ -352,15 +425,19 @@ defmodule PetstoreClient.Api.BaseApi do
   # retried up to `TransportOptions.max_retries` times with backoff. Neither
   # happens for a body that cannot be sent twice (a stream), and a retry never
   # waits past the end-to-end timeout.
-  @spec send_with_retries(map(), atom(), term(), (-> {String.t(), map(), term()})) ::
+  @spec send_with_retries(map(), atom(), term(), (-> {String.t(), map(), term()}), keyword()) ::
           {:ok, term()} | {:error, Exception.t()}
-  defp send_with_retries(state, method, effective_auth, build_request) do
+  defp send_with_retries(state, method, effective_auth, build_request, call) do
     transport = transport_options(state.api_client)
 
     attempt(state, method, effective_auth, build_request, %{
-      max_retries: if(transport, do: transport.max_retries || 0, else: 0),
+      max_retries:
+        Keyword.get_lazy(call, :max_retries, fn ->
+          if(transport, do: transport.max_retries || 0, else: 0)
+        end),
       retries: 0,
-      timeout: timeout(transport),
+      call_timeout: Keyword.get(call, :timeout),
+      timeout: Keyword.get(call, :timeout) || timeout(transport),
       deadline: :unset,
       replayed: false
     })
@@ -371,7 +448,16 @@ defmodule PetstoreClient.Api.BaseApi do
   defp attempt(state, method, effective_auth, build_request, ctx) do
     {url, headers, serialized_body} = build_request.()
     ctx = if ctx.deadline == :unset, do: %{ctx | deadline: deadline(ctx.timeout)}, else: ctx
-    result = send_once(state.api_client, method, url, headers, serialized_body, ctx.deadline)
+
+    result =
+      send_once(
+        state.api_client,
+        method,
+        url,
+        headers,
+        serialized_body,
+        {ctx.deadline, ctx.call_timeout}
+      )
 
     cond do
       not replayable?(serialized_body) ->
@@ -397,12 +483,21 @@ defmodule PetstoreClient.Api.BaseApi do
     end
   end
 
-  defp send_once(api_client, method, url, headers, body, deadline) do
+  defp send_once(api_client, method, url, headers, body, {deadline, call_timeout}) do
     {:ok,
      case api_client do
        %{__struct__: mod} = client ->
          if deadline != nil and function_exported?(mod, :send_request, 6) do
-           mod.send_request(client, method, url, headers, body, deadline: deadline)
+           mod.send_request(
+             client,
+             method,
+             url,
+             headers,
+             body,
+             Enum.reject([deadline: deadline, timeout: call_timeout], fn {_key, value} ->
+               is_nil(value)
+             end)
+           )
          else
            mod.send_request(client, method, url, headers, body)
          end
@@ -564,6 +659,8 @@ defmodule PetstoreClient.Api.BaseApi do
   # `{:error, _}` from the send try/rescue above. The success path returns
   # `{:ok, ApiResult}`.
   defp decode_success_body(response, return_type) do
+    return_type = return_type_for_status(return_type, response.status_code)
+
     data =
       if return_type && response.body && response.body != "" do
         ct_header =
@@ -637,6 +734,22 @@ defmodule PetstoreClient.Api.BaseApi do
        raw_body: response.body,
        headers: response.headers
      }}
+  end
+
+  # An operation with several 2xx responses carries one type per status: the one
+  # the response arrived with, else the union itself (a 2xx no row names).
+  defp return_type_for_status({union, rows}, status) do
+    Enum.find_value(rows, union, fn {code, type} ->
+      if success_status_matches?(code, status), do: type
+    end)
+  end
+
+  defp return_type_for_status(return_type, _status), do: return_type
+
+  defp success_status_matches?(code, status) do
+    code == Integer.to_string(status) or
+      (String.ends_with?(code, "XX") and
+         String.first(code) == String.first(Integer.to_string(status)))
   end
 
   defp json_document?(body) do

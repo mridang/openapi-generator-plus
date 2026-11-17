@@ -12,8 +12,19 @@ defmodule PetstoreClient.Api.Options.UploadPetCertificateOptions do
   """
 
   @type t :: %__MODULE__{
-          file: binary()
+          file: binary(),
+          timeout: pos_integer() | nil,
+          headers: %{optional(String.t()) => String.t()} | nil,
+          max_retries: non_neg_integer() | nil
         }
 
-  defstruct file: nil
+  defstruct file: nil,
+            # Per-call settings: milliseconds for this call (replacing the transport's
+            # timeout), headers added to this call, and how many times it is retried
+            # (0 for none, replacing the transport's `max_retries`). nil keeps the
+            # client's own setting. The `opts` keyword list of the operation takes the
+            # same three keys and wins over these.
+            timeout: nil,
+            headers: nil,
+            max_retries: nil
 end

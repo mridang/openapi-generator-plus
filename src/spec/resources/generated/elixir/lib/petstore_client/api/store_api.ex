@@ -51,7 +51,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `account` - Account
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -102,11 +102,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec create_account_with_http_info(t(), PetstoreClient.Models.Account.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def create_account_with_http_info(%__MODULE__{} = api, account, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -138,7 +143,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Account",
-      auth
+      auth,
+      call
     )
   end
 
@@ -148,7 +154,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of the order to delete
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -183,11 +189,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec delete_order_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def delete_order_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
@@ -230,7 +241,8 @@ defmodule PetstoreClient.Api.StoreApi do
       [],
       "application/json",
       nil,
-      auth
+      auth,
+      call
     )
   end
 
@@ -242,7 +254,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -308,11 +320,16 @@ defmodule PetstoreClient.Api.StoreApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_by_swatch_with_http_info(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -403,7 +420,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Category",
-      auth
+      auth,
+      call
     )
   end
 
@@ -412,7 +430,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -463,11 +481,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_defaults_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_defaults_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -491,7 +514,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Defaults",
-      auth
+      auth,
+      call
     )
   end
 
@@ -500,7 +524,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -551,11 +575,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_department_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_department_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -579,7 +608,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Department",
-      auth
+      auth,
+      call
     )
   end
 
@@ -588,7 +618,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -639,11 +669,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_grouped_categories_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_grouped_categories_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -667,7 +702,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "[%{String.t() => Category}]",
-      auth
+      auth,
+      call
     )
   end
 
@@ -676,7 +712,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -727,11 +763,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_inventory_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_inventory_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -755,7 +796,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "%{String.t() => integer()}",
-      auth
+      auth,
+      call
     )
   end
 
@@ -764,7 +806,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -815,11 +857,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_matrix_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_matrix_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -843,7 +890,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "[[integer()]]",
-      auth
+      auth,
+      call
     )
   end
 
@@ -853,7 +901,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of order to return
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -904,11 +952,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_order_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
@@ -951,7 +1004,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Order",
-      auth
+      auth,
+      call
     )
   end
 
@@ -961,7 +1015,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `tracking_id` - String.t()
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1012,11 +1066,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_order_by_tracking_id_with_http_info(t(), String.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_order_by_tracking_id_with_http_info(%__MODULE__{} = api, tracking_id, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1063,7 +1122,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Order",
-      auth
+      auth,
+      call
     )
   end
 
@@ -1074,7 +1134,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1129,11 +1189,16 @@ defmodule PetstoreClient.Api.StoreApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_stock_item_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1180,7 +1245,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "StockItem",
-      auth
+      auth,
+      call
     )
   end
 
@@ -1189,7 +1255,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1240,11 +1306,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_swatch_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_swatch_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1268,7 +1339,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Swatch",
-      auth
+      auth,
+      call
     )
   end
 
@@ -1277,7 +1349,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1328,11 +1400,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_swatch_groups_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_swatch_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1356,7 +1433,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "[%{String.t() => Swatch}]",
-      auth
+      auth,
+      call
     )
   end
 
@@ -1365,7 +1443,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1416,11 +1494,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_timestamp_groups_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_timestamp_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1444,7 +1527,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "[%{String.t() => DateTime.t()}]",
-      auth
+      auth,
+      call
     )
   end
 
@@ -1453,7 +1537,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1504,11 +1588,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_tree_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_tree_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1532,7 +1621,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "TreeNode",
-      auth
+      auth,
+      call
     )
   end
 
@@ -1542,7 +1632,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order` - Order
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1593,11 +1683,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec place_order_with_http_info(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
@@ -1619,7 +1714,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Order",
-      auth
+      auth,
+      call
     )
   end
 
@@ -1630,7 +1726,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1681,11 +1777,16 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec reserve_stock_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def reserve_stock_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(nil, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1708,8 +1809,9 @@ defmodule PetstoreClient.Api.StoreApi do
       request_body,
       ["application/json"],
       "application/json",
-      "ReserveStockResponse",
-      auth
+      {"ReserveStockResponse", [{"200", "Reservation"}, {"201", "ReservationReceipt"}]},
+      auth,
+      call
     )
   end
 
@@ -1720,7 +1822,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list.
+    * `opts` - Keyword list. Supports the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`, which override the same fields of the options struct and the client's transport for this call only.
 
   ## Returns
 
@@ -1775,11 +1877,16 @@ defmodule PetstoreClient.Api.StoreApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def search_store_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
-    # `opts` carries only the keys this operation reads: `:server` when it
-    # declares operation-level servers and `:content_type` when it declares more
-    # than one request content-type. Any other key (a misspelling, or a key the
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1867,7 +1974,8 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "[Order]",
-      auth
+      auth,
+      call
     )
   end
 end

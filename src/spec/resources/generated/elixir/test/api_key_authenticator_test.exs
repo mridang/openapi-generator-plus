@@ -22,6 +22,70 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert cookies["session"] == "abc123"
     end
 
+    test "a nil key is read once from the environment and a passed key wins" do
+      name = "OPEN_API_API_KEY"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", nil, :header)
+      assert ApiKeyAuthenticator.auth_headers(auth)["X-Api-Key"] == "from-env"
+
+      System.put_env(name, "changed")
+      assert ApiKeyAuthenticator.auth_headers(auth)["X-Api-Key"] == "from-env"
+
+      explicit =
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
+
+      assert ApiKeyAuthenticator.auth_headers(explicit)["X-Api-Key"] == "abc123"
+    end
+
+    test "an empty or absent environment variable fails when the authenticator is built" do
+      name = "OPEN_API_API_KEY"
+      on_exit(fn -> System.delete_env(name) end)
+
+      message =
+        "Missing the credential 'api_key': pass it, or set the environment variable #{name}"
+
+      System.put_env(name, "")
+
+      assert_raise ArgumentError, message, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", nil, :header)
+      end
+
+      System.delete_env(name)
+
+      assert_raise ArgumentError, message, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", nil, :query)
+      end
+    end
+
+    test "a zero-argument function supplies the key for every request in every location" do
+      {:ok, counter} = Agent.start_link(fn -> 0 end)
+
+      provider = fn ->
+        "k" <> Integer.to_string(Agent.get_and_update(counter, fn n -> {n + 1, n + 1} end))
+      end
+
+      header = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", provider, :header)
+      assert ApiKeyAuthenticator.auth_headers(header)["X-Api-Key"] == "k1"
+      assert ApiKeyAuthenticator.auth_headers(header)["X-Api-Key"] == "k2"
+
+      query = ApiKeyAuthenticator.new("https://api.example.com", "api_key", provider, :query)
+      assert ApiKeyAuthenticator.query_params(query)["api_key"] == "k3"
+
+      cookie = ApiKeyAuthenticator.new("https://api.example.com", "session", provider, :cookie)
+      assert ApiKeyAuthenticator.cookie_params(cookie)["session"] == "k4"
+    end
+
+    test "a key the function returns is checked like a passed one" do
+      auth =
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", fn -> "" end, :header)
+
+      assert_raise ArgumentError, ~r/must not be empty/, fn ->
+        ApiKeyAuthenticator.auth_headers(auth)
+      end
+    end
+
     test "rejects an empty key for every location at construction" do
       assert_raise ArgumentError, fn ->
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "", :header)

@@ -148,6 +148,86 @@ defmodule PetstoreClient.ApiErrorTest do
     assert err.response_headers == headers
   end
 
+  test "the message names the request after the status line when both parts are set" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "boom",
+        status_code: 502,
+        request_method: "GET",
+        request_path: "/items/7",
+        response_body: "upstream down"
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) ==
+             "boom\nHTTP status code: 502\nRequest: GET /items/7\nResponse body: upstream down"
+
+    for partial <- [[request_method: "GET"], [request_path: "/items/7"], []] do
+      bare =
+        PetstoreClient.Errors.ApiError.exception([message: "boom", status_code: 502] ++ partial)
+
+      assert PetstoreClient.Errors.ApiError.message(bare) == "boom\nHTTP status code: 502"
+    end
+  end
+
+  test "with_request records the upper-case method and the path without query or fragment" do
+    err = PetstoreClient.Errors.ApiError.from_response(404, %{}, nil)
+
+    from_url =
+      PetstoreClient.Errors.ApiError.with_request(
+        err,
+        :get,
+        "https://api.example.com/items/7?key=hunter2#top"
+      )
+
+    assert from_url.request_method == "GET"
+    assert from_url.request_path == "/items/7"
+    refute PetstoreClient.Errors.ApiError.message(from_url) =~ "hunter2"
+
+    from_path = PetstoreClient.Errors.ApiError.with_request(err, "post", "/items?page=2")
+    assert from_path.request_method == "POST"
+    assert from_path.request_path == "/items"
+
+    assert PetstoreClient.Errors.ApiError.with_request(err, :get, "https://api.example.com").request_path ==
+             "/"
+
+    assert PetstoreClient.Errors.ApiError.with_request(from_url, :delete, "/other") == from_url
+
+    assert PetstoreClient.Errors.ApiError.with_request(:not_an_error, :get, "/items") ==
+             :not_an_error
+  end
+
+  test "every error that specialises ApiError carries the request" do
+    modules = [
+      PetstoreClient.Errors.ApiError,
+      PetstoreClient.Errors.ClientError,
+      PetstoreClient.Errors.BadRequestError,
+      PetstoreClient.Errors.UnauthorizedError,
+      PetstoreClient.Errors.ForbiddenError,
+      PetstoreClient.Errors.NotFoundError,
+      PetstoreClient.Errors.ConflictError,
+      PetstoreClient.Errors.UnprocessableEntityError,
+      PetstoreClient.Errors.TooManyRequestsError,
+      PetstoreClient.Errors.ServerError,
+      PetstoreClient.Errors.InternalServerError,
+      PetstoreClient.Errors.NetworkError,
+      PetstoreClient.Errors.NetworkTimeoutError
+    ]
+
+    for module <- modules do
+      err =
+        PetstoreClient.Errors.ApiError.with_request(
+          module.exception(%{message: "boom"}),
+          :put,
+          "https://h.example/a/b?k=v"
+        )
+
+      assert err.__struct__ == module
+      assert err.request_method == "PUT"
+      assert err.request_path == "/a/b"
+      assert Exception.message(err) =~ "\nRequest: PUT /a/b"
+    end
+  end
+
   test "from_response keeps a scalar JSON body as the error body" do
     err = PetstoreClient.Errors.ApiError.from_response(500, %{}, ~s("overloaded"))
 

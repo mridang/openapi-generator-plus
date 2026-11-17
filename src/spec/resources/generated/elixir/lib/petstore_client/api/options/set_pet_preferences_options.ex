@@ -16,12 +16,23 @@ defmodule PetstoreClient.Api.Options.SetPetPreferencesOptions do
           tags: list(String.t()) | nil,
           note: String.t() | nil,
           renewal_date: Date.t() | nil,
-          reminder: DateTime.t() | nil
+          reminder: DateTime.t() | nil,
+          timeout: pos_integer() | nil,
+          headers: %{optional(String.t()) => String.t()} | nil,
+          max_retries: non_neg_integer() | nil
         }
 
   defstruct nickname: nil,
             tags: nil,
             note: nil,
             renewal_date: nil,
-            reminder: nil
+            reminder: nil,
+            # Per-call settings: milliseconds for this call (replacing the transport's
+            # timeout), headers added to this call, and how many times it is retried
+            # (0 for none, replacing the transport's `max_retries`). nil keeps the
+            # client's own setting. The `opts` keyword list of the operation takes the
+            # same three keys and wins over these.
+            timeout: nil,
+            headers: nil,
+            max_retries: nil
 end
