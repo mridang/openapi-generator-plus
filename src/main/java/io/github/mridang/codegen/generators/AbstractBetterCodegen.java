@@ -1216,8 +1216,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * Returns {@code null} for unsupported / unrecognised scheme types.
      */
     @Nullable
-    @SuppressFBWarnings(value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only HTTP scheme constants (basic/bearer)")
     protected SchemeAuthSpec buildSchemeAuthSpec(String schemeName, SecurityScheme scheme) {
         return buildSchemeAuthSpec(schemeName, scheme, true);
     }
