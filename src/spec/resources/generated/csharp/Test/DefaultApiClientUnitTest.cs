@@ -2131,7 +2131,8 @@ public class DefaultApiClientUnitTest
     public async Task BhvTransport035ZlibWrappedDeflateBodyIsDecoded()
     {
         /* HTTP deflate is the zlib format (RFC 1950): the body must be decoded
-           by the client when the runtime left the Content-Encoding in place. */
+           by the client, and the returned headers describe the decoded body, so
+           Content-Encoding and Content-Length are dropped (D92). */
         byte[] compressed = CompressWith(
             sink => new System.IO.Compression.ZLibStream(
                 sink,
@@ -2156,11 +2157,8 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(200, response.StatusCode);
         Assert.Equal("{\"ok\":true}", response.Body);
-        Assert.Equal("deflate", response.Headers["content-encoding"]);
-        Assert.Equal(
-            compressed.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            response.Headers["content-length"]
-        );
+        Assert.False(response.Headers.ContainsKey("content-encoding"));
+        Assert.False(response.Headers.ContainsKey("content-length"));
     }
 
     [Fact]
