@@ -982,7 +982,7 @@ class BaseApiTest {
 
     @Test
     @DisplayName("API request uses resolved server URL")
-    void apiRequestUsesResolvedUrl() {
+    void apiRequestUsesResolvedServerUrl() {
       Configuration config =
           Configuration.builder()
               .server(Servers.SERVER_1, Map.of("environment", "staging"))
@@ -1993,7 +1993,7 @@ class BaseApiTest {
 
     @Test
     @DisplayName("POST with null body does not send Content-Type")
-    void postWithNullBodyOmitsContentType() throws ApiException {
+    void nullBodyPostDoesNotSendContentType() throws ApiException {
       var client =
           new CapturingApiClient() {
             @Override

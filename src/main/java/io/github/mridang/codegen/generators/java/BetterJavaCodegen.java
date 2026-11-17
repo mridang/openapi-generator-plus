@@ -862,6 +862,16 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/ApiExceptionTest.mustache",
                             testFolder,
                             "ApiExceptionTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ReadmeTest.mustache",
+                            testFolder,
+                            "ReadmeTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/SkillsTest.mustache",
+                            testFolder,
+                            "SkillsTest.java"));
             final String testModelsFolder = Path.of(testFolder, "models").toString();
             supportingFiles.add(
                     new SupportingFile(
@@ -1253,6 +1263,13 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                                 "test/ApiKeyAuthenticatorTest.mustache",
                                 testAuthFolder,
                                 "ApiKeyAuthenticatorTest.java"));
+            }
+            if (hasBasicAuth || hasBearerAuth || hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/SchemeAuthenticatorTest.mustache",
+                                testAuthFolder,
+                                "SchemeAuthenticatorTest.java"));
             }
             if (hasAnyOAuth2 || hasOpenIdConnect) {
                 supportingFiles.add(

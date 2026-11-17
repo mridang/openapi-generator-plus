@@ -1,0 +1,328 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+/**
+ * The per-scheme authenticators the generator emits for the security schemes of the
+ * description: each wraps one of the base authenticators, keeps its own name, and reads its
+ * credentials from its own environment variables.
+ */
+class SchemeAuthenticatorTest {
+
+{{#hasBasicAuth}}
+    /** The wrappers of the HTTP Basic security schemes. */
+    @Nested
+    class Basic {
+        private static final String USERNAME_VARIABLE = "{{envVarPrefix}}_ADMIN_BASIC_USERNAME";
+        private static final String SECRET_VARIABLE = "{{envVarPrefix}}_ADMIN_BASIC_PASSWORD";
+
+        @Test
+        void wrappersEmitTheSameBasicHeaderAndKeepTheirOwnName() {
+            AdminBasicAuthenticator admin =
+                    new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret");
+            PetStoreBasicAuthenticator store =
+                    new PetStoreBasicAuthenticator("https://api.example.com", "alice", "s3cret");
+
+            assertEquals("Basic YWxpY2U6czNjcmV0", admin.getAuthHeaders().get("Authorization"));
+            assertEquals("Basic YWxpY2U6czNjcmV0", store.getAuthHeaders().get("Authorization"));
+            assertEquals("https://api.example.com", admin.getHost());
+            assertEquals(
+                    "AdminBasicAuthenticator(host=https://api.example.com,"
+                            + " username=alice, password=***)",
+                    admin.toString());
+            assertEquals(
+                    "PetStoreBasicAuthenticator(host=https://api.example.com,"
+                            + " username=alice, password=***)",
+                    store.toString());
+        }
+
+        @Test
+        void validatesTheCredentialsAtConstruction() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    new AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+        }
+
+        @Test
+        void itBuildsFromItsEnvironmentVariablesAlone() {
+            AdminBasicAuthenticator auth = new AdminBasicAuthenticator(
+                    "https://api.example.com", null, null,
+                    Map.of(USERNAME_VARIABLE, "alice", SECRET_VARIABLE, "from-env"));
+            assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", auth.getAuthHeaders().get("Authorization"));
+        }
+
+        @Test
+        void mixesPassedAndEnvironmentCredentialsPerField() {
+            AdminBasicAuthenticator auth = new AdminBasicAuthenticator(
+                    "https://api.example.com", "alice", null, Map.of(SECRET_VARIABLE, "from-env"));
+            assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", auth.getAuthHeaders().get("Authorization"));
+        }
+
+        @Test
+        void anExplicitArgumentIsNotOverriddenByTheEnvironment() {
+            AdminBasicAuthenticator auth = new AdminBasicAuthenticator(
+                    "https://api.example.com", "alice", "from-env",
+                    Map.of(USERNAME_VARIABLE, "mallory", SECRET_VARIABLE, "ignored"));
+            assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", auth.getAuthHeaders().get("Authorization"));
+        }
+
+        @Test
+        void anEmptyVariableCountsAsUnset() {
+            AdminBasicAuthenticator fromEnvironment = new AdminBasicAuthenticator(
+                    "https://api.example.com", "", "",
+                    Map.of(USERNAME_VARIABLE, "alice", SECRET_VARIABLE, "from-env"));
+            assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", fromEnvironment.getAuthHeaders().get("Authorization"));
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new AdminBasicAuthenticator(
+                            "https://api.example.com", "alice", null, Map.of(SECRET_VARIABLE, "")));
+            assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(SECRET_VARIABLE), ex.getMessage());
+        }
+
+        @Test
+        void aMissingCredentialNamesItsVariable() {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new AdminBasicAuthenticator("https://api.example.com", null, "from-env", Map.of()));
+            assertEquals(
+                    "The 'username' credential of the 'adminBasic' security scheme is required: "
+                            + "pass it or set the " + USERNAME_VARIABLE + " environment variable",
+                    ex.getMessage());
+        }
+
+        @Test
+        void explicitArgumentsNeedNoEnvironment() {
+            AdminBasicAuthenticator auth =
+                    new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret", Map.of());
+            assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders().get("Authorization"));
+        }
+    }
+{{/hasBasicAuth}}
+
+{{#hasBearerAuth}}
+    /** The wrappers of the HTTP Bearer security schemes. */
+    @Nested
+    class Bearer {
+        private static final String HOST = "https://api.example.com";
+        private static final String TOKEN_VARIABLE = "{{envVarPrefix}}_PET_STORE_BEARER_TOKEN";
+
+        @Test
+        void wrappersEmitTheSameBearerHeaderAndKeepTheirOwnName() {
+            PetStoreBearerAuthenticator store =
+                    new PetStoreBearerAuthenticator("https://api.example.com", "xyz");
+            ServiceTokenAuthenticator service =
+                    new ServiceTokenAuthenticator("https://api.example.com", "Bearer xyz");
+
+            assertEquals("Bearer xyz", store.getAuthHeaders().get("Authorization"));
+            assertEquals("Bearer xyz", service.getAuthHeaders().get("Authorization"));
+            assertEquals("https://api.example.com", store.getHost());
+            assertEquals("PetStoreBearerAuthenticator(host=https://api.example.com, token=***)",
+                    store.toString());
+            assertEquals("ServiceTokenAuthenticator(host=https://api.example.com, token=***)",
+                    service.toString());
+        }
+
+        @Test
+        void validatesTheTokenAtConstruction() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    new ServiceTokenAuthenticator("https://api.example.com", ""));
+        }
+
+        @Test
+        void itBuildsFromItsEnvironmentVariablesAlone() {
+            PetStoreBearerAuthenticator auth =
+                    new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "env-token"));
+            assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));
+        }
+
+        @Test
+        void anExplicitArgumentIsNotOverriddenByTheEnvironment() {
+            PetStoreBearerAuthenticator auth =
+                    new PetStoreBearerAuthenticator(HOST, "explicit", Map.of(TOKEN_VARIABLE, "env-token"));
+            assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
+        }
+
+        @Test
+        void anEmptyArgumentCountsAsNotPassed() {
+            PetStoreBearerAuthenticator auth =
+                    new PetStoreBearerAuthenticator(HOST, "", Map.of(TOKEN_VARIABLE, "env-token"));
+            assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));
+        }
+
+        @Test
+        void anEmptyVariableCountsAsUnset() {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "")));
+            assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(TOKEN_VARIABLE), ex.getMessage());
+        }
+
+        @Test
+        void aMissingCredentialNamesItsVariable() {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new PetStoreBearerAuthenticator(HOST, null, Map.of()));
+            assertEquals(
+                    "The 'token' credential of the 'petStoreBearer' security scheme is required: "
+                            + "pass it or set the " + TOKEN_VARIABLE + " environment variable",
+                    ex.getMessage());
+        }
+
+        @Test
+        void readsOnlyItsOwnVariable() {
+            Map<String, String> environment = Map.of("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN", "service-token");
+            assertThrows(IllegalArgumentException.class, () ->
+                    new PetStoreBearerAuthenticator(HOST, null, environment));
+            ServiceTokenAuthenticator service = new ServiceTokenAuthenticator(HOST, null, environment);
+            assertEquals("Bearer service-token", service.getAuthHeaders().get("Authorization"));
+        }
+
+        @Test
+        void stillValidatesAnEnvironmentToken() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "bad\ntoken")));
+        }
+
+        @Test
+        void explicitArgumentsNeedNoEnvironment() {
+            PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator(HOST, "xyz", Map.of());
+            assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
+        }
+    }
+{{/hasBearerAuth}}
+
+{{#hasApiKeyAuth}}
+    /** The wrappers of the API key security schemes. */
+    @Nested
+    class ApiKey {
+        private static final String API_KEY_VARIABLE = "{{envVarPrefix}}_API_KEY_HEADER_API_KEY";
+
+        @Test
+        void wrappersEmitTheirKeyAtTheSpecNameAndLocation() {
+            String host = "https://api.example.com";
+            ApiKeyHeaderAuthenticator header = new ApiKeyHeaderAuthenticator(host, "k1");
+            InternalApiKeyAuthenticator internal = new InternalApiKeyAuthenticator(host, "k2");
+            ApiKeyQueryAuthenticator query = new ApiKeyQueryAuthenticator(host, "k3");
+            SessionCookieAuthenticator cookie = new SessionCookieAuthenticator(host, "k4");
+
+            assertEquals(Map.of("X-API-Key", "k1"), header.getAuthHeaders());
+            assertEquals(Map.of("X-Internal-Key", "k2"), internal.getAuthHeaders());
+            assertEquals(Map.of("api_key", "k3"), query.getQueryParams());
+            assertEquals(Map.of("SESSION_ID", "k4"), cookie.getCookieParams());
+            assertEquals(Map.of(), header.getQueryParams());
+            assertEquals(Map.of(), internal.getCookieParams());
+            assertEquals(Map.of(), query.getAuthHeaders());
+            assertEquals(Map.of(), cookie.getAuthHeaders());
+            assertEquals(host, cookie.getHost());
+        }
+
+        @Test
+        void wrappersRedactTheKeyAndKeepTheirOwnName() {
+            String host = "https://api.example.com";
+            assertEquals(
+                    "ApiKeyHeaderAuthenticator(host=" + host
+                            + ", keyParamName=X-API-Key, apiKey=***, location=HEADER)",
+                    new ApiKeyHeaderAuthenticator(host, "k1").toString());
+            assertEquals(
+                    "InternalApiKeyAuthenticator(host=" + host
+                            + ", keyParamName=X-Internal-Key, apiKey=***, location=HEADER)",
+                    new InternalApiKeyAuthenticator(host, "k2").toString());
+            assertEquals(
+                    "ApiKeyQueryAuthenticator(host=" + host
+                            + ", keyParamName=api_key, apiKey=***, location=QUERY)",
+                    new ApiKeyQueryAuthenticator(host, "k3").toString());
+            assertEquals(
+                    "SessionCookieAuthenticator(host=" + host
+                            + ", keyParamName=SESSION_ID, apiKey=***, location=COOKIE)",
+                    new SessionCookieAuthenticator(host, "k4").toString());
+        }
+
+        @Test
+        void wrappersRejectAnEmptyKeyAtConstruction() {
+            String host = "https://api.example.com";
+            /* An empty key counts as not passed, so with no variable either the credential is missing. */
+            for (String message : new String[] {
+                    assertThrows(IllegalArgumentException.class, () ->
+                            new ApiKeyHeaderAuthenticator(host, "", Map.of())).getMessage(),
+                    assertThrows(IllegalArgumentException.class, () ->
+                            new ApiKeyQueryAuthenticator(host, "", Map.of())).getMessage(),
+                    assertThrows(IllegalArgumentException.class, () ->
+                            new SessionCookieAuthenticator(host, "", Map.of())).getMessage()}) {
+                assertNotNull(message);
+                assertTrue(message.contains("credential of the"), message);
+                assertTrue(message.contains("is required"), message);
+            }
+            /* A blank key is a value, and the base authenticator refuses it. */
+            assertEquals("API key value for 'X-Internal-Key' must not be empty",
+                    assertThrows(IllegalArgumentException.class, () ->
+                            new InternalApiKeyAuthenticator(host, " ")).getMessage());
+        }
+
+        @Test
+        void itBuildsFromItsEnvironmentVariablesAlone() {
+            ApiKeyHeaderAuthenticator auth = new ApiKeyHeaderAuthenticator(
+                    "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "env-key"));
+            assertEquals("env-key", auth.getAuthHeaders().get("X-API-Key"));
+        }
+
+        @Test
+        void anExplicitArgumentIsNotOverriddenByTheEnvironment() {
+            ApiKeyHeaderAuthenticator auth = new ApiKeyHeaderAuthenticator(
+                    "https://api.example.com", "explicit", Map.of(API_KEY_VARIABLE, "env-key"));
+            assertEquals("explicit", auth.getAuthHeaders().get("X-API-Key"));
+        }
+
+        @Test
+        void anEmptyArgumentCountsAsNotPassed() {
+            ApiKeyHeaderAuthenticator auth = new ApiKeyHeaderAuthenticator(
+                    "https://api.example.com", "", Map.of(API_KEY_VARIABLE, "env-key"));
+            assertEquals("env-key", auth.getAuthHeaders().get("X-API-Key"));
+        }
+
+        @Test
+        void anEmptyVariableCountsAsUnset() {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new ApiKeyHeaderAuthenticator(
+                            "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "")));
+            assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(API_KEY_VARIABLE), ex.getMessage());
+        }
+
+        @Test
+        void aMissingCredentialNamesItsVariable() {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new ApiKeyHeaderAuthenticator("https://api.example.com", null, Map.of()));
+            assertEquals(
+                    "The 'apiKey' credential of the 'apiKeyHeader' security scheme is required: "
+                            + "pass it or set the " + API_KEY_VARIABLE + " environment variable",
+                    ex.getMessage());
+        }
+
+        @Test
+        void wrappersOfOneKindEachReadTheirOwnVariable() {
+            Map<String, String> environment = Map.of(API_KEY_VARIABLE, "header-key");
+            assertThrows(IllegalArgumentException.class, () ->
+                    new InternalApiKeyAuthenticator("https://api.example.com", null, environment));
+            assertThrows(IllegalArgumentException.class, () ->
+                    new SessionCookieAuthenticator("https://api.example.com", null, environment));
+        }
+
+        @Test
+        void stillValidatesAnEnvironmentKey() {
+            assertThrows(IllegalArgumentException.class, () -> new ApiKeyHeaderAuthenticator(
+                    "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "abc\r\ndef")));
+        }
+
+        @Test
+        void explicitArgumentsNeedNoEnvironment() {
+            ApiKeyHeaderAuthenticator auth =
+                    new ApiKeyHeaderAuthenticator("https://api.example.com", "explicit", Map.of());
+            assertEquals("explicit", auth.getAuthHeaders().get("X-API-Key"));
+        }
+    }
+{{/hasApiKeyAuth}}
+}

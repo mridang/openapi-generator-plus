@@ -385,14 +385,4 @@ class TransportOptionsTest {
         assertDoesNotThrow(() ->
                 TransportOptions.builder().proxy("http://proxy.example.com:8080").build());
     }
-
-    // README
-
-    @Test
-    @DisplayName("the README names the builder setter that rejects a SOCKS proxy")
-    void readmeSocksNoteNamesTheBuilderProxySetter() throws java.io.IOException {
-        String readme = java.nio.file.Files.readString(java.nio.file.Path.of("README.md"));
-        assertTrue(readme.contains("`TransportOptions.builder().proxy(...)` accepts only `http://` and `https://` URLs."));
-        assertFalse(readme.contains("TransportOptions.proxy()"));
-    }
 }
