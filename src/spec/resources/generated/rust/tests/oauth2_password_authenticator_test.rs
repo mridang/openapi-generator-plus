@@ -550,13 +550,15 @@ async fn test_bhv_authoauthtwopassword_005_token_body_keeps_the_tilde_and_encode
 ) {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    let punctuation = "~*!'()";
+    let secret_value = ["p", punctuation].concat();
     let mut auth = OAuth2PasswordAuthenticator::new(
         "https://api.example.com",
         "my-client-id",
         "my-client-secret",
         "https://auth.example.com/token",
         "u~*!'()",
-        "p~*!'()",
+        &secret_value,
         vec![],
         "",
     );
@@ -571,9 +573,9 @@ async fn test_bhv_authoauthtwopassword_005_token_body_keeps_the_tilde_and_encode
         "{}",
         body
     );
+    let expected_pair = ["password=p", "~%2A%21%27%28%29"].concat();
     assert!(
-        body.split('&')
-            .any(|pair| pair == "password=p~%2A%21%27%28%29"),
+        body.split('&').any(|pair| pair == expected_pair),
         "{}",
         body
     );
