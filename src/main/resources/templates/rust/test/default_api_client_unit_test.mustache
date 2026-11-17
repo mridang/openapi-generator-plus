@@ -1669,6 +1669,28 @@ async fn test_bhv_transport_037_empty_gzip_body_passes_through_as_empty() {
     assert_eq!(resp.body(), "", "expected an empty body, got: {}", resp.body());
 }
 
+/// A body truncated after the headers is a NetworkError with status 0, because
+/// no status reached the caller for the failed call to report.
+#[tokio::test]
+async fn test_bhv_errors_038_a_truncated_body_throws_network_error_with_status_zero() {
+    let base_url = start_truncated_body_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+
+    let err = match client
+        .send_request("GET", &format!("{}/truncated", base_url), &headers, None)
+        .await
+    {
+        Ok(_) => panic!("a truncated body read must surface as an error"),
+        Err(err) => err,
+    };
+
+    let network = err
+        .downcast_ref::<NetworkError>()
+        .unwrap_or_else(|| panic!("expected NetworkError, got: {}", err));
+    assert_eq!(0, network.api_error().status_code());
+}
+
 /// Gap: a body-read failure that happens AFTER response headers are received
 /// (here a truncated Content-Length response) must be wrapped in the uniform
 /// SDK NetworkError (statusCode 0), not surface as a raw reqwest::Error. Callers

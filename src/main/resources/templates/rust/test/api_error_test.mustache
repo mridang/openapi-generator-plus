@@ -56,7 +56,7 @@ fn test_bhv_errors_021_api_error_none_headers_and_body_mark_transport_no_respons
 }
 
 #[test]
-fn test_api_error_implements_std_error_and_display() {
+fn test_bhv_errors_019_api_error_is_a_std_error_with_the_status_in_its_text() {
     let err = ApiError::new(500, "boom".to_string(), None, None);
 
     let _as_error: &dyn std::error::Error = &err;
@@ -227,6 +227,73 @@ fn test_bhv_errors_014_api_error_typed_error_body_ignores_extraneous_fields() {
     let cat = typed.expect("expected Some(Category)");
     assert_eq!(cat.id, Some(1));
     assert_eq!(cat.name.as_deref(), Some("Cat"));
+}
+
+#[test]
+fn test_bhv_errors_016_typed_error_body_is_none_for_an_empty_body() {
+    let err = ApiError::new(500, "oops".to_string(), None, Some(String::new()));
+
+    let typed: Option<Category> = err.typed_error_body().expect("an empty body must not be an error");
+    assert!(typed.is_none());
+}
+
+/// A status-specific error reports the request method and path it answers, through its wrapper chain.
+#[test]
+fn test_bhv_errors_002_every_status_error_carries_the_request_context() {
+    let api = ApiError::new(404, "missing".to_string(), None, None).with_request("GET", "/items/7?token=x");
+    let not_found = NotFoundError::try_from(ClientError::try_from(api).expect("a 4xx"))
+        .expect("a 404");
+    assert_eq!(not_found.client_error().api_error().request_method(), Some("GET"));
+    assert_eq!(not_found.client_error().api_error().request_path(), Some("/items/7"));
+
+    let api = ApiError::new(500, "boom".to_string(), None, None).with_request("POST", "/orders?id=1");
+    let internal = InternalServerError::try_from(ServerError::try_from(api).expect("a 5xx"))
+        .expect("a 500");
+    assert_eq!(internal.server_error().api_error().request_method(), Some("POST"));
+    assert_eq!(internal.server_error().api_error().request_path(), Some("/orders"));
+}
+
+/// A status-specific error keeps the optional cause it was built with, and reaches it through its source chain.
+#[test]
+fn test_bhv_errors_003_status_specific_errors_keep_an_optional_cause() {
+    let cause: std::sync::Arc<dyn std::error::Error + Send + Sync> =
+        std::sync::Arc::new(std::io::Error::new(std::io::ErrorKind::Other, "socket reset"));
+    let with_cause = ApiError::with_source(404, "missing".to_string(), None, None, cause);
+    let not_found = NotFoundError::try_from(ClientError::try_from(with_cause).expect("a 4xx"))
+        .expect("a 404");
+    let chain_has_cause = std::iter::successors(
+        Some(&not_found as &(dyn std::error::Error + 'static)),
+        |e| e.source(),
+    )
+    .any(|e| e.downcast_ref::<std::io::Error>().is_some());
+    assert!(chain_has_cause, "the cause must be reachable from the status error");
+
+    let plain = ApiError::new(404, "missing".to_string(), None, None);
+    let plain_error = NotFoundError::try_from(ClientError::try_from(plain).expect("a 4xx"))
+        .expect("a 404");
+    let plain_has_cause = std::iter::successors(
+        Some(&plain_error as &(dyn std::error::Error + 'static)),
+        |e| e.source(),
+    )
+    .any(|e| e.downcast_ref::<std::io::Error>().is_some());
+    assert!(!plain_has_cause, "a status error built without a cause has none");
+}
+
+/// FromResponse puts the method and the path into the message, and into the error's fields.
+#[test]
+fn test_bhv_errors_011_from_response_names_the_request_in_the_message_and_the_fields() {
+    let err = ApiError::from_response(409, &HashMap::new(), "", Some("DELETE"), Some("/pets/9?force=1"));
+
+    let text = err.to_string();
+    assert!(
+        text.starts_with("API returned status code 409 for DELETE /pets/9\nHTTP status code: 409"),
+        "{text}"
+    );
+    let api_error = std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| e.source())
+        .find_map(|e| e.downcast_ref::<ApiError>())
+        .expect("an ApiError in the chain");
+    assert_eq!(api_error.request_method(), Some("DELETE"));
+    assert_eq!(api_error.request_path(), Some("/pets/9"));
 }
 
 fn nested_array(depth: usize) -> String {

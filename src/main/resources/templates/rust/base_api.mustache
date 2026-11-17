@@ -1169,6 +1169,54 @@ mod tests {
         assert!(!text.contains("secret"), "{text}");
     }
 
+    /// Records the URL of the one request it receives.
+    struct UrlCapturingClient {
+        url: std::sync::Mutex<Option<String>>,
+    }
+
+    impl ApiClient for UrlCapturingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.url.lock().unwrap() = Some(url.to_string());
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /* Catalogue 027: an absolute URL in the path is the request target, so a
+     * per-operation server reaches its own host and the client base URL is
+     * never prepended. */
+    #[tokio::test]
+    async fn test_bhv_errors_027_an_absolute_path_bypasses_the_client_base_url() {
+        let client = Arc::new(UrlCapturingClient { url: std::sync::Mutex::new(None) });
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            path: "https://pets.example.org/v2/items/7",
+            query_params: Vec::new(),
+            ..call_params(CallOptions::default())
+        };
+
+        api.invoke_api(params).await.expect("a 200 succeeds");
+
+        assert_eq!(
+            Some("https://pets.example.org/v2/items/7".to_string()),
+            *client.url.lock().unwrap()
+        );
+    }
+
     #[tokio::test]
     async fn test_a_network_failure_carries_the_method_and_path_of_the_request() {
         let api = api_for(ScriptedClient::custom(200, true, 0));
