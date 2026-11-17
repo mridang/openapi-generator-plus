@@ -18,6 +18,89 @@ fn test_inline_string_enum_displays_its_wire_value() {
     assert_eq!("pending", PetStatusEnum::Pending.to_string());
 }
 
+// -- unions: wrappers, declaration order and scalar byte variants --
+
+#[test]
+fn test_bhv_unions_001_a_factory_wraps_its_variant_and_only_its_match_answers_true() {
+    let value = SetPetAvatarThumbnailRequest::VecU8(vec![1, 2]);
+    assert!(matches!(value, SetPetAvatarThumbnailRequest::VecU8(_)));
+    assert!(!matches!(value, SetPetAvatarThumbnailRequest::VecVecU8(_)));
+}
+
+#[test]
+fn test_bhv_unions_002_a_shared_property_keeps_the_later_declared_variant_value_once() {
+    // TreatmentRecord declares Surgery first and Medication second, so the
+    // Medication value of the shared `notes` property wins the collision.
+    let record = TreatmentRecord {
+        surgery: Some(Surgery {
+            procedure_name: "Spay".to_string(),
+            notes: Some("from-surgery".to_string()),
+            ..Default::default()
+        }),
+        medication: Some(Medication {
+            drug_name: "Amoxicillin".to_string(),
+            notes: Some("from-medication".to_string()),
+            ..Default::default()
+        }),
+    };
+
+    let data = serde_json::to_string(&record).expect("failed to serialize TreatmentRecord");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized TreatmentRecord");
+
+    assert_eq!(parsed["notes"], "from-medication", "got: {data}");
+    assert_eq!(data.matches(r#""notes""#).count(), 1, "notes must appear once, got: {data}");
+}
+
+#[test]
+fn test_bhv_unions_003_a_single_matching_variant_fills_only_its_own_slot() {
+    let treatment: PetTreatment =
+        serde_json::from_str(r#"{"drugName":"Amoxicillin"}"#).expect("a medication-only payload");
+
+    assert!(treatment.medication.is_some());
+    assert!(treatment.surgery.is_none());
+    assert!(treatment.matches_any());
+}
+
+#[test]
+fn test_bhv_unions_005_an_any_of_lists_its_variants_in_declaration_order() {
+    // TreatmentRecord declares Surgery before Medication, which is not
+    // alphabetical; the merged object keeps the declared order.
+    let record = TreatmentRecord {
+        surgery: Some(Surgery {
+            procedure_name: "Spay".to_string(),
+            ..Default::default()
+        }),
+        medication: Some(Medication {
+            drug_name: "Amoxicillin".to_string(),
+            ..Default::default()
+        }),
+    };
+
+    let data = serde_json::to_string(&record).expect("failed to serialize TreatmentRecord");
+    let surgery_at = data.find("procedureName").expect("the surgery field");
+    let medication_at = data.find("drugName").expect("the medication field");
+
+    assert!(surgery_at < medication_at, "Surgery is declared first, got: {data}");
+}
+
+#[test]
+fn test_bhv_unions_018_a_scalar_base64_string_resolves_to_the_scalar_variant_not_a_list() {
+    let value: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(r#""AQIDBA==""#).expect("a base64 string");
+
+    assert_eq!(value, SetPetAvatarThumbnailRequest::VecU8(vec![0x01, 0x02, 0x03, 0x04]));
+}
+
+#[test]
+fn test_bhv_unions_019_a_scalar_byte_variant_serializes_to_a_base64_string() {
+    let value = SetPetAvatarThumbnailRequest::VecU8(vec![0xFF]);
+    let json: serde_json::Value = serde_json::to_value(&value).expect("failed to serialize");
+
+    assert!(json.is_string(), "a scalar byte variant is a JSON string, got: {json}");
+    assert_eq!(json, serde_json::json!("/w=="));
+}
+
 // -- oneOf with discriminator: PetFood --
 
 #[test]

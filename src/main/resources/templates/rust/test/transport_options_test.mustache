@@ -228,7 +228,7 @@ fn ca_file_rejection(name: &str, contents: &str) -> String {
 }
 
 #[test]
-fn test_transport_options_ca_cert_file_without_certificate_is_rejected() {
+fn test_bhv_errors_039_a_garbage_pem_ca_cert_path_is_rejected_when_the_options_are_built() {
     let reason = ca_file_rejection("no-pem", "this is not a certificate\n");
     assert!(
         reason.starts_with("failed to parse CA certificate from ") && reason.ends_with(": no PEM blocks found"),
