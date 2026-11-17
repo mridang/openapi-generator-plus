@@ -53,7 +53,7 @@ test('password is masked in var_dump and print_r output', function (): void {
  * __debugInfo(): the literal secret is absent and the masked '***'
  * placeholder is present.
  */
-test('print_r() redacts the secret and shows ***', function (): void {
+test('redacts secret', function (): void {
     $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
 
     $printR = print_r($auth, true);
