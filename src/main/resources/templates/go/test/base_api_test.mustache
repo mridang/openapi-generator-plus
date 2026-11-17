@@ -2580,3 +2580,143 @@ func TestBhvAuthintegration011_BaseApi_AnInvalidPerCallOptionFailsBeforeAnyReque
 		t.Errorf("expected no request, got one to %s", client.capturedURL)
 	}
 }
+
+// headerCredential is a scheme credential, or a client-level authenticator, that
+// sends one header and no query parameter or cookie.
+func headerCredential(name, value string) *baseApiAuth {
+	return &baseApiAuth{
+		headers: map[string]string{name: value},
+		query:   map[string]string{},
+		cookies: map[string]string{},
+	}
+}
+
+// A scheme credential takes the place of the client-level authenticator: the
+// operation sends its scheme's header and not the client's.
+func TestBhvAuthintegration003_BaseApi_Auth_SchemeCredentialWinsOverTheClientLevelAuthenticator(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	clientLevelAuth := headerCredential("X-Client-Auth", "client-level-token")
+	credentials := {{packageName}}.Credentials{PetStoreBearer: headerCredential("Authorization", "Bearer scheme-token")}
+	api := {{packageName}}.NewPetApi(client, config, clientLevelAuth, credentials)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(context.Background(), pet, nil)
+
+	if got := client.headers["Authorization"]; got != "Bearer scheme-token" {
+		t.Errorf("expected the scheme credential, got %q", got)
+	}
+	if got, ok := client.headers["X-Client-Auth"]; ok {
+		t.Errorf("the client-level authenticator must not be sent when a scheme credential matches, got %q", got)
+	}
+}
+
+// Each operation sends the credential of one of its own schemes: AddPet takes
+// the bearer scheme and DeletePet the admin basic scheme.
+func TestBhvAuthintegration007_BaseApi_Auth_EachOperationSendsTheCredentialOfItsOwnScheme(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	credentials := {{packageName}}.Credentials{
+		PetStoreBearer: headerCredential("Authorization", "Bearer bearer-token"),
+		AdminBasic:     headerCredential("Authorization", "Basic admin-basic"),
+	}
+	api := {{packageName}}.NewPetApi(client, config, nil, credentials)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(context.Background(), pet, nil)
+	if got := client.headers["Authorization"]; got != "Bearer bearer-token" {
+		t.Errorf("AddPet: expected its bearer scheme credential, got %q", got)
+	}
+
+	_ = api.DeletePet(context.Background(), int64(1), nil)
+	if got := client.headers["Authorization"]; got != "Basic admin-basic" {
+		t.Errorf("DeletePet: expected its admin basic scheme credential, got %q", got)
+	}
+}
+
+// With no scheme credential matching the operation, the client-level
+// authenticator is used, and a credential of a scheme the operation does not
+// accept is never sent.
+func TestBhvAuthintegration008_BaseApi_Auth_NoSchemeCredentialFallsBackToTheClientLevelAuthenticator(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	clientLevelAuth := headerCredential("X-Client-Auth", "client-level-token")
+	// AddPet does not accept the admin basic scheme, so this credential matches nothing.
+	credentials := {{packageName}}.Credentials{AdminBasic: headerCredential("Authorization", "Basic admin-basic")}
+	api := {{packageName}}.NewPetApi(client, config, clientLevelAuth, credentials)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(context.Background(), pet, nil)
+
+	if got := client.headers["X-Client-Auth"]; got != "client-level-token" {
+		t.Errorf("expected the client-level authenticator, got %q", got)
+	}
+	if got, ok := client.headers["Authorization"]; ok {
+		t.Errorf("a credential of a scheme the operation does not accept must not be sent, got %q", got)
+	}
+}
+
+// When the client holds credentials for several schemes the operation accepts,
+// the one listed first in the spec is used.
+func TestBhvAuthintegration014_BaseApi_Auth_TheFirstListedSchemeTheClientHoldsWins(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	credentials := {{packageName}}.Credentials{
+		ApiKeyHeader:   headerCredential("X-API-Key", "key-value"),
+		PetStoreBearer: headerCredential("Authorization", "Bearer bearer-token"),
+	}
+	api := {{packageName}}.NewPetApi(client, config, nil, credentials)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(context.Background(), pet, nil)
+
+	if got := client.headers["X-API-Key"]; got != "key-value" {
+		t.Errorf("expected the first listed scheme's credential, got %q", got)
+	}
+	if got, ok := client.headers["Authorization"]; ok {
+		t.Errorf("the second listed scheme's credential must not be sent, got %q", got)
+	}
+}
+
+// An operation declared security:[] suppresses a configured api key on both the
+// header and the query, and so the key does not reach the wire.
+func TestBhvAuthintegration015_BaseApi_Auth_SecurityNoneSuppressesAConfiguredApiKey(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	apiKey := &baseApiAuth{
+		headers: map[string]string{"X-API-Key": "secret-key"},
+		query:   map[string]string{"api_key": "secret-key"},
+		cookies: map[string]string{},
+	}
+	api := {{packageName}}.NewStoreApi(client, config, apiKey, {{packageName}}.Credentials{})
+	_, _ = api.GetInventory(context.Background())
+
+	if got, ok := client.capturedHeaders["X-API-Key"]; ok {
+		t.Errorf("security:[] operation leaked the api key header = %q", got)
+	}
+	if strings.Contains(client.capturedURL, "api_key") {
+		t.Errorf("security:[] operation leaked the api key query param in %q", client.capturedURL)
+	}
+}
+
+// An operation declared security:[] sends no scheme credential, even when the
+// client holds one for a scheme that other operations use.
+func TestBhvAuthintegration016_BaseApi_Auth_SecurityNoneSendsNoSchemeCredential(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	credentials := {{packageName}}.Credentials{
+		ApiKeyHeader:   headerCredential("X-API-Key", "key-value"),
+		PetStoreBearer: headerCredential("Authorization", "Bearer bearer-token"),
+	}
+	api := {{packageName}}.NewStoreApi(client, config, nil, credentials)
+	_, _ = api.GetInventory(context.Background())
+
+	if got, ok := client.capturedHeaders["Authorization"]; ok {
+		t.Errorf("security:[] operation sent a bearer credential = %q", got)
+	}
+	if got, ok := client.capturedHeaders["X-API-Key"]; ok {
+		t.Errorf("security:[] operation sent an api key = %q", got)
+	}
+}

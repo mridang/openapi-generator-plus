@@ -60,3 +60,19 @@ func TestServerVariable_EnumValuesReturnsCopy(t *testing.T) {
 		t.Errorf("EnumValues()[0] = %q, want %q; returned slice must be a copy", again[0], "v2")
 	}
 }
+
+// A variable exposes its default value, its description and its enum values.
+func TestBhvServers017_ServerVariable_ExposesDefaultValueDescriptionAndEnumValues(t *testing.T) {
+	t.Parallel()
+	v := {{packageName}}.NewServerVariable("v3", "API version", []string{"v2", "v3"})
+
+	if got, want := v.DefaultValue(), "v3"; got != want {
+		t.Errorf("DefaultValue = %q, want %q", got, want)
+	}
+	if got, want := v.Description(), "API version"; got != want {
+		t.Errorf("Description = %q, want %q", got, want)
+	}
+	if enum := v.EnumValues(); len(enum) != 2 || enum[0] != "v2" || enum[1] != "v3" {
+		t.Errorf("EnumValues = %v, want [v2 v3]", enum)
+	}
+}

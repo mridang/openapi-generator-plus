@@ -289,3 +289,27 @@ func TestBhvLifecycle013_Client_WithTokenProviderRejectsANilProviderAndAMissingH
 		t.Errorf("expected ErrMissingCredential for a missing host, got %v", err)
 	}
 }
+
+// The environment supplies the token when none is passed, and the request carries it.
+func TestBhvAuthbearer010_Client_ReadsTheTokenFromTheEnvironmentWhenNoneIsPassed(t *testing.T) {
+	var seen string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	t.Setenv("{{envVarPrefix}}_BASE_URL", server.URL)
+	t.Setenv("{{envVarPrefix}}_TOKEN", "env-token")
+
+	client, err := {{packageName}}.New{{clientClassName}}WithToken("", "", nil)
+	if err != nil {
+		t.Fatalf("expected the environment to supply the token, got %v", err)
+	}
+	defer func() { _ = client.Close() }()
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+
+	if seen != "Bearer env-token" {
+		t.Errorf("expected the token from the environment, got %q", seen)
+	}
+}

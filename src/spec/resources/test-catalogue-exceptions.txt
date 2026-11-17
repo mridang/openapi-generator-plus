@@ -27,3 +27,6 @@ go | operations111 | the tracking id is uuid.UUID, a fixed 16-byte value, so a m
 go | headers002 | selectHeaders takes a plain string content type, so a nil value cannot reach it; the empty-string default is covered by bhv headers 001
 go | headers015 | isJSONMIME takes a plain string, so a nil value cannot reach it; the empty string is covered by bhv headers 014
 go | errors003 | status-specific errors are built only by FromResponse, which takes no cause, so a caller cannot pass one; the cause contract is covered by bhv errors 025 and by NewApiError
+||||||| 4610d9ef3
+go | authintegration002 | go has no per-call authenticator: no Options struct carries one (authintegration011) and the spec picks the scheme, so no per-call HTTP-aware authenticator is handed the client
+go | authintegration013 | go has no per-call auth override: a call cannot replace the scheme's credential, the spec and the Credentials struct decide it

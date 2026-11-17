@@ -249,3 +249,51 @@ func TestBhvAuthapikey012_ApiKeyAuthenticator_ReprShowsTheNonSecretFields(t *tes
 		t.Errorf("expected %q, got %q", want, got)
 	}
 }
+
+// A CR/LF in a cookie key is refused at construction, as at every location.
+func TestBhvAuthapikey002_ApiKeyAuthenticator_CrlfInCookieKeyThrowsAtConstruction(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "abc\r\n", auth.ApiKeyLocationCookie)
+}
+
+// A CR/LF in a query key is refused at construction.
+func TestBhvAuthapikey003_ApiKeyAuthenticator_CrlfInQueryKeyThrowsAtConstruction(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "abc\r\n", auth.ApiKeyLocationQuery)
+}
+
+// An empty cookie key is refused at construction.
+func TestBhvAuthapikey004_ApiKeyAuthenticator_EmptyCookieKeyThrowsAtConstruction(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "", auth.ApiKeyLocationCookie)
+}
+
+// An empty header key is refused at construction.
+func TestBhvAuthapikey005_ApiKeyAuthenticator_EmptyHeaderKeyThrowsAtConstruction(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "", auth.ApiKeyLocationHeader)
+}
+
+// An empty query key is refused at construction.
+func TestBhvAuthapikey006_ApiKeyAuthenticator_EmptyQueryKeyThrowsAtConstruction(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "", auth.ApiKeyLocationQuery)
+}
+
+// Only ASCII whitespace counts as blank: a key made of form feed, vertical tab or
+// mixed ASCII whitespace is an empty key.
+func TestBhvAuthapikey011_ApiKeyAuthenticator_AsciiWhitespaceOnlyKeyIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, blank := range []string{"\f", "\v", " \t\r\n"} {
+		expectInvalidApiKey(t, blank, auth.ApiKeyLocationQuery)
+	}
+}
+
+// A valid query key is exposed under its parameter name in the query params.
+func TestBhvAuthapikey015_ApiKeyAuthenticator_ValidQueryKeyIsExposedInQueryParams(t *testing.T) {
+	t.Parallel()
+	a := mustApiKey(t, "https://api.example.com", "api_key", "abc123", auth.ApiKeyLocationQuery)
+	if got, want := a.QueryParams()["api_key"], "abc123"; got != want {
+		t.Fatalf("api_key query param = %q, want %q", got, want)
+	}
+}
