@@ -13,6 +13,8 @@ import 'client_exception.dart';
 import 'conflict_exception.dart';
 import 'forbidden_exception.dart';
 import 'internal_server_error_exception.dart';
+import 'network_exception.dart';
+import 'network_timeout_exception.dart';
 import 'not_found_exception.dart';
 import 'open_api_exception.dart';
 import 'server_exception.dart';
@@ -57,6 +59,14 @@ class ApiException extends OpenAPIException {
   /// message.
   final Object? cause;
 
+  /// The HTTP method of the request that failed (for example `GET`), or null
+  /// when the error was not raised for an operation.
+  final String? requestMethod;
+
+  /// The path of the request that failed, with the query string stripped, or
+  /// null when the error was not raised for an operation.
+  final String? requestPath;
+
   /// Creates an exception with full response context.
   const ApiException({
     required this.statusCode,
@@ -65,6 +75,8 @@ class ApiException extends OpenAPIException {
     this.responseHeaders,
     this.errorBody,
     this.cause,
+    this.requestMethod,
+    this.requestPath,
   });
 
   /// Build the exception that a non-2xx response with this status raises.
@@ -79,12 +91,22 @@ class ApiException extends OpenAPIException {
   /// [NotFoundException] for 404), else [ClientException] for any other 4xx,
   /// [ServerException] for any other 5xx, and [ApiException] for everything
   /// else. The caller throws it.
+  ///
+  /// [requestMethod] and [requestPath] name the request that failed; when both
+  /// are given the message is `<METHOD> <path> returned status code <n>`,
+  /// otherwise `API returned status code <n>`. [requestPath] is cut at the
+  /// first `?` or `#`, so a query string never reaches the message.
   static ApiException fromResponse(
     int statusCode,
     Map<String, String>? responseHeaders,
-    String? responseBody,
-  ) {
-    final message = 'API returned status code $statusCode';
+    String? responseBody, {
+    String? requestMethod,
+    String? requestPath,
+  }) {
+    final path = requestPath == null ? null : stripQuery(requestPath);
+    final message = requestMethod != null && path != null
+        ? '$requestMethod $path returned status code $statusCode'
+        : 'API returned status code $statusCode';
     Object? errorBody;
     if (responseBody != null && responseBody.isNotEmpty) {
       try {
@@ -101,6 +123,8 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
         );
       case 401:
         return UnauthorizedException(
@@ -108,6 +132,8 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
         );
       case 403:
         return ForbiddenException(
@@ -115,6 +141,8 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
         );
       case 404:
         return NotFoundException(
@@ -122,6 +150,8 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
         );
       case 409:
         return ConflictException(
@@ -129,6 +159,8 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
         );
       case 422:
         return UnprocessableEntityException(
@@ -136,6 +168,8 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
         );
       case 429:
         return TooManyRequestsException(
@@ -143,6 +177,8 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
         );
       case 500:
         return InternalServerErrorException(
@@ -150,6 +186,8 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
         );
     }
     if (statusCode >= 400 && statusCode < 500) {
@@ -159,6 +197,8 @@ class ApiException extends OpenAPIException {
         responseBody: responseBody,
         responseHeaders: responseHeaders,
         errorBody: errorBody,
+        requestMethod: requestMethod,
+        requestPath: path,
       );
     }
     if (statusCode >= 500 && statusCode < 600) {
@@ -168,6 +208,8 @@ class ApiException extends OpenAPIException {
         responseBody: responseBody,
         responseHeaders: responseHeaders,
         errorBody: errorBody,
+        requestMethod: requestMethod,
+        requestPath: path,
       );
     }
     return ApiException(
@@ -176,7 +218,59 @@ class ApiException extends OpenAPIException {
       responseBody: responseBody,
       responseHeaders: responseHeaders,
       errorBody: errorBody,
+      requestMethod: requestMethod,
+      requestPath: path,
     );
+  }
+
+  /// This error with the request that raised it recorded.
+  ///
+  /// The transport knows nothing of the operation, so the API layer calls this
+  /// for a failure that arrived without a response: a [NetworkTimeoutException]
+  /// stays one, a [NetworkException] stays one and anything else becomes an
+  /// [ApiException] with the same fields. An error that already names its
+  /// request, or whose type is a status-specific subclass, is returned
+  /// unchanged. [path] is cut at the first `?` or `#`.
+  ApiException withRequest(String method, String path) {
+    if (requestMethod != null) {
+      return this;
+    }
+    final stripped = stripQuery(path);
+    if (this is NetworkTimeoutException) {
+      return NetworkTimeoutException(
+        message: message,
+        cause: cause,
+        requestMethod: method,
+        requestPath: stripped,
+      );
+    }
+    if (this is NetworkException) {
+      return NetworkException(
+        message: message,
+        cause: cause,
+        requestMethod: method,
+        requestPath: stripped,
+      );
+    }
+    if (runtimeType != ApiException) {
+      return this;
+    }
+    return ApiException(
+      statusCode: statusCode,
+      message: message,
+      responseBody: responseBody,
+      responseHeaders: responseHeaders,
+      errorBody: errorBody,
+      cause: cause,
+      requestMethod: method,
+      requestPath: stripped,
+    );
+  }
+
+  /// [path] without its query string or fragment.
+  static String stripQuery(String path) {
+    final end = path.indexOf(RegExp(r'[?#]'));
+    return end < 0 ? path : path.substring(0, end);
   }
 
   /// Deserialize the raw response body into the given type.

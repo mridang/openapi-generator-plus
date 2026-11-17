@@ -201,11 +201,12 @@ String encodeQueryAllowingReserved(String s) {
 /// parameter name. Produced by [serializeStyled] and expanded by the query
 /// string builder.
 class ExplodedObject {
-  /// The stringified properties, in declaration order.
-  final Map<String, String> pairs;
+  /// The stringified properties as (name, value) records, in declaration
+  /// order.
+  final List<(String, String)> entries;
 
   /// Creates the expansion of one exploded object.
-  const ExplodedObject(this.pairs);
+  const ExplodedObject(this.entries);
 }
 
 /// Returns the properties of an object-valued parameter: a [Map] as is, or the
@@ -258,6 +259,9 @@ Map<String, String> _flatProperties(
   return pairs;
 }
 
+List<(String, String)> _entriesOf(Map<String, String> pairs) =>
+    [for (final e in pairs.entries) (e.key, e.value)];
+
 Object? _serializeStyledObject(
   String paramName,
   Map<String, Object?> properties,
@@ -279,14 +283,14 @@ Object? _serializeStyledObject(
       return explode ? keyed.join(',') : flat;
     case 'spaceDelimited':
       return explode && location == 'query'
-          ? ExplodedObject(pairs)
+          ? ExplodedObject(_entriesOf(pairs))
           : pairs.entries.expand((e) => [e.key, e.value]).join(' ');
     case 'pipeDelimited':
       return explode && location == 'query'
-          ? ExplodedObject(pairs)
+          ? ExplodedObject(_entriesOf(pairs))
           : pairs.entries.expand((e) => [e.key, e.value]).join('|');
     default:
-      return explode && location == 'query' ? ExplodedObject(pairs) : flat;
+      return explode && location == 'query' ? ExplodedObject(_entriesOf(pairs)) : flat;
   }
 }
 

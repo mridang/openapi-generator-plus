@@ -409,6 +409,82 @@ void main() {
       }
     });
 
+    test(
+      'noDefaultHeaders leaves the transport default headers off a request',
+      () async {
+        String? receivedDefault;
+        String? receivedCaller;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          receivedDefault = request.headers.value('x-default');
+          receivedCaller = request.headers.value('x-caller');
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .defaultHeader('X-Default', 'default-value')
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+
+          await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/test',
+            {'X-Caller': 'caller-value'},
+            null,
+            noDefaultHeaders: true,
+          );
+          expect(receivedDefault, isNull);
+          expect(receivedCaller, equals('caller-value'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'a per-call timeout replaces the transport timeout for that request',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .timeout(5000)
+              .maxRetries(0)
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://localhost:${server.port}/test',
+              {},
+              null,
+              timeout: 50,
+            ),
+            throwsA(isA<NetworkTimeoutException>()),
+          );
+          final response = await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/test',
+            {},
+            null,
+          );
+          expect(response.statusCode, equals(200));
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
     test('caller headers override transport default headers', () async {
       String? receivedCustom;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

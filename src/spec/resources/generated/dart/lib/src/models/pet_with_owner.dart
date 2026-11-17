@@ -134,7 +134,7 @@ class PetWithOwner {
       );
     }
     return PetWithOwner(
-      id: json['id'] as int?,
+      id: readInt64OrNull(json['id']),
 
       name: json['name'] as String,
 
@@ -168,7 +168,7 @@ class PetWithOwner {
 
       ownerEmail: json['ownerEmail'] as String?,
 
-      weightKg: (json['weightKg'] as num?)?.toDouble(),
+      weightKg: readDoubleOrNull(json['weightKg']),
 
       nickname: json['nickname'] as String?,
 
@@ -222,6 +222,45 @@ class PetWithOwner {
     json['ownerName'] = ownerName;
 
     return json;
+  }
+
+  /// Returns a copy of this [PetWithOwner] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  PetWithOwner copyWith({
+    Object? id = copyUnset,
+    String? name,
+    Object? category = copyUnset,
+    Set<String>? photoUrls,
+    Object? tags = copyUnset,
+    Object? status = copyUnset,
+    Object? location = copyUnset,
+    Object? homepageUrl = copyUnset,
+    Object? thumbnailRef = copyUnset,
+    Object? linkTemplate = copyUnset,
+    Object? ownerEmail = copyUnset,
+    Object? weightKg = copyUnset,
+    Object? nickname = copyUnset,
+    String? ownerName,
+  }) {
+    return PetWithOwner(
+      id: copyField<int>(id, this.id),
+      name: name ?? this.name,
+      category: copyField<Category>(category, this.category),
+      photoUrls: photoUrls ?? this.photoUrls,
+      tags: copyField<List<Tag>>(tags, this.tags),
+      status: copyField<PetWithOwnerStatusEnum>(status, this.status),
+      location: copyField<List<Object>>(location, this.location),
+      homepageUrl: copyField<String>(homepageUrl, this.homepageUrl),
+      thumbnailRef: copyField<String>(thumbnailRef, this.thumbnailRef),
+      linkTemplate: copyField<String>(linkTemplate, this.linkTemplate),
+      ownerEmail: copyField<String>(ownerEmail, this.ownerEmail),
+      weightKg: copyField<double>(weightKg, this.weightKg),
+      nickname: copyField<String>(nickname, this.nickname),
+      ownerName: ownerName ?? this.ownerName,
+    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

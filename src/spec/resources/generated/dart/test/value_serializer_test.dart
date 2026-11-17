@@ -587,8 +587,8 @@ void main() {
         );
         expect(result, isA<ExplodedObject>());
         expect(
-          (result as ExplodedObject).pairs,
-          equals({'breed': 'lab', 'min_age': '3'}),
+          (result as ExplodedObject).entries,
+          equals([('breed', 'lab'), ('min_age', '3')]),
         );
       },
     );

@@ -36,7 +36,7 @@ class Surgery {
     return Surgery(
       procedureName: json['procedureName'] as String,
 
-      durationMinutes: json['durationMinutes'] as int?,
+      durationMinutes: readInt32OrNull(json['durationMinutes']),
 
       notes: json['notes'] as String?,
     );
@@ -55,6 +55,23 @@ class Surgery {
       json['notes'] = notes;
     }
     return json;
+  }
+
+  /// Returns a copy of this [Surgery] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  Surgery copyWith({
+    String? procedureName,
+    Object? durationMinutes = copyUnset,
+    Object? notes = copyUnset,
+  }) {
+    return Surgery(
+      procedureName: procedureName ?? this.procedureName,
+      durationMinutes: copyField<int>(durationMinutes, this.durationMinutes),
+      notes: copyField<String>(notes, this.notes),
+    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

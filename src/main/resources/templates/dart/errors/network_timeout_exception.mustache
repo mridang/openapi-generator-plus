@@ -8,5 +8,7 @@ class NetworkTimeoutException extends NetworkException {
   const NetworkTimeoutException({
     required super.message,
     super.cause,
+    super.requestMethod,
+    super.requestPath,
   });
 }

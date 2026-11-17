@@ -22,6 +22,12 @@ abstract class ApiClient {
   ///     `Location` target. OAuth2 token/revoke/authorize endpoint POSTs use
   ///     this guard so a malicious or misconfigured server cannot replay the
   ///     credentialed body to an attacker-controlled URL.
+  ///   - [timeout]: end-to-end timeout in milliseconds for this request only;
+  ///     null keeps the transport's own timeout
+  ///   - [noDefaultHeaders]: when true, the default headers configured on the
+  ///     transport are not added. Requests to an identity provider (token and
+  ///     discovery) use this so an `Authorization` or API-key default header
+  ///     meant for the API never reaches another host.
   ///
   /// Returns an [ApiHttpResponse] containing status code, body, and headers.
   /// Throws on transport errors.
@@ -31,6 +37,8 @@ abstract class ApiClient {
     Map<String, String> headers,
     Object? body, {
     bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
   });
 }
 

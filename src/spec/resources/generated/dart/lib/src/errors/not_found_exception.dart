@@ -15,5 +15,7 @@ class NotFoundException extends ClientException {
     super.responseHeaders,
     super.errorBody,
     super.cause,
+    super.requestMethod,
+    super.requestPath,
   }) : super(statusCode: 404);
 }

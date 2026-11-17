@@ -47,7 +47,7 @@ class WetFood {
     return WetFood(
       foodType: json['foodType'] as String,
 
-      volumeMl: json['volumeMl'] as int,
+      volumeMl: readInt32(json['volumeMl']),
     );
   }
 
@@ -60,6 +60,18 @@ class WetFood {
     json['volumeMl'] = volumeMl;
 
     return json;
+  }
+
+  /// Returns a copy of this [WetFood] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  WetFood copyWith({String? foodType, int? volumeMl}) {
+    return WetFood(
+      foodType: foodType ?? this.foodType,
+      volumeMl: volumeMl ?? this.volumeMl,
+    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

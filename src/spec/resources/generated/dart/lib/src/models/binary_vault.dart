@@ -56,6 +56,23 @@ class BinaryVault {
     return json;
   }
 
+  /// Returns a copy of this [BinaryVault] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  BinaryVault copyWith({
+    Object? seal = copyUnset,
+    Object? shards = copyUnset,
+    Object? labels = copyUnset,
+  }) {
+    return BinaryVault(
+      seal: copyField<Uint8List>(seal, this.seal),
+      shards: copyField<List<Uint8List>>(shards, this.shards),
+      labels: copyField<Map<String, Uint8List>>(labels, this.labels),
+    );
+  }
+
   /// Value-equality based on all declared fields. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
   /// built-in `==` on those is identity), so two instances decoded from

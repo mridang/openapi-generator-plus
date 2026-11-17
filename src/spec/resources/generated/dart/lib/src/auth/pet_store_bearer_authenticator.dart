@@ -10,5 +10,10 @@ import 'bearer_authenticator.dart';
 /// Authenticator for the `petStoreBearer` security scheme.
 class PetStoreBearerAuthenticator extends BearerAuthenticator {
   /// Creates an authenticator for the `petStoreBearer` security scheme.
-  PetStoreBearerAuthenticator({required super.host, required super.token});
+  PetStoreBearerAuthenticator({
+    required super.host,
+    super.token,
+    super.tokenProvider,
+    super.environment,
+  }) : super(environmentVariable: 'PETSTORE_CLIENT_PET_STORE_BEARER');
 }

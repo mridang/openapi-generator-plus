@@ -394,8 +394,8 @@ void main() {
       final result =
           serializeStyled('criteria', criteria, 'query', 'object', '', 'form', true);
       expect(result, isA<ExplodedObject>());
-      expect((result as ExplodedObject).pairs,
-          equals({'breed': 'lab', 'min_age': '3'}));
+      expect((result as ExplodedObject).entries,
+          equals([('breed', 'lab'), ('min_age', '3')]));
     });
 
     test('serializeStyled joins a non-exploded form-style object into one value', () {

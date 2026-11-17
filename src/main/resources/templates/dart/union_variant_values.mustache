@@ -1,0 +1,10 @@
+{{^isArray}}{{^isMap}}{{^isByteArray}}
+  /// Wraps a [{{{dataType}}}] as this union.
+  {{classname}}.{{#lambda.camelcase}}{{{dataType}}}{{/lambda.camelcase}}({{{dataType}}} value) : _values = [value];
+
+  /// Whether a retained variant of this union is a [{{{dataType}}}].
+  bool get is{{#lambda.pascalcase}}{{{dataType}}}{{/lambda.pascalcase}} => valueOf<{{{dataType}}}>() != null;
+
+  /// The retained [{{{dataType}}}], or null when no variant is one.
+  {{{dataType}}}? get as{{#lambda.pascalcase}}{{{dataType}}}{{/lambda.pascalcase}} => valueOf<{{{dataType}}}>();
+{{/isByteArray}}{{/isMap}}{{/isArray}}

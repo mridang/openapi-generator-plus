@@ -18,7 +18,16 @@ class GenerateDartClientTest {
   @Test
   @ResourceLock(value = "generated-dart", mode = ResourceAccessMode.READ_WRITE)
   void generate() throws IOException {
-    ClientGenerator.generateClient("dart-plus", Map.of("packageName", "petstore_client"), OUTPUT_DIR);
+    ClientGenerator.generateClient(
+        "dart-plus",
+        Map.of(
+            "packageName", "petstore_client",
+            "repositoryUrl", "https://git.example.com/acme/petstore-client.git",
+            "homepageUrl", "https://acme.example.com/petstore",
+            "documentationUrl", "https://docs.example.com/petstore",
+            "issueTrackerUrl", "https://git.example.com/acme/petstore-client/issues",
+            "authors", "Acme Platform Team"),
+        OUTPUT_DIR);
   }
 
   /**

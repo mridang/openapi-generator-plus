@@ -484,22 +484,32 @@ class {{classname}} {
     handled; only a genuinely non-numeric primitive falls through to a plain
     cast. }}
 {{#isNumber}}
-      {{name}}: (json['{{baseName}}'] as num).toDouble(),
+      {{name}}: readDouble(json['{{baseName}}']),
 {{/isNumber}}
 {{^isNumber}}
 {{#isFloat}}
-      {{name}}: (json['{{baseName}}'] as num).toDouble(),
+      {{name}}: readDouble(json['{{baseName}}']),
 {{/isFloat}}
 {{^isFloat}}
 {{#isDouble}}
-      {{name}}: (json['{{baseName}}'] as num).toDouble(),
+      {{name}}: readDouble(json['{{baseName}}']),
 {{/isDouble}}
 {{^isDouble}}
 {{#isUri}}
       {{name}}: parseUri(json['{{baseName}}'] as String),
 {{/isUri}}
 {{^isUri}}
+{{#isInteger}}
+      {{name}}: readInt32(json['{{baseName}}']),
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+      {{name}}: readInt64(json['{{baseName}}']),
+{{/isLong}}
+{{^isLong}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}},
+{{/isLong}}
+{{/isInteger}}
 {{/isUri}}
 {{/isDouble}}
 {{/isFloat}}
@@ -607,7 +617,7 @@ class {{classname}} {
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? {{#isNumber}}(json['{{baseName}}'] as num?)?.toDouble(){{/isNumber}}{{^isNumber}}{{#isFloat}}(json['{{baseName}}'] as num?)?.toDouble(){{/isFloat}}{{^isFloat}}{{#isDouble}}(json['{{baseName}}'] as num?)?.toDouble(){{/isDouble}}{{^isDouble}}json['{{baseName}}'] as {{{dataType}}}?{{/isDouble}}{{/isFloat}}{{/isNumber}} : {{{defaultValue}}},
+      {{name}}: json.containsKey('{{baseName}}') ? {{#isNumber}}readDoubleOrNull(json['{{baseName}}']){{/isNumber}}{{^isNumber}}{{#isFloat}}readDoubleOrNull(json['{{baseName}}']){{/isFloat}}{{^isFloat}}{{#isDouble}}readDoubleOrNull(json['{{baseName}}']){{/isDouble}}{{^isDouble}}{{#isInteger}}readInt32OrNull(json['{{baseName}}']){{/isInteger}}{{^isInteger}}{{#isLong}}readInt64OrNull(json['{{baseName}}']){{/isLong}}{{^isLong}}json['{{baseName}}'] as {{{dataType}}}?{{/isLong}}{{/isInteger}}{{/isDouble}}{{/isFloat}}{{/isNumber}} : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
 {{! A `double`-typed field (type:number, or format:float / format:double) must
@@ -615,22 +625,32 @@ class {{classname}} {
     but all map to the Dart `double` type, so each routes through toDouble();
     only a non-numeric primitive falls through to a plain nullable cast. }}
 {{#isNumber}}
-      {{name}}: (json['{{baseName}}'] as num?)?.toDouble(),
+      {{name}}: readDoubleOrNull(json['{{baseName}}']),
 {{/isNumber}}
 {{^isNumber}}
 {{#isFloat}}
-      {{name}}: (json['{{baseName}}'] as num?)?.toDouble(),
+      {{name}}: readDoubleOrNull(json['{{baseName}}']),
 {{/isFloat}}
 {{^isFloat}}
 {{#isDouble}}
-      {{name}}: (json['{{baseName}}'] as num?)?.toDouble(),
+      {{name}}: readDoubleOrNull(json['{{baseName}}']),
 {{/isDouble}}
 {{^isDouble}}
 {{#isUri}}
       {{name}}: json['{{baseName}}'] != null ? parseUri(json['{{baseName}}'] as String) : null,
 {{/isUri}}
 {{^isUri}}
+{{#isInteger}}
+      {{name}}: readInt32OrNull(json['{{baseName}}']),
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+      {{name}}: readInt64OrNull(json['{{baseName}}']),
+{{/isLong}}
+{{^isLong}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{/isLong}}
+{{/isInteger}}
 {{/isUri}}
 {{/isDouble}}
 {{/isFloat}}
@@ -875,6 +895,78 @@ class {{classname}} {
     return json;
   }
 
+{{#hasVars}}
+  /// Returns a copy of this [{{classname}}] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  {{classname}} copyWith({
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+    {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}},
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+    Object? {{name}} = copyUnset,
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    Map<String, dynamic>? additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+  }) {
+    return {{classname}}(
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+      {{name}}: {{name}} ?? this.{{name}},
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+      {{name}}: copyField<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>({{name}}, this.{{name}}),
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+      additionalProperties: additionalProperties ?? this.additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+    );
+  }
+
+{{/hasVars}}
+{{^hasVars}}
+{{#isAdditionalPropertiesTrue}}
+  /// Returns a copy of this [{{classname}}] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  {{classname}} copyWith({
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+    {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}},
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+    Object? {{name}} = copyUnset,
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    Map<String, dynamic>? additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+  }) {
+    return {{classname}}(
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+      {{name}}: {{name}} ?? this.{{name}},
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+      {{name}}: copyField<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>({{name}}, this.{{name}}),
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+      additionalProperties: additionalProperties ?? this.additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+    );
+  }
+
+{{/isAdditionalPropertiesTrue}}
+{{/hasVars}}
   /// Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including the
   /// additionalProperties map){{/isAdditionalPropertiesTrue}}. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
@@ -929,6 +1021,12 @@ class {{classname}} {
 
   /// Returns the resolved variant of the union.
   Object? get actualInstance => _value;
+
+{{#composedSchemas}}
+{{#oneOf}}
+{{>union_variant}}
+{{/oneOf}}
+{{/composedSchemas}}
 
   /// Converts this union type back to its JSON wire value.
   Object? toJson() => _encodeValue(_value);
@@ -1040,6 +1138,12 @@ class {{classname}} {
   /// Returns the resolved variant of the union.
   Object? get actualInstance => _value;
 
+{{#composedSchemas}}
+{{#anyOf}}
+{{>union_variant}}
+{{/anyOf}}
+{{/composedSchemas}}
+
   /// Converts this union type back to its JSON wire value.
   Object? toJson() => _encodeValue(_value);
 
@@ -1150,6 +1254,12 @@ class {{classname}} {
   /// Returns the resolved variant of the union.
   Object? get actualInstance => _value;
 
+{{#composedSchemas}}
+{{#oneOf}}
+{{>union_variant}}
+{{/oneOf}}
+{{/composedSchemas}}
+
   /// Converts this union type to a JSON value.
   Object? toJson() {
     final v = _value;
@@ -1244,6 +1354,12 @@ class {{classname}} {
   /// Returns the first decoded variant, for single-variant callers. Use
   /// [matchedInstances] or [valueOf] to reach every retained variant.
   Object? get actualInstance => _values.isEmpty ? null : _values.first;
+
+{{#composedSchemas}}
+{{#anyOf}}
+{{>union_variant_values}}
+{{/anyOf}}
+{{/composedSchemas}}
 
   /// Returns every variant that successfully decoded from the wire payload.
   /// For a co-satisfied anyOf this holds more than one element.

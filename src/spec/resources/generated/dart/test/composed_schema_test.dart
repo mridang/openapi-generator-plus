@@ -127,6 +127,49 @@ void main() {
       expect(PetFood.fromJson(wire).actualInstance, isA<WetFood>());
     });
 
+    test(
+      'PetFood typed constructors, is and as accessors name the variant',
+      () {
+        final dry = PetFood.dryFood(DryFood(weightKg: 2.5));
+        final wet = PetFood.wetFood(WetFood(volumeMl: 400));
+
+        expect(dry.actualInstance, isA<DryFood>());
+        expect(dry.isDryFood, isTrue);
+        expect(dry.isWetFood, isFalse);
+        expect(dry.asDryFood, isNotNull);
+        expect(dry.asWetFood, isNull);
+        expect(wet.asWetFood!.volumeMl, equals(400));
+        expect(
+          dry.toJson(),
+          equals(<String, dynamic>{'foodType': 'dry', 'weightKg': 2.5}),
+        );
+      },
+    );
+
+    test(
+      'a result decoded by status code exposes its variant through the accessors',
+      () {
+        final reservation = ReserveStockResponse.reservation(
+          const Reservation(reservationId: 1, quantity: 2),
+        );
+
+        expect(reservation.isReservation, isTrue);
+        expect(reservation.asReservationReceipt, isNull);
+      },
+    );
+
+    test('PetTreatment typed constructors and accessors name the variant', () {
+      final surgery = PetTreatment.surgery(
+        Surgery(procedureName: 'Spay', durationMinutes: 45),
+      );
+
+      expect(surgery.isSurgery, isTrue);
+      expect(surgery.isMedication, isFalse);
+      expect(surgery.asSurgery!.procedureName, equals('Spay'));
+      expect(surgery.asMedication, isNull);
+      expect(surgery.matchedInstances, hasLength(1));
+    });
+
     // anyOf without discriminator: PetTreatment
 
     test('PetTreatment deserialize medication', () {

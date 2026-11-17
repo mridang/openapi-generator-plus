@@ -78,11 +78,11 @@ class Order {
   /// Creates a [Order] from a JSON map.
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
-      id: json['id'] as int?,
+      id: readInt64OrNull(json['id']),
 
-      petId: json['petId'] as int?,
+      petId: readInt64OrNull(json['petId']),
 
-      quantity: json['quantity'] as int?,
+      quantity: readInt32OrNull(json['quantity']),
 
       trackingId: json['trackingId'] != null
           ? UuidValue.fromString(json['trackingId'] as String)
@@ -130,6 +130,31 @@ class Order {
       json['complete'] = complete;
     }
     return json;
+  }
+
+  /// Returns a copy of this [Order] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  Order copyWith({
+    Object? id = copyUnset,
+    Object? petId = copyUnset,
+    Object? quantity = copyUnset,
+    Object? trackingId = copyUnset,
+    Object? shipDate = copyUnset,
+    Object? status = copyUnset,
+    Object? complete = copyUnset,
+  }) {
+    return Order(
+      id: copyField<int>(id, this.id),
+      petId: copyField<int>(petId, this.petId),
+      quantity: copyField<int>(quantity, this.quantity),
+      trackingId: copyField<UuidValue>(trackingId, this.trackingId),
+      shipDate: copyField<DateTime>(shipDate, this.shipDate),
+      status: copyField<OrderStatusEnum>(status, this.status),
+      complete: copyField<bool>(complete, this.complete),
+    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

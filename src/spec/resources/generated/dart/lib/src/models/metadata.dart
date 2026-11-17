@@ -51,6 +51,21 @@ class Metadata {
     return json;
   }
 
+  /// Returns a copy of this [Metadata] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  Metadata copyWith({
+    Object? createdAt = copyUnset,
+    Map<String, dynamic>? additionalProperties,
+  }) {
+    return Metadata(
+      createdAt: copyField<DateTime>(createdAt, this.createdAt),
+      additionalProperties: additionalProperties ?? this.additionalProperties,
+    );
+  }
+
   /// Value-equality based on all declared fields (including the
   /// additionalProperties map). List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's

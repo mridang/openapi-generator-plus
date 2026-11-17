@@ -341,6 +341,80 @@ void main() {
     });
   });
 
+  group('request context', () {
+    test('fromResponse names the request in the message and the fields', () {
+      final err = ApiException.fromResponse(
+        404,
+        const {},
+        null,
+        requestMethod: 'GET',
+        requestPath: '/items/7?token=secret#top',
+      );
+
+      expect(err, isA<NotFoundException>());
+      expect(err.requestMethod, equals('GET'));
+      expect(err.requestPath, equals('/items/7'));
+      expect(err.message, equals('GET /items/7 returned status code 404'));
+      expect(
+        err.toString(),
+        startsWith('GET /items/7 returned status code 404\n'),
+      );
+    });
+
+    test('fromResponse without a request keeps the plain message', () {
+      final err = ApiException.fromResponse(500, const {}, null);
+
+      expect(err.requestMethod, isNull);
+      expect(err.requestPath, isNull);
+      expect(err.message, equals('API returned status code 500'));
+    });
+
+    test('every status class carries the request', () {
+      for (final status in [
+        400,
+        401,
+        403,
+        404,
+        409,
+        418,
+        422,
+        429,
+        500,
+        503,
+        302,
+      ]) {
+        final err = ApiException.fromResponse(
+          status,
+          const {},
+          null,
+          requestMethod: 'POST',
+          requestPath: '/x',
+        );
+
+        expect(err.requestMethod, equals('POST'), reason: '$status');
+        expect(err.requestPath, equals('/x'), reason: '$status');
+      }
+    });
+
+    test(
+      'withRequest keeps the type and never overwrites a recorded request',
+      () {
+        const timeout = NetworkTimeoutException(message: 'slow');
+        const plain = ApiException(statusCode: 302, message: 'moved');
+
+        final a = timeout.withRequest('PUT', '/a?b=c');
+        final b = plain.withRequest('PUT', '/a');
+        final c = a.withRequest('GET', '/z');
+
+        expect(a, isA<NetworkTimeoutException>());
+        expect(a.requestPath, equals('/a'));
+        expect(b.runtimeType, equals(ApiException));
+        expect(b.requestMethod, equals('PUT'));
+        expect(identical(c, a), isTrue);
+      },
+    );
+  });
+
   group('ApiException rendering', () {
     test('renders the message, status, headers and body one field per line', () {
       const err = ApiException(

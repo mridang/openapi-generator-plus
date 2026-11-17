@@ -61,6 +61,18 @@ class SetPetAvatarRequest {
     return json;
   }
 
+  /// Returns a copy of this [SetPetAvatarRequest] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  SetPetAvatarRequest copyWith({Uint8List? data, String? mimeType}) {
+    return SetPetAvatarRequest(
+      data: data ?? this.data,
+      mimeType: mimeType ?? this.mimeType,
+    );
+  }
+
   /// Value-equality based on all declared fields. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
   /// built-in `==` on those is identity), so two instances decoded from

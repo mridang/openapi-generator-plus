@@ -11,6 +11,14 @@ import 'api_key_location.dart';
 /// Authenticator for the `sessionCookie` security scheme.
 class SessionCookieAuthenticator extends ApiKeyAuthenticator {
   /// Creates an authenticator for the `sessionCookie` security scheme.
-  SessionCookieAuthenticator({required super.host, required super.apiKey})
-    : super(keyParamName: 'SESSION_ID', location: ApiKeyLocation.cookie);
+  SessionCookieAuthenticator({
+    required super.host,
+    super.apiKey,
+    super.apiKeyProvider,
+    super.environment,
+  }) : super(
+         keyParamName: 'SESSION_ID',
+         location: ApiKeyLocation.cookie,
+         environmentVariable: 'PETSTORE_CLIENT_SESSION_COOKIE',
+       );
 }

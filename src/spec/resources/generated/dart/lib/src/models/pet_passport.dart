@@ -84,6 +84,27 @@ class PetPassport {
     return json;
   }
 
+  /// Returns a copy of this [PetPassport] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  PetPassport copyWith({
+    Object? pet = copyUnset,
+    Object? thumbnail = copyUnset,
+    Object? scans = copyUnset,
+    Object? issuedAt = copyUnset,
+    Object? biometricChip = copyUnset,
+  }) {
+    return PetPassport(
+      pet: copyField<Pet>(pet, this.pet),
+      thumbnail: copyField<Uint8List>(thumbnail, this.thumbnail),
+      scans: copyField<List<Uint8List>>(scans, this.scans),
+      issuedAt: copyField<DateTime>(issuedAt, this.issuedAt),
+      biometricChip: copyField<Uint8List>(biometricChip, this.biometricChip),
+    );
+  }
+
   /// Value-equality based on all declared fields. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
   /// built-in `==` on those is identity), so two instances decoded from

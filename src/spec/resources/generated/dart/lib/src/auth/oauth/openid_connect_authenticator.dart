@@ -121,9 +121,13 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       );
     }
 
-    final response = await client.sendRequest('GET', _openIdConnectUrl, {
-      'Accept': 'application/json',
-    }, null);
+    final response = await client.sendRequest(
+      'GET',
+      _openIdConnectUrl,
+      {'Accept': 'application/json'},
+      null,
+      noDefaultHeaders: true,
+    );
 
     /* Discovery is an HTTP call like any other: a non-2xx answer throws the
      * same status-specific exception an API call would. */
@@ -132,6 +136,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
         response.statusCode,
         response.headers,
         response.body,
+        requestMethod: 'GET',
+        requestPath: Uri.parse(_openIdConnectUrl).path,
       );
     }
 

@@ -14,6 +14,68 @@ export 'iso8601_duration.dart'
         parseProtobufDuration,
         validatePartialTime;
 
+/// Reads [value], a decoded JSON number, as a finite [double].
+///
+/// A literal beyond the double range (`1e400`) decodes to infinity, which the
+/// SDK never hands to a caller: it raises a [SerializationException] instead.
+double readDouble(Object? value) {
+  final number = (value as num).toDouble();
+  if (!number.isFinite) {
+    throw SerializationException('Number is outside the range of a double');
+  }
+  return number;
+}
+
+/// As [readDouble], with `null` staying `null`.
+double? readDoubleOrNull(Object? value) =>
+    value == null ? null : readDouble(value);
+
+/// Reads [value], a decoded JSON number, as an `int32`.
+///
+/// Only an integer inside the 32-bit range passes: a fractional, quoted or
+/// out-of-range value raises a [SerializationException].
+int readInt32(Object? value) {
+  if (value is! int) {
+    throw SerializationException(
+      'Expected an integer, got ${value.runtimeType}',
+    );
+  }
+  if (value < -2147483648 || value > 2147483647) {
+    throw SerializationException('Integer is outside the range of an int32');
+  }
+  return value;
+}
+
+/// Reads [value], a decoded JSON number, as an `int64`: it must be an integer.
+int readInt64(Object? value) {
+  if (value is! int) {
+    throw SerializationException(
+      'Expected an integer, got ${value.runtimeType}',
+    );
+  }
+  return value;
+}
+
+/// As [readInt32], with `null` staying `null`.
+int? readInt32OrNull(Object? value) => value == null ? null : readInt32(value);
+
+/// As [readInt64], with `null` staying `null`.
+int? readInt64OrNull(Object? value) => value == null ? null : readInt64(value);
+
+/// Marker type of [copyUnset].
+class _CopyUnset {
+  const _CopyUnset();
+}
+
+/// The default of a nullable `copyWith` argument: an argument that is not
+/// passed keeps the current value, while an explicit `null` clears it.
+const Object copyUnset = _CopyUnset();
+
+/// The value a nullable model field takes in `copyWith`: [current] when
+/// [passed] is [copyUnset], else [passed] (which may be `null`).
+T? copyField<T>(Object? passed, T? current) =>
+    identical(passed, copyUnset) ? current : passed as T?;
+
 /// Canonical RFC 4122 UUID shape. Case-insensitive; matches all variants
 /// (`format: uuid` is intentionally permissive about which variant is on the
 /// wire), but rejects anything that is not the 8-4-4-4-12 hex form.

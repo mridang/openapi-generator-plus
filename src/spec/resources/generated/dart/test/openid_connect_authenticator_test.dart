@@ -18,6 +18,7 @@ class _FakeApiClient implements ApiClient {
   final List<String> bodies = [];
   Object? failure;
   String? lastMethod;
+  bool? lastNoDefaultHeaders;
   int getCount = 0;
 
   void enqueue(
@@ -37,8 +38,11 @@ class _FakeApiClient implements ApiClient {
     Map<String, String> headers,
     Object? body, {
     bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
   }) async {
     lastMethod = method;
+    lastNoDefaultHeaders = noDefaultHeaders;
     lastUrl = url;
     urls.add(url);
     final error = failure;
@@ -107,6 +111,23 @@ void main() {
         equals('https://auth.example.com/.well-known/openid-configuration'),
       );
     });
+
+    test(
+      'the discovery request leaves the transport default headers off',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.buildAuthorizationUrl();
+
+        expect(client.lastNoDefaultHeaders, isTrue);
+      },
+    );
 
     test('obtains token after code exchange', () async {
       final client = _FakeApiClient();

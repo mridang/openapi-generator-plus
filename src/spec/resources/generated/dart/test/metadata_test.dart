@@ -56,6 +56,92 @@ void main() {
     });
   });
 
+  group('package links', () {
+    test('declares the repository in the pubspec and the README', () {
+      final root = Directory.current.path;
+      expect(
+        File('$root/pubspec.yaml').readAsStringSync(),
+        contains(
+          'repository: "https://git.example.com/acme/petstore-client.git"',
+        ),
+      );
+      expect(
+        File('$root/README.md').readAsStringSync(),
+        contains(
+          '- Repository: <https://git.example.com/acme/petstore-client.git>',
+        ),
+      );
+    });
+    test('declares the homepage in the pubspec and the README', () {
+      final root = Directory.current.path;
+      expect(
+        File('$root/pubspec.yaml').readAsStringSync(),
+        contains('homepage: "https://acme.example.com/petstore"'),
+      );
+      expect(
+        File('$root/README.md').readAsStringSync(),
+        contains('- Homepage: <https://acme.example.com/petstore>'),
+      );
+    });
+    test('declares the issue tracker in the pubspec and the README', () {
+      final root = Directory.current.path;
+      expect(
+        File('$root/pubspec.yaml').readAsStringSync(),
+        contains(
+          'issue_tracker: "https://git.example.com/acme/petstore-client/issues"',
+        ),
+      );
+      expect(
+        File('$root/README.md').readAsStringSync(),
+        contains(
+          '- Issues: <https://git.example.com/acme/petstore-client/issues>',
+        ),
+      );
+    });
+    test('declares the documentation link in the pubspec and the README', () {
+      final root = Directory.current.path;
+      expect(
+        File('$root/pubspec.yaml').readAsStringSync(),
+        contains('documentation: "https://docs.example.com/petstore"'),
+      );
+      expect(
+        File('$root/README.md').readAsStringSync(),
+        contains('- Documentation: <https://docs.example.com/petstore>'),
+      );
+    });
+    test('names the authors in the README', () {
+      expect(
+        File('${Directory.current.path}/README.md').readAsStringSync(),
+        contains('Authors: Acme Platform Team'),
+      );
+    });
+    test(
+      'the README documents the per-call, credential and model features',
+      () {
+        final readme = File(
+          '${Directory.current.path}/README.md',
+        ).readAsStringSync();
+        for (final heading in [
+          '### Per-call options',
+          '### Errors',
+          '### Credentials',
+          '### Copying models',
+          '### Several success responses',
+          '### Response compression',
+          '### Logging',
+          '### Versioning',
+          '### Optional and nullable are one type',
+          '### Unknown enum values and discriminators fail loudly',
+          '### Response headers',
+          '### Streaming is not supported',
+          '### `Configuration` and `TransportOptions` are separate',
+        ]) {
+          expect(readme, contains(heading));
+        }
+      },
+    );
+  });
+
   group('dev dependencies', () {
     test(
       'every package the generator declares for the tests is in the pubspec',
@@ -172,6 +258,22 @@ void main() {
   });
 
   group('package barrel', () {
+    test('documents the library without backslash-escaped quotes', () {
+      final barrel = File(
+        '${Directory.current.path}/lib/petstore_client.dart',
+      ).readAsLinesSync();
+      final doc = barrel.where((line) => line.startsWith('///')).toList();
+      expect(doc, isNotEmpty);
+      for (final line in doc) {
+        expect(
+          line.contains(r'\"'),
+          isFalse,
+          reason:
+              'library doc line must not carry a backslash-escaped quote: $line',
+        );
+      }
+    });
+
     test('hides the internal no-auth sentinel from the public API', () {
       final barrel = File(
         '${Directory.current.path}/lib/petstore_client.dart',

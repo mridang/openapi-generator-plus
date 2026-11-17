@@ -263,6 +263,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
@@ -356,6 +359,9 @@ class PetApi extends BaseApi {
       contentType: 'multipart/form-data',
       returnType: 'List<Photo>',
       auth: null,
+      timeout: options.timeout,
+      callHeaders: options.headers,
+      maxRetries: options.maxRetries,
 
       deserialize: (body) =>
           deserializeList(body, Photo.fromJson) as List<Photo>,
@@ -440,6 +446,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'PetTreatment',
       auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserialize(body, PetTreatment.fromJson) as PetTreatment,
@@ -529,6 +538,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
     );
   }
 
@@ -813,6 +825,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Pet>',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
     );
@@ -1308,6 +1323,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+      timeout: options.timeout,
+      callHeaders: options.headers,
+      maxRetries: options.maxRetries,
 
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
@@ -1618,6 +1636,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'String',
       auth: null,
+      timeout: options.timeout,
+      callHeaders: options.headers,
+      maxRetries: options.maxRetries,
       deserialize: (body) => deserializeRaw(body) as String,
     );
   }
@@ -1837,6 +1858,9 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
@@ -2156,6 +2180,9 @@ class PetApi extends BaseApi {
       contentType: 'application/x-www-form-urlencoded',
       returnType: 'ApiResponse',
       auth: null,
+      timeout: options.timeout,
+      callHeaders: options.headers,
+      maxRetries: options.maxRetries,
 
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
@@ -2317,6 +2344,9 @@ class PetApi extends BaseApi {
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
       auth: null,
+      timeout: options.timeout,
+      callHeaders: options.headers,
+      maxRetries: options.maxRetries,
 
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
@@ -2460,6 +2490,9 @@ class PetApi extends BaseApi {
       contentType: requestContentType ?? 'multipart/form-data',
       returnType: 'ApiResponse',
       auth: null,
+      timeout: options.timeout,
+      callHeaders: options.headers,
+      maxRetries: options.maxRetries,
 
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,

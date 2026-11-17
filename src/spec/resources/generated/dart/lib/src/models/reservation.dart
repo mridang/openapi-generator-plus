@@ -40,9 +40,9 @@ class Reservation {
       );
     }
     return Reservation(
-      reservationId: json['reservationId'] as int,
+      reservationId: readInt64(json['reservationId']),
 
-      quantity: json['quantity'] as int,
+      quantity: readInt32(json['quantity']),
     );
   }
 
@@ -55,6 +55,18 @@ class Reservation {
     json['quantity'] = quantity;
 
     return json;
+  }
+
+  /// Returns a copy of this [Reservation] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  Reservation copyWith({int? reservationId, int? quantity}) {
+    return Reservation(
+      reservationId: reservationId ?? this.reservationId,
+      quantity: quantity ?? this.quantity,
+    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

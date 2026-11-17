@@ -50,6 +50,18 @@ class Employee {
     return json;
   }
 
+  /// Returns a copy of this [Employee] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  Employee copyWith({String? name, Object? department = copyUnset}) {
+    return Employee(
+      name: name ?? this.name,
+      department: copyField<Department>(department, this.department),
+    );
+  }
+
   /// Value-equality based on all declared fields. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
   /// built-in `==` on those is identity), so two instances decoded from

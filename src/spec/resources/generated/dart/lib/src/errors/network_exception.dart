@@ -12,6 +12,10 @@ import 'api_exception.dart';
 /// always 0 and the underlying transport exception is kept as
 /// [cause].
 class NetworkException extends ApiException {
-  const NetworkException({required super.message, super.cause})
-    : super(statusCode: 0);
+  const NetworkException({
+    required super.message,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  }) : super(statusCode: 0);
 }

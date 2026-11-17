@@ -47,7 +47,7 @@ class DryFood {
     return DryFood(
       foodType: json['foodType'] as String,
 
-      weightKg: (json['weightKg'] as num).toDouble(),
+      weightKg: readDouble(json['weightKg']),
     );
   }
 
@@ -60,6 +60,18 @@ class DryFood {
     json['weightKg'] = weightKg;
 
     return json;
+  }
+
+  /// Returns a copy of this [DryFood] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  DryFood copyWith({String? foodType, double? weightKg}) {
+    return DryFood(
+      foodType: foodType ?? this.foodType,
+      weightKg: weightKg ?? this.weightKg,
+    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

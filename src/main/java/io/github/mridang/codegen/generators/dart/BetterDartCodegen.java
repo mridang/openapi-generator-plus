@@ -150,6 +150,16 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 CodegenConstants.PACKAGE_NAME_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated Dart package (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "Source repository URL, written to the pubspec repository field and the README."));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "Project homepage URL, written to the pubspec homepage field and the README."));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "Documentation URL, written to the pubspec documentation field and the README."));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "Issue tracker URL, written to the pubspec issue_tracker field and the README."));
+        cliOptions.add(CliOption.newString("authors",
+                "Authors, written to the README (a pubspec has no authors field)."));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -201,7 +211,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected Set<String> getInjectedArgumentNames() {
         return Set.of(
-                "options", "server", "requestContentType", "path", "auth", "serverUrl",
+                "options", "server", "requestContentType", "path", "auth", "serverUrl", "timeout",
+                "headers", "maxRetries",
                 "queryParams", "headerParams", "cookieParts", "operationCookieValueRe", "formBody",
                 "requestBody", "declaredConsumes");
     }
@@ -439,6 +450,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("default_api_client.mustache", srcDir, "default_api_client.dart"),
             new SupportingFileSpec("default_api_client_io.mustache", srcDir, "default_api_client_io.dart"),
             new SupportingFileSpec("default_api_client_web.mustache", srcDir, "default_api_client_web.dart"),
+            new SupportingFileSpec("environment.mustache", srcDir, "environment.dart"),
+            new SupportingFileSpec("environment_io.mustache", srcDir, "environment_io.dart"),
+            new SupportingFileSpec("environment_web.mustache", srcDir, "environment_web.dart"),
             new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "api").toString(), "base_api.dart"),
             new SupportingFileSpec("authenticator.mustache", Path.of(srcDir, "auth").toString(), "authenticator.dart"),
             new SupportingFileSpec("barrel.mustache", "lib", pkg + ".dart"),
@@ -1006,8 +1020,54 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                     imp.put("filename", toModelFilename(className));
                 }
             }
+            if (operations != null) {
+                addSuccessVariantImports(imports, operations);
+            }
         }
         return objs;
+    }
+
+    /**
+     * Adds an import for every schema of an operation with several 2xx responses: the API
+     * class decodes each body as the schema of its status code, so it names the variant
+     * models itself and not only their union. A model that is already imported is skipped.
+     */
+    @SuppressWarnings("unchecked")
+    private void addSuccessVariantImports(
+            final List<Map<String, String>> imports, final Map<String, Object> operations) {
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        final Set<String> known = new HashSet<>();
+        for (final Map<String, String> imp : imports) {
+            known.add(imp.get("filename"));
+        }
+        for (final CodegenOperation op : ops) {
+            final Object deco = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (!(deco instanceof Map)) {
+                continue;
+            }
+            final Object variants = ((Map<String, Object>) deco).get("successVariants");
+            if (!(variants instanceof List)) {
+                continue;
+            }
+            for (final Object variant : (List<Object>) variants) {
+                final Object type = ((Map<String, Object>) variant).get("returnType");
+                if (type == null) {
+                    continue;
+                }
+                final String className = type.toString();
+                final String filename = toModelFilename(className);
+                if (known.add(filename)) {
+                    final Map<String, String> imp = new HashMap<>();
+                    imp.put("import", className);
+                    imp.put("className", className);
+                    imp.put("filename", filename);
+                    imports.add(imp);
+                }
+            }
+        }
     }
 
     /** {@inheritDoc} */
@@ -1034,27 +1094,48 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         final String constructorSig;
         final String superCall;
 
+        final String envPrefix = packageName.toUpperCase(Locale.ROOT);
+        final String envScheme =
+                NamingConvention.SNAKE_CASE
+                        .apply(java.util.Objects.toString(spec.schemeName(), ""))
+                        .toUpperCase(Locale.ROOT);
         if ("BasicAuthenticator".equals(spec.baseClass())) {
             imports = List.of("basic_authenticator.dart");
             constructorSig =
-                    "required String host, required String username, required String password";
-            superCall = "host: host, username: username, password: password";
+                    "required String host, String? username, String? password, "
+                            + "(String username, String password) Function()? credentialsProvider, "
+                            + "Map<String, String>? environment";
+            superCall =
+                    "host: host, username: username, password: password, "
+                            + "credentialsProvider: credentialsProvider, usernameVariable: '"
+                            + envPrefix + "_" + envScheme + "_USERNAME', passwordVariable: '"
+                            + envPrefix + "_" + envScheme + "_PASSWORD', environment: environment";
         } else if ("BearerAuthenticator".equals(spec.baseClass())) {
-            imports = List.of("bearer_authenticator.dart");
-            constructorSig = "required String host, required String token";
-            superCall = "host: host, token: token";
+            imports = List.of("dart:async", "bearer_authenticator.dart");
+            constructorSig =
+                    "required String host, String? token, "
+                            + "FutureOr<String> Function()? tokenProvider, "
+                            + "Map<String, String>? environment";
+            superCall =
+                    "host: host, token: token, tokenProvider: tokenProvider, "
+                            + "environmentVariable: '" + envPrefix + "_" + envScheme
+                            + "', environment: environment";
         } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String loc = NamingConvention.CAMEL_CASE.apply(
                     spec.keyIn() != null
                             ? spec.keyIn().toLowerCase(Locale.ROOT)
                             : "header");
             imports = List.of("api_key_authenticator.dart", "api_key_location.dart");
-            constructorSig = "required String host, required String apiKey";
+            constructorSig =
+                    "required String host, String? apiKey, String Function()? apiKeyProvider, "
+                            + "Map<String, String>? environment";
             superCall =
                     "host: host, keyParamName: '"
                             + escapeDartString(java.util.Objects.toString(spec.keyParamName(), ""))
-                            + "', apiKey: apiKey, location: ApiKeyLocation."
-                            + loc;
+                            + "', apiKey: apiKey, apiKeyProvider: apiKeyProvider, location: ApiKeyLocation."
+                            + loc
+                            + ", environmentVariable: '" + envPrefix + "_" + envScheme
+                            + "', environment: environment";
         } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             imports = List.of("oauth2_client_credentials_authenticator.dart");
             constructorSig =

@@ -10,6 +10,115 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('BearerAuthenticator', () {
+    test('an explicit token wins over the environment', () {
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        token: 'explicit',
+        environment: {
+          BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
+        },
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
+    });
+
+    test('the environment variable is read once, at construction', () {
+      final environment = {
+        BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
+      };
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        environment: environment,
+      );
+
+      environment[BearerAuthenticator.defaultEnvironmentVariable] = 'changed';
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
+    });
+
+    test('a named environment variable is read instead of the default', () {
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        environmentVariable: 'OTHER_TOKEN',
+        environment: {'OTHER_TOKEN': 'other'},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer other'));
+    });
+
+    test('an empty environment value counts as unset', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '/api/v3',
+          environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains(BearerAuthenticator.defaultEnvironmentVariable),
+          ),
+        ),
+      );
+    });
+
+    test('no token anywhere fails when the authenticator is built', () {
+      expect(
+        () => BearerAuthenticator(host: '/api/v3', environment: const {}),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('a token and a provider together are refused', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '/api/v3',
+          token: 'a',
+          tokenProvider: () => 'b',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('the provider is asked on every request', () async {
+      var calls = 0;
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        tokenProvider: () => 'token${++calls}',
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer token1'));
+      expect(
+        (await auth.authHeadersAsync())['Authorization'],
+        equals('Bearer token2'),
+      );
+    });
+
+    test(
+      'an asynchronous provider works through authHeadersAsync only',
+      () async {
+        final auth = BearerAuthenticator(
+          host: '/api/v3',
+          tokenProvider: () async => 'later',
+        );
+
+        expect(
+          (await auth.authHeadersAsync())['Authorization'],
+          equals('Bearer later'),
+        );
+        expect(auth.authHeaders, throwsStateError);
+      },
+    );
+
+    test('a provider result is validated like a fixed token', () async {
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        tokenProvider: () => '',
+      );
+
+      await expectLater(auth.authHeadersAsync(), throwsArgumentError);
+    });
+
     test('raw token is prefixed with Bearer', () {
       final auth = BearerAuthenticator(host: '/api/v3', token: 'xyz');
       final headers = auth.authHeaders();

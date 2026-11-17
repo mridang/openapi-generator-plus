@@ -47,6 +47,82 @@ void main() {
       );
     });
 
+    test(
+      'a nickname outside its pattern is not enforced and round-trips unchanged',
+      () {
+        final pet = deserialize<Pet>(
+          '{"name":"x","photoUrls":[],"nickname":"ZZZZZZZZZZ"}',
+          Pet.fromJson,
+        );
+
+        expect(pet!.nickname, equals('ZZZZZZZZZZ'));
+        expect(serialize(pet), contains('"nickname":"ZZZZZZZZZZ"'));
+      },
+    );
+
+    test(
+      'a double beyond the range of a double is refused, not decoded as infinity',
+      () {
+        for (final literal in ['1e400', '-1e400']) {
+          expect(
+            () => deserialize<Pet>(
+              '{"name":"a","photoUrls":[],"weightKg":$literal}',
+              Pet.fromJson,
+            ),
+            throwsA(isA<SerializationException>()),
+            reason: literal,
+          );
+        }
+      },
+    );
+
+    test('a finite double still decodes', () {
+      final pet = deserialize<Pet>(
+        '{"name":"a","photoUrls":[],"weightKg":1.5e300}',
+        Pet.fromJson,
+      );
+
+      expect(pet!.weightKg, equals(1.5e300));
+    });
+
+    test(
+      'copyWith replaces only the given fields and leaves the original unchanged',
+      () {
+        const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
+
+        final copy = original.copyWith(name: 'Rex');
+
+        expect(copy.name, equals('Rex'));
+        expect(copy.id, equals(7));
+        expect(copy.photoUrls, equals({'a'}));
+        expect(original.name, equals('Fido'));
+      },
+    );
+
+    test('copyWith without arguments is equal to the original', () {
+      const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
+
+      expect(original.copyWith(), equals(original));
+    });
+
+    test('copyWith sets a nullable field to null only when null is passed', () {
+      const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
+
+      expect(original.copyWith(nickname: 'Fi').nickname, equals('Fi'));
+      expect(original.copyWith(id: null).id, isNull);
+      expect(original.copyWith(name: 'Rex').id, equals(7));
+    });
+
+    test(
+      'copyWith on a required nullable field keeps it required in the type',
+      () {
+        const original = RequiredNullable(note: 'hi');
+
+        expect(original.copyWith(note: null).note, isNull);
+        expect(original.copyWith().note, equals('hi'));
+      },
+    );
+
     test('deserializeRaw JSON to map', () {
       final input = '{"name":"Fido","age":3}';
 

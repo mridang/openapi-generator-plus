@@ -30,6 +30,8 @@ class _FakeApiClient implements ApiClient {
     Map<String, String> headers,
     Object? body, {
     bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
   }) async {
     lastUrl = url;
     urls.add(url);

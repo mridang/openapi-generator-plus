@@ -16,5 +16,7 @@ class ClientException extends ApiException {
     super.responseHeaders,
     super.errorBody,
     super.cause,
+    super.requestMethod,
+    super.requestPath,
   });
 }
