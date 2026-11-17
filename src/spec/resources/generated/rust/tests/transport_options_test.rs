@@ -272,8 +272,7 @@ fn test_bhv_options_008_a_proxy_url_error_never_carries_the_user_info() {
         let text = TransportOptionsBuilder::new()
             .proxy(&proxy)
             .build()
-            .err()
-            .expect("the proxy URL is rejected")
+            .expect_err("the proxy URL is rejected")
             .to_string();
         assert!(!text.contains(&secret), "{}", text);
         assert!(text.contains("***@"), "{}", text);
@@ -325,8 +324,7 @@ fn test_bhv_options_031_a_rejected_proxy_url_displays_the_canonical_message() {
         let text = TransportOptionsBuilder::new()
             .proxy(proxy)
             .build()
-            .err()
-            .expect("the proxy URL is rejected")
+            .expect_err("the proxy URL is rejected")
             .to_string();
         assert_eq!(text, message);
     }
