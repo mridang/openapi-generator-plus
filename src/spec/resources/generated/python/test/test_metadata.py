@@ -131,10 +131,16 @@ class TestMetadataTypedAdditionalProperties:
 
         stamp = datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
         declared_only = json.loads(
-            ObjectSerializer().serialize(Metadata(created_at=stamp))
+            ObjectSerializer().serialize(Metadata(createdAt=stamp))
         )
-        colliding = Metadata(
-            created_at=stamp, additional_properties={"createdAt": "x", "extra": 1}
+        # Field-name keys select the internal bucket path, so the colliding extras
+        # are spread into additional_properties; a wire-alias keyword would make
+        # that dict a real wire property. mypy checks the alias keyword only.
+        colliding = Metadata.model_validate(
+            {
+                "created_at": stamp,
+                "additional_properties": {"createdAt": "x", "extra": 1},
+            }
         )
 
         data = json.loads(ObjectSerializer().serialize(colliding))
