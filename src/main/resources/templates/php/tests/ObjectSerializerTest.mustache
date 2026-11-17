@@ -1984,7 +1984,7 @@ test('bhv serializationobject 082 deserialize silently ignores unknown extra fie
 });
 
 test('bhv serializationobject 083 deserialize throws when a required field is absent', function (): void {
-    expect(fn () => ObjectSerializer::deserialize('{"id":1,"petId":1,"quantity":1,"complete":false}', Order::class))
+    expect(fn () => ObjectSerializer::deserialize('{"id":5,"photoUrls":["http://example.com/rex.jpg"]}', Pet::class))
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 

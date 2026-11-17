@@ -115,11 +115,15 @@ test('rejects a negative maxRedirects', function (): void {
 
 test('bhv options 024 invalid proxy url throws exception', function (): void {
     // A bad proxy URL is a configuration mistake, not an SDK error.
-    expect(fn () => TransportOptions::builder()->proxy('not-a-url')->build())
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\InvalidArgumentException::class);
-            expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
-        });
+    $caught = null;
+    try {
+        TransportOptions::builder()->proxy('not-a-url')->build();
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+    expect($caught)->not->toBeNull();
+    expect($caught::class)->toBe(\InvalidArgumentException::class);
+    expect($caught)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
 });
 
 test('bhv options 030 null proxy url is accepted', function (): void {

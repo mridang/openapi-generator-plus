@@ -2197,7 +2197,7 @@ test('bhv redirects 022 a 308 comes back verbatim when no redirect is requested'
     $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'x=1', noRedirect: true);
 
     expect($response->statusCode)->toBe(308);
-    expect($response->headers['location'] ?? null)->toBe(['https://api.example.com/moved']);
+    expect($response->headers['location'] ?? null)->toBe('https://api.example.com/moved');
 });
 
 test('bhv transport 008 generates a unique X-Request-ID per request', function (): void {

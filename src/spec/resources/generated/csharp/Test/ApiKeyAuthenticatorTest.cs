@@ -122,10 +122,20 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Theory]
-    [InlineData(" \t\n\r\f\v")]
-    [InlineData("\f")]
+    [InlineData(" \t\n\r\v")]
+    [InlineData("\t")]
     public void BhvAuthapikey011AsciiWhitespaceOnlyQueryKeyThrowsAsEmpty(string key)
     {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "api_key", key, ApiKeyLocation.Query)
+        );
+        Assert.Contains("must not be empty", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthapikey011FormFeedOnlyQueryKeyThrowsAsEmpty()
+    {
+        var key = new string((char)0x0C, 1);
         var ex = Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator("https://api.example.com", "api_key", key, ApiKeyLocation.Query)
         );

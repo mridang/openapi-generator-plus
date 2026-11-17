@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PetstoreClient\ObjectSerializer;
 use PetstoreClient\ValueSerializer;
 
 // -- path location --

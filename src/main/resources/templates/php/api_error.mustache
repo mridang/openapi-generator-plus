@@ -334,7 +334,8 @@ class ApiException extends {{errorPrefix}}Exception
                 ) || preg_match('/key|token|secret/', $lower) === 1;
                 $shown[$name] = $secret ? '***' : $value;
             }
-            $rendered .= "\nResponse headers: " . json_encode($shown, JSON_THROW_ON_ERROR);
+            ksort($shown);
+            $rendered .= "\nResponse headers: " . json_encode($shown, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }
         if ($this->responseBody !== null && $this->responseBody !== '') {
             $body = $this->responseBody;
