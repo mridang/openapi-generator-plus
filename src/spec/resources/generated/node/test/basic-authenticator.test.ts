@@ -140,7 +140,7 @@ describe("BasicAuthenticator", () => {
       });
     });
 
-    it("each explicit value wins over its own variable", () => {
+    it("bhv authbasic 013 each explicit value wins over its own variable", () => {
       process.env[userVariable] = "from-env";
       process.env[secretVariable] = "from-env";
       const auth = new BasicAuthenticator(

@@ -136,7 +136,7 @@ describe("DefaultApiClient", () => {
     expect(response.body).toContain('"method"');
   });
 
-  test("authenticating proxy refuses a request without credentials", async () => {
+  test("bhv transport 059 authenticating proxy refuses a request without credentials", async () => {
     const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
     const transport = TransportOptions.builder()
       .proxy(`http://${process.env["PROXY_AUTH_HOST_PORT"]!}`)

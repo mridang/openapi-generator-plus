@@ -141,7 +141,7 @@ describe("ApiError", () => {
       expect(err.toString()).toContain("HTTP status code: 500");
     });
 
-    test("name is ApiError", () => {
+    test("bhv errors 047 name is ApiError", () => {
       const err = new ApiError(500, "boom");
       expect(err.name).toBe("ApiError");
       expect(err).toBeInstanceOf(Error);
@@ -369,7 +369,7 @@ describe("ApiError", () => {
       }
     });
 
-    test("the OAuth2 errors are rooted at the branded base, not at ApiError", () => {
+    test("bhv errors 045 the OAuth2 errors are rooted at the branded base, not at ApiError", () => {
       const server = new OAuth2ServerError(
         400,
         "invalid_grant",
@@ -409,12 +409,16 @@ describe("ApiError", () => {
         "{}",
         "Token request failed with status 400: invalid_grant -- refresh token expired",
       ],
-    ])("renders %s", (_label, code, description, rawBody, expected) => {
-      const status = code === null ? 502 : 400;
-      expect(
-        new OAuth2ServerError(status, code, description, null, rawBody).message,
-      ).toBe(expected);
-    });
+    ])(
+      "bhv errors 046 renders the OAuth2 message in three forms: %s",
+      (_label, code, description, rawBody, expected) => {
+        const status = code === null ? 502 : 400;
+        expect(
+          new OAuth2ServerError(status, code, description, null, rawBody)
+            .message,
+        ).toBe(expected);
+      },
+    );
   });
 
   describe("TooManyRequestsError.retryAfter", () => {

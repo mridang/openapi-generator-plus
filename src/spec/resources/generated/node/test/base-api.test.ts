@@ -2545,6 +2545,13 @@ describe("BaseApi error request context", () => {
     expect(err.toString()).not.toContain("page=2");
   });
 
+  test("bhv errors 048 418 throws ClientError", async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 418;
+    const err = await fail(client, "GET", "/items/7");
+    expect(err).toBeInstanceOf(ClientError);
+  });
+
   test("a relative base URL gives the path without the query string", async () => {
     const client = new RecordingApiClient();
     client.statusCode = 418;

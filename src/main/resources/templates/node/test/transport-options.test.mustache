@@ -371,7 +371,7 @@ describe('TransportOptions', () => {
       ['a proxy', TransportOptions.builder().proxy('http://proxy.example.com:8080')],
       ['a custom CA certificate', TransportOptions.builder().caCertPath('/etc/ca.pem')],
       ['disabled TLS verification', TransportOptions.builder().verifySsl(false)],
-    ])('a custom fetch combined with %s fails fast', (_name, builder) => {
+    ])('bhv lifecycle 024 a custom fetch combined with %s fails fast', (_name, builder) => {
       expect(() => builder.fetch(customFetch).build()).toThrow(TypeError);
     });
 

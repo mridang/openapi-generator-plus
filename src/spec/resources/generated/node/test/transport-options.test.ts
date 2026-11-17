@@ -453,9 +453,12 @@ describe("TransportOptions", () => {
         "disabled TLS verification",
         TransportOptions.builder().verifySsl(false),
       ],
-    ])("a custom fetch combined with %s fails fast", (_name, builder) => {
-      expect(() => builder.fetch(customFetch).build()).toThrow(TypeError);
-    });
+    ])(
+      "bhv lifecycle 024 a custom fetch combined with %s fails fast",
+      (_name, builder) => {
+        expect(() => builder.fetch(customFetch).build()).toThrow(TypeError);
+      },
+    );
 
     test("the printable form never includes the fetch function or option values", () => {
       const opts = TransportOptions.builder()

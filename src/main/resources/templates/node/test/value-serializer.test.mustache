@@ -266,6 +266,10 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', true)).toEqual(['blue', 'black']);
     });
 
+    test('bhv serializationparam 105 SerializeStyled form scalar', () => {
+      expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'form', true)).toBe('blue');
+    });
+
     test('bhv serializationparam 041 scalar with explode true returns string not list', () => {
       expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'form', true)).toBe('blue');
     });
@@ -355,7 +359,7 @@ describe('ValueSerializer', () => {
   });
 
   describe('serializeStyled - null style falls back to location default', () => {
-    test('path with null style behaves like simple', () => {
+    test('bhv serializationparam 106 path with null style behaves like simple', () => {
       expect(ValueSerializer.serializeStyled('id', '5', 'path', 'string', null, null, false)).toBe('5');
     });
 

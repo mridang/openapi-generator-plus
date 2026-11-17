@@ -1292,7 +1292,7 @@ describe("ObjectSerializer", () => {
       },
     );
 
-    test("deserialize: canonical padded base64 is accepted", () => {
+    test("bhv serializationobject 185 deserialize: canonical padded base64 is accepted", () => {
       const passport = ObjectSerializer.deserialize(
         { thumbnail: "dGVzdA==" },
         PetPassport,
@@ -1910,7 +1910,7 @@ describe("ObjectSerializer", () => {
           );
         });
 
-        test("rejects ISO-8601 (PT1H)", () => {
+        test("bhv serializationobject 184 rejects an ISO-8601 duration string (PT1H)", () => {
           expect(() => durationFromProtoJson("PT1H")).toThrow(
             SerializationError,
           );
@@ -3297,6 +3297,12 @@ describe("toBinary", () => {
 
       expect(ObjectSerializer.serialize({ text })).toBe(
         '{"text":"a\u2028b\u2029c\u007fd\u00e9/<>&\\"\\\\\\u0001"}',
+      );
+    });
+
+    test("bhv serializationobject 186 request JSON escapes the quote, the backslash and each control character", () => {
+      expect(ObjectSerializer.serialize({ text: '"\\\u0001\u001f' })).toBe(
+        '{"text":"\\"\\\\\\u0001\\u001f"}',
       );
     });
 
