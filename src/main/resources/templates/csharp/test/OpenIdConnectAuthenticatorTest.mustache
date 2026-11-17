@@ -248,7 +248,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task AcceptsAPlainHttpEndpointOnALoopbackHost()
+    public async Task BhvAuthoidc005AcceptsAPlainHttpEndpointOnALoopbackHost()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -427,6 +427,74 @@ public class OpenIdConnectAuthenticatorTest
             CreateAuthenticator().ToString());
     }
 
+    [Fact]
+    public async Task RejectsAClearTextEndpointThatIsNotLoopback()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"http://192.168.1.10/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+        Assert.Contains("must use https", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc001AMaxAgeBeyondOneYearIsClampedToOneYear()
+    {
+        // The ceiling keeps the document cached: a max-age far past one year
+        // is held to one year, so the second call is served from the cache.
+        var client = new CacheControlApiClient("max-age=31536001");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(1, client.GetRequestCount);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc022TheAuthorizationUrlRequestsTheOpenIdScopeExactlyOnce()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+        var auth = new OpenIdConnectAuthenticator(
+            "https://api.example.com",
+            new Uri("https://auth.example.com/.well-known/openid-configuration"),
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://app.example.com/callback"),
+            ["profile", "openid", "openid"]);
+        auth.SetApiClient(client);
+
+        string url = (await auth.BuildAuthorizationUrlAsync()).ToString();
+
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(url, "openid").Count);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc009FailedRediscoveryKeepsTheOldDelegate()
+    {
+        // The discovery cache expires at once (max-age=0), so every call
+        // rediscovers. A failed rediscovery must leave the exchanged session
+        // in place, so the call after it still carries the token.
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(new FailingRediscoveryApiClient());
+
+        await auth.ExchangeCodeAsync("the-code");
+        await Assert.ThrowsAsync<{{packageName}}.Errors.InternalServerErrorException>(
+            () => auth.GetAuthHeadersAsync());
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("Bearer at-1", headers["Authorization"]);
+    }
+
     [Theory]
     [InlineData("max-age=0", 2)]
     [InlineData("public, max-age=3600", 1)]
@@ -564,6 +632,37 @@ public class OpenIdConnectAuthenticatorTest
                 200,
                 "{\"access_token\":\"at-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}",
                 new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    private sealed class FailingRediscoveryApiClient : IApiClient
+    {
+        private int _discoveries;
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body)
+        {
+            if (method != "GET")
+            {
+                return Task.FromResult(new ApiHttpResponse(
+                    200,
+                    "{\"access_token\":\"at-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+            }
+
+            _discoveries++;
+            if (_discoveries == 2)
+            {
+                return Task.FromResult(new ApiHttpResponse(500, "unavailable", new Dictionary<string, string>()));
+            }
+            return Task.FromResult(new ApiHttpResponse(
+                200,
+                "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                    + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                new Dictionary<string, string> { { "Cache-Control", "max-age=0" } }));
         }
     }
 
