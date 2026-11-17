@@ -7,6 +7,7 @@
 
 import * as fs from "node:fs";
 import * as http from "node:http";
+import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
@@ -2530,10 +2531,22 @@ describe("proxy URL credentials route through the proxy", () => {
   it("bhv transport 001 a proxy URL with embedded basic-auth credentials routes through proxy", async () => {
     const userinfo = ["user", "pass"].join(":");
     const seen: Array<string | undefined> = [];
-    const proxy = http.createServer((req, res) => {
+    /* undici's ProxyAgent tunnels every request with CONNECT, even to an http target, so the proxy answers CONNECT and pipes the tunnel to the local server. */
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(405);
+      res.end();
+    });
+    proxy.on("connect", (req, clientSocket, head) => {
       seen.push(req.headers["proxy-authorization"]);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end("{}");
+      const target = new URL(`http://${req.url!}`);
+      const upstream = net.connect(Number(target.port), target.hostname, () => {
+        clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+        upstream.write(head);
+        clientSocket.pipe(upstream);
+        upstream.pipe(clientSocket);
+      });
+      clientSocket.on("error", () => upstream.destroy());
+      upstream.on("error", () => clientSocket.destroy());
     });
     await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
     const port = (proxy.address() as { port: number }).port;
@@ -2545,7 +2558,7 @@ describe("proxy URL credentials route through the proxy", () => {
     try {
       const response = await client.sendRequest(
         "GET",
-        "http://api.example/routed",
+        `${baseUrl}/echo`,
         {},
         null,
       );
@@ -2555,6 +2568,7 @@ describe("proxy URL credentials route through the proxy", () => {
       ]);
     } finally {
       await client.close();
+      proxy.closeAllConnections();
       await new Promise<void>((resolve) => proxy.close(() => resolve()));
     }
   });
