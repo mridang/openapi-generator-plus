@@ -668,7 +668,7 @@ func TestBaseApi_FormUrlencodedWireFormat(t *testing.T) {
 	}
 }
 
-func TestBaseApi_FormUrlencodedDateTimeUsesCanonicalForm(t *testing.T) {
+func TestBhvOperations075_BaseApi_FormUrlencodedDateTimeUsesCanonicalForm(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -833,7 +833,7 @@ func TestBhvSerializationwire009_BaseApi_ExpandsArrayQueryParams(t *testing.T) {
 // pointer, so the optional array fell through to %v formatting. The decoded
 // query string is inspected so the assertions hold regardless of which
 // percent-encoding the transport applies to the structural separators.
-func TestBaseApi_OptionalArrayQueryParamsSerializeAsStyledValues(t *testing.T) {
+func TestBhvOperations068_BaseApi_OptionalArrayQueryParamsSerializeAsStyledValues(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -907,7 +907,7 @@ func TestBhvOptions002_BaseApi_MissingRequiredQueryParam_NilOptions(t *testing.T
 
 // A missing required path parameter is a caller mistake: the sentinel is
 // returned before any HTTP call, never a panic and never an SDK error.
-func TestBaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
+func TestBhvOperations052_BaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -927,7 +927,7 @@ func TestBaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
 
 // required-nested-param-validation: an empty-string required query param is also
 // treated as missing for string-typed params.
-func TestBaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
+func TestBhvOperations049_BaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -946,7 +946,7 @@ func TestBaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
 
 // required-nested-param-validation: a present required query param is serialized
 // into the request URL and the call proceeds.
-func TestBaseApi_RequiredQueryParamIsSent(t *testing.T) {
+func TestBhvOperations065_BaseApi_RequiredQueryParamIsSent(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -959,7 +959,7 @@ func TestBaseApi_RequiredQueryParamIsSent(t *testing.T) {
 
 // A path parameter of exactly "." or ".." would become a dot segment and
 // re-route the request, so it is rejected before any HTTP call.
-func TestBaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
+func TestBhvOperations051_BaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{".", ".."} {
 		client := &queryCapturingApiClient{}
@@ -1376,7 +1376,7 @@ func TestBaseApi_NullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 
 // An omitted optional request body (a nil *Order) must put no entity and no
 // Content-Type on the wire, not a literal JSON null.
-func TestBaseApi_NullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T) {
+func TestBhvOperations016_BaseApi_NullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1598,7 +1598,7 @@ func TestBhvTransport001_BaseApi_ProxyAuth_BuilderAcceptsUserinfoInProxyUrl(t *t
 
 // A format:date PATH parameter is serialized as YYYY-MM-DD with no time
 // component and no second round of percent-encoding.
-func TestBaseApi_FormatDatePathParamIsDateOnly(t *testing.T) {
+func TestBhvOperations043_BaseApi_FormatDatePathParamIsDateOnly(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1625,7 +1625,7 @@ func TestBaseApi_FormatDateHeaderParamIsPlainDate(t *testing.T) {
 // An operation that declares its own servers sends the request to the server
 // variant the caller picked, with the variant's variables substituted; without
 // a variant it uses the configured base URL.
-func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
+func TestBhvOperations083_BaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -1708,6 +1708,96 @@ func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 	}
 }
 
+// A config default Accept header wins over the Accept an operation negotiates
+// from its response content types.
+func TestBhvOperations008_BaseApi_ConfigDefaultAcceptWinsOverOperationNegotiatedAccept(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("http://localhost").
+		DefaultHeader("Accept", "text/csv").
+		Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	_, _ = api.GetPetById(context.Background(), int64(1), nil)
+	if got := client.capturedHeaders["Accept"]; got != "text/csv" {
+		t.Errorf("expected config default Accept 'text/csv' to win over the negotiated Accept, got %q", got)
+	}
+}
+
+// A format:date form field is written as the plain YYYY-MM-DD date.
+func TestBhvOperations019_BaseApi_DateOnlyFormFieldSerializesAsYYYYMMDD(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	renewal := "2024-01-02"
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{
+		Nickname:    "a",
+		RenewalDate: &renewal,
+	})
+	body, _ := client.capturedBody.([]byte)
+	if got, want := string(body), "nickname=a&renewalDate=2024-01-02"; got != want {
+		t.Errorf("expected form body %q, got %q", want, got)
+	}
+}
+
+// format:date query and header parameters reach the wire as the plain YYYY-MM-DD date.
+func TestBhvOperations069_BaseApi_DateQueryAndHeaderParamsAreYYYYMMDD(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	bornAfter, reportDate := "2024-01-01", "2024-01-02"
+	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{
+		BornAfter:  &bornAfter,
+		ReportDate: &reportDate,
+	})
+	if !strings.Contains(client.capturedURL, "bornAfter=2024-01-01") {
+		t.Errorf("expected the query to carry bornAfter=2024-01-01, got %q", client.capturedURL)
+	}
+	if strings.Contains(client.capturedURL, "T00") {
+		t.Errorf("a date query param must not carry a time component, got %q", client.capturedURL)
+	}
+	if got := client.capturedHeaders["Report-Date"]; got != "2024-01-02" {
+		t.Errorf("expected Report-Date 2024-01-02, got %q", got)
+	}
+}
+
+// The Mirror server variant of a multi-server operation keeps the reserved
+// characters of its variable values raw in the request URL.
+func TestBhvOperations084_BaseApi_MirrorOperationServerResolvesReservedCharactersRaw(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	_, _ = api.GetMultiServerPetInfo(context.Background(), 1, {{packageName}}.GetMultiServerPetInfoServerMirror{
+		Region:  {{packageName}}.GetMultiServerPetInfoServerMirrorRegionEU,
+		Channel: {{packageName}}.GetMultiServerPetInfoServerChannelAB,
+	})
+	if want := "https://eu.mirror.example.com/a&b/v1/"; !strings.HasPrefix(client.capturedURL, want) {
+		t.Errorf("expected the request URL to start with %q, got %q", want, client.capturedURL)
+	}
+}
+
+// A multi-server operation offers a fixed server and a templated server, and
+// each call goes to the server the caller picked.
+func TestBhvOperations085_BaseApi_MultiServerOperationOffersAFixedAndATemplatedServer(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	_, _ = api.GetMultiServerPetInfo(context.Background(), 1, {{packageName}}.GetMultiServerPetInfoServerPrimary{})
+	if want := "https://primary.example.com/v1/"; !strings.HasPrefix(client.capturedURL, want) {
+		t.Errorf("fixed server: expected the request URL to start with %q, got %q", want, client.capturedURL)
+	}
+	_, _ = api.GetMultiServerPetInfo(context.Background(), 1, {{packageName}}.GetMultiServerPetInfoServerRegional{
+		Region: {{packageName}}.GetMultiServerPetInfoServerRegionalRegionEU,
+	})
+	if want := "https://eu.example.com/v1/"; !strings.HasPrefix(client.capturedURL, want) {
+		t.Errorf("templated server: expected the request URL to start with %q, got %q", want, client.capturedURL)
+	}
+}
+
 type ctxKey struct{}
 
 // Every operation takes the caller's context first and hands it to the
@@ -1787,7 +1877,7 @@ func TestBhvRetries003_BaseApi_QueryFormAndMultipartPartsKeepTheSpecDeclarationO
 
 // A header parameter declared with content (not schema) goes through the SDK's
 // own object serializer, like a request body.
-func TestBaseApi_ContentHeaderParameterIsEncodedBySdkSerializer(t *testing.T) {
+func TestBhvOperations121_BaseApi_ContentHeaderParameterIsEncodedBySdkSerializer(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
