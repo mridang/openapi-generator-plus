@@ -996,6 +996,19 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         entry.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
         entry.put("isOAuth", spec.isOAuth());
+        final String baseClass = spec.baseClass();
+        entry.put("isPasswordFlow", "OAuth2PasswordAuthenticator".equals(baseClass));
+        entry.put("isClientCredentialsFlow", "OAuth2ClientCredentialsAuthenticator".equals(baseClass));
+        entry.put("isAuthorizationCodeFlow", "OAuth2AuthorizationCodeAuthenticator".equals(baseClass));
+        entry.put("isImplicitFlow", "OAuth2ImplicitAuthenticator".equals(baseClass));
+        entry.put("tokenUrl", java.util.Objects.toString(spec.tokenUrl(), ""));
+        entry.put("authorizationUrl", java.util.Objects.toString(spec.authorizationUrl(), ""));
+        entry.put("scopesLiteral", formatCSharpScopes(spec.scopes()));
+        final String keyIn = java.util.Objects.toString(spec.keyIn(), "header").toLowerCase(Locale.ROOT);
+        entry.put("apiKeyName", java.util.Objects.toString(spec.keyParamName(), ""));
+        entry.put("isHeaderKey", "header".equals(keyIn));
+        entry.put("isQueryKey", "query".equals(keyIn));
+        entry.put("isCookieKey", "cookie".equals(keyIn));
         final List<Map<String, Object>> vars = new ArrayList<>();
         for (final Map<String, Object> envVar : envVars) {
             final Map<String, Object> var = new HashMap<>();

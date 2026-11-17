@@ -124,6 +124,39 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
+        public void BhvHeaders002ShouldDefaultContentTypeToApplicationJsonWhenNull()
+        {
+            var headers = HeaderSelector.SelectHeaders(
+                ["application/json"],
+                null!,
+                false
+            );
+            Assert.Equal("application/json", headers["Content-Type"]);
+        }
+
+        [Fact]
+        public void BhvHeaders023SelectHeadersWithSingleAccept()
+        {
+            var headers = HeaderSelector.SelectHeaders(
+                ["application/json"],
+                "application/json",
+                false
+            );
+            Assert.Equal("application/json", headers["Accept"]);
+        }
+
+        [Fact]
+        public void BhvHeaders026ShouldJoinNonJsonTypesInDeclarationOrder()
+        {
+            var headers = HeaderSelector.SelectHeaders(
+                ["image/jpeg", "image/png"],
+                "application/json",
+                false
+            );
+            Assert.Equal("image/jpeg, image/png", headers["Accept"]);
+        }
+
+        [Fact]
         public void BhvHeaders017ShouldReturnSingleAcceptAsIs()
         {
             var headers = HeaderSelector.SelectHeaders(
