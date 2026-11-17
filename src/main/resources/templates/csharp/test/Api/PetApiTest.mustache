@@ -989,6 +989,22 @@ public class PetApiTest
         Assert.Equal("Bearer scheme-token", handler.Authorization);
     }
 
+    private sealed class MultipartCapturingHandler : HttpMessageHandler
+    {
+        public string ContentType { get; private set; } = string.Empty;
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            ContentType = request.Content?.Headers.ContentType?.MediaType ?? string.Empty;
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"code\":200,\"type\":\"\",\"message\":\"success\"}", System.Text.Encoding.UTF8, "application/json"),
+            });
+        }
+    }
+
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public string? Authorization { get; private set; }
@@ -1173,16 +1189,14 @@ public class PetApiTest
     [Fact]
     public async Task BhvOperations094UploadPetDocumentDefaultSelectionStillSendsMultipart()
     {
-        var client = new DateWireCapturingApiClient
-        {
-            ResponseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}",
-        };
-        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        using var handler = new MultipartCapturingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var api = new PetApi(new DefaultApiClient(transport), Configuration.Builder().BaseUrl("http://localhost").Build());
         var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
 
         await api.UploadPetDocumentAsync(1L, new UploadPetDocumentOptions { File = fileData, DocumentType = "vaccination" });
 
-        Assert.StartsWith("multipart/form-data", client.CapturedHeaders["Content-Type"], StringComparison.Ordinal);
+        Assert.StartsWith("multipart/form-data", handler.ContentType, StringComparison.Ordinal);
     }
 
     [Fact]

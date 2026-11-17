@@ -1179,6 +1179,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     decodeHeaders
                 );
             }
+            /* D92: a decoded body no longer matches the wire encoding, so the
+               headers that describe the encoded bytes are dropped. */
+            response.Content.Headers.Remove("Content-Encoding");
+            response.Content.Headers.Remove("Content-Length");
         }
         string? contentTypeHeader = response.Content.Headers.ContentType?.ToString();
         string responseBody;
