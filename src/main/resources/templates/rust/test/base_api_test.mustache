@@ -965,6 +965,21 @@ async fn test_bhv_serializationwire_001_base_api_nil_options_omits_query_params(
 }
 
 #[tokio::test]
+async fn test_bhv_serializationwire_010_base_api_omitted_find_pets_by_status_sends_no_query_string() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = {{packageName}}::api::options::FindPetsByStatusOptions::new();
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        !url.contains('?'),
+        "an omitted status must leave no query string at all, got: {}",
+        url
+    );
+}
+
+#[tokio::test]
 async fn test_bhv_options_002_base_api_allow_empty_value_omits_param_when_unset() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
@@ -1219,7 +1234,7 @@ async fn test_bhv_serializationwire_017_byte_over_json_response_decodes_to_bytes
 }
 
 #[tokio::test]
-async fn test_text_plain_body_for_a_string_return_is_the_text() {
+async fn test_bhv_serializationwire_025_text_plain_body_for_a_string_return_is_the_text() {
     let client = Arc::new(BinaryResponseApiClient {
         body: "hello world".to_string(),
         content_type: "text/plain".to_string(),
@@ -1333,6 +1348,29 @@ async fn test_bhv_operations_011_body_present_includes_content_type() {
     let headers = client.captured_headers.lock().unwrap();
     assert!(headers.contains_key("Content-Type"),
         "Content-Type must be sent when body is non-None");
+}
+
+#[tokio::test]
+async fn test_bhv_serializationwire_008_empty_json_object_body_includes_content_type() {
+    let client = Arc::new(HeaderCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    /* An explicit null status keeps the schema default out of the model, so every
+     * field is None and the encoded body is the empty JSON object. */
+    let empty: Order = serde_json::from_str("{\"status\":null}").expect("an all-null Order");
+    let _ = api.place_order(Some(empty), None).await;
+    let body = client.captured_body.lock().unwrap();
+    assert_eq!(
+        body.as_deref(),
+        Some(&b"{}"[..]),
+        "an empty model must be sent as the empty JSON object"
+    );
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Content-Type").map(String::as_str),
+        Some("application/json"),
+        "an empty JSON object body must carry Content-Type: application/json"
+    );
 }
 
 #[tokio::test]
