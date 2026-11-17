@@ -785,7 +785,9 @@ import Testing
     }
 
     /* Text that is not an RFC 3339 date-time is refused as a date-time value. */
-    @Test(arguments: ["yesterday", "2024/01/01T10:00:00Z", "Mon, 01 Jan 2024 10:00:00 GMT"])
+    @Test(arguments: [
+        "yesterday", "2024/01/01T10:00:00Z", "20240101T100000Z", "Mon, 01 Jan 2024 10:00:00 GMT",
+    ])
     func testBhvSerializationobject011NonRfc3339DateTimeIsRejected(text: String) {
         #expect(throws: SerializationError.self) {
             _ = try ObjectSerializer.deserialize("{\"shipDate\":\"\(text)\"}", as: Order.self)

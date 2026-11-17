@@ -602,7 +602,7 @@ import Testing
       _ = try await api.getPetById(petId: 1)
     }
     #expect(auth.renewalFailed)
-    #expect(client.seenAuthorization == ["Bearer t1", ""])
+    #expect(client.seenAuthorization == ["Bearer t1"])
   }
 
   @Test func testASecond401IsSurfacedWithoutAThirdAttempt() async throws {
