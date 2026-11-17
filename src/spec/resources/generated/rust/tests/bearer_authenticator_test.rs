@@ -71,6 +71,19 @@ fn test_bhv_authbearer_005_empty_token_is_rejected_at_construction() {
     }
 }
 
+/// A bearer token containing CR/LF is rejected at construction, before any
+/// header is built from it.
+#[test]
+fn test_bhv_authbearer_028_a_bearer_token_containing_crlf_is_rejected_at_construction() {
+    match BearerAuthenticator::new("https://api.example.com", "tok\r\nInjected: yes") {
+        Err(ConfigurationError::InvalidArgument(_)) => {}
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument, got {:?}",
+            other
+        ),
+    }
+}
+
 /// Bearer tokens with CR/LF would CRLF-inject the Authorization header and
 /// non-ASCII bytes are mangled, so both fail closed with
 /// `ConfigurationError::InvalidArgument` (RFC 7230 section 3.2.6).

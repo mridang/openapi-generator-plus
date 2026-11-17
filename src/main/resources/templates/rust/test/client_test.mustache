@@ -160,6 +160,21 @@ fn invalid_argument_text<T>(result: Result<T, ConfigurationError>) -> String {
 }
 
 #[test]
+fn test_bhv_lifecycle_026_a_client_built_with_no_credential_at_all_is_refused() {
+    with_environment(None, None, || {
+        let text = invalid_argument_text({{clientClassName}}::with_token(None, None, None));
+        assert!(!text.is_empty());
+    });
+}
+
+#[test]
+fn test_bhv_lifecycle_028_an_explicit_host_and_token_win_over_the_environment() {
+    with_environment(Some("https://env.example.com"), Some("env\r\ntoken"), || {
+        assert!({{clientClassName}}::with_token(Some("{{{basePath}}}"), Some("test-token"), None).is_ok());
+    });
+}
+
+#[test]
 fn test_bhv_lifecycle_014_client_with_token_reads_the_environment_when_nothing_is_passed() {
     with_environment(Some("{{{basePath}}}"), Some("env-token"), || {
         assert!({{clientClassName}}::with_token(None, None, None).is_ok());
@@ -174,7 +189,7 @@ fn test_bhv_authbearer_010_reads_the_token_from_the_environment_when_none_is_pas
 }
 
 #[test]
-fn test_client_with_token_prefers_the_argument_to_the_environment() {
+fn test_bhv_lifecycle_032_client_with_token_prefers_the_argument_to_the_environment() {
     /* The environment token is not a usable token, so the call can only
      * succeed when it was never consulted. */
     with_environment(Some("{{{basePath}}}"), Some("env\r\ntoken"), || {
