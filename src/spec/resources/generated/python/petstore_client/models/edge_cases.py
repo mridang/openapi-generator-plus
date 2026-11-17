@@ -8,9 +8,9 @@
 from __future__ import annotations
 
 import re
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 from pydantic import StrictBool, StrictStr
-from petstore_client._types import hash_model
+from petstore_client._types import ApiModel, hash_model
 from typing import Any, Optional
 from enum import Enum
 
@@ -27,7 +27,7 @@ class EdgeCasesPhaseEnum(str, Enum):
         return str(self.value)
 
 
-class EdgeCases(BaseModel):
+class EdgeCases(ApiModel):
     """
     Edge-case property shapes mirrored from real protobuf-derived specs.
     """

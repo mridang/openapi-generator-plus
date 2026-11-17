@@ -963,15 +963,34 @@ class TestCancellation:
             await asyncio.sleep(0.05)
         assert client._inflight == set()
 
-    async def test_closing_the_client_cancels_the_request_in_flight(self, chasm_http_url: Any) -> None:
+    async def test_closing_the_client_lets_the_request_in_flight_finish(self, chasm_http_url: Any) -> None:
         client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())
         task = asyncio.ensure_future(
             asyncio.to_thread(client.send_request, 'GET', chasm_http_url + '/test/slow', {}, None)
         )
         await asyncio.sleep(0.5)
 
-        started = time.monotonic()
         client.close()
+        response = await task
+
+        assert response.status_code == 200
+        with pytest.raises(RuntimeError, match='closed'):
+            client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
+
+    async def test_a_request_cancelled_through_its_handle_ends_at_once(self, chasm_http_url: Any) -> None:
+        from {{packageName}}.default_api_client import RequestHandle
+
+        client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())
+        handle = RequestHandle()
+        task = asyncio.ensure_future(
+            asyncio.to_thread(
+                client.send_request, 'GET', chasm_http_url + '/test/slow', {}, None, False, handle
+            )
+        )
+        await asyncio.sleep(0.5)
+
+        started = time.monotonic()
+        handle.cancel()
         with pytest.raises(RuntimeError, match='cancelled'):
             await task
 

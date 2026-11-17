@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from {{packageName}}.errors import SerializationException
 from {{packageName}}.object_serializer import ObjectSerializer
@@ -209,10 +210,21 @@ class TestOneOfNonDiscriminatorValidator:
         req = SetPetAvatarThumbnailRequest(actual_instance=[b'a', b'b'])
         assert req.actual_instance == [b'a', b'b']
 
-    def test_no_matching_variant_still_raises(self) -> None:
+    def test_no_matching_variant_still_raises_on_decode(self) -> None:
         """The no-match error path is preserved by the first-match rewrite."""
-        with pytest.raises(Exception):
-            SetPetAvatarThumbnailRequest(actual_instance=object())
+        with pytest.raises(ValidationError):
+            SetPetAvatarThumbnailRequest.model_validate({'actual_instance': object()})
+
+    def test_the_constructor_keeps_a_value_no_variant_accepts(self) -> None:
+        """F316: building a wrapper never validates; decoding does."""
+        value = object()
+
+        assert SetPetAvatarThumbnailRequest(actual_instance=value).actual_instance is value
+        assert SetPetAvatarThumbnailRequest(value).actual_instance is value
+
+    def test_the_positional_form_takes_exactly_one_argument(self) -> None:
+        with pytest.raises(ValueError, match='only 1 is allowed'):
+            SetPetAvatarThumbnailRequest(b'a', b'b')
 
 
 class TestAllOfPetWithOwner:

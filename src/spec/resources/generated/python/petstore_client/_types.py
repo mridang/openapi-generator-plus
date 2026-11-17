@@ -11,7 +11,7 @@ import math
 import re
 import secrets
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Callable, TypeVar
 
 from pydantic import (
     AfterValidator,
@@ -37,6 +37,76 @@ _ABSOLUTE_URI_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1f\x7f]
 RFC3339_DATE_TIME_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$"
 )
+
+_InitT = TypeVar("_InitT", bound=Callable[..., None])
+
+
+def lenient_init(init: _InitT) -> _InitT:
+    """Mark an ``__init__`` as construction only, not as the decoder.
+
+    Pydantic calls a model's own ``__init__`` when it validates a document
+    (``model_validate``, ``TypeAdapter``) unless the function carries the
+    marker its own ``BaseModel.__init__`` carries. A constructor that keeps
+    what it is given must not be that entry point: decoding keeps validating.
+    """
+    setattr(init, "__pydantic_base_init__", True)
+    return init
+
+
+def _given_names(model_class: type[BaseModel]) -> set[str]:
+    """Every key a caller may use for a declared field: its name and its wire alias."""
+    names: set[str] = set()
+    for name, field in model_class.model_fields.items():
+        names.add(name)
+        if field.alias is not None:
+            names.add(field.alias)
+    return names
+
+
+def _require_arguments(model_class: type[BaseModel], data: dict[str, Any]) -> None:
+    """Raise ``TypeError`` for a required field the caller left out, like a missing argument."""
+    for name, field in model_class.model_fields.items():
+        if field.is_required() and name not in data and field.alias not in data:
+            raise TypeError(
+                f"{model_class.__name__}() missing required argument: '{name}'"
+            )
+
+
+def _keep_as_given(model: BaseModel, data: dict[str, Any]) -> None:
+    """Fill ``model`` from ``data`` exactly as given, with no validation or coercion."""
+    model_class = type(model)
+    values = dict(data)
+    if "additional_properties" in model_class.model_fields:
+        known = _given_names(model_class)
+        bucket = values.pop("additional_properties", None)
+        extras: dict[str, Any] = dict(bucket) if isinstance(bucket, dict) else {}
+        for key in [key for key in values if key not in known]:
+            extras[key] = values.pop(key)
+        values["additional_properties"] = extras
+    built = model_class.model_construct(**values)
+    model.__setstate__(built.__getstate__())
+
+
+class ApiModel(BaseModel):
+    """Base of every generated model.
+
+    Constructing a model never raises on a value: nothing is validated there.
+    A value that is valid for its field is coerced as usual (a list given for
+    a set field becomes a set); one that is not, such as a wrong type, an
+    unknown enum string or a number out of range, is kept exactly as given and
+    goes to the server, which owns validation. Only a required field left out
+    raises ``TypeError``, like a missing argument. Validation, and the loud
+    failure on an unknown enum value, happen when a document is decoded
+    (``model_validate`` or the client).
+    """
+
+    @lenient_init
+    def __init__(self, /, **data: Any) -> None:
+        _require_arguments(type(self), data)
+        try:
+            super().__init__(**data)
+        except ValueError:
+            _keep_as_given(self, data)
 
 
 def _freeze(value: Any) -> Any:
@@ -223,17 +293,30 @@ def _encode_base64(value: bytes) -> str:
     return base64.b64encode(value).decode("ascii")
 
 
+def _finite_float_to_json(value: float) -> float:
+    """Write a ``float`` as a JSON number, refusing NaN and the infinities.
+
+    A constructor keeps a value that does not fit its field, so a non-finite
+    float can reach the encoder, where pydantic would write it as ``null``.
+    """
+    if not math.isfinite(value):
+        raise ValueError(f"{value} is not representable as a finite JSON number")
+    return value
+
+
 # `format: float` / `format: double` fields. StrictFloat semantics (reject
 # str/bool, no lax string coercion) are preserved via `Strict()`; the
 # BeforeValidator only widens the legitimate integral-JSON case to float.
 #
-# `allow_inf_nan=False` rejects NaN/Infinity on construction, assignment and
-# decode: pydantic would otherwise write them into a JSON body as `null`.
+# `allow_inf_nan=False` rejects NaN/Infinity on decode; the serializer refuses
+# one a constructor kept, because
+# pydantic would otherwise write it into a JSON body as `null`.
 LaxFloat = Annotated[
     float,
     BeforeValidator(_coerce_int_to_float),
     Strict(),
     Field(allow_inf_nan=False),
+    PlainSerializer(_finite_float_to_json, return_type=float, when_used="json"),
 ]
 
 # `format: uri` fields. A plain `str` carrying an AfterValidator that asserts

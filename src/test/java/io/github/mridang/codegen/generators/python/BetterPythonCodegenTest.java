@@ -153,4 +153,79 @@ class BetterPythonCodegenTest {
         assertTrue(source.contains("token: Optional[str] = None"), source);
         assertTrue(source.contains("token_provider: Optional[Callable[[], str]] = None"), source);
     }
+
+    /* F857: the client names each scheme credential in snake case, escaping a keyword or a client argument. */
+    @Test
+    void aSchemeCredentialIsNamedAfterTheSchemeInSnakeCase() {
+        final BetterPythonCodegen codegen = new BetterPythonCodegen();
+
+        assertEquals("pet_store_bearer", codegen.schemeParamName("petStoreBearer"));
+        assertEquals("api_key_header", codegen.schemeParamName("apiKeyHeader"));
+        assertEquals("class_", codegen.schemeParamName("class"));
+        assertEquals("authenticator_", codegen.schemeParamName("authenticator"));
+        assertEquals("pool_manager_", codegen.schemeParamName("poolManager"));
+        assertEquals("scheme_2fa", codegen.schemeParamName("2fa"));
+        assertEquals("oauth2_read", codegen.schemeParamName("oauth2-read"));
+    }
+
+    @Test
+    void theClientSchemesCarryThePythonNameAndAQuotedSchemeId() {
+        final BetterPythonCodegen codegen = new BetterPythonCodegen();
+        final Map<String, Object> shared = new java.util.LinkedHashMap<>();
+        shared.put("schemeId", "we\"ird");
+        shared.put("paramName", "weIrd");
+        shared.put("className", "WeirdAuthenticator");
+
+        final List<Map<String, Object>> schemes = codegen.pythonClientSchemes(List.of(shared));
+
+        assertEquals("we_ird", schemes.get(0).get("paramName"));
+        assertEquals("we\\\"ird", schemes.get(0).get("schemeLiteral"));
+        assertEquals("WeirdAuthenticator", schemes.get(0).get("className"));
+    }
+
+    /* F857: the client schemes reach the templates, in the order the document declares them. */
+    @Test
+    void theClientSchemesAreExposedToTheTemplates(@TempDir final Path out) {
+        final BetterPythonCodegen codegen = new BetterPythonCodegen();
+        codegen.setOutputDir(out.toString());
+        codegen.processOpts();
+        codegen.processOpenAPI(
+                new OpenAPI()
+                        .info(new Info().title("Acme SDK").version("1"))
+                        .components(new Components()
+                                .addSecuritySchemes(
+                                        "firstToken",
+                                        new SecurityScheme()
+                                                .type(SecurityScheme.Type.HTTP)
+                                                .scheme("bearer"))
+                                .addSecuritySchemes(
+                                        "secondKey",
+                                        new SecurityScheme()
+                                                .type(SecurityScheme.Type.APIKEY)
+                                                .in(SecurityScheme.In.HEADER)
+                                                .name("X-Key"))));
+
+        final Object schemes = codegen.additionalProperties().get("clientSchemes");
+
+        assertTrue(schemes instanceof List);
+        final List<?> list = java.util.Objects.requireNonNull((List<?>) schemes);
+        assertEquals(2, list.size());
+        assertEquals("first_token", ((Map<?, ?>) list.get(0)).get("paramName"));
+        assertEquals("second_key", ((Map<?, ?>) list.get(1)).get("paramName"));
+        assertEquals(true, codegen.additionalProperties().get("hasClientSchemes"));
+    }
+
+    @Test
+    void twoSchemesThatReadTheSameInSnakeCaseKeepDistinctArguments() {
+        final BetterPythonCodegen codegen = new BetterPythonCodegen();
+        final Map<String, Object> first = new java.util.LinkedHashMap<>();
+        first.put("schemeId", "api-key");
+        final Map<String, Object> second = new java.util.LinkedHashMap<>();
+        second.put("schemeId", "api_key");
+
+        final List<Map<String, Object>> schemes = codegen.pythonClientSchemes(List.of(first, second));
+
+        assertEquals("api_key", schemes.get(0).get("paramName"));
+        assertEquals("api_key_", schemes.get(1).get("paramName"));
+    }
 }

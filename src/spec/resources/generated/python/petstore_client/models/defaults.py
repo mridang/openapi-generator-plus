@@ -7,9 +7,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 from pydantic import StrictInt, StrictStr
-from petstore_client._types import hash_model
+from petstore_client._types import ApiModel, hash_model
 from typing import Optional
 from decimal import Decimal
 from enum import Enum
@@ -27,7 +27,7 @@ class DefaultsModeEnum(str, Enum):
         return str(self.value)
 
 
-class Defaults(BaseModel):
+class Defaults(ApiModel):
     """
     Defaults
     """

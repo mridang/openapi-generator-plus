@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pydantic import StrictStr
 from typing import Optional, Mapping
-from petstore_client.auth.authenticator import Authenticator
 from petstore_client.transport_options import _validated_call_headers
 
 
@@ -28,7 +27,6 @@ class DeletePetOptions:
     """
 
     api_key: Optional[StrictStr] = None
-    auth: Optional[Authenticator] = None
     timeout: Optional[int] = None
     headers: Optional[Mapping[str, str]] = None
     max_retries: Optional[int] = None

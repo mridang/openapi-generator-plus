@@ -5,9 +5,6 @@ from __future__ import annotations
 {{#imports}}
 {{{.}}}
 {{/imports}}
-{{#hasAuthField}}
-{{authImport}}
-{{/hasAuthField}}
 from {{packageName}}.transport_options import _validated_call_headers
 
 
@@ -46,9 +43,6 @@ class {{className}}:
 {{/deprecated}}
     {{paramName}}: Optional[{{dataType}}] = None
 {{/optionalParams}}
-{{#hasAuthField}}
-    auth: Optional[{{authFieldType}}] = None
-{{/hasAuthField}}
     timeout: Optional[int] = None
     headers: Optional[Mapping[str, str]] = None
     max_retries: Optional[int] = None

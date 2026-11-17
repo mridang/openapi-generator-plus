@@ -199,7 +199,12 @@ class TestReadmeAndSkillsText:
     def test_readme_files_supported_features_outside_not_supported(self) -> None:
         readme = self._read('README.md')
         not_supported = readme.index('## Not supported')
-        for heading in ('### Custom HTTP client', '### Raw responses', '### Cancellation'):
+        for heading in (
+            '### Custom HTTP client',
+            '### Raw responses',
+            '### Cancellation',
+            '### Closing the client',
+        ):
             assert readme.index(heading) < not_supported
 
     def test_readme_documents_credentials_per_call_options_and_the_behaviours_to_know(self) -> None:
@@ -207,9 +212,12 @@ class TestReadmeAndSkillsText:
         not_supported = readme.index('## Not supported')
         for heading in (
             '### Credentials',
+            '### Credentials per security scheme',
+            '### Cookie parameters',
             '### Per-call options',
             '### Errors',
             '### Operations with several success responses',
+            '### Constructing and decoding models',
             '### Models are immutable',
             '### Logging and tracing',
             '### Versioning and supported Python',
@@ -229,6 +237,18 @@ class TestReadmeAndSkillsText:
         skills = self._read('SKILLS.md')
         sample = skills[skills.index('## Models'):skills.index('## Binary')]
         assert 'Required fields must be passed to the constructor' in sample
+
+    def test_readme_and_skills_name_the_credential_of_each_security_scheme(self) -> None:
+        for name in [{{#clientSchemes}}'{{paramName}}', {{/clientSchemes}}]:
+            assert f'`{name}`' in self._read('README.md')
+            assert f'`{name}`' in self._read('SKILLS.md')
+
+    def test_readme_and_skills_describe_a_graceful_close_and_raw_cookies(self) -> None:
+        for document in ('README.md', 'SKILLS.md'):
+            text = self._read(document)
+            assert 'graceful' in text
+            assert 'cancels every request' not in text
+            assert 'cookie-octet' in text
 
     def test_readme_socks_note_names_the_builder_setter(self) -> None:
         readme = self._read('README.md')

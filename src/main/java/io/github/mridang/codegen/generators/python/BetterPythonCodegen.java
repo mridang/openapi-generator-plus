@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -415,6 +416,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                     if (op.vendorExtensions == null) {
                         op.vendorExtensions = new HashMap<>();
                     }
+                    addSchemeLiterals(op);
                     final boolean hasMultipleConsumes =
                             op.consumes != null && op.consumes.size() > 1;
                     op.vendorExtensions.put(
@@ -470,6 +472,28 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     }
 
     /**
+     * Adds {@code schemeLiteral} (the scheme id ready for a double-quoted literal) to every entry
+     * of the operation's ordered security schemes (F857), so the generated call can name them.
+     */
+    @SuppressWarnings("unchecked")
+    private static void addSchemeLiterals(final CodegenOperation op) {
+        final Object decorator = op.vendorExtensions.get("op");
+        if (!(decorator instanceof Map)) {
+            return;
+        }
+        final Object order = ((Map<String, Object>) decorator).get("securitySchemeOrder");
+        if (!(order instanceof List)) {
+            return;
+        }
+        for (final Object entry : (List<Object>) order) {
+            final Map<String, Object> scheme = (Map<String, Object>) entry;
+            scheme.put(
+                    "schemeLiteral",
+                    pythonStringBody(Objects.requireNonNull((String) scheme.get("schemeId"))));
+        }
+    }
+
+    /**
      * Every operation gets an Options object, so even one with no parameters and no security
      * has the slot for the per-call timeout, headers and retry budget (F827).
      */
@@ -489,6 +513,59 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         if (shared != null && !shared.toString().isBlank()) {
             additionalProperties.put("envPrefix", shared.toString());
         }
+        additionalProperties.put("clientSchemes", pythonClientSchemes(sharedClientSchemes()));
+    }
+
+    /** The shared per-scheme data of the client (F857), as the shared pass recorded it. */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> sharedClientSchemes() {
+        final Object schemes = additionalProperties.get("clientSchemes");
+        return schemes == null ? List.of() : (List<Map<String, Object>>) schemes;
+    }
+
+    /**
+     * Names the client's per-scheme credentials the Python way (F857): the keyword argument is
+     * the scheme id in snake case, and gets a trailing underscore when it is a Python keyword
+     * or would shadow one of the client's own arguments, and two ids that read the same in snake
+     * case stay apart. {@code schemeLiteral} is the id ready for a double-quoted literal.
+     *
+     * @param shared the shared entries ({@code schemeId}, {@code paramName}, {@code className})
+     * @return the same entries with the Python {@code paramName} and a {@code schemeLiteral}
+     */
+    List<Map<String, Object>> pythonClientSchemes(final List<Map<String, Object>> shared) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        final Set<String> taken = new HashSet<>();
+        for (final Map<String, Object> scheme : shared) {
+            final Map<String, Object> entry = new LinkedHashMap<>(scheme);
+            final String schemeId = Objects.requireNonNull((String) scheme.get("schemeId"));
+            String paramName = schemeParamName(schemeId);
+            while (!taken.add(paramName)) {
+                paramName = paramName + "_";
+            }
+            entry.put("paramName", paramName);
+            entry.put("schemeLiteral", pythonStringBody(schemeId));
+            out.add(entry);
+        }
+        return out;
+    }
+
+    /** The client arguments a scheme credential must not shadow. */
+    private static final Set<String> CLIENT_ARGUMENT_NAMES =
+            Set.of("self", "authenticator", "transport_options", "pool_manager");
+
+    /**
+     * The keyword argument that carries the credential of a security scheme.
+     *
+     * @param schemeId the scheme id in the spec
+     * @return the id as a Python identifier in snake case, with a trailing underscore when it is
+     *     reserved or taken
+     */
+    String schemeParamName(final String schemeId) {
+        String snake = NamingConvention.SNAKE_CASE.apply(schemeId).replaceAll("[^A-Za-z0-9_]", "_");
+        if (snake.isEmpty() || Character.isDigit(snake.charAt(0))) {
+            snake = "scheme_" + snake;
+        }
+        return isReservedWord(snake) || CLIENT_ARGUMENT_NAMES.contains(snake) ? snake + "_" : snake;
     }
 
     /**
@@ -1568,9 +1645,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         final TreeSet<String> importSet = new TreeSet<>();
         importSet.add("from dataclasses import dataclass");
-        // The optional per-operation `auth` field is typed Optional[Authenticator],
-        // so authed operations always need the Optional import even when they
-        // carry no optional query/header/form/cookie params.
+        // The per-call timeout, headers and retry budget are Optional, so every
+        // Options class needs the Optional import even when it carries no
+        // optional query/header/form/cookie params.
         boolean needsOptional = true;
         final List<String> typingNames = new ArrayList<>();
         /* Every Options class carries the per-call timeout, headers and retry budget (F827). */
@@ -1688,11 +1765,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         context.put("imports", new ArrayList<>(importSet));
         context.put("requiredParams", requiredParams);
         context.put("optionalParams", optionalParams);
-        injectAuthFieldContext(op, context);
-        context.put(
-                "authImport",
-                "from " + packageName + ".auth.authenticator import "
-                        + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

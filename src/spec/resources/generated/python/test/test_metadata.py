@@ -212,6 +212,7 @@ class TestReadmeAndSkillsText:
             "### Custom HTTP client",
             "### Raw responses",
             "### Cancellation",
+            "### Closing the client",
         ):
             assert readme.index(heading) < not_supported
 
@@ -222,9 +223,12 @@ class TestReadmeAndSkillsText:
         not_supported = readme.index("## Not supported")
         for heading in (
             "### Credentials",
+            "### Credentials per security scheme",
+            "### Cookie parameters",
             "### Per-call options",
             "### Errors",
             "### Operations with several success responses",
+            "### Constructing and decoding models",
             "### Models are immutable",
             "### Logging and tracing",
             "### Versioning and supported Python",
@@ -244,6 +248,34 @@ class TestReadmeAndSkillsText:
         skills = self._read("SKILLS.md")
         sample = skills[skills.index("## Models") : skills.index("## Binary")]
         assert "Required fields must be passed to the constructor" in sample
+
+    def test_readme_and_skills_name_the_credential_of_each_security_scheme(
+        self,
+    ) -> None:
+        for name in [
+            "pet_store_basic",
+            "admin_basic",
+            "pet_store_bearer",
+            "service_token",
+            "api_key_header",
+            "internal_api_key",
+            "api_key_query",
+            "session_cookie",
+            "machine_auth",
+            "legacy_auth",
+            "user_auth",
+            "browser_auth",
+            "sso_auth",
+        ]:
+            assert f"`{name}`" in self._read("README.md")
+            assert f"`{name}`" in self._read("SKILLS.md")
+
+    def test_readme_and_skills_describe_a_graceful_close_and_raw_cookies(self) -> None:
+        for document in ("README.md", "SKILLS.md"):
+            text = self._read(document)
+            assert "graceful" in text
+            assert "cancels every request" not in text
+            assert "cookie-octet" in text
 
     def test_readme_socks_note_names_the_builder_setter(self) -> None:
         readme = self._read("README.md")

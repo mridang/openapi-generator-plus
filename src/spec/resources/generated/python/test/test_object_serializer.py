@@ -1,4 +1,5 @@
 import datetime
+import json
 import warnings
 from typing import Any
 from decimal import Decimal
@@ -1057,7 +1058,7 @@ class TestNanInfinityRejection:
         from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
 
         with pytest.raises(ValidationError, match="finite number"):
-            PhotoMetadataLocation(lat=value, lng=0.0)
+            PhotoMetadataLocation.model_validate({"lat": value, "lng": 0.0})
 
     def test_model_double_field_is_frozen_and_still_rejects_a_non_finite_value(
         self,
@@ -1072,6 +1073,13 @@ class TestNanInfinityRejection:
                 {**location.model_dump(), "lat": float("nan")}
             )
 
+    def test_a_non_finite_double_never_reaches_the_wire(self) -> None:
+        from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
+
+        location = PhotoMetadataLocation(lat=float("nan"), lng=0.0)
+        with pytest.raises(SerializationException):
+            ObjectSerializer().serialize(location)
+
     def test_deserialize_double_field_overflowing_to_infinity_raises(self) -> None:
         with pytest.raises(SerializationException, match="finite number"):
             ObjectSerializer().deserialize(
@@ -1079,12 +1087,107 @@ class TestNanInfinityRejection:
             )
 
     def test_serialize_non_finite_decimal_number_raises(self) -> None:
-        with pytest.raises(ValidationError, match="finite JSON number"):
-            Pet(name="Fido", photoUrls=set(), weightKg=Decimal("Infinity"))
+        pet = Pet(name="Fido", photoUrls=set(), weightKg=Decimal("Infinity"))
+        with pytest.raises(SerializationException, match="finite JSON number"):
+            ObjectSerializer().serialize(pet)
 
     def test_serialize_decimal_number_beyond_double_range_is_exact(self) -> None:
         pet = Pet(name="Fido", photoUrls=set(), weightKg=Decimal("1e400"))
         assert '"weightKg":1E+400' in ObjectSerializer().serialize(pet)
+
+
+class TestConstructionKeepsWhatItIsGiven:
+    """F316: building a model never raises on a value; decoding is where validation happens."""
+
+    @staticmethod
+    def _built(**fields: Any) -> Pet:
+        values: dict[str, Any] = {"name": "Fido", "photoUrls": set()}
+        values.update(fields)
+        return Pet(**values)
+
+    def test_a_wrong_type_is_kept_as_given(self) -> None:
+        assert self._built(name=123).name == 123
+
+    def test_an_unknown_enum_string_is_kept_as_given(self) -> None:
+        assert self._built(status="bogus").status == "bogus"
+
+    def test_a_value_outside_the_declared_constraints_is_kept(self) -> None:
+        assert self._built(nickname="x" * 40).nickname == "x" * 40
+
+    def test_a_valid_value_is_still_coerced(self) -> None:
+        assert self._built(photoUrls=["a", "b"]).photo_urls == {"a", "b"}
+
+    def test_the_attribute_name_and_the_wire_name_both_work_when_a_value_is_kept(
+        self,
+    ) -> None:
+        values: dict[str, Any] = {"name": 123, "photo_urls": set(), "weightKg": "heavy"}
+        pet = Pet(**values)
+
+        assert (pet.name, pet.weight_kg) == (123, "heavy")
+
+    def test_a_kept_value_goes_out_on_the_wire_as_given(self) -> None:
+        wire = ObjectSerializer().serialize(self._built(status="bogus"))
+
+        assert json.loads(wire)["status"] == "bogus"
+
+    def test_a_required_argument_left_out_raises_a_type_error(self) -> None:
+        values: dict[str, Any] = {"photoUrls": set()}
+
+        with pytest.raises(TypeError, match="missing required argument: 'name'"):
+            Pet(**values)
+
+    def test_the_other_values_of_a_model_with_a_kept_value_are_unchanged(self) -> None:
+        pet = self._built(status="bogus", id=7)
+
+        assert pet.id == 7
+        assert pet.model_fields_set == {"name", "photo_urls", "status", "id"}
+
+    def test_a_model_with_a_kept_value_is_still_frozen_and_hashable(self) -> None:
+        pet = self._built(status="bogus")
+
+        with pytest.raises(ValidationError, match="frozen"):
+            pet.name = "Rex"
+        assert hash(pet) == hash(self._built(status="bogus"))
+
+    def test_a_map_model_keeps_a_wrong_value_and_the_unknown_keys(self) -> None:
+        from petstore_client.models.metadata import Metadata
+
+        values: dict[str, Any] = {"createdAt": "yesterday", "extra": 1}
+        metadata = Metadata(**values)
+
+        assert metadata.created_at == "yesterday"
+        assert metadata.additional_properties == {"extra": 1}
+
+
+class TestDecodeValidates:
+    """F316: a document is validated when it is decoded, and an unknown enum value fails loudly."""
+
+    def test_a_wrong_type_is_rejected(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"name":123,"photoUrls":[]}', "Pet")
+
+    def test_an_unknown_enum_string_fails_loudly(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(
+                '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
+            )
+
+    def test_a_value_outside_the_declared_constraints_is_rejected(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(
+                '{"name":"Fido","photoUrls":[],"nickname":"' + "x" * 40 + '"}', "Pet"
+            )
+
+    def test_model_validate_still_validates(self) -> None:
+        with pytest.raises(ValidationError):
+            Pet.model_validate({"name": 123, "photoUrls": []})
+
+    def test_a_valid_document_decodes(self) -> None:
+        pet = ObjectSerializer().deserialize(
+            '{"name":"Fido","photoUrls":["a"],"status":"available"}', "Pet"
+        )
+
+        assert pet.name == "Fido"
 
 
 class TestModelsAreImmutable:
@@ -2088,11 +2191,10 @@ class TestNicknameConstraints:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(self._wire(nickname), "Pet")
 
-    def test_constructing_a_pet_with_an_out_of_bounds_nickname_raises_a_validation_error(
-        self,
-    ) -> None:
-        with pytest.raises(ValidationError):
-            Pet(name="Fido", photoUrls=set(), nickname="ZZZZZZZZZZ")
+    def test_constructing_a_pet_with_an_out_of_bounds_nickname_keeps_it(self) -> None:
+        pet = Pet(name="Fido", photoUrls=set(), nickname="ZZZZZZZZZZ")
+
+        assert pet.nickname == "ZZZZZZZZZZ"
 
     def test_the_whole_models_package_imports_with_the_look_around_pattern(
         self,
@@ -2143,11 +2245,16 @@ class TestPatternIsTheSpecRegex:
         assert decoded is not None
         assert decoded.slug == "12/ab"
 
-    def test_non_matching_value_is_rejected(self) -> None:
+    def test_non_matching_value_is_rejected_on_decode(self) -> None:
         from petstore_client.models.edge_cases import EdgeCases
 
-        with pytest.raises(ValidationError):
-            EdgeCases(slug="ab/12")
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"slug":"ab/12"}', EdgeCases)
+
+    def test_non_matching_value_is_kept_by_the_constructor(self) -> None:
+        from petstore_client.models.edge_cases import EdgeCases
+
+        assert EdgeCases(slug="ab/12").slug == "ab/12"
 
 
 class TestModelDocProseIsRaw:
