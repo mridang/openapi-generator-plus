@@ -10,14 +10,7 @@ class OAuth2ServerException({{errorPrefix}}Exception):
     including a 3xx redirect, which the token POST never follows. Typed
     representation of an RFC 6749 §5.2 OAuth2 error response.
 
-    Attributes:
-        status_code: The HTTP status code returned by the token endpoint.
-        code: The OAuth2 error code (e.g. ``invalid_grant``,
-            ``invalid_client``), or ``None`` when the body did not parse as
-            a valid OAuth2 error object.
-        description: Optional human-readable description.
-        uri: Optional URI to a page describing the error.
-        raw_body: The original response payload (for diagnostics).
+    The fields are exposed as read-only properties, each documented on its getter.
     """
 
     def __init__(
@@ -47,20 +40,28 @@ class OAuth2ServerException({{errorPrefix}}Exception):
 
     @property
     def status_code(self) -> int:
+        """The HTTP status code returned by the token endpoint."""
         return self._status_code
 
     @property
     def code(self) -> Optional[str]:
+        """The OAuth2 error code (e.g. ``invalid_grant``, ``invalid_client``).
+
+        ``None`` when the body did not parse as a valid OAuth2 error object.
+        """
         return self._code
 
     @property
     def description(self) -> Optional[str]:
+        """Optional human-readable description."""
         return self._description
 
     @property
     def uri(self) -> Optional[str]:
+        """Optional URI to a page describing the error."""
         return self._uri
 
     @property
     def raw_body(self) -> str:
+        """The original response payload (for diagnostics)."""
         return self._raw_body

@@ -198,12 +198,10 @@ class GetStagingPetInfoServerStagingServer(GetStagingPetInfoServer):
 
 class PetApi(BaseApi):
     """PetApi provides methods for the pet API group.
-        Everything about your Pets
-    (globs like /pets/* and /pets/**/ and an id of #{petId})
+    Everything about your Pets (globs like /pets/\* and /pets/\*\*/ and an id of #{petId})
 
-        .. seealso::
-            `Find out more about pets (it's */ here)
-    on two lines <https://example.com/docs/pets>`_
+    .. seealso::
+        `Find out more about pets (it's \*/ here) on two lines <https://example.com/docs/pets>`_
     """
 
     def __init__(

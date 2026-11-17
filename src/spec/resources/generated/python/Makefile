@@ -67,9 +67,9 @@ docs: install
 	# The top-level package __init__ is a pure re-export facade: every public
 	# class is also defined in (and canonical to) a submodule. Documenting the
 	# facade's members too registers each object twice, which makes Sphinx
-	# cross-references ambiguous and trips -W. Mark the facade page :no-index:
+	# cross-references ambiguous and trips -W. Mark the facade page :no-members:
 	# so each object is documented once, in its canonical submodule.
-	python -c "import re, pathlib; p = pathlib.Path('.out/docs-src/petstore_client.rst'); p.write_text(re.sub(r'(Module contents\n-+\n\n\.\. automodule:: [\w.]+\n)(?:   :[\w-]+:\n)+', r'\1   :no-index:\n', p.read_text()))"
+	python -c "import pathlib, re; pat = re.compile(r'(Module contents\n-+\n\n\.\. automodule:: [\w.]+\n)(?:   :[\w-]+:\n)+'); pages = ['.'.join(init.parent.parts) + '.rst' for init in pathlib.Path('petstore_client').rglob('__init__.py')]; [page.write_text(pat.sub(r'\1   :no-members:\n', page.read_text())) for page in map(lambda name: pathlib.Path('.out/docs-src', name), pages) if page.exists()]"
 	sphinx-build -W --keep-going -b html .out/docs-src .out/docs
 
 clean:
