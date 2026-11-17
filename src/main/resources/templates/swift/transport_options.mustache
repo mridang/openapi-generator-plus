@@ -345,3 +345,26 @@ public final class TransportOptionsBuilder {
         )
     }
 }
+
+extension TransportOptions: CustomStringConvertible, CustomDebugStringConvertible {
+    /// The options with the proxy password and every credential-bearing default
+    /// header shown as `***`, so `String(describing:)` and `String(reflecting:)`
+    /// never print a secret.
+    public var description: String {
+        var shownProxy = "nil"
+        if let proxy = proxy {
+            var parts = URLComponents(url: proxy, resolvingAgainstBaseURL: false)
+            if parts?.password != nil {
+                parts?.password = "***"
+            }
+            shownProxy = parts?.string ?? proxy.absoluteString
+        }
+        let headers = ApiError.compactJson(ApiError.maskingSecrets(defaultHeaders))
+        return "TransportOptions(proxy: \(shownProxy), defaultHeaders: \(headers))"
+    }
+
+    /// The same text as ``description``, so `String(reflecting:)` never shows a secret either.
+    public var debugDescription: String {
+        description
+    }
+}
