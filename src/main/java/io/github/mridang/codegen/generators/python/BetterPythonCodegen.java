@@ -1287,6 +1287,17 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     }
 
     /**
+     * A classic allOf child imports its base at the top of the module, because
+     * the class statement needs it; the generic bottom-of-file import list
+     * must not repeat it.
+     */
+    @Override
+    protected void decorateClassicDiscriminatorChild(
+            final CodegenModel child, final CodegenModel base) {
+        child.imports.remove(base.classname);
+    }
+
+    /**
      * Enables Gap K so polymorphic subtype Pydantic models auto-emit
      * the discriminator field with a {@code default='...'} on Field().
      * Without this, callers passing only the non-tag fields hit a

@@ -955,6 +955,26 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * A classic allOf base is a plain struct in Rust for now (the tagged enum
+     * for it is open work on #104), and the struct template treats a
+     * discriminator property as one the mapping fills in, which a base has no
+     * value for. The base's property is therefore an ordinary required field.
+     */
+    private static void clearBaseDiscriminatorFlag(
+            final org.openapitools.codegen.CodegenModel model) {
+        if (!Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
+            return;
+        }
+        for (final List<org.openapitools.codegen.CodegenProperty> list : List.of(
+                model.vars, model.allVars, model.requiredVars,
+                model.optionalVars, model.readWriteVars)) {
+            for (final org.openapitools.codegen.CodegenProperty property : list) {
+                property.isDiscriminator = false;
+            }
+        }
+    }
+
+    /**
      * Recomputes {@code hasDefaultedOptionalVars} once the discriminator
      * defaults have been injected. {@link #postProcessModels} runs per model,
      * before the base class's {@code postProcessAllModels} marks the
@@ -966,6 +986,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
+                clearBaseDiscriminatorFlag(modelMap.getModel());
                 modelMap.put(
                         "hasDefaultedOptionalVars", hasDefaultedOptionalVars(modelMap.getModel()));
             }

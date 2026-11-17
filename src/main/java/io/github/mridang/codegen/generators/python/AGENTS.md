@@ -97,7 +97,8 @@ Test: `test_composed_schema.mustache` and the model tests in the golden `test/`.
 Rule: Python uses class inheritance, and only the allOf-plus-discriminator parent is a parent class; a model reused in two unions is not re-parented, unions are `RootModel` wrappers.
 Why: a class has one parent. The discriminator map and `get_discriminator_value` live on the parent.
 Where: `models/model.mustache` (`{{#parent}}`, `discriminator_value_class_map`).
-Test: `test_composed_schema.mustache`.
+Landed (#104): the child imports its base at the top of the module (`x-allof-child`, `decorateClassicDiscriminatorChild` drops the duplicate bottom import) and the base carries a `model_validator(mode='wrap')` (`_route_to_subtype`) that decodes into the subtype the discriminator names, so a top-level decode and a property typed as the base both return the subtype; a missing, empty or unknown value raises `ValueError` naming it.
+Test: `test_composed_schema.mustache` (`TestAllOfVehicle`, bhv unions 301-304, bhv serializationobject 301).
 
 ### Schema constraints (S3, 2026-11-16)
 Rule: the client does not promise to enforce `pattern`, length, range, `multipleOf` or item-count keywords; the server owns validation. Python is the one language that enforces them, because pydantic does so natively and cheaply: `Field(min_length, max_length, ge/gt, le/lt, multiple_of)`, and `pattern` through a `re` validator (never `Field(pattern=)`, because pydantic-core has no look-around). A violation raises `SerializationException` when a document is decoded; constructing a model never validates.

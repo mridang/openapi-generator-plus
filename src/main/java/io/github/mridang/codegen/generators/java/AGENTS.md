@@ -76,7 +76,8 @@ Test: `test/api/*ApiTest.mustache` (golden `PetApiTest`).
 Rule: only the allOf-plus-discriminator parent is a superclass (`extends {{parent}}` in `model.mustache`); a model reused in two unions is not re-parented, unions use the polymorphic base and `@JsonTypeInfo`/`@JsonSubTypes`.
 Why: a Java class has one parent. F802 (the `DeprecatedFood` union re-parents `DryFood` and `WetFood`) is the bug this closes.
 Where: `models/model.mustache`. Not landed: F802 needs a shared-Java fix (`AbstractBetterCodegen.setParentOnChild` keeps the first union that claims a child).
-Test: `test/ComposedSchemaTest.mustache`.
+Landed (#104): the shared pass `markClassicDiscriminatorInheritance` marks the base (`x-allof-base`), its children (`x-allof-child`) and the inherited properties (`x-inherited`). The base is an abstract class with `@JsonTypeInfo`/`@JsonSubTypes`, the common fields and one protected constructor and no builder; a child declares only its own fields, passes the common ones through `super(...)` (`superArgs`, set by `BetterJavaCodegen.decorateClassicDiscriminatorChild`) and repeats the type info with `defaultImpl` so it still decodes as itself. Why no builder on the base: a static `builder()` or `toBuilder()` in both classes would clash on the return type. An unknown value fails with Jackson's invalid-type-id error naming it.
+Test: `test/ComposedSchemaTest.mustache` (`AllOfDiscriminatorTests`, bhv unions 301-304, bhv serializationobject 301).
 
 ### Required plus nullable keeps the key (S5, D66, 2026-11-16)
 Rule: a required nullable property must be present on decode (missing is an error), an explicit null is a legal value and is kept, and encode always writes the key, null when unset.

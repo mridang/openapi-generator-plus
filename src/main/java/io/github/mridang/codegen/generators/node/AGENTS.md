@@ -81,7 +81,8 @@ Test: golden README and `test/metadata.test.mustache`.
 Rule: the allOf parent with a discriminator is a base class that subtypes extend; a model reused in two unions is never re-parented, unions are type aliases or interfaces.
 Why: a class has one parent. Inheritance only where the schema is allOf plus discriminator.
 Where: `models/model.mustache`, `BetterNodeCodegen.setsDiscriminatorDefaultOnChildren`, `demotesDiscriminatorFromRequiredVars`.
-Test: `test/composed-schema.test.mustache`.
+Landed (#104): the base class carries `DISCRIMINATOR_PROPERTY` and `DISCRIMINATOR_MAPPING`, and `ObjectSerializer.deserialize` routes a decode of the base (own static property, since subtypes inherit statics) to the subtype the value names; a missing or unlisted value throws `SerializationError` naming it. Not done: a property typed as the base inside another model is still decoded as the base by class-transformer (`@Type`), not routed.
+Test: `test/composed-schema.test.mustache` (bhv unions 301-304, bhv serializationobject 301).
 
 ### Required plus nullable keeps the key (S5, D66, 2026-11-16)
 Rule: decode rejects a missing key and keeps an explicit `null`; encode always writes the key, `null` when unset.

@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,11 +24,13 @@ import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -1341,6 +1344,33 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     "clientId", "clientSecret", "redirectUri", "nil");
         }
         return List.of();
+    }
+
+    /**
+     * A classic allOf base is realised as a union of its subtypes: Go structs
+     * cannot be subclassed, and a flat base struct could not hold the subtype
+     * a discriminator names. Once the shared pass has marked the base, its
+     * mapped subtypes become its {@code oneOf} set, so the union template
+     * emits the wrapper, the per-subtype accessors and the discriminator
+     * dispatch that rejects an unknown value (S4, issue #104).
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(final Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
+                    final Set<String> variants = new LinkedHashSet<>();
+                    for (final CodegenDiscriminator.MappedModel mapped :
+                            model.discriminator.getMappedModels()) {
+                        variants.add(mapped.getModelName());
+                    }
+                    model.oneOf = variants;
+                }
+            }
+        }
+        return result;
     }
 
     /**

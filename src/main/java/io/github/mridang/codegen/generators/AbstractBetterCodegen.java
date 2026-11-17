@@ -6170,6 +6170,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (setsDiscriminatorParent()) {
             wireDiscriminatorParents(result);
         }
+        markClassicDiscriminatorInheritance(result);
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
@@ -6213,7 +6214,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 // Gap K: Auto-inject discriminator value on serialization by
                 // defaulting the child model's discriminator property.
                 if (setsDiscriminatorDefaultOnChildren()
-                        && model.discriminator != null && !model.oneOf.isEmpty()) {
+                        && model.discriminator != null
+                        && (!model.oneOf.isEmpty() || isClassicDiscriminatorBase(model))) {
                     final String discPropName = model.discriminator.getPropertyBaseName();
                     final boolean demote = demotesDiscriminatorFromRequiredVars();
                     final boolean resort = sortVarsByDefaultValue();
@@ -6343,6 +6345,92 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         return false;
+    }
+
+    /**
+     * Whether the model is the base of a classic allOf inheritance: it carries
+     * a discriminator but is not a oneOf or anyOf union, and at least one
+     * schema maps to it through the discriminator (explicit mapping or the
+     * implicit schema name of a child that composes it with allOf).
+     */
+    static boolean isClassicDiscriminatorBase(final CodegenModel model) {
+        return model.discriminator != null
+                && model.oneOf.isEmpty()
+                && model.anyOf.isEmpty()
+                && model.discriminator.getMappedModels() != null
+                && !model.discriminator.getMappedModels().isEmpty();
+    }
+
+    /**
+     * Hook for a language that needs more than the shared markers on a classic
+     * allOf child, called once per child after the markers are set. Default
+     * no-op.
+     *
+     * @param child the subtype model
+     * @param base the discriminated base model it composes
+     */
+    protected void decorateClassicDiscriminatorChild(
+            final CodegenModel child, final CodegenModel base) {
+        // no-op; languages with constructors that chain to the base override.
+    }
+
+    /**
+     * Marks classic allOf inheritance for the templates (issue #104). The
+     * base gets {@code x-allof-base}; each mapped child that composes the
+     * base (its {@code parent} is the base) gets {@code x-allof-child}, and
+     * every property of the child that the base already declares gets
+     * {@code x-inherited} in each of the child's property lists, so a
+     * template can leave it to the base while the flattened lists stay
+     * complete for languages that repeat the fields.
+     */
+    void markClassicDiscriminatorInheritance(final Map<String, ModelsMap> allModels) {
+        final Map<String, CodegenModel> byClass = new HashMap<>();
+        for (final ModelsMap modelsMap : allModels.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                byClass.put(modelMap.getModel().classname, modelMap.getModel());
+            }
+        }
+        for (final CodegenModel base : byClass.values()) {
+            if (!isClassicDiscriminatorBase(base)) {
+                continue;
+            }
+            final Set<String> baseProps = new HashSet<>();
+            for (final CodegenProperty p : base.vars) {
+                baseProps.add(p.baseName);
+            }
+            boolean any = false;
+            for (final CodegenDiscriminator.MappedModel mapped :
+                    base.discriminator.getMappedModels()) {
+                final CodegenModel child = byClass.get(mapped.getModelName());
+                if (child == null || !base.classname.equals(child.parent)) {
+                    continue;
+                }
+                any = true;
+                child.vendorExtensions.put("x-allof-child", true);
+                child.vendorExtensions.put("x-allof-base-name", base.classname);
+                child.vendorExtensions.put(
+                        "x-allof-base-filename", toModelFilename(base.classname));
+                child.vendorExtensions.put(
+                        "x-allof-discriminator-property",
+                        base.discriminator.getPropertyBaseName());
+                decorateClassicDiscriminatorChild(child, base);
+                for (final List<CodegenProperty> list : List.of(
+                        child.vars, child.allVars, child.requiredVars,
+                        child.optionalVars, child.readWriteVars)) {
+                    if (list == null) {
+                        continue;
+                    }
+                    for (final CodegenProperty p : list) {
+                        if (baseProps.contains(p.baseName)) {
+                            p.vendorExtensions.put("x-inherited", true);
+                        }
+                    }
+                }
+            }
+            if (any) {
+                base.vendorExtensions.put("x-allof-base", true);
+            }
+        }
     }
 
     /**

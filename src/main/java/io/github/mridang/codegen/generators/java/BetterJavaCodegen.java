@@ -911,6 +911,21 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return true;
     }
 
+    /**
+     * Builds the argument list a classic allOf child passes to its base
+     * constructor: the base's own properties, in the base's order, read from
+     * the child's builder.
+     */
+    @Override
+    protected void decorateClassicDiscriminatorChild(
+            final CodegenModel child, final CodegenModel base) {
+        final List<String> args = new ArrayList<>();
+        for (final CodegenProperty property : base.vars) {
+            args.add("builder." + property.name);
+        }
+        child.vendorExtensions.put("superArgs", String.join(", ", args));
+    }
+
     /** {@inheritDoc} */
     @Override
     protected boolean setsDiscriminatorDefaultOnChildren() {
