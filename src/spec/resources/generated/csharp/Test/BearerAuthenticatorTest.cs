@@ -46,6 +46,14 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuthbearer028ABearerTokenWithCrlfIsRejectedAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        );
+    }
+
+    [Fact]
     public void BhvAuthbearer012RejectsCrlfAndNonAscii()
     {
         // auth-validation-timing: the token is validated eagerly at

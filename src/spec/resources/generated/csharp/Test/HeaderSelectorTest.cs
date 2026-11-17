@@ -253,7 +253,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldReturnEmptyStringWhenAllEntriesBlank()
+        public void BhvHeaders029ShouldReturnEmptyStringWhenAllEntriesBlank()
         {
             Assert.Equal(string.Empty, HeaderSelector.SelectAcceptHeader(["", "   "]));
         }

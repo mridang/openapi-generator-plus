@@ -214,6 +214,27 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvErrors057ANetworkFailureNamesTheRequestMethodAndPath()
+    {
+        var api = new TestableApi(new RefusedApiClient(), "http://localhost");
+
+        var ex = await Assert.ThrowsAsync<NetworkException>(() =>
+            api.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+    }
+
+    [Fact]
     public async Task BhvErrors027AnApiErrorKeepsTheBasePathOfTheServer()
     {
         var api = new TestableApi(new StatusSequenceApiClient(500), "http://localhost/v2/");
@@ -827,6 +848,19 @@ public class BaseApiTest
                     new Dictionary<string, string> { { "Content-Type", "application/json" } }
                 )
             );
+        }
+    }
+
+    private sealed class RefusedApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromException<ApiHttpResponse>(new NetworkException("connection refused"));
         }
     }
 
