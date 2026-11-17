@@ -553,7 +553,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("httpClient conflicts with proxy, caCertPath and verifySsl=false")
+        @DisplayName("bhvLifecycle024 a supplied httpClient conflicts with the SDK proxy, caCertPath and verifySsl=false settings")
         fun httpClientConflictsWithSdkTransportSettings() {
             val custom = HttpClient(MockEngine { respondOk() })
             try {

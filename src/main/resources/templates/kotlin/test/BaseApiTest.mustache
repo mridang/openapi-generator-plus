@@ -632,7 +632,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("418 throws ClientException")
+        @DisplayName("bhvErrors048 418 throws ClientException")
         fun throws418() {
             assertThrows(ClientException::class.java) {
                 runBlocking { api().call("GET", "/test/status/418") }
@@ -1239,6 +1239,23 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationwire055 a space in a form value encodes as plus, never %20")
+        fun formSpaceEncodedAsPlusInEveryValue() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/test/echo",
+                    body = mapOf("nickname" to "Good Boy", "note" to "very fast"),
+                    contentType = "application/x-www-form-urlencoded")
+            }
+            assertNotNull(client.capturedBody)
+            val wire = client.capturedBody.toString()
+            assertTrue(wire.contains("nickname=Good+Boy"), "got: $wire")
+            assertTrue(wire.contains("note=very+fast"), "got: $wire")
+            assertFalse(wire.contains("%20"), "got: $wire")
+        }
+
+        @Test
         @DisplayName("form-urlencoded body percent-encodes reserved characters in keys and values")
         fun formUrlencodedBodyEncodesReservedCharacters() {
             val client = CapturingApiClient()
@@ -1831,7 +1848,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("proxy that requires credentials answers 407 when none are sent")
+        @DisplayName("bhvTransport059 an authenticating proxy refuses a request without credentials")
         fun proxyWithoutCredentialsIsRefused() {
             val chasmUrl = ChasmContainer.getInternalHttpUrl()
             val transport = TransportOptions.builder()

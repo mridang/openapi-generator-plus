@@ -198,6 +198,28 @@ class ApiExceptionTest {
     }
 
     @Test
+    fun bhvErrors045OAuth2ErrorsAreRootedAtTheBrandedBaseNotAtApiException() {
+        // The token endpoint errors are SDK errors, but they are not HTTP ApiExceptions.
+        val server = {{invokerPackage}}.errors.OAuth2ServerException(400, "invalid_grant", null, null, "{}")
+        val token = {{invokerPackage}}.errors.OAuth2TokenException("no access_token")
+
+        assertTrue(server is {{errorPrefix}}Exception)
+        assertTrue(token is {{errorPrefix}}Exception)
+        assertFalse(ApiException::class.java.isInstance(server))
+        assertFalse(ApiException::class.java.isInstance(token))
+    }
+
+    @Test
+    fun bhvErrors047InternalServerErrorIsAnApiErrorAndTheBrandedRoot() {
+        val ex = {{invokerPackage}}.errors.InternalServerErrorException("boom")
+
+        assertTrue(ex is ServerException)
+        assertTrue(ex is ApiException)
+        assertTrue(ex is {{errorPrefix}}Exception)
+        assertEquals(500, ex.statusCode)
+    }
+
+    @Test
     fun bhvErrors025SerializationExceptionShareTheBrandedRoot() {
         // SerializationException is-a {{errorPrefix}}, so callers can catch the whole
         // SDK error surface via the single branded root.

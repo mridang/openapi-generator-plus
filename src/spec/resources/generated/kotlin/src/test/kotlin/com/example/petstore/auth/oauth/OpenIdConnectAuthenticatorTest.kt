@@ -666,7 +666,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun concurrentCallsOnAColdAuthenticatorShareOneDiscovery() {
+    fun bhvAuthoidc029ConcurrentCallsOnAColdAuthenticatorShareOneDiscovery() {
         val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
         var gets = 0
         val client =

@@ -124,7 +124,7 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: an explicit credential wins over the environment, one credential at a time")
+    @DisplayName("bhvAuthbasic013 F862: an explicit credential wins over the environment, one credential at a time")
     fun explicitCredentialWinsOverTheEnvironment() =
         runBlocking {
             val env =
