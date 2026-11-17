@@ -145,6 +145,12 @@ Why: a per-hop timeout lets a redirect chain exceed the budget; setter validatio
 Where: `abstract_api_client.mustache` (`hrtime` deadline, `NetworkTimeoutException`), `default_api_client.mustache`, `transport_options*.mustache`.
 Test: `DefaultApiClientTest`, `TransportOptionsTest`.
 
+### A malformed request URL is a caller mistake (bhv errors 040)
+Rule: `AbstractApiClient::sendRequest` refuses any URL that is not an absolute http or https URL with a usable host (a bracketed IPv6 literal must parse) before a header is merged or the transport is touched, and throws `\InvalidArgumentException("Malformed request URL: <url>")`; the URL in the message has no query and any userinfo shown as `***@`. Both transports (`DefaultApiClient` and `Psr18ApiClient`) get it from the shared method.
+Why: `parse_url()` accepts `http://[bad`, and the Symfony transport then reported it as a `NetworkException`; the cross-language contract makes a caller mistake the language's argument error, never an SDK error. Dart and elixir refuse it up front in the same way.
+Where: `abstract_api_client.mustache` (`isUsableWebUrl`, `hasUsableHost`, `loggableUrl`, shared with `resolveUrl`).
+Test: `DefaultApiClientUnitTest` (`bhv errors 040`, rows for `http://[bad` and a scheme-less `not a url`).
+
 ### Timeout must be a positive millisecond count or null (D77)
 Rule: the `TransportOptions` constructor (which `build()` runs) throws `\InvalidArgumentException('Invalid timeout: must be a positive number of milliseconds (got N)')` for `<= 0` (templates done in batch 6, golden regeneration pending).
 Why: zero or negative is ambiguous across transports.
