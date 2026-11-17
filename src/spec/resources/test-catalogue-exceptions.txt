@@ -10,3 +10,9 @@ swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept ar
 swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
 elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in
 elixir | retries019 | The psr18 client is a PHP transport object with its own timeout budget; the Elixir deadline is fixed once per call and retries never extend it (bhv retries 025)
+||||||| 4610d9ef3
+elixir | config002 | Elixir has no builder: Configuration.new/1 takes the headers once as a map, so no call accumulates headers
+elixir | config003 | Elixir has no builder, so there is no chained call to be fluent; Configuration.new/1 takes its keyword list once
+elixir | config004 | Elixir has no builder: single and bulk headers are one default_headers map given to Configuration.new/1, so there is no single-header call to merge
+elixir | config007 | Elixir has no builder object to return: Configuration.new/1 returns the configuration struct itself
+elixir | authbearer001 | A scheme wrapper returns the shared BearerAuthenticator struct (new/1 delegates to it), so inspect prints the base module and there is no per-scheme name to print

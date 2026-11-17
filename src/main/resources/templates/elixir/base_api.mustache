@@ -429,7 +429,11 @@ defmodule {{moduleName}}.Api.BaseApi do
         result
 
       not ctx.replayed and unauthorized?(result) and invalidate_access_token(effective_auth) == :ok ->
-        attempt(state, method, effective_auth, build_request, %{ctx | replayed: true})
+        # A failed re-authentication keeps the 401 it replaces, as in the other SDKs.
+        case build_for_replay(build_request) do
+          {:ok, request} -> attempt(state, method, effective_auth, fn -> request end, %{ctx | replayed: true})
+          :error -> result
+        end
 
       true ->
         case next_delay(result, ctx) do
@@ -441,6 +445,19 @@ defmodule {{moduleName}}.Api.BaseApi do
             result
         end
     end
+  end
+
+  # Builds the request again for a replay. Only a credential that cannot be
+  # obtained again counts as a failure here; anything else is raised as before.
+  defp build_for_replay(build_request) do
+    {:ok, build_request.()}
+  rescue
+    _ in [
+      {{moduleName}}.Errors.OAuth2ServerError,
+      {{moduleName}}.Errors.OAuth2TokenError,
+      {{moduleName}}.Errors.NetworkError
+    ] ->
+      :error
   end
 
   defp send_once(api_client, method, url, headers, body, {deadline, call_timeout}) do
