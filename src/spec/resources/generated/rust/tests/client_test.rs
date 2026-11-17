@@ -37,7 +37,7 @@ fn test_client_construct_with_none_transport_options() {
 }
 
 #[test]
-fn test_client_construct_with_transport_options() {
+fn test_client_construct_with_authenticator_and_transport_options() {
     let authenticator = BearerAuthenticator::new("/api/v3", "test-token").unwrap();
     let transport = TransportOptionsBuilder::new()
         .build()

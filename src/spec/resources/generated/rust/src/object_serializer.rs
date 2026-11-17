@@ -1416,6 +1416,17 @@ mod tests {
         assert!(pet.photo_urls.contains("http://example.com/fido.jpg"));
     }
 
+    /* The Order.status property declares `default: placed`: a payload that omits
+     * the key deserializes to the declared default, not to `None`. */
+    #[test]
+    fn test_deserialize_applies_schema_default_for_absent_field() {
+        let payload = br#"{"id":10,"petId":198772}"#;
+        let order: Option<crate::models::Order> = object_serializer::deserialize(payload)
+            .expect("deserializing an Order without a status must succeed");
+        let order = order.expect("expected Some(Order)");
+        assert_eq!(order.status, Some(crate::models::OrderStatusEnum::Placed));
+    }
+
     /// Every wire-shape failure is a `SerializationError` and part of the
     /// `OpenAPIError` hierarchy: malformed JSON, a wrong primitive type, an
     /// unknown enum value, a missing required field, and a malformed
