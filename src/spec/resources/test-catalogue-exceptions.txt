@@ -16,3 +16,6 @@ elixir | config003 | Elixir has no builder, so there is no chained call to be fl
 elixir | config004 | Elixir has no builder: single and bulk headers are one default_headers map given to Configuration.new/1, so there is no single-header call to merge
 elixir | config007 | Elixir has no builder object to return: Configuration.new/1 returns the configuration struct itself
 elixir | authbearer001 | A scheme wrapper returns the shared BearerAuthenticator struct (new/1 delegates to it), so inspect prints the base module and there is no per-scheme name to print
+||||||| 4610d9ef3
+go | serializationobject002 | type: number is float64 in go, documented as lossy (no stdlib decimal), so an exact value in plain notation cannot hold for every number
+go | serializationobject015 | uniqueItems sets keep the sorted order of their scalar members (S6, D69): Set[T] is map-backed, so go has no insertion order to keep

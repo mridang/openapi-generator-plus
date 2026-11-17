@@ -2012,6 +2012,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         modelMap.put(flagName, true);
                         result.put(flagName, true);
                     }
+                } else if ("hasPasswordProperty".equals(key)) {
+                    // True when a property carries format: password. Used by the Go
+                    // model template to emit a String() that masks the secret.
+                    final boolean hasPassword = model.vars.stream().anyMatch(p -> p.isPassword);
+                    if (hasPassword) {
+                        modelMap.put(flagName, true);
+                        result.put(flagName, true);
+                    }
                 } else if ("hasOptionalDefault".equals(key)) {
                     // True when at least one optional (non-required) property
                     // declares a schema default. Used to guard the
