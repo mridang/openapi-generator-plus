@@ -136,7 +136,8 @@ key_param_name: \"k-name\", api_key: \"***\", location: "
 
 #[test]
 fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
-    let auth = ApiKeyHeaderAuthenticator::new("https://api.example.com", "wrapper-key").unwrap();
+    let auth =
+        ApiKeyHeaderAuthenticator::new("https://api.example.com", Some("wrapper-key")).unwrap();
     let debug = format!("{:?}", auth);
     assert!(debug.starts_with("ApiKeyHeaderAuthenticator("), "{}", debug);
     assert!(!debug.contains("wrapper-key"), "{}", debug);
@@ -149,7 +150,7 @@ fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
 async fn test_scheme_wrappers_emit_the_key_at_the_declared_name_and_location() {
     let host = "https://api.example.com";
 
-    let header = ApiKeyHeaderAuthenticator::new(host, "key-1").unwrap();
+    let header = ApiKeyHeaderAuthenticator::new(host, Some("key-1")).unwrap();
     assert_eq!(
         header.auth_headers().await.get("X-API-Key"),
         Some(&"key-1".to_string())
@@ -157,7 +158,7 @@ async fn test_scheme_wrappers_emit_the_key_at_the_declared_name_and_location() {
     assert!(header.query_params().is_empty());
     assert!(header.cookie_params().is_empty());
 
-    let internal = InternalApiKeyAuthenticator::new(host, "key-2").unwrap();
+    let internal = InternalApiKeyAuthenticator::new(host, Some("key-2")).unwrap();
     assert_eq!(
         internal.auth_headers().await.get("X-Internal-Key"),
         Some(&"key-2".to_string())
@@ -165,7 +166,7 @@ async fn test_scheme_wrappers_emit_the_key_at_the_declared_name_and_location() {
     assert!(internal.query_params().is_empty());
     assert!(internal.cookie_params().is_empty());
 
-    let query = ApiKeyQueryAuthenticator::new(host, "key-3").unwrap();
+    let query = ApiKeyQueryAuthenticator::new(host, Some("key-3")).unwrap();
     assert_eq!(
         query.query_params().get("api_key"),
         Some(&"key-3".to_string())
@@ -173,7 +174,7 @@ async fn test_scheme_wrappers_emit_the_key_at_the_declared_name_and_location() {
     assert!(query.auth_headers().await.is_empty());
     assert!(query.cookie_params().is_empty());
 
-    let cookie = SessionCookieAuthenticator::new(host, "key-4").unwrap();
+    let cookie = SessionCookieAuthenticator::new(host, Some("key-4")).unwrap();
     assert_eq!(
         cookie.cookie_params().get("SESSION_ID"),
         Some(&"key-4".to_string())
@@ -187,10 +188,10 @@ async fn test_scheme_wrappers_emit_the_key_at_the_declared_name_and_location() {
 fn test_scheme_wrappers_reject_an_empty_key() {
     let host = "https://api.example.com";
     for result in [
-        ApiKeyHeaderAuthenticator::new(host, "").map(|_| ()),
-        InternalApiKeyAuthenticator::new(host, "").map(|_| ()),
-        ApiKeyQueryAuthenticator::new(host, "").map(|_| ()),
-        SessionCookieAuthenticator::new(host, "").map(|_| ()),
+        ApiKeyHeaderAuthenticator::new(host, Some("")).map(|_| ()),
+        InternalApiKeyAuthenticator::new(host, Some("")).map(|_| ()),
+        ApiKeyQueryAuthenticator::new(host, Some("")).map(|_| ()),
+        SessionCookieAuthenticator::new(host, Some("")).map(|_| ()),
     ] {
         match result {
             Err(ConfigurationError::InvalidArgument(reason)) => {
@@ -210,19 +211,19 @@ fn test_scheme_wrappers_mask_the_key_and_keep_the_declared_name() {
     let host = "https://api.example.com";
     assert_eq!(
         "ApiKeyHeaderAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"X-API-Key\", api_key: \"***\", location: Header })",
-        format!("{:?}", ApiKeyHeaderAuthenticator::new(host, "secret-1").unwrap())
+        format!("{:?}", ApiKeyHeaderAuthenticator::new(host, Some("secret-1")).unwrap())
     );
     assert_eq!(
         "InternalApiKeyAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"X-Internal-Key\", api_key: \"***\", location: Header })",
-        format!("{:?}", InternalApiKeyAuthenticator::new(host, "secret-2").unwrap())
+        format!("{:?}", InternalApiKeyAuthenticator::new(host, Some("secret-2")).unwrap())
     );
     assert_eq!(
         "ApiKeyQueryAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"api_key\", api_key: \"***\", location: Query })",
-        format!("{:?}", ApiKeyQueryAuthenticator::new(host, "secret-3").unwrap())
+        format!("{:?}", ApiKeyQueryAuthenticator::new(host, Some("secret-3")).unwrap())
     );
     assert_eq!(
         "SessionCookieAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"SESSION_ID\", api_key: \"***\", location: Cookie })",
-        format!("{:?}", SessionCookieAuthenticator::new(host, "secret-4").unwrap())
+        format!("{:?}", SessionCookieAuthenticator::new(host, Some("secret-4")).unwrap())
     );
 }
 

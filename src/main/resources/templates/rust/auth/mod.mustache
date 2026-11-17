@@ -34,3 +34,29 @@ pub mod oauth;
 pub mod {{module}};
 pub use {{module}}::*;
 {{/perSchemeAuthModules}}
+
+{{#hasSecuritySchemeEnvVars}}
+
+/// Resolves one credential of a per-scheme authenticator: the explicit argument
+/// wins (an empty one is kept and rejected by the authenticator itself), then the
+/// environment variable, read once, where an empty value counts as unset. A
+/// credential found in neither place is a `ConfigurationError` naming the
+/// variable.
+pub(crate) fn resolve_credential(
+    explicit: Option<&str>,
+    variable: &str,
+) -> Result<String, crate::errors::configuration_error::ConfigurationError> {
+    if let Some(value) = explicit {
+        return Ok(value.to_string());
+    }
+    std::env::var(variable)
+        .ok()
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                "The credential is required: pass it or set {}",
+                variable
+            ))
+        })
+}
+{{/hasSecuritySchemeEnvVars}}

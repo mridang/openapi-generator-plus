@@ -16,13 +16,33 @@ pub struct BrowserAuthImplicitAuthenticator(OAuth2ImplicitAuthenticator);
 
 impl BrowserAuthImplicitAuthenticator {
     /// Creates an authenticator for the browserAuth security scheme.
-    pub fn new(host: &str, client_id: &str) -> Self {
-        Self(OAuth2ImplicitAuthenticator::new(
+    ///
+    /// Each credential is optional. A value passed here wins, even an empty one
+    /// (the underlying authenticator then rejects it). Otherwise its environment
+    /// variable is read, once, here, and an empty variable counts as unset.
+    ///
+    /// * `client_id`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`](crate::errors::configuration_error::ConfigurationError)
+    /// naming the variable when a credential is neither passed nor set in the
+    /// environment, or when the [`OAuth2ImplicitAuthenticator`] rejects a credential.
+    pub fn new(
+        host: &str,
+        client_id: Option<&str>,
+    ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
+        let client_id = crate::auth::resolve_credential(
+            client_id,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID",
+        )?;
+        let client_id = client_id.as_str();
+        Ok(Self(OAuth2ImplicitAuthenticator::new(
             host,
             client_id,
             "https://auth.example.com/authorize",
             vec!["read".to_string()],
-        ))
+        )))
     }
 }
 

@@ -153,7 +153,8 @@ fn redacts_secret() {
 
 #[test]
 fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
-    let auth = BrowserAuthImplicitAuthenticator::new("https://api.example.com", "id");
+    let auth =
+        BrowserAuthImplicitAuthenticator::new("https://api.example.com", Some("id")).unwrap();
 
     let url = auth.build_authorization_url("");
 

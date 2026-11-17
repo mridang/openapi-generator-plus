@@ -7,6 +7,9 @@ use crate::auth::{BearerAuthenticator, TokenProvider};
 use crate::errors::configuration_error::ConfigurationError;
 use crate::auth::Authenticator;
 use crate::configuration::ConfigurationBuilder;
+{{#hasSecuritySchemeEnvVars}}
+use crate::credentials::Credentials;
+{{/hasSecuritySchemeEnvVars}}
 use crate::default_api_client::DefaultApiClient;
 use crate::transport_options::TransportOptions;
 {{#apiInfo}}
@@ -88,6 +91,36 @@ impl {{clientClassName}} {
         Self::from_api_client(authenticator, api_client)
     }
 
+{{#hasSecuritySchemeEnvVars}}
+    /// Creates a client that holds one optional credential per security scheme.
+    ///
+    /// Each operation uses the credential of the first scheme its specification
+    /// requires that is set in `credentials`, and goes out unauthenticated when
+    /// none is. `host` is the base URL of the API. `transport_options` is
+    /// optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    pub fn with_credentials(
+        host: &str,
+        credentials: Credentials,
+        transport_options: Option<TransportOptions>,
+    ) -> Self {
+        let transport = transport_options.unwrap_or_default();
+        let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(Some(transport)));
+        let config = ConfigurationBuilder::new().base_url(host).build();
+        let by_scheme = credentials.by_scheme();
+        Self {
+            api_client: api_client.clone(),
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+            {{clientPropertyName}}: {{classname}}::new(api_client.clone(), config.clone(), None)
+                .with_scheme_authenticators(by_scheme.clone()),
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        }
+    }
+
+{{/hasSecuritySchemeEnvVars}}
     /// Wires the API groups to an already-built [`ApiClient`].
     fn from_api_client(
         mut authenticator: Box<dyn Authenticator>,

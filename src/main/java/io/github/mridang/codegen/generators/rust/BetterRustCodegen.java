@@ -7,6 +7,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
+import io.github.mridang.codegen.generators.EnvVarNames;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
@@ -192,12 +193,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 "Issue tracker URL, written to the manifest and README (optional)."));
     }
 
-    /**
-     * Options classes this generator mints for operations the shared pass leaves without one (no
-     * query, header, form or cookie parameter and no security), so that every operation can take
-     * the per-call timeout, headers and retry budget (F827).
-     */
-    private final List<Map<String, String>> extraOptionsFiles = new ArrayList<>();
+    /** One entry per per-scheme authenticator, for the generated environment-variable tests. */
+    private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
@@ -356,6 +353,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public void processOpts() {
         super.processOpts();
+        additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
 
         /* The environment-variable prefix of the credentials the client reads once at
          * construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL). */
@@ -659,17 +657,15 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
-        // A default written next to a $ref (an OAS 3.1 sibling keyword) wins
-        // over the component's own default (D60).
-        final Object siblingDefault = schema.get$ref() != null ? schema.getDefault() : null;
-        final Object effectiveDefault =
-                siblingDefault != null ? siblingDefault : resolved.getDefault();
+        final Object effectiveDefault = resolved.getDefault();
         if (effectiveDefault != null) {
             if (schema.get$ref() != null
                     && resolved.getEnum() != null
                     && !resolved.getEnum().isEmpty()
                     && ModelUtils.isStringSchema(resolved)) {
-                // A default on a referenced string enum names the declared variant.
+                // A default on a referenced string enum names the declared variant. A default
+                // written next to the $ref comes through the shared siblingDefault data
+                // (seedSiblingDefault), not through here.
                 return toModelName(ModelUtils.getSimpleRef(schema.get$ref()))
                         + "::"
                         + toEnumVarName(String.valueOf(effectiveDefault), "String");
@@ -753,6 +749,49 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 property.datatypeWithEnum = property.datatypeWithEnum.replaceAll(word, renamed);
             }
             property.complexType = renamed;
+        }
+    }
+
+    /**
+     * Seeds a sibling {@code default} (see {@link #seedSiblingDefault}) while the property is
+     * built, so the copies in {@code requiredVars} and {@code optionalVars}, which the
+     * {@code new()} constructor reads, carry it as well as {@code vars}.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public org.openapitools.codegen.CodegenProperty fromProperty(
+            String name, Schema p, boolean required, boolean schemaIsFromAdditionalProperties) {
+        final org.openapitools.codegen.CodegenProperty property =
+                super.fromProperty(name, p, required, schemaIsFromAdditionalProperties);
+        if (property != null) {
+            seedSiblingDefault(property);
+        }
+        return property;
+    }
+
+    /**
+     * Seeds the default of a property that is a {@code $ref} carrying a sibling {@code default}
+     * (D60, F866) from the shared {@code siblingDefault} data, so {@code new()}, {@code Default}
+     * and a decode that leaves the property out all start from it. A referenced string enum names
+     * its declared variant; any other referenced schema takes the literal of its own type.
+     */
+    void seedSiblingDefault(org.openapitools.codegen.CodegenProperty property) {
+        final Object wire = property.vendorExtensions.get("siblingDefault");
+        if (wire == null) {
+            return;
+        }
+        if (Boolean.TRUE.equals(property.vendorExtensions.get("siblingDefaultIsEnum"))) {
+            property.defaultValue =
+                    property.vendorExtensions.get("siblingDefaultEnumType")
+                            + "::"
+                            + property.vendorExtensions.get("siblingDefaultEnumVar");
+        } else if (property.isString) {
+            property.defaultValue = "String::from(" + toRustStringLiteral(String.valueOf(wire)) + ")";
+        } else if (property.isBoolean || property.isInteger || property.isLong) {
+            property.defaultValue = String.valueOf(wire);
+        } else if (property.isNumber || property.isFloat || property.isDouble) {
+            final String literal = String.valueOf(wire);
+            property.defaultValue = literal.matches("-?\\d+") ? literal + ".0" : literal;
         }
     }
 
@@ -940,6 +979,20 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final org.openapitools.codegen.model.ModelsMap result = super.postProcessModels(objs);
         for (final ModelMap modelMap : result.getModels()) {
             final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+            /* The property lists are separate copies, so a sibling default seeded on one
+             * (postProcessModelProperty) is carried to all of them here. */
+            for (final List<org.openapitools.codegen.CodegenProperty> properties :
+                    List.of(
+                            model.vars,
+                            model.allVars,
+                            model.optionalVars,
+                            model.requiredVars,
+                            model.readOnlyVars,
+                            model.readWriteVars)) {
+                for (final org.openapitools.codegen.CodegenProperty property : properties) {
+                    seedSiblingDefault(property);
+                }
+            }
             modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars(model));
             /* A `format: password` property is masked in `Debug` (F867), which
              * needs a hand-written impl instead of the derive. */
@@ -990,7 +1043,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
-        addCallOptionsWhereMissing(result);
         final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
         if (operations != null) {
             final List<CodegenOperation> ops =
@@ -1207,6 +1259,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return "src/auth/oauth";
     }
 
+    private boolean hasSecuritySchemeEnvVars() {
+        return Boolean.TRUE.equals(additionalProperties.get("hasSecuritySchemeEnvVars"));
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String toAuthFilename(String stem) {
@@ -1219,6 +1275,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         super.registerAuthSupportingFiles();
         // Rust needs explicit mod.rs files for each auth directory.
         supportingFiles.add(new SupportingFile("auth/mod.mustache", getAuthDir(), "mod.rs"));
+        if (hasSecuritySchemeEnvVars()) {
+            supportingFiles.add(new SupportingFile("credentials.mustache", "src", "credentials.rs"));
+        }
         if (hasAnyOAuth2 || hasOpenIdConnect) {
             supportingFiles.add(
                     new SupportingFile("auth/oauth/mod.mustache", getOAuthDir(), "mod.rs"));
@@ -1228,6 +1287,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // the spec has been read, so a check in processOpts always saw them
         // false and the tests were never generated.
         if (generateTests) {
+            if (hasSecuritySchemeEnvVars()) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/scheme_authenticator_test.mustache",
+                                "tests",
+                                "scheme_authenticator_test.rs"));
+            }
             if (hasBasicAuth) {
                 supportingFiles.add(
                         new SupportingFile(
@@ -1363,14 +1429,72 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         }
 
         final Map<String, Object> ctx = baseSchemeContext(spec);
-        ctx.put("constructorParams", constructorParams);
+        /* Each credential field that has a shared environment variable becomes an optional
+         * argument: the argument wins, then the variable, and a missing one is a
+         * ConfigurationError (F862). Fields without a variable stay required. */
+        final List<Map<String, String>> credentialParams = new ArrayList<>();
+        final List<Map<String, String>> envParams = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> schemeVars =
+                (List<Map<String, Object>>) Objects.requireNonNull(ctx.get("envVars"));
+        for (final Map<String, String> param : constructorParams) {
+            final Map<String, String> copy = new HashMap<>(param);
+            final String paramName = Objects.requireNonNull(param.get("name"));
+            for (final Map<String, Object> var : schemeVars) {
+                if (EnvVarNames.upperSnake(paramName).equals(var.get("fieldSnake"))) {
+                    copy.put("isCredential", "true");
+                    copy.put("envName", String.valueOf(var.get("envName")));
+                    final Map<String, String> envParam = new HashMap<>();
+                    envParam.put("name", param.get("name"));
+                    envParam.put("envName", String.valueOf(var.get("envName")));
+                    envParams.add(envParam);
+                    break;
+                }
+            }
+            credentialParams.add(copy);
+        }
+        ctx.put("constructorParams", credentialParams);
+        ctx.put("envParams", envParams);
+        final boolean bearer = "BearerAuthenticator".equals(spec.baseClass());
+        ctx.put("isBearer", bearer);
+        final String stem =
+                NamingConvention.SNAKE_CASE.apply(
+                        spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", ctx.get("className"));
+        entry.put("schemeId", spec.schemeName());
+        entry.put("fieldName", NamingConvention.SNAKE_CASE.apply(spec.schemeName()));
+        entry.put("module", stem);
+        entry.put("path", spec.isOAuth() ? "auth::oauth" : "auth");
+        entry.put("envParams", envParams);
+        entry.put("firstEnvName", envParams.isEmpty() ? "" : envParams.get(0).get("envName"));
+        entry.put("isBearer", bearer);
+        entry.put("firstParam", envParams.isEmpty() ? "" : envParams.get(0).get("name"));
+        final List<String> explicitArgs = new ArrayList<>();
+        final List<String> bareArgs = new ArrayList<>();
+        for (final Map<String, String> param : credentialParams) {
+            final String name = param.get("name");
+            if ("true".equals(param.get("isCredential"))) {
+                explicitArgs.add("Some(\"explicit-" + name + "\")");
+                bareArgs.add("None");
+            } else if ("host".equals(name)) {
+                explicitArgs.add("\"https://api.example.com\"");
+                bareArgs.add("\"https://api.example.com\"");
+            } else {
+                explicitArgs.add("\"https://app.example.com/callback\"");
+                bareArgs.add("\"https://app.example.com/callback\"");
+            }
+        }
+        entry.put("explicitArgs", String.join(", ", explicitArgs));
+        entry.put("bareArgs", String.join(", ", bareArgs));
+        perSchemeAuthEntries.add(entry);
         ctx.put("superArgs", superArgs);
         // API-key schemes name an ApiKeyLocation variant in their superArgs, so
         // the wrapper module must import that enum; other base classes do not
         // (an unconditional import would be dead under -D warnings).
         ctx.put("needsApiKeyLocation", "ApiKeyAuthenticator".equals(spec.baseClass()));
-        // Basic, Bearer and API-key constructors validate their credentials and
-        // return Result<Self, ConfigurationError>; the scheme wrapper forwards it.
+        // The wrapper always returns Result: a missing credential is a ConfigurationError.
+        // Basic, Bearer and API-key bases are themselves fallible; the OAuth bases are not.
         ctx.put("fallible", java.util.Set.of(
                 "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
                 .contains(spec.baseClass()));
@@ -1455,8 +1579,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // Whether the struct carries any optional (Option-typed) field. Drives
         // the new() doc comment: the "optional fields ... chained setters
         // below" sentence is only true when at least one optional param emits a
-        // setter. (The per-operation auth field, when present, also adds a
-        // setter and is folded in at the template level via hasAuthField.)
+        // setter.
         context.put(
                 "hasOptionalParams", optionsParams.stream().anyMatch(p -> !p.required));
         // `use crate::models::*;` is only emitted when a parameter is actually
@@ -1464,14 +1587,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // carry a glob import that nothing resolves through.
         context.put(
                 "hasModelParams", optionsParams.stream().anyMatch(BetterRustCodegen::referencesModel));
-        // Folds the optional per-operation authenticator into the Options
-        // struct (mirrors the Java generator). injectAuthFieldContext sets
-        // hasAuthField (= op.hasAuthMethods) and authFieldType. Rust holds the
-        // authenticator as a reference-counted trait object so it can be borrowed
-        // as `&dyn Authenticator` when threaded into the transport call, matching
-        // the constructor's `Option<Arc<dyn Authenticator>>` ownership model.
-        injectAuthFieldContext(op, context);
-        context.put("authFieldType", "Arc<dyn Authenticator>");
         return renderOptionsTemplate("api/options.mustache", context);
     }
 
@@ -1500,72 +1615,15 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return Path.of(getOutputDir(), "src", "api", "options", fileName + ".rs").toString();
     }
 
-    /**
-     * Mints an Options struct, and the signature entry that takes it, for every operation the
-     * shared pass gave none. The per-call timeout, headers and retry budget live on that struct,
-     * so an operation without parameters still has the slot (F827). When the shared pass starts
-     * minting the struct itself every operation already has one and this does nothing.
-     */
-    @SuppressWarnings("unchecked")
-    private void addCallOptionsWhereMissing(OperationsMap processed) {
-        final Map<String, Object> operations = (Map<String, Object>) processed.get("operations");
-        if (operations == null) {
-            return;
-        }
-        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
-        if (ops == null) {
-            return;
-        }
-        for (final CodegenOperation op : ops) {
-            final Object decorator = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-            if (!(decorator instanceof Map)) {
-                continue;
-            }
-            final Map<String, Object> deco = (Map<String, Object>) decorator;
-            final List<Map<String, Object>> sig = (List<Map<String, Object>>) deco.get("signatureArgs");
-            final List<Map<String, Object>> sigNoServer =
-                    (List<Map<String, Object>>) deco.get("signatureArgsNoServer");
-            if (sig == null
-                    || sigNoServer == null
-                    || sig.stream().anyMatch(a -> Boolean.TRUE.equals(a.get("isOptions")))) {
-                continue;
-            }
-            final String className = Objects.requireNonNull((String) deco.get("optionsClassName"));
-            final String content = generateOptionsFileContent(op, new ArrayList<>(), className);
-            if (content == null) {
-                continue;
-            }
-            final String filePath = getOptionsFilePath(op.operationId, className);
-            writeFile(filePath, content);
-            postProcessFile(Path.of(filePath).toFile(), "source");
-
-            final Map<String, String> meta = new HashMap<>();
-            meta.put("optionsClassName", className);
-            meta.put("optionsFilePath", filePath);
-            extraOptionsFiles.add(meta);
-
-            for (final List<Map<String, Object>> args : List.of(sig, sigNoServer)) {
-                final Map<String, Object> entry = new HashMap<>();
-                entry.put("kind", "options");
-                entry.put("isPath", false);
-                entry.put("isBody", false);
-                entry.put("isOptions", true);
-                entry.put("isServer", false);
-                entry.put("paramName", "options");
-                entry.put("dataType", className);
-                entry.put("nullable", true);
-                entry.put("isNullable", false);
-                args.add(entry);
-            }
-            deco.put("hasOptionsParam", true);
-        }
+    /** {@inheritDoc} */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
     }
 
     /** {@inheritDoc} */
     @Override
-    public void emitBarrelFiles(List<Map<String, String>> sharedOptionsFiles) {
-        final List<Map<String, String>> optionsFiles = new ArrayList<>(sharedOptionsFiles);
-        optionsFiles.addAll(extraOptionsFiles);
+    public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
         if (optionsFiles.isEmpty()) {
             return;
         }
@@ -1594,11 +1652,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     public void postProcess() {
         writeModFile(Path.of(getOutputDir(), "src", "models"));
         writeModFile(Path.of(getOutputDir(), "src", "api"));
-        /* The options module is written even when every Options struct is one this
-         * generator minted, which the shared pass does not count. */
-        if (getAccumulatedOptionsFiles().isEmpty() && !extraOptionsFiles.isEmpty()) {
-            emitBarrelFiles(new ArrayList<>());
-        }
         super.postProcess();
     }
 

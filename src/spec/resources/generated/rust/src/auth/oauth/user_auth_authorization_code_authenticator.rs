@@ -16,8 +16,44 @@ pub struct UserAuthAuthorizationCodeAuthenticator(OAuth2AuthorizationCodeAuthent
 
 impl UserAuthAuthorizationCodeAuthenticator {
     /// Creates an authenticator for the userAuth security scheme.
-    pub fn new(host: &str, client_id: &str, client_secret: &str, redirect_uri: &str) -> Self {
-        Self(OAuth2AuthorizationCodeAuthenticator::new(
+    ///
+    /// Each credential is optional. A value passed here wins, even an empty one
+    /// (the underlying authenticator then rejects it). Otherwise its environment
+    /// variable is read, once, here, and an empty variable counts as unset.
+    ///
+    /// * `client_id`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID`.
+    ///
+    /// * `client_secret`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET`.
+    ///
+    /// * `redirect_uri`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`](crate::errors::configuration_error::ConfigurationError)
+    /// naming the variable when a credential is neither passed nor set in the
+    /// environment, or when the [`OAuth2AuthorizationCodeAuthenticator`] rejects a credential.
+    pub fn new(
+        host: &str,
+        client_id: Option<&str>,
+        client_secret: Option<&str>,
+        redirect_uri: Option<&str>,
+    ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
+        let client_id = crate::auth::resolve_credential(
+            client_id,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID",
+        )?;
+        let client_id = client_id.as_str();
+        let client_secret = crate::auth::resolve_credential(
+            client_secret,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET",
+        )?;
+        let client_secret = client_secret.as_str();
+        let redirect_uri = crate::auth::resolve_credential(
+            redirect_uri,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI",
+        )?;
+        let redirect_uri = redirect_uri.as_str();
+        Ok(Self(OAuth2AuthorizationCodeAuthenticator::new(
             host,
             client_id,
             client_secret,
@@ -26,7 +62,7 @@ impl UserAuthAuthorizationCodeAuthenticator {
             redirect_uri,
             vec!["pets:read".to_string(), "pets:write".to_string()],
             "https://auth.example.com/oauth/refresh",
-        ))
+        )))
     }
 }
 

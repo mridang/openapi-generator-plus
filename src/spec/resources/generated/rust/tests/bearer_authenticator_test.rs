@@ -130,7 +130,8 @@ fn test_redacts_secret() {
 
 #[test]
 fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_token() {
-    let auth = ServiceTokenAuthenticator::new("https://api.example.com", "wrapper-tok").unwrap();
+    let auth =
+        ServiceTokenAuthenticator::new("https://api.example.com", Some("wrapper-tok")).unwrap();
     let debug = format!("{:?}", auth);
     assert!(debug.starts_with("ServiceTokenAuthenticator("), "{}", debug);
     assert!(!debug.contains("wrapper-tok"), "{}", debug);
@@ -152,7 +153,7 @@ fn test_redacted_representation_shows_the_host() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_scheme_wrapper_emits_the_bearer_header_and_validates_eagerly() {
     let host = "https://api.example.com";
-    let service = ServiceTokenAuthenticator::new(host, "bEaReR xyz").unwrap();
+    let service = ServiceTokenAuthenticator::new(host, Some("bEaReR xyz")).unwrap();
     assert_eq!(
         service
             .auth_headers()
@@ -162,11 +163,11 @@ async fn test_scheme_wrapper_emits_the_bearer_header_and_validates_eagerly() {
         Some("Bearer xyz")
     );
     assert!(matches!(
-        ServiceTokenAuthenticator::new(host, ""),
+        ServiceTokenAuthenticator::new(host, Some("")),
         Err(ConfigurationError::InvalidArgument(_))
     ));
     assert!(matches!(
-        ServiceTokenAuthenticator::new(host, "tok\r\nInjected: yes"),
+        ServiceTokenAuthenticator::new(host, Some("tok\r\nInjected: yes")),
         Err(ConfigurationError::InvalidArgument(_))
     ));
 }

@@ -1,14 +1,9 @@
-use crate::auth::Authenticator;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
 
 /// Options for the add_pet operation.
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AddPetOptions {
-    /// Per-operation authenticator. When set, it overrides the client's
-    /// configured credentials for this call only.
-    pub auth: Option<Arc<dyn Authenticator>>,
     /// Replaces the client's end-to-end timeout for this call. Zero is refused
     /// with `ConfigurationError::InvalidTimeout` before anything is sent.
     pub timeout: Option<Duration>,
@@ -25,13 +20,6 @@ impl AddPetOptions {
     /// Creates a new AddPetOptions with default values.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Sets the per-operation authenticator. When set, it overrides the
-    /// client's configured credentials for this call only.
-    pub fn auth(mut self, auth: Arc<dyn Authenticator>) -> Self {
-        self.auth = Some(auth);
-        self
     }
 
     /// Sets the end-to-end timeout of this call, replacing the client's.

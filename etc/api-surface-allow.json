@@ -2930,7 +2930,7 @@
    "languages": [
     "rust"
    ],
-   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options struct carrying the per-call timeout, headers and max_retries; rust mints one for each operation the shared pass leaves without. Remove the rule when the other eleven SDKs land the same decision."
+   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options struct carrying the per-call timeout, headers and max_retries; rust opts in through mintsOptionsForEveryOperation() and the shared pass mints one for each operation. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
    "element": [
@@ -3270,6 +3270,31 @@
     "swift"
    ],
    "reason": "F830: swift declares the request context as `public internal(set) var`, and the extractor's modifier pattern does not read `internal(set)` (as for `private(set)` above), so the public get-only property is reported missing; delete this rule when the extractor reads it"
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F857 owner decision (the client takes one credential per security scheme, each operation uses the scheme its spec requires, no per-call scheme override): rust removes the per-operation auth field from the Options struct. Delete this rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "credentials",
+    "credentials.envvarname",
+    "credentials.readenvcredential",
+    "credentials.resolvecredential"
+   ],
+   "aspect": "*",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F857 owner decision: rust holds the per-scheme credentials in a Credentials struct (one with_<scheme> setter per scheme, handed to Client::with_credentials) because it has no named constructor arguments or optional parameters to give the client one argument per scheme. Delete this rule when the other eleven SDKs land the same decision."
   }
  ]
 }

@@ -68,8 +68,23 @@ Test-only dependencies are `opentelemetry_sdk` and `testcontainers`. The default
 | `authors` | none | Comma-separated author names, written to the manifest. |
 | `documentationUrl` | none | Documentation URL, written to the manifest and README. |
 | `issueTrackerUrl` | none | Issue tracker URL, written to the manifest and README. |
+| `envVarPrefix` | The API title without a trailing `SDK`, in upper snake case | Prefix of the environment variables the credentials default from (see "Credentials and environment variables"). Shared by all twelve generators. |
+
+## Credentials and environment variables
+
+The authenticator the generator writes for each security scheme (for example `PetStoreBearerAuthenticator`) takes every credential as an `Option<&str>`. The order is fixed:
+
+1. The value you pass wins, even an empty string (the underlying authenticator then rejects it with its own message).
+2. Otherwise the environment variable, read once when the authenticator is built. An empty variable counts as unset.
+3. A Bearer scheme's authenticator also has `with_token_provider(host, provider)`, which takes the token from a callback that runs for every request and reads no variable. `Client::with_token_provider` does the same for the client.
+
+A credential found in none of these places makes `new` return `ConfigurationError::InvalidArgument` naming the variable, so the failure comes when the authenticator is built and not on the first request.
+
+The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example `ACME_TOKEN`, `ACME_API_KEY`, `ACME_USERNAME`, `ACME_CLIENT_ID`. `{PREFIX}` is the `envVarPrefix` option, or else the API title without a trailing `SDK`. When two schemes have a field of the same name, each name also carries the scheme id so that no scheme reads another's secret. The generated README lists the exact variable of every scheme and field. `Client::with_token` keeps reading `{PREFIX}_BASE_URL` and `{PREFIX}_ACCESS_TOKEN` as before.
 
 ## Idiom notes
+
+- Every operation takes an optional trailing `options` argument (`Option<&...Options>`), even one with no parameters and no security. Besides the operation's own parameters the Options struct carries `timeout(Duration)`, `max_retries(u32)` (`0` turns retrying off) and `header(name, value)` for that one call. An Options struct for an operation with no parameters and no security has no `auth` field.
 
 - Operations return `Result<_, Box<dyn Error>>`. Caller mistakes are a typed `ConfigurationError`.
 - There is no cancellation API. Drop the future to cancel a call, and use the `timeout` setting to bound one.
@@ -78,6 +93,22 @@ Test-only dependencies are `opentelemetry_sdk` and `testcontainers`. The default
 - `Configuration` and the builders implement `Default`.
 - `ApiResult::into_data(self)` moves the payload out of the result.
 - Lint exclusions live in one place, the `[lints]` tables of `Cargo.toml`. Generated source files carry no `allow` attributes, and `cargo clippy -- -D warnings` is the gate.
+
+## Credentials per security scheme
+
+`Credentials` holds one optional credential for each distinct security scheme of the API, set with a `with_<scheme>` method named after the scheme. `Client::with_credentials(host, credentials, transport_options)` builds a client from it. Each operation uses the credential of one of the schemes its specification requires that is set, the first in the order the generated operation lists them, and goes out unauthenticated when none is. A single call cannot pick another scheme: the Options struct carries no authenticator.
+
+## Closing the client
+
+`close()` is graceful and can be called more than once. A request already in flight finishes. A request started afterwards fails with `ConfigurationError::InvalidState("ApiClient has been closed and can no longer send requests")`. Only the transport the SDK built is released; a `reqwest::Client` you supplied is never closed. Cancel one call by dropping its future.
+
+## Cookie parameters
+
+A cookie parameter value is sent exactly as given when every character is a legal RFC 6265 cookie-octet. Otherwise the call fails with `ConfigurationError::InvalidArgument` before anything is sent. The SDK does not percent-encode the value, so encode a raw value yourself first.
+
+## Models
+
+Constructors and `Default` never validate. A wrong value or an unknown enum string fails only when a response or a payload is decoded.
 
 ## Known limits
 

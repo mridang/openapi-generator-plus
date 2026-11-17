@@ -15,6 +15,9 @@ pub mod auth;
 pub mod api_http_response;
 pub mod api_result;
 pub mod configuration;
+{{#hasSecuritySchemeEnvVars}}
+pub mod credentials;
+{{/hasSecuritySchemeEnvVars}}
 /* SDK-owned `format: date-time` newtype. Owns its `Serialize`/`Deserialize`, so the
  * canonical wire form (`+00:00` offset, fixed three-digit millisecond fraction) is
  * produced in every position a date-time appears. */
@@ -54,6 +57,9 @@ pub use api_http_response::ApiHttpResponse;
 pub use api_result::ApiResult;
 pub use auth::Authenticator;
 pub use configuration::{Configuration, ConfigurationBuilder};
+{{#hasSecuritySchemeEnvVars}}
+pub use credentials::Credentials;
+{{/hasSecuritySchemeEnvVars}}
 pub use default_api_client::DefaultApiClient;
 /* The whole SDK error tree, from the root trait down to the OAuth2 and
  * configuration errors, is declared in `errors` and re-exported here. */

@@ -33,9 +33,22 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 
 `with_token(host, access_token, transport_options)` takes `Option<&str>` values: an argument wins, then `{{envPrefix}}_BASE_URL` and `{{envPrefix}}_ACCESS_TOKEN` are read once at construction (an empty variable is unset), and a value that is neither passed nor set fails with `ConfigurationError::InvalidArgument`. `with_token_provider(host, provider, transport_options)` takes an `Arc<dyn Fn() -> String + Send + Sync>` that is called for every request.
 
+{{#hasSecuritySchemeEnvVars}}
+### Credentials from the environment
+
+The authenticator written for each security scheme takes every credential as an `Option<&str>`. The value you pass wins; with `None` the variable below is read once, when the authenticator is built (an empty variable is unset). A credential found in neither place fails `new` with `ConfigurationError::InvalidArgument` naming the variable, before the client exists. A Bearer scheme's authenticator also has `with_token_provider(host, provider)`, which reads no variable.
+
+| Scheme | Field | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+{{/hasSecuritySchemeEnvVars}}
+
 ### Per-call options
 
-Every operation takes `options: Option<&...Options>`. Besides the operation's own optional parameters it carries `timeout(Duration)`, `max_retries(u32)` and `header(name, value)` for that one call; they replace the client's timeout and retry budget and win over its default headers.
+Every operation takes `options: Option<&...Options>`, including one with no parameters and no security. Besides the operation's own optional parameters it carries `timeout(Duration)`, `max_retries(u32)` and `header(name, value)` for that one call; they replace the client's timeout and retry budget and win over its default headers.
 
 ### Errors with request context
 

@@ -22,8 +22,8 @@ impl GetPetByNameOptions {
     /// Creates a new GetPetByNameOptions, requiring every required parameter up front.
     ///
     /// Every field of this struct is required and is taken as a constructor
-    /// argument so it cannot be silently omitted. This struct has no optional
-    /// fields and therefore no chained setters.
+    /// argument so it cannot be silently omitted. The per-call timeout, retry
+    /// budget and headers start unset and have chained setters below.
     pub fn new(category: String, x_correlation_id: String) -> Self {
         Self {
             category,

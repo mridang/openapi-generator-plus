@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.openapitools.codegen.CodegenProperty;
 
 class BetterRustCodegenTest {
 
@@ -34,16 +35,78 @@ class BetterRustCodegenTest {
   }
 
   @Test
-  void aDefaultWrittenNextToARefToAnEnumNamesTheTypedMember() {
+  void aComponentDefaultOnAReferencedEnumNamesTheTypedMember() {
     final StringSchema availability = new StringSchema();
     availability.setEnum(List.of("Available", "on-hold"));
+    availability.setDefault("on-hold");
     codegen.setOpenAPI(
         new OpenAPI().components(new Components().addSchemas("Availability", availability)));
     final Schema<?> reference = new Schema<>();
     reference.set$ref("#/components/schemas/Availability");
-    reference.setDefault("on-hold");
 
     assertThat(codegen.toDefaultValue(reference)).isEqualTo("Availability::OnHold");
+  }
+
+  /* D60, F866: a default written next to a $ref reaches the property through the shared
+   * siblingDefault data, and a referenced string enum names its declared member. */
+  @Test
+  void aSiblingDefaultOnAReferencedEnumNamesTheTypedMember() {
+    final CodegenProperty property = propertyNamed("availability");
+    property.vendorExtensions.put("siblingDefault", "on-hold");
+    property.vendorExtensions.put("siblingDefaultIsEnum", true);
+    property.vendorExtensions.put("siblingDefaultEnumType", "Availability");
+    property.vendorExtensions.put("siblingDefaultEnumVar", "OnHold");
+
+    codegen.seedSiblingDefault(property);
+
+    assertThat(property.defaultValue).isEqualTo("Availability::OnHold");
+  }
+
+  @Test
+  void aSiblingDefaultOnAReferencedStringTakesTheLiteralOfItsType() {
+    final CodegenProperty property = propertyNamed("label");
+    property.isString = true;
+    property.vendorExtensions.put("siblingDefault", "a\"b");
+    property.vendorExtensions.put("siblingDefaultIsEnum", false);
+
+    codegen.seedSiblingDefault(property);
+
+    assertThat(property.defaultValue).isEqualTo("String::from(\"a\\\"b\")");
+  }
+
+  @Test
+  void aSiblingDefaultOnAReferencedNumberGetsADecimalPoint() {
+    final CodegenProperty property = propertyNamed("ratio");
+    property.isNumber = true;
+    property.vendorExtensions.put("siblingDefault", "2");
+    property.vendorExtensions.put("siblingDefaultIsEnum", false);
+
+    codegen.seedSiblingDefault(property);
+
+    assertThat(property.defaultValue).isEqualTo("2.0");
+  }
+
+  @Test
+  void aPropertyWithoutASiblingDefaultKeepsItsOwnDefault() {
+    final CodegenProperty property = propertyNamed("label");
+    property.defaultValue = "String::from(\"x\")";
+
+    codegen.seedSiblingDefault(property);
+
+    assertThat(property.defaultValue).isEqualTo("String::from(\"x\")");
+  }
+
+  private static CodegenProperty propertyNamed(final String name) {
+    final CodegenProperty property = new CodegenProperty();
+    property.name = name;
+    property.baseName = name;
+    return property;
+  }
+
+  /* F827: every operation gets an Options struct carrying the per-call settings. */
+  @Test
+  void everyOperationMintsAnOptionsStruct() {
+    assertThat(codegen.mintsOptionsForEveryOperation()).isTrue();
   }
 
   @Test

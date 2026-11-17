@@ -16,14 +16,52 @@ pub struct LegacyAuthPasswordAuthenticator(OAuth2PasswordAuthenticator);
 
 impl LegacyAuthPasswordAuthenticator {
     /// Creates an authenticator for the legacyAuth security scheme.
+    ///
+    /// Each credential is optional. A value passed here wins, even an empty one
+    /// (the underlying authenticator then rejects it). Otherwise its environment
+    /// variable is read, once, here, and an empty variable counts as unset.
+    ///
+    /// * `client_id`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID`.
+    ///
+    /// * `client_secret`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET`.
+    ///
+    /// * `username`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME`.
+    ///
+    /// * `password`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`](crate::errors::configuration_error::ConfigurationError)
+    /// naming the variable when a credential is neither passed nor set in the
+    /// environment, or when the [`OAuth2PasswordAuthenticator`] rejects a credential.
     pub fn new(
         host: &str,
-        client_id: &str,
-        client_secret: &str,
-        username: &str,
-        password: &str,
-    ) -> Self {
-        Self(OAuth2PasswordAuthenticator::new(
+        client_id: Option<&str>,
+        client_secret: Option<&str>,
+        username: Option<&str>,
+        password: Option<&str>,
+    ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
+        let client_id = crate::auth::resolve_credential(
+            client_id,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID",
+        )?;
+        let client_id = client_id.as_str();
+        let client_secret = crate::auth::resolve_credential(
+            client_secret,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET",
+        )?;
+        let client_secret = client_secret.as_str();
+        let username = crate::auth::resolve_credential(
+            username,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME",
+        )?;
+        let username = username.as_str();
+        let password = crate::auth::resolve_credential(
+            password,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD",
+        )?;
+        let password = password.as_str();
+        Ok(Self(OAuth2PasswordAuthenticator::new(
             host,
             client_id,
             client_secret,
@@ -32,7 +70,7 @@ impl LegacyAuthPasswordAuthenticator {
             password,
             vec!["read".to_string()],
             "https://auth.example.com/oauth/refresh",
-        ))
+        )))
     }
 }
 

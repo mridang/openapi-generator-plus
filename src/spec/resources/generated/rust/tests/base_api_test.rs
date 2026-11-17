@@ -252,12 +252,10 @@ async fn test_base_api_returns_unit_when_return_type_is_void() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
     // DeletePet is a void operation -- it should return Ok(()) for a 200 OK response
-    let result = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let result = api.delete_pet(1, Some(&DeletePetOptions::new())).await;
     assert!(
         result.is_ok(),
         "expected Ok(()) for void operation with 200 response, got: {:?}",
@@ -275,11 +273,9 @@ async fn test_base_api_collapses_double_slash_when_baseurl_has_trailing() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost/")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
-    let _ = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
+    let _ = api.delete_pet(1, Some(&DeletePetOptions::new())).await;
     let captured = client.captured_url.lock().unwrap().clone();
     assert!(
         captured.starts_with("http://localhost/pet/"),
@@ -537,12 +533,10 @@ async fn test_base_api_all_headers_flow_through() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new())).await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.contains_key("Accept"),
@@ -622,33 +616,6 @@ impl petstore::auth::Authenticator for HeaderAuthenticator {
 }
 
 #[tokio::test]
-async fn test_base_api_per_call_auth_overrides_client_authenticator() {
-    /* When a per-call authenticator is supplied it must take precedence over
-     * the client-level authenticator wired in at construction time. */
-    let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
-    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(HeaderAuthenticator {
-        value: "client-level-token".to_string(),
-    });
-    let api = PetApi::new(client.clone(), config, Some(client_auth));
-    let per_call = HeaderAuthenticator {
-        value: "per-call-token".to_string(),
-    };
-    let pet = Pet::new("OverridePet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(per_call))))
-        .await;
-    let headers = client.captured_headers.lock().unwrap();
-    assert_eq!(
-        headers.get("X-Client-Auth").map(|s| s.as_str()),
-        Some("per-call-token"),
-        "per-call authenticator must override the client-level authenticator"
-    );
-}
-
-#[tokio::test]
 async fn test_base_api_auth_code_not_exchanged_fails_the_call() {
     /* An authorization-code authenticator whose code was never exchanged must
      * fail the call with OAuth2AuthorizationCodeError::CodeNotExchanged; the
@@ -657,7 +624,6 @@ async fn test_base_api_auth_code_not_exchanged_fails_the_call() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = petstore::auth::oauth::OAuth2AuthorizationCodeAuthenticator::new(
         "http://localhost",
         "client-id",
@@ -668,9 +634,10 @@ async fn test_base_api_auth_code_not_exchanged_fails_the_call() {
         vec![],
         "",
     );
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
     let pet = Pet::new("Unexchanged".to_string(), HashSet::new());
     let err = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
+        .add_pet(pet, Some(&AddPetOptions::new()))
         .await
         .expect_err("an unexchanged authorization code must fail the call");
     assert_eq!(
@@ -711,12 +678,10 @@ async fn test_base_api_serializes_json_body() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new())).await;
     let body = client.captured_body.lock().unwrap();
     assert!(body.is_some(), "expected body to be captured");
     let body_str = String::from_utf8(body.as_ref().unwrap().clone()).unwrap();
@@ -1019,12 +984,10 @@ async fn test_base_api_sets_cookie_from_auth() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = CookieAuthenticator;
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new())).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         Some("session=abc123"),
@@ -1063,14 +1026,13 @@ async fn test_base_api_writes_auth_cookies_sorted_by_name() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
+    let api = PetApi::new(
+        client.clone(),
+        config,
+        Some(Arc::new(ManyCookiesAuthenticator)),
+    );
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(
-            pet,
-            Some(&AddPetOptions::new().auth(Arc::new(ManyCookiesAuthenticator))),
-        )
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new())).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         Some("alpha=v2; beta=v4; delta=v6; kappa=v5; mid=v1; omega=v3; zeta=v0"),
@@ -1108,13 +1070,14 @@ async fn test_base_api_invalid_auth_cookie_is_invalid_argument() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
+    let api = PetApi::new(
+        client.clone(),
+        config,
+        Some(Arc::new(InvalidCookieAuthenticator)),
+    );
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let err = api
-        .add_pet(
-            pet,
-            Some(&AddPetOptions::new().auth(Arc::new(InvalidCookieAuthenticator))),
-        )
+        .add_pet(pet, Some(&AddPetOptions::new()))
         .await
         .expect_err("an invalid auth cookie must fail the call");
     assert!(
@@ -1655,10 +1618,10 @@ async fn test_binary_response_empty_body_is_accepted_by_a_void_operation() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client, config, None);
     let auth = NoopAuthenticator;
+    let api = PetApi::new(client, config, Some(Arc::new(auth)));
     // DeletePet is void -- an empty body is a success
-    api.delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
+    api.delete_pet(1, Some(&DeletePetOptions::new()))
         .await
         .expect("a void operation accepts an empty body");
 }
@@ -1722,12 +1685,10 @@ async fn test_null_body_post_does_not_send_content_type() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
     // delete_pet sends no body -- Content-Type should not be present
-    let _ = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.delete_pet(1, Some(&DeletePetOptions::new())).await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         !headers.contains_key("Content-Type"),
@@ -1741,12 +1702,10 @@ async fn test_body_present_includes_content_type() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new())).await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.contains_key("Content-Type"),
@@ -2034,13 +1993,11 @@ async fn test_base_api_configured_bearer_authenticator_reaches_wire() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth =
         petstore::auth::BearerAuthenticator::new("http://localhost", "secret-token").unwrap();
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
     let pet = Pet::new("AuthPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new())).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("Authorization").map(|s| s.as_str()),
@@ -2060,7 +2017,6 @@ async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = ApiKeyAuthenticator::new(
         "http://localhost",
         "X-API-Key",
@@ -2068,10 +2024,9 @@ async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
         ApiKeyLocation::Header,
     )
     .unwrap();
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
     let pet = Pet::new("ApiKeyPet".to_string(), HashSet::new());
-    let _ = api
-        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
-        .await;
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new())).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("X-API-Key").map(|s| s.as_str()),
@@ -2335,10 +2290,10 @@ async fn test_a_401_renews_the_token_and_replays_the_request_once() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = Arc::new(RenewableAuthenticator::new());
+    let api = PetApi::new(client.clone(), config, Some(auth.clone()));
 
-    api.delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+    api.delete_pet(1, Some(&DeletePetOptions::new()))
         .await
         .expect("the replay with the new token succeeds");
 
@@ -2360,11 +2315,11 @@ async fn test_a_second_401_is_reported_after_one_replay() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client.clone(), config, None);
     let auth = Arc::new(RenewableAuthenticator::new());
+    let api = PetApi::new(client.clone(), config, Some(auth.clone()));
 
     let err = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+        .delete_pet(1, Some(&DeletePetOptions::new()))
         .await
         .expect_err("a 401 that survives the replay is an error");
 
@@ -2385,10 +2340,10 @@ async fn test_a_per_call_authenticator_is_given_the_transport() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
-    let api = PetApi::new(client, config, None);
     let auth = Arc::new(RenewableAuthenticator::new());
+    let api = PetApi::new(client, config, Some(auth.clone()));
 
-    api.delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+    api.delete_pet(1, Some(&DeletePetOptions::new()))
         .await
         .expect("delete_pet failed");
 
@@ -2546,6 +2501,16 @@ fn retrying_api(client: &Arc<ScriptedApiClient>) -> PetApi {
     PetApi::new(client.clone(), config, None)
 }
 
+fn retrying_api_with(
+    client: &Arc<ScriptedApiClient>,
+    authenticator: Arc<dyn petstore::auth::Authenticator>,
+) -> PetApi {
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    PetApi::new(client.clone(), config, Some(authenticator))
+}
+
 #[tokio::test]
 async fn test_a_retryable_status_is_retried_until_the_call_succeeds() {
     let client = ScriptedApiClient::new(
@@ -2672,8 +2637,8 @@ async fn test_a_retry_asks_the_authenticator_for_fresh_headers() {
         asked: std::sync::atomic::AtomicUsize::new(0),
     });
 
-    retrying_api(&client)
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(auth)))
+    retrying_api_with(&client, auth)
+        .delete_pet(1, None)
         .await
         .expect("the retry succeeds");
 

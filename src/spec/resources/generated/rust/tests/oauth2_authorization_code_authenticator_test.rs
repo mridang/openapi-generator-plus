@@ -208,10 +208,11 @@ async fn test_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
     client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
     let mut auth = UserAuthAuthorizationCodeAuthenticator::new(
         "https://api.example.com",
-        "id",
-        "secret",
-        "https://app.example.com/callback",
-    );
+        Some("id"),
+        Some("secret"),
+        Some("https://app.example.com/callback"),
+    )
+    .unwrap();
     auth.as_http_aware_mut()
         .expect("http aware")
         .set_api_client(client.clone());
@@ -446,10 +447,11 @@ fn redacts_secret() {
 fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
     let auth = UserAuthAuthorizationCodeAuthenticator::new(
         "https://api.example.com",
-        "id",
-        "secret",
-        "https://app.example.com/callback",
-    );
+        Some("id"),
+        Some("secret"),
+        Some("https://app.example.com/callback"),
+    )
+    .unwrap();
 
     let url = auth.build_authorization_url("");
 

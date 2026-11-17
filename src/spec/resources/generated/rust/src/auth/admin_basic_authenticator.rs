@@ -17,16 +17,34 @@ pub struct AdminBasicAuthenticator(BasicAuthenticator);
 impl AdminBasicAuthenticator {
     /// Creates an authenticator for the adminBasic security scheme.
     ///
+    /// Each credential is optional. A value passed here wins, even an empty one
+    /// (the underlying authenticator then rejects it). Otherwise its environment
+    /// variable is read, once, here, and an empty variable counts as unset.
+    ///
+    /// * `username`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME`.
+    ///
+    /// * `password`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD`.
+    ///
     /// # Errors
     ///
-    /// Returns the [`BasicAuthenticator`] constructor's
-    /// [`ConfigurationError`](crate::errors::configuration_error::ConfigurationError)
-    /// when the credentials are invalid.
+    /// Returns [`ConfigurationError::InvalidArgument`](crate::errors::configuration_error::ConfigurationError)
+    /// naming the variable when a credential is neither passed nor set in the
+    /// environment, or when the [`BasicAuthenticator`] rejects a credential.
     pub fn new(
         host: &str,
-        username: &str,
-        password: &str,
+        username: Option<&str>,
+        password: Option<&str>,
     ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
+        let username = crate::auth::resolve_credential(
+            username,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME",
+        )?;
+        let username = username.as_str();
+        let password = crate::auth::resolve_credential(
+            password,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD",
+        )?;
+        let password = password.as_str();
         Ok(Self(BasicAuthenticator::new(host, username, password)?))
     }
 }

@@ -697,6 +697,55 @@ fn test_availability_string_enum_rejects_unknown_value() {
     );
 }
 
+// -- a property that is a $ref with a sibling default starts as that default (F866) --
+//
+// `StockItem.availability` is a `$ref` to the `Availability` enum with the sibling
+// default `on-hold`, not the first declared member. Construction, `Default` and a
+// decode that leaves the key out all start from it; a present value replaces it
+// and an explicit null stays `None`.
+#[test]
+fn test_referenced_enum_with_sibling_default_is_set_on_construction() {
+    assert_eq!(
+        StockItem::new(Priority::Number1).availability,
+        Some(Availability::OnHold)
+    );
+    assert_eq!(
+        StockItem::default().availability,
+        Some(Availability::OnHold)
+    );
+}
+
+#[test]
+fn test_referenced_enum_with_sibling_default_is_written_on_the_wire() {
+    let data = serde_json::to_string(&StockItem::new(Priority::Number1))
+        .expect("failed to serialize StockItem");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized StockItem");
+    assert_eq!(
+        parsed["availability"],
+        serde_json::json!("on-hold"),
+        "{}",
+        data
+    );
+}
+
+#[test]
+fn test_referenced_enum_with_sibling_default_applies_when_the_key_is_missing() {
+    let item: StockItem =
+        serde_json::from_str(r#"{"priority":1}"#).expect("failed to deserialize StockItem");
+    assert_eq!(item.availability, Some(Availability::OnHold));
+}
+
+#[test]
+fn test_referenced_enum_with_sibling_default_is_replaced_by_a_decoded_value() {
+    let item: StockItem = serde_json::from_str(r#"{"priority":1,"availability":"Sold"}"#)
+        .expect("failed to deserialize StockItem");
+    assert_eq!(item.availability, Some(Availability::Sold));
+    let item: StockItem = serde_json::from_str(r#"{"priority":1,"availability":null}"#)
+        .expect("failed to deserialize StockItem");
+    assert_eq!(item.availability, None);
+}
+
 // -- format:byte round-trips through base64 (behavior 3) --
 //
 // `PetPassport.thumbnail` is a scalar `format: byte` field and
