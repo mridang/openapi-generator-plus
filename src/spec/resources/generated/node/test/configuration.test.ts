@@ -13,20 +13,20 @@ import {
 } from "../src/server-configuration.js";
 
 describe("Configuration", () => {
-  test("builder produces correct defaults", () => {
+  test("bhv config 005 builder produces correct defaults", () => {
     const config = Configuration.builder().build();
 
     expect(config.baseUrl).toBe("/api/v3");
     expect(config.defaultHeaders).toEqual({});
   });
 
-  test("builder returns ConfigurationBuilder instance", () => {
+  test("bhv config 007 builder returns ConfigurationBuilder instance", () => {
     const builder = Configuration.builder();
 
     expect(builder).toBeInstanceOf(ConfigurationBuilder);
   });
 
-  test("builder sets baseUrl", () => {
+  test("bhv config 011 builder sets baseUrl", () => {
     const config = Configuration.builder()
       .baseUrl("https://custom.example.com")
       .build();
@@ -34,7 +34,7 @@ describe("Configuration", () => {
     expect(config.baseUrl).toBe("https://custom.example.com");
   });
 
-  test("builder sets single default header", () => {
+  test("bhv config 013 builder sets single default header", () => {
     const config = Configuration.builder()
       .defaultHeader("Authorization", "Bearer token123")
       .build();
@@ -42,7 +42,7 @@ describe("Configuration", () => {
     expect(config.defaultHeaders).toEqual({ Authorization: "Bearer token123" });
   });
 
-  test("builder sets multiple default headers", () => {
+  test("bhv config 012 builder sets multiple default headers", () => {
     const config = Configuration.builder()
       .defaultHeaders({
         Authorization: "Bearer token123",
@@ -56,7 +56,19 @@ describe("Configuration", () => {
     });
   });
 
-  test("builder accumulates headers", () => {
+  test("bhv config 004 builder merges single and bulk headers", () => {
+    const config = Configuration.builder()
+      .defaultHeader("X-Single", "one")
+      .defaultHeaders({ "X-Bulk": "two" })
+      .build();
+
+    expect(config.defaultHeaders).toEqual({
+      "X-Single": "one",
+      "X-Bulk": "two",
+    });
+  });
+
+  test("bhv config 002 builder accumulates headers", () => {
     const config = Configuration.builder()
       .defaultHeader("X-First", "one")
       .defaultHeader("X-Second", "two")
@@ -69,7 +81,7 @@ describe("Configuration", () => {
     expect(config.defaultHeaders["X-Third"]).toBe("three");
   });
 
-  test("builder sets all fields", () => {
+  test("bhv config 010 builder sets all fields", () => {
     const config = Configuration.builder()
       .baseUrl("https://api.example.com")
       .defaultHeader("Authorization", "Bearer token")
@@ -82,7 +94,7 @@ describe("Configuration", () => {
     expect(config.defaultHeaders["X-Custom"]).toBe("value");
   });
 
-  test("server resolves URL with default variables", () => {
+  test("bhv config 008 server resolves URL with default variables", () => {
     const server = new ServerConfiguration(
       "https://{env}.example.com/api/{version}",
       "Test server",
@@ -97,7 +109,7 @@ describe("Configuration", () => {
     expect(config.baseUrl).toBe("https://api.example.com/api/v3");
   });
 
-  test("server resolves URL with variable overrides", () => {
+  test("bhv config 009 server resolves URL with variable overrides", () => {
     const server = new ServerConfiguration(
       "https://{env}.example.com/api/{version}",
       null,
@@ -114,7 +126,7 @@ describe("Configuration", () => {
     expect(config.baseUrl).toBe("https://staging.example.com/api/v2");
   });
 
-  test("invalid enum value throws", () => {
+  test("bhv config 016 invalid enum value throws", () => {
     const server = new ServerConfiguration("https://{env}.example.com", null, {
       env: new ServerVariable("api", null, ["api", "staging"]),
     });
@@ -124,7 +136,7 @@ describe("Configuration", () => {
     ).toThrow(TypeError);
   });
 
-  test("baseUrl overrides server", () => {
+  test("bhv config 001 baseUrl overrides server", () => {
     const server = new ServerConfiguration("https://api.example.com", null, {});
 
     const config = Configuration.builder()
@@ -135,7 +147,7 @@ describe("Configuration", () => {
     expect(config.baseUrl).toBe("https://override.example.com");
   });
 
-  test("defaultConfiguration returns an instance", () => {
+  test("bhv config 014 defaultConfiguration returns an instance", () => {
     const config = Configuration.defaultConfiguration();
 
     expect(config).toBeInstanceOf(Configuration);
@@ -162,7 +174,7 @@ describe("Configuration", () => {
     ).toBeUndefined();
   });
 
-  test("builder produces independent instances", () => {
+  test("bhv config 006 builder produces independent instances", () => {
     const builder = Configuration.builder().baseUrl("https://example.com");
     const first = builder.build();
     const second = builder.build();
@@ -179,7 +191,7 @@ describe("Configuration", () => {
     expect(Object.isFrozen(config.defaultHeaders)).toBe(true);
   });
 
-  test("builder is fluent", () => {
+  test("bhv config 003 builder is fluent", () => {
     const builder = Configuration.builder();
 
     expect(builder.baseUrl("https://example.com")).toBe(builder);

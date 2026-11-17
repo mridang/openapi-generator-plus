@@ -30,7 +30,7 @@ import { Category } from "../src/models/index.js";
 
 describe("ApiError", () => {
   describe("basic shape", () => {
-    test("exposes statusCode, responseBody, responseHeaders, errorBody", () => {
+    test("bhv errors 004 exposes statusCode, responseBody, responseHeaders, errorBody", () => {
       const err = new ApiError(
         404,
         "not found",
@@ -45,7 +45,7 @@ describe("ApiError", () => {
       expect(err.errorBody).toBeNull();
     });
 
-    test("responseHeaders and responseBody are nullable to mark transport-no-response", () => {
+    test("bhv errors 021 responseHeaders and responseBody are nullable to mark transport-no-response", () => {
       // apierror-responsebody-headers-nullable-split: null is distinct from
       // an empty header map / empty body. The public surface must accept null
       // so a pre-response transport failure can be encoded.
@@ -123,7 +123,7 @@ describe("ApiError", () => {
       expect(err).toBeInstanceOf(Error);
     });
 
-    test("ApiError extends the branded OpenAPIError root", () => {
+    test("bhv errors 018 ApiError extends the branded OpenAPIError root", () => {
       const err = new ApiError(500, "boom");
       expect(err).toBeInstanceOf(OpenAPIError);
       expect(err).toBeInstanceOf(Error);
@@ -159,7 +159,32 @@ describe("ApiError", () => {
       expect(new ServerError(503, "down").responseHeaders).toBeNull();
     });
 
-    test("a NetworkTimeoutError is a NetworkError and ApiError with status 0", () => {
+    test("bhv errors 025 a SerializationError is a OpenAPIError", () => {
+      expect(new SerializationError("bad input")).toBeInstanceOf(OpenAPIError);
+    });
+
+    test.each([
+      [400, BadRequestError],
+      [401, UnauthorizedError],
+      [403, ForbiddenError],
+      [404, NotFoundError],
+      [409, ConflictError],
+      [422, UnprocessableEntityError],
+      [429, TooManyRequestsError],
+      [500, InternalServerError],
+      [503, ServerError],
+      [418, ClientError],
+      [302, ApiError],
+    ])(
+      "bhv errors 006 fromResponse maps status %i to its exception class",
+      (status, expected) => {
+        expect(ApiError.fromResponse(status, null, null).constructor).toBe(
+          expected,
+        );
+      },
+    );
+
+    test("bhv errors 020 a NetworkTimeoutError is a NetworkError and ApiError with status 0", () => {
       const cause = new Error("socket hang up");
       const err = new NetworkTimeoutError("timed out", { cause });
       expect(err).toBeInstanceOf(NetworkError);
@@ -235,7 +260,7 @@ describe("ApiError", () => {
   });
 
   describe("getTypedErrorBody", () => {
-    test("deserializes the raw body into the requested class", () => {
+    test("bhv errors 013 deserializes the raw body into the requested class", () => {
       // Built through fromResponse, the way a real response reaches a caller:
       // the typed body must come out of the raw body, not out of whatever the
       // generic parse happened to leave behind.
@@ -247,7 +272,11 @@ describe("ApiError", () => {
       expect(typed!.name).toBe("Dogs");
     });
 
-    test("parses an error body that starts with a BOM", () => {
+    test("bhv errors 010 fromResponse keeps a scalar json body as the error body", () => {
+      expect(ApiError.fromResponse(400, null, "42").errorBody).toBe(42);
+    });
+
+    test("bhv errors 008 parses an error body that starts with a BOM", () => {
       const err = ApiError.fromResponse(
         400,
         {},
@@ -256,22 +285,22 @@ describe("ApiError", () => {
       expect(err.errorBody).toEqual({ id: 42, name: "Dogs" });
     });
 
-    test("returns null when there is no response body", () => {
+    test("bhv errors 015 returns null when there is no response body", () => {
       const err = ApiError.fromResponse(500, {}, null);
       expect(err.getTypedErrorBody(Category)).toBeNull();
     });
 
-    test("returns null for an empty-string response body", () => {
+    test("bhv errors 016 returns null for an empty-string response body", () => {
       const err = ApiError.fromResponse(500, {}, "");
       expect(err.getTypedErrorBody(Category)).toBeNull();
     });
 
-    test("throws SerializationError for a malformed response body", () => {
+    test("bhv errors 017 throws SerializationError for a malformed response body", () => {
       const err = ApiError.fromResponse(500, {}, "{not json");
       expect(() => err.getTypedErrorBody(Category)).toThrow(SerializationError);
     });
 
-    test("ignores extraneous fields not declared on the model", () => {
+    test("bhv errors 014 ignores extraneous fields not declared on the model", () => {
       const err = ApiError.fromResponse(
         422,
         {},
@@ -434,7 +463,7 @@ describe("ApiError", () => {
       expect(err.statusCode).toBe(600);
     });
 
-    test("keeps a non-JSON body raw without an error body", () => {
+    test("bhv errors 005 keeps a non-JSON body raw without an error body", () => {
       const err = ApiError.fromResponse(500, {}, "<html>oops</html>");
       expect(err.constructor).toBe(InternalServerError);
       expect(err.responseHeaders).toEqual({});
@@ -453,7 +482,7 @@ describe("ApiError", () => {
       expect(err.errorBody).toBe(expected);
     });
 
-    test("fromResponse records the request method and path on the error it builds", () => {
+    test("bhv errors 007 fromResponse records the request method and path on the error it builds", () => {
       const err = ApiError.fromResponse(404, {}, null, {
         method: "DELETE",
         path: "/items/7",
@@ -481,7 +510,7 @@ describe("ApiError", () => {
       },
     );
 
-    test("refuses a deeply nested error body", () => {
+    test("bhv errors 009 refuses a deeply nested error body", () => {
       /* The error body is attacker-controlled, so parsing is depth-capped:
        * an over-deep payload leaves errorBody null instead of overflowing
        * the V8 stack. */
@@ -494,7 +523,7 @@ describe("ApiError", () => {
   });
 
   describe("toString", () => {
-    test("renders the message, status, headers and body", () => {
+    test("bhv errors 024 renders the message, status, headers and body", () => {
       const err = new ApiError(
         404,
         "not found",
@@ -531,7 +560,7 @@ describe("ApiError", () => {
       );
     });
 
-    test("masks credential-bearing response headers and sorts the rest", () => {
+    test("bhv errors 023 masks credential-bearing response headers and sorts the rest", () => {
       const err = new ApiError(
         401,
         "denied",
@@ -553,7 +582,7 @@ describe("ApiError", () => {
       expect(err.responseHeaders!["Set-Cookie"]).toBe("sid=abc");
     });
 
-    test("renders the request after the status code", () => {
+    test("bhv errors 011 renders the request after the status code", () => {
       const err = new ApiError(
         404,
         "not found",
@@ -570,7 +599,7 @@ describe("ApiError", () => {
       );
     });
 
-    test("escapes control characters in the rendered request path, keeping the field whole", () => {
+    test("bhv errors 001 escapes control characters in the rendered request path, keeping the field whole", () => {
       const err = new ApiError(404, "not found", null, null, null, {
         requestMethod: "GET",
         requestPath: "/a\r\nHTTP status code: 200",
@@ -593,7 +622,7 @@ describe("ApiError", () => {
       expect(err.toString()).toBe("connection reset");
     });
 
-    test("omits empty headers and an empty body", () => {
+    test("bhv errors 022 omits empty headers and an empty body", () => {
       const err = new ApiError(502, "bad gateway", {}, "", null);
       expect(err.toString()).toBe("bad gateway\nHTTP status code: 502");
     });

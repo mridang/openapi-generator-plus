@@ -20,7 +20,7 @@ import * as zlib from "node:zlib";
 import * as http from "node:http";
 
 describe("DefaultApiClient", () => {
-  test("makes HTTPS request with verifySsl=false", async () => {
+  test("bhv transport 018 makes HTTPS request with verifySsl=false", async () => {
     const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
 
     const transport = TransportOptions.builder().verifySsl(false).build();
@@ -54,7 +54,7 @@ describe("DefaultApiClient", () => {
       return `https://${address}:${chasmUrl.port}`;
     }
 
-    test("verifySsl=true rejects hostname mismatch (the cert does not name the address)", async () => {
+    test("bhv transport 025 verifySsl=true rejects hostname mismatch (the cert does not name the address)", async () => {
       const caCertPath = process.env["CA_CERT_PATH"]!;
 
       const transport = TransportOptions.builder()
@@ -85,7 +85,7 @@ describe("DefaultApiClient", () => {
     });
   });
 
-  test("makes HTTPS request with custom CA cert", async () => {
+  test("bhv transport 017 makes HTTPS request with custom CA cert", async () => {
     const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
     const caCertPath = process.env["CA_CERT_PATH"]!;
 
@@ -152,7 +152,7 @@ describe("DefaultApiClient", () => {
     expect((refused as ClientError).statusCode).toBe(407);
   });
 
-  test("proxy_with_credentials_injects_basic_authorization", () => {
+  test("bhv transport 021 proxy_with_credentials_injects_basic_authorization", () => {
     const transport = TransportOptions.builder()
       .proxy("http://alice:s3cret@127.0.0.1:3128")
       .build();
@@ -165,7 +165,7 @@ describe("DefaultApiClient", () => {
     expect(`Basic ${encoded}`).toBe("Basic YWxpY2U6czNjcmV0");
   });
 
-  test("makes HTTP request through proxy", async () => {
+  test("bhv transport 015 makes HTTP request through proxy", async () => {
     const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
     const proxyUrl = process.env["PROXY_URL"]!;
 
@@ -183,7 +183,7 @@ describe("DefaultApiClient", () => {
     expect(response.body).toContain('"method"');
   });
 
-  test("makes HTTPS request through proxy with verifySsl=false", async () => {
+  test("bhv transport 016 makes HTTPS request through proxy with verifySsl=false", async () => {
     const chasmUrl = process.env["CHASM_INTERNAL_HTTPS_URL"]!;
     const proxyUrl = process.env["PROXY_URL"]!;
 
@@ -204,7 +204,7 @@ describe("DefaultApiClient", () => {
     expect(response.body).toContain('"method"');
   });
 
-  test("times out on slow endpoint", async () => {
+  test("bhv transport 024 times out on slow endpoint", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
     const transport = TransportOptions.builder().timeout(1000).build();
@@ -236,7 +236,7 @@ describe("DefaultApiClient", () => {
       expect((error as NetworkTimeoutError).statusCode).toBe(0);
     });
 
-    test("a chain inside the budget completes", async () => {
+    test("bhv redirects 002 a chain inside the budget completes", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
       const client = new DefaultApiClient(
         TransportOptions.builder().timeout(5000).build(),
@@ -254,7 +254,7 @@ describe("DefaultApiClient", () => {
   });
 
   describe("multi-value response headers", () => {
-    test("repeated headers are joined in order", async () => {
+    test("bhv transport 022 repeated headers are joined in order", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
       const response = await new DefaultApiClient().sendRequest(
@@ -329,7 +329,7 @@ describe("DefaultApiClient", () => {
     }, 30000);
   });
 
-  test("injects custom User-Agent header", async () => {
+  test("bhv transport 012 injects custom User-Agent header", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
     const transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
@@ -348,7 +348,7 @@ describe("DefaultApiClient", () => {
   });
 
   describe("X-Request-ID injection", () => {
-    test("injects X-Request-ID header with UUID format", async () => {
+    test("bhv transport 014 injects X-Request-ID header with UUID format", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
       const transport = TransportOptions.builder()
@@ -372,7 +372,7 @@ describe("DefaultApiClient", () => {
       );
     });
 
-    test("generates unique X-Request-ID per request", async () => {
+    test("bhv transport 008 generates unique X-Request-ID per request", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
       const transport = TransportOptions.builder()
@@ -402,7 +402,7 @@ describe("DefaultApiClient", () => {
   });
 
   describe("default headers", () => {
-    test("includes transport-level default headers", async () => {
+    test("bhv transport 011 includes transport-level default headers", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
       const transport = TransportOptions.builder()
@@ -422,7 +422,7 @@ describe("DefaultApiClient", () => {
       expect(json.headers["x-custom"]).toBe("custom-value");
     });
 
-    test("caller headers override transport default headers", async () => {
+    test("bhv options 004 caller headers override transport default headers", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
       const transport = TransportOptions.builder()
@@ -443,7 +443,7 @@ describe("DefaultApiClient", () => {
     });
   });
 
-  test("follows redirects when enabled", async () => {
+  test("bhv redirects 004 follows redirects when enabled", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
     const transport = TransportOptions.builder().followRedirects(true).build();
@@ -460,7 +460,7 @@ describe("DefaultApiClient", () => {
     expect(response.body).toContain('"method"');
   });
 
-  test("returns redirect response when disabled", async () => {
+  test("bhv redirects 007 returns redirect response when disabled", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
     const transport = TransportOptions.builder().followRedirects(false).build();
@@ -499,7 +499,7 @@ describe("DefaultApiClient", () => {
     },
   );
 
-  test("redirect 303 switches to GET and drops body", async () => {
+  test("bhv redirects 005 redirect 303 switches to GET and drops body", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
     const transport = TransportOptions.builder()
@@ -524,7 +524,7 @@ describe("DefaultApiClient", () => {
   // T-new-3: multipart bodies must be replayed across 307 redirects per
   // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
   // request after a 307 still carries the multipart form parts.
-  test("replays multipart body across 307 redirects (T-new-3)", async () => {
+  test("bhv retries 012 replays multipart body across 307 redirects (T-new-3)", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
     const transport = TransportOptions.builder()
@@ -585,7 +585,7 @@ describe("DefaultApiClient", () => {
    * fixed-length chasm endpoint.
    */
   describe("concurrent redirects are per-request (WAVE E)", () => {
-    test("a 1-hop request is not failed by a concurrent over-limit chain", async () => {
+    test("bhv redirects 003 a 1-hop request is not failed by a concurrent over-limit chain", async () => {
       const server = http.createServer((req, res) => {
         const n = Number.parseInt((req.url ?? "").replace("/chain/", ""), 10);
         if (!Number.isFinite(n) || n <= 0) {
@@ -664,7 +664,7 @@ describe("DefaultApiClient", () => {
     }, 30000);
   });
 
-  test("respects maxRedirects limit", () => {
+  test("bhv redirects 006 respects maxRedirects limit", () => {
     const transport = TransportOptions.builder()
       .followRedirects(true)
       .maxRedirects(5)
@@ -675,7 +675,7 @@ describe("DefaultApiClient", () => {
     expect(transport.maxRedirects).toBe(5);
   });
 
-  test("sends multipart form data", async () => {
+  test("bhv serializationwire 027 sends multipart form data", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
     const client = new DefaultApiClient();
@@ -695,7 +695,7 @@ describe("DefaultApiClient", () => {
   // W-new-2: multipart field-name validation must run on every branch (not
   // just binary). Confirm that even for a plain string value, a CR/LF in
   // the field name is rejected, preventing Content-Disposition smuggling.
-  test("multipart_field_name_with_crlf_rejected_on_string_value", async () => {
+  test("bhv serializationwire 026 multipart_field_name_with_crlf_rejected_on_string_value", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
     const client = new DefaultApiClient();
     const badFields: Record<string, unknown> = {
@@ -715,7 +715,7 @@ describe("DefaultApiClient", () => {
     `${process.env["CHASM_HTTP_URL"]!}/test/compressed/${encoding}`;
   const fixtureBody = { userId: 1, id: 1, title: "compressed fixture body" };
 
-  test("decompresses gzip response", async () => {
+  test("bhv transport 005 decompresses gzip response", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -728,7 +728,7 @@ describe("DefaultApiClient", () => {
     expect(JSON.parse(response.body)).toEqual(fixtureBody);
   });
 
-  test("decompresses brotli response", async () => {
+  test("bhv transport 004 decompresses brotli response", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -762,7 +762,7 @@ describe("DefaultApiClient", () => {
    * client sets the header explicitly on body-bearing verbs when
    * the body is null.
    */
-  test("post_with_null_body_sends_content_length_zero", async () => {
+  test("bhv transport 019 post_with_null_body_sends_content_length_zero", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
@@ -793,7 +793,7 @@ describe("DefaultApiClient", () => {
    * and it base64-encodes to the expected Proxy-Authorization value.
    */
   describe("proxy credentials carried (canonical AK)", () => {
-    test("proxy http://user:pass@127.0.0.1:3128 carries the credentials", () => {
+    test("bhv transport 020 proxy http://user:pass@127.0.0.1:3128 carries the credentials", () => {
       const transport = TransportOptions.builder()
         .proxy("http://user:pass@127.0.0.1:3128")
         .build();
@@ -832,7 +832,7 @@ describe("DefaultApiClient", () => {
       global.fetch = originalFetch;
     });
 
-    test("302 https->http with a body PROCEEDS (body dropped, becomes GET)", async () => {
+    test("bhv redirects 001 302 https->http with a body PROCEEDS (body dropped, becomes GET)", async () => {
       let call = 0;
       global.fetch = (async (): Promise<Response> => {
         call++;
@@ -867,7 +867,7 @@ describe("DefaultApiClient", () => {
       expect(call).toBe(2);
     });
 
-    test("307 https->http with a body THROWS (body preserved across downgrade)", async () => {
+    test("bhv retries 010 307 https->http with a body THROWS (body preserved across downgrade)", async () => {
       let call = 0;
       global.fetch = (async (): Promise<Response> => {
         call++;
@@ -896,7 +896,7 @@ describe("DefaultApiClient", () => {
       expect(call).toBe(1);
     });
 
-    test("308 https->http with a body THROWS (body preserved across downgrade)", async () => {
+    test("bhv retries 011 308 https->http with a body THROWS (body preserved across downgrade)", async () => {
       let call = 0;
       global.fetch = (async (): Promise<Response> => {
         call++;
@@ -931,7 +931,7 @@ describe("DefaultApiClient", () => {
    * invalid-state built-in Error (closed-flag guard), matching the
    * uniform use-after-close contract across SDKs.
    */
-  test("close releases underlying client", async () => {
+  test("bhv lifecycle 018 close releases underlying client", async () => {
     const client = new DefaultApiClient();
     await client.close();
     // close() is idempotent.

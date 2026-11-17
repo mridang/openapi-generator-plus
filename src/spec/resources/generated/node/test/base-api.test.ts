@@ -231,7 +231,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi", () => {
-  test("parses JSON error body", async () => {
+  test("bhv errors 034 parses JSON error body", async () => {
     try {
       await api().call(
         "GET",
@@ -252,7 +252,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi exception hierarchy", () => {
-  test("NotFoundError is ClientError is ApiError", async () => {
+  test("bhv errors 033 NotFoundError is ClientError is ApiError", async () => {
     try {
       await api().call(
         "GET",
@@ -273,7 +273,7 @@ describe("BaseApi exception hierarchy", () => {
     }
   });
 
-  test("InternalServerError is ServerError is ApiError", async () => {
+  test("bhv errors 031 InternalServerError is ServerError is ApiError", async () => {
     try {
       await api().call(
         "GET",
@@ -296,7 +296,7 @@ describe("BaseApi exception hierarchy", () => {
 });
 
 describe("BaseApi", () => {
-  test("deserializes JSON response", async () => {
+  test("bhv serializationwire 004 deserializes JSON response", async () => {
     const result = await api().call(
       "GET",
       "/test/echo",
@@ -311,7 +311,7 @@ describe("BaseApi", () => {
     expect((result as { method: string }).method).toBe("GET");
   });
 
-  test("returns raw string for non-JSON response", async () => {
+  test("bhv serializationwire 019 returns raw string for non-JSON response", async () => {
     const result = await api().call(
       "GET",
       "/test/text-plain",
@@ -328,7 +328,7 @@ describe("BaseApi", () => {
     expect(result).toContain("hello world");
   });
 
-  test("returns void when returnType is null", async () => {
+  test("bhv operations 015 returns void when returnType is null", async () => {
     const result = await api().call(
       "GET",
       "/test/echo",
@@ -352,7 +352,7 @@ describe("BaseApi config default Accept", () => {
    * first and then merges config.defaultHeaders OVER it, so the
    * outgoing request must carry the config default.
    */
-  test("config default Accept overrides negotiated Accept", async () => {
+  test("bhv options 001 config default Accept overrides negotiated Accept", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({
       baseUrl: "http://localhost",
@@ -449,7 +449,7 @@ describe("BaseApi BOM tolerance", () => {
 });
 
 describe("BaseApi query parameters", () => {
-  test("appends query params to URL", async () => {
+  test("bhv serializationwire 002 appends query params to URL", async () => {
     const result = await api().call(
       "GET",
       "/test/echo",
@@ -465,7 +465,7 @@ describe("BaseApi query parameters", () => {
 });
 
 describe("BaseApi", () => {
-  test("null options omits allowEmptyValue param", async () => {
+  test("bhv options 002 null options omits allowEmptyValue param", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const petApi = new PetApi(client, config);
@@ -477,7 +477,7 @@ describe("BaseApi", () => {
     expect(client.capturedUrl).not.toContain("status=");
   });
 
-  test("findPetsByStatus omitting status sends no status= in query", async () => {
+  test("bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const petApi = new PetApi(client, config);
@@ -503,7 +503,7 @@ describe("BaseApi", () => {
     expect(client.capturedUrl).toContain("status=");
   });
 
-  test("includes empty value param in query string when value is empty string", async () => {
+  test("bhv serializationwire 016 includes empty value param in query string when value is empty string", async () => {
     const result = await api().call(
       "GET",
       "/test/echo",
@@ -519,7 +519,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi", () => {
-  test("expands array query params", async () => {
+  test("bhv serializationwire 009 expands array query params", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -536,7 +536,7 @@ describe("BaseApi", () => {
     expect(client.capturedUrl).toContain("tags=a&tags=b");
   });
 
-  test("serializes boolean query params", async () => {
+  test("bhv serializationwire 020 serializes boolean query params", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -553,7 +553,7 @@ describe("BaseApi", () => {
     expect(client.capturedUrl).toContain("active=true");
   });
 
-  test("serializes number query params", async () => {
+  test("bhv serializationwire 023 serializes number query params", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -590,7 +590,7 @@ describe("BaseApi", () => {
     );
   });
 
-  test("handles empty query params", async () => {
+  test("bhv serializationwire 015 handles empty query params", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -607,7 +607,7 @@ describe("BaseApi", () => {
     expect(client.capturedUrl).not.toContain("?");
   });
 
-  test("collapses double-slash when baseUrl has trailing slash", async () => {
+  test("bhv operations 007 collapses double-slash when baseUrl has trailing slash", async () => {
     // Gap Z — baseUrl='http://x/' + path='/y' must produce
     // 'http://x/y', not 'http://x//y' which most servers route to 404.
     const client = new CapturingApiClient();
@@ -628,7 +628,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi", () => {
-  test("forwards auth headers", async () => {
+  test("bhv authintegration 010 forwards auth headers", async () => {
     const auth = new TestAuthenticator({ "X-Custom": "auth-value" });
     const result = await api().call(
       "GET",
@@ -647,7 +647,7 @@ describe("BaseApi", () => {
     ).toBe("auth-value");
   });
 
-  test("sets Cookie header from auth cookies", async () => {
+  test("bhv authintegration 017 sets Cookie header from auth cookies", async () => {
     const capturing = new CapturingApiClient();
     const auth = new TestAuthenticator(
       {},
@@ -674,7 +674,7 @@ describe("BaseApi", () => {
     );
   });
 
-  test("an explicit per-call Accept header wins over the default Accept and the negotiated Accept", async () => {
+  test("bhv operations 008 an explicit per-call Accept header wins over the default Accept and the negotiated Accept", async () => {
     const capturing = new CapturingApiClient();
     const config = Configuration.builder()
       .baseUrl("https://api.example.com")
@@ -698,7 +698,7 @@ describe("BaseApi", () => {
     expect(accepts).toEqual([["Accept", "application/xml"]]);
   });
 
-  test("a per-call OAuth2 authenticator is given the API client of the call", async () => {
+  test("bhv authintegration 002 a per-call OAuth2 authenticator is given the API client of the call", async () => {
     const seen: Array<{ url: string; headers: Record<string, string> }> = [];
     const stub: ApiClient = {
       async sendRequest(_method, url, headers) {
@@ -796,7 +796,7 @@ describe("BaseApi", () => {
       return authenticator;
     };
 
-    test("drops the cached token and replays the request once with the new one", async () => {
+    test("bhv retries 001 drops the cached token and replays the request once with the new one", async () => {
       const { seen, stub } = renewingServer((authorization) =>
         authorization === "Bearer tok-1" ? 401 : 200,
       );
@@ -825,7 +825,7 @@ describe("BaseApi", () => {
       ]);
     });
 
-    test("reports a second 401 as the usual Unauthorized error after exactly one replay", async () => {
+    test("bhv retries 008 reports a second 401 as the usual Unauthorized error after exactly one replay", async () => {
       const { seen, stub } = renewingServer(() => 401);
       const testable = new TestableApi(
         stub,
@@ -852,7 +852,7 @@ describe("BaseApi", () => {
       );
     });
 
-    test("does not replay a multipart body", async () => {
+    test("bhv retries 006 does not replay a multipart body", async () => {
       const { seen, stub } = renewingServer(() => 401);
       const testable = new TestableApi(
         stub,
@@ -880,7 +880,7 @@ describe("BaseApi", () => {
       ]);
     });
 
-    test("keeps the 401 when the new token cannot be obtained", async () => {
+    test("bhv authintegration 001 keeps the 401 when the new token cannot be obtained", async () => {
       let tokenCalls = 0;
       const stub: ApiClient = {
         async sendRequest(_method, url): Promise<ApiHttpResponse> {
@@ -992,7 +992,7 @@ describe("BaseApi", () => {
    * reflects the received request headers back in its JSON body. We assert
    * the echoed Authorization header carries the exact Bearer credential.
    */
-  test("configured Bearer authenticator credential reaches the outbound request", async () => {
+  test("bhv authintegration 006 configured Bearer authenticator credential reaches the outbound request", async () => {
     const auth = new BearerAuthenticator(chasmUrl, "secret-token-123");
     const result = await api().call(
       "GET",
@@ -1013,7 +1013,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi", () => {
-  test("serializes JSON body for POST", async () => {
+  test("bhv serializationwire 022 serializes JSON body for POST", async () => {
     const result = await api().call(
       "POST",
       "/test/echo",
@@ -1031,7 +1031,7 @@ describe("BaseApi", () => {
     expect(parsed.key).toBe("value");
   });
 
-  test("sends no body when null", async () => {
+  test("bhv operations 016 sends no body when null", async () => {
     const client = new CapturingApiClient();
     const testApi = new TestableApi(
       client,
@@ -1075,7 +1075,7 @@ describe("BaseApi", () => {
     ).not.toContain("content-type");
   });
 
-  test("serializes text/plain body", async () => {
+  test("bhv serializationwire 024 serializes text/plain body", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1092,7 +1092,7 @@ describe("BaseApi", () => {
     expect(client.capturedBody).toBe("hello world");
   });
 
-  test("serializes form-urlencoded body", async () => {
+  test("bhv serializationwire 021 serializes form-urlencoded body", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1109,7 +1109,7 @@ describe("BaseApi", () => {
     expect(client.capturedBody).toContain("name=alice");
   });
 
-  test("form-urlencoded body encodes space as + not %20", async () => {
+  test("bhv serializationwire 012 form-urlencoded body encodes space as + not %20", async () => {
     // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
     // mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
     // URLSearchParams.toString() emits '+', matching the other SDKs.
@@ -1202,7 +1202,7 @@ describe("BaseApi", () => {
     },
   );
 
-  test("form-urlencoded body keeps a well-formed surrogate pair", async () => {
+  test("bhv serializationwire 013 form-urlencoded body keeps a well-formed surrogate pair", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1219,7 +1219,7 @@ describe("BaseApi", () => {
     expect(client.capturedBody).toBe("name=%F0%9F%98%80");
   });
 
-  test("passes binary body as-is", async () => {
+  test("bhv operations 014 passes binary body as-is", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1362,7 +1362,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi content-type deserialization guard", () => {
-  test("skips JSON deserialization when Content-Type is text/plain", async () => {
+  test("bhv serializationwire 025 skips JSON deserialization when Content-Type is text/plain", async () => {
     const client = new CapturingApiClient();
     client.responseBody = "hello";
     client.responseHeaders = { "content-type": "text/plain" };
@@ -1383,7 +1383,7 @@ describe("BaseApi content-type deserialization guard", () => {
     expect(result).toBe("hello");
   });
 
-  test("rejects a text/plain body for a model return with a SerializationError naming the Content-Type", async () => {
+  test("bhv errors 035 rejects a text/plain body for a model return with a SerializationError naming the Content-Type", async () => {
     const client = new CapturingApiClient();
     client.responseBody = "hello";
     client.responseHeaders = { "content-type": "text/plain" };
@@ -1409,7 +1409,7 @@ describe("BaseApi content-type deserialization guard", () => {
     );
   });
 
-  test("deserializes vendor JSON MIME types like application/problem+json", async () => {
+  test("bhv serializationwire 005 deserializes vendor JSON MIME types like application/problem+json", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"title":"Not Found"}';
     client.responseHeaders = { "content-type": "application/problem+json" };
@@ -1431,7 +1431,7 @@ describe("BaseApi content-type deserialization guard", () => {
 });
 
 describe("BaseApi", () => {
-  test("empty content-type defaults to application/json", async () => {
+  test("bhv serializationwire 007 empty content-type defaults to application/json", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1448,7 +1448,7 @@ describe("BaseApi", () => {
     expect(client.capturedHeaders["Content-Type"]).toBe("application/json");
   });
 
-  test("all headers flow through", async () => {
+  test("bhv operations 002 all headers flow through", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1481,19 +1481,19 @@ describe("BaseApi", () => {
     },
   );
 
-  test("server variable overrides resolve in the base URL", () => {
+  test("bhv options 003 server variable overrides resolve in the base URL", () => {
     const config = Configuration.builder()
       .server(variableServer, { environment: "staging" })
       .build();
     expect(config.baseUrl).toBe("https://staging.example.com/api/v3");
   });
 
-  test("default server variables produce the correct base URL", () => {
+  test("bhv operations 009 default server variables produce the correct base URL", () => {
     const config = Configuration.builder().server(variableServer).build();
     expect(config.baseUrl).toBe("https://api.example.com/api/v3");
   });
 
-  test("invalid enum value throws error", () => {
+  test("bhv errors 032 invalid enum value throws error", () => {
     expect(() => {
       Configuration.builder().server(variableServer, {
         environment: "invalid",
@@ -1501,7 +1501,7 @@ describe("BaseApi", () => {
     }).toThrow(TypeError);
   });
 
-  test("API request uses resolved server URL", async () => {
+  test("bhv operations 005 API request uses resolved server URL", async () => {
     const config = Configuration.builder()
       .server(variableServer, { environment: "staging" })
       .build();
@@ -1512,7 +1512,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi", () => {
-  test("octet-stream response roundtrips bytes exactly", async () => {
+  test("bhv serializationwire 017 octet-stream response roundtrips bytes exactly", async () => {
     const original = new Uint8Array([0x00, 0xff, 0x42, 0x7f, 0x80, 0xc3, 0xa9]);
     const client = new CapturingApiClient();
     client.responseBody = Buffer.from(original).toString("base64");
@@ -1533,7 +1533,7 @@ describe("BaseApi", () => {
     expect(Array.from(decoded)).toEqual(Array.from(original));
   });
 
-  test("image/png response roundtrips bytes exactly", async () => {
+  test("bhv operations 012 image/png response roundtrips bytes exactly", async () => {
     const original = new Uint8Array([
       0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
     ]);
@@ -1556,7 +1556,7 @@ describe("BaseApi", () => {
     expect(Array.from(decoded)).toEqual(Array.from(original));
   });
 
-  test("application/json response parsed to object", async () => {
+  test("bhv serializationwire 003 application/json response parsed to object", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"id":42,"name":"test"}';
     client.responseHeaders = { "content-type": "application/json" };
@@ -1576,7 +1576,7 @@ describe("BaseApi", () => {
     expect((result as { id: number; name: string }).id).toBe(42);
   });
 
-  test("text/plain response returns string", async () => {
+  test("bhv operations 017 text/plain response returns string", async () => {
     const client = new CapturingApiClient();
     client.responseBody = "hello world";
     client.responseHeaders = { "content-type": "text/plain" };
@@ -1598,7 +1598,7 @@ describe("BaseApi", () => {
     expect(result).toBe("hello world");
   });
 
-  test("empty body yields undefined", async () => {
+  test("bhv operations 010 empty body yields undefined", async () => {
     const client = new CapturingApiClient();
     client.responseBody = "";
     client.responseHeaders = { "content-type": "application/octet-stream" };
@@ -1645,7 +1645,7 @@ describe("ConvenienceEmptyBodyTests", () => {
 });
 
 describe("BaseApi", () => {
-  test("null body POST does not send Content-Type", async () => {
+  test("bhv operations 013 null body POST does not send Content-Type", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1662,7 +1662,7 @@ describe("BaseApi", () => {
     expect(client.capturedHeaders["Content-Type"]).toBeUndefined();
   });
 
-  test("empty string body includes Content-Type", async () => {
+  test("bhv operations 011 empty string body includes Content-Type", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1679,7 +1679,7 @@ describe("BaseApi", () => {
     expect(client.capturedHeaders["Content-Type"]).toBeDefined();
   });
 
-  test("empty JSON object body includes Content-Type", async () => {
+  test("bhv serializationwire 008 empty JSON object body includes Content-Type", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1698,7 +1698,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi WithHTTPInfo variant", () => {
-  test("returns ApiResult with status, data, headers, and rawBody", async () => {
+  test("bhv operations 018 returns ApiResult with status, data, headers, and rawBody", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"id":7,"name":"WithInfoPet"}';
     client.responseHeaders = { "content-type": "application/json" };
@@ -1755,7 +1755,7 @@ describe("BaseApi scheme credentials", () => {
   const bearer = new TestAuthenticator({ Authorization: "Bearer b" });
   const apiKey = new TestAuthenticator({ "X-Api-Key": "k" });
 
-  test("resolves the credential of the first listed scheme the client holds", () => {
+  test("bhv authintegration 014 resolves the credential of the first listed scheme the client holds", () => {
     const testApi = new TestableApi(undefined, undefined, null, {
       bearer,
       apiKey,
@@ -1772,7 +1772,7 @@ describe("BaseApi scheme credentials", () => {
     expect(testApi.resolve([])).toBeUndefined();
   });
 
-  test("resolves nothing for a client built with no scheme credentials", () => {
+  test("bhv authintegration 016 resolves nothing for a client built with no scheme credentials", () => {
     expect(new TestableApi().resolve(["bearer"])).toBeUndefined();
   });
 
@@ -1785,7 +1785,7 @@ describe("BaseApi scheme credentials", () => {
     },
   );
 
-  test("a resolved scheme credential is the one the request carries, not the client-level authenticator", async () => {
+  test("bhv authintegration 003 a resolved scheme credential is the one the request carries, not the client-level authenticator", async () => {
     const client = new CapturingApiClient();
     const testApi = new TestableApi(
       client,
@@ -1809,7 +1809,7 @@ describe("BaseApi scheme credentials", () => {
     expect(client.capturedHeaders["Authorization"]).toBe("Bearer b");
   });
 
-  test("falls back to client-level authenticator when no scheme credential resolved", async () => {
+  test("bhv authintegration 009 falls back to client-level authenticator when no scheme credential resolved", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const clientAuth = new TestAuthenticator({
@@ -1830,7 +1830,7 @@ describe("BaseApi scheme credentials", () => {
     expect(client.capturedHeaders["X-Client-Auth"]).toBe("client-level-token");
   });
 
-  test("a resolved authenticator replaces the client-level authenticator", async () => {
+  test("bhv authintegration 013 a resolved authenticator replaces the client-level authenticator", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const clientAuth = new TestAuthenticator({
@@ -1870,7 +1870,7 @@ describe("SecurityNoneSuppressesClientAuth", () => {
    * BaseApi hands to the transport, so we assert against the real outgoing
    * request of the real operation.
    */
-  test("security:[] op suppresses a configured Bearer authenticator", async () => {
+  test("bhv authintegration 005 security:[] op suppresses a configured Bearer authenticator", async () => {
     const client = new CapturingApiClient();
     client.responseBody = "{}";
     const config = new Configuration({ baseUrl: "http://localhost" });
@@ -1896,7 +1896,7 @@ describe("SecurityNoneSuppressesClientAuth", () => {
     }
   });
 
-  test("security:[] op suppresses a configured api-key (header, query, cookie)", async () => {
+  test("bhv authintegration 015 security:[] op suppresses a configured api-key (header, query, cookie)", async () => {
     // Header-located api key.
     const headerClient = new CapturingApiClient();
     headerClient.responseBody = "{}";
@@ -2019,7 +2019,7 @@ describe("SecurityNoneSuppressesClientAuth", () => {
    * A configured client credential MUST reach the wire — the regression that
    * silently dropped auth on every inherited-security operation.
    */
-  test("inherited-security op applies the configured authenticator credential", async () => {
+  test("bhv authintegration 012 inherited-security op applies the configured authenticator credential", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"id":1,"name":"Fido","photoUrls":[]}';
     const config = new Configuration({ baseUrl: "http://localhost" });
@@ -2089,7 +2089,7 @@ describe("Container response leaves are type-checked", () => {
 });
 
 describe("TypedErrorBodyTests", () => {
-  test("getTypedErrorBody deserializes the raw body into the requested class", () => {
+  test("bhv errors 029 getTypedErrorBody deserializes the raw body into the requested class", () => {
     const err = new BadRequestError("boom", {}, '{"id":42,"name":"Dogs"}');
     const typed = err.getTypedErrorBody(Category);
     expect(typed).not.toBeNull();
@@ -2098,12 +2098,12 @@ describe("TypedErrorBodyTests", () => {
     expect(typed!.name).toBe("Dogs");
   });
 
-  test("getTypedErrorBody returns null when there is no response body", () => {
+  test("bhv errors 030 getTypedErrorBody returns null when there is no response body", () => {
     const err = new BadRequestError("boom", {}, null);
     expect(err.getTypedErrorBody(Category)).toBeNull();
   });
 
-  test("getTypedErrorBody returns null for an empty-string response body", () => {
+  test("bhv errors 028 getTypedErrorBody returns null for an empty-string response body", () => {
     const err = new BadRequestError("boom", {}, "");
     expect(err.getTypedErrorBody(Category)).toBeNull();
   });
@@ -2237,7 +2237,7 @@ describe("BaseApi error request context", () => {
     throw new Error("expected the call to fail");
   };
 
-  test("the error carries the method and the path without the query string", async () => {
+  test("bhv errors 036 the error carries the method and the path without the query string", async () => {
     const client = new RecordingApiClient();
     client.statusCode = 404;
     const err = await fail(client, "GET", "/items/7");
@@ -2247,7 +2247,7 @@ describe("BaseApi error request context", () => {
     expect(client.url).toBe("http://localhost/items/7?page=2");
   });
 
-  test("the path keeps the base path of the server and drops the host", async () => {
+  test("bhv errors 027 the path keeps the base path of the server and drops the host", async () => {
     const client = new RecordingApiClient();
     client.statusCode = 500;
     const err = await fail(
@@ -2309,14 +2309,14 @@ describe("BaseApi per-call request options", () => {
     expect(client.sendOptions?.maxRetries).toBeUndefined();
   });
 
-  test("timeout and maxRetries reach the transport", async () => {
+  test("bhv retries 009 timeout and maxRetries reach the transport", async () => {
     const client = new RecordingApiClient();
     await send(client, { timeout: 250, maxRetries: 0 });
     expect(client.sendOptions?.timeout).toBe(250);
     expect(client.sendOptions?.maxRetries).toBe(0);
   });
 
-  test("a null timeout reaches the transport as no timeout", async () => {
+  test("bhv transport 002 a null timeout reaches the transport as no timeout", async () => {
     const client = new RecordingApiClient();
     await send(client, { timeout: null });
     expect(client.sendOptions?.timeout).toBeNull();
@@ -2340,7 +2340,7 @@ describe("BaseApi per-call request options", () => {
     },
   );
 
-  test("the call is not sent when an option is refused", async () => {
+  test("bhv authintegration 011 the call is not sent when an option is refused", async () => {
     const client = new RecordingApiClient();
     await expect(send(client, { maxRetries: -1 })).rejects.toThrow(TypeError);
     expect(client.url).toBe("");
@@ -2352,7 +2352,7 @@ describe("BaseApi per-call request options", () => {
     expect(client.headers["X-Trace-Id"]).toBe("abc");
   });
 
-  test("a per-call header replaces a default or operation header of the same name, whatever its case", async () => {
+  test("bhv operations 001 a per-call header replaces a default or operation header of the same name, whatever its case", async () => {
     const client = new RecordingApiClient();
     const config = new Configuration({
       baseUrl: "http://localhost",
@@ -2370,7 +2370,7 @@ describe("BaseApi per-call request options", () => {
     expect(client.headers["X-Op"]).toBeUndefined();
   });
 
-  test("per-call headers never replace the authentication headers", async () => {
+  test("bhv retries 005 per-call headers never replace the authentication headers", async () => {
     const client = new RecordingApiClient();
     const testApi = new TestableApi(
       client,

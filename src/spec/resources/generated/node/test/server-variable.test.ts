@@ -8,7 +8,7 @@
 import { ServerVariable } from "../src/server-configuration.js";
 
 describe("ServerVariable", () => {
-  it("exposes its default value, description, and enum values", () => {
+  it("bhv servers 017 exposes its default value, description, and enum values", () => {
     const variable = new ServerVariable("prod", "the environment", [
       "prod",
       "staging",
@@ -18,7 +18,7 @@ describe("ServerVariable", () => {
     expect(variable.enumValues).toEqual(["prod", "staging"]);
   });
 
-  it("allows a null description and an empty enum (any value accepted)", () => {
+  it("bhv servers 015 allows a null description and an empty enum (any value accepted)", () => {
     const variable = new ServerVariable("1", null, []);
     expect(variable.description).toBeNull();
     expect(variable.enumValues).toEqual([]);

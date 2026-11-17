@@ -59,14 +59,14 @@ describe("StoreApi", () => {
     }
   });
 
-  test("getInventory", async () => {
+  test("bhv operations 102 getInventory", async () => {
     const result = await api.getInventory();
 
     expect(result).toBeDefined();
     expect(typeof result).toBe("object");
   });
 
-  test("placeOrder", async () => {
+  test("bhv operations 117 placeOrder", async () => {
     const order = new Order({
       id: 1,
       petId: 12345,
@@ -82,7 +82,7 @@ describe("StoreApi", () => {
     expect(result.id).toBeDefined();
   });
 
-  test("getInventoryWithHttpInfo", async () => {
+  test("bhv operations 103 getInventoryWithHttpInfo", async () => {
     const result = await api.getInventoryWithHttpInfo();
 
     expect(result).toBeDefined();
@@ -91,7 +91,7 @@ describe("StoreApi", () => {
     expect(result.data).toBeDefined();
   });
 
-  test("placeOrderWithHttpInfo", async () => {
+  test("bhv operations 119 placeOrderWithHttpInfo", async () => {
     const order = new Order({
       id: 1,
       petId: 12345,
@@ -109,14 +109,14 @@ describe("StoreApi", () => {
     expect(result.data).toBeDefined();
   });
 
-  test("getOrderById", async () => {
+  test("bhv operations 104 getOrderById", async () => {
     const result = await api.getOrderById(1);
 
     expect(result).toBeDefined();
     expect(result.id).toBeDefined();
   });
 
-  test("getOrderByIdWithHttpInfo", async () => {
+  test("bhv operations 105 getOrderByIdWithHttpInfo", async () => {
     const result = await api.getOrderByIdWithHttpInfo(1);
 
     expect(result).toBeDefined();
@@ -125,7 +125,7 @@ describe("StoreApi", () => {
     expect(result.data).toBeDefined();
   });
 
-  test("deleteOrder", async () => {
+  test("bhv operations 099 deleteOrder", async () => {
     await api.deleteOrder(1);
   });
 });
@@ -155,7 +155,7 @@ function createMockServer(
 }
 
 describe("StoreApi nested container deserialization", () => {
-  test("getGroupedCategories decodes array-of-map leaves into typed Category instances", async () => {
+  test("bhv operations 101 getGroupedCategories decodes array-of-map leaves into typed Category instances", async () => {
     // nested-container-deserialise: the operation returns Array<Record<string,
     // Category>>. Each map leaf on the wire must be decoded into a typed
     // Category instance, not left as a raw map, so field access and the
@@ -180,7 +180,7 @@ describe("StoreApi nested container deserialization", () => {
     }
   });
 
-  test("getMatrix decodes an array of integer arrays", async () => {
+  test("bhv operations 109 getMatrix decodes an array of integer arrays", async () => {
     // nested-container-deserialise: Array<Array<number>> — the leaves are not
     // maps, so the descent must not assume a map at any level.
     const body = "[[1,2],[3,4]]";
@@ -239,7 +239,7 @@ describe("StoreApi nested container deserialization", () => {
     }
   });
 
-  test("getSwatchGroups decodes enum leaves into Swatch values", async () => {
+  test("bhv operations 114 getSwatchGroups decodes enum leaves into Swatch values", async () => {
     // nested-container-deserialise: Array<Record<string, Swatch>> — an enum
     // leaf must be carried through as its enum value, not run through a model
     // class constructor.
@@ -259,7 +259,7 @@ describe("StoreApi nested container deserialization", () => {
     }
   });
 
-  test("getTimestampGroups decodes date-time leaves into Date", async () => {
+  test("bhv operations 115 getTimestampGroups decodes date-time leaves into Date", async () => {
     // nested-container-deserialise: Array<Record<string, Date>> — a date-time
     // leaf must be parsed into a Date, not left as a raw string.
     const body = '[{"t":"2020-01-02T03:04:05Z"}]';
@@ -281,7 +281,7 @@ describe("StoreApi nested container deserialization", () => {
 });
 
 describe("StoreApi response shapes", () => {
-  test("getSwatch decodes a bare enum into its member", async () => {
+  test("bhv operations 113 getSwatch decodes a bare enum into its member", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -294,7 +294,7 @@ describe("StoreApi response shapes", () => {
     }
   });
 
-  test("getDepartment follows the mutual Department and Employee reference", async () => {
+  test("bhv operations 108 getDepartment follows the mutual Department and Employee reference", async () => {
     const body =
       '{"name":"eng","lead":{"name":"ann","department":{"name":"ops"}}}';
     const { api: mockApi, close } = await createMockServer(
@@ -312,7 +312,7 @@ describe("StoreApi response shapes", () => {
     }
   });
 
-  test("getTree decodes a self-recursive model into typed nodes", async () => {
+  test("bhv operations 116 getTree decodes a self-recursive model into typed nodes", async () => {
     const body = '{"value":"a","child":{"value":"b","child":{"value":"c"}}}';
     const { api: mockApi, close } = await createMockServer(
       200,
@@ -329,7 +329,7 @@ describe("StoreApi response shapes", () => {
     }
   });
 
-  test("getStockItem decodes the integer enum, the string enum and the nested arrays", async () => {
+  test("bhv operations 112 getStockItem decodes the integer enum, the string enum and the nested arrays", async () => {
     const body = '{"priority":2,"availability":"on-hold","matrix":[[1,2],[3]]}';
     const { api: mockApi, close } = await createMockServer(
       200,
@@ -361,7 +361,7 @@ describe("StoreApi response shapes", () => {
     }
   });
 
-  test("reserveStock decodes a 201 body as the new receipt", async () => {
+  test("bhv operations 120 reserveStock decodes a 201 body as the new receipt", async () => {
     const { api: mockApi, close } = await createMockServer(
       201,
       "application/json",
@@ -376,7 +376,7 @@ describe("StoreApi response shapes", () => {
     }
   });
 
-  test("getDefaults fills the schema defaults for absent fields and keeps an explicit null", async () => {
+  test("bhv operations 123 getDefaults fills the schema defaults for absent fields and keeps an explicit null", async () => {
     const body = '{"label":null,"retries":7}';
     const { api: mockApi, close } = await createMockServer(
       200,
@@ -411,7 +411,7 @@ describe("StoreApi response shapes", () => {
     }
   });
 
-  test("createAccount sends the writeOnly password and decodes the readOnly id", async () => {
+  test("bhv operations 098 createAccount sends the writeOnly password and decodes the readOnly id", async () => {
     let sentBody = "";
     const server = http.createServer((req, res) => {
       const chunks: Buffer[] = [];
@@ -474,7 +474,7 @@ describe("StoreApi content-encoded query parameters", () => {
     }
   }
 
-  test("searchStore sends q as the ObjectSerializer JSON, unescaped and percent-encoded", async () => {
+  test("bhv operations 097 searchStore sends q as the ObjectSerializer JSON, unescaped and percent-encoded", async () => {
     const url = await captureSearch(
       new PhotoMetadata({ caption: "a/b<\u00e9" }),
     );
@@ -535,7 +535,7 @@ describe("StoreApi content-encoded query parameters", () => {
     expect(url).not.toContain(`${expected}0`);
   });
 
-  test("getOrderByTrackingId puts the lowercase uuid in the path", async () => {
+  test("bhv operations 124 getOrderByTrackingId puts the lowercase uuid in the path", async () => {
     const url = await captureRequest((s) =>
       s.getOrderByTrackingId(uuid("E621E1F8-C36C-495A-93FC-0C247A3E6E5F")),
     );
@@ -545,7 +545,7 @@ describe("StoreApi content-encoded query parameters", () => {
     );
   });
 
-  test("getOrderByTrackingId rejects a malformed uuid before sending a request", async () => {
+  test("bhv operations 111 getOrderByTrackingId rejects a malformed uuid before sending a request", async () => {
     hits = 0;
     const call = captureRequest((s) =>
       s.getOrderByTrackingId("not-a-uuid" as UUID),
@@ -559,7 +559,7 @@ describe("StoreApi content-encoded query parameters", () => {
     expect(hits).toBe(0);
   });
 
-  test("searchStore sends the content header X-Filter as the ObjectSerializer JSON", async () => {
+  test("bhv operations 121 searchStore sends the content header X-Filter as the ObjectSerializer JSON", async () => {
     let capturedHeader: string | string[] | undefined;
     const server = http.createServer((req, res) => {
       capturedHeader = req.headers["x-filter"];
@@ -598,7 +598,7 @@ describe("StoreApi content-encoded query parameters", () => {
 });
 
 describe("StoreApi named-enum parameters", () => {
-  test("getBySwatch sends the enum wire values in the path, query and header", async () => {
+  test("bhv operations 122 getBySwatch sends the enum wire values in the path, query and header", async () => {
     // getBySwatch takes a $ref enum as a required path parameter, an optional
     // query parameter and an optional header; each must reach the wire as the
     // enum's value ('red'), never the language's enum member name.
@@ -637,7 +637,7 @@ describe("StoreApi named-enum parameters", () => {
     }
   });
 
-  test("getBySwatch omits the optional query parameter and header when they are not set", async () => {
+  test("bhv operations 107 getBySwatch omits the optional query parameter and header when they are not set", async () => {
     let capturedUrl: string | undefined;
     let capturedHeader: string | string[] | undefined;
     const server = http.createServer((req, res) => {
@@ -698,7 +698,7 @@ describe("StoreApi error dispatch through the typed status routes", () => {
 });
 
 describe("StoreApi", () => {
-  test("get order not found", async () => {
+  test("bhv operations 106 get order not found", async () => {
     const { api: mockApi, close } = await createMockServer(
       404,
       "application/json",
@@ -713,7 +713,7 @@ describe("StoreApi", () => {
     }
   });
 
-  test("place order server error", async () => {
+  test("bhv operations 118 place order server error", async () => {
     const { api: mockApi, close } = await createMockServer(
       500,
       "application/json",
@@ -736,7 +736,7 @@ describe("StoreApi", () => {
     }
   });
 
-  test("delete order not found", async () => {
+  test("bhv operations 100 delete order not found", async () => {
     const { api: mockApi, close } = await createMockServer(
       404,
       "application/json",

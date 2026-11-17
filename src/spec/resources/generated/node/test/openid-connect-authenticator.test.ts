@@ -73,14 +73,14 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(util.inspect(authenticator)).toContain("***");
   });
 
-  it("redacts secret", () => {
+  it("bhv authoidc 019 redacts secret", () => {
     expect(util.inspect(authenticator)).not.toContain("my-client-secret");
     expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
     expect(util.inspect(authenticator)).toContain("***");
     expect(JSON.stringify(authenticator)).toContain("***");
   });
 
-  test("builds authorization URL from discovery", async () => {
+  test("bhv authoidc 002 builds authorization URL from discovery", async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -97,6 +97,92 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(url).toContain("https://auth.example.com/authorize?");
     expect(url).toContain("client_id=my-client-id");
     expect(url).toContain("response_type=code");
+  });
+
+  test("bhv authoidc 004 discovery accepts a matching issuer with a trailing slash", async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          issuer: "https://auth.example.com/",
+          authorization_endpoint: "https://auth.example.com/authorize",
+          token_endpoint: "https://auth.example.com/token",
+        }),
+        headers: { "content-type": "application/json" },
+      },
+    ];
+
+    const url = await authenticator.buildAuthorizationUrl();
+
+    expect(url).toContain("https://auth.example.com/authorize?");
+  });
+
+  test("bhv authoidc 024 throws when discovery issuer does not match the discovery url", async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          issuer: "https://evil.example.com",
+          authorization_endpoint: "https://auth.example.com/authorize",
+          token_endpoint: "https://auth.example.com/token",
+        }),
+        headers: { "content-type": "application/json" },
+      },
+    ];
+
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
+      "OIDC discovery document issuer does not match the discovery URL",
+    );
+  });
+
+  test("bhv authoidc 007 a 404 from the discovery endpoint raises NotFoundError", async () => {
+    mockClient.responses = [
+      {
+        statusCode: 404,
+        body: "missing",
+        headers: { "content-type": "text/plain" },
+      },
+    ];
+
+    const error = await authenticator
+      .buildAuthorizationUrl()
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(NotFoundError);
+  });
+
+  test("bhv authoidc 027 a non-2xx discovery status throws", async () => {
+    mockClient.responses = [
+      {
+        statusCode: 500,
+        body: "down",
+        headers: { "content-type": "text/plain" },
+      },
+    ];
+
+    const error = await authenticator
+      .buildAuthorizationUrl()
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(InternalServerError);
+  });
+
+  test("bhv authoidc 022 the authorization url always requests the openid scope once", async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: "https://auth.example.com/authorize",
+          token_endpoint: "https://auth.example.com/token",
+        }),
+        headers: { "content-type": "application/json" },
+      },
+    ];
+
+    const url = await authenticator.buildAuthorizationUrl();
+    const scopes = (new URL(url).searchParams.get("scope") ?? "").split(" ");
+
+    expect(scopes.filter((scope) => scope === "openid")).toHaveLength(1);
   });
 
   describe("PKCE and token renewal", () => {
@@ -123,7 +209,7 @@ describe("OpenIdConnectAuthenticator", () => {
       headers: { "content-type": "application/json" },
     });
 
-    test("the verifier survives rediscovery and no nonce is sent", async () => {
+    test("bhv authoidc 021 the verifier survives rediscovery and no nonce is sent", async () => {
       mockClient.responses = [
         discoveryResponse(),
         discoveryResponse(),
@@ -152,7 +238,7 @@ describe("OpenIdConnectAuthenticator", () => {
       );
     });
 
-    test("invalidateAccessToken keeps the refresh token and renews through it", async () => {
+    test("bhv authoidc 015 invalidateAccessToken keeps the refresh token and renews through it", async () => {
       mockClient.responses = [
         discoveryResponse("max-age=3600"),
         tokenResponse("tok1"),
@@ -207,7 +293,7 @@ describe("OpenIdConnectAuthenticator", () => {
     },
   );
 
-  test("fetches discovery document", async () => {
+  test("bhv authoidc 010 fetches discovery document", async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -227,7 +313,7 @@ describe("OpenIdConnectAuthenticator", () => {
     );
   });
 
-  test("obtains token after code exchange", async () => {
+  test("bhv authoidc 017 obtains token after code exchange", async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -257,7 +343,7 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(params.get("code")).toBe("my-auth-code");
   });
 
-  test("getAuthHeaders returns Bearer after exchange", async () => {
+  test("bhv authoidc 013 getAuthHeaders returns Bearer after exchange", async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -308,7 +394,7 @@ describe("OpenIdConnectAuthenticator", () => {
     },
   );
 
-  test("throws SerializationError when the discovery document is not JSON", async () => {
+  test("bhv authoidc 016 throws SerializationError when the discovery document is not JSON", async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -323,7 +409,7 @@ describe("OpenIdConnectAuthenticator", () => {
     expect((error as Error).constructor).toBe(SerializationError);
   });
 
-  test("throws when no ApiClient injected", async () => {
+  test("bhv authoidc 028 throws when no ApiClient injected", async () => {
     const auth = new OpenIdConnectAuthenticator(
       "https://api.example.com",
       "https://auth.example.com/.well-known/openid-configuration",
@@ -337,11 +423,11 @@ describe("OpenIdConnectAuthenticator", () => {
     expect((error as Error).constructor).toBe(Error);
   });
 
-  test("getHost returns configured host", () => {
+  test("bhv authoidc 014 getHost returns configured host", () => {
     expect(authenticator.getHost()).toBe("https://api.example.com");
   });
 
-  test("fetches discovery document only once", async () => {
+  test("bhv authoidc 011 fetches discovery document only once", async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -360,7 +446,7 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(mockClient.callCount).toBe(1);
   });
 
-  test("a transport failure during discovery reaches the caller unchanged", async () => {
+  test("bhv authoidc 006 a transport failure during discovery reaches the caller unchanged", async () => {
     const failure = new NetworkError("connection refused");
     const failing: ApiClient = {
       async sendRequest(): Promise<ApiHttpResponse> {
@@ -410,7 +496,7 @@ describe("OpenIdConnectAuthenticator", () => {
       }
     }
 
-    test("the document is cached until its Cache-Control max-age elapses", async () => {
+    test("bhv authoidc 003 the document is cached until its Cache-Control max-age elapses", async () => {
       const [first, second] = await urlsAfter(59, "public, max-age=60");
 
       expect(first).toContain("https://auth.example.com/authorize-1?");
@@ -426,7 +512,7 @@ describe("OpenIdConnectAuthenticator", () => {
       expect(mockClient.callCount).toBe(2);
     });
 
-    test("a max-age beyond one year is clamped to one year", async () => {
+    test("bhv authoidc 001 a max-age beyond one year is clamped to one year", async () => {
       const [, second] = await urlsAfter(31_536_001, "max-age=99999999999");
 
       expect(second).toContain("https://auth.example.com/authorize-2?");
@@ -446,7 +532,7 @@ describe("OpenIdConnectAuthenticator", () => {
       headers: { "content-type": "application/json" },
     });
 
-    test("rediscovery after max-age expiry keeps the exchanged session", async () => {
+    test("bhv authoidc 020 rediscovery after max-age expiry keeps the exchanged session", async () => {
       mockClient.responses = [
         discovery("https://auth.example.com/authorize-1", "max-age=0"),
         tokenResponse("session-token"),
@@ -463,7 +549,7 @@ describe("OpenIdConnectAuthenticator", () => {
       expect(mockClient.callCount).toBe(4);
     });
 
-    test("a failed rediscovery keeps the previous session and the next call retries", async () => {
+    test("bhv authoidc 009 a failed rediscovery keeps the previous session and the next call retries", async () => {
       mockClient.responses = [
         discovery("https://auth.example.com/authorize-1", "max-age=0"),
         tokenResponse("session-token"),
@@ -531,7 +617,7 @@ describe("OpenIdConnectAuthenticator", () => {
   // oauth-oidc-missing-endpoint-guard: a discovery document missing the
   // authorization/token endpoint should fail loudly rather than build a
   // delegate with an undefined endpoint URL.
-  test("throws when discovery is missing authorization_endpoint", async () => {
+  test("bhv authoidc 025 throws when discovery is missing authorization_endpoint", async () => {
     // getDelegate() now guards the discovery document: an absent
     // authorization_endpoint surfaces a clear discovery error rather than
     // building a delegate with an `undefined` endpoint URL.
@@ -553,7 +639,7 @@ describe("OpenIdConnectAuthenticator", () => {
     );
   });
 
-  test("throws when discovery is missing token_endpoint", async () => {
+  test("bhv authoidc 026 throws when discovery is missing token_endpoint", async () => {
     // getDelegate() now guards the discovery document: an absent
     // token_endpoint surfaces a clear discovery error rather than building a
     // delegate with an `undefined` endpoint URL.
@@ -679,7 +765,7 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(mockClient.callCount).toBe(0);
   });
 
-  test("the redacted representation shows exactly the agreed non-secret fields", () => {
+  test("bhv authoidc 023 the redacted representation shows exactly the agreed non-secret fields", () => {
     expect(util.inspect(authenticator)).toBe(
       "OpenIdConnectAuthenticator(host=https://api.example.com, clientId=my-client-id, clientSecret=***)",
     );

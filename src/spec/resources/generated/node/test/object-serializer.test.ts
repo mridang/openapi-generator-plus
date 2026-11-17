@@ -65,7 +65,7 @@ describe("ObjectSerializer", () => {
   });
 
   describe("DateTimeOffsetPreservationTests", () => {
-    test("UTC datetime serializes containing date-time and offset", () => {
+    test("bhv serializationobject 174 UTC datetime serializes containing date-time and offset", () => {
       // A JS Date is an absolute instant; serialization pins UTC so the
       // wire bytes are host-timezone-independent (deterministic across
       // machines), matching the fixed-offset behaviour of the other SDKs.
@@ -81,7 +81,7 @@ describe("ObjectSerializer", () => {
       expect(result).toMatch(/\+00:00$/);
     });
 
-    test("date-time serialization preserves sub-second precision", () => {
+    test("bhv serializationobject 046 date-time serialization preserves sub-second precision", () => {
       // H4: the encoder must emit the millisecond fraction the decoder
       // already accepts, so a sub-second instant round-trips losslessly
       // instead of being silently truncated to whole seconds.
@@ -93,7 +93,7 @@ describe("ObjectSerializer", () => {
       expect(new Date(result).getTime()).toBe(date.getTime());
     });
 
-    test("model date-time field preserves sub-second precision through JSON body", () => {
+    test("bhv serializationobject 045 model date-time field preserves sub-second precision through JSON body", () => {
       // H4 canonical: a model carrying a `format: date-time` field
       // (PhotoMetadata.takenAt -> Date) must serialize and round-trip the
       // millisecond fraction losslessly on the JSON-body path.
@@ -110,7 +110,7 @@ describe("ObjectSerializer", () => {
       expect(back!.takenAt!.getTime()).toBe(takenAt.getTime());
     });
 
-    test("whole-second datetime includes the fixed .000 fraction", () => {
+    test("bhv serializationobject 179 whole-second datetime includes the fixed .000 fraction", () => {
       const date = new Date("2024-01-01T00:00:00.000Z");
       const result = ObjectSerializer.stringify(date);
       // A whole-second instant still emits the fixed three-digit fraction.
@@ -118,19 +118,19 @@ describe("ObjectSerializer", () => {
       expect(result).toBe("2024-01-01T00:00:00.000+00:00");
     });
 
-    test("serialized datetime string ends with an offset", () => {
+    test("bhv serializationobject 150 serialized datetime string ends with an offset", () => {
       const date = new Date("2024-01-01T12:30:45.000Z");
       const result = ObjectSerializer.stringify(date);
       expect(result).toMatch(/[+-]\d{2}:\d{2}$|Z$/);
     });
 
-    test("date formatted as ISO 8601 date-time contains T separator", () => {
+    test("bhv serializationobject 134 date formatted as ISO 8601 date-time contains T separator", () => {
       const date = new Date("2024-01-01T00:00:00.000Z");
       const result = ObjectSerializer.stringify(date);
       expect(result).toContain("T");
     });
 
-    test("round-trip: serialize a date and reparse yields equivalent time", () => {
+    test("bhv serializationobject 144 round-trip: serialize a date and reparse yields equivalent time", () => {
       const original = new Date("2024-06-15T10:30:00.000Z");
       const serialized = ObjectSerializer.stringify(original);
       const parsed = new Date(serialized);
@@ -139,28 +139,28 @@ describe("ObjectSerializer", () => {
   });
 
   describe("NonAsciiSerializationTests", () => {
-    test("accented character serializes without unicode escape", () => {
+    test("bhv serializationobject 019 accented character serializes without unicode escape", () => {
       const result = ObjectSerializer.serialize("café");
       expect(result).toContain("é");
     });
 
-    test("CJK characters serialize without unicode escape", () => {
+    test("bhv serializationobject 031 CJK characters serialize without unicode escape", () => {
       const result = ObjectSerializer.serialize("日本");
       expect(result).toContain("日本");
     });
 
-    test("tab character is properly escaped in JSON", () => {
+    test("bhv serializationobject 160 tab character is properly escaped in JSON", () => {
       const result = ObjectSerializer.serialize("a\tb");
       expect(result).toContain("\\t");
     });
   });
 
   describe("SerializationErrorWrappingTests", () => {
-    test("truncated JSON throws SerializationError not raw parse error", () => {
+    test("bhv serializationobject 170 truncated JSON throws SerializationError not raw parse error", () => {
       expect(() => ObjectSerializer.parseJson("{")).toThrow(SerializationError);
     });
 
-    test("parseJson strips a leading BOM", () => {
+    test("bhv serializationobject 060 parseJson strips a leading BOM", () => {
       expect(ObjectSerializer.parseJson('\uFEFF{"a":1}')).toEqual({ a: 1 });
     });
 
@@ -212,13 +212,13 @@ describe("ObjectSerializer", () => {
       },
     );
 
-    test("serialize throws SerializationError on circular reference", () => {
+    test("bhv serializationobject 102 serialize throws SerializationError on circular reference", () => {
       const a: Record<string, unknown> = {};
       a["self"] = a;
       expect(() => ObjectSerializer.serialize(a)).toThrow();
     });
 
-    test("thrown error has a message referencing the original failure", () => {
+    test("bhv serializationobject 162 thrown error has a message referencing the original failure", () => {
       let caughtError: unknown = null;
       try {
         const a: Record<string, unknown> = {};
@@ -233,77 +233,77 @@ describe("ObjectSerializer", () => {
   });
 
   describe("toPathValue", () => {
-    test("returns empty string for null", () => {
+    test("bhv serializationobject 130 returns empty string for null", () => {
       expect(ObjectSerializer.toPathValue(null)).toBe("");
     });
 
-    test("returns the string for a string value", () => {
+    test("bhv serializationobject 141 returns the string for a string value", () => {
       expect(ObjectSerializer.toPathValue("hello")).toBe("hello");
     });
 
-    test("converts integer to string", () => {
+    test("bhv serializationobject 036 converts integer to string", () => {
       expect(ObjectSerializer.toPathValue(42)).toBe("42");
     });
 
-    test('converts true to "true"', () => {
+    test('bhv serializationobject 043 converts true to "true"', () => {
       expect(ObjectSerializer.toPathValue(true)).toBe("true");
     });
 
-    test('converts false to "false"', () => {
+    test('bhv serializationobject 033 converts false to "false"', () => {
       expect(ObjectSerializer.toPathValue(false)).toBe("false");
     });
   });
 
   describe("toQueryValue", () => {
-    test("returns undefined for null", () => {
+    test("bhv serializationobject 137 returns undefined for null", () => {
       expect(ObjectSerializer.toQueryValue(null)).toBeUndefined();
     });
 
-    test("returns the string for a string value", () => {
+    test("bhv serializationobject 139 returns the string for a string value", () => {
       expect(ObjectSerializer.toQueryValue("hello")).toBe("hello");
     });
 
-    test("converts integer to string", () => {
+    test("bhv serializationobject 037 converts integer to string", () => {
       expect(ObjectSerializer.toQueryValue(42)).toBe("42");
     });
 
-    test('converts true to "true"', () => {
+    test('bhv serializationobject 041 converts true to "true"', () => {
       expect(ObjectSerializer.toQueryValue(true)).toBe("true");
     });
 
-    test('converts false to "false"', () => {
+    test('bhv serializationobject 034 converts false to "false"', () => {
       expect(ObjectSerializer.toQueryValue(false)).toBe("false");
     });
 
-    test("joins array with comma by default", () => {
+    test("bhv serializationobject 097 joins array with comma by default", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"])).toBe("a,b,c");
     });
 
-    test("joins array with comma for csv", () => {
+    test("bhv serializationobject 098 joins array with comma for csv", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "csv")).toBe(
         "a,b,c",
       );
     });
 
-    test("joins array with space for ssv", () => {
+    test("bhv serializationobject 100 joins array with space for ssv", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "ssv")).toBe(
         "a b c",
       );
     });
 
-    test("joins array with tab for tsv", () => {
+    test("bhv serializationobject 101 joins array with tab for tsv", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "tsv")).toBe(
         "a\tb\tc",
       );
     });
 
-    test("joins array with pipe for pipes", () => {
+    test("bhv serializationobject 099 joins array with pipe for pipes", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "pipes")).toBe(
         "a|b|c",
       );
     });
 
-    test("returns array as-is for multi", () => {
+    test("bhv serializationobject 135 returns array as-is for multi", () => {
       expect(ObjectSerializer.toQueryValue(["a", "b", "c"], "multi")).toEqual([
         "a",
         "b",
@@ -313,98 +313,98 @@ describe("ObjectSerializer", () => {
   });
 
   describe("toHeaderValue", () => {
-    test("returns empty string for null", () => {
+    test("bhv serializationobject 131 returns empty string for null", () => {
       expect(ObjectSerializer.toHeaderValue(null)).toBe("");
     });
 
-    test("returns the string for a string value", () => {
+    test("bhv serializationobject 142 returns the string for a string value", () => {
       expect(ObjectSerializer.toHeaderValue("hello")).toBe("hello");
     });
 
-    test("converts integer to string", () => {
+    test("bhv serializationobject 038 converts integer to string", () => {
       expect(ObjectSerializer.toHeaderValue(42)).toBe("42");
     });
 
-    test("joins array with comma", () => {
+    test("bhv serializationobject 096 joins array with comma", () => {
       expect(ObjectSerializer.toHeaderValue(["a", "b", "c"])).toBe("a,b,c");
     });
   });
 
   describe("toFormValue", () => {
-    test("returns empty string for null", () => {
+    test("bhv serializationobject 132 returns empty string for null", () => {
       expect(ObjectSerializer.toFormValue(null)).toBe("");
     });
 
-    test("returns the string for a string value", () => {
+    test("bhv serializationobject 140 returns the string for a string value", () => {
       expect(ObjectSerializer.toFormValue("hello")).toBe("hello");
     });
 
-    test("converts integer to string", () => {
+    test("bhv serializationobject 039 converts integer to string", () => {
       expect(ObjectSerializer.toFormValue(42)).toBe("42");
     });
 
-    test('converts true to "true"', () => {
+    test('bhv serializationobject 042 converts true to "true"', () => {
       expect(ObjectSerializer.toFormValue(true)).toBe("true");
     });
 
-    test('converts false to "false"', () => {
+    test('bhv serializationobject 035 converts false to "false"', () => {
       expect(ObjectSerializer.toFormValue(false)).toBe("false");
     });
   });
 
   describe("toCookieValue", () => {
-    test("returns empty string for null", () => {
+    test("bhv serializationobject 133 returns empty string for null", () => {
       expect(ObjectSerializer.toCookieValue(null)).toBe("");
     });
 
-    test("returns the string for a string value", () => {
+    test("bhv serializationobject 143 returns the string for a string value", () => {
       expect(ObjectSerializer.toCookieValue("hello")).toBe("hello");
     });
 
-    test("converts integer to string", () => {
+    test("bhv serializationobject 040 converts integer to string", () => {
       expect(ObjectSerializer.toCookieValue(42)).toBe("42");
     });
   });
 
   describe("stringify", () => {
-    test("null returns empty string", () => {
+    test("bhv serializationobject 136 null returns empty string", () => {
       expect(ObjectSerializer.stringify(null)).toBe("");
     });
 
-    test("undefined returns empty string", () => {
+    test("bhv serializationobject 110 undefined returns empty string", () => {
       expect(ObjectSerializer.stringify(undefined)).toBe("");
     });
 
-    test('boolean true returns "true"', () => {
+    test('bhv serializationobject 028 boolean true returns "true"', () => {
       expect(ObjectSerializer.stringify(true)).toBe("true");
     });
 
-    test('boolean false returns "false"', () => {
+    test('bhv serializationobject 027 boolean false returns "false"', () => {
       expect(ObjectSerializer.stringify(false)).toBe("false");
     });
 
-    test("integer returns string representation", () => {
+    test("bhv serializationobject 091 integer returns string representation", () => {
       expect(ObjectSerializer.stringify(42)).toBe("42");
     });
 
-    test("date-time returns ISO 8601 string", () => {
+    test("bhv serializationobject 157 date-time returns ISO 8601 string", () => {
       const date = new Date("2024-01-15T10:30:00.000Z");
       expect(ObjectSerializer.stringify(date)).toBe(
         "2024-01-15T10:30:00.000+00:00",
       );
     });
 
-    test("plain string passes through unchanged", () => {
+    test("bhv serializationobject 114 plain string passes through unchanged", () => {
       expect(ObjectSerializer.stringify("hello")).toBe("hello");
     });
 
-    test("float returns string representation", () => {
+    test("bhv serializationobject 078 float returns string representation", () => {
       expect(ObjectSerializer.stringify(3.14)).toBe("3.14");
     });
   });
 
   describe("serialize", () => {
-    test("serializes a model to JSON string", () => {
+    test("bhv serializationobject 152 serializes a model to JSON string", () => {
       const category = new Category({ id: 1, name: "Dogs" });
       const result = ObjectSerializer.serialize(category);
       expect(typeof result).toBe("string");
@@ -418,12 +418,12 @@ describe("ObjectSerializer", () => {
       expect(result).toBe("null");
     });
 
-    test("handles undefined", () => {
+    test("bhv serializationobject 087 handles undefined", () => {
       const result = ObjectSerializer.serialize(undefined);
       expect(result).toBe("null");
     });
 
-    test("excludes null-valued properties from serialized output", () => {
+    test("bhv serializationobject 018 excludes null-valued properties from serialized output", () => {
       const pet: Record<string, unknown> = { name: "Fido", status: null };
       const result = ObjectSerializer.serialize(pet);
       const parsed = JSON.parse(result);
@@ -431,7 +431,7 @@ describe("ObjectSerializer", () => {
       expect(parsed).not.toHaveProperty("status");
     });
 
-    test("includes fields explicitly set to default values", () => {
+    test("bhv serializationobject 088 includes fields explicitly set to default values", () => {
       const category = new Category({ id: 0, name: "" });
       const result = ObjectSerializer.serialize(category);
       const parsed = JSON.parse(result);
@@ -439,7 +439,7 @@ describe("ObjectSerializer", () => {
       expect(parsed).toHaveProperty("name", "");
     });
 
-    test("emits a type:number (no-format) Decimal field as an unquoted JSON number", () => {
+    test("bhv serializationobject 171 emits a type:number (no-format) Decimal field as an unquoted JSON number", () => {
       // 2.5 — Pet.weightKg is `type: number` with no format, carried as a
       // branded Decimal string at runtime. The wire form must be a JSON
       // number, not a quoted string, or a server validating `type: number`
@@ -530,7 +530,7 @@ describe("ObjectSerializer", () => {
     });
   });
 
-  test("deserializes JSON to typed model", () => {
+  test("bhv serializationobject 070 deserializes JSON to typed model", () => {
     const json = { id: 1, name: "Dogs" };
     const category = ObjectSerializer.deserialize(json, Category);
     expect(category).toBeDefined();
@@ -544,7 +544,7 @@ describe("ObjectSerializer", () => {
     expect(pet!.status).toBe(PetStatusEnum.Available);
   });
 
-  test("throws on an unknown enum wire value instead of silently keeping it", () => {
+  test("bhv serializationobject 119 throws on an unknown enum wire value instead of silently keeping it", () => {
     // enum-unknown-value-silent-vs-throw: an out-of-spec enum value (e.g.
     // status:"banana") must surface as a deserialize error rather than
     // being stored verbatim on the typed field (type confusion).
@@ -552,7 +552,7 @@ describe("ObjectSerializer", () => {
     expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
   });
 
-  test("deserializing a complete object still succeeds (no regression)", () => {
+  test("bhv serializationobject 061 deserializing a complete object still succeeds (no regression)", () => {
     // Divergence #10 control: the strict required-field guard must not
     // affect a payload that supplies every required field. Pet requires
     // name + photoUrls; both are present here.
@@ -566,7 +566,7 @@ describe("ObjectSerializer", () => {
     expect(pet!.name).toBe("Rex");
   });
 
-  test("throws when a required field is ABSENT from the payload", () => {
+  test("bhv serializationobject 083 throws when a required field is ABSENT from the payload", () => {
     // Divergence #10: a required, non-nullable field missing from the wire
     // payload must hard-fail with the SDK serialization error rather than
     // silently building a partial object. Pet requires `name`; it is
@@ -577,7 +577,7 @@ describe("ObjectSerializer", () => {
     );
   });
 
-  test("throws when a required field is explicitly NULL in the payload", () => {
+  test("bhv serializationobject 084 throws when a required field is explicitly NULL in the payload", () => {
     // Divergence #10: a required, non-nullable field present but explicitly
     // null on the wire is just as invalid as an absent one and must
     // hard-fail rather than store null on a non-null-typed field.
@@ -591,7 +591,7 @@ describe("ObjectSerializer", () => {
     );
   });
 
-  test('canonical AJ: {"name":null,"photoUrls":["u"]} into Pet throws', () => {
+  test('bhv serializationobject 086 canonical AJ: {"name":null,"photoUrls":["u"]} into Pet throws', () => {
     // Canonical scenario AJ — a JSON null on the required, non-nullable
     // `name` field is a silent contract violation in go (zero-inits ""),
     // python (pydantic accepts) and kotlin (explicitNulls=false accepts);
@@ -604,7 +604,7 @@ describe("ObjectSerializer", () => {
     );
   });
 
-  test("deserialize applies schema default for absent field", () => {
+  test("bhv serializationobject 053 deserialize applies schema default for absent field", () => {
     // default-on-deserialize: Order.status carries a schema `default: placed`.
     // When the wire payload OMITS status, deserialize must populate it with
     // the enum default (OrderStatusEnum.Placed) rather than leaving it
@@ -614,7 +614,7 @@ describe("ObjectSerializer", () => {
     expect(order!.status).toBe(OrderStatusEnum.Placed);
   });
 
-  test("Defaults: absent fields take the schema default, explicit null is preserved", () => {
+  test("bhv serializationobject 025 Defaults: absent fields take the schema default, explicit null is preserved", () => {
     // default-vs-explicit-null contract: a schema `default` applies ONLY when
     // the property is ABSENT from the payload. An explicit JSON null is a
     // provided value and must be PRESERVED (the field stays null), not
@@ -639,7 +639,7 @@ describe("ObjectSerializer", () => {
     expect(fromNull!.retries).toBe(7);
   });
 
-  test("deserializes a self-referential model and decodes the nesting", () => {
+  test("bhv serializationobject 068 deserializes a self-referential model and decodes the nesting", () => {
     // recursive-self-ref: TreeNode.child is a $ref back to TreeNode. The
     // nested child object on the wire must decode into a TreeNode instance,
     // not be left as a raw plain object, so the recursion is honoured all
@@ -700,7 +700,7 @@ describe("ObjectSerializer", () => {
     // payload would deserialize cleanly and lose the extra key, leaving the
     // OAS 3.1 strict contract unenforced.
 
-    test("deserialize throws on an undeclared wire key for a strict model", () => {
+    test("bhv serializationobject 154 deserialize throws on an undeclared wire key for a strict model", () => {
       const json: Record<string, unknown> = {
         id: 7,
         name: "Important",
@@ -714,7 +714,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("deserialize accepts a strict model when every key is declared", () => {
+    test("bhv serializationobject 052 deserialize accepts a strict model when every key is declared", () => {
       const json: Record<string, unknown> = { id: 9, name: "Fine" };
       const tag = ObjectSerializer.deserialize(json, StrictTag);
       expect(tag).toBeDefined();
@@ -722,7 +722,7 @@ describe("ObjectSerializer", () => {
       expect((tag as StrictTag).name).toBe("Fine");
     });
 
-    test("__strictDeclaredKeys lists exactly the declared wire keys", () => {
+    test("bhv serializationobject 047 __strictDeclaredKeys lists exactly the declared wire keys", () => {
       expect(StrictTag.__strictDeclaredKeys.has("id")).toBe(true);
       expect(StrictTag.__strictDeclaredKeys.has("name")).toBe(true);
       expect(StrictTag.__strictDeclaredKeys.has("unexpected")).toBe(false);
@@ -730,21 +730,21 @@ describe("ObjectSerializer", () => {
   });
 
   describe("NestedModelValidation", () => {
-    test("rejects a nested model that is missing its required field", () => {
+    test("bhv serializationobject 063 rejects a nested model that is missing its required field", () => {
       const json = { value: "root", child: {} };
       expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
         /^Failed to deserialize JSON: value is required$/,
       );
     });
 
-    test("rejects a nested model field of the wrong primitive type", () => {
+    test("bhv serializationobject 180 rejects a nested model field of the wrong primitive type", () => {
       const json = { value: "root", child: { value: 5 } };
       expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
         /^Failed to deserialize JSON: value must be a string, got number$/,
       );
     });
 
-    test("rejects an invalid model several levels down", () => {
+    test("bhv serializationobject 066 rejects an invalid model several levels down", () => {
       const json = {
         value: "root",
         child: { value: "a", child: { value: "b", child: {} } },
@@ -862,7 +862,7 @@ describe("ObjectSerializer", () => {
       expect(pet.tags).toEqual([]);
     });
 
-    test("serializes a uniqueItems array of strings in code point order", () => {
+    test("bhv serializationobject 015 serializes a uniqueItems array of strings in code point order", () => {
       const first = ObjectSerializer.serialize(
         new Pet({ name: "x", photoUrls: new Set(["c", "a", "b"]) }),
       );
@@ -899,7 +899,7 @@ describe("ObjectSerializer", () => {
   });
 
   describe("RequiredNullable", () => {
-    test("decode keeps an explicit null", () => {
+    test("bhv serializationobject 049 decode keeps an explicit null", () => {
       const model = ObjectSerializer.deserialize(
         { note: null },
         RequiredNullable,
@@ -907,13 +907,13 @@ describe("ObjectSerializer", () => {
       expect(model.note).toBeNull();
     });
 
-    test("decode rejects a missing key", () => {
+    test("bhv serializationobject 126 decode rejects a missing key", () => {
       expect(() => ObjectSerializer.deserialize({}, RequiredNullable)).toThrow(
         /^Failed to deserialize JSON: note is required$/,
       );
     });
 
-    test("encode writes the key as null when the value is null", () => {
+    test("bhv serializationobject 125 encode writes the key as null when the value is null", () => {
       expect(
         ObjectSerializer.serialize(new RequiredNullable({ note: null })),
       ).toBe('{"note":null}');
@@ -925,7 +925,7 @@ describe("ObjectSerializer", () => {
       ).toBe('{"note":"hi"}');
     });
 
-    test("an optional nullable field still drops its null", () => {
+    test("bhv serializationobject 023 an optional nullable field still drops its null", () => {
       const defaults = new Defaults();
       (defaults as unknown as Record<string, unknown>)["label"] = null;
       expect(ObjectSerializer.serialize(defaults)).not.toContain('"label"');
@@ -992,7 +992,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("rejects a fractional number for an int32 field", () => {
+    test("bhv serializationobject 120 rejects a fractional number for an int32 field", () => {
       expect(() =>
         ObjectSerializer.deserialize({ quantity: 7.5 }, Order),
       ).toThrow(
@@ -1076,7 +1076,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("still decodes an ISO date-time string and an absent date-time", () => {
+    test("bhv serializationobject 151 still decodes an ISO date-time string and an absent date-time", () => {
       const order = ObjectSerializer.deserialize(
         { shipDate: "2024-01-02T03:04:05.000Z" },
         Order,
@@ -1089,7 +1089,7 @@ describe("ObjectSerializer", () => {
       ).toBeUndefined();
     });
 
-    test("rejects an unparseable date-time string", () => {
+    test("bhv serializationobject 003 rejects an unparseable date-time string", () => {
       expect(() =>
         ObjectSerializer.deserialize({ shipDate: "garbage" }, Order),
       ).toThrow(
@@ -1139,7 +1139,7 @@ describe("ObjectSerializer", () => {
       },
     );
 
-    test("rejects a null element of a map of int32 and of a nested array of int32", () => {
+    test("bhv serializationobject 122 rejects a null element of a map of int32 and of a nested array of int32", () => {
       const int32Leaf = (x: unknown) =>
         ObjectSerializer.deserializeLeaf<number>(x, "int32");
       expect(() =>
@@ -1152,7 +1152,7 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("maps a null date leaf to null and parses a date string", () => {
+    test("bhv serializationobject 044 maps a null date leaf to null and parses a date string", () => {
       expect(ObjectSerializer.deserializeLeaf(null, "date")).toBeNull();
       expect(
         ObjectSerializer.deserializeLeaf<Date>(
@@ -1195,7 +1195,7 @@ describe("ObjectSerializer", () => {
       ).toBe("round-trip");
     });
 
-    test("deserialize: an invalid base64 thumbnail is rejected, not silently truncated", () => {
+    test("bhv serializationobject 094 deserialize: an invalid base64 thumbnail is rejected, not silently truncated", () => {
       // '!!!!' is outside the base64 alphabet. Buffer.from would silently yield
       // empty bytes; decodeBase64 must reject it, matching the strict decoders
       // in ruby/php/python/elixir/go/rust.
@@ -1225,7 +1225,7 @@ describe("ObjectSerializer", () => {
       ).toBe("test");
     });
 
-    test("stringify: bytes become standard padded base64", () => {
+    test("bhv serializationobject 156 stringify: bytes become standard padded base64", () => {
       expect(ObjectSerializer.stringify(Buffer.from("hi", "utf-8"))).toBe(
         "aGk=",
       );
@@ -1234,7 +1234,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("round-trip: serialize then deserialize preserves the Buffer bytes", () => {
+    test("bhv serializationobject 026 round-trip: serialize then deserialize preserves the Buffer bytes", () => {
       const original = Buffer.from([0x00, 0x01, 0xff, 0xee, 0xab]);
       const passport = new PetPassport({
         thumbnail: original as unknown as PetPassport["thumbnail"],
@@ -1271,13 +1271,13 @@ describe("ObjectSerializer", () => {
     // The brand exists only at the type level; runtime validation happens
     // through `uuid()` / `isUuid()` exported from src/brand.ts.
 
-    test("uuid(): accepts a canonical 8-4-4-4-12 hex UUID", () => {
+    test("bhv serializationobject 175 uuid(): accepts a canonical 8-4-4-4-12 hex UUID", () => {
       const v = "550e8400-e29b-41d4-a716-446655440000";
       expect(() => uuid(v)).not.toThrow();
       expect(uuid(v)).toBe(v);
     });
 
-    test("uuid(): rejects an arbitrary free-form string", () => {
+    test("bhv serializationobject 103 uuid(): rejects an arbitrary free-form string", () => {
       expect(() => uuid("not-a-uuid")).toThrow(TypeError);
     });
 
@@ -1290,7 +1290,7 @@ describe("ObjectSerializer", () => {
     const upperUuid = "E621E1F8-C36C-495A-93FC-0C247A3E6E5F";
     const lowerUuid = "e621e1f8-c36c-495a-93fc-0c247a3e6e5f";
 
-    test("serialize writes a uuid field in lowercase", () => {
+    test("bhv serializationobject 148 serialize writes a uuid field in lowercase", () => {
       const order = new Order({ trackingId: uuid(upperUuid) });
       expect(JSON.parse(ObjectSerializer.serialize(order)).trackingId).toBe(
         lowerUuid,
@@ -1303,20 +1303,20 @@ describe("ObjectSerializer", () => {
       ).toEqual({ trackingId: lowerUuid });
     });
 
-    test("decode accepts an uppercase uuid and returns it lowercase", () => {
+    test("bhv serializationobject 016 decode accepts an uppercase uuid and returns it lowercase", () => {
       expect(
         ObjectSerializer.deserialize({ trackingId: upperUuid }, Order)!
           .trackingId,
       ).toBe(lowerUuid);
     });
 
-    test("decode rejects a malformed uuid", () => {
+    test("bhv serializationobject 048 decode rejects a malformed uuid", () => {
       expect(() =>
         ObjectSerializer.deserialize({ trackingId: "not-a-uuid" }, Order),
       ).toThrow(SerializationError);
     });
 
-    test("isUuid(): narrows a valid string to UUID", () => {
+    test("bhv serializationobject 065 isUuid(): narrows a valid string to UUID", () => {
       expect(isUuid("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
       expect(isUuid("not-a-uuid")).toBe(false);
       expect(isUuid(42)).toBe(false);
@@ -1364,7 +1364,7 @@ describe("ObjectSerializer", () => {
       ).not.toThrow();
     });
 
-    test("rejects deserializing a member-name string into the int enum field", () => {
+    test("bhv serializationobject 076 rejects deserializing a member-name string into the int enum field", () => {
       const json = { priority: "NUMBER_1" };
       expect(() => ObjectSerializer.deserialize(json, StockItem)).toThrow(
         SerializationError,
@@ -1376,7 +1376,7 @@ describe("ObjectSerializer", () => {
       expect(item.priority).toBe(2);
     });
 
-    test("builds a model with an out-of-range integer and rejects it when decoded", () => {
+    test("bhv serializationobject 030 builds a model with an out-of-range integer and rejects it when decoded", () => {
       expect(
         () => new StockItem({ priority: 99 as unknown as Priority }),
       ).not.toThrow();
@@ -1460,7 +1460,7 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("a uri-reference field still accepts a relative reference", () => {
+    test("bhv serializationobject 173 a uri-reference field still accepts a relative reference", () => {
       const pet = ObjectSerializer.deserialize(
         {
           name: "sample",
@@ -1488,7 +1488,7 @@ describe("ObjectSerializer", () => {
       expect(out.length).toBe(3);
     });
 
-    test("rejects a null element for a model-class element type", () => {
+    test("bhv serializationobject 121 rejects a null element for a model-class element type", () => {
       expect(() =>
         ObjectSerializer.deserializeArray(
           [null, { id: 1, name: "sample" }],
@@ -1497,7 +1497,7 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("rejects a null value for a model-class map value type", () => {
+    test("bhv serializationobject 123 rejects a null value for a model-class map value type", () => {
       expect(() =>
         ObjectSerializer.deserializeMap(
           { first: null, second: { id: 1, name: "sample" } },
@@ -1557,7 +1557,7 @@ describe("ObjectSerializer", () => {
   });
 
   describe("DiscriminatorAutoInjectionTests", () => {
-    test("dry subtype serialization includes discriminator without caller setting it", () => {
+    test("bhv serializationobject 072 dry subtype serialization includes discriminator without caller setting it", () => {
       const dry = new DryFood({ weightKg: 2.5 });
       const json = ObjectSerializer.serialize(dry);
       const parsed = JSON.parse(json);
@@ -1565,7 +1565,7 @@ describe("ObjectSerializer", () => {
       expect(parsed.weightKg).toBe(2.5);
     });
 
-    test("wet subtype defaults discriminator to its mapping name", () => {
+    test("bhv serializationobject 178 wet subtype defaults discriminator to its mapping name", () => {
       const wet = new WetFood({ volumeMl: 350 });
       const json = ObjectSerializer.serialize(wet);
       const parsed = JSON.parse(json);
@@ -1580,7 +1580,7 @@ describe("ObjectSerializer", () => {
       expect(parsed.foodType).toBe("custom");
     });
 
-    test("deserialize discriminator-tagged JSON returns subtype instance", () => {
+    test("bhv serializationobject 055 deserialize discriminator-tagged JSON returns subtype instance", () => {
       const dryJson = { foodType: "dry", weightKg: 2.5 };
       const dry = ObjectSerializer.deserialize(dryJson, DryFood);
       expect(dry).toBeDefined();
@@ -1589,7 +1589,7 @@ describe("ObjectSerializer", () => {
       expect(dry!.weightKg).toBe(2.5);
     });
 
-    test("canonical AU-resid: PetFood payload missing the foodType discriminator throws", () => {
+    test("bhv serializationobject 085 canonical AU-resid: PetFood payload missing the foodType discriminator throws", () => {
       // Canonical scenario AU-residual — a discriminated-union payload that
       // omits the discriminator property must hard-fail, not wrap the raw
       // dict in a union container (the python/php divergence). PetFood is a
@@ -1619,7 +1619,7 @@ describe("ObjectSerializer", () => {
         expect(ObjectSerializer.stringify(t)).toBe("14:30:00");
       });
 
-      test("stringify: PlainTime writes a non-zero millisecond part as three digits", () => {
+      test("bhv serializationobject 164 stringify: PlainTime writes a non-zero millisecond part as three digits", () => {
         const t = Temporal.PlainTime.from("09:15:30.250");
         expect(ObjectSerializer.stringify(t)).toBe("09:15:30.250");
       });
@@ -1651,7 +1651,7 @@ describe("ObjectSerializer", () => {
         ).toBe(true);
       });
 
-      test("toQueryValue: PlainTime serialises to its ISO string", () => {
+      test("bhv serializationobject 167 toQueryValue: PlainTime serialises to its ISO string", () => {
         const t = Temporal.PlainTime.from("06:00:00");
         expect(ObjectSerializer.toQueryValue(t)).toBe("06:00:00");
       });
@@ -1693,7 +1693,7 @@ describe("ObjectSerializer", () => {
     // server: "3600s" -> 201, "3600.000000001s" -> 201, "PT1H" -> 400,
     // 3600 -> 400.
     describe("Temporal.Duration (protobuf-JSON)", () => {
-      test('stringify: whole-second duration emits "<secs>s"', () => {
+      test('bhv serializationobject 081 stringify: whole-second duration emits "<secs>s"', () => {
         const d = Temporal.Duration.from({ minutes: 15 });
         expect(ObjectSerializer.stringify(d)).toBe("900s");
       });
@@ -1708,13 +1708,13 @@ describe("ObjectSerializer", () => {
         expect(ObjectSerializer.stringify(d)).toBe("259200s");
       });
 
-      test('stringify: 1h is "3600s"', () => {
+      test('bhv serializationobject 159 stringify: 1h is "3600s"', () => {
         expect(ObjectSerializer.stringify(Temporal.Duration.from("PT1H"))).toBe(
           "3600s",
         );
       });
 
-      test("toQueryValue: Duration serialises to protobuf-JSON", () => {
+      test("bhv serializationobject 158 toQueryValue: Duration serialises to protobuf-JSON", () => {
         const d = Temporal.Duration.from("PT45S");
         expect(ObjectSerializer.toQueryValue(d)).toBe("45s");
       });
@@ -1724,7 +1724,7 @@ describe("ObjectSerializer", () => {
         expect(ObjectSerializer.toHeaderValue(d)).toBe("3600s");
       });
 
-      test("serialize: Duration in a plain object becomes a protobuf-JSON string", () => {
+      test("bhv serializationobject 146 serialize: Duration in a plain object becomes a protobuf-JSON string", () => {
         const json = ObjectSerializer.serialize({
           ttl: Temporal.Duration.from("PT5M"),
         });
@@ -1759,7 +1759,7 @@ describe("ObjectSerializer", () => {
       });
 
       describe("durationToProtoJson", () => {
-        test("zero", () => {
+        test("bhv serializationobject 181 zero", () => {
           expect(
             durationToProtoJson(Temporal.Duration.from({ seconds: 0 })),
           ).toBe("0s");
@@ -1789,13 +1789,13 @@ describe("ObjectSerializer", () => {
           ).toBe("1.000250s");
         });
 
-        test("negative duration carries the sign", () => {
+        test("bhv serializationobject 105 negative duration carries the sign", () => {
           expect(
             durationToProtoJson(Temporal.Duration.from({ seconds: -90 })),
           ).toBe("-90s");
         });
 
-        test("negative fractional duration", () => {
+        test("bhv serializationobject 106 negative fractional duration", () => {
           expect(
             durationToProtoJson(
               Temporal.Duration.from({ seconds: -1, milliseconds: -500 }),
@@ -1805,18 +1805,18 @@ describe("ObjectSerializer", () => {
       });
 
       describe("durationFromProtoJson", () => {
-        test("parses whole seconds", () => {
+        test("bhv serializationobject 112 parses whole seconds", () => {
           expect(
             durationFromProtoJson("3600s").total({ unit: "seconds" }),
           ).toBe(3600);
         });
 
-        test("parses fractional seconds down to the nanosecond", () => {
+        test("bhv serializationobject 054 parses fractional seconds down to the nanosecond", () => {
           const d = durationFromProtoJson("3600.000000001s");
           expect(d.total({ unit: "nanoseconds" })).toBe(3600000000001);
         });
 
-        test("parses negative durations", () => {
+        test("bhv serializationobject 113 parses negative durations", () => {
           expect(durationFromProtoJson("-90s").total({ unit: "seconds" })).toBe(
             -90,
           );
@@ -1828,7 +1828,7 @@ describe("ObjectSerializer", () => {
           );
         });
 
-        test('rejects a bare number with no "s" suffix', () => {
+        test('bhv serializationobject 002 rejects a bare number with no "s" suffix', () => {
           expect(() => durationFromProtoJson("3600")).toThrow(
             SerializationError,
           );
@@ -1841,7 +1841,7 @@ describe("ObjectSerializer", () => {
         });
       });
 
-      test("round-trip: stringify then durationFromProtoJson is lossless", () => {
+      test("bhv serializationobject 073 round-trip: stringify then durationFromProtoJson is lossless", () => {
         const original = Temporal.Duration.from("PT1H30M");
         const restored = durationFromProtoJson(
           ObjectSerializer.stringify(original),
@@ -1851,7 +1851,7 @@ describe("ObjectSerializer", () => {
         );
       });
 
-      test("round-trip: sub-second precision survives stringify -> parse", () => {
+      test("bhv serializationobject 177 round-trip: sub-second precision survives stringify -> parse", () => {
         const original = Temporal.Duration.from({
           seconds: 42,
           nanoseconds: 123456789,
@@ -1867,7 +1867,7 @@ describe("ObjectSerializer", () => {
   });
 
   describe("oneOf/anyOf no-match", () => {
-    test("resolveOneOf returns the first matching variant", () => {
+    test("bhv serializationobject 128 resolveOneOf returns the first matching variant", () => {
       const result = ObjectSerializer.resolveOneOf<string>("payload", [
         () => {
           throw new Error("variant A does not match");
@@ -1877,7 +1877,7 @@ describe("ObjectSerializer", () => {
       expect(result).toBe("matched:payload");
     });
 
-    test("resolveOneOf throws when no variant matches", () => {
+    test("bhv serializationobject 129 resolveOneOf throws when no variant matches", () => {
       // A payload matching none of the declared variants is a contract
       // violation and must fail loudly rather than be silently returned as null.
       expect(() =>
@@ -1892,7 +1892,7 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("resolveAnyOf throws when no variant matches", () => {
+    test("bhv serializationobject 127 resolveAnyOf throws when no variant matches", () => {
       expect(() =>
         ObjectSerializer.resolveAnyOf<string>("{}", [() => null]),
       ).toThrow(SerializationError);
@@ -1906,7 +1906,7 @@ describe("ObjectSerializer", () => {
     // member. ObjectSerializer.deserialize routes plainToInstance output
     // back through the model constructor, where the enum membership check
     // fires.
-    test("out-of-schema enum value raises SerializationError", () => {
+    test("bhv serializationobject 172 out-of-schema enum value raises SerializationError", () => {
       const wire = {
         id: 1,
         name: "Rex",
@@ -1948,7 +1948,7 @@ describe("ObjectSerializer", () => {
     // member-name "Number2"; a server validating `type: integer` rejects a
     // string. Deserializing the number 2 must yield the Priority.Number2
     // member (which is === 2 for a numeric TS enum).
-    test("serialize emits the int enum field as an unquoted JSON number", () => {
+    test("bhv serializationobject 093 serialize emits the int enum field as an unquoted JSON number", () => {
       const item = new StockItem({ priority: Priority.Number2 });
       const text = ObjectSerializer.serialize(item);
       expect(text).toContain('"priority":2');
@@ -1965,7 +1965,7 @@ describe("ObjectSerializer", () => {
       expect(item!.priority).toBe(2);
     });
 
-    test("round-trip: serialize then deserialize preserves the int enum member", () => {
+    test("bhv serializationobject 092 round-trip: serialize then deserialize preserves the int enum member", () => {
       const original = new StockItem({ priority: Priority.Number3 });
       const restored = ObjectSerializer.deserialize(
         JSON.parse(ObjectSerializer.serialize(original)),
@@ -1978,18 +1978,18 @@ describe("ObjectSerializer", () => {
   describe("a $ref property with a sibling default", () => {
     // StockItem.availability is a $ref to the Availability enum with a default
     // written beside it: construction and decode both start from that default.
-    test("construction starts at the default", () => {
+    test("bhv serializationobject 001 construction starts at the default", () => {
       expect(new StockItem({ priority: Priority.Number1 }).availability).toBe(
         Availability.OnHold,
       );
     });
 
-    test("decode of a payload without the key starts at the default", () => {
+    test("bhv serializationobject 050 decode of a payload without the key starts at the default", () => {
       const item = ObjectSerializer.deserialize({ priority: 1 }, StockItem);
       expect(item!.availability).toBe(Availability.OnHold);
     });
 
-    test("an explicit value wins over the default", () => {
+    test("bhv serializationobject 056 an explicit value wins over the default", () => {
       expect(
         new StockItem({
           priority: Priority.Number1,
@@ -2057,7 +2057,7 @@ describe("ObjectSerializer", () => {
       expect(hyphen!.availability).toBe(Availability.OnHold);
     });
 
-    test("deserialize rejects an unknown availability wire value", () => {
+    test("bhv serializationobject 059 deserialize rejects an unknown availability wire value", () => {
       expect(() =>
         ObjectSerializer.deserialize(
           { priority: 1, availability: "available" },
@@ -2066,7 +2066,7 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("round-trip preserves the member through serialize then deserialize", () => {
+    test("bhv serializationobject 176 round-trip preserves the member through serialize then deserialize", () => {
       const original = new StockItem({
         priority: Priority.Number2,
         availability: Availability.OnHold,
@@ -2194,7 +2194,7 @@ describe("ObjectSerializer", () => {
     // bare-union encoding keeps the two cases structurally distinct: a scalar
     // is a JSON string, the array is a JSON array, so the wire form alone
     // disambiguates and a scalar string can never decode as a list.
-    test("a scalar base64 wire value resolves to the scalar variant, not a list", () => {
+    test("bhv serializationobject 118 a scalar base64 wire value resolves to the scalar variant, not a list", () => {
       const wire = JSON.parse(
         ObjectSerializer.serialize(
           Buffer.from([0x01, 0x02, 0x03, 0x04]) as SetPetAvatarThumbnailRequest,
@@ -2227,7 +2227,7 @@ describe("ObjectSerializer", () => {
       expect(loc!.lng).toBe(-3);
     });
 
-    test("an integral double inside a nested model field deserializes", () => {
+    test("bhv serializationobject 071 an integral double inside a nested model field deserializes", () => {
       // location is a $ref to PhotoMetadataLocation nested under PhotoMetadata,
       // so the integral coordinate must survive the nested decode too.
       const meta = ObjectSerializer.deserialize(
@@ -2248,7 +2248,7 @@ describe("ObjectSerializer", () => {
       expect(loc!.lng).toBe(5);
     });
 
-    test("an overflowing double (1e400) is rejected instead of decoding to Infinity", () => {
+    test("bhv serializationobject 057 an overflowing double (1e400) is rejected instead of decoding to Infinity", () => {
       const json = ObjectSerializer.parseJson('{"lat":1e400,"lng":0}');
       expect(() =>
         ObjectSerializer.deserialize(json, PhotoMetadataLocation),
@@ -2274,7 +2274,7 @@ describe("ObjectSerializer", () => {
     // nested under an "additionalProperties"/"additional_properties" wrapper
     // key. (Node's serialize walks the instance with JSON.stringify, so extra
     // own keys land flat alongside the declared fields.)
-    test("an extra property serializes flat at the top level, not nested", () => {
+    test("bhv serializationobject 020 an extra property serializes flat at the top level, not nested", () => {
       const meta = new Metadata({
         createdAt: new Date("2024-01-01T00:00:00Z"),
       });
@@ -2309,7 +2309,7 @@ describe("ObjectSerializer", () => {
     // A non-finite number (NaN, ±Infinity) must reject on ENCODE rather than be
     // silently emitted as JSON null (RFC 8259 §6 has no such token), matching the
     // other SDKs (python allow_nan=False, go, rust, …).
-    test("serializing a non-finite number throws SerializationError", () => {
+    test("bhv serializationobject 153 serializing a non-finite number throws SerializationError", () => {
       expect(() => ObjectSerializer.serialize(NaN)).toThrow(SerializationError);
       expect(() => ObjectSerializer.serialize(Infinity)).toThrow(
         SerializationError,
@@ -2320,7 +2320,7 @@ describe("ObjectSerializer", () => {
     });
 
     // A bare JSON null body decodes to null for a model return type.
-    test("a literal null body deserializes to null", () => {
+    test("bhv serializationobject 067 a literal null body deserializes to null", () => {
       expect(
         ObjectSerializer.deserialize(
           ObjectSerializer.parseJson("null"),
@@ -2336,7 +2336,7 @@ describe("ObjectSerializer", () => {
 
     // parseJson rejects a payload past the 1000-deep nesting cap; one within it
     // parses fine.
-    test("deep JSON within the cap parses but past it is rejected", () => {
+    test("bhv serializationobject 051 deep JSON within the cap parses but past it is rejected", () => {
       const within = "[".repeat(600) + "]".repeat(600);
       expect(ObjectSerializer.parseJson(within)).toBeDefined();
       const beyond = "[".repeat(1500) + "]".repeat(1500);
@@ -2345,7 +2345,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("the nesting-depth and parse failures use the canonical messages", () => {
+    test("bhv serializationobject 004 the nesting-depth and parse failures use the canonical messages", () => {
       const beyond = "[".repeat(1001) + "]".repeat(1001);
       expect(() => ObjectSerializer.parseJson(beyond)).toThrow(
         "JSON nesting depth 1001 exceeds limit 1000",
@@ -2373,7 +2373,7 @@ describe("ObjectSerializer", () => {
 });
 
 describe("a wire key named __proto__ is data, never a prototype", () => {
-  test("deserializeMap keeps it as an own entry and does not re-prototype the map", () => {
+  test("bhv serializationobject 147 deserializeMap keeps it as an own entry and does not re-prototype the map", () => {
     const json = JSON.parse(
       '{"a":"1","__proto__":{"polluted":"yes"}}',
     ) as unknown;
@@ -2574,7 +2574,7 @@ describe("format: date", () => {
     expect(plainDate(value)).toBe(value);
   });
 
-  test("a Date is read as its UTC date", () => {
+  test("bhv serializationobject 064 a Date is read as its UTC date", () => {
     expect(plainDate(new Date(Date.UTC(2024, 11, 31, 23, 59, 59)))).toBe(
       "2024-12-31",
     );
@@ -2644,7 +2644,7 @@ describe("format: double decode", () => {
     ).toThrow(SerializationError);
   });
 
-  test("a double leaf refuses a string and a boolean", () => {
+  test("bhv serializationobject 155 a double leaf refuses a string and a boolean", () => {
     expect(() => ObjectSerializer.deserializeLeaf("1.5", "double")).toThrow(
       SerializationError,
     );
@@ -2735,7 +2735,7 @@ describe("model value-equality", () => {
     ).toBe(false);
   });
 
-  test("a model is never equal to a non-model value", () => {
+  test("bhv serializationobject 029 a model is never equal to a non-model value", () => {
     const a = new Category({ id: 1, name: "Dogs" });
     expect(a.equals(null)).toBe(false);
     expect(a.equals(undefined)).toBe(false);
@@ -2775,7 +2775,7 @@ describe("model value-equality", () => {
     expect(a.equals(c)).toBe(false);
   });
 
-  test("equality compares byte arrays by content (bare, list and map)", () => {
+  test("bhv serializationobject 075 equality compares byte arrays by content (bare, list and map)", () => {
     const vault = (
       seal: number[],
       shard: number[],
@@ -2793,7 +2793,7 @@ describe("model value-equality", () => {
     expect(base.equals(vault([1, 2, 3], [4, 5], [9]))).toBe(false);
   });
 
-  test("a list of byte arrays is not equal to a map of them", () => {
+  test("bhv serializationobject 009 a list of byte arrays is not equal to a map of them", () => {
     const asList = new BinaryVault({ shards: [Buffer.from([1])] });
     const asMap = new BinaryVault({ labels: { 0: Buffer.from([1]) } });
     expect(asList.equals(asMap)).toBe(false);
@@ -2835,7 +2835,7 @@ class MetadataHolder {
 }
 
 describe("reattachAdditionalProperties", () => {
-  test("copies the undeclared wire keys onto a model declaring additionalProperties", () => {
+  test("bhv serializationobject 058 copies the undeclared wire keys onto a model declaring additionalProperties", () => {
     const metadata = reattachAdditionalProperties(new Metadata(), {
       createdAt: "ignored",
       region: "eu",
@@ -2866,7 +2866,7 @@ describe("reattachAdditionalProperties", () => {
     expect((category as Record<string, unknown>)["region"]).toBeUndefined();
   });
 
-  test("a nested model field keeps its free-form keys through deserialize", () => {
+  test("bhv serializationobject 165 a nested model field keeps its free-form keys through deserialize", () => {
     const holder = ObjectSerializer.deserialize(
       { meta: { region: "eu" } },
       MetadataHolder,
@@ -2915,7 +2915,7 @@ describe("toBinary", () => {
     expect(ObjectSerializer.toBinary(buffer)).toBe(buffer);
   });
   describe("fixture round trips", () => {
-    test("a contentEncoding base64 property travels as base64 and decodes back to the same bytes", () => {
+    test("bhv serializationobject 115 a contentEncoding base64 property travels as base64 and decodes back to the same bytes", () => {
       const chip = Buffer.from([0x00, 0xfb, 0xff, 0x10]);
       const wire = JSON.parse(
         ObjectSerializer.serialize(
@@ -2935,7 +2935,7 @@ describe("toBinary", () => {
       ).toBe(true);
     });
 
-    test("properties named after keywords and literals keep their wire keys", () => {
+    test("bhv serializationobject 117 properties named after keywords and literals keep their wire keys", () => {
       const keys = new EdgeCases({
         and: true,
         or: false,
@@ -2973,7 +2973,7 @@ describe("toBinary", () => {
       expect(decoded.n2fa).toBe(true);
     });
 
-    test("a readOnly property is decoded and a writeOnly property is written and decoded", () => {
+    test("bhv serializationobject 014 a readOnly property is decoded and a writeOnly property is written and decoded", () => {
       const decoded = ObjectSerializer.deserialize(
         { id: 7, username: "u", password: "p" },
         Account,
@@ -2993,7 +2993,7 @@ describe("toBinary", () => {
       });
     });
 
-    test("a format: password field is masked in the string form and kept on the wire", () => {
+    test("bhv serializationobject 007 a format: password field is masked in the string form and kept on the wire", () => {
       const account = new Account({ username: "u", password: "hunter2" });
 
       expect(util.inspect(account)).not.toContain("hunter2");
@@ -3017,7 +3017,7 @@ describe("toBinary", () => {
       },
     );
 
-    test("an unknown inline enum value is rejected", () => {
+    test("bhv serializationobject 024 an unknown inline enum value is rejected", () => {
       expect(() =>
         ObjectSerializer.deserialize({ phase: "banana" }, EdgeCases),
       ).toThrow(SerializationError);
@@ -3042,7 +3042,7 @@ describe("toBinary", () => {
       },
     );
 
-    test("models named Error and Result are generated as ModelError and ModelResult and round trip", () => {
+    test("bhv serializationobject 104 models named Error and Result are generated as ModelError and ModelResult and round trip", () => {
       const wire = {
         lastError: { code: 7, message: "boom" },
         outcome: { ok: true },
@@ -3070,7 +3070,7 @@ describe("toBinary", () => {
       },
     );
 
-    test("the four separator wire values decode to four distinct members", () => {
+    test("bhv serializationobject 161 the four separator wire values decode to four distinct members", () => {
       const members = [" ", "@@", "a-b", "a_b"].map((wire) =>
         ObjectSerializer.deserializeEnum<Separator>(
           wire,
@@ -3100,7 +3100,7 @@ describe("toBinary", () => {
       ).toBe(500);
     });
 
-    test("a nickname longer than its declared maximum still decodes and round-trips", () => {
+    test("bhv serializationobject 010 a nickname longer than its declared maximum still decodes and round-trips", () => {
       const pet = ObjectSerializer.deserialize(
         { name: "x", photoUrls: [], nickname: "ZZZZZZZZZZ" },
         Pet,
@@ -3112,7 +3112,7 @@ describe("toBinary", () => {
       );
     });
 
-    test("a slug is constructed and decoded as written, whatever its pattern says", () => {
+    test("bhv serializationobject 074 a slug is constructed and decoded as written, whatever its pattern says", () => {
       expect(new EdgeCases({ slug: "12/ab" }).slug).toBe("12/ab");
       const decoded = ObjectSerializer.deserialize(
         { slug: "12/ab" },
@@ -3128,7 +3128,7 @@ describe("toBinary", () => {
       ).toBe("ab/12");
     });
 
-    test("a prefixItems location decodes as a heterogeneous array and re-encodes unchanged", () => {
+    test("bhv serializationobject 012 a prefixItems location decodes as a heterogeneous array and re-encodes unchanged", () => {
       const pet = ObjectSerializer.deserialize(
         { name: "x", photoUrls: [], location: [1.5, 2, "hq"] },
         Pet,
@@ -3144,11 +3144,11 @@ describe("toBinary", () => {
       ]);
     });
 
-    test("a duplicate object key resolves to the last value", () => {
+    test("bhv serializationobject 006 a duplicate object key resolves to the last value", () => {
       expect(ObjectSerializer.parseJson('{"id":1,"id":2}')).toEqual({ id: 2 });
     });
 
-    test("request JSON writes U+2028, U+2029 and DEL literally and escapes only quote, backslash and controls", () => {
+    test("bhv serializationobject 124 request JSON writes U+2028, U+2029 and DEL literally and escapes only quote, backslash and controls", () => {
       const text = 'a\u2028b\u2029c\u007fd\u00e9/<>&"\\\u0001';
 
       expect(ObjectSerializer.serialize({ text })).toBe(
@@ -3156,7 +3156,7 @@ describe("toBinary", () => {
       );
     });
 
-    test("a protobuf-JSON duration decodes, encodes back and keeps its sign", () => {
+    test("bhv serializationobject 013 a protobuf-JSON duration decodes, encodes back and keeps its sign", () => {
       const decoded = ObjectSerializer.deserialize(
         { retryAfter: "-90s" },
         EdgeCases,

@@ -24,42 +24,42 @@ const directOptions = {
 };
 
 describe("TransportOptions", () => {
-  test("verifySsl defaults to true", () => {
+  test("bhv options 043 verifySsl defaults to true", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.verifySsl).toBe(true);
   });
 
-  test("caCertPath defaults to null", () => {
+  test("bhv options 018 caCertPath defaults to null", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.caCertPath).toBeNull();
   });
 
-  test("proxy defaults to null", () => {
+  test("bhv options 032 proxy defaults to null", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.proxy).toBeNull();
   });
 
-  test("timeout defaults to 10000 milliseconds", () => {
+  test("bhv options 039 timeout defaults to 10000 milliseconds", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.timeout).toBe(10000);
   });
 
-  test("followRedirects defaults to true", () => {
+  test("bhv options 020 followRedirects defaults to true", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.followRedirects).toBe(true);
   });
 
-  test("maxRedirects defaults to null", () => {
+  test("bhv options 025 maxRedirects defaults to null", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.maxRedirects).toBeNull();
   });
 
-  test("maxRetries defaults to 2", () => {
+  test("bhv options 026 maxRetries defaults to 2", () => {
     expect(TransportOptions.builder().build().maxRetries).toBe(2);
     expect(new TransportOptions({ ...directOptions }).maxRetries).toBe(2);
   });
 
-  test("maxRetries is set by the builder and by the constructor, 0 disabling retries", () => {
+  test("bhv options 027 maxRetries is set by the builder and by the constructor, 0 disabling retries", () => {
     expect(TransportOptions.builder().maxRetries(5).build().maxRetries).toBe(5);
     expect(TransportOptions.builder().maxRetries(0).build().maxRetries).toBe(0);
     expect(
@@ -79,12 +79,12 @@ describe("TransportOptions", () => {
     },
   );
 
-  test("userAgent defaults to non-empty string", () => {
+  test("bhv options 041 userAgent defaults to non-empty string", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.userAgent).toBeTruthy();
   });
 
-  test("the default userAgent names the published package, its version and the language", () => {
+  test("bhv options 042 the default userAgent names the published package, its version and the language", () => {
     const pkg = JSON.parse(
       fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf-8"),
     ) as {
@@ -96,17 +96,17 @@ describe("TransportOptions", () => {
     );
   });
 
-  test("defaultHeaders defaults to empty map", () => {
+  test("bhv options 019 defaultHeaders defaults to empty map", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.defaultHeaders).toEqual({});
   });
 
-  test("injectRequestId defaults to false", () => {
+  test("bhv options 022 injectRequestId defaults to false", () => {
     const opts = TransportOptions.builder().build();
     expect(opts.injectRequestId).toBe(false);
   });
 
-  test("builder sets all fields", () => {
+  test("bhv options 017 builder sets all fields", () => {
     const opts = TransportOptions.builder()
       .verifySsl(false)
       .caCertPath("/path/to/ca.pem")
@@ -130,14 +130,14 @@ describe("TransportOptions", () => {
     expect(opts.injectRequestId).toBe(true);
   });
 
-  test("followRedirects defaults to true with null maxRedirects", () => {
+  test("bhv options 021 followRedirects defaults to true with null maxRedirects", () => {
     const opts = TransportOptions.builder().followRedirects(true).build();
 
     expect(opts.followRedirects).toBe(true);
     expect(opts.maxRedirects).toBeNull();
   });
 
-  test("rejects a non-positive timeout with the canonical message", () => {
+  test("bhv options 033 rejects a non-positive timeout with the canonical message", () => {
     expect(() => TransportOptions.builder().timeout(-1)).toThrow(
       new TypeError(
         "Invalid timeout: must be a positive number of milliseconds (got -1)",
@@ -146,7 +146,7 @@ describe("TransportOptions", () => {
     expect(() => TransportOptions.builder().timeout(0)).toThrow(TypeError);
   });
 
-  test("invalid proxy URL throws error", () => {
+  test("bhv options 024 invalid proxy URL throws error", () => {
     let caught: unknown;
     try {
       TransportOptions.builder().proxy("not-a-valid-url");
@@ -175,7 +175,7 @@ describe("TransportOptions", () => {
     );
   });
 
-  test("constructing directly with an unparseable proxy URL throws TypeError", () => {
+  test("bhv options 013 constructing directly with an unparseable proxy URL throws TypeError", () => {
     const construct = () =>
       new TransportOptions({ ...directOptions, proxy: "not-a-valid-url" });
     expect(construct).toThrow(TypeError);
@@ -230,7 +230,7 @@ describe("TransportOptions", () => {
     },
   );
 
-  test("a proxy URL with an IPv6 literal host is accepted and kept verbatim", () => {
+  test("bhv options 009 a proxy URL with an IPv6 literal host is accepted and kept verbatim", () => {
     expect(
       TransportOptions.builder().proxy("http://[::1]:3128").build().proxy,
     ).toBe("http://[::1]:3128");
@@ -240,7 +240,7 @@ describe("TransportOptions", () => {
     ).toBe("http://[::1]:3128");
   });
 
-  test("a proxy URL with an unterminated IPv6 literal is rejected", () => {
+  test("bhv options 010 a proxy URL with an unterminated IPv6 literal is rejected", () => {
     expect(() => TransportOptions.builder().proxy("http://[::1:3128")).toThrow(
       TypeError,
     );
@@ -249,7 +249,7 @@ describe("TransportOptions", () => {
     );
   });
 
-  test("an upper-case proxy scheme is accepted", () => {
+  test("bhv options 014 an upper-case proxy scheme is accepted", () => {
     expect(
       TransportOptions.builder().proxy("HTTP://proxy.example.com:8080").build()
         .proxy,
@@ -266,12 +266,12 @@ describe("TransportOptions", () => {
     ).toBeNull();
   });
 
-  test("null proxy URL is accepted", () => {
+  test("bhv options 030 null proxy URL is accepted", () => {
     const opts = TransportOptions.builder().proxy(null).build();
     expect(opts.proxy).toBeNull();
   });
 
-  test("builder methods return the same builder instance", () => {
+  test("bhv options 015 builder methods return the same builder instance", () => {
     const builder = TransportOptions.builder();
 
     expect(builder.verifySsl(true)).toBe(builder);
@@ -287,7 +287,7 @@ describe("TransportOptions", () => {
     expect(builder.injectRequestId(false)).toBe(builder);
   });
 
-  test("accumulates headers from defaultHeader calls", () => {
+  test("bhv options 012 accumulates headers from defaultHeader calls", () => {
     const opts = TransportOptions.builder()
       .defaultHeader("X-First", "one")
       .defaultHeader("X-Second", "two")
@@ -298,7 +298,7 @@ describe("TransportOptions", () => {
     expect(opts.defaultHeaders["X-Second"]).toBe("two");
   });
 
-  test("merges headers from defaultHeaders call", () => {
+  test("bhv options 028 merges headers from defaultHeaders call", () => {
     const opts = TransportOptions.builder()
       .defaultHeader("X-First", "one")
       .defaultHeaders({ "X-Second": "two", "X-Third": "three" })
@@ -310,7 +310,7 @@ describe("TransportOptions", () => {
     expect(opts.defaultHeaders["X-Third"]).toBe("three");
   });
 
-  test("modifying source map does not affect built options", () => {
+  test("bhv options 029 modifying source map does not affect built options", () => {
     const headers: Record<string, string> = { "X-Original": "original" };
 
     const opts = TransportOptions.builder().defaultHeaders(headers).build();
@@ -322,7 +322,7 @@ describe("TransportOptions", () => {
     expect(opts.defaultHeaders["X-Added"]).toBeUndefined();
   });
 
-  test("builder produces independent instances", () => {
+  test("bhv options 016 builder produces independent instances", () => {
     const builder = TransportOptions.builder().verifySsl(false);
     const first = builder.build();
     const second = builder.build();
@@ -332,23 +332,23 @@ describe("TransportOptions", () => {
   });
 
   describe("TimeoutConfigTests", () => {
-    test("timeout defaults to 10 seconds (10000 ms)", () => {
+    test("bhv options 038 timeout defaults to 10 seconds (10000 ms)", () => {
       // Default TransportOptions sets a 10-second timeout for cross-language parity.
       const opts = TransportOptions.builder().build();
       expect(opts.timeout).toBe(10000);
     });
 
-    test("timeout default may be overridden to null for no timeout", () => {
+    test("bhv options 037 timeout default may be overridden to null for no timeout", () => {
       const opts = TransportOptions.builder().timeout(null).build();
       expect(opts.timeout).toBeNull();
     });
 
-    test("setting timeout to 5000 is accessible", () => {
+    test("bhv options 036 setting timeout to 5000 is accessible", () => {
       const opts = TransportOptions.builder().timeout(5000).build();
       expect(opts.timeout).toBe(5000);
     });
 
-    test("timeout field is named exactly timeout", () => {
+    test("bhv options 040 timeout field is named exactly timeout", () => {
       // Verify via the property that the field is named 'timeout'
       // (not e.g. 'connectionTimeout' or 'timeoutIntervalForRequest').
       const opts = TransportOptions.builder().timeout(1000).build();
@@ -357,14 +357,14 @@ describe("TransportOptions", () => {
     });
   });
 
-  test("setting proxy URL is preserved on read-back", () => {
+  test("bhv options 035 setting proxy URL is preserved on read-back", () => {
     const opts = TransportOptions.builder()
       .proxy("http://proxy.example.com:8080")
       .build();
     expect(opts.proxy).toBe("http://proxy.example.com:8080");
   });
 
-  test("setting proxy is supported on all platforms", () => {
+  test("bhv options 034 setting proxy is supported on all platforms", () => {
     // Proxy configuration must not throw on any Node.js platform.
     expect(() => {
       TransportOptions.builder().proxy("http://proxy.example.com:8080").build();

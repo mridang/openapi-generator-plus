@@ -15,21 +15,21 @@ describe("HeaderSelector", () => {
   });
 
   describe("isJsonMime", () => {
-    test("returns true for application/json", () => {
+    test("bhv headers 019 returns true for application/json", () => {
       expect(headerSelector.isJsonMime("application/json")).toBe(true);
     });
 
-    test("returns true for application/json with charset", () => {
+    test("bhv headers 020 returns true for application/json with charset", () => {
       expect(headerSelector.isJsonMime("application/json; charset=UTF-8")).toBe(
         true,
       );
     });
 
-    test("returns true for APPLICATION/JSON (case insensitive)", () => {
+    test("bhv headers 021 returns true for APPLICATION/JSON (case insensitive)", () => {
       expect(headerSelector.isJsonMime("APPLICATION/JSON")).toBe(true);
     });
 
-    test("returns true for vendor JSON types", () => {
+    test("bhv headers 022 returns true for vendor JSON types", () => {
       expect(headerSelector.isJsonMime("application/vnd.api+json")).toBe(true);
       expect(headerSelector.isJsonMime("application/vnd.company+json")).toBe(
         true,
@@ -37,23 +37,23 @@ describe("HeaderSelector", () => {
       expect(headerSelector.isJsonMime("application/hal+json")).toBe(true);
     });
 
-    test("returns false for text/html", () => {
+    test("bhv headers 016 returns false for text/html", () => {
       expect(headerSelector.isJsonMime("text/html")).toBe(false);
     });
 
-    test("returns false for application/xml", () => {
+    test("bhv headers 013 returns false for application/xml", () => {
       expect(headerSelector.isJsonMime("application/xml")).toBe(false);
     });
 
-    test("returns false for application/octet-stream", () => {
+    test("bhv headers 012 returns false for application/octet-stream", () => {
       expect(headerSelector.isJsonMime("application/octet-stream")).toBe(false);
     });
 
-    test("returns false for null", () => {
+    test("bhv headers 015 returns false for null", () => {
       expect(headerSelector.isJsonMime(null)).toBe(false);
     });
 
-    test("returns false for empty string", () => {
+    test("bhv headers 014 returns false for empty string", () => {
       expect(headerSelector.isJsonMime("")).toBe(false);
     });
   });
@@ -70,7 +70,7 @@ describe("HeaderSelector", () => {
   });
 
   describe("selectHeaders", () => {
-    test("sets Accept header when accepts provided", () => {
+    test("bhv headers 024 sets Accept header when accepts provided", () => {
       const headers = headerSelector.selectHeaders(
         ["application/json"],
         "application/json",
@@ -79,7 +79,25 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("application/json");
     });
 
-    test("does not set Accept header when accepts empty", () => {
+    test("bhv headers 005 does not set Accept header for null accepts", () => {
+      const headers = headerSelector.selectHeaders(
+        null as unknown as string[],
+        "application/json",
+        false,
+      );
+      expect(headers["Accept"]).toBeUndefined();
+    });
+
+    test("bhv headers 009 filters out empty and blank entries", () => {
+      const headers = headerSelector.selectHeaders(
+        ["", "   ", "application/json"],
+        "application/json",
+        false,
+      );
+      expect(headers["Accept"]).toBe("application/json");
+    });
+
+    test("bhv headers 004 does not set Accept header when accepts empty", () => {
       const headers = headerSelector.selectHeaders(
         [],
         "application/json",
@@ -88,7 +106,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBeUndefined();
     });
 
-    test("sets Content-Type header when not multipart", () => {
+    test("bhv headers 025 sets Content-Type header when not multipart", () => {
       const headers = headerSelector.selectHeaders(
         ["application/json"],
         "application/json",
@@ -97,7 +115,7 @@ describe("HeaderSelector", () => {
       expect(headers["Content-Type"]).toBe("application/json");
     });
 
-    test("does not set Content-Type header when multipart", () => {
+    test("bhv headers 007 does not set Content-Type header when multipart", () => {
       const headers = headerSelector.selectHeaders(
         ["application/json"],
         "application/json",
@@ -106,7 +124,7 @@ describe("HeaderSelector", () => {
       expect(headers["Content-Type"]).toBeUndefined();
     });
 
-    test("defaults Content-Type to application/json when empty", () => {
+    test("bhv headers 001 defaults Content-Type to application/json when empty", () => {
       const headers = headerSelector.selectHeaders(
         ["application/json"],
         "",
@@ -115,7 +133,7 @@ describe("HeaderSelector", () => {
       expect(headers["Content-Type"]).toBe("application/json");
     });
 
-    test("defaults Content-Type to application/json when null", () => {
+    test("bhv headers 002 defaults Content-Type to application/json when null", () => {
       const headers = headerSelector.selectHeaders(
         ["application/json"],
         null,
@@ -124,7 +142,7 @@ describe("HeaderSelector", () => {
       expect(headers["Content-Type"]).toBe("application/json");
     });
 
-    test("returns single accept as-is", () => {
+    test("bhv headers 017 returns single accept as-is", () => {
       const headers = headerSelector.selectHeaders(
         ["application/json"],
         "application/json",
@@ -133,7 +151,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("application/json");
     });
 
-    test("returns single non-JSON accept as-is", () => {
+    test("bhv headers 018 returns single non-JSON accept as-is", () => {
       const headers = headerSelector.selectHeaders(
         ["text/html"],
         "application/json",
@@ -142,7 +160,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("text/html");
     });
 
-    test('joins media types in declaration order with ", "', () => {
+    test('bhv headers 011 joins media types in declaration order with ", "', () => {
       const headers = headerSelector.selectHeaders(
         ["image/jpeg", "image/png", "application/json"],
         "application/json",
@@ -160,7 +178,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("application/json");
     });
 
-    test("does not reorder or special-case JSON", () => {
+    test("bhv headers 003 does not reorder or special-case JSON", () => {
       const headers = headerSelector.selectHeaders(
         ["text/html", "application/json"],
         "application/json",
@@ -169,7 +187,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("text/html, application/json");
     });
 
-    test("joins media types with no JSON types in declaration order", () => {
+    test("bhv headers 026 joins media types with no JSON types in declaration order", () => {
       const headers = headerSelector.selectHeaders(
         ["text/html", "text/plain"],
         "application/json",
@@ -178,7 +196,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("text/html, text/plain");
     });
 
-    test("filters out empty entries before joining", () => {
+    test("bhv headers 010 filters out empty entries before joining", () => {
       const headers = headerSelector.selectHeaders(
         ["", "application/json"],
         "application/json",
@@ -187,7 +205,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("application/json");
     });
 
-    test("drops whitespace-only entries before joining", () => {
+    test("bhv headers 008 drops whitespace-only entries before joining", () => {
       const headers = headerSelector.selectHeaders(
         ["   ", "application/json"],
         "application/json",
@@ -196,7 +214,7 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("application/json");
     });
 
-    test("does not set Accept header when all entries are blank", () => {
+    test("bhv headers 006 does not set Accept header when all entries are blank", () => {
       const headers = headerSelector.selectHeaders(
         ["", "   "],
         "application/json",

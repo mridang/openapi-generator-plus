@@ -9,7 +9,7 @@ import * as util from "node:util";
 import { BasicAuthenticator } from "../src/auth/basic-authenticator.js";
 
 describe("BasicAuthenticator", () => {
-  it("valid credentials produce basic header", () => {
+  it("bhv authbasic 011 valid credentials produce basic header", () => {
     const auth = new BasicAuthenticator(
       "https://api.example.com",
       "alice",
@@ -19,7 +19,7 @@ describe("BasicAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Basic YWxpY2U6czNjcmV0");
   });
 
-  it("non-ASCII credentials are sent as UTF-8", () => {
+  it("bhv authbasic 004 non-ASCII credentials are sent as UTF-8", () => {
     const auth = new BasicAuthenticator(
       "https://api.example.com",
       "ünïcødé",
@@ -42,7 +42,7 @@ describe("BasicAuthenticator", () => {
     );
   });
 
-  it("rejects username with crlf at construction", () => {
+  it("bhv authbasic 009 rejects username with crlf at construction", () => {
     expect(
       () =>
         new BasicAuthenticator(
@@ -53,21 +53,21 @@ describe("BasicAuthenticator", () => {
     ).toThrow(TypeError);
   });
 
-  it("rejects password with nul at construction", () => {
+  it("bhv authbasic 007 rejects password with nul at construction", () => {
     expect(
       () =>
         new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"),
     ).toThrow(TypeError);
   });
 
-  it("rejects username with colon at construction", () => {
+  it("bhv authbasic 008 rejects username with colon at construction", () => {
     expect(
       () =>
         new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"),
     ).toThrow(TypeError);
   });
 
-  it("redacts secret", () => {
+  it("bhv authbasic 006 redacts secret", () => {
     // authenticator-secret-in-default-string-repr: the default inspect/JSON
     // representation must never expose the stored password.
     const auth = new BasicAuthenticator(
@@ -80,7 +80,7 @@ describe("BasicAuthenticator", () => {
     expect(util.inspect(auth)).toContain("***");
   });
 
-  it("the redacted representation shows exactly the host and username", () => {
+  it("bhv authbasic 010 the redacted representation shows exactly the host and username", () => {
     const auth = new BasicAuthenticator(
       "https://api.example.com",
       "alice",
@@ -125,7 +125,7 @@ describe("BasicAuthenticator", () => {
       restore(secretVariable, savedSecret);
     });
 
-    it("reads both values from the environment when none is passed", () => {
+    it("bhv authbasic 001 reads both values from the environment when none is passed", () => {
       process.env[userVariable] = "alice";
       process.env[secretVariable] = ["pw", "value"].join("-");
       const auth = new BasicAuthenticator(
@@ -153,7 +153,7 @@ describe("BasicAuthenticator", () => {
       });
     });
 
-    it("fails when it is built and a value is missing", () => {
+    it("bhv authbasic 003 fails when it is built and a value is missing", () => {
       delete process.env[userVariable];
       process.env[secretVariable] = "x";
       expect(

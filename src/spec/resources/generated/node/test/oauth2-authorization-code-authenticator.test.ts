@@ -83,14 +83,14 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(util.inspect(authenticator)).toContain("***");
   });
 
-  it("redacts secret", () => {
+  it("bhv authoauthtwoauthcode 019 redacts secret", () => {
     expect(util.inspect(authenticator)).not.toContain("my-client-secret");
     expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
     expect(util.inspect(authenticator)).toContain("***");
     expect(JSON.stringify(authenticator)).toContain("***");
   });
 
-  test("builds authorization URL with required params", () => {
+  test("bhv authoauthtwoauthcode 006 builds authorization URL with required params", () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain("https://auth.example.com/authorize?");
     expect(url).toContain("client_id=my-client-id");
@@ -102,7 +102,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(url).toContain("response_type=code");
   });
 
-  test("builds authorization URL with state", () => {
+  test("bhv authoauthtwoauthcode 007 builds authorization URL with state", () => {
     const url = authenticator.buildAuthorizationUrl("csrf-state-123");
     expect(url).toContain("state=csrf-state-123");
   });
@@ -116,7 +116,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
       expires_in: 3600,
     });
 
-    test("the authorization URL carries an S256 challenge and no nonce", () => {
+    test("bhv authoauthtwoauthcode 023 the authorization URL carries an S256 challenge and no nonce", () => {
       const query = new URL(authenticator.buildAuthorizationUrl("csrf"))
         .searchParams;
 
@@ -125,7 +125,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
       expect(query.has("nonce")).toBe(false);
     });
 
-    test("the code exchange sends the 43-character verifier the challenge was made from", async () => {
+    test("bhv authoauthtwoauthcode 008 the code exchange sends the 43-character verifier the challenge was made from", async () => {
       mockClient.responseBody = tokenBody;
       const challenge = new URL(
         authenticator.buildAuthorizationUrl(),
@@ -140,7 +140,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
       expect(s256(verifier!)).toBe(challenge);
     });
 
-    test("every authorization URL starts a new verifier", async () => {
+    test("bhv authoauthtwoauthcode 009 every authorization URL starts a new verifier", async () => {
       mockClient.responseBody = tokenBody;
       const first = new URL(
         authenticator.buildAuthorizationUrl(),
@@ -158,7 +158,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
       expect(s256(verifier!)).toBe(second);
     });
 
-    test("a used verifier is not sent again", async () => {
+    test("bhv authoauthtwoauthcode 001 a used verifier is not sent again", async () => {
       mockClient.responseBody = tokenBody;
       authenticator.buildAuthorizationUrl();
       await authenticator.exchangeCode("first-code");
@@ -171,7 +171,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     });
   });
 
-  test("exchanges code with correct grant type", async () => {
+  test("bhv authoauthtwoauthcode 012 exchanges code with correct grant type", async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "access-token-123",
       refresh_token: "refresh-token-456",
@@ -190,7 +190,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(params.get("client_secret")).toBe("my-client-secret");
   });
 
-  test("includes refresh token on refresh", async () => {
+  test("bhv authoauthtwoauthcode 015 includes refresh token on refresh", async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "access-token-123",
       refresh_token: "refresh-token-456",
@@ -218,7 +218,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer access-token-789");
   });
 
-  test("throws before exchange code called", async () => {
+  test("bhv authoauthtwoauthcode 027 throws before exchange code called", async () => {
     // Requesting a token before the code exchange is a wrong call order: the
     // invalid-state built-in Error, not an SDK error.
     const error = await authenticator
@@ -228,7 +228,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(error).not.toBeInstanceOf(OpenAPIError);
   });
 
-  test("exchangeCode rejects empty code", async () => {
+  test("bhv authoauthtwoauthcode 010 exchangeCode rejects empty code", async () => {
     // oauth-exchangecode-no-empty-code-guard: an empty code can only fail
     // at the token endpoint, so reject it up front.
     await expect(authenticator.exchangeCode("")).rejects.toThrow(
@@ -238,7 +238,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(mockClient.lastMethod).toBe("");
   });
 
-  test("exchangeCode rejects whitespace-only code", async () => {
+  test("bhv authoauthtwoauthcode 011 exchangeCode rejects whitespace-only code", async () => {
     // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
     // distinct from the empty-string case and must also be rejected before
     // any token POST is issued (code.trim().length === 0 guard).
@@ -249,11 +249,11 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(mockClient.lastMethod).toBe("");
   });
 
-  test("getHost returns configured host", () => {
+  test("bhv authoauthtwoauthcode 014 getHost returns configured host", () => {
     expect(authenticator.getHost()).toBe("https://api.example.com");
   });
 
-  test("auth_headers_before_exchange_returns_recoverable_error", async () => {
+  test("bhv authoauthtwoauthcode 003 auth_headers_before_exchange_returns_recoverable_error", async () => {
     // Fresh authenticator without exchangeCode -- the test must demonstrate
     // the precondition violation surfaces as a catchable rejection so
     // callers can recover, not as a process crash.
@@ -279,7 +279,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(fresh.getHost()).toBe("https://api.example.com");
   });
 
-  test("the authorize URL keeps the tilde literal and percent-encodes * ! ' ( )", () => {
+  test("bhv authoauthtwoauthcode 004 the authorize URL keeps the tilde literal and percent-encodes * ! ' ( )", () => {
     const auth = new OAuth2AuthorizationCodeAuthenticator(
       "https://api.example.com",
       "a~b*c!d'e(f)",
@@ -295,7 +295,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     );
   });
 
-  test("sends the code exchange to the token URL and the refresh grant to the refresh URL", async () => {
+  test("bhv authoauthtwoauthcode 024 sends the code exchange to the token URL and the refresh grant to the refresh URL", async () => {
     const refreshing = new OAuth2AuthorizationCodeAuthenticator(
       "https://api.example.com",
       "my-client-id",
@@ -329,7 +329,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     ]);
   });
 
-  test("the refresh grant carries the client credentials", async () => {
+  test("bhv authoauthtwoauthcode 026 the refresh grant carries the client credentials", async () => {
     mockClient.queued = [
       {
         status: 200,
@@ -355,7 +355,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     });
   });
 
-  test("a rejected refresh surfaces OAuth2ServerError after exactly one refresh request", async () => {
+  test("bhv authoauthtwoauthcode 002 a rejected refresh surfaces OAuth2ServerError after exactly one refresh request", async () => {
     mockClient.queued = [
       {
         status: 200,
@@ -382,7 +382,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(mockClient.calls).toHaveLength(2);
   });
 
-  test("a second exchangeCode sends the new code and replaces the session", async () => {
+  test("bhv authoauthtwoauthcode 021 a second exchangeCode sends the new code and replaces the session", async () => {
     mockClient.queued = [
       {
         status: 200,
@@ -406,7 +406,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer tok2");
   });
 
-  test("a second exchange without refresh_token drops the old refresh token", async () => {
+  test("bhv authoauthtwoauthcode 022 a second exchange without refresh_token drops the old refresh token", async () => {
     mockClient.queued = [
       {
         status: 200,
@@ -429,7 +429,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(mockClient.calls[2]!.params.get("refresh_token")).toBe("");
   });
 
-  test("a failed exchange keeps the previous session", async () => {
+  test("bhv authoauthtwoauthcode 013 a failed exchange keeps the previous session", async () => {
     mockClient.queued = [
       {
         status: 200,
@@ -449,7 +449,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(mockClient.calls).toHaveLength(2);
   });
 
-  test("authorize URL with existing query string uses amp separator", () => {
+  test("bhv authoauthtwoauthcode 005 authorize URL with existing query string uses amp separator", () => {
     const auth = new OAuth2AuthorizationCodeAuthenticator(
       "https://api.example.com",
       "my-client-id",
@@ -467,7 +467,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect((url.match(/\?/g) ?? []).length).toBe(1);
   });
 
-  test("invalidateAccessToken drops the access token but keeps the refresh token", async () => {
+  test("bhv authoauthtwoauthcode 016 invalidateAccessToken drops the access token but keeps the refresh token", async () => {
     mockClient.queued = [
       {
         status: 200,
@@ -488,7 +488,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(mockClient.calls[1]!.params.get("refresh_token")).toBe("ref1");
   });
 
-  test("the redacted representation shows exactly the agreed non-secret fields", () => {
+  test("bhv authoauthtwoauthcode 025 the redacted representation shows exactly the agreed non-secret fields", () => {
     expect(util.inspect(authenticator)).toBe(
       "OAuth2AuthorizationCodeAuthenticator(host=https://api.example.com, clientId=my-client-id, clientSecret=***)",
     );
