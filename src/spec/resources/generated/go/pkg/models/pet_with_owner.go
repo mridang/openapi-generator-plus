@@ -24,13 +24,23 @@ const (
 	PetWithOwnerStatusEnumSold      PetWithOwnerStatusEnum = "sold"
 )
 
-// allPetWithOwnerStatusEnumValues returns all allowed values.
-func allPetWithOwnerStatusEnumValues() []PetWithOwnerStatusEnum {
+// AllPetWithOwnerStatusEnumValues returns all allowed values.
+func AllPetWithOwnerStatusEnumValues() []PetWithOwnerStatusEnum {
 	return []PetWithOwnerStatusEnum{
 		PetWithOwnerStatusEnumAvailable,
 		PetWithOwnerStatusEnumPending,
 		PetWithOwnerStatusEnumSold,
 	}
+}
+
+// IsValid reports whether the value is one of the allowed values.
+func (v PetWithOwnerStatusEnum) IsValid() bool {
+	for _, allowed := range AllPetWithOwnerStatusEnumValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
 }
 
 // String returns the declared wire value of the enum, so the shared stringify
@@ -47,7 +57,7 @@ func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := PetWithOwnerStatusEnum(raw)
-	for _, allowed := range allPetWithOwnerStatusEnumValues() {
+	for _, allowed := range AllPetWithOwnerStatusEnumValues() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -59,7 +69,7 @@ func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v PetWithOwnerStatusEnum) MarshalJSON() ([]byte, error) {
-	for _, allowed := range allPetWithOwnerStatusEnumValues() {
+	for _, allowed := range AllPetWithOwnerStatusEnumValues() {
 		if allowed == v {
 			return marshalJSON(string(v))
 		}
@@ -111,6 +121,156 @@ func (o PetWithOwner) Equal(other PetWithOwner) bool {
 		return false
 	}
 	return string(a) == string(b)
+}
+
+// WithId returns a copy of the model with Id replaced; the receiver is unchanged.
+func (o PetWithOwner) WithId(value int64) PetWithOwner {
+	o.Id = &value
+	return o
+}
+
+// WithoutId returns a copy of the model with Id left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutId() PetWithOwner {
+	o.Id = nil
+	return o
+}
+
+// WithName returns a copy of the model with Name replaced; the receiver is unchanged.
+func (o PetWithOwner) WithName(value string) PetWithOwner {
+	o.Name = value
+	return o
+}
+
+// WithCategory returns a copy of the model with Category replaced; the receiver is unchanged.
+func (o PetWithOwner) WithCategory(value Category) PetWithOwner {
+	o.Category = &value
+	return o
+}
+
+// WithoutCategory returns a copy of the model with Category left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutCategory() PetWithOwner {
+	o.Category = nil
+	return o
+}
+
+// WithPhotoUrls returns a copy of the model with PhotoUrls replaced; the receiver is unchanged.
+func (o PetWithOwner) WithPhotoUrls(value Set[string]) PetWithOwner {
+	o.PhotoUrls = value
+	return o
+}
+
+// WithTags returns a copy of the model with Tags replaced; the receiver is unchanged.
+func (o PetWithOwner) WithTags(value []Tag) PetWithOwner {
+	o.Tags = &value
+	return o
+}
+
+// WithoutTags returns a copy of the model with Tags left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutTags() PetWithOwner {
+	o.Tags = nil
+	return o
+}
+
+// WithStatus returns a copy of the model with Status replaced; the receiver is unchanged.
+func (o PetWithOwner) WithStatus(value PetWithOwnerStatusEnum) PetWithOwner {
+	o.Status = &value
+	return o
+}
+
+// WithoutStatus returns a copy of the model with Status left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutStatus() PetWithOwner {
+	o.Status = nil
+	return o
+}
+
+// WithLocation returns a copy of the model with Location replaced; the receiver is unchanged.
+func (o PetWithOwner) WithLocation(value []any) PetWithOwner {
+	o.Location = &value
+	return o
+}
+
+// WithoutLocation returns a copy of the model with Location left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutLocation() PetWithOwner {
+	o.Location = nil
+	return o
+}
+
+// WithHomepageUrl returns a copy of the model with HomepageUrl replaced; the receiver is unchanged.
+func (o PetWithOwner) WithHomepageUrl(value string) PetWithOwner {
+	o.HomepageUrl = &value
+	return o
+}
+
+// WithoutHomepageUrl returns a copy of the model with HomepageUrl left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutHomepageUrl() PetWithOwner {
+	o.HomepageUrl = nil
+	return o
+}
+
+// WithThumbnailRef returns a copy of the model with ThumbnailRef replaced; the receiver is unchanged.
+func (o PetWithOwner) WithThumbnailRef(value string) PetWithOwner {
+	o.ThumbnailRef = &value
+	return o
+}
+
+// WithoutThumbnailRef returns a copy of the model with ThumbnailRef left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutThumbnailRef() PetWithOwner {
+	o.ThumbnailRef = nil
+	return o
+}
+
+// WithLinkTemplate returns a copy of the model with LinkTemplate replaced; the receiver is unchanged.
+func (o PetWithOwner) WithLinkTemplate(value string) PetWithOwner {
+	o.LinkTemplate = &value
+	return o
+}
+
+// WithoutLinkTemplate returns a copy of the model with LinkTemplate left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutLinkTemplate() PetWithOwner {
+	o.LinkTemplate = nil
+	return o
+}
+
+// WithOwnerEmail returns a copy of the model with OwnerEmail replaced; the receiver is unchanged.
+func (o PetWithOwner) WithOwnerEmail(value string) PetWithOwner {
+	o.OwnerEmail = &value
+	return o
+}
+
+// WithoutOwnerEmail returns a copy of the model with OwnerEmail left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutOwnerEmail() PetWithOwner {
+	o.OwnerEmail = nil
+	return o
+}
+
+// WithWeightKg returns a copy of the model with WeightKg replaced; the receiver is unchanged.
+func (o PetWithOwner) WithWeightKg(value float64) PetWithOwner {
+	o.WeightKg = &value
+	return o
+}
+
+// WithoutWeightKg returns a copy of the model with WeightKg left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutWeightKg() PetWithOwner {
+	o.WeightKg = nil
+	return o
+}
+
+// WithNickname returns a copy of the model with Nickname replaced; the receiver is unchanged.
+func (o PetWithOwner) WithNickname(value string) PetWithOwner {
+	o.Nickname = &value
+	return o
+}
+
+// WithoutNickname returns a copy of the model with Nickname left unset; the receiver is unchanged.
+func (o PetWithOwner) WithoutNickname() PetWithOwner {
+	o.Nickname = nil
+	return o
+}
+
+// WithOwnerName returns a copy of the model with OwnerName replaced; the receiver is unchanged.
+func (o PetWithOwner) WithOwnerName(value string) PetWithOwner {
+	o.OwnerName = value
+	return o
 }
 
 // NewPetWithOwner creates a new PetWithOwner instance.

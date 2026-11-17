@@ -758,7 +758,7 @@ func TestBaseApi_QueryParamSerialization(t *testing.T) {
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil)
-	status := "available"
+	status := options.FindPetsByStatusStatusAvailable
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if !strings.Contains(client.capturedURL, "status=available") {
 		t.Errorf("expected URL to contain status=available, got %q", client.capturedURL)
@@ -840,7 +840,7 @@ func TestBaseApi_AllowEmptyValueIncludesParamInQueryString(t *testing.T) {
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil)
-	emptyStr := ""
+	emptyStr := options.FindPetsByStatusStatus("")
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &emptyStr})
 	if !strings.Contains(client.capturedURL, "status=") {
 		t.Errorf("expected URL to contain status= for empty string allowEmptyValue param, got %q", client.capturedURL)
@@ -1102,7 +1102,7 @@ func TestBaseApi_SerializesBooleanQueryParams(t *testing.T) {
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil)
-	status := "true"
+	status := options.FindPetsByStatusStatus("true")
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if !strings.Contains(client.capturedURL, "status=true") {
 		t.Errorf("expected URL to contain status=true, got %q", client.capturedURL)
@@ -1245,8 +1245,8 @@ func TestBinaryResponse_OctetStreamDecodedFromBase64(t *testing.T) {
 	if got == nil {
 		t.Fatal("expected non-nil []byte result")
 	}
-	if !bytes.Equal(*got, original) {
-		t.Fatalf("binary roundtrip mismatch: got %v, want %v", *got, original)
+	if !bytes.Equal(got, original) {
+		t.Fatalf("binary roundtrip mismatch: got %v, want %v", got, original)
 	}
 }
 
@@ -1296,8 +1296,8 @@ func TestBinaryResponse_ImagePngDecodedFromBase64(t *testing.T) {
 	if got == nil {
 		t.Fatal("expected non-nil []byte result for image/png")
 	}
-	if !bytes.Equal(*got, original) {
-		t.Fatalf("image/png binary roundtrip mismatch: got %v, want %v", *got, original)
+	if !bytes.Equal(got, original) {
+		t.Fatalf("image/png binary roundtrip mismatch: got %v, want %v", got, original)
 	}
 }
 
@@ -1320,8 +1320,8 @@ func TestBinaryResponse_JsonWrappedByteDecodedToRawBytes(t *testing.T) {
 	if got == nil {
 		t.Fatal("expected non-nil []byte result for JSON-wrapped base64")
 	}
-	if !bytes.Equal(*got, []byte("test-image")) {
-		t.Fatalf("JSON-wrapped byte mismatch: got %q, want %q", *got, "test-image")
+	if !bytes.Equal(got, []byte("test-image")) {
+		t.Fatalf("JSON-wrapped byte mismatch: got %q, want %q", got, "test-image")
 	}
 }
 
@@ -1831,7 +1831,7 @@ func TestBaseApi_QueryFormAndMultipartPartsKeepTheSpecDeclarationOrder(t *testin
 	}
 	defer func() { _ = file.Close() }()
 	_, _ = file.WriteString("data")
-	docType, notes := "passport", "n"
+	docType, notes := options.UploadPetDocumentDocumentType("passport"), "n"
 	_, _ = api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{
 		File: file, DocumentType: &docType, Notes: &notes,
 	})
@@ -2247,5 +2247,308 @@ func TestBaseApi_RetriesANetworkErrorThatHappenedBeforeAResponse(t *testing.T) {
 	}
 	if got := hits.Load(); got != 2 {
 		t.Errorf("expected 2 requests, got %d", got)
+	}
+}
+
+// ── Request context on errors ──
+
+// failingApiClient answers every request with a fixed status or transport error.
+type failingApiClient struct {
+	status int
+	body   string
+	err    error
+}
+
+func (c *failingApiClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *failingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.ApiHttpResponse, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	return &petstore.ApiHttpResponse{StatusCode: c.status, Body: c.body, Headers: map[string]string{"content-type": "application/json"}}, nil
+}
+
+func (c *failingApiClient) Close() error { return nil }
+
+func TestBaseApi_StatusErrorCarriesTheRequestMethodAndPathWithoutTheQuery(t *testing.T) {
+	t.Parallel()
+	client := &failingApiClient{status: 404, body: `{"message":"gone"}`}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	bornAfter := "2020-01-01"
+	_, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{BornAfter: &bornAfter})
+
+	var notFound *apierrors.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected *NotFoundError, got %T: %v", err, err)
+	}
+	if notFound.RequestMethod() != "GET" || notFound.RequestPath() != "/pet/findByStatus" {
+		t.Errorf("expected GET /pet/findByStatus, got %s %s", notFound.RequestMethod(), notFound.RequestPath())
+	}
+	if want := "\nRequest: GET /pet/findByStatus\nHTTP status code: 404"; !strings.Contains(err.Error(), want) {
+		t.Errorf("expected the message to contain %q, got %q", want, err.Error())
+	}
+	if strings.Contains(err.Error(), "bornAfter") {
+		t.Errorf("expected the query string to stay out of the message, got %q", err.Error())
+	}
+}
+
+func TestBaseApi_StatusErrorNamesTheSubstitutedPath(t *testing.T) {
+	t.Parallel()
+	client := &failingApiClient{status: 500}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	_, err := api.GetPetById(context.Background(), int64(7), nil)
+
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected an *ApiError, got %T: %v", err, err)
+	}
+	if apiErr.RequestMethod() != "GET" || apiErr.RequestPath() != "/pet/7" {
+		t.Errorf("expected GET /pet/7, got %s %s", apiErr.RequestMethod(), apiErr.RequestPath())
+	}
+}
+
+func TestBaseApi_NetworkErrorCarriesTheRequestMethodAndPath(t *testing.T) {
+	t.Parallel()
+	client := &failingApiClient{err: apierrors.NewNetworkError("connection refused", nil)}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	_, err := api.GetPetById(context.Background(), int64(7), nil)
+
+	var network *apierrors.NetworkError
+	if !errors.As(err, &network) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	if network.RequestMethod() != "GET" || network.RequestPath() != "/pet/7" {
+		t.Errorf("expected GET /pet/7, got %s %s", network.RequestMethod(), network.RequestPath())
+	}
+	if !strings.Contains(err.Error(), "\nRequest: GET /pet/7") {
+		t.Errorf("expected the message to name the request, got %q", err.Error())
+	}
+}
+
+// ── Authentication that makes requests gets the call context ──
+
+type contextAuth struct{ seen context.Context }
+
+func (a *contextAuth) Host() string                    { return "" }
+func (a *contextAuth) AuthHeaders() map[string]string  { return nil }
+func (a *contextAuth) QueryParams() map[string]string  { return nil }
+func (a *contextAuth) CookieParams() map[string]string { return nil }
+
+func (a *contextAuth) AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error) {
+	a.seen = ctx
+	return map[string]string{"Authorization": "Bearer from-context"}, nil
+}
+
+func TestBaseApi_AnAuthenticatorThatNeedsRequestsReceivesTheCallContext(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	authenticator := &contextAuth{}
+	api := petstore.NewPetApi(client, config, authenticator)
+
+	ctx := context.WithValue(context.Background(), ctxKey{}, "marker")
+	_, _ = api.GetPetById(ctx, int64(1), nil)
+
+	if authenticator.seen == nil || authenticator.seen.Value(ctxKey{}) != "marker" {
+		t.Fatal("expected the authenticator to be asked with the caller's context")
+	}
+	if client.capturedHeaders["Authorization"] != "Bearer from-context" {
+		t.Errorf("expected the headers the authenticator returned, got %v", client.capturedHeaders)
+	}
+}
+
+func TestBaseApi_CancellingTheCallAbortsTheTokenRequest(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer tokenServer.Close()
+	defer close(release)
+	authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator("http://localhost", "id", "secret", tokenServer.URL, nil)
+	client := petstore.NewClient(authenticator, noRetryTransport(t))
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	_, err := client.Pet.GetPetById(ctx, int64(1), nil)
+
+	if err == nil {
+		t.Fatal("expected the call to fail")
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Errorf("expected the cancelled call to return promptly, took %v", elapsed)
+	}
+}
+
+// ── Per-call options ──
+
+func TestBaseApi_PerCallHeadersReachTheTransportAndReplaceADefaultOfTheSameName(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").DefaultHeader("X-Default", "client").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	_, _ = api.GetPetById(context.Background(), int64(1), nil, petstore.WithHeaders(map[string]string{"x-default": "call", "X-Call": "1"}))
+
+	if client.capturedHeaders["x-default"] != "call" || client.capturedHeaders["X-Call"] != "1" {
+		t.Errorf("expected the per-call headers, got %v", client.capturedHeaders)
+	}
+	if _, kept := client.capturedHeaders["X-Default"]; kept {
+		t.Errorf("expected the default header to be replaced, got %v", client.capturedHeaders)
+	}
+}
+
+func TestBaseApi_PerCallTimeoutIsHandedToTheTransportAndBoundsTheContext(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	_, _ = api.GetPetById(context.Background(), int64(1), nil, petstore.WithTimeout(1500*time.Millisecond))
+
+	if client.capturedOpts == nil || client.capturedOpts.Timeout == nil || *client.capturedOpts.Timeout != 1500*time.Millisecond {
+		t.Fatalf("expected the 1.5 s timeout on the request options, got %+v", client.capturedOpts)
+	}
+	if _, bounded := client.capturedOpts.Context.Deadline(); !bounded {
+		t.Error("expected the call context to carry the deadline")
+	}
+}
+
+func TestBaseApi_NoPerCallTimeoutLeavesTheTransportTimeoutAlone(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	_, _ = api.GetPetById(context.Background(), int64(1), nil)
+
+	if client.capturedOpts.Timeout != nil {
+		t.Errorf("expected no per-call timeout, got %v", *client.capturedOpts.Timeout)
+	}
+}
+
+func TestBaseApi_PerCallTimeoutShorterThanTheClientsFailsTheCallWithATimeout(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(2 * time.Second):
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil)
+
+	_, err := api.GetPetById(context.Background(), int64(1), nil, petstore.WithTimeout(80*time.Millisecond))
+
+	var timeout *apierrors.NetworkTimeoutError
+	if !errors.As(err, &timeout) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+}
+
+func TestBaseApi_PerCallTimeoutLongerThanTheClientsLetsASlowResponseThrough(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(250 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	shortMs := 60
+	transport, err := petstore.NewTransportOptionsBuilder().Timeout(&shortMs).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil)
+
+	if _, err := api.GetPetById(context.Background(), int64(1), nil); err == nil {
+		t.Fatal("expected the client's 60 ms timeout to fail the call")
+	}
+	if _, err := api.GetPetById(context.Background(), int64(1), nil, petstore.WithTimeout(5*time.Second)); err != nil {
+		t.Errorf("expected the per-call timeout to replace the client's, got %v", err)
+	}
+}
+
+func countingFailureServer(hits *atomic.Int32) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(503)
+	}))
+}
+
+func TestBaseApi_PerCallMaxRetriesZeroTurnsRetryingOffForTheCall(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := countingFailureServer(&hits)
+	defer server.Close()
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	transport, err := petstore.NewTransportOptionsBuilder().MaxRetries(2).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil)
+
+	_, err = api.GetPetById(context.Background(), int64(1), nil, petstore.WithMaxRetries(0))
+
+	var unavailable *apierrors.ServerError
+	if !errors.As(err, &unavailable) {
+		t.Fatalf("expected *ServerError, got %T: %v", err, err)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Errorf("expected one request, got %d", got)
+	}
+}
+
+func TestBaseApi_PerCallMaxRetriesReplacesTheClientsLimit(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := countingFailureServer(&hits)
+	defer server.Close()
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil)
+
+	if _, err := api.GetPetById(context.Background(), int64(1), nil); err == nil {
+		t.Fatal("expected the call to fail")
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("expected one request without the option, got %d", got)
+	}
+	hits.Store(0)
+	if _, err := api.GetPetById(context.Background(), int64(1), nil, petstore.WithMaxRetries(1)); err == nil {
+		t.Fatal("expected the call to fail")
+	}
+	if got := hits.Load(); got != 2 {
+		t.Errorf("expected the request and one retry, got %d requests", got)
+	}
+}
+
+func TestBaseApi_AnInvalidPerCallOptionFailsBeforeAnyRequestIsSent(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	_, err := api.GetPetById(context.Background(), int64(1), nil, petstore.WithMaxRetries(-1))
+
+	if !errors.Is(err, petstore.ErrInvalidMaxRetries) {
+		t.Errorf("expected ErrInvalidMaxRetries, got %v", err)
+	}
+	if client.capturedURL != "" {
+		t.Errorf("expected no request, got one to %s", client.capturedURL)
 	}
 }

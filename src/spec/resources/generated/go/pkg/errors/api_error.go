@@ -96,6 +96,8 @@ type ApiError struct {
 	responseHeaders map[string]string
 	errorBody       any
 	cause           error
+	requestMethod   string
+	requestPath     string
 }
 
 // NewApiError creates an ApiError. The state is fixed at construction and
@@ -125,6 +127,35 @@ func (e *ApiError) As(target any) bool {
 // StatusCode returns the HTTP status code (0 for a failure before any response).
 func (e *ApiError) StatusCode() int {
 	return e.statusCode
+}
+
+// RequestMethod returns the HTTP method of the request this error answers, for
+// example "GET", or an empty string when the error did not come from a request
+// the SDK built.
+func (e *ApiError) RequestMethod() string {
+	return e.requestMethod
+}
+
+// RequestPath returns the path of the request this error answers without its
+// query string, for example "/items/7", or an empty string when the error did
+// not come from a request the SDK built.
+func (e *ApiError) RequestPath() string {
+	return e.requestPath
+}
+
+// AttachRequest records the method and the path (the query string and any
+// fragment are cut off) of the request this error answers. The SDK calls it
+// once, where it builds the error; a value that is already set is kept and a
+// call with an empty method or path changes nothing.
+func (e *ApiError) AttachRequest(method, path string) {
+	if e.requestMethod != "" || e.requestPath != "" || method == "" || path == "" {
+		return
+	}
+	if cut := strings.IndexAny(path, "?#"); cut >= 0 {
+		path = path[:cut]
+	}
+	e.requestMethod = method
+	e.requestPath = path
 }
 
 // Msg returns the error message.
@@ -233,12 +264,15 @@ func compactHeadersJSON(headers map[string]string) string {
 }
 
 // Error builds a human-readable error message from the stored attributes: the
-// message, then the HTTP status code, response headers and response body where
-// present.
+// message, then the request method and path, the HTTP status code, response
+// headers and response body where present.
 func (e *ApiError) Error() string {
 	msg := e.msg
 	if msg == "" {
 		msg = "Error message: the server returns an error"
+	}
+	if e.requestMethod != "" && e.requestPath != "" {
+		msg += "\nRequest: " + e.requestMethod + " " + e.requestPath
 	}
 	if e.statusCode != 0 {
 		msg += fmt.Sprintf("\nHTTP status code: %d", e.statusCode)

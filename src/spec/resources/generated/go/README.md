@@ -90,6 +90,62 @@ redirect policy) and never closes what you supply. Combining a supplied
 transport with `Proxy`, `CACertPath` or `VerifySsl(false)` is rejected by
 `Build()` with `ErrTransportConflict`: configure those on your own transport.
 
+### Credentials
+
+`NewClientWithToken(host, accessToken, transportOptions)` builds a client with a Bearer token. Each credential is resolved once, when the client is built: the argument you pass wins, then the environment variable (`PETSTORE_BASE_URL` for the host, `PETSTORE_ACCESS_TOKEN` for the token); an empty value counts as unset. A host or token that cannot be resolved returns `ErrMissingCredential` there and then, not on the first request. `NewClientWithTokenProvider(host, provider, transportOptions)` takes a function returning the current token instead of a static one; the function runs for every request and receives the context of the call. The other authenticators take their credentials as constructor arguments.
+
+```go
+client, err := petstore.NewClientWithTokenProvider("https://api.example.com", func(ctx context.Context) (string, error) {
+    return os.Getenv("API_TOKEN"), nil
+}, nil)
+```
+
+### Per-call options
+
+Every operation takes any number of `RequestOption` values as its last arguments: `WithTimeout` (one end-to-end budget of at least one millisecond, retries included), `WithHeaders` (they replace a default header of the same name) and `WithMaxRetries` (at least 0; `0` turns retrying off for the call). An operation that declares several request content types also takes `WithRequestContentType`. An option you leave out keeps the client's setting.
+
+```go
+callOptions := []petstore.RequestOption{
+    petstore.WithTimeout(2 * time.Second),
+    petstore.WithHeaders(map[string]string{"X-Trace": "abc"}),
+    petstore.WithMaxRetries(0),
+}
+```
+
+Pass them with `callOptions...` after the other arguments of any operation. A client built around your own `ApiClient` never retries, and that client owns its timeout, so for it a per-call timeout only bounds the call's context.
+
+### Errors
+
+An API error (`ApiError` and every subclass) carries `StatusCode()`, `ResponseHeaders()`, `ResponseBody()`, `ErrorBody()`, and the request it answers: `RequestMethod()` and `RequestPath()` (the path without its query string). `Error()` shows them on a `Request: METHOD /path` line before the status code. `NetworkError` and `NetworkTimeoutError` carry them too.
+
+### Operations with several success responses
+
+When an operation declares more than one 2xx response with different schemas, it returns a union (a generated `<Operation>Response` type), and the body is decoded by the status code the server answered with, never by guessing from its shape. Read the variant with `As<Variant>()` or test it with `Is<Variant>()`.
+
+### Models are immutable
+
+A model is a plain struct, and every property has a `With<Property>` method with a value receiver that returns a changed copy, so the original is never touched; an optional or nullable property also has `Without<Property>`. The copy is shallow: a slice or a map in the copy is the same one the original holds, so clone it before you change it in place.
+
+### Logging and tracing
+
+The SDK writes no log lines. To log requests, pass your own `http.RoundTripper` with `TransportOptionsBuilder.RoundTripper` or your own `ApiClient`; every `String` form of an authenticator and an error masks credentials. The current trace context is sent as `traceparent` and `tracestate` request headers once you register a propagator with `SetTraceContextPropagator`.
+
+### Response compression
+
+Requests advertise `Accept-Encoding: gzip, deflate, br, zstd` unless you set your own, and the SDK decodes `gzip`, `deflate`, `br` and `zstd` responses before it reads them, dropping `Content-Encoding` and `Content-Length` from the headers it returns. A response in another encoding is returned as it arrived.
+
+### Versioning and supported Go
+
+The module version follows semantic versioning; the clients, the `RequestOption` functions, the `opts` option structs, the models and the errors are the public API, and an unexported name is private. Go is supported from the oldest release that has not reached end of life; the floor moves up when a release does.
+
+### Behaviours to know
+
+- Optional and nullable: an optional property that is absent and one that is `null` both read as a nil pointer, and a nil pointer is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it.
+- Unknown values fail loudly: an enum value or a discriminator value the SDK does not know returns an error that names the value; it is never coerced to a default.
+- Repeated response headers are joined into one value with `, ` in `Headers` and `ResponseHeaders()` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
+- Streaming is not supported: a response is read whole before it is decoded, so server-sent events and JSON Lines are out of scope. Supply your own `ApiClient` or `http.RoundTripper` for those calls.
+- `Configuration` (base URL, default headers) and `TransportOptions` (timeout, proxy, TLS, retries) stay separate objects: the client builds the first from the authenticator's host and takes the second as an argument.
+
 ## Build
 
 ```bash
@@ -105,6 +161,8 @@ go test ./...
 ## Module
 
 - Module: `petstore`
+- Version: `1.0.0`
+- License: MIT
 
 ## Caveats
 

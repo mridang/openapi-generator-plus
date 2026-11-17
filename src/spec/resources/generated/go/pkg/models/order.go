@@ -26,13 +26,23 @@ const (
 	OrderStatusEnumDelivered OrderStatusEnum = "delivered"
 )
 
-// allOrderStatusEnumValues returns all allowed values.
-func allOrderStatusEnumValues() []OrderStatusEnum {
+// AllOrderStatusEnumValues returns all allowed values.
+func AllOrderStatusEnumValues() []OrderStatusEnum {
 	return []OrderStatusEnum{
 		OrderStatusEnumPlaced,
 		OrderStatusEnumApproved,
 		OrderStatusEnumDelivered,
 	}
+}
+
+// IsValid reports whether the value is one of the allowed values.
+func (v OrderStatusEnum) IsValid() bool {
+	for _, allowed := range AllOrderStatusEnumValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
 }
 
 // String returns the declared wire value of the enum, so the shared stringify
@@ -49,7 +59,7 @@ func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := OrderStatusEnum(raw)
-	for _, allowed := range allOrderStatusEnumValues() {
+	for _, allowed := range AllOrderStatusEnumValues() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -61,7 +71,7 @@ func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v OrderStatusEnum) MarshalJSON() ([]byte, error) {
-	for _, allowed := range allOrderStatusEnumValues() {
+	for _, allowed := range AllOrderStatusEnumValues() {
 		if allowed == v {
 			return marshalJSON(string(v))
 		}
@@ -97,6 +107,90 @@ func (o Order) Equal(other Order) bool {
 		return false
 	}
 	return string(a) == string(b)
+}
+
+// WithId returns a copy of the model with Id replaced; the receiver is unchanged.
+func (o Order) WithId(value int64) Order {
+	o.Id = &value
+	return o
+}
+
+// WithoutId returns a copy of the model with Id left unset; the receiver is unchanged.
+func (o Order) WithoutId() Order {
+	o.Id = nil
+	return o
+}
+
+// WithPetId returns a copy of the model with PetId replaced; the receiver is unchanged.
+func (o Order) WithPetId(value int64) Order {
+	o.PetId = &value
+	return o
+}
+
+// WithoutPetId returns a copy of the model with PetId left unset; the receiver is unchanged.
+func (o Order) WithoutPetId() Order {
+	o.PetId = nil
+	return o
+}
+
+// WithQuantity returns a copy of the model with Quantity replaced; the receiver is unchanged.
+func (o Order) WithQuantity(value int32) Order {
+	o.Quantity = &value
+	return o
+}
+
+// WithoutQuantity returns a copy of the model with Quantity left unset; the receiver is unchanged.
+func (o Order) WithoutQuantity() Order {
+	o.Quantity = nil
+	return o
+}
+
+// WithTrackingId returns a copy of the model with TrackingId replaced; the receiver is unchanged.
+func (o Order) WithTrackingId(value uuid.UUID) Order {
+	o.TrackingId = &value
+	return o
+}
+
+// WithoutTrackingId returns a copy of the model with TrackingId left unset; the receiver is unchanged.
+func (o Order) WithoutTrackingId() Order {
+	o.TrackingId = nil
+	return o
+}
+
+// WithShipDate returns a copy of the model with ShipDate replaced; the receiver is unchanged.
+func (o Order) WithShipDate(value DateTime) Order {
+	o.ShipDate = &value
+	return o
+}
+
+// WithoutShipDate returns a copy of the model with ShipDate left unset; the receiver is unchanged.
+func (o Order) WithoutShipDate() Order {
+	o.ShipDate = nil
+	return o
+}
+
+// WithStatus returns a copy of the model with Status replaced; the receiver is unchanged.
+func (o Order) WithStatus(value OrderStatusEnum) Order {
+	o.Status = &value
+	return o
+}
+
+// WithoutStatus returns a copy of the model with Status left unset; the receiver is unchanged.
+func (o Order) WithoutStatus() Order {
+	o.Status = nil
+	return o
+}
+
+// WithComplete returns a copy of the model with Complete replaced; the receiver is unchanged.
+func (o Order) WithComplete(value bool) Order {
+	o.Complete = &value
+	return o
+}
+
+// WithoutComplete returns a copy of the model with Complete left unset; the receiver is unchanged.
+func (o Order) WithoutComplete() Order {
+	o.Complete = nil
+	return o
 }
 
 // NewOrder creates a new Order instance.

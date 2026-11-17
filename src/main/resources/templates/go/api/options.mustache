@@ -3,6 +3,9 @@
 package {{packageName}}
 
 import (
+{{#hasIntEnum}}
+	"strconv"
+{{/hasIntEnum}}
 {{#hasIoImport}}
 	"io"
 {{/hasIoImport}}
@@ -15,6 +18,30 @@ import (
 {{/hasUuidImport}}
 )
 
+{{#params}}
+{{#enumTypeName}}
+// {{enumTypeName}} is the typed enum of the {{name}} parameter of {{operationId}}.
+type {{enumTypeName}} {{enumBase}}
+
+const (
+{{#enumValues}}
+	{{constName}} {{enumTypeName}} = {{{literal}}}
+{{/enumValues}}
+)
+
+// String returns the declared wire value of the enum, so a value passed as a
+// pointer still reaches the wire as its declared value.
+func (v {{enumTypeName}}) String() string {
+{{#isStringEnum}}
+	return string(v)
+{{/isStringEnum}}
+{{^isStringEnum}}
+	return strconv.FormatInt(int64(v), 10)
+{{/isStringEnum}}
+}
+
+{{/enumTypeName}}
+{{/params}}
 // {{className}} carries the parameters for the {{operationId}} operation.
 type {{className}} struct {
 {{#params}}

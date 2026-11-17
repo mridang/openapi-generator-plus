@@ -18,21 +18,31 @@ import (
 type Priority int
 
 const (
-	/* PriorityNUMBER_1 represents the value 1. */
-	PriorityNUMBER_1 Priority = 1
-	/* PriorityNUMBER_2 represents the value 2. */
-	PriorityNUMBER_2 Priority = 2
-	/* PriorityNUMBER_3 represents the value 3. */
-	PriorityNUMBER_3 Priority = 3
+	/* PriorityNumber1 represents the value 1. */
+	PriorityNumber1 Priority = 1
+	/* PriorityNumber2 represents the value 2. */
+	PriorityNumber2 Priority = 2
+	/* PriorityNumber3 represents the value 3. */
+	PriorityNumber3 Priority = 3
 )
 
 // AllPriorityValues returns all allowed values of Priority.
 func AllPriorityValues() []Priority {
 	return []Priority{
-		PriorityNUMBER_1,
-		PriorityNUMBER_2,
-		PriorityNUMBER_3,
+		PriorityNumber1,
+		PriorityNumber2,
+		PriorityNumber3,
 	}
+}
+
+// IsValid reports whether the value is one of the allowed values of Priority.
+func (v Priority) IsValid() bool {
+	for _, allowed := range AllPriorityValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
 }
 
 // String returns the declared wire value of the enum.

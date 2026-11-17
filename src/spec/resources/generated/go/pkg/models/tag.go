@@ -36,6 +36,30 @@ func (o Tag) Equal(other Tag) bool {
 	return string(a) == string(b)
 }
 
+// WithId returns a copy of the model with Id replaced; the receiver is unchanged.
+func (o Tag) WithId(value int64) Tag {
+	o.Id = &value
+	return o
+}
+
+// WithoutId returns a copy of the model with Id left unset; the receiver is unchanged.
+func (o Tag) WithoutId() Tag {
+	o.Id = nil
+	return o
+}
+
+// WithName returns a copy of the model with Name replaced; the receiver is unchanged.
+func (o Tag) WithName(value string) Tag {
+	o.Name = &value
+	return o
+}
+
+// WithoutName returns a copy of the model with Name left unset; the receiver is unchanged.
+func (o Tag) WithoutName() Tag {
+	o.Name = nil
+	return o
+}
+
 // NewTag creates a new Tag instance.
 func NewTag() *Tag {
 	return &Tag{}

@@ -11,9 +11,29 @@ package petstore
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"os"
 
 	"petstore/pkg/auth"
 )
+
+// ErrMissingCredential is returned when a credential is neither passed to the
+// constructor nor set in the environment. Match it with errors.Is.
+var ErrMissingCredential = errors.New("missing credential")
+
+/* resolveCredential applies the order every credential follows: the value the
+ * caller passed wins, then the environment variable, read once, here; an empty
+ * value is the same as none. */
+func resolveCredential(passed, envName, what string) (string, error) {
+	if passed != "" {
+		return passed, nil
+	}
+	if fromEnv := os.Getenv(envName); fromEnv != "" {
+		return fromEnv, nil
+	}
+	return "", fmt.Errorf("%w: no %s was passed and %s is not set", ErrMissingCredential, what, envName)
+}
 
 // Client is the unified entry point for all API services.
 //
@@ -96,14 +116,46 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 
 // NewClientWithToken creates a client authenticated with a static Bearer token.
 //
-// The host is the API base URL and the accessToken is the Bearer token. The
-// optional transport options carry the HTTP transport configuration (proxy,
-// TLS, timeouts, etc.).
+// The host is the API base URL and the accessToken is the Bearer token. Each is
+// resolved once, here: the value you pass wins, then the environment variable
+// PETSTORE_BASE_URL for the host and PETSTORE_ACCESS_TOKEN for the token; an
+// empty value counts as unset. The optional transport options carry the HTTP
+// transport configuration (proxy, TLS, timeouts, etc.).
 //
-// Returns auth.ErrInvalidBearerToken when the token is empty or contains a
-// character that cannot be sent in a header.
+// Returns ErrMissingCredential when the host or the token cannot be resolved
+// (a missing token also satisfies auth.ErrInvalidBearerToken), and
+// auth.ErrInvalidBearerToken when the token contains a character that cannot
+// be sent in a header.
 func NewClientWithToken(host, accessToken string, transportOptions *TransportOptions) (*Client, error) {
-	authenticator, err := auth.NewBearerAuthenticator(host, accessToken)
+	resolvedHost, err := resolveCredential(host, "PETSTORE_BASE_URL", "host")
+	if err != nil {
+		return nil, err
+	}
+	resolvedToken, err := resolveCredential(accessToken, "PETSTORE_ACCESS_TOKEN", "access token")
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", err, auth.ErrInvalidBearerToken)
+	}
+	authenticator, err := auth.NewBearerAuthenticator(resolvedHost, resolvedToken)
+	if err != nil {
+		return nil, err
+	}
+	return NewClient(authenticator, transportOptions), nil
+}
+
+// NewClientWithTokenProvider creates a client authenticated with a
+// Bearer token that provider returns for every request, so a token that rotates
+// is always current. The provider receives the context of the API call; an
+// error from it fails that call before any request is sent.
+//
+// The host is resolved like in NewClientWithToken. Returns
+// ErrMissingCredential when it cannot be resolved, and
+// auth.ErrInvalidBearerToken when the provider is nil.
+func NewClientWithTokenProvider(host string, provider auth.TokenProvider, transportOptions *TransportOptions) (*Client, error) {
+	resolvedHost, err := resolveCredential(host, "PETSTORE_BASE_URL", "host")
+	if err != nil {
+		return nil, err
+	}
+	authenticator, err := auth.NewBearerAuthenticatorWithProvider(resolvedHost, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +190,11 @@ func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, header
 	/* Every request that comes through this adapter is an authentication
 	 * request (token endpoint, discovery document); the marker tells the
 	 * transport to leave the caller's default headers off it. */
-	inner := &RequestOptions{Context: context.WithValue(context.Background(), authRequestContextKey{}, true)}
+	base := context.Background()
+	if opts != nil && opts.Context != nil {
+		base = opts.Context
+	}
+	inner := &RequestOptions{Context: context.WithValue(base, authRequestContextKey{}, true)}
 	if opts != nil {
 		inner.NoRedirect = opts.NoRedirect
 	}

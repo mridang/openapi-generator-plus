@@ -37,9 +37,48 @@ func NewReserveStockResponse(actualInstance any) ReserveStockResponse {
 	return ReserveStockResponse{value: actualInstance}
 }
 
-// MarshalJSON implements the json.Marshaler interface.
+// NewReservationReserveStockResponse builds the union from a Reservation variant.
+func NewReservationReserveStockResponse(value Reservation) ReserveStockResponse {
+	return ReserveStockResponse{value: value}
+}
+
+// AsReservation returns the Reservation variant, and false when the union holds another one.
+func (o ReserveStockResponse) AsReservation() (Reservation, bool) {
+	value, ok := o.value.(Reservation)
+	return value, ok
+}
+
+// IsReservation reports whether the union holds a Reservation variant.
+func (o ReserveStockResponse) IsReservation() bool {
+	_, ok := o.value.(Reservation)
+	return ok
+}
+
+// NewReservationReceiptReserveStockResponse builds the union from a ReservationReceipt variant.
+func NewReservationReceiptReserveStockResponse(value ReservationReceipt) ReserveStockResponse {
+	return ReserveStockResponse{value: value}
+}
+
+// AsReservationReceipt returns the ReservationReceipt variant, and false when the union holds another one.
+func (o ReserveStockResponse) AsReservationReceipt() (ReservationReceipt, bool) {
+	value, ok := o.value.(ReservationReceipt)
+	return value, ok
+}
+
+// IsReservationReceipt reports whether the union holds a ReservationReceipt variant.
+func (o ReserveStockResponse) IsReservationReceipt() bool {
+	_, ok := o.value.(ReservationReceipt)
+	return ok
+}
+
+// MarshalJSON implements the json.Marshaler interface. A value that is not one
+// of the declared variants is rejected rather than sent.
 func (o ReserveStockResponse) MarshalJSON() ([]byte, error) {
-	return marshalJSON(o.value)
+	switch o.value.(type) {
+	case Reservation, ReservationReceipt:
+		return marshalJSON(o.value)
+	}
+	return nil, fmt.Errorf("%T is not a variant of ReserveStockResponse", o.value)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

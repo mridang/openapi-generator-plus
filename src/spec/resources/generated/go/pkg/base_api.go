@@ -129,6 +129,7 @@ type invokeApiParams struct {
 	rawBody      bool              // body is a format:binary value sent verbatim under any contentType
 	ctx          context.Context   // per-call context; cancelling it aborts the request (nil means Background)
 	order        []string          // spec declaration order of the query and form parameter names
+	settings     *callSettings     // per-call options (timeout, headers, retries); nil means the client's own
 }
 
 // invokeApiForResult invokes an API operation and returns the full response,
@@ -172,6 +173,21 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	} else {
 		effectiveAuth = b.authenticator
 	}
+
+	/* The call context, then the per-call settings on top of the client's: a
+	 * per-call timeout bounds the whole call, retries included, and replaces the
+	 * transport's own timeout for it. */
+	ctx := params.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var callTimeout *time.Duration
+	var callMaxRetries *int
+	var callHeaders map[string]string
+	if params.settings != nil {
+		callTimeout, callMaxRetries, callHeaders = params.settings.timeout, params.settings.maxRetries, params.settings.headers
+	}
+	requestPath := requestPathOf(params.path)
 
 	/* Everything from here on is rebuilt for every attempt: a replayed or
 	 * retried request is a fresh request, so its authentication headers, query
@@ -219,7 +235,16 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			 * swallowed into an empty header map (which would send the request
 			 * unauthenticated and produce a confusing 401). */
 			var authHeaders map[string]string
-			if p, ok := effectiveAuth.(interface {
+			if p, ok := effectiveAuth.(auth.ContextAuthenticator); ok {
+				/* The authenticator makes HTTP requests of its own (a token
+				 * request, a discovery request): hand it the call context, so
+				 * cancelling the call cancels them too. */
+				h, aerr := p.AuthHeadersOrErrorContext(ctx)
+				if aerr != nil {
+					return "", nil, aerr
+				}
+				authHeaders = h
+			} else if p, ok := effectiveAuth.(interface {
 				AuthHeadersOrError() (map[string]string, error)
 			}); ok {
 				h, aerr := p.AuthHeadersOrError()
@@ -265,6 +290,9 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			}
 		}
 
+		/* Per-call headers replace a header of the same name from any layer. */
+		mergeHeaders(headers, callHeaders)
+
 		/* Inject trace context */
 		InjectTraceContext(headers)
 
@@ -309,19 +337,21 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	 * transient failure is retried with backoff (see TransportOptions.MaxRetries).
 	 * The retry budget never extends the transport's end-to-end timeout: both
 	 * run under one deadline. */
-	ctx := params.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	maxRetries := 0
+	var timeout time.Duration
 	if provider, ok := b.apiClient.(retryPolicyProvider); ok {
-		var timeout time.Duration
 		maxRetries, timeout = provider.retryPolicy()
-		if maxRetries > 0 && timeout > 0 {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, timeout)
-			defer cancel()
+		if callMaxRetries != nil {
+			maxRetries = *callMaxRetries
 		}
+	}
+	if callTimeout != nil {
+		timeout = *callTimeout
+	}
+	if timeout > 0 && (maxRetries > 0 || callTimeout != nil) {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
 	}
 	invalidator, canReplay := effectiveAuth.(auth.AccessTokenInvalidator)
 	replayed := false
@@ -337,8 +367,9 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			}
 			return nil, buildErr
 		}
-		response, err := b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx})
+		response, err := b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
 		if err != nil {
+			attachRequestContext(err, params.method, requestPath)
 			if retries < maxRetries && isRetryableTransportError(err) {
 				proceed, cancelErr := waitBeforeRetry(ctx, retries, nil)
 				if cancelErr != nil {
@@ -357,7 +388,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		if response.StatusCode >= 200 && response.StatusCode < 300 {
 			return response, nil
 		}
-		failure := throwAPIError(response)
+		failure := throwAPIError(response, params.method, requestPath)
 		if response.StatusCode == http.StatusUnauthorized && canReplay && !replayed {
 			invalidator.InvalidateAccessToken()
 			replayed = true
@@ -1031,9 +1062,38 @@ func newEmptyBodyError(operationID string, statusCode int, rawBody string, heade
 }
 
 // throwAPIError converts a non-2xx response into the matching typed error via
-// the one status-to-error mapping, errors_pkg.FromResponse.
-func throwAPIError(response *ApiHttpResponse) error {
-	return errors_pkg.FromResponse(response.StatusCode, response.Headers, response.Body)
+// the one status-to-error mapping, errors_pkg.FromResponse, and records the
+// request it answers.
+func throwAPIError(response *ApiHttpResponse, method, path string) error {
+	failure := errors_pkg.FromResponse(response.StatusCode, response.Headers, response.Body)
+	attachRequestContext(failure, method, path)
+	return failure
+}
+
+// attachRequestContext records the method and path of the request on an API
+// error (a status error, a refused redirect, a network failure) so its message
+// and RequestMethod and RequestPath say which call failed. Any other error is
+// left alone.
+func attachRequestContext(err error, method, path string) {
+	var apiErr *errors_pkg.ApiError
+	if errors.As(err, &apiErr) {
+		apiErr.AttachRequest(method, path)
+	}
+}
+
+// requestPathOf is the path of a request without its query string: the
+// operation path as built, or the path of the URL when a per-operation server
+// made it absolute.
+func requestPathOf(path string) string {
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		if parsed, err := url.Parse(path); err == nil {
+			path = parsed.EscapedPath()
+		}
+	}
+	if cut := strings.IndexAny(path, "?#"); cut >= 0 {
+		path = path[:cut]
+	}
+	return path
 }
 
 // isValidCookieName returns true if the value is a valid RFC 6265 cookie name

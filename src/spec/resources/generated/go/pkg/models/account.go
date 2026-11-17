@@ -41,6 +41,36 @@ func (o Account) Equal(other Account) bool {
 	return string(a) == string(b)
 }
 
+// WithId returns a copy of the model with Id replaced; the receiver is unchanged.
+func (o Account) WithId(value int64) Account {
+	o.Id = &value
+	return o
+}
+
+// WithoutId returns a copy of the model with Id left unset; the receiver is unchanged.
+func (o Account) WithoutId() Account {
+	o.Id = nil
+	return o
+}
+
+// WithUsername returns a copy of the model with Username replaced; the receiver is unchanged.
+func (o Account) WithUsername(value string) Account {
+	o.Username = value
+	return o
+}
+
+// WithPassword returns a copy of the model with Password replaced; the receiver is unchanged.
+func (o Account) WithPassword(value string) Account {
+	o.Password = &value
+	return o
+}
+
+// WithoutPassword returns a copy of the model with Password left unset; the receiver is unchanged.
+func (o Account) WithoutPassword() Account {
+	o.Password = nil
+	return o
+}
+
 // NewAccount creates a new Account instance.
 func NewAccount(username string) *Account {
 	return &Account{

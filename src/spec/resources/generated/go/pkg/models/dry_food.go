@@ -35,6 +35,18 @@ func (o DryFood) Equal(other DryFood) bool {
 	return string(a) == string(b)
 }
 
+// WithFoodType returns a copy of the model with FoodType replaced; the receiver is unchanged.
+func (o DryFood) WithFoodType(value string) DryFood {
+	o.FoodType = value
+	return o
+}
+
+// WithWeightKg returns a copy of the model with WeightKg replaced; the receiver is unchanged.
+func (o DryFood) WithWeightKg(value float64) DryFood {
+	o.WeightKg = value
+	return o
+}
+
 // NewDryFood creates a new DryFood instance.
 func NewDryFood(weightKg float64) *DryFood {
 	var defaultFoodType string = "dry"

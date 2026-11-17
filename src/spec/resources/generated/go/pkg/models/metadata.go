@@ -35,6 +35,31 @@ func (o Metadata) Equal(other Metadata) bool {
 	return string(a) == string(b)
 }
 
+// WithCreatedAt returns a copy of the model with CreatedAt replaced; the receiver is unchanged.
+func (o Metadata) WithCreatedAt(value DateTime) Metadata {
+	o.CreatedAt = &value
+	return o
+}
+
+// WithoutCreatedAt returns a copy of the model with CreatedAt left unset; the receiver is unchanged.
+func (o Metadata) WithoutCreatedAt() Metadata {
+	o.CreatedAt = nil
+	return o
+}
+
+// WithAdditionalProperties returns a copy of the model that carries a copy of the given extra properties; the receiver is unchanged.
+func (o Metadata) WithAdditionalProperties(value map[string]any) Metadata {
+	if value == nil {
+		o.AdditionalProperties = nil
+		return o
+	}
+	o.AdditionalProperties = make(map[string]any, len(value))
+	for key, extra := range value {
+		o.AdditionalProperties[key] = extra
+	}
+	return o
+}
+
 // NewMetadata creates a new Metadata instance.
 func NewMetadata() *Metadata {
 	return &Metadata{}

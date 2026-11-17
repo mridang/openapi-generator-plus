@@ -33,6 +33,18 @@ func (o Result) Equal(other Result) bool {
 	return string(a) == string(b)
 }
 
+// WithOk returns a copy of the model with Ok replaced; the receiver is unchanged.
+func (o Result) WithOk(value bool) Result {
+	o.Ok = &value
+	return o
+}
+
+// WithoutOk returns a copy of the model with Ok left unset; the receiver is unchanged.
+func (o Result) WithoutOk() Result {
+	o.Ok = nil
+	return o
+}
+
 // NewResult creates a new Result instance.
 func NewResult() *Result {
 	return &Result{}

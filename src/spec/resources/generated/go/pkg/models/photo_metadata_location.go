@@ -34,6 +34,30 @@ func (o PhotoMetadataLocation) Equal(other PhotoMetadataLocation) bool {
 	return string(a) == string(b)
 }
 
+// WithLat returns a copy of the model with Lat replaced; the receiver is unchanged.
+func (o PhotoMetadataLocation) WithLat(value float64) PhotoMetadataLocation {
+	o.Lat = &value
+	return o
+}
+
+// WithoutLat returns a copy of the model with Lat left unset; the receiver is unchanged.
+func (o PhotoMetadataLocation) WithoutLat() PhotoMetadataLocation {
+	o.Lat = nil
+	return o
+}
+
+// WithLng returns a copy of the model with Lng replaced; the receiver is unchanged.
+func (o PhotoMetadataLocation) WithLng(value float64) PhotoMetadataLocation {
+	o.Lng = &value
+	return o
+}
+
+// WithoutLng returns a copy of the model with Lng left unset; the receiver is unchanged.
+func (o PhotoMetadataLocation) WithoutLng() PhotoMetadataLocation {
+	o.Lng = nil
+	return o
+}
+
 // NewPhotoMetadataLocation creates a new PhotoMetadataLocation instance.
 func NewPhotoMetadataLocation() *PhotoMetadataLocation {
 	return &PhotoMetadataLocation{}

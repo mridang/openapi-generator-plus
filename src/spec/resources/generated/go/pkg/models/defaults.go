@@ -24,13 +24,23 @@ const (
 	DefaultsModeEnumHigh   DefaultsModeEnum = "high"
 )
 
-// allDefaultsModeEnumValues returns all allowed values.
-func allDefaultsModeEnumValues() []DefaultsModeEnum {
+// AllDefaultsModeEnumValues returns all allowed values.
+func AllDefaultsModeEnumValues() []DefaultsModeEnum {
 	return []DefaultsModeEnum{
 		DefaultsModeEnumLow,
 		DefaultsModeEnumMedium,
 		DefaultsModeEnumHigh,
 	}
+}
+
+// IsValid reports whether the value is one of the allowed values.
+func (v DefaultsModeEnum) IsValid() bool {
+	for _, allowed := range AllDefaultsModeEnumValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
 }
 
 // String returns the declared wire value of the enum, so the shared stringify
@@ -47,7 +57,7 @@ func (v *DefaultsModeEnum) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := DefaultsModeEnum(raw)
-	for _, allowed := range allDefaultsModeEnumValues() {
+	for _, allowed := range AllDefaultsModeEnumValues() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -59,7 +69,7 @@ func (v *DefaultsModeEnum) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v DefaultsModeEnum) MarshalJSON() ([]byte, error) {
-	for _, allowed := range allDefaultsModeEnumValues() {
+	for _, allowed := range AllDefaultsModeEnumValues() {
 		if allowed == v {
 			return marshalJSON(string(v))
 		}
@@ -92,6 +102,114 @@ func (o Defaults) Equal(other Defaults) bool {
 		return false
 	}
 	return string(a) == string(b)
+}
+
+// WithRetries returns a copy of the model with Retries replaced; the receiver is unchanged.
+func (o Defaults) WithRetries(value int32) Defaults {
+	o.Retries = &value
+	return o
+}
+
+// WithoutRetries returns a copy of the model with Retries left unset; the receiver is unchanged.
+func (o Defaults) WithoutRetries() Defaults {
+	o.Retries = nil
+	return o
+}
+
+// WithMode returns a copy of the model with Mode replaced; the receiver is unchanged.
+func (o Defaults) WithMode(value DefaultsModeEnum) Defaults {
+	o.Mode = &value
+	return o
+}
+
+// WithoutMode returns a copy of the model with Mode left unset; the receiver is unchanged.
+func (o Defaults) WithoutMode() Defaults {
+	o.Mode = nil
+	return o
+}
+
+// WithLabel returns a copy of the model with Label replaced; the receiver is unchanged.
+func (o Defaults) WithLabel(value string) Defaults {
+	o.Label = &value
+	return o
+}
+
+// WithoutLabel returns a copy of the model with Label left unset; the receiver is unchanged.
+func (o Defaults) WithoutLabel() Defaults {
+	o.Label = nil
+	return o
+}
+
+// WithGreeting returns a copy of the model with Greeting replaced; the receiver is unchanged.
+func (o Defaults) WithGreeting(value string) Defaults {
+	o.Greeting = &value
+	return o
+}
+
+// WithoutGreeting returns a copy of the model with Greeting left unset; the receiver is unchanged.
+func (o Defaults) WithoutGreeting() Defaults {
+	o.Greeting = nil
+	return o
+}
+
+// WithSwatch returns a copy of the model with Swatch replaced; the receiver is unchanged.
+func (o Defaults) WithSwatch(value Swatch) Defaults {
+	o.Swatch = &value
+	return o
+}
+
+// WithoutSwatch returns a copy of the model with Swatch left unset; the receiver is unchanged.
+func (o Defaults) WithoutSwatch() Defaults {
+	o.Swatch = nil
+	return o
+}
+
+// WithRatio returns a copy of the model with Ratio replaced; the receiver is unchanged.
+func (o Defaults) WithRatio(value float64) Defaults {
+	o.Ratio = &value
+	return o
+}
+
+// WithoutRatio returns a copy of the model with Ratio left unset; the receiver is unchanged.
+func (o Defaults) WithoutRatio() Defaults {
+	o.Ratio = nil
+	return o
+}
+
+// WithScale returns a copy of the model with Scale replaced; the receiver is unchanged.
+func (o Defaults) WithScale(value float32) Defaults {
+	o.Scale = &value
+	return o
+}
+
+// WithoutScale returns a copy of the model with Scale left unset; the receiver is unchanged.
+func (o Defaults) WithoutScale() Defaults {
+	o.Scale = nil
+	return o
+}
+
+// WithWeight returns a copy of the model with Weight replaced; the receiver is unchanged.
+func (o Defaults) WithWeight(value float64) Defaults {
+	o.Weight = &value
+	return o
+}
+
+// WithoutWeight returns a copy of the model with Weight left unset; the receiver is unchanged.
+func (o Defaults) WithoutWeight() Defaults {
+	o.Weight = nil
+	return o
+}
+
+// WithCeiling returns a copy of the model with Ceiling replaced; the receiver is unchanged.
+func (o Defaults) WithCeiling(value int64) Defaults {
+	o.Ceiling = &value
+	return o
+}
+
+// WithoutCeiling returns a copy of the model with Ceiling left unset; the receiver is unchanged.
+func (o Defaults) WithoutCeiling() Defaults {
+	o.Ceiling = nil
+	return o
 }
 
 // NewDefaults creates a new Defaults instance.

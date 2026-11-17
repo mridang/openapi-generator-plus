@@ -36,6 +36,54 @@ func (o Photo) Equal(other Photo) bool {
 	return string(a) == string(b)
 }
 
+// WithId returns a copy of the model with Id replaced; the receiver is unchanged.
+func (o Photo) WithId(value int64) Photo {
+	o.Id = &value
+	return o
+}
+
+// WithoutId returns a copy of the model with Id left unset; the receiver is unchanged.
+func (o Photo) WithoutId() Photo {
+	o.Id = nil
+	return o
+}
+
+// WithCaption returns a copy of the model with Caption replaced; the receiver is unchanged.
+func (o Photo) WithCaption(value string) Photo {
+	o.Caption = &value
+	return o
+}
+
+// WithoutCaption returns a copy of the model with Caption left unset; the receiver is unchanged.
+func (o Photo) WithoutCaption() Photo {
+	o.Caption = nil
+	return o
+}
+
+// WithIsPrimary returns a copy of the model with IsPrimary replaced; the receiver is unchanged.
+func (o Photo) WithIsPrimary(value bool) Photo {
+	o.IsPrimary = &value
+	return o
+}
+
+// WithoutIsPrimary returns a copy of the model with IsPrimary left unset; the receiver is unchanged.
+func (o Photo) WithoutIsPrimary() Photo {
+	o.IsPrimary = nil
+	return o
+}
+
+// WithUrl returns a copy of the model with Url replaced; the receiver is unchanged.
+func (o Photo) WithUrl(value string) Photo {
+	o.Url = &value
+	return o
+}
+
+// WithoutUrl returns a copy of the model with Url left unset; the receiver is unchanged.
+func (o Photo) WithoutUrl() Photo {
+	o.Url = nil
+	return o
+}
+
 // NewPhoto creates a new Photo instance.
 func NewPhoto() *Photo {
 	return &Photo{}

@@ -34,6 +34,30 @@ func (o PetCriteria) Equal(other PetCriteria) bool {
 	return string(a) == string(b)
 }
 
+// WithBreed returns a copy of the model with Breed replaced; the receiver is unchanged.
+func (o PetCriteria) WithBreed(value string) PetCriteria {
+	o.Breed = &value
+	return o
+}
+
+// WithoutBreed returns a copy of the model with Breed left unset; the receiver is unchanged.
+func (o PetCriteria) WithoutBreed() PetCriteria {
+	o.Breed = nil
+	return o
+}
+
+// WithMinAge returns a copy of the model with MinAge replaced; the receiver is unchanged.
+func (o PetCriteria) WithMinAge(value int32) PetCriteria {
+	o.MinAge = &value
+	return o
+}
+
+// WithoutMinAge returns a copy of the model with MinAge left unset; the receiver is unchanged.
+func (o PetCriteria) WithoutMinAge() PetCriteria {
+	o.MinAge = nil
+	return o
+}
+
 // NewPetCriteria creates a new PetCriteria instance.
 func NewPetCriteria() *PetCriteria {
 	return &PetCriteria{}

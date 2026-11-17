@@ -35,6 +35,18 @@ func (o WetFood) Equal(other WetFood) bool {
 	return string(a) == string(b)
 }
 
+// WithFoodType returns a copy of the model with FoodType replaced; the receiver is unchanged.
+func (o WetFood) WithFoodType(value string) WetFood {
+	o.FoodType = value
+	return o
+}
+
+// WithVolumeMl returns a copy of the model with VolumeMl replaced; the receiver is unchanged.
+func (o WetFood) WithVolumeMl(value int32) WetFood {
+	o.VolumeMl = value
+	return o
+}
+
 // NewWetFood creates a new WetFood instance.
 func NewWetFood(volumeMl int32) *WetFood {
 	var defaultFoodType string = "wet"

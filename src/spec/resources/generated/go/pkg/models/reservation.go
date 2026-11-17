@@ -37,6 +37,18 @@ func (o Reservation) Equal(other Reservation) bool {
 	return string(a) == string(b)
 }
 
+// WithReservationId returns a copy of the model with ReservationId replaced; the receiver is unchanged.
+func (o Reservation) WithReservationId(value int64) Reservation {
+	o.ReservationId = value
+	return o
+}
+
+// WithQuantity returns a copy of the model with Quantity replaced; the receiver is unchanged.
+func (o Reservation) WithQuantity(value int32) Reservation {
+	o.Quantity = value
+	return o
+}
+
 // NewReservation creates a new Reservation instance.
 func NewReservation(reservationId int64, quantity int32) *Reservation {
 	return &Reservation{

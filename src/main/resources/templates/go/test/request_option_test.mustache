@@ -1,0 +1,103 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"errors"
+	"testing"
+	"time"
+)
+
+func TestNewCallSettings_NoOptionsLeavesEverythingToTheClient(t *testing.T) {
+	t.Parallel()
+	settings, err := newCallSettings(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if settings.timeout != nil || settings.maxRetries != nil || settings.contentType != nil || len(settings.headers) != 0 {
+		t.Errorf("expected no per-call setting, got %+v", settings)
+	}
+}
+
+func TestNewCallSettings_AppliesEveryOption(t *testing.T) {
+	t.Parallel()
+	settings, err := newCallSettings([]RequestOption{
+		WithTimeout(1500 * time.Millisecond),
+		WithMaxRetries(0),
+		WithHeaders(map[string]string{"X-One": "1"}),
+		WithRequestContentType("image/png"),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if settings.timeout == nil || *settings.timeout != 1500*time.Millisecond {
+		t.Errorf("expected a 1.5 s timeout, got %v", settings.timeout)
+	}
+	if settings.maxRetries == nil || *settings.maxRetries != 0 {
+		t.Errorf("expected zero retries to be recorded, got %v", settings.maxRetries)
+	}
+	if settings.headers["X-One"] != "1" {
+		t.Errorf("expected the header, got %v", settings.headers)
+	}
+	if settings.contentType == nil || *settings.contentType != "image/png" {
+		t.Errorf("expected the content type, got %v", settings.contentType)
+	}
+}
+
+func TestNewCallSettings_ALaterOptionOfTheSameKindWins(t *testing.T) {
+	t.Parallel()
+	settings, err := newCallSettings([]RequestOption{
+		WithTimeout(time.Second),
+		nil,
+		WithTimeout(2 * time.Second),
+		WithHeaders(map[string]string{"X-Token": "a"}),
+		WithHeaders(map[string]string{"x-token": "b"}),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if *settings.timeout != 2*time.Second {
+		t.Errorf("expected the later timeout, got %v", *settings.timeout)
+	}
+	if len(settings.headers) != 1 || settings.headers["x-token"] != "b" {
+		t.Errorf("expected one header spelled as the later option, got %v", settings.headers)
+	}
+}
+
+func TestWithHeaders_CopiesTheMapWhenTheOptionIsBuilt(t *testing.T) {
+	t.Parallel()
+	headers := map[string]string{"X-One": "1"}
+	option := WithHeaders(headers)
+	headers["X-One"] = "changed"
+	headers["X-Two"] = "2"
+	settings, err := newCallSettings([]RequestOption{option})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(settings.headers) != 1 || settings.headers["X-One"] != "1" {
+		t.Errorf("expected the headers as they were, got %v", settings.headers)
+	}
+}
+
+func TestNewCallSettings_RejectsAnInvalidTimeout(t *testing.T) {
+	t.Parallel()
+	for _, timeout := range []time.Duration{0, -time.Second, time.Microsecond} {
+		if _, err := newCallSettings([]RequestOption{WithTimeout(timeout)}); !errors.Is(err, ErrInvalidTimeout) {
+			t.Errorf("expected ErrInvalidTimeout for %v, got %v", timeout, err)
+		}
+	}
+}
+
+func TestNewCallSettings_RejectsANegativeRetryLimit(t *testing.T) {
+	t.Parallel()
+	if _, err := newCallSettings([]RequestOption{WithMaxRetries(-1)}); !errors.Is(err, ErrInvalidMaxRetries) {
+		t.Errorf("expected ErrInvalidMaxRetries, got %v", err)
+	}
+}
+
+func TestNewCallSettings_ReportsTheFirstInvalidOption(t *testing.T) {
+	t.Parallel()
+	_, err := newCallSettings([]RequestOption{WithMaxRetries(-1), WithTimeout(0)})
+	if !errors.Is(err, ErrInvalidMaxRetries) || errors.Is(err, ErrInvalidTimeout) {
+		t.Errorf("expected only the first failure, got %v", err)
+	}
+}

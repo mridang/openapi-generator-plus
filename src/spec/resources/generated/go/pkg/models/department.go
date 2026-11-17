@@ -35,6 +35,24 @@ func (o Department) Equal(other Department) bool {
 	return string(a) == string(b)
 }
 
+// WithName returns a copy of the model with Name replaced; the receiver is unchanged.
+func (o Department) WithName(value string) Department {
+	o.Name = value
+	return o
+}
+
+// WithLead returns a copy of the model with Lead replaced; the receiver is unchanged.
+func (o Department) WithLead(value Employee) Department {
+	o.Lead = &value
+	return o
+}
+
+// WithoutLead returns a copy of the model with Lead left unset; the receiver is unchanged.
+func (o Department) WithoutLead() Department {
+	o.Lead = nil
+	return o
+}
+
 // NewDepartment creates a new Department instance.
 func NewDepartment(name string) *Department {
 	return &Department{

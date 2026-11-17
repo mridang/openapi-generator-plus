@@ -10,6 +10,7 @@
 package oauth
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/url"
@@ -94,6 +95,12 @@ func (a *OAuth2ClientCredentialsAuthenticator) InvalidateAccessToken() {
 // of the real OAuth error. base_api prefers this method when present so the
 // failure surfaces as the actual OAuth error.
 func (a *OAuth2ClientCredentialsAuthenticator) AuthHeadersOrError() (map[string]string, error) {
+	return a.AuthHeadersOrErrorContext(context.Background())
+}
+
+// AuthHeadersOrErrorContext is AuthHeadersOrError for a request that belongs to
+// an API call: cancelling ctx aborts the token request made for it.
+func (a *OAuth2ClientCredentialsAuthenticator) AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error) {
 	params := map[string]string{
 		"grant_type": "client_credentials",
 	}
@@ -113,7 +120,7 @@ func (a *OAuth2ClientCredentialsAuthenticator) AuthHeadersOrError() (map[string]
 		params["scope"] = strings.Join(a.scopes, " ")
 	}
 
-	token, err := a.tokenManager.GetAccessTokenWithHeaders(a.tokenURL, params, extraHeaders)
+	token, err := a.tokenManager.GetAccessTokenWithRefreshContext(ctx, a.tokenURL, a.tokenURL, params, extraHeaders)
 	if err != nil {
 		return nil, err
 	}

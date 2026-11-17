@@ -10,6 +10,7 @@
 package oauth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"math"
@@ -120,6 +121,13 @@ func (m *OAuth2TokenManager) GetAccessTokenWithHeaders(tokenURL string, params m
 // grant. When params already is a refresh_token grant the manager sends
 // exactly one POST, to refreshURL, and returns its error unchanged.
 func (m *OAuth2TokenManager) GetAccessTokenWithRefresh(tokenURL, refreshURL string, params map[string]string, extraHeaders map[string]string) (string, error) {
+	return m.GetAccessTokenWithRefreshContext(context.Background(), tokenURL, refreshURL, params, extraHeaders)
+}
+
+// GetAccessTokenWithRefreshContext is GetAccessTokenWithRefresh for a request
+// that belongs to an API call: cancelling ctx aborts the token request, and the
+// manager's lock is released with it.
+func (m *OAuth2TokenManager) GetAccessTokenWithRefreshContext(ctx context.Context, tokenURL, refreshURL string, params map[string]string, extraHeaders map[string]string) (string, error) {
 	if refreshURL == "" {
 		refreshURL = tokenURL
 	}
@@ -131,7 +139,7 @@ func (m *OAuth2TokenManager) GetAccessTokenWithRefresh(tokenURL, refreshURL stri
 	}
 
 	if params["grant_type"] == "refresh_token" {
-		if err := m.fetchToken(refreshURL, params, extraHeaders); err != nil {
+		if err := m.fetchToken(ctx, refreshURL, params, extraHeaders); err != nil {
 			return "", err
 		}
 		return m.accessToken, nil
@@ -148,14 +156,14 @@ func (m *OAuth2TokenManager) GetAccessTokenWithRefresh(tokenURL, refreshURL stri
 		if v, ok := params["client_secret"]; ok {
 			refreshParams["client_secret"] = v
 		}
-		if err := m.fetchToken(refreshURL, refreshParams, extraHeaders); err == nil && m.accessToken != "" {
+		if err := m.fetchToken(ctx, refreshURL, refreshParams, extraHeaders); err == nil && m.accessToken != "" {
 			return m.accessToken, nil
 		}
 		/* Refresh failed (e.g. refresh token revoked or expired).
 		 * Fall back to re-running the original grant below. */
 	}
 
-	if err := m.fetchToken(tokenURL, params, extraHeaders); err != nil {
+	if err := m.fetchToken(ctx, tokenURL, params, extraHeaders); err != nil {
 		return "", err
 	}
 	return m.accessToken, nil
@@ -175,7 +183,7 @@ func (m *OAuth2TokenManager) Exchange(tokenURL string, params map[string]string)
 
 	prevAccess, prevRefresh, prevExpiry := m.accessToken, m.refreshToken, m.tokenExpiry
 	m.accessToken, m.refreshToken, m.tokenExpiry = "", "", time.Time{}
-	if err := m.fetchToken(tokenURL, params, nil); err != nil {
+	if err := m.fetchToken(context.Background(), tokenURL, params, nil); err != nil {
 		m.accessToken, m.refreshToken, m.tokenExpiry = prevAccess, prevRefresh, prevExpiry
 		return err
 	}
@@ -200,7 +208,7 @@ func (m *OAuth2TokenManager) InvalidateAccessToken() {
 	m.tokenExpiry = time.Time{}
 }
 
-func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]string, extraHeaders map[string]string) error {
+func (m *OAuth2TokenManager) fetchToken(ctx context.Context, tokenURL string, params map[string]string, extraHeaders map[string]string) error {
 	client := m.apiClient
 	if client == nil {
 		return ErrApiClientNotInjected
@@ -226,7 +234,7 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 	 * silently leaking the credential. */
 	resp, err := client.SendRequestWithOptions(
 		"POST", tokenURL, headers, []byte(encodeTokenForm(params)),
-		&auth.RequestOptions{NoRedirect: true})
+		&auth.RequestOptions{NoRedirect: true, Context: ctx})
 	if err != nil {
 		/* A transport failure is already a *NetworkError or
 		 * *NetworkTimeoutError; return it unchanged. */

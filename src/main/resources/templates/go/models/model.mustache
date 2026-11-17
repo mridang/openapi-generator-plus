@@ -38,6 +38,16 @@ func All{{classname}}Values() []{{classname}} {
 	}
 }
 
+// IsValid reports whether the value is one of the allowed values of {{classname}}.
+func (v {{classname}}) IsValid() bool {
+	for _, allowed := range All{{classname}}Values() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
+}
+
 // String returns the declared wire value of the enum.
 //
 // A parameter passed as *{{classname}} (the shape optional query/header params
@@ -108,8 +118,8 @@ const (
 {{/allowableValues}}
 )
 
-// all{{classname}}{{enumName}}Values returns all allowed values.
-func all{{classname}}{{enumName}}Values() []{{classname}}{{enumName}} {
+// All{{classname}}{{enumName}}Values returns all allowed values.
+func All{{classname}}{{enumName}}Values() []{{classname}}{{enumName}} {
 	return []{{classname}}{{enumName}}{
 {{#allowableValues}}
 {{#enumVars}}
@@ -117,6 +127,16 @@ func all{{classname}}{{enumName}}Values() []{{classname}}{{enumName}} {
 {{/enumVars}}
 {{/allowableValues}}
 	}
+}
+
+// IsValid reports whether the value is one of the allowed values.
+func (v {{classname}}{{enumName}}) IsValid() bool {
+	for _, allowed := range All{{classname}}{{enumName}}Values() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
 }
 
 // String returns the declared wire value of the enum, so the shared stringify
@@ -135,7 +155,7 @@ func (v *{{classname}}{{enumName}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := {{classname}}{{enumName}}(raw)
-	for _, allowed := range all{{classname}}{{enumName}}Values() {
+	for _, allowed := range All{{classname}}{{enumName}}Values() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -147,7 +167,7 @@ func (v *{{classname}}{{enumName}}) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v {{classname}}{{enumName}}) MarshalJSON() ([]byte, error) {
-	for _, allowed := range all{{classname}}{{enumName}}Values() {
+	for _, allowed := range All{{classname}}{{enumName}}Values() {
 		if allowed == v {
 			return marshalJSON({{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
 		}
@@ -223,6 +243,57 @@ func (o {{classname}}) Equal(other {{classname}}) bool {
 	return string(a) == string(b)
 }
 
+{{#vars}}
+// With{{name}} returns a copy of the model with {{name}} replaced; the receiver is unchanged.
+func (o {{classname}}) With{{name}}(value {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}) {{classname}} {
+{{#required}}
+{{#isNullable}}
+	o.{{name}} = &value
+{{/isNullable}}
+{{^isNullable}}
+	o.{{name}} = value
+{{/isNullable}}
+{{/required}}
+{{^required}}
+	o.{{name}} = &value
+{{/required}}
+	return o
+}
+{{#required}}
+{{#isNullable}}
+
+// Without{{name}} returns a copy of the model with {{name}} set to null; the receiver is unchanged.
+func (o {{classname}}) Without{{name}}() {{classname}} {
+	o.{{name}} = nil
+	return o
+}
+{{/isNullable}}
+{{/required}}
+{{^required}}
+
+// Without{{name}} returns a copy of the model with {{name}} left unset; the receiver is unchanged.
+func (o {{classname}}) Without{{name}}() {{classname}} {
+	o.{{name}} = nil
+	return o
+}
+{{/required}}
+
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+// WithAdditionalProperties returns a copy of the model that carries a copy of the given extra properties; the receiver is unchanged.
+func (o {{classname}}) WithAdditionalProperties(value map[string]any) {{classname}} {
+	if value == nil {
+		o.AdditionalProperties = nil
+		return o
+	}
+	o.AdditionalProperties = make(map[string]any, len(value))
+	for key, extra := range value {
+		o.AdditionalProperties[key] = extra
+	}
+	return o
+}
+
+{{/isAdditionalPropertiesTrue}}
 {{#hasVars}}
 // New{{classname}} creates a new {{classname}} instance.
 func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{#isNullable}}*{{/isNullable}}{{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) *{{classname}} {
@@ -593,9 +664,33 @@ func New{{classname}}(actualInstance any) {{classname}} {
 	return {{classname}}{value: actualInstance}
 }
 
-// MarshalJSON implements the json.Marshaler interface.
+{{#oneOf}}
+// New{{#goVariantName}}{{{.}}}{{/goVariantName}}{{classname}} builds the union from a {{{.}}} variant.
+func New{{#goVariantName}}{{{.}}}{{/goVariantName}}{{classname}}(value {{{.}}}) {{classname}} {
+	return {{classname}}{value: value}
+}
+
+// As{{#goVariantName}}{{{.}}}{{/goVariantName}} returns the {{{.}}} variant, and false when the union holds another one.
+func (o {{classname}}) As{{#goVariantName}}{{{.}}}{{/goVariantName}}() ({{{.}}}, bool) {
+	value, ok := o.value.({{{.}}})
+	return value, ok
+}
+
+// Is{{#goVariantName}}{{{.}}}{{/goVariantName}} reports whether the union holds a {{{.}}} variant.
+func (o {{classname}}) Is{{#goVariantName}}{{{.}}}{{/goVariantName}}() bool {
+	_, ok := o.value.({{{.}}})
+	return ok
+}
+
+{{/oneOf}}
+// MarshalJSON implements the json.Marshaler interface. A value that is not one
+// of the declared variants is rejected rather than sent.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
-	return marshalJSON(o.value)
+	switch o.value.(type) {
+	case {{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}:
+		return marshalJSON(o.value)
+	}
+	return nil, fmt.Errorf("%T is not a variant of {{classname}}", o.value)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -686,12 +781,44 @@ func New{{classname}}(matchedInstances ...any) {{classname}} {
 	return {{classname}}{matchedInstances: append([]any(nil), matchedInstances...)}
 }
 
+{{#anyOf}}
+// New{{#goVariantName}}{{{.}}}{{/goVariantName}}{{classname}} builds the union from a {{{.}}} variant.
+func New{{#goVariantName}}{{{.}}}{{/goVariantName}}{{classname}}(value {{{.}}}) {{classname}} {
+	return {{classname}}{matchedInstances: []any{value}}
+}
+
+// As{{#goVariantName}}{{{.}}}{{/goVariantName}} returns the first retained {{{.}}} variant, and false when the union holds none.
+func (o {{classname}}) As{{#goVariantName}}{{{.}}}{{/goVariantName}}() ({{{.}}}, bool) {
+	for _, instance := range o.matchedInstances {
+		if value, ok := instance.({{{.}}}); ok {
+			return value, true
+		}
+	}
+	var none {{{.}}}
+	return none, false
+}
+
+// Is{{#goVariantName}}{{{.}}}{{/goVariantName}} reports whether the union holds a {{{.}}} variant.
+func (o {{classname}}) Is{{#goVariantName}}{{{.}}}{{/goVariantName}}() bool {
+	_, ok := o.As{{#goVariantName}}{{{.}}}{{/goVariantName}}()
+	return ok
+}
+
+{{/anyOf}}
 // MarshalJSON implements the json.Marshaler interface. A single retained
 // variant is marshalled directly; several are merged into one JSON object so
 // that co-satisfied data round-trips losslessly. Earlier variants are merged
 // first; a key present in a later variant overrides the same key from an
-// earlier one.
+// earlier one. A value that is not one of the declared variants is rejected
+// rather than sent.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	for _, instance := range o.matchedInstances {
+		switch instance.(type) {
+		case {{#anyOf}}{{{.}}}{{^-last}}, {{/-last}}{{/anyOf}}:
+		default:
+			return nil, fmt.Errorf("%T is not a variant of {{classname}}", instance)
+		}
+	}
 	if len(o.matchedInstances) == 1 {
 		return marshalJSON(o.matchedInstances[0])
 	}

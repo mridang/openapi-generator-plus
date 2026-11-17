@@ -311,12 +311,34 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	}
 	ctx, release := mergeContexts(callCtx, c.baseCtx)
 	defer release()
-	if c.httpClient == nil && c.transportOptions.Timeout() != nil && *c.transportOptions.Timeout() > 0 {
-		/* An injected HttpDoer has no client-level timeout, so the SDK's
-		 * end-to-end budget is a deadline on the request context. */
-		var stop context.CancelFunc
-		ctx, stop = context.WithTimeout(ctx, time.Duration(*c.transportOptions.Timeout())*time.Millisecond)
-		defer stop()
+	doer := c.doer
+	var callTimeout *time.Duration
+	if opts != nil {
+		callTimeout = opts.Timeout
+	}
+	if c.httpClient != nil && callTimeout != nil {
+		/* A per-call timeout replaces the client's own for this request: a
+		 * copy of the policy client carries it, so the shared client is never
+		 * changed. */
+		scoped := *c.httpClient
+		scoped.Timeout = *callTimeout
+		doer = &scoped
+	}
+	if c.httpClient == nil {
+		budget := time.Duration(0)
+		if c.transportOptions.Timeout() != nil {
+			budget = time.Duration(*c.transportOptions.Timeout()) * time.Millisecond
+		}
+		if callTimeout != nil {
+			budget = *callTimeout
+		}
+		if budget > 0 {
+			/* An injected HttpDoer has no client-level timeout, so the SDK's
+			 * end-to-end budget is a deadline on the request context. */
+			var stop context.CancelFunc
+			ctx, stop = context.WithTimeout(ctx, budget)
+			defer stop()
+		}
 	}
 	if opts != nil && opts.NoRedirect {
 		ctx = context.WithValue(ctx, noRedirectContextKey{}, true)
@@ -330,7 +352,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		req.Header.Set(k, v)
 	}
 
-	resp, err := c.doer.Do(req)
+	resp, err := doer.Do(req)
 	if err != nil {
 		if resp != nil {
 			// A refused redirect (too many hops, a non-HTTP scheme, an
@@ -500,6 +522,7 @@ func newOwnedTransport(opts *TransportOptions) *http.Transport {
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,

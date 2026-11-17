@@ -323,7 +323,7 @@ func TestStoreApi_GetGroupedCategoriesDeserializesTypedLeaves(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected non-nil result from GetGroupedCategories")
 	}
-	groups := *result
+	groups := result
 	if len(groups) != 2 {
 		t.Fatalf("expected 2 groups, got %d", len(groups))
 	}
@@ -450,7 +450,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetMatrix failed: %v", err)
 		}
-		rows := *result
+		rows := result
 		if len(rows) != 2 || len(rows[1]) != 2 || rows[1][0] != 3 {
 			t.Errorf("expected [[1 2] [3 4]], got %v", rows)
 		}
@@ -477,7 +477,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetSwatchGroups failed: %v", err)
 		}
-		groups := *result
+		groups := result
 		if len(groups) != 2 || groups[0]["warm"] != models.SwatchRed || groups[1]["cool"] != models.SwatchBlue {
 			t.Errorf("expected typed swatches per group, got %v", groups)
 		}
@@ -491,7 +491,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetTimestampGroups failed: %v", err)
 		}
-		groups := *result
+		groups := result
 		if len(groups) != 1 {
 			t.Fatalf("expected 1 group, got %d", len(groups))
 		}
@@ -625,5 +625,31 @@ func TestStoreApi_SearchStoreRejectsAnUnserializableContentQuery(t *testing.T) {
 	}
 	if requests != 0 {
 		t.Errorf("expected no request, got %d", requests)
+	}
+}
+
+// An operation with several success responses decodes the body as the schema of
+// the status the server answered with, never by guessing from its shape: this
+// body fits both schemas, and the status alone says which one it is.
+func TestStoreApi_ReserveStockDecodesTheBodyByItsStatus(t *testing.T) {
+	t.Parallel()
+	const both = `{"reservationId":31,"quantity":4,"receiptCode":"rcpt-77","expiresAt":"2030-01-01T00:00:00.000+00:00"}`
+	for _, tc := range []struct {
+		status   int
+		existing bool
+	}{{200, true}, {201, false}} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(tc.status)
+			_, _ = w.Write([]byte(both))
+		}))
+		result, err := newStoreApiForMock(t, server).ReserveStock(context.Background())
+		server.Close()
+		if err != nil {
+			t.Fatalf("ReserveStock with status %d failed: %v", tc.status, err)
+		}
+		if result.IsReservation() != tc.existing || result.IsReservationReceipt() == tc.existing {
+			t.Errorf("status %d: expected a reservation=%v, got %T", tc.status, tc.existing, result.ActualInstance())
+		}
 	}
 }

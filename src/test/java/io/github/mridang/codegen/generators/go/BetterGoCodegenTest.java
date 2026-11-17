@@ -54,4 +54,49 @@ class BetterGoCodegenTest {
     assertThat(BetterGoCodegen.goStringBody("X-$Key#{x}")).isEqualTo("X-$Key#{x}");
     assertThat(BetterGoCodegen.goStringBody("a\nb\u0001")).isEqualTo("a\\nb\\x01");
   }
+
+  /* F308: an integer enum member is PascalCase like every other enum member. */
+  @Test
+  void anIntegerEnumMemberIsPascalCase() {
+    assertThat(BetterGoCodegen.pascalFromUpperSnake("NUMBER_1")).isEqualTo("Number1");
+    assertThat(BetterGoCodegen.pascalFromUpperSnake("NUMBER_MINUS_1")).isEqualTo("NumberMinus1");
+    assertThat(BetterGoCodegen.pascalFromUpperSnake("NUMBER_1_DOT_5")).isEqualTo("Number1Dot5");
+    assertThat(new BetterGoCodegen().toEnumVarName("-2", "int32")).isEqualTo("NumberMinus2");
+  }
+
+  /* F878: a oneOf variant is named from its Go type in the typed constructor and accessors. */
+  @Test
+  void aUnionVariantIsNamedFromItsGoType() {
+    assertThat(BetterGoCodegen.variantName("DryFood")).isEqualTo("DryFood");
+    assertThat(BetterGoCodegen.variantName("string")).isEqualTo("String");
+    assertThat(BetterGoCodegen.variantName("[]byte")).isEqualTo("ByteSlice");
+    assertThat(BetterGoCodegen.variantName("[][]byte")).isEqualTo("ByteSliceSlice");
+    assertThat(BetterGoCodegen.variantName("map[string]int32")).isEqualTo("Int32Map");
+    assertThat(BetterGoCodegen.variantName("uuid.UUID")).isEqualTo("UUID");
+    assertThat(BetterGoCodegen.variantName("*Pet")).isEqualTo("Pet");
+  }
+
+  /* F877: a slice, a map, a string or a byte slice comes back by value, a model by pointer. */
+  @Test
+  void aSliceMapStringOrByteSliceIsReturnedByValue() {
+    assertThat(BetterGoCodegen.returnsByValue("[]Pet")).isTrue();
+    assertThat(BetterGoCodegen.returnsByValue("[]byte")).isTrue();
+    assertThat(BetterGoCodegen.returnsByValue("map[string]int32")).isTrue();
+    assertThat(BetterGoCodegen.returnsByValue("string")).isTrue();
+    assertThat(BetterGoCodegen.returnsByValue("Pet")).isFalse();
+    assertThat(BetterGoCodegen.returnsByValue("int32")).isFalse();
+    assertThat(BetterGoCodegen.returnsByValue(null)).isFalse();
+  }
+
+  /* F1055: a path or body parameter named like something the operation body declares is
+  renamed, so the generated method still compiles. */
+  @Test
+  void renamesAParameterNamedLikeAnInjectedArgumentOrALocal() {
+    final BetterGoCodegen codegen = new BetterGoCodegen();
+    assertThat(codegen.toParamName("options")).isEqualTo("optionsParam");
+    assertThat(codegen.toParamName("ctx")).isEqualTo("ctxParam");
+    assertThat(codegen.toParamName("path")).isEqualTo("pathParam");
+    assertThat(codegen.toParamName("callOptions")).isEqualTo("callOptionsParam");
+    assertThat(codegen.toParamName("name")).isEqualTo("name");
+  }
 }

@@ -10,6 +10,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,9 +19,17 @@ import (
 // BearerAuthenticator is the authenticator for HTTP Bearer token authentication.
 type BearerAuthenticator struct {
 	BaseAuthenticator
-	host  string
-	token string
+	host     string
+	token    string
+	provider TokenProvider
 }
+
+// TokenProvider returns the Bearer token to send with a request. An
+// authenticator built around one asks it for every request, so a token that
+// rotates is always current; ctx is the context of the API call, and the
+// function should stop when it is cancelled. Return an error when no token can
+// be had: the call then fails with it and no request is sent.
+type TokenProvider func(ctx context.Context) (string, error)
 
 // ErrInvalidBearerToken is returned by NewBearerAuthenticator when the token is
 // empty, whitespace-only, or contains a character outside printable ASCII and
@@ -46,23 +55,46 @@ func (e *invalidBearerTokenError) Unwrap() error { return ErrInvalidBearerToken 
 // or silently-mangled non-ASCII bytes, so the constructor returns
 // ErrInvalidBearerToken instead.
 func NewBearerAuthenticator(host, token string) (*BearerAuthenticator, error) {
+	if err := validateBearerToken(token); err != nil {
+		return nil, err
+	}
+	return &BearerAuthenticator{
+		host:  host,
+		token: token,
+	}, nil
+}
+
+// NewBearerAuthenticatorWithProvider creates an HTTP Bearer authenticator whose
+// token comes from provider, which is asked for every request. The provider
+// must not be nil; a token it returns is checked like the one
+// NewBearerAuthenticator takes, and a bad one fails the call with
+// ErrInvalidBearerToken.
+func NewBearerAuthenticatorWithProvider(host string, provider TokenProvider) (*BearerAuthenticator, error) {
+	if provider == nil {
+		return nil, &invalidBearerTokenError{"bearer token provider must not be nil"}
+	}
+	return &BearerAuthenticator{
+		host:     host,
+		provider: provider,
+	}, nil
+}
+
+// validateBearerToken rejects a token that would not be sent as intended.
+func validateBearerToken(token string) error {
 	// An empty or whitespace-only token would produce the literal
 	// `Authorization: Bearer ` header and silently send the request
 	// unauthenticated. Reject it, matching the api-key authenticator's own
 	// empty guard.
 	// Blank means empty or ASCII whitespace only (space, \t, \n, \r, \f, \v).
 	if strings.Trim(token, " \t\n\r\f\v") == "" {
-		return nil, &invalidBearerTokenError{"bearer token must not be empty"}
+		return &invalidBearerTokenError{"bearer token must not be empty"}
 	}
 	for _, c := range token {
 		if c != '\t' && (c < 0x20 || c >= 0x7F) {
-			return nil, &invalidBearerTokenError{"bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"}
+			return &invalidBearerTokenError{"bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"}
 		}
 	}
-	return &BearerAuthenticator{
-		host:  host,
-		token: token,
-	}, nil
+	return nil
 }
 
 // Host returns the API base URL.
@@ -85,16 +117,45 @@ func (a BearerAuthenticator) GoString() string {
 	return a.String()
 }
 
-// AuthHeaders returns the Bearer authentication header.
-func (a *BearerAuthenticator) AuthHeaders() map[string]string {
+// AuthHeadersOrErrorContext returns the Bearer authentication header, asking
+// the token provider (when there is one) with the context of the API call. A
+// provider error, or a token the provider returns that is not valid, is
+// returned and no request is sent.
+func (a *BearerAuthenticator) AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error) {
+	token := a.token
+	if a.provider != nil {
+		provided, err := a.provider(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("bearer token provider failed: %w", err)
+		}
+		if err := validateBearerToken(provided); err != nil {
+			return nil, err
+		}
+		token = provided
+	}
 	// Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read from
 	// env files are commonly stored already-prefixed; emitting
 	// "Bearer Bearer xyz" would otherwise silently break auth.
-	value := a.token
+	value := token
 	if len(value) >= 7 && strings.EqualFold(value[:7], "Bearer ") {
 		value = value[7:]
 	}
 	return map[string]string{
 		"Authorization": "Bearer " + value,
+	}, nil
+}
+
+// AuthHeadersOrError is AuthHeadersOrErrorContext with no call context.
+func (a *BearerAuthenticator) AuthHeadersOrError() (map[string]string, error) {
+	return a.AuthHeadersOrErrorContext(context.Background())
+}
+
+// AuthHeaders returns the Bearer authentication header, or an empty map when
+// the token provider fails. Use AuthHeadersOrError to see why.
+func (a *BearerAuthenticator) AuthHeaders() map[string]string {
+	headers, err := a.AuthHeadersOrError()
+	if err != nil {
+		return map[string]string{}
 	}
+	return headers
 }

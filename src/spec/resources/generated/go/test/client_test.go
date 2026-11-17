@@ -10,8 +10,11 @@
 package petstore_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -156,5 +159,138 @@ func TestClient_SubApiAccessorsUseShortGroupNames(t *testing.T) {
 	}
 	if client.Store == nil {
 		t.Error("expected non-nil client.Store accessor")
+	}
+}
+
+// ── Credentials: the argument wins, then the environment, read once ──
+
+func TestClient_WithTokenReadsTheEnvironmentWhenTheArgumentsAreEmpty(t *testing.T) {
+	var seen string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	t.Setenv("PETSTORE_BASE_URL", server.URL)
+	t.Setenv("PETSTORE_ACCESS_TOKEN", "env-token")
+
+	client, err := petstore.NewClientWithToken("", "", nil)
+	if err != nil {
+		t.Fatalf("expected the environment to supply both credentials, got %v", err)
+	}
+	defer func() { _ = client.Close() }()
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+
+	if seen != "Bearer env-token" {
+		t.Errorf("expected the token from the environment, got %q", seen)
+	}
+}
+
+func TestClient_WithTokenPrefersTheArgumentsToTheEnvironment(t *testing.T) {
+	var seen string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	t.Setenv("PETSTORE_BASE_URL", "http://unused.invalid")
+	t.Setenv("PETSTORE_ACCESS_TOKEN", "env-token")
+
+	client, err := petstore.NewClientWithToken(server.URL, "arg-token", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+
+	if seen != "Bearer arg-token" {
+		t.Errorf("expected the argument to win, got %q", seen)
+	}
+}
+
+func TestClient_WithTokenFailsWhenACredentialCannotBeResolved(t *testing.T) {
+	t.Setenv("PETSTORE_BASE_URL", "")
+	t.Setenv("PETSTORE_ACCESS_TOKEN", "")
+
+	for name, build := range map[string]func() (*petstore.Client, error){
+		"no host":  func() (*petstore.Client, error) { return petstore.NewClientWithToken("", "token", nil) },
+		"no token": func() (*petstore.Client, error) { return petstore.NewClientWithToken("/api/v3", "", nil) },
+	} {
+		client, err := build()
+		if !errors.Is(err, petstore.ErrMissingCredential) {
+			t.Errorf("%s: expected ErrMissingCredential, got %v", name, err)
+		}
+		if client != nil {
+			t.Errorf("%s: expected a nil client", name)
+		}
+	}
+}
+
+func TestClient_WithTokenProviderAsksTheProviderForEveryRequestWithTheCallContext(t *testing.T) {
+	t.Parallel()
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	type markerKey struct{}
+	calls := 0
+	provider := func(ctx context.Context) (string, error) {
+		calls++
+		if ctx.Value(markerKey{}) != "marker" {
+			return "", errors.New("the provider did not get the call context")
+		}
+		return fmt.Sprintf("token-%d", calls), nil
+	}
+	client, err := petstore.NewClientWithTokenProvider(server.URL, provider, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx := context.WithValue(context.Background(), markerKey{}, "marker")
+	_, _ = client.Pet.GetPetById(ctx, int64(1), nil)
+	_, _ = client.Pet.GetPetById(ctx, int64(1), nil)
+
+	if len(seen) != 2 || seen[0] != "Bearer token-1" || seen[1] != "Bearer token-2" {
+		t.Errorf("expected a fresh token per request, got %v", seen)
+	}
+}
+
+func TestClient_WithTokenProviderReportsAProviderFailureWithoutSendingARequest(t *testing.T) {
+	t.Parallel()
+	hit := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hit = true }))
+	defer server.Close()
+	boom := errors.New("vault unavailable")
+	client, err := petstore.NewClientWithTokenProvider(server.URL, func(context.Context) (string, error) { return "", boom }, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+
+	if !errors.Is(err, boom) {
+		t.Errorf("expected the provider's error, got %v", err)
+	}
+	if hit {
+		t.Error("expected no request when the provider fails")
+	}
+}
+
+func TestClient_WithTokenProviderRejectsANilProviderAndAMissingHost(t *testing.T) {
+	t.Setenv("PETSTORE_BASE_URL", "")
+
+	if _, err := petstore.NewClientWithTokenProvider("/api/v3", nil, nil); !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken for a nil provider, got %v", err)
+	}
+	provider := func(context.Context) (string, error) { return "token", nil }
+	if _, err := petstore.NewClientWithTokenProvider("", provider, nil); !errors.Is(err, petstore.ErrMissingCredential) {
+		t.Errorf("expected ErrMissingCredential for a missing host, got %v", err)
 	}
 }

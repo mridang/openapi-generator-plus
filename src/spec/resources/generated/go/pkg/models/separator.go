@@ -38,6 +38,16 @@ func AllSeparatorValues() []Separator {
 	}
 }
 
+// IsValid reports whether the value is one of the allowed values of Separator.
+func (v Separator) IsValid() bool {
+	for _, allowed := range AllSeparatorValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
+}
+
 // String returns the declared wire value of the enum.
 //
 // A parameter passed as *Separator (the shape optional query/header params

@@ -38,6 +38,42 @@ func (o BinaryVault) Equal(other BinaryVault) bool {
 	return string(a) == string(b)
 }
 
+// WithSeal returns a copy of the model with Seal replaced; the receiver is unchanged.
+func (o BinaryVault) WithSeal(value []byte) BinaryVault {
+	o.Seal = &value
+	return o
+}
+
+// WithoutSeal returns a copy of the model with Seal left unset; the receiver is unchanged.
+func (o BinaryVault) WithoutSeal() BinaryVault {
+	o.Seal = nil
+	return o
+}
+
+// WithShards returns a copy of the model with Shards replaced; the receiver is unchanged.
+func (o BinaryVault) WithShards(value [][]byte) BinaryVault {
+	o.Shards = &value
+	return o
+}
+
+// WithoutShards returns a copy of the model with Shards left unset; the receiver is unchanged.
+func (o BinaryVault) WithoutShards() BinaryVault {
+	o.Shards = nil
+	return o
+}
+
+// WithLabels returns a copy of the model with Labels replaced; the receiver is unchanged.
+func (o BinaryVault) WithLabels(value map[string][]byte) BinaryVault {
+	o.Labels = &value
+	return o
+}
+
+// WithoutLabels returns a copy of the model with Labels left unset; the receiver is unchanged.
+func (o BinaryVault) WithoutLabels() BinaryVault {
+	o.Labels = nil
+	return o
+}
+
 // NewBinaryVault creates a new BinaryVault instance.
 func NewBinaryVault() *BinaryVault {
 	return &BinaryVault{}

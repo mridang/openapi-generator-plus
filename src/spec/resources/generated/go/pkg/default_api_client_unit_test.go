@@ -1346,6 +1346,118 @@ func TestDefaultApiClient_TooManyRedirectsUsesTheCanonicalMessage(t *testing.T) 
 	}
 }
 
+// ── An intermediate redirect response is released ──
+
+// countedBody is a response body that counts how often it is closed.
+type countedBody struct {
+	io.Reader
+	closed *int
+}
+
+func (b countedBody) Close() error {
+	*b.closed++
+	return nil
+}
+
+// redirectingTripper answers the first requests (all of them when redirects is
+// negative) with a 302 to location, then with a 200. The body of every 302
+// counts its closes, so a test can tell a response that was released from one
+// that was left open. A body may be closed more than once; what matters is that
+// none is left open.
+type redirectingTripper struct {
+	location  string
+	redirects int
+	served    int
+	closes    []*int
+}
+
+func (r *redirectingTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.served++
+	if r.redirects < 0 || r.served <= r.redirects {
+		closed := new(int)
+		r.closes = append(r.closes, closed)
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Status:     "302 Found",
+			Header:     http.Header{"Location": []string{r.location}},
+			Body:       countedBody{Reader: strings.NewReader("moved"), closed: closed},
+			Request:    req,
+		}, nil
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Status:     "200 OK",
+		Header:     http.Header{},
+		Body:       io.NopCloser(strings.NewReader("done")),
+		Request:    req,
+	}, nil
+}
+
+// assertEveryRedirectResponseWasClosed fails for any 302 response whose body
+// was never closed, and when there was no redirect response to check.
+func (r *redirectingTripper) assertEveryRedirectResponseWasClosed(t *testing.T) {
+	t.Helper()
+	if len(r.closes) == 0 {
+		t.Fatal("expected at least one redirect response")
+	}
+	for i, closed := range r.closes {
+		if *closed == 0 {
+			t.Errorf("redirect response %d of %d was never closed", i+1, len(r.closes))
+		}
+	}
+}
+
+func TestDefaultApiClient_AFollowedRedirectHopIsReleased(t *testing.T) {
+	t.Parallel()
+	tripper := &redirectingTripper{location: "https://example.test/next", redirects: 1}
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", "https://example.test/start", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	tripper.assertEveryRedirectResponseWasClosed(t)
+}
+
+func TestDefaultApiClient_ARefusedRedirectResponseIsReleased(t *testing.T) {
+	t.Parallel()
+	tripper := &redirectingTripper{location: "ftp://example.test/next", redirects: -1}
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", "https://example.test/start", map[string]string{}, nil); err == nil {
+		t.Fatal("expected the redirect to a non-HTTP URL to be refused")
+	}
+	tripper.assertEveryRedirectResponseWasClosed(t)
+}
+
+func TestDefaultApiClient_EveryHopOfAnExhaustedRedirectBudgetIsReleased(t *testing.T) {
+	t.Parallel()
+	tripper := &redirectingTripper{location: "https://example.test/again", redirects: -1}
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).MaxRedirects(2).RoundTripper(tripper).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", "https://example.test/start", map[string]string{}, nil); err == nil {
+		t.Fatal("expected the redirect budget to run out")
+	}
+	if len(tripper.closes) != 3 {
+		t.Fatalf("expected the original request and two followed hops, got %d responses", len(tripper.closes))
+	}
+	tripper.assertEveryRedirectResponseWasClosed(t)
+}
+
 // ca-cert-fail-fast: an explicitly configured CA certificate path that cannot
 // be read or parsed must fail fast at construction rather than silently
 // falling back to the system trust store (security theater). Build returns
@@ -1616,6 +1728,9 @@ func TestBuildHTTPClient_TransportHasStandardTimeoutsAndNoImplicitProxy(t *testi
 	}
 	if transport.DialContext == nil {
 		t.Error("expected a dialer with a timeout and keep-alive")
+	}
+	if transport.MaxIdleConnsPerHost != 10 {
+		t.Errorf("expected 10 idle connections kept per host, got %d", transport.MaxIdleConnsPerHost)
 	}
 	if transport.Proxy != nil {
 		t.Error("expected no implicit environment proxy")
