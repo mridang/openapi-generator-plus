@@ -1313,6 +1313,20 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvOperations131GetWithoutBodySendsNoContentTypeHeader()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.False(client.CapturedHeaders.ContainsKey("Content-Type"),
+            "a request with no body must not send a Content-Type header");
+    }
+
+    [Fact]
     public async Task BhvOperations011EmptyStringBodyPostSendsContentType()
     {
         var client = new CapturingApiClient();

@@ -1032,7 +1032,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void AllNullPropertiesProduceEmptyJsonObject()
+        public void BhvSerializationobject188AllNullPropertiesProduceEmptyJsonObject()
         {
             var category = new Category { Id = null, Name = null };
             var json = _serializer.Serialize(category);
@@ -2433,6 +2433,17 @@ public static class ObjectSerializerTest
             );
 
             Assert.Equal("b", department!.Lead!.Name);
+        }
+
+        [Fact]
+        public void BhvSerializationobject189MutuallyRecursiveModelsDecodeFromNestedJson()
+        {
+            Department? department = _serializer.Deserialize<Department>(
+                "{\"name\":\"ops\",\"lead\":{\"name\":\"a\",\"department\":{\"name\":\"hr\"}}}"
+            );
+
+            Assert.Equal("a", department!.Lead!.Name);
+            Assert.Equal("hr", department.Lead!.Department!.Name);
         }
 
         [Fact]

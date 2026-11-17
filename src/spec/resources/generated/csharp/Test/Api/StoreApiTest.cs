@@ -512,7 +512,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task SearchStoreTimeQueryKeepsNonZeroMilliseconds()
+    public async Task BhvOperations139SearchStoreTimeQueryKeepsNonZeroMilliseconds()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -575,7 +575,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task SearchStoreUnserializableContentQueryRaisesSerializationExceptionWithoutARequest()
+    public async Task BhvOperations128SearchStoreUnserializableContentQueryRaisesSerializationExceptionWithoutARequest()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -667,7 +667,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task ReserveStockDecodesA200AsTheExistingReservation()
+    public async Task BhvOperations129ReserveStockDecodesA200AsTheExistingReservation()
     {
         var api = NewStoreApiForMock(
             200,
