@@ -208,7 +208,7 @@ void main() {
     );
 
     test(
-      'InternalServerErrorException is ServerException, ApiException and OpenAPIException',
+      'bhv errors 047 InternalServerErrorException is ServerException, ApiException and OpenAPIException',
       () {
         const err = InternalServerErrorException(message: 'boom');
 

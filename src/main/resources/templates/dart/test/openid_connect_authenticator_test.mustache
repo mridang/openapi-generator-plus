@@ -361,6 +361,24 @@ void main() {
       );
     });
 
+    test('bhv authoidc 029 concurrent callers on a cold authenticator share one discovery request', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      final urls = await Future.wait(
+          List.generate(5, (_) => auth.buildAuthorizationUrl()));
+
+      expect(client.getCount, equals(1));
+      for (final url in urls) {
+        expect(url, startsWith('https://auth.example.com/authorize?'));
+      }
+    });
+
     test('bhv authoidc 011 fetches discovery document only once', () async {
       final client = _FakeApiClient();
       client.enqueue(

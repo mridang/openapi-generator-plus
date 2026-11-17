@@ -96,7 +96,7 @@ void main() {
     );
 
     test(
-      'authenticating proxy refuses a request without credentials',
+      'bhv transport 059 authenticating proxy refuses a request without credentials',
       () async {
         final transport = TransportOptionsBuilder()
             .proxy('http://$proxyAuthHostPort')

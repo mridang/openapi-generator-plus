@@ -10,19 +10,22 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('ApiKeyAuthenticator', () {
-    test('an explicit key wins over the environment', () {
-      final auth = ApiKeyAuthenticator(
-        host: '/api/v3',
-        keyParamName: 'X-Api-Key',
-        apiKey: 'explicit',
-        location: ApiKeyLocation.header,
-        environment: {
-          ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv',
-        },
-      );
+    test(
+      'bhv serializationobject 187 an explicit key wins over the environment',
+      () {
+        final auth = ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'explicit',
+          location: ApiKeyLocation.header,
+          environment: {
+            ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv',
+          },
+        );
 
-      expect(auth.authHeaders(), equals({'X-Api-Key': 'explicit'}));
-    });
+        expect(auth.authHeaders(), equals({'X-Api-Key': 'explicit'}));
+      },
+    );
 
     test('the key falls back to the environment variable, read once', () {
       final environment = {

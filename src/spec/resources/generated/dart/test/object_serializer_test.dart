@@ -879,9 +879,12 @@ void main() {
       },
     );
 
-    test('request JSON escapes only the quote, the backslash and controls', () {
-      expect(serialize({'k': 'q"b\\n\n'}), equals(r'{"k":"q\"b\\n\n"}'));
-    });
+    test(
+      'bhv serializationobject 186 request JSON escapes only the quote, the backslash and controls',
+      () {
+        expect(serialize({'k': 'q"b\\n\n'}), equals(r'{"k":"q\"b\\n\n"}'));
+      },
+    );
 
     test(
       'bhv serializationobject 114 a format time property passes through as the string it was given',
@@ -1840,6 +1843,20 @@ void main() {
     );
 
     test(
+      'bhv serializationobject 184 an ISO-8601 duration string is rejected',
+      () {
+        expect(
+          () => parseProtobufDuration('PT1H'),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => parseProtobufDuration('P1Y'),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
       'bhv serializationobject 158 formatProtobufDuration emits canonical zero',
       () {
         expect(formatProtobufDuration(Duration.zero), equals('0s'));
@@ -2357,13 +2374,16 @@ void main() {
       });
     }
 
-    test('a padded standard base64 value is accepted', () {
-      final decoded = deserialize<PetPassport>(
-        '{"thumbnail":"dGVzdA=="}',
-        PetPassport.fromJson,
-      );
-      expect(decoded!.thumbnail, equals(utf8.encode('test')));
-    });
+    test(
+      'bhv serializationobject 185 a padded standard base64 value is accepted',
+      () {
+        final decoded = deserialize<PetPassport>(
+          '{"thumbnail":"dGVzdA=="}',
+          PetPassport.fromJson,
+        );
+        expect(decoded!.thumbnail, equals(utf8.encode('test')));
+      },
+    );
 
     for (final uri in [
       'urn:isbn:0451450523',

@@ -10,7 +10,7 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('BearerAuthenticator', () {
-    test('an explicit token wins over the environment', () {
+    test('bhv authbearer 018 an explicit token wins over the environment', () {
       final auth = BearerAuthenticator(
         host: '/api/v3',
         token: 'explicit',
@@ -22,19 +22,22 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
     });
 
-    test('the environment variable is read once, at construction', () {
-      final environment = {
-        BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
-      };
-      final auth = BearerAuthenticator(
-        host: '/api/v3',
-        environment: environment,
-      );
+    test(
+      'bhv lifecycle 025 the environment variable is read once, at construction',
+      () {
+        final environment = {
+          BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
+        };
+        final auth = BearerAuthenticator(
+          host: '/api/v3',
+          environment: environment,
+        );
 
-      environment[BearerAuthenticator.defaultEnvironmentVariable] = 'changed';
+        environment[BearerAuthenticator.defaultEnvironmentVariable] = 'changed';
 
-      expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
-    });
+        expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
+      },
+    );
 
     test('a named environment variable is read instead of the default', () {
       final auth = BearerAuthenticator(

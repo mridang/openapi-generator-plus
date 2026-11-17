@@ -19,7 +19,7 @@ void main() {
       expect(TransportOptionsBuilder().httpClient(custom).build().httpClient, same(custom));
     });
 
-    test('httpClient conflicts with proxy, caCertPath and verifySsl(false)', () {
+    test('bhv lifecycle 024 a supplied http client conflicts with proxy, caCertPath and verifySsl(false)', () {
       final custom = MockClient((_) async => http.Response('', 200));
       expect(
         () => TransportOptionsBuilder().httpClient(custom).proxy('http://proxy:3128').build(),

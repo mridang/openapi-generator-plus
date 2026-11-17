@@ -170,7 +170,7 @@ void main() {
       expect(err, isA<Exception>());
     });
 
-    test('InternalServerErrorException is ServerException, ApiException and {{errorPrefix}}Exception',
+    test('bhv errors 047 InternalServerErrorException is ServerException, ApiException and {{errorPrefix}}Exception',
         () {
       const err = InternalServerErrorException(message: 'boom');
 

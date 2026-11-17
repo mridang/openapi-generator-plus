@@ -107,11 +107,27 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
     return delegate.authHeadersAsync();
   }
 
-  Future<OAuth2AuthorizationCodeAuthenticator> _resolveDelegate() async {
-    if (_delegate != null && DateTime.now().isBefore(_discoveryExpiry)) {
-      return _delegate!;
-    }
+  /// The discovery request in flight, shared by every caller that finds the
+  /// document missing or expired while it is pending, so concurrent calls on a
+  /// cold authenticator fetch the document once.
+  Future<OAuth2AuthorizationCodeAuthenticator>? _pendingDiscovery;
 
+  Future<OAuth2AuthorizationCodeAuthenticator> _resolveDelegate() {
+    if (_delegate != null && DateTime.now().isBefore(_discoveryExpiry)) {
+      return Future.value(_delegate!);
+    }
+    final pending = _pendingDiscovery;
+    if (pending != null) {
+      return pending;
+    }
+    final discovery = _discover().whenComplete(() {
+      _pendingDiscovery = null;
+    });
+    _pendingDiscovery = discovery;
+    return discovery;
+  }
+
+  Future<OAuth2AuthorizationCodeAuthenticator> _discover() async {
     final client = _apiClient;
     if (client == null) {
       throw StateError(

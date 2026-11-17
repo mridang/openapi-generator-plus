@@ -31,7 +31,7 @@ void main() {
     });
 
     test(
-      'httpClient conflicts with proxy, caCertPath and verifySsl(false)',
+      'bhv lifecycle 024 a supplied http client conflicts with proxy, caCertPath and verifySsl(false)',
       () {
         final custom = MockClient((_) async => http.Response('', 200));
         expect(
