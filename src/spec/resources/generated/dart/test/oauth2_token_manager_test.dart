@@ -1165,14 +1165,17 @@ void main() {
       },
     );
 
-    test('without an error code it carries the raw body', () {
-      final err = OAuth2ServerException(502, null, null, null, 'Bad Gateway');
+    test(
+      'bhv authoauthtwotokenmgr 047 without an error code it carries the raw body',
+      () {
+        final err = OAuth2ServerException(502, null, null, null, 'Bad Gateway');
 
-      expect(
-        err.message,
-        equals('Token request failed with status 502: Bad Gateway'),
-      );
-    });
+        expect(
+          err.message,
+          equals('Token request failed with status 502: Bad Gateway'),
+        );
+      },
+    );
 
     test('with an error code it names the code', () {
       final err = OAuth2ServerException(400, 'invalid_grant', null, null, '{}');

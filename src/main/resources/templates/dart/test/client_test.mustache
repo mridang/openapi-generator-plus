@@ -211,6 +211,21 @@ void main() {
       expect({{clientClassName}}.withToken(host: '{{{basePath}}}'), isNotNull);
     });
 
+{{#clientSchemes}}{{#-first}}
+    test('bhv lifecycle 030 the base URL comes from the default authenticator first, then from the first scheme credential', () {
+      final scheme = BearerAuthenticator(host: 'https://scheme.example.com', token: 'tok');
+      final fallback = BearerAuthenticator(host: 'https://default.example.com', token: 'tok');
+
+      final withDefault = {{clientClassName}}(authenticator: fallback, {{paramName}}: scheme);
+      final schemeOnly = {{clientClassName}}({{paramName}}: scheme);
+
+{{#apiInfo}}{{#apis}}{{#operations}}{{#-first}}
+      expect(withDefault.{{clientPropertyName}}.config.baseUrl, equals('https://default.example.com'));
+      expect(schemeOnly.{{clientPropertyName}}.config.baseUrl, equals('https://scheme.example.com'));
+{{/-first}}{{/operations}}{{/apis}}{{/apiInfo}}
+    });
+{{/-first}}{{/clientSchemes}}
+
     test('bhv lifecycle 015 takes one optional keyword credential per security scheme, named after it', () {
       expect(() => {{clientClassName}}(), throwsArgumentError);
 {{#clientSchemes}}

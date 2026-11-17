@@ -287,6 +287,35 @@ void main() {
     );
 
     test(
+      'bhv lifecycle 030 the base URL comes from the default authenticator first, then from the first scheme credential',
+      () {
+        final scheme = BearerAuthenticator(
+          host: 'https://scheme.example.com',
+          token: 'tok',
+        );
+        final fallback = BearerAuthenticator(
+          host: 'https://default.example.com',
+          token: 'tok',
+        );
+
+        final withDefault = Client(
+          authenticator: fallback,
+          petStoreBasic: scheme,
+        );
+        final schemeOnly = Client(petStoreBasic: scheme);
+
+        expect(
+          withDefault.pet.config.baseUrl,
+          equals('https://default.example.com'),
+        );
+        expect(
+          schemeOnly.pet.config.baseUrl,
+          equals('https://scheme.example.com'),
+        );
+      },
+    );
+
+    test(
       'bhv lifecycle 015 takes one optional keyword credential per security scheme, named after it',
       () {
         expect(() => Client(), throwsArgumentError);

@@ -3946,7 +3946,7 @@ void main() {
       },
     );
 
-    test('a client with no credential at all is refused', () {
+    test('bhv lifecycle 026 a client with no credential at all is refused', () {
       expect(() => Client(), throwsArgumentError);
     });
 
@@ -4125,22 +4125,25 @@ void main() {
       },
     );
 
-    test('a network failure carries the method and the path', () async {
-      final client = _ScriptedApiClient([
-        const NetworkException(message: 'reset'),
-      ], maxRetries: 0);
-      final api = _RecordingApi(client);
+    test(
+      'bhv errors 057 a network failure carries the method and the path',
+      () async {
+        final client = _ScriptedApiClient([
+          const NetworkException(message: 'reset'),
+        ], maxRetries: 0);
+        final api = _RecordingApi(client);
 
-      await expectLater(
-        api.invokeApi(method: 'DELETE', path: '/items/9'),
-        throwsA(
-          isA<NetworkException>()
-              .having((e) => e.requestMethod, 'requestMethod', 'DELETE')
-              .having((e) => e.requestPath, 'requestPath', '/items/9')
-              .having((e) => e.message, 'message', 'reset'),
-        ),
-      );
-    });
+        await expectLater(
+          api.invokeApi(method: 'DELETE', path: '/items/9'),
+          throwsA(
+            isA<NetworkException>()
+                .having((e) => e.requestMethod, 'requestMethod', 'DELETE')
+                .having((e) => e.requestPath, 'requestPath', '/items/9')
+                .having((e) => e.message, 'message', 'reset'),
+          ),
+        );
+      },
+    );
 
     test('a timeout stays a timeout and carries the request', () async {
       final client = _ScriptedApiClient([

@@ -3467,6 +3467,27 @@ void main() {
 
   group('Response cookies', () {
     test(
+      'bhv lifecycle 035 a request issued after close fails with the one closed-client error and never reaches the transport',
+      () async {
+        var calls = 0;
+        final client = _OwnedTransportClient(
+          MockClient((_) async {
+            calls++;
+            return http.Response('', 200);
+          }),
+        );
+
+        client.close();
+
+        await expectLater(
+          client.sendRequest('GET', 'https://example.com', {}, null),
+          throwsA(isA<StateError>()),
+        );
+        expect(calls, equals(0));
+      },
+    );
+
+    test(
       'bhv retries 015 a Set-Cookie answer is never replayed as a Cookie on the next request',
       () async {
         final seen = <String?>[];
