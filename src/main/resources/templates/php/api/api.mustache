@@ -459,7 +459,15 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
             $allowReservedKeys{{#bodyParam}}{{#isBinary}},
-            rawBody: true{{/isBinary}}{{/bodyParam}}
+            rawBody: true{{/isBinary}}{{/bodyParam}},
+{{>per_call_arguments}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+            successTypes: [
+{{#vendorExtensions.op.successResponses}}
+                '{{statusCode}}' => '{{{returnType}}}',
+{{/vendorExtensions.op.successResponses}}
+            ],
+{{/vendorExtensions.op.hasMultiple2xx}}
         );
         return $result;
     }
@@ -822,7 +830,8 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
             $allowReservedKeys{{#bodyParam}}{{#isBinary}},
-            rawBody: true{{/isBinary}}{{/bodyParam}}
+            rawBody: true{{/isBinary}}{{/bodyParam}},
+{{>per_call_arguments}}
         );
         return $result;
     }

@@ -10,8 +10,12 @@ use Throwable;
  */
 class NetworkException extends ApiException
 {
-    public function __construct(string $message = "", ?Throwable $previous = null)
-    {
-        parent::__construct(0, $message, null, null, null, $previous);
+    public function __construct(
+        string $message = "",
+        ?Throwable $previous = null,
+        ?string $requestMethod = null,
+        ?string $requestPath = null
+    ) {
+        parent::__construct(0, $message, null, null, null, $previous, $requestMethod, $requestPath);
     }
 }

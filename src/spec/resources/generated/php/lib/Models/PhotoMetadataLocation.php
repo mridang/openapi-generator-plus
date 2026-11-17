@@ -18,10 +18,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class PhotoMetadataLocation
 {
     #[SerializedName('lat')]
-    public ?float $lat = null;
+    public readonly ?float $lat;
 
     #[SerializedName('lng')]
-    public ?float $lng = null;
+    public readonly ?float $lng;
 
     /**
      */
@@ -31,5 +31,27 @@ class PhotoMetadataLocation
     ) {
         $this->lat = $lat;
         $this->lng = $lng;
+    }
+
+    /**
+     * Returns a copy of this model with lat replaced. This model is not changed.
+     */
+    public function withLat(?float $lat): self
+    {
+        return new self(
+            lat: $lat,
+            lng: $this->lng,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with lng replaced. This model is not changed.
+     */
+    public function withLng(?float $lng): self
+    {
+        return new self(
+            lat: $this->lat,
+            lng: $lng,
+        );
     }
 }

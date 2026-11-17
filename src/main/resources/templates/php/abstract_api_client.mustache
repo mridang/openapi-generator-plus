@@ -77,6 +77,13 @@ abstract class AbstractApiClient implements ApiClient
     private ?float $retryDeadline = null;
 
     /**
+     * Request timeout in milliseconds that one {@see sendWithRetries()} call
+     * asks for, replacing {@see TransportOptions::$timeout} for that call, or
+     * null when the call keeps the transport timeout.
+     */
+    private ?int $callTimeoutMs = null;
+
+    /**
      * @param TransportOptions|null $transportOptions transport configuration applied to every request
      */
     public function __construct(?TransportOptions $transportOptions = null)
@@ -140,9 +147,12 @@ abstract class AbstractApiClient implements ApiClient
      * @param bool                  $noRedirect when true, suppress redirect following
      *                                          regardless of {@see TransportOptions::followRedirects}
      *                                          (Gap 3.2 -- used by {@see OAuth2TokenManager}
-     *                                          to refuse 307/308 on token POSTs). Such a
-     *                                          request also omits the transport default
-     *                                          headers, which are meant for the API.
+     *                                          to refuse 307/308 on token POSTs)
+     * @param bool                  $noDefaultHeaders when true, omit the transport default headers,
+     *                                          which are meant for the API. A token request
+     *                                          (identity provider) and OpenID Connect discovery
+     *                                          set it so an Authorization or API key default
+     *                                          header never reaches another host.
      *
      * @return ApiHttpResponse the HTTP response
      *
@@ -154,6 +164,7 @@ abstract class AbstractApiClient implements ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
+        bool $noDefaultHeaders = false,
     ): ApiHttpResponse {
         /* Gap T-D4: refuse to send on a closed client. Using a client after
          * close() is a wrong call order, so it raises \LogicException rather
@@ -162,11 +173,11 @@ abstract class AbstractApiClient implements ApiClient
             throw new \LogicException('ApiClient has been closed and can no longer send requests');
         }
 
-        /* A request that refuses redirects is an SDK token request (RFC 6749
-         * section 3.2). It goes to the identity provider, a different origin,
-         * so the caller's default headers (an Authorization or API key meant
-         * for the API) must not ride along. */
-        $mergedHeaders = $noRedirect
+        /* An SDK token request (RFC 6749 section 3.2) or OpenID Connect
+         * discovery goes to the identity provider, a different origin, so the
+         * caller's default headers (an Authorization or API key meant for the
+         * API) must not ride along. */
+        $mergedHeaders = $noDefaultHeaders
             ? $headers
             : array_merge($this->transportOptions->defaultHeaders, $headers);
         /* Field names are case-insensitive (RFC 9110 section 5.1): a caller's
@@ -210,9 +221,10 @@ abstract class AbstractApiClient implements ApiClient
             }
         }
 
-        $this->deadline = $this->transportOptions->timeout === null
+        $timeoutMs = $this->callTimeoutMs ?? $this->transportOptions->timeout;
+        $this->deadline = $timeoutMs === null
             ? null
-            : hrtime(true) / 1e9 + $this->transportOptions->timeout / 1000.0;
+            : hrtime(true) / 1e9 + $timeoutMs / 1000.0;
         if ($this->retryDeadline !== null) {
             $this->deadline = $this->deadline === null
                 ? $this->retryDeadline
@@ -341,7 +353,7 @@ abstract class AbstractApiClient implements ApiClient
                     $currentHeaders = $redirectHeaders;
                     if ($this->remainingTimeout() === 0.0) {
                         throw new NetworkTimeoutException(
-                            "API Request timed out: the {$this->transportOptions->timeout} ms timeout "
+                            "API Request timed out: the $timeoutMs ms timeout "
                             . "was spent before following the redirect to $nextUrl"
                         );
                     }
@@ -442,15 +454,52 @@ abstract class AbstractApiClient implements ApiClient
      * @param string                          $url     fully qualified URL
      * @param callable(): array<string, string> $headers builds the request headers for one attempt
      * @param mixed                           $body    request body (string, multipart array, stream, or null)
+     * @param int|null                        $timeoutMs  request timeout in milliseconds for this call, replacing
+     *                                                    {@see TransportOptions::$timeout}; null keeps it
+     * @param int|null                        $maxRetries retries for this call, replacing
+     *                                                    {@see TransportOptions::$maxRetries}; null keeps it
      *
      * @return ApiHttpResponse the response of the last attempt
      *
      * @throws ApiException if the last attempt fails at the transport level
      */
-    public function sendWithRetries(string $method, string $url, callable $headers, mixed $body): ApiHttpResponse
-    {
-        $maxRetries = ($body === null || is_string($body)) ? $this->transportOptions->maxRetries : 0;
-        $timeout = $this->transportOptions->timeout;
+    public function sendWithRetries(
+        string $method,
+        string $url,
+        callable $headers,
+        mixed $body,
+        ?int $timeoutMs = null,
+        ?int $maxRetries = null,
+    ): ApiHttpResponse {
+        $this->callTimeoutMs = $timeoutMs;
+        try {
+            return $this->sendAndRetry(
+                $method,
+                $url,
+                $headers,
+                $body,
+                $timeoutMs ?? $this->transportOptions->timeout,
+                $maxRetries ?? $this->transportOptions->maxRetries
+            );
+        } finally {
+            $this->callTimeoutMs = null;
+        }
+    }
+
+    /**
+     * The attempt loop behind {@see sendWithRetries()}.
+     *
+     * @param callable(): array<string, string> $headers builds the request headers for one attempt
+     */
+    private function sendAndRetry(
+        string $method,
+        string $url,
+        callable $headers,
+        mixed $body,
+        ?int $timeout,
+        int $retries,
+    ): ApiHttpResponse {
+        $maxRetries = ($body === null || is_string($body)) ? $retries : 0;
         $budgetEnd = $timeout === null ? null : hrtime(true) / 1e9 + $timeout / 1000.0;
         $attempt = 0;
         while (true) {
@@ -698,7 +747,7 @@ abstract class AbstractApiClient implements ApiClient
         }
 
         $encodings = mb_list_encodings();
-        $known = array_any($encodings, fn (string $supported): bool => strcasecmp($supported, $charset) === 0);
+        $known = in_array(strtolower($charset), array_map(strtolower(...), $encodings), true);
         if (!$known) {
             try {
                 $aliases = mb_encoding_aliases($charset);
@@ -800,15 +849,71 @@ abstract class AbstractApiClient implements ApiClient
         }
         /* RFC 3986 section 5.2 reference resolution, so a query-only
          * reference keeps the base path and dot segments are removed. */
-        $baseUri = \Uri\Rfc3986\Uri::parse($base);
-        if ($baseUri === null) {
-            return null;
+        $authority = ($baseParts['user'] ?? '') !== ''
+            ? $baseParts['user'] . (isset($baseParts['pass']) ? ':' . $baseParts['pass'] : '') . '@'
+            : '';
+        $authority .= $baseParts['host'] . (isset($baseParts['port']) ? ':' . $baseParts['port'] : '');
+        $basePath = $baseParts['path'] ?? '';
+        $baseQuery = $baseParts['query'] ?? null;
+        if (isset($parsed['host'])) {
+            /* A network-path reference ("//host/path") keeps only the scheme. */
+            $targetAuthority = ($parsed['user'] ?? '') !== ''
+                ? $parsed['user'] . (isset($parsed['pass']) ? ':' . $parsed['pass'] : '') . '@'
+                : '';
+            $targetAuthority .= $parsed['host'] . (isset($parsed['port']) ? ':' . $parsed['port'] : '');
+            $targetPath = self::removeDotSegments($parsed['path'] ?? '');
+            $targetQuery = $parsed['query'] ?? null;
+        } else {
+            $targetAuthority = $authority;
+            $path = $parsed['path'] ?? '';
+            if ($path === '') {
+                $targetPath = $basePath;
+                $targetQuery = $parsed['query'] ?? $baseQuery;
+            } else {
+                if (str_starts_with($path, '/')) {
+                    $targetPath = self::removeDotSegments($path);
+                } else {
+                    $slash = strrpos($basePath, '/');
+                    $directory = $slash === false ? '/' : substr($basePath, 0, $slash + 1);
+                    $targetPath = self::removeDotSegments($directory . $path);
+                }
+                $targetQuery = $parsed['query'] ?? null;
+            }
         }
-        try {
-            return $baseUri->resolve($location)->toRawString();
-        } catch (\Uri\InvalidUriException) {
-            return null;
+
+        return $baseParts['scheme'] . '://' . $targetAuthority . $targetPath
+            . ($targetQuery !== null ? '?' . $targetQuery : '')
+            . (isset($parsed['fragment']) ? '#' . $parsed['fragment'] : '');
+    }
+
+    /**
+     * RFC 3986 section 5.2.4: remove the "." and ".." segments of a path.
+     */
+    private static function removeDotSegments(string $path): string
+    {
+        $output = [];
+        $segments = explode('/', $path);
+        $last = count($segments) - 1;
+        foreach ($segments as $index => $segment) {
+            if ($segment === '.') {
+                if ($index === $last) {
+                    $output[] = '';
+                }
+                continue;
+            }
+            if ($segment === '..') {
+                if (count($output) > 1) {
+                    array_pop($output);
+                }
+                if ($index === $last) {
+                    $output[] = '';
+                }
+                continue;
+            }
+            $output[] = $segment;
         }
+
+        return implode('/', $output);
     }
 
     /**

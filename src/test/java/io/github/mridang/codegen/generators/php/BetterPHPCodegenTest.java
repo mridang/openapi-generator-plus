@@ -118,4 +118,60 @@ class BetterPHPCodegenTest {
 
         assertEquals(List.of(), BetterPHPCodegen.exampleDocLines(parameter));
     }
+
+    @Test
+    void rendersTheOasExamplesMapOfAnOptionalParameterBeforeTheSharedPassRuns() {
+        final CodegenParameter parameter = new CodegenParameter();
+        parameter.examples = new java.util.LinkedHashMap<>();
+        final io.swagger.v3.oas.models.examples.Example example =
+                new io.swagger.v3.oas.models.examples.Example();
+        example.setSummary("Sold pets");
+        example.setValue("sold");
+        parameter.examples.put("sold_pets", example);
+
+        assertEquals(List.of("sold Sold pets"), BetterPHPCodegen.exampleDocLines(parameter));
+    }
+
+    @Test
+    void derivesTheEnvironmentPrefixFromTheInvokerPackage() {
+        assertEquals("PETSTORE_CLIENT", BetterPHPCodegen.resolveEnvPrefix(null, "PetstoreClient"));
+        assertEquals("ACME_SDK_V2", BetterPHPCodegen.resolveEnvPrefix(null, "Acme\\Sdk\\V2"));
+    }
+
+    @Test
+    void anEnvironmentPrefixOptionWinsOverTheInvokerPackage() {
+        assertEquals("ACME", BetterPHPCodegen.resolveEnvPrefix(" ACME ", "PetstoreClient"));
+        assertEquals("PETSTORE_CLIENT", BetterPHPCodegen.resolveEnvPrefix("  ", "PetstoreClient"));
+    }
+
+    @Test
+    void writesThePackageMetadataOptionsIntoTheComposerManifest() {
+        final Map<String, Object> options = new HashMap<>();
+        options.put("homepageUrl", "https://example.com");
+        options.put("repositoryUrl", "https://github.com/acme/sdk");
+        options.put("documentationUrl", "https://docs.example.com");
+        options.put("issueTrackerUrl", "https://github.com/acme/sdk/issues");
+        options.put("authors", "Ada Lovelace <ada@example.com>; Bob \"B\" Smith");
+
+        assertEquals(
+                "    \"homepage\": \"https://example.com\",\n"
+                        + "    \"authors\": [{\"name\": \"Ada Lovelace\", \"email\": \"ada@example.com\"},"
+                        + " {\"name\": \"Bob \\\"B\\\" Smith\"}],\n"
+                        + "    \"support\": {\"source\": \"https://github.com/acme/sdk\","
+                        + " \"docs\": \"https://docs.example.com\","
+                        + " \"issues\": \"https://github.com/acme/sdk/issues\"},\n",
+                BetterPHPCodegen.composerExtras(options));
+    }
+
+    @Test
+    void writesNoPackageMetadataWhenNoOptionIsSet() {
+        assertEquals("", BetterPHPCodegen.composerExtras(new HashMap<>()));
+    }
+
+    @Test
+    void readsTheAuthorsOptionAsAListOrAString() {
+        assertEquals(List.of("A", "B"), BetterPHPCodegen.authorList("A, B,"));
+        assertEquals(List.of("A", "B"), BetterPHPCodegen.authorList(List.of(" A ", "B", " ")));
+        assertEquals(List.of(), BetterPHPCodegen.authorList(null));
+    }
 }

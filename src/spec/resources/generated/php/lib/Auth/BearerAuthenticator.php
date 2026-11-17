@@ -19,15 +19,53 @@ namespace PetstoreClient\Auth;
 class BearerAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
-    private readonly string $token;
+    private readonly ?string $token;
 
-    public function __construct(string $host, #[\SensitiveParameter] string $token)
+    /** @var (\Closure(): string)|null */
+    private readonly ?\Closure $tokenProvider;
+
+    /**
+     * @param string        $host          the API base URL
+     * @param string|null   $token         the bearer token; when null, the PETSTORE_CLIENT_TOKEN environment
+     *                                     variable is used (an empty value counts as unset)
+     * @param \Closure|null $tokenProvider returns the token for each request, so a rotated token is
+     *                                     picked up; use it instead of $token
+     * @throws \InvalidArgumentException when no token is available or both a token and a provider are passed
+     */
+    public function __construct(
+        string $host,
+        #[\SensitiveParameter] ?string $token = null,
+        ?\Closure $tokenProvider = null
+    ) {
+        if ($token !== null && $tokenProvider instanceof \Closure) {
+            throw new \InvalidArgumentException('Pass either a bearer token or a token provider, not both');
+        }
+        if ($token === null && !$tokenProvider instanceof \Closure) {
+            $token = self::environmentCredential('TOKEN');
+            if ($token === null) {
+                throw new \InvalidArgumentException(
+                    'Bearer token is required: pass a token or a token provider, '
+                    . 'or set the PETSTORE_CLIENT_TOKEN environment variable'
+                );
+            }
+        }
+        if ($token !== null) {
+            $this->assertValidToken($token);
+        }
+        $this->host = $host;
+        $this->token = $token;
+        $this->tokenProvider = $tokenProvider;
+    }
+
+    /**
+     * Reject an empty / whitespace-only token up-front. Without this an
+     * empty token would emit the literal `Authorization: Bearer ` header
+     * (no credential), sending the request effectively unauthenticated.
+     * Mirrors the api-key authenticator's own empty guard: blank means
+     * empty or only ASCII whitespace (space, tab, LF, CR, FF, VT).
+     */
+    private function assertValidToken(#[\SensitiveParameter] string $token): void
     {
-        /* Reject an empty / whitespace-only token up-front. Without this an
-         * empty token would emit the literal `Authorization: Bearer ` header
-         * (no credential), sending the request effectively unauthenticated.
-         * Mirrors the api-key authenticator's own empty guard: blank means
-         * empty or only ASCII whitespace (space, tab, LF, CR, FF, VT). */
         if (trim($token, " \t\n\r\x0C\x0B") === '') {
             throw new \InvalidArgumentException(
                 'Bearer token must not be empty'
@@ -42,8 +80,6 @@ class BearerAuthenticator extends BaseAuthenticator
                 'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
             );
         }
-        $this->host = $host;
-        $this->token = $token;
     }
 
     public function getHost(): string
@@ -58,6 +94,12 @@ class BearerAuthenticator extends BaseAuthenticator
          * from env files are commonly stored already-prefixed; emitting
          * "Bearer Bearer xyz" would otherwise silently break auth. */
         $value = $this->token;
+        if ($value === null) {
+            $provider = $this->tokenProvider;
+            assert($provider instanceof \Closure);
+            $value = (string) $provider();
+            $this->assertValidToken($value);
+        }
         if (strlen($value) >= 7 && strcasecmp(substr($value, 0, 7), 'Bearer ') === 0) {
             $value = substr($value, 7);
         }

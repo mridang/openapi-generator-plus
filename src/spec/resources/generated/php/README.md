@@ -4,9 +4,9 @@ Auto-generated PHP SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- PHP 8.5 or newer
+- PHP 8.3 or newer
 - Composer 2.x
-- PHP extensions: `ext-curl`, `ext-json`, `ext-mbstring`, `ext-uri`, `ext-zlib`
+- PHP extensions: `ext-curl`, `ext-json`, `ext-mbstring`, `ext-zlib`
 - Optional: PECL `ext-ds` (auto-replaces the `php-ds/php-ds` userland
   `\Ds\Vector` / `\Ds\Set` / `\Ds\Map` classes with their native C
   implementations for ~5–10x throughput on container-heavy payloads)
@@ -30,7 +30,7 @@ vendor/bin/phpstan analyse
 # Dependency audit — Composer advisories for the locked dependencies
 composer audit
 
-# Automated upgrades — Rector (UP_TO_PHP_84 + DEAD_CODE + CODE_QUALITY + EARLY_RETURN + TYPE_DECLARATION)
+# Automated upgrades — Rector (UP_TO_PHP_83 + DEAD_CODE + CODE_QUALITY + EARLY_RETURN + TYPE_DECLARATION)
 vendor/bin/rector
 ```
 
@@ -78,9 +78,39 @@ A request is retried after a network error that happened before a response arriv
 
 When an OAuth2 or OpenID Connect call is answered with 401, the cached access token is dropped (a refresh token is used first when there is one) and the request is sent once more with fresh headers. A second 401 is raised as `UnauthorizedException`. A stream or multipart body is not replayed, and API key, basic and bearer authenticators never replay.
 
+### Per-call options
+
+An operation that takes an options object accepts three more fields for that one call: `timeout` (milliseconds, positive), `headers` (a name to value map that wins over a configured header of the same name) and `maxRetries` (0 or more). They replace the transport settings for that call only.
+
+```php
+$api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+```
+
+`timeout` and `maxRetries` need the bundled transport or a subclass of `AbstractApiClient`; a transport you wrote yourself against `ApiClient` sends the headers and ignores the other two.
+
+### Credentials
+
+An authenticator takes its credential as an argument, or reads it from the environment when you pass `null`: `BearerAuthenticator` reads `PETSTORE_CLIENT_TOKEN`, `BasicAuthenticator` reads `PETSTORE_CLIENT_USERNAME` and `PETSTORE_CLIENT_PASSWORD`, `ApiKeyAuthenticator` reads `PETSTORE_CLIENT_API_KEY`. An argument always wins over the environment, an empty variable counts as unset, and the variable is read once, when the authenticator is built. A credential that is neither passed nor in the environment throws `InvalidArgumentException` at that point, so a missing credential never waits for the first request. Pass a `\Closure` token provider (`new BearerAuthenticator($host, null, fn (): string => $vault->token())`) to supply a rotating credential; it is called for every request.
+
 ### Request id
 
 Set `TransportOptions::builder()->injectRequestId(true)` and the SDK adds a unique `X-Request-ID` header to every request unless you set your own (header names are matched case-insensitively). Quote it when you report a problem with a call.
+
+### Errors
+
+An `ApiException` and each of its subclasses carries the request that failed: `getRequestMethod()` and `getRequestPath()` (the path without its query string, so a secret in a query parameter never reaches a log). The string form prints them as `Request: GET /items/7` after the status code.
+
+### Models
+
+Models are immutable: every property is `readonly`, and each has a `withX()` method that returns a changed copy (`$model->withName('example')`), leaving the original as it was. A model with `additionalProperties` also has `withAdditionalProperties()`. A `oneOf` or `anyOf` wrapper has `fromX()`, `isX()` and `asX()` for each variant (`Result::fromVariant($variant)`, `$union->asVariant()`), where `asX()` returns `null` for another variant. An operation with several 2xx responses of different schemas returns such a wrapper, decoded by the status code that arrived, never by trial.
+
+### Response compression
+
+The SDK sends `Accept-Encoding` for the encodings it can decode and decompresses the body before it reaches you: `gzip` and `deflate` always, `br` with `ext-brotli` and `zstd` with `ext-zstd`. A response in an encoding whose extension is missing fails with a clear error instead of returning compressed bytes.
+
+### Logging
+
+The SDK does not log. To log requests and responses, wrap your own PSR-18 client with a logging decorator (PSR-3) and pass it as described under Custom HTTP client.
 
 ### Custom HTTP client
 
@@ -137,6 +167,12 @@ vendor/bin/pest
 - Name: `openapi/petstoreclient`
 - Namespace: `PetstoreClient`
 - Version: `1.0.0`
+- License: MIT
+- Authors: 
+
+### Versioning
+
+The package follows semantic versioning. The minimum PHP version is the oldest release that still receives security fixes (PHP 8.3 today); it moves up when that release reaches end of life.
 
 ## Caveats
 
@@ -159,6 +195,30 @@ Fixing this end-to-end would require switching the wire layer to
 emit JSON numbers from internal string/GMP representations, which
 breaks `format: int64` schema validation against strict mock servers
 (verified with Chasm). Documented as a known limitation.
+
+### Optional and nullable are one
+
+A property that is not required is `null` when the response leaves it out and when it carries an explicit `null`; the model cannot tell the two apart. A property that is required and nullable keeps an explicit `null` and is written as `null` when unset.
+
+### Unknown values fail loudly
+
+A response value that is not in a declared enum, or a `oneOf` payload whose discriminator is missing or not mapped, is not guessed at: decoding throws `SerializationException` (or `InvalidArgumentException` from `build()`), so a new server-side value surfaces as an error instead of a wrong model.
+
+### Repeated response headers
+
+A header the server repeats arrives in `ApiResult::$headers` and in `ApiException::getResponseHeaders()` as one value joined with `, `, under its lower-cased name.
+
+### Streaming is not supported
+
+Request and response bodies are read into memory. To stream, supply your own transport (see Custom HTTP client).
+
+### Configuration and transport options are separate
+
+`Configuration` holds what belongs to the API (base URL, default headers for every operation) and `TransportOptions` holds how bytes travel (timeouts, retries, proxy, TLS, redirects). They are built separately on purpose: a different transport can be injected without changing either.
+
+### URI formats are strings
+
+A property or parameter of `format: uri` is a PHP `string`: the native URI type needs PHP 8.5 and the SDK supports PHP 8.3.
 
 ### Enum string form
 

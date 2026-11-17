@@ -162,3 +162,70 @@ test('every generated api key wrapper emits its key at exactly one location and 
     }
     expect($wrappers)->toBeGreaterThan(0);
 });
+
+/**
+ * Runs $body with the API key environment variable set to $value (null unsets it), then restores it.
+ */
+function withApiKeyEnvironment(?string $value, callable $body): void
+{
+    $name = '{{envPrefix}}_API_KEY';
+    $previous = getenv($name);
+    putenv($value === null ? $name : $name . '=' . $value);
+    try {
+        $body();
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+}
+
+test('an explicit api key wins over the environment', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'explicit', ApiKeyLocation::HEADER);
+        expect($auth->getAuthHeaders())->toBe(['X-API-Key' => 'explicit']);
+    });
+});
+
+test('the api key is read from the environment when none is passed', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER);
+        expect($auth->getAuthHeaders())->toBe(['X-API-Key' => 'from-environment']);
+    });
+});
+
+test('a missing or empty environment api key fails when the authenticator is built', function (?string $value): void {
+    withApiKeyEnvironment($value, function (): void {
+        expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER))
+            ->toThrow(\InvalidArgumentException::class, '{{envPrefix}}_API_KEY');
+    });
+})->with([
+    'unset' => [null],
+    'empty' => [''],
+]);
+
+test('an api key provider is asked for the key on every request', function (): void {
+    $calls = 0;
+    $auth = new ApiKeyAuthenticator(
+        'https://api.example.com',
+        'api_key',
+        null,
+        ApiKeyLocation::QUERY,
+        function () use (&$calls): string {
+            $calls++;
+
+            return 'rotated-' . $calls;
+        }
+    );
+
+    expect($auth->getQueryParams())->toBe(['api_key' => 'rotated-1']);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'rotated-2']);
+});
+
+test('an api key and a key provider cannot both be passed', function (): void {
+    expect(fn () => new ApiKeyAuthenticator(
+        'https://api.example.com',
+        'X-API-Key',
+        'a',
+        ApiKeyLocation::HEADER,
+        fn (): string => 'b'
+    ))->toThrow(\InvalidArgumentException::class, 'not both');
+});

@@ -18,17 +18,17 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class StockItem
 {
     #[SerializedName('priority')]
-    public \PetstoreClient\Models\Priority $priority;
+    public readonly \PetstoreClient\Models\Priority $priority;
 
     #[SerializedName('availability')]
-    public ?\PetstoreClient\Models\Availability $availability = null;
+    public readonly ?\PetstoreClient\Models\Availability $availability;
 
     /**
      * Quantity grid as an array of integer arrays
      * @var \Ds\Vector<\Ds\Vector<int>>|null
      */
     #[SerializedName('matrix')]
-    public ?\Ds\Vector $matrix = null;
+    public readonly ?\Ds\Vector $matrix;
 
     /**
      * @param \Ds\Vector<\Ds\Vector<int>>|null $matrix
@@ -41,5 +41,43 @@ class StockItem
         $this->priority = $priority;
         $this->availability = $availability;
         $this->matrix = $matrix;
+    }
+
+    /**
+     * Returns a copy of this model with priority replaced. This model is not changed.
+     */
+    public function withPriority(\PetstoreClient\Models\Priority $priority): self
+    {
+        return new self(
+            priority: $priority,
+            availability: $this->availability,
+            matrix: $this->matrix,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with availability replaced. This model is not changed.
+     */
+    public function withAvailability(?\PetstoreClient\Models\Availability $availability): self
+    {
+        return new self(
+            priority: $this->priority,
+            availability: $availability,
+            matrix: $this->matrix,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with matrix replaced. This model is not changed.
+     *
+     * @param \Ds\Vector<\Ds\Vector<int>>|null $matrix
+     */
+    public function withMatrix(?\Ds\Vector $matrix): self
+    {
+        return new self(
+            priority: $this->priority,
+            availability: $this->availability,
+            matrix: $matrix,
+        );
     }
 }

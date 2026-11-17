@@ -18,10 +18,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class DryFood
 {
     #[SerializedName('weightKg')]
-    public float $weightKg;
+    public readonly float $weightKg;
 
     #[SerializedName('foodType')]
-    public string $foodType = 'dry';
+    public readonly string $foodType;
 
     /**
      */
@@ -31,5 +31,27 @@ class DryFood
     ) {
         $this->weightKg = $weightKg;
         $this->foodType = $foodType;
+    }
+
+    /**
+     * Returns a copy of this model with weightKg replaced. This model is not changed.
+     */
+    public function withWeightKg(float $weightKg): self
+    {
+        return new self(
+            weightKg: $weightKg,
+            foodType: $this->foodType,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with foodType replaced. This model is not changed.
+     */
+    public function withFoodType(string $foodType): self
+    {
+        return new self(
+            weightKg: $this->weightKg,
+            foodType: $foodType,
+        );
     }
 }

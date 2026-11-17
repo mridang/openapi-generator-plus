@@ -18,13 +18,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class ApiResponse
 {
     #[SerializedName('code')]
-    public ?int $code = null;
+    public readonly ?int $code;
 
     #[SerializedName('type')]
-    public ?string $type = null;
+    public readonly ?string $type;
 
     #[SerializedName('message')]
-    public ?string $message = null;
+    public readonly ?string $message;
 
     /**
      */
@@ -36,5 +36,41 @@ class ApiResponse
         $this->code = $code;
         $this->type = $type;
         $this->message = $message;
+    }
+
+    /**
+     * Returns a copy of this model with code replaced. This model is not changed.
+     */
+    public function withCode(?int $code): self
+    {
+        return new self(
+            code: $code,
+            type: $this->type,
+            message: $this->message,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with type replaced. This model is not changed.
+     */
+    public function withType(?string $type): self
+    {
+        return new self(
+            code: $this->code,
+            type: $type,
+            message: $this->message,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with message replaced. This model is not changed.
+     */
+    public function withMessage(?string $message): self
+    {
+        return new self(
+            code: $this->code,
+            type: $this->type,
+            message: $message,
+        );
     }
 }

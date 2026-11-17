@@ -239,6 +239,50 @@ test('fromResponse maps every status to its exception', function (int $status, s
     [600, ApiException::class],
 ]);
 
+test('fromResponse carries the request method and the path without its query string', function (int $status, string $expected): void {
+    $ex = ApiException::fromResponse($status, [], '{}', 'get', 'https://api.example.com/v2/items/7?token=secret#top');
+
+    expect($ex::class)->toBe($expected);
+    expect($ex->getRequestMethod())->toBe('GET');
+    expect($ex->getRequestPath())->toBe('/v2/items/7');
+})->with([
+    [400, \PetstoreClient\Errors\BadRequestException::class],
+    [401, \PetstoreClient\Errors\UnauthorizedException::class],
+    [403, \PetstoreClient\Errors\ForbiddenException::class],
+    [404, \PetstoreClient\Errors\NotFoundException::class],
+    [409, \PetstoreClient\Errors\ConflictException::class],
+    [418, \PetstoreClient\Errors\ClientException::class],
+    [422, \PetstoreClient\Errors\UnprocessableEntityException::class],
+    [429, \PetstoreClient\Errors\TooManyRequestsException::class],
+    [500, \PetstoreClient\Errors\InternalServerErrorException::class],
+    [503, \PetstoreClient\Errors\ServerException::class],
+    [302, ApiException::class],
+]);
+
+test('the request method and path are rendered on their own line and never carry the query string', function (): void {
+    $ex = ApiException::fromResponse(404, [], null, 'DELETE', '/items/7?api_key=secret');
+
+    expect((string) $ex)->toBe("API returned status code 404\nHTTP status code: 404\nRequest: DELETE /items/7");
+    expect((string) $ex)->not->toContain('secret');
+});
+
+test('an error built without a request has no request context', function (): void {
+    $ex = new ApiException(500, 'boom');
+
+    expect($ex->getRequestMethod())->toBeNull();
+    expect($ex->getRequestPath())->toBeNull();
+    expect((string) $ex)->not->toContain('Request:');
+});
+
+test('a bare path or a query only target reduces to a path', function (string $target, string $expected): void {
+    expect(ApiException::fromResponse(500, [], null, 'GET', $target)->getRequestPath())->toBe($expected);
+})->with([
+    'absolute path' => ['/items/7?x=1', '/items/7'],
+    'full url' => ['https://h:8443/a/b?x=1', '/a/b'],
+    'host only' => ['https://h?x=1', '/'],
+    'fragment' => ['/a#frag', '/a'],
+]);
+
 test('fromResponse leaves the error body null when the body is not JSON', function (): void {
     $ex = ApiException::fromResponse(502, [], '<html>bad gateway</html>');
 

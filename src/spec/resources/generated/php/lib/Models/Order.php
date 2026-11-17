@@ -19,31 +19,31 @@ class Order
 {
     /** @example 10 */
     #[SerializedName('id')]
-    public ?int $id = null;
+    public readonly ?int $id;
 
     /** @example 198772 */
     #[SerializedName('petId')]
-    public ?int $petId = null;
+    public readonly ?int $petId;
 
     /** @example 7 */
     #[SerializedName('quantity')]
-    public ?int $quantity = null;
+    public readonly ?int $quantity;
 
     #[SerializedName('trackingId')]
-    public ?\Symfony\Component\Uid\Uuid $trackingId = null;
+    public readonly ?\Symfony\Component\Uid\Uuid $trackingId;
 
     #[SerializedName('shipDate')]
-    public ?\DateTime $shipDate = null;
+    public readonly ?\DateTime $shipDate;
 
     #[SerializedName('complete')]
-    public ?bool $complete = null;
+    public readonly ?bool $complete;
 
     /**
      * Order Status
      * @example approved
      */
     #[SerializedName('status')]
-    public OrderStatusEnum $status = OrderStatusEnum::PLACED;
+    public readonly OrderStatusEnum $status;
 
     /**
      */
@@ -63,5 +63,117 @@ class Order
         $this->shipDate = $shipDate;
         $this->complete = $complete;
         $this->status = $status;
+    }
+
+    /**
+     * Returns a copy of this model with id replaced. This model is not changed.
+     */
+    public function withId(?int $id): self
+    {
+        return new self(
+            id: $id,
+            petId: $this->petId,
+            quantity: $this->quantity,
+            trackingId: $this->trackingId,
+            shipDate: $this->shipDate,
+            status: $this->status,
+            complete: $this->complete,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with petId replaced. This model is not changed.
+     */
+    public function withPetId(?int $petId): self
+    {
+        return new self(
+            id: $this->id,
+            petId: $petId,
+            quantity: $this->quantity,
+            trackingId: $this->trackingId,
+            shipDate: $this->shipDate,
+            status: $this->status,
+            complete: $this->complete,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with quantity replaced. This model is not changed.
+     */
+    public function withQuantity(?int $quantity): self
+    {
+        return new self(
+            id: $this->id,
+            petId: $this->petId,
+            quantity: $quantity,
+            trackingId: $this->trackingId,
+            shipDate: $this->shipDate,
+            status: $this->status,
+            complete: $this->complete,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with trackingId replaced. This model is not changed.
+     */
+    public function withTrackingId(?\Symfony\Component\Uid\Uuid $trackingId): self
+    {
+        return new self(
+            id: $this->id,
+            petId: $this->petId,
+            quantity: $this->quantity,
+            trackingId: $trackingId,
+            shipDate: $this->shipDate,
+            status: $this->status,
+            complete: $this->complete,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with shipDate replaced. This model is not changed.
+     */
+    public function withShipDate(?\DateTime $shipDate): self
+    {
+        return new self(
+            id: $this->id,
+            petId: $this->petId,
+            quantity: $this->quantity,
+            trackingId: $this->trackingId,
+            shipDate: $shipDate,
+            status: $this->status,
+            complete: $this->complete,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with complete replaced. This model is not changed.
+     */
+    public function withComplete(?bool $complete): self
+    {
+        return new self(
+            id: $this->id,
+            petId: $this->petId,
+            quantity: $this->quantity,
+            trackingId: $this->trackingId,
+            shipDate: $this->shipDate,
+            status: $this->status,
+            complete: $complete,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with status replaced. This model is not changed.
+     */
+    public function withStatus(OrderStatusEnum $status): self
+    {
+        return new self(
+            id: $this->id,
+            petId: $this->petId,
+            quantity: $this->quantity,
+            trackingId: $this->trackingId,
+            shipDate: $this->shipDate,
+            status: $status,
+            complete: $this->complete,
+        );
     }
 }

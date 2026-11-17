@@ -57,6 +57,8 @@ test('throws correct exception', function (int $status, string $expectedClass): 
         expect($e::class)->toBe($expectedClass);
         expect($e->getCode())->toBe($status);
         expect($e->getResponseBody())->not->toBeEmpty();
+        expect($e->getRequestMethod())->toBe('GET');
+        expect($e->getRequestPath())->toBe("/test/status/$status");
     }
 })->with([
     [400, BadRequestException::class],
@@ -274,6 +276,7 @@ function tokenRotatingApiClient(\ArrayObject $requests): ApiClient
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             $this->requests[] = ['url' => $url, 'headers' => $headers];
             if ($url === 'https://auth.example.com/token') {
@@ -348,7 +351,7 @@ test('a binary body is sent as raw bytes whether given as string, stream resourc
     $body = match ($kind) {
         'string' => 'raw-bytes',
         'resource' => $resource,
-        default => new \Nyholm\Psr7\Factory\Psr17Factory()->createStream('raw-bytes'),
+        default => (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('raw-bytes'),
     };
 
     $api->call('POST', '/test/echo', [], [], $body, ['application/json'], 'application/octet-stream', null);
@@ -766,6 +769,7 @@ test('skips deserialization for non json content type', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain']);
         }
@@ -798,6 +802,7 @@ test('rejects a text plain body for a model return with a serialization error na
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain; charset=utf-8']);
         }
@@ -834,6 +839,7 @@ test('a binary return type gets the raw bytes of a JSON body', function (): void
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, '{"id":7,"name":"photo"}', ['Content-Type' => 'application/json']);
         }
@@ -866,6 +872,7 @@ test('deserializes vendor json mime types', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, '{"title":"Not Found"}', ['Content-Type' => 'application/problem+json']);
         }
@@ -1104,6 +1111,7 @@ test('octet stream response decoded as base 64 bytes', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
         }
@@ -1139,6 +1147,7 @@ test('image png response decoded as bytes', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'image/png']);
         }
@@ -1176,6 +1185,7 @@ test('binary response roundtrips nul and high bytes', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
         }
@@ -1210,6 +1220,7 @@ test('empty binary body yields null', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, '', ['Content-Type' => 'application/octet-stream']);
         }
@@ -1241,6 +1252,7 @@ test('json response parsed to object', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, '{"id":42,"name":"test"}', ['Content-Type' => 'application/json']);
         }
@@ -1272,6 +1284,7 @@ test('text plain response returns string', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, 'hello world', ['Content-Type' => 'text/plain']);
         }
@@ -1304,6 +1317,7 @@ test('empty body yields null', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, '', ['Content-Type' => 'application/octet-stream']);
         }

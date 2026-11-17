@@ -11,7 +11,7 @@ class MockTokenApiClient implements ApiClient
     private array $responses = [];
     private int $callIndex = 0;
 
-    /** @var array<int, array{method: string, url: string, headers: array<string, string>, body: string|null, noRedirect: bool}> */
+    /** @var array<int, array{method: string, url: string, headers: array<string, string>, body: string|null, noRedirect: bool, noDefaultHeaders: bool}> */
     public array $capturedRequests = [];
 
     public function enqueueResponse(ApiHttpResponse $response): void
@@ -36,6 +36,7 @@ class MockTokenApiClient implements ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
+        bool $noDefaultHeaders = false,
     ): ApiHttpResponse {
         $this->capturedRequests[] = [
             'method' => $method,
@@ -43,6 +44,7 @@ class MockTokenApiClient implements ApiClient
             'headers' => $headers,
             'body' => is_string($body) ? $body : null,
             'noRedirect' => $noRedirect,
+            'noDefaultHeaders' => $noDefaultHeaders,
         ];
         $next = $this->responses[$this->callIndex++] ?? new ApiHttpResponse(500, '{}', []);
         if ($next instanceof \Throwable) {

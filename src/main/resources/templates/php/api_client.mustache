@@ -23,6 +23,11 @@ interface ApiClient
      *                                          regardless of {@see TransportOptions::followRedirects}.
      *                                          Set by callers (e.g. {@see OAuth2TokenManager})
      *                                          that must refuse redirect-driven request replays.
+     * @param bool                  $noDefaultHeaders when true, leave out the transport default headers
+     *                                          ({@see TransportOptions::$defaultHeaders}), which are
+     *                                          meant for the API and must not reach another host such
+     *                                          as an identity provider ({@see OAuth2TokenManager},
+     *                                          OpenID Connect discovery).
      */
     public function sendRequest(
         string $method,
@@ -30,6 +35,7 @@ interface ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
+        bool $noDefaultHeaders = false,
     ): ApiHttpResponse;
 
     /**

@@ -66,7 +66,7 @@ function newPetApiForMock(int $statusCode, string $requestContentType, string $b
 }
 
 test('data methods declare a native return type', function (string $method, string $expected): void {
-    $returnType = new \ReflectionMethod(PetApi::class, $method)->getReturnType();
+    $returnType = (new \ReflectionMethod(PetApi::class, $method))->getReturnType();
     expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
     assert($returnType instanceof \ReflectionNamedType);
     expect($returnType->getName())->toBe($expected);
@@ -79,7 +79,7 @@ test('data methods declare a native return type', function (string $method, stri
 ]);
 
 test('the options parameter doc names the authenticator only where the options carry one', function (string $method, string $expected): void {
-    $doc = new \ReflectionMethod(PetApi::class, $method)->getDocComment();
+    $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
     expect($doc)->toBeString();
     assert(is_string($doc));
     expect($doc)->toContain($expected);
@@ -94,7 +94,7 @@ test('the options parameter doc names the authenticator only where the options c
 ]);
 
 test('operation summary and description reach the doc comment unescaped', function (): void {
-    $doc = new \ReflectionMethod(PetApi::class, 'getPetSummary')->getDocComment();
+    $doc = (new \ReflectionMethod(PetApi::class, 'getPetSummary'))->getDocComment();
     expect($doc)->toBeString();
     assert(is_string($doc));
     expect($doc)->toContain("     * Get a <plain> \"text\" summary & it's short\n");
@@ -105,8 +105,7 @@ test('operation summary and description reach the doc comment unescaped', functi
 
 test('add pet', function (): void {
     $pet = new Pet(name: 'TestDog', photoUrls: new \Ds\Set(['http://example.com/photo.jpg']));
-    $pet->id = 12345;
-    $pet->status = PetStatusEnum::AVAILABLE;
+    $pet = $pet->withId(12345)->withStatus(PetStatusEnum::AVAILABLE);
 
     $result = $this->api->addPet($pet, new AddPetOptions(auth: $this->auth));
 
@@ -115,8 +114,7 @@ test('add pet', function (): void {
 
 test('add pet with http info exposes status and headers', function (): void {
     $pet = new Pet(name: 'TestDog', photoUrls: new \Ds\Set(['http://example.com/photo.jpg']));
-    $pet->id = 67890;
-    $pet->status = PetStatusEnum::AVAILABLE;
+    $pet = $pet->withId(67890)->withStatus(PetStatusEnum::AVAILABLE);
 
     $result = $this->api->addPetWithHttpInfo($pet, new AddPetOptions(auth: $this->auth));
 
@@ -140,8 +138,7 @@ test('get pet by id with http info exposes status and data', function (): void {
 
 test('update pet with http info exposes status', function (): void {
     $pet = new Pet(name: 'UpdatedDog', photoUrls: new \Ds\Set(['http://example.com/updated.jpg']));
-    $pet->id = 1;
-    $pet->status = PetStatusEnum::PENDING;
+    $pet = $pet->withId(1)->withStatus(PetStatusEnum::PENDING);
 
     $result = $this->api->updatePetWithHttpInfo(1, $pet);
 
@@ -189,8 +186,7 @@ test('get pet passport', function (): void {
 
 test('update pet', function (): void {
     $pet = new Pet(name: 'UpdatedDog', photoUrls: new \Ds\Set(['http://example.com/updated.jpg']));
-    $pet->id = 1;
-    $pet->status = PetStatusEnum::PENDING;
+    $pet = $pet->withId(1)->withStatus(PetStatusEnum::PENDING);
 
     $result = $this->api->updatePet(1, $pet);
 
@@ -358,6 +354,7 @@ test('get external pet info uses per operation server url', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): \PetstoreClient\ApiHttpResponse {
             $this->requestedUrls[] = $url;
             return $this->transport->sendRequest(
@@ -604,7 +601,7 @@ function newBodyCapturingPetApi(): array
         {
         }
 
-        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \PetstoreClient\ApiHttpResponse
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
         {
             $this->captured->body = is_string($body) ? $body : '';
             $this->captured->url = $url;
@@ -816,6 +813,19 @@ test('setPetAvatar honours the selected request content type', function (): void
     unlink($tmpFile);
 });
 
+test('setPetAvatar takes in-memory bytes and a stream without a temporary file', function (): void {
+    $rawBytes = "\xFF\xD8\xFF\xE0";
+
+    [$api, $captured] = newBodyCapturingPetApi();
+    $api->setPetAvatar(1, $rawBytes);
+    expect($captured->body)->toBe($rawBytes);
+    expect($captured->headers['Content-Type'] ?? '')->toBe('image/jpeg');
+
+    [$api, $captured] = newBodyCapturingPetApi();
+    $api->setPetAvatar(1, (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream($rawBytes));
+    expect($captured->body)->toBe($rawBytes);
+});
+
 test('setPetAvatar sends the bytes verbatim under the json selector', function (): void {
     $rawBytes = "\xFF\xD8\xFF\xE0";
     $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
@@ -880,7 +890,7 @@ function newRawBodyCapturingPetApi(): array
         {
         }
 
-        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \PetstoreClient\ApiHttpResponse
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
         {
             $this->captured->body = $body;
             $this->captured->headers = $headers;
@@ -930,9 +940,9 @@ test('uploadPetDocument sends primitive fields as plain text parts', function ()
     $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
     file_put_contents($tmpFile, 'document-content');
     $stub = new \PetstoreClient\Test\StubPsr18Client(
-        new \Nyholm\Psr7\Factory\Psr17Factory()->createResponse(200)
+        (new \Nyholm\Psr7\Factory\Psr17Factory())->createResponse(200)
             ->withHeader('Content-Type', 'application/json')
-            ->withBody(new \Nyholm\Psr7\Factory\Psr17Factory()->createStream('{"code":200,"type":"ok","message":"saved"}'))
+            ->withBody((new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('{"code":200,"type":"ok","message":"saved"}'))
     );
     $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
     $api = new PetApi(
@@ -1147,7 +1157,7 @@ function newHeaderCapturingPetApi(): array
         {
         }
 
-        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \PetstoreClient\ApiHttpResponse
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
         {
             $this->captured->headers = $headers;
             return new \PetstoreClient\ApiHttpResponse(
@@ -1174,10 +1184,28 @@ test('auth supplied inside options wins on the wire', function (): void {
     $perCallAuth = new BearerAuthenticator('http://localhost:9999', 'per-call-token');
 
     $pet = new Pet(name: 'OverrideDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
-    $pet->id = 1;
+    $pet = $pet->withId(1);
     $api->addPet($pet, new AddPetOptions(auth: $perCallAuth));
 
     expect($captured->headers['Authorization'] ?? null)->toBe('Bearer per-call-token');
+});
+
+test('per call headers are sent and win over a configured header of the same name', function (): void {
+    [$api, $captured] = newHeaderCapturingPetApi();
+    $pet = new Pet(name: 'HeaderDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
+
+    $api->addPet($pet, new AddPetOptions(headers: ['authorization' => 'Bearer per-call', 'X-Tenant' => 't1']));
+
+    expect($captured->headers['authorization'] ?? null)->toBe('Bearer per-call');
+    expect($captured->headers)->not->toHaveKey('Authorization');
+    expect($captured->headers['X-Tenant'] ?? null)->toBe('t1');
+});
+
+test('a per call timeout and retry count must be valid', function (): void {
+    expect(fn () => new AddPetOptions(timeout: 0))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
+    expect(fn () => new AddPetOptions(maxRetries: -1))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
 });
 
 test('auth omitted from options falls back to configuration credentials', function (): void {
@@ -1187,7 +1215,7 @@ test('auth omitted from options falls back to configuration credentials', functi
     [$api, $captured] = newHeaderCapturingPetApi();
 
     $pet = new Pet(name: 'DefaultDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
-    $pet->id = 1;
+    $pet = $pet->withId(1);
     $api->addPet($pet);
 
     expect($captured->headers['Authorization'] ?? null)->toBe('Bearer default-token');
@@ -1518,7 +1546,7 @@ test('add pet treatment sends the chosen anyOf variant as the body', function ()
 
 test('deprecated operations, parameters and models carry the deprecation marker', function (): void {
     foreach (['findPetsByStatus', 'findPetsByStatusWithHttpInfo', 'getPetById', 'getPetByIdWithHttpInfo'] as $method) {
-        $doc = new \ReflectionMethod(PetApi::class, $method)->getDocComment();
+        $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
         expect($doc)->toBeString();
         assert(is_string($doc));
         expect($doc)->toContain('@deprecated This operation is deprecated.');
@@ -1528,7 +1556,7 @@ test('deprecated operations, parameters and models carry the deprecation marker'
     expect((string) file_get_contents((string) $options->getFileName()))
         ->toContain('@deprecated This parameter is deprecated.');
 
-    $tag = new \ReflectionClass(\PetstoreClient\Models\Tag::class)->getDocComment();
+    $tag = (new \ReflectionClass(\PetstoreClient\Models\Tag::class))->getDocComment();
     expect($tag)->toBeString();
     assert(is_string($tag));
     expect($tag)->toContain('@deprecated This schema is deprecated.');

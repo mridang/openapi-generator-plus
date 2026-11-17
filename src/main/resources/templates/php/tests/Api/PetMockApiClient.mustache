@@ -30,6 +30,7 @@ class PetMockApiClient implements ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
+        bool $noDefaultHeaders = false,
     ): ApiHttpResponse {
         return new ApiHttpResponse($this->statusCode, $this->body, ['Content-Type' => $this->contentType]);
     }

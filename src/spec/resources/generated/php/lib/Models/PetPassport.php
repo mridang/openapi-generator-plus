@@ -30,29 +30,29 @@ class PetPassport
     ];
 
     #[SerializedName('pet')]
-    public ?\PetstoreClient\Models\Pet $pet = null;
+    public readonly ?\PetstoreClient\Models\Pet $pet;
 
     /**
      * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('thumbnail')]
-    public ?string $thumbnail = null;
+    public readonly ?string $thumbnail;
 
     /**
      * Raw bytes; base64-encoded only on the wire.
      * @var \Ds\Vector<string>|null
      */
     #[SerializedName('scans')]
-    public ?\Ds\Vector $scans = null;
+    public readonly ?\Ds\Vector $scans;
 
     #[SerializedName('issuedAt')]
-    public ?\DateTime $issuedAt = null;
+    public readonly ?\DateTime $issuedAt;
 
     /**
      * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('biometricChip')]
-    public ?string $biometricChip = null;
+    public readonly ?string $biometricChip;
 
     /**
      * @param \Ds\Vector<string>|null $scans
@@ -69,5 +69,77 @@ class PetPassport
         $this->scans = $scans;
         $this->issuedAt = $issuedAt;
         $this->biometricChip = $biometricChip;
+    }
+
+    /**
+     * Returns a copy of this model with pet replaced. This model is not changed.
+     */
+    public function withPet(?\PetstoreClient\Models\Pet $pet): self
+    {
+        return new self(
+            pet: $pet,
+            thumbnail: $this->thumbnail,
+            scans: $this->scans,
+            issuedAt: $this->issuedAt,
+            biometricChip: $this->biometricChip,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with thumbnail replaced. This model is not changed.
+     */
+    public function withThumbnail(?string $thumbnail): self
+    {
+        return new self(
+            pet: $this->pet,
+            thumbnail: $thumbnail,
+            scans: $this->scans,
+            issuedAt: $this->issuedAt,
+            biometricChip: $this->biometricChip,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with scans replaced. This model is not changed.
+     *
+     * @param \Ds\Vector<string>|null $scans
+     */
+    public function withScans(?\Ds\Vector $scans): self
+    {
+        return new self(
+            pet: $this->pet,
+            thumbnail: $this->thumbnail,
+            scans: $scans,
+            issuedAt: $this->issuedAt,
+            biometricChip: $this->biometricChip,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with issuedAt replaced. This model is not changed.
+     */
+    public function withIssuedAt(?\DateTime $issuedAt): self
+    {
+        return new self(
+            pet: $this->pet,
+            thumbnail: $this->thumbnail,
+            scans: $this->scans,
+            issuedAt: $issuedAt,
+            biometricChip: $this->biometricChip,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with biometricChip replaced. This model is not changed.
+     */
+    public function withBiometricChip(?string $biometricChip): self
+    {
+        return new self(
+            pet: $this->pet,
+            thumbnail: $this->thumbnail,
+            scans: $this->scans,
+            issuedAt: $this->issuedAt,
+            biometricChip: $biometricChip,
+        );
     }
 }

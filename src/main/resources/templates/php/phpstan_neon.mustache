@@ -5,6 +5,9 @@ includes:
 
 parameters:
   level: 9
+  # The declared PHP floor (composer.json require.php): a function or syntax
+  # newer than 8.3 is reported instead of passing on a newer local runtime.
+  phpVersion: 80300
   tmpDir: .phpstan
   paths:
     - .

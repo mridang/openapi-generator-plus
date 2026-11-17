@@ -41,6 +41,18 @@ class ApiException extends {{errorPrefix}}Exception
     protected readonly mixed $errorBody;
 
     /**
+     * The HTTP method of the request that failed, upper-case, or null when the
+     * error did not come from a request the SDK built.
+     */
+    protected readonly ?string $requestMethod;
+
+    /**
+     * The path of the request that failed, without its query string, or null
+     * when the error did not come from a request the SDK built.
+     */
+    protected readonly ?string $requestPath;
+
+    /**
      * The positional parameters lead with the HTTP status code to match the
      * cross-SDK convention — every other SDK's base error type (Java, C#,
      * Kotlin, Node, Go, Rust, Swift, …) constructs as
@@ -48,6 +60,8 @@ class ApiException extends {{errorPrefix}}Exception
      * still follows native PHP `\Exception(message, code, previous)` order.
      *
      * @param array<string, string>|null $responseHeaders HTTP response headers
+     * @param string|null $requestMethod HTTP method of the failed request
+     * @param string|null $requestPath path (or URL) of the failed request; the query string is dropped
      */
     public function __construct(
         int $statusCode = 0,
@@ -55,7 +69,9 @@ class ApiException extends {{errorPrefix}}Exception
         ?array $responseHeaders = null,
         ?string $responseBody = null,
         mixed $errorBody = null,
-        ?Throwable $previous = null
+        ?Throwable $previous = null,
+        ?string $requestMethod = null,
+        ?string $requestPath = null
     ) {
         /* Pass $previous to the parent so callers can drill down via
          * getPrevious() — preserves the original network/IO exception's
@@ -65,6 +81,23 @@ class ApiException extends {{errorPrefix}}Exception
         $this->responseHeaders = $responseHeaders;
         $this->responseBody = $responseBody;
         $this->errorBody = $errorBody;
+        $this->requestMethod = $requestMethod === null ? null : strtoupper($requestMethod);
+        $this->requestPath = $requestPath === null ? null : self::pathWithoutQuery($requestPath);
+    }
+
+    /**
+     * The path of a request target with its query string and fragment removed,
+     * so a secret carried in a query parameter never reaches an error message.
+     * A full URL reduces to its path.
+     */
+    private static function pathWithoutQuery(string $target): string
+    {
+        if (preg_match('#^[A-Za-z][A-Za-z0-9+.-]*://[^/?\#]*#', $target, $match) === 1) {
+            $target = substr($target, strlen($match[0]));
+        }
+        $end = strcspn($target, '?#');
+
+        return $end === 0 ? '/' : substr($target, 0, $end);
     }
 
     /**
@@ -78,11 +111,15 @@ class ApiException extends {{errorPrefix}}Exception
      * returned exception.
      *
      * @param array<string, string>|null $responseHeaders HTTP response headers
+     * @param string|null $requestMethod HTTP method of the request that got this response
+     * @param string|null $requestPath path (or URL) of that request; the query string is dropped
      */
     public static function fromResponse(
         int $statusCode,
         ?array $responseHeaders,
-        ?string $responseBody
+        ?string $responseBody,
+        ?string $requestMethod = null,
+        ?string $requestPath = null
     ): self {
         $message = "API returned status code $statusCode";
         $errorBody = null;
@@ -103,45 +140,100 @@ class ApiException extends {{errorPrefix}}Exception
             }
         }
 
+        $context = [$requestMethod, $requestPath];
+
         return match (true) {
-            $statusCode === 400 => new BadRequestException($message, $responseHeaders, $responseBody, $errorBody),
-            $statusCode === 401 => new UnauthorizedException($message, $responseHeaders, $responseBody, $errorBody),
-            $statusCode === 403 => new ForbiddenException($message, $responseHeaders, $responseBody, $errorBody),
-            $statusCode === 404 => new NotFoundException($message, $responseHeaders, $responseBody, $errorBody),
-            $statusCode === 409 => new ConflictException($message, $responseHeaders, $responseBody, $errorBody),
+            $statusCode === 400 => new BadRequestException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 401 => new UnauthorizedException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 403 => new ForbiddenException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 404 => new NotFoundException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 409 => new ConflictException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
             $statusCode === 422 => new UnprocessableEntityException(
                 $message,
                 $responseHeaders,
                 $responseBody,
-                $errorBody
+                $errorBody,
+                null,
+                ...$context
             ),
             $statusCode === 429 => new TooManyRequestsException(
                 $message,
                 $responseHeaders,
                 $responseBody,
-                $errorBody
+                $errorBody,
+                null,
+                ...$context
             ),
             $statusCode >= 400 && $statusCode < 500 => new ClientException(
                 $statusCode,
                 $message,
                 $responseHeaders,
                 $responseBody,
-                $errorBody
+                $errorBody,
+                null,
+                ...$context
             ),
             $statusCode === 500 => new InternalServerErrorException(
                 $message,
                 $responseHeaders,
                 $responseBody,
-                $errorBody
+                $errorBody,
+                null,
+                ...$context
             ),
             $statusCode >= 500 && $statusCode < 600 => new ServerException(
                 $statusCode,
                 $message,
                 $responseHeaders,
                 $responseBody,
-                $errorBody
+                $errorBody,
+                null,
+                ...$context
             ),
-            default => new self($statusCode, $message, $responseHeaders, $responseBody, $errorBody),
+            default => new self(
+                $statusCode,
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
         };
     }
 
@@ -151,6 +243,24 @@ class ApiException extends {{errorPrefix}}Exception
     public function getStatusCode(): int
     {
         return $this->statusCode;
+    }
+
+    /**
+     * Gets the HTTP method of the request that failed, upper-case, or null when
+     * the SDK did not build the request.
+     */
+    public function getRequestMethod(): ?string
+    {
+        return $this->requestMethod;
+    }
+
+    /**
+     * Gets the path of the request that failed, without its query string, or
+     * null when the SDK did not build the request.
+     */
+    public function getRequestPath(): ?string
+    {
+        return $this->requestPath;
     }
 
     /**
@@ -209,6 +319,9 @@ class ApiException extends {{errorPrefix}}Exception
         $rendered = $message === '' ? 'Error message: the server returns an error' : $message;
         if ($this->statusCode !== 0) {
             $rendered .= "\nHTTP status code: " . $this->statusCode;
+        }
+        if ($this->requestMethod !== null && $this->requestPath !== null) {
+            $rendered .= "\nRequest: " . $this->requestMethod . ' ' . $this->requestPath;
         }
         if ($this->responseHeaders !== null && $this->responseHeaders !== []) {
             $shown = [];

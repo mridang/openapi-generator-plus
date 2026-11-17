@@ -191,6 +191,36 @@ class {{classname}}
     {
         return $this->actualInstance;
     }
+{{#unionVariants}}
+
+    /**
+     * Creates this union holding a {{label}}.
+     */
+    public static function from{{label}}({{{nativeType}}} $value): self
+    {
+        return new self($value);
+    }
+
+    /**
+     * Whether this union holds a {{label}}.
+     */
+    public function is{{label}}(): bool
+    {
+        $value = $this->actualInstance;
+
+        return {{{check}}};
+    }
+
+    /**
+     * The {{label}} this union holds, or null when it holds another variant.
+     */
+    public function as{{label}}(): ?{{{nativeType}}}
+    {
+        $value = $this->actualInstance;
+
+        return {{{check}}} ? $value : null;
+    }
+{{/unionVariants}}
 
     public static function build(mixed $data): self
     {
@@ -325,6 +355,38 @@ class {{classname}}
     {
         return $this->matchedInstances;
     }
+{{#unionVariants}}
+
+    /**
+     * Creates this union holding a {{label}}.
+     */
+    public static function from{{label}}({{{nativeType}}} $value): self
+    {
+        return new self([$value]);
+    }
+
+    /**
+     * Whether a matched variant is a {{label}}.
+     */
+    public function is{{label}}(): bool
+    {
+        return $this->as{{label}}() !== null;
+    }
+
+    /**
+     * The first matched {{label}}, or null when no matched variant is one.
+     */
+    public function as{{label}}(): ?{{{nativeType}}}
+    {
+        foreach ($this->matchedInstances as $value) {
+            if ({{{check}}}) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+{{/unionVariants}}
 
     public static function build(mixed $data): self
     {
@@ -401,6 +463,19 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     ];
 
 {{/hasByteVars}}
+{{#hasRequiredNullableVars}}
+    /**
+     * The required properties that are nullable: their key is always on the wire, as null when unset.
+     *
+     * @var list<string>
+     */
+    protected const array REQUIRED_NULLABLE_PROPERTIES = [
+{{#requiredNullableNames}}
+        '{{.}}',
+{{/requiredNullableNames}}
+    ];
+
+{{/hasRequiredNullableVars}}
 {{#vars}}
 {{#description}}
     /**
@@ -423,7 +498,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#isContainer}}
 {{#isArray}}
 {{#required}}
-     * @var {{>phpdoc_type}}
+     * @var {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}}
 {{/required}}
 {{^required}}
      * @var {{>phpdoc_type}}|null
@@ -431,7 +506,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isArray}}
 {{#isMap}}
 {{#required}}
-     * @var {{>phpdoc_type}}
+     * @var {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}}
 {{/required}}
 {{^required}}
      * @var {{>phpdoc_type}}|null
@@ -481,7 +556,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
      * Raw bytes; base64-encoded only on the wire.
 {{#isArray}}
 {{#required}}
-     * @var {{>phpdoc_type}}
+     * @var {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}}
 {{/required}}
 {{^required}}
      * @var {{>phpdoc_type}}|null
@@ -489,7 +564,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isArray}}
 {{#isMap}}
 {{#required}}
-     * @var {{>phpdoc_type}}
+     * @var {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}}
 {{/required}}
 {{^required}}
      * @var {{>phpdoc_type}}|null
@@ -511,7 +586,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     /**
 {{#isArray}}
 {{#required}}
-     * @var {{>phpdoc_type}}
+     * @var {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}}
 {{/required}}
 {{^required}}
      * @var {{>phpdoc_type}}|null
@@ -519,7 +594,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isArray}}
 {{#isMap}}
 {{#required}}
-     * @var {{>phpdoc_type}}
+     * @var {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}}
 {{/required}}
 {{^required}}
      * @var {{>phpdoc_type}}|null
@@ -531,7 +606,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{^deprecated}}
 {{#isArray}}
 {{#required}}
-    /** @var {{>phpdoc_type}} */
+    /** @var {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}} */
 {{/required}}
 {{^required}}
     /** @var {{>phpdoc_type}}|null */
@@ -539,7 +614,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isArray}}
 {{#isMap}}
 {{#required}}
-    /** @var {{>phpdoc_type}} */
+    /** @var {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}} */
 {{/required}}
 {{^required}}
     /** @var {{>phpdoc_type}}|null */
@@ -570,47 +645,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isByteArray}}
 {{/description}}
     #[SerializedName('{{{baseName}}}')]
-{{#required}}
-{{#isContainer}}
-    public {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
-{{/isContainer}}
-{{^isContainer}}
-{{#isEnum}}
-    public {{classname}}{{enumName}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
-{{/isEnum}}
-{{^isEnum}}
-    public {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
-{{/isEnum}}
-{{/isContainer}}
-{{/required}}
-{{^required}}
-{{#isContainer}}
-{{#defaultValue}}
-    public {{{dataType}}} ${{name}} = {{{.}}};
-{{/defaultValue}}
-{{^defaultValue}}
-    public {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null;
-{{/defaultValue}}
-{{/isContainer}}
-{{^isContainer}}
-{{#isEnum}}
-{{#defaultValue}}
-    public {{classname}}{{enumName}} ${{name}} = {{{.}}};
-{{/defaultValue}}
-{{^defaultValue}}
-    public ?{{classname}}{{enumName}} ${{name}} = null;
-{{/defaultValue}}
-{{/isEnum}}
-{{^isEnum}}
-{{#defaultValue}}
-    public {{#isNullable}}?{{/isNullable}}{{{dataType}}} ${{name}} = {{{.}}};
-{{/defaultValue}}
-{{^defaultValue}}
-    public {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null;
-{{/defaultValue}}
-{{/isEnum}}
-{{/isContainer}}
-{{/required}}
+    public readonly {{>model_var_type}} ${{name}};
 {{^-last}}
 
 {{/-last}}
@@ -618,7 +653,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#isAdditionalPropertiesTrue}}
 
     /** @var \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> */
-    public \Ds\Map $additionalProperties;
+    public readonly \Ds\Map $additionalProperties;
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
 
@@ -647,10 +682,10 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     /**
 {{#requiredVars}}
 {{#isArray}}
-     * @param {{>phpdoc_type}} ${{name}}
+     * @param {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}} ${{name}}
 {{/isArray}}
 {{#isMap}}
-     * @param {{>phpdoc_type}} ${{name}}
+     * @param {{>phpdoc_type}}{{#isNullable}}|null{{/isNullable}} ${{name}}
 {{/isMap}}
 {{/requiredVars}}
 {{#optionalVars}}
@@ -671,57 +706,63 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/defaultValue}}
 {{/isMap}}
 {{/optionalVars}}
+{{#isAdditionalPropertiesTrue}}
+     * @param \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}>|null $additionalProperties
+{{/isAdditionalPropertiesTrue}}
      */
     public function __construct(
 {{#requiredVars}}
-{{#isContainer}}
-        {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
-{{/isContainer}}
-{{^isContainer}}
-{{#isEnum}}
-        {{classname}}{{enumName}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
-{{/isEnum}}
-{{^isEnum}}
-        {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
-{{/isEnum}}
-{{/isContainer}}
+        {{>model_var_type}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
 {{/requiredVars}}
 {{#optionalVars}}
-{{#isContainer}}
-{{#defaultValue}}
-        {{{dataType}}} ${{name}} = {{{.}}},
-{{/defaultValue}}
-{{^defaultValue}}
-        {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null,
-{{/defaultValue}}
-{{/isContainer}}
-{{^isContainer}}
-{{#isEnum}}
-{{#defaultValue}}
-        {{classname}}{{enumName}} ${{name}} = {{{.}}},
-{{/defaultValue}}
-{{^defaultValue}}
-        ?{{classname}}{{enumName}} ${{name}} = null,
-{{/defaultValue}}
-{{/isEnum}}
-{{^isEnum}}
-{{#defaultValue}}
-        {{#isNullable}}?{{/isNullable}}{{{dataType}}} ${{name}} = {{{.}}},
-{{/defaultValue}}
-{{^defaultValue}}
-        {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null,
-{{/defaultValue}}
-{{/isEnum}}
-{{/isContainer}}
+        {{>model_var_type}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = null{{/defaultValue}},
 {{/optionalVars}}
+{{#isAdditionalPropertiesTrue}}
+        ?\Ds\Map $additionalProperties = null,
+{{/isAdditionalPropertiesTrue}}
     ) {
 {{#vars}}
         $this->{{name}} = ${{name}};
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
-        $this->additionalProperties = new \Ds\Map();
+        $this->additionalProperties = $additionalProperties ?? new \Ds\Map();
 {{/isAdditionalPropertiesTrue}}
     }
+{{#vars}}
+
+    /**
+     * Returns a copy of this model with {{name}} replaced. This model is not changed.
+{{#isContainer}}
+     *
+     * @param {{>phpdoc_type}}{{^required}}{{^defaultValue}}|null{{/defaultValue}}{{/required}} ${{name}}
+{{/isContainer}}
+     */
+    public function {{vendorExtensions.withMethod}}({{>model_var_type}} ${{name}}): self
+    {
+        return new self(
+{{#vendorExtensions.copyArguments}}
+            {{{line}}},
+{{/vendorExtensions.copyArguments}}
+        );
+    }
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    /**
+     * Returns a copy of this model with the additional properties replaced. This model is not changed.
+     *
+     * @param \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> $additionalProperties
+     */
+    public function withAdditionalProperties(\Ds\Map $additionalProperties): self
+    {
+        return new self(
+{{#vars}}
+            {{name}}: $this->{{name}},
+{{/vars}}
+            additionalProperties: $additionalProperties,
+        );
+    }
+{{/isAdditionalPropertiesTrue}}
 {{#hasPasswordVars}}
 
     /**

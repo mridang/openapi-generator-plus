@@ -170,7 +170,7 @@ test('injects custom user agent', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->userAgent('MyApp/1.0')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -211,7 +211,7 @@ test('injects request id', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->injectRequestId(true)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -235,7 +235,7 @@ test('does not inject request id when disabled', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->injectRequestId(false)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -257,7 +257,7 @@ test('does not override caller request id', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->injectRequestId(true)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -292,7 +292,7 @@ test('generates unique request ids', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->injectRequestId(true)
         ->build();
 
@@ -319,7 +319,7 @@ test('unit includes transport default headers', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->defaultHeader('X-Custom', 'custom-value')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -341,7 +341,7 @@ test('caller headers override defaults', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->defaultHeader('Accept', 'text/plain')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -486,7 +486,7 @@ test('multipart psr7 stream part is sent as a file part with its bytes', functio
         'POST',
         'http://example.com/upload',
         [],
-        ['file' => new \Nyholm\Psr7\Factory\Psr17Factory()->createStream('stream-bytes')]
+        ['file' => (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('stream-bytes')]
     );
 
     expect($capturedBody)->toContain('stream-bytes');
@@ -593,7 +593,7 @@ test('multipart leaves a caller supplied stream open', function (): void {
         }
     );
 
-    new StubbedDefaultApiClient($mockClient)->sendRequest(
+    (new StubbedDefaultApiClient($mockClient))->sendRequest(
         'POST',
         'http://example.com/upload',
         [],
@@ -706,7 +706,7 @@ test('decodes iso 8859 1 error body to utf 8', function (): void {
 test('proxy with basic auth is accepted by builder', function (): void {
     // Verify the transport accepts a proxy URL embedding user:pass and exposes it.
     // The actual proxy-auth header is constructed by Symfony's underlying CurlHttpClient.
-    $opts = new TransportOptionsBuilder()
+    $opts = (new TransportOptionsBuilder())
         ->proxy('http://user:secret@proxy.example.com:8080')
         ->build();
 
@@ -1190,7 +1190,7 @@ test('a token request does not carry the transport default headers', function ()
         ->build();
     $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
 
-    $client->sendRequest('POST', 'https://auth.example.com/token', ['Accept' => 'application/json'], 'a=b', noRedirect: true);
+    $client->sendRequest('POST', 'https://auth.example.com/token', ['Accept' => 'application/json'], 'a=b', noRedirect: true, noDefaultHeaders: true);
     $lines = strtolower(implode("\n", $seen));
     expect($lines)->not->toContain('authorization:');
     expect($lines)->not->toContain('x-tenant');
@@ -1199,6 +1199,28 @@ test('a token request does not carry the transport default headers', function ()
     $lines = strtolower(implode("\n", $seen));
     expect($lines)->toContain('authorization: bearer api-only');
     expect($lines)->toContain('x-tenant: t1');
+});
+
+test('a request that only leaves out the default headers still follows redirects', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = [$url, strtolower(implode("\n", $options['headers']))];
+        return $url === 'https://idp.example.com/start'
+            ? new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => 'https://idp.example.com/final']])
+            : new MockResponse('{}', ['http_code' => 200]);
+    };
+    $transport = TransportOptions::builder()
+        ->defaultHeaders(['Authorization' => 'Bearer api-only'])
+        ->followRedirects(true)
+        ->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $response = $client->sendRequest('GET', 'https://idp.example.com/start', [], null, noDefaultHeaders: true);
+
+    expect($response->statusCode)->toBe(200);
+    expect($seen)->toHaveCount(2);
+    expect($seen[0][1])->not->toContain('authorization:');
+    expect($seen[1][1])->not->toContain('authorization:');
 });
 
 test('a caller accept-encoding in any casing is not duplicated', function (): void {
@@ -1314,9 +1336,9 @@ test('a configured caCertPath replaces the system trust directory instead of add
 
     try {
         $client = new DefaultApiClient(TransportOptions::builder()->caCertPath($path)->build());
-        $http = new \ReflectionProperty(DefaultApiClient::class, 'client')->getValue($client);
+        $http = (new \ReflectionProperty(DefaultApiClient::class, 'client'))->getValue($client);
         assert(is_object($http));
-        $defaults = new \ReflectionProperty($http, 'defaultOptions')->getValue($http);
+        $defaults = (new \ReflectionProperty($http, 'defaultOptions'))->getValue($http);
         assert(is_array($defaults));
 
         expect($defaults['cafile'])->toBe($path);
@@ -1328,9 +1350,9 @@ test('a configured caCertPath replaces the system trust directory instead of add
 
 test('no caCertPath leaves the system trust store in place', function (): void {
     $client = new DefaultApiClient(TransportOptions::builder()->build());
-    $http = new \ReflectionProperty(DefaultApiClient::class, 'client')->getValue($client);
+    $http = (new \ReflectionProperty(DefaultApiClient::class, 'client'))->getValue($client);
     assert(is_object($http));
-    $defaults = new \ReflectionProperty($http, 'defaultOptions')->getValue($http);
+    $defaults = (new \ReflectionProperty($http, 'defaultOptions'))->getValue($http);
     assert(is_array($defaults));
 
     expect($defaults['cafile'])->toBeNull();
@@ -1879,6 +1901,36 @@ test('a retried request that then succeeds returns the success', function (): vo
 
     expect($response->statusCode)->toBe(200);
     expect(count($log))->toBe(3);
+});
+
+test('a per call maxRetries replaces the transport retry count for that call only', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503], null, $log);
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null, maxRetries: 0);
+    expect(count($log))->toBe(1);
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+    expect(count($log))->toBe(4);
+});
+
+test('a per call timeout replaces the transport timeout for that call only', function (): void {
+    /** @var list<float> $seen */
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = (float) $options['timeout'];
+
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $transport = TransportOptions::builder()->timeout(1000)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendWithRetries('GET', 'http://example.com/a', static fn (): array => [], null, timeoutMs: 60000);
+    $client->sendWithRetries('GET', 'http://example.com/b', static fn (): array => [], null);
+
+    expect($seen[0])->toBeGreaterThan(30.0);
+    expect($seen[1])->toBeLessThanOrEqual(1.0);
 });
 
 test('maxRetries 0 sends a failing request once', function (): void {

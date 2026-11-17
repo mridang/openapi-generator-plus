@@ -18,10 +18,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class Employee
 {
     #[SerializedName('name')]
-    public string $name;
+    public readonly string $name;
 
     #[SerializedName('department')]
-    public ?\PetstoreClient\Models\Department $department = null;
+    public readonly ?\PetstoreClient\Models\Department $department;
 
     /**
      */
@@ -31,5 +31,27 @@ class Employee
     ) {
         $this->name = $name;
         $this->department = $department;
+    }
+
+    /**
+     * Returns a copy of this model with name replaced. This model is not changed.
+     */
+    public function withName(string $name): self
+    {
+        return new self(
+            name: $name,
+            department: $this->department,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with department replaced. This model is not changed.
+     */
+    public function withDepartment(?\PetstoreClient\Models\Department $department): self
+    {
+        return new self(
+            name: $this->name,
+            department: $department,
+        );
     }
 }

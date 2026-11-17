@@ -18,16 +18,16 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class PhotoMetadata
 {
     #[SerializedName('caption')]
-    public ?string $caption = null;
+    public readonly ?string $caption;
 
     #[SerializedName('isPrimary')]
-    public ?bool $isPrimary = null;
+    public readonly ?bool $isPrimary;
 
     #[SerializedName('takenAt')]
-    public ?\DateTime $takenAt = null;
+    public readonly ?\DateTime $takenAt;
 
     #[SerializedName('location')]
-    public ?\PetstoreClient\Models\PhotoMetadataLocation $location = null;
+    public readonly ?\PetstoreClient\Models\PhotoMetadataLocation $location;
 
     /**
      */
@@ -41,5 +41,57 @@ class PhotoMetadata
         $this->isPrimary = $isPrimary;
         $this->takenAt = $takenAt;
         $this->location = $location;
+    }
+
+    /**
+     * Returns a copy of this model with caption replaced. This model is not changed.
+     */
+    public function withCaption(?string $caption): self
+    {
+        return new self(
+            caption: $caption,
+            isPrimary: $this->isPrimary,
+            takenAt: $this->takenAt,
+            location: $this->location,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with isPrimary replaced. This model is not changed.
+     */
+    public function withIsPrimary(?bool $isPrimary): self
+    {
+        return new self(
+            caption: $this->caption,
+            isPrimary: $isPrimary,
+            takenAt: $this->takenAt,
+            location: $this->location,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with takenAt replaced. This model is not changed.
+     */
+    public function withTakenAt(?\DateTime $takenAt): self
+    {
+        return new self(
+            caption: $this->caption,
+            isPrimary: $this->isPrimary,
+            takenAt: $takenAt,
+            location: $this->location,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with location replaced. This model is not changed.
+     */
+    public function withLocation(?\PetstoreClient\Models\PhotoMetadataLocation $location): self
+    {
+        return new self(
+            caption: $this->caption,
+            isPrimary: $this->isPrimary,
+            takenAt: $this->takenAt,
+            location: $location,
+        );
     }
 }

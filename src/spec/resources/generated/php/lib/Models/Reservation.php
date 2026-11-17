@@ -19,11 +19,11 @@ class Reservation
 {
     /** @example 31 */
     #[SerializedName('reservationId')]
-    public int $reservationId;
+    public readonly int $reservationId;
 
     /** @example 4 */
     #[SerializedName('quantity')]
-    public int $quantity;
+    public readonly int $quantity;
 
     /**
      */
@@ -33,5 +33,27 @@ class Reservation
     ) {
         $this->reservationId = $reservationId;
         $this->quantity = $quantity;
+    }
+
+    /**
+     * Returns a copy of this model with reservationId replaced. This model is not changed.
+     */
+    public function withReservationId(int $reservationId): self
+    {
+        return new self(
+            reservationId: $reservationId,
+            quantity: $this->quantity,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with quantity replaced. This model is not changed.
+     */
+    public function withQuantity(int $quantity): self
+    {
+        return new self(
+            reservationId: $this->reservationId,
+            quantity: $quantity,
+        );
     }
 }

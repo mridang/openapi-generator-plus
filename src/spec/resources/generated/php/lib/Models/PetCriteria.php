@@ -18,10 +18,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class PetCriteria
 {
     #[SerializedName('breed')]
-    public ?string $breed = null;
+    public readonly ?string $breed;
 
     #[SerializedName('min_age')]
-    public ?int $minAge = null;
+    public readonly ?int $minAge;
 
     /**
      */
@@ -31,5 +31,27 @@ class PetCriteria
     ) {
         $this->breed = $breed;
         $this->minAge = $minAge;
+    }
+
+    /**
+     * Returns a copy of this model with breed replaced. This model is not changed.
+     */
+    public function withBreed(?string $breed): self
+    {
+        return new self(
+            breed: $breed,
+            minAge: $this->minAge,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with minAge replaced. This model is not changed.
+     */
+    public function withMinAge(?int $minAge): self
+    {
+        return new self(
+            breed: $this->breed,
+            minAge: $minAge,
+        );
     }
 }

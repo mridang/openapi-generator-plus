@@ -39,6 +39,62 @@ class ReserveStockResponse
         return $this->actualInstance;
     }
 
+    /**
+     * Creates this union holding a Reservation.
+     */
+    public static function fromReservation(\PetstoreClient\Models\Reservation $value): self
+    {
+        return new self($value);
+    }
+
+    /**
+     * Whether this union holds a Reservation.
+     */
+    public function isReservation(): bool
+    {
+        $value = $this->actualInstance;
+
+        return $value instanceof \PetstoreClient\Models\Reservation;
+    }
+
+    /**
+     * The Reservation this union holds, or null when it holds another variant.
+     */
+    public function asReservation(): ?\PetstoreClient\Models\Reservation
+    {
+        $value = $this->actualInstance;
+
+        return $value instanceof \PetstoreClient\Models\Reservation ? $value : null;
+    }
+
+    /**
+     * Creates this union holding a ReservationReceipt.
+     */
+    public static function fromReservationReceipt(\PetstoreClient\Models\ReservationReceipt $value): self
+    {
+        return new self($value);
+    }
+
+    /**
+     * Whether this union holds a ReservationReceipt.
+     */
+    public function isReservationReceipt(): bool
+    {
+        $value = $this->actualInstance;
+
+        return $value instanceof \PetstoreClient\Models\ReservationReceipt;
+    }
+
+    /**
+     * The ReservationReceipt this union holds, or null when it holds another variant.
+     */
+    public function asReservationReceipt(): ?\PetstoreClient\Models\ReservationReceipt
+    {
+        $value = $this->actualInstance;
+
+        return $value instanceof \PetstoreClient\Models\ReservationReceipt ? $value : null;
+    }
+
     public static function build(mixed $data): self
     {
         return new self(\PetstoreClient\ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));

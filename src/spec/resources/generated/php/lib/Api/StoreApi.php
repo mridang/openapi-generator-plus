@@ -88,7 +88,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -154,7 +154,7 @@ class StoreApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -261,7 +261,10 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -323,7 +326,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -385,7 +388,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -448,7 +451,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -511,7 +514,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -574,7 +577,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -656,7 +659,7 @@ class StoreApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -737,7 +740,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -812,7 +815,10 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -874,7 +880,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -937,7 +943,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1000,7 +1006,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1062,7 +1068,7 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1123,7 +1129,7 @@ class StoreApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1186,7 +1192,11 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
+            successTypes: [
+                '200' => \PetstoreClient\Models\Reservation::class,
+                '201' => \PetstoreClient\Models\ReservationReceipt::class,
+            ],
         );
         return $result;
     }
@@ -1280,7 +1290,10 @@ class StoreApi extends BaseApi
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
             NoAuth::instance(),
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }

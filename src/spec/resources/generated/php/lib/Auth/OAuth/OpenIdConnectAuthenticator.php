@@ -142,7 +142,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             'GET',
             $this->openIdConnectUrl,
             ['Accept' => 'application/json'],
-            null
+            null,
+            noDefaultHeaders: true
         );
 
         if ($response->statusCode < 200 || $response->statusCode >= 300) {

@@ -100,6 +100,7 @@ test('injected api client is wired into every api group', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, '', []);
         }
@@ -107,9 +108,9 @@ test('injected api client is wired into every api group', function (): void {
 
     $client = new Client($this->authenticator, null, $stub);
 
-    $property = new \ReflectionClass(\PetstoreClient\Api\PetApi::class)->getProperty('apiClient');
+    $property = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))->getProperty('apiClient');
     expect($property->getValue($client->pet))->toBe($stub);
-    $property = new \ReflectionClass(\PetstoreClient\Api\StoreApi::class)->getProperty('apiClient');
+    $property = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))->getProperty('apiClient');
     expect($property->getValue($client->store))->toBe($stub);
 });
 
@@ -130,6 +131,7 @@ test('close on a client with a supplied transport leaves that transport usable',
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             $this->sent++;
 
@@ -151,12 +153,12 @@ test('close on a client that built its own transport rejects later requests and 
     $client->close();
     $client->close();
 
-    $property = new \ReflectionClass(\PetstoreClient\Api\PetApi::class)->getProperty('apiClient');
+    $property = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))->getProperty('apiClient');
     $transport = $property->getValue($client->pet);
     assert($transport instanceof ApiClient);
     expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
         ->toThrow(\LogicException::class, 'closed');
-    $property = new \ReflectionClass(\PetstoreClient\Api\StoreApi::class)->getProperty('apiClient');
+    $property = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))->getProperty('apiClient');
     $transport = $property->getValue($client->store);
     assert($transport instanceof ApiClient);
     expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
@@ -174,10 +176,10 @@ test('a supplied psr18 client receives the request from every api group', functi
     $client = Client::withHttpClient($this->authenticator, $stub, $factory, $factory);
 
     $clients = [];
-    $clients[] = new \ReflectionClass(\PetstoreClient\Api\PetApi::class)
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))
         ->getProperty('apiClient')
         ->getValue($client->pet);
-    $clients[] = new \ReflectionClass(\PetstoreClient\Api\StoreApi::class)
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))
         ->getProperty('apiClient')
         ->getValue($client->store);
 

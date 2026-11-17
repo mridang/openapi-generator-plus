@@ -31,11 +31,11 @@ class SetPetAvatarRequest
      * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('data')]
-    public string $data;
+    public readonly string $data;
 
     /** @example image/jpeg */
     #[SerializedName('mimeType')]
-    public string $mimeType;
+    public readonly string $mimeType;
 
     /**
      */
@@ -45,5 +45,27 @@ class SetPetAvatarRequest
     ) {
         $this->data = $data;
         $this->mimeType = $mimeType;
+    }
+
+    /**
+     * Returns a copy of this model with data replaced. This model is not changed.
+     */
+    public function withData(string $data): self
+    {
+        return new self(
+            data: $data,
+            mimeType: $this->mimeType,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with mimeType replaced. This model is not changed.
+     */
+    public function withMimeType(string $mimeType): self
+    {
+        return new self(
+            data: $this->data,
+            mimeType: $mimeType,
+        );
     }
 }

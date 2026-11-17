@@ -73,6 +73,66 @@ class TreatmentRecord
         return $this->matchedInstances;
     }
 
+    /**
+     * Creates this union holding a Surgery.
+     */
+    public static function fromSurgery(\PetstoreClient\Models\Surgery $value): self
+    {
+        return new self([$value]);
+    }
+
+    /**
+     * Whether a matched variant is a Surgery.
+     */
+    public function isSurgery(): bool
+    {
+        return $this->asSurgery() instanceof \PetstoreClient\Models\Surgery;
+    }
+
+    /**
+     * The first matched Surgery, or null when no matched variant is one.
+     */
+    public function asSurgery(): ?\PetstoreClient\Models\Surgery
+    {
+        foreach ($this->matchedInstances as $value) {
+            if ($value instanceof \PetstoreClient\Models\Surgery) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Creates this union holding a Medication.
+     */
+    public static function fromMedication(\PetstoreClient\Models\Medication $value): self
+    {
+        return new self([$value]);
+    }
+
+    /**
+     * Whether a matched variant is a Medication.
+     */
+    public function isMedication(): bool
+    {
+        return $this->asMedication() instanceof \PetstoreClient\Models\Medication;
+    }
+
+    /**
+     * The first matched Medication, or null when no matched variant is one.
+     */
+    public function asMedication(): ?\PetstoreClient\Models\Medication
+    {
+        foreach ($this->matchedInstances as $value) {
+            if ($value instanceof \PetstoreClient\Models\Medication) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     public static function build(mixed $data): self
     {
         return new self(\PetstoreClient\ObjectSerializer::resolveAnyOfAll($data, self::anyOfCandidates()));

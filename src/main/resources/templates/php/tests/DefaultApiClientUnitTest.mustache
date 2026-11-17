@@ -1194,7 +1194,7 @@ test('a token request does not carry the transport default headers', function ()
         ->build();
     $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
 
-    $client->sendRequest('POST', 'https://auth.example.com/token', ['Accept' => 'application/json'], 'a=b', noRedirect: true);
+    $client->sendRequest('POST', 'https://auth.example.com/token', ['Accept' => 'application/json'], 'a=b', noRedirect: true, noDefaultHeaders: true);
     $lines = strtolower(implode("\n", $seen));
     expect($lines)->not->toContain('authorization:');
     expect($lines)->not->toContain('x-tenant');
@@ -1203,6 +1203,28 @@ test('a token request does not carry the transport default headers', function ()
     $lines = strtolower(implode("\n", $seen));
     expect($lines)->toContain('authorization: bearer api-only');
     expect($lines)->toContain('x-tenant: t1');
+});
+
+test('a request that only leaves out the default headers still follows redirects', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = [$url, strtolower(implode("\n", $options['headers']))];
+        return $url === 'https://idp.example.com/start'
+            ? new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => 'https://idp.example.com/final']])
+            : new MockResponse('{}', ['http_code' => 200]);
+    };
+    $transport = TransportOptions::builder()
+        ->defaultHeaders(['Authorization' => 'Bearer api-only'])
+        ->followRedirects(true)
+        ->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $response = $client->sendRequest('GET', 'https://idp.example.com/start', [], null, noDefaultHeaders: true);
+
+    expect($response->statusCode)->toBe(200);
+    expect($seen)->toHaveCount(2);
+    expect($seen[0][1])->not->toContain('authorization:');
+    expect($seen[1][1])->not->toContain('authorization:');
 });
 
 test('a caller accept-encoding in any casing is not duplicated', function (): void {
@@ -1883,6 +1905,36 @@ test('a retried request that then succeeds returns the success', function (): vo
 
     expect($response->statusCode)->toBe(200);
     expect(count($log))->toBe(3);
+});
+
+test('a per call maxRetries replaces the transport retry count for that call only', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503], null, $log);
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null, maxRetries: 0);
+    expect(count($log))->toBe(1);
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+    expect(count($log))->toBe(4);
+});
+
+test('a per call timeout replaces the transport timeout for that call only', function (): void {
+    /** @var list<float> $seen */
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = (float) $options['timeout'];
+
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $transport = TransportOptions::builder()->timeout(1000)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendWithRetries('GET', 'http://example.com/a', static fn (): array => [], null, timeoutMs: 60000);
+    $client->sendWithRetries('GET', 'http://example.com/b', static fn (): array => [], null);
+
+    expect($seen[0])->toBeGreaterThan(30.0);
+    expect($seen[1])->toBeLessThanOrEqual(1.0);
 });
 
 test('maxRetries 0 sends a failing request once', function (): void {

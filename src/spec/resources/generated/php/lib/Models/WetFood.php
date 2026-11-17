@@ -18,10 +18,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class WetFood
 {
     #[SerializedName('volumeMl')]
-    public int $volumeMl;
+    public readonly int $volumeMl;
 
     #[SerializedName('foodType')]
-    public string $foodType = 'wet';
+    public readonly string $foodType;
 
     /**
      */
@@ -31,5 +31,27 @@ class WetFood
     ) {
         $this->volumeMl = $volumeMl;
         $this->foodType = $foodType;
+    }
+
+    /**
+     * Returns a copy of this model with volumeMl replaced. This model is not changed.
+     */
+    public function withVolumeMl(int $volumeMl): self
+    {
+        return new self(
+            volumeMl: $volumeMl,
+            foodType: $this->foodType,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with foodType replaced. This model is not changed.
+     */
+    public function withFoodType(string $foodType): self
+    {
+        return new self(
+            volumeMl: $this->volumeMl,
+            foodType: $foodType,
+        );
     }
 }

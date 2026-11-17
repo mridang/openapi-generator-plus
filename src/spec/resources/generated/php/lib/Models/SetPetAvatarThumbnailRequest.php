@@ -47,6 +47,34 @@ class SetPetAvatarThumbnailRequest
         return $this->actualInstance;
     }
 
+    /**
+     * Creates this union holding a String.
+     */
+    public static function fromString(string $value): self
+    {
+        return new self($value);
+    }
+
+    /**
+     * Whether this union holds a String.
+     */
+    public function isString(): bool
+    {
+        $value = $this->actualInstance;
+
+        return is_string($value);
+    }
+
+    /**
+     * The String this union holds, or null when it holds another variant.
+     */
+    public function asString(): ?string
+    {
+        $value = $this->actualInstance;
+
+        return is_string($value) ? $value : null;
+    }
+
     public static function build(mixed $data): self
     {
         return new self(\PetstoreClient\ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));
