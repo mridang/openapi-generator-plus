@@ -1115,6 +1115,44 @@ void main() {
     );
 
     test(
+      'bhv errors 054 an unexpected content type error names the operation rather than the HTTP verb',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.html
+            ..write('<p>hello</p>')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetByIdWithHttpInfo(1, null, null),
+            throwsA(
+              isA<SerializationException>().having(
+                (e) => e.toString(),
+                'message',
+                allOf(
+                  contains('for PetApi.getPetById'),
+                  isNot(contains('GET')),
+                  isNot(contains('PetApi.get:')),
+                ),
+              ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv serializationwire 025 deserializes JSON response when server omits Content-Type',
       () async {
         /* Some servers send a JSON body with NO Content-Type header. The SDK

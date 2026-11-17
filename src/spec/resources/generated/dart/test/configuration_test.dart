@@ -68,15 +68,18 @@ void main() {
       expect(headers['X-Second'], equals('two'));
     });
 
-    test('builder chaining', () {
-      final config = ConfigurationBuilder()
-          .baseUrl('https://api.example.com')
-          .defaultHeader('Authorization', 'Bearer token')
-          .build();
+    test(
+      'bhv config 020 a builder chain sets the base URL and default headers in one configuration',
+      () {
+        final config = ConfigurationBuilder()
+            .baseUrl('https://api.example.com')
+            .defaultHeader('Authorization', 'Bearer token')
+            .build();
 
-      expect(config.baseUrl, equals('https://api.example.com'));
-      expect(config.defaultHeaders['Authorization'], equals('Bearer token'));
-    });
+        expect(config.baseUrl, equals('https://api.example.com'));
+        expect(config.defaultHeaders['Authorization'], equals('Bearer token'));
+      },
+    );
 
     test('bhv config 008 server URL resolution', () {
       final server = ServerConfiguration(
@@ -101,26 +104,29 @@ void main() {
       expect(config.baseUrl, equals('https://staging.example.com/api/v3'));
     });
 
-    test('server URL resolution with defaults', () {
-      final server = ServerConfiguration(
-        urlTemplate: 'https://{env}.example.com/api/{version}',
-        description: 'Test server',
-        variables: {
-          'env': const ServerVariable(
-            defaultValue: 'api',
-            enumValues: ['api', 'staging'],
-          ),
-          'version': const ServerVariable(
-            defaultValue: 'v3',
-            enumValues: ['v2', 'v3'],
-          ),
-        },
-      );
+    test(
+      'bhv config 021 a server URL template resolves its variables to their defaults',
+      () {
+        final server = ServerConfiguration(
+          urlTemplate: 'https://{env}.example.com/api/{version}',
+          description: 'Test server',
+          variables: {
+            'env': const ServerVariable(
+              defaultValue: 'api',
+              enumValues: ['api', 'staging'],
+            ),
+            'version': const ServerVariable(
+              defaultValue: 'v3',
+              enumValues: ['v2', 'v3'],
+            ),
+          },
+        );
 
-      final config = ConfigurationBuilder().server(server).build();
+        final config = ConfigurationBuilder().server(server).build();
 
-      expect(config.baseUrl, equals('https://api.example.com/api/v3'));
-    });
+        expect(config.baseUrl, equals('https://api.example.com/api/v3'));
+      },
+    );
 
     test('bhv config 001 baseUrl override', () {
       final config = ConfigurationBuilder()
@@ -131,17 +137,20 @@ void main() {
       expect(config.baseUrl, equals('https://override.example.com'));
     });
 
-    test('default headers copy isolation', () {
-      final config = ConfigurationBuilder()
-          .defaultHeader('X-Test', 'value')
-          .build();
+    test(
+      'bhv config 022 mutating the returned default headers does not change the configuration',
+      () {
+        final config = ConfigurationBuilder()
+            .defaultHeader('X-Test', 'value')
+            .build();
 
-      final headers = config.defaultHeaders;
-      headers['X-Mutated'] = 'should-not-affect-config';
+        final headers = config.defaultHeaders;
+        headers['X-Mutated'] = 'should-not-affect-config';
 
-      final original = config.defaultHeaders;
-      expect(original.containsKey('X-Mutated'), isFalse);
-    });
+        final original = config.defaultHeaders;
+        expect(original.containsKey('X-Mutated'), isFalse);
+      },
+    );
 
     test('bhv config 002 builder accumulates multiple headers', () {
       final config = ConfigurationBuilder()
@@ -264,6 +273,38 @@ void main() {
 
       expect(config.defaultHeaders, equals({'X-Key': 'value'}));
     });
+
+    test(
+      'bhv config 018 a default constructed or built configuration uses the base URL from the spec',
+      () {
+        final built = ConfigurationBuilder().build();
+        final defaults = Configuration.defaultConfiguration();
+
+        expect(built.baseUrl, equals('/api/v3'));
+        expect(defaults.baseUrl, equals('/api/v3'));
+      },
+    );
+
+    test(
+      'bhv config 019 the default configuration factory returns the spec base URL and no default headers',
+      () {
+        final config = Configuration.defaultConfiguration();
+
+        expect(config.baseUrl, equals('/api/v3'));
+        expect(config.defaultHeaders, isEmpty);
+      },
+    );
+
+    test(
+      'bhv config 023 each call to the default configuration factory returns a fresh instance',
+      () {
+        final first = Configuration.defaultConfiguration();
+        final second = Configuration.defaultConfiguration();
+
+        expect(identical(first, second), isFalse);
+        expect(first.baseUrl, equals(second.baseUrl));
+      },
+    );
 
     test('bhv config 006 builder produces independent instances', () {
       final builder = ConfigurationBuilder().baseUrl('https://example.com');
