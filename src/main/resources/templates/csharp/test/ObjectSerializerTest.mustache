@@ -1120,6 +1120,24 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvSerializationobject081FormatProtobufDurationEmitsWholeSeconds()
+        {
+            Assert.Equal("90s", ProtobufDurationConverter.Format(TimeSpan.FromSeconds(90)));
+        }
+
+        [Fact]
+        public void BhvSerializationobject105NegativeDurationCarriesTheSign()
+        {
+            Assert.Equal("-90s", ProtobufDurationConverter.Format(TimeSpan.FromSeconds(-90)));
+        }
+
+        [Fact]
+        public void BhvSerializationobject106NegativeFractionalDurationCarriesTheSign()
+        {
+            Assert.Equal("-1.500s", ProtobufDurationConverter.Format(TimeSpan.FromMilliseconds(-1500)));
+        }
+
+        [Fact]
         public void BhvSerializationobject112DurationConverterRoundTripWholeSeconds()
         {
             // 2h15m30s → 8130 seconds → "8130s"

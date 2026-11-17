@@ -542,6 +542,23 @@ public class ValueSerializerTest
         );
     }
 
+    [Fact]
+    public void BhvSerializationparam094SpaceDelimitedArrayExplodeTrueReturnsList()
+    {
+        Assert.Equal(
+            new List<string> { "blue", "black" },
+            ValueSerializer.SerializeStyled(
+                "color",
+                new List<object> { "blue", "black" },
+                "query",
+                "array",
+                null,
+                "spaceDelimited",
+                true
+            )
+        );
+    }
+
     // -- serializeStyled: pipeDelimited style --
 
     [Fact]
@@ -586,6 +603,23 @@ public class ValueSerializerTest
                 null,
                 "pipeDelimited",
                 false
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam075PipeDelimitedArrayExplodeTrueReturnsList()
+    {
+        Assert.Equal(
+            new List<string> { "blue", "black" },
+            ValueSerializer.SerializeStyled(
+                "color",
+                new List<object> { "blue", "black" },
+                "query",
+                "array",
+                null,
+                "pipeDelimited",
+                true
             )
         );
     }

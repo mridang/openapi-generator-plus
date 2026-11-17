@@ -121,6 +121,22 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void BhvServers014GetUrlAcceptsAnyOverrideWhenVariableHasNoEnum()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api"),
+            });
+
+        Assert.Equal(
+            "https://anything-goes.example.com",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "anything-goes" }));
+    }
+
+    [Fact]
     public void BhvServers011GetUrlLeavesATemplateWithoutVariablesUnchanged()
     {
         var server = new ServerConfiguration(

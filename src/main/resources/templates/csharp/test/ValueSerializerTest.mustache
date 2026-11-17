@@ -388,6 +388,14 @@ public class ValueSerializerTest
         Assert.Equal("blue", ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "spaceDelimited", false));
     }
 
+    [Fact]
+    public void BhvSerializationparam094SpaceDelimitedArrayExplodeTrueReturnsList()
+    {
+        Assert.Equal(
+            new List<string> { "blue", "black" },
+            ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "query", "array", null, "spaceDelimited", true));
+    }
+
     // -- serializeStyled: pipeDelimited style --
 
     [Fact]
@@ -401,6 +409,14 @@ public class ValueSerializerTest
     public void BhvSerializationparam076PipeDelimitedScalarReturnsStringifiedValue()
     {
         Assert.Equal("blue", ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "pipeDelimited", false));
+    }
+
+    [Fact]
+    public void BhvSerializationparam075PipeDelimitedArrayExplodeTrueReturnsList()
+    {
+        Assert.Equal(
+            new List<string> { "blue", "black" },
+            ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "query", "array", null, "pipeDelimited", true));
     }
 
     // -- cookie location --

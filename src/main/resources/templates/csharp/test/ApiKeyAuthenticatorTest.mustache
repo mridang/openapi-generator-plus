@@ -114,6 +114,13 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuthapikey008HeaderLocationRejectsANonAsciiKey()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "X-Api-Key", "caf\u00E9", ApiKeyLocation.Header));
+    }
+
+    [Fact]
     public void CrlfInHeaderKeyThrowsAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
