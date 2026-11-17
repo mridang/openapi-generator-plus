@@ -18,13 +18,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class Medication
 {
     #[SerializedName('drugName')]
-    public string $drugName;
+    public readonly string $drugName;
 
     #[SerializedName('dosage')]
-    public ?string $dosage = null;
+    public readonly ?string $dosage;
 
     #[SerializedName('notes')]
-    public ?string $notes = null;
+    public readonly ?string $notes;
 
     /**
      */
@@ -36,5 +36,41 @@ class Medication
         $this->drugName = $drugName;
         $this->dosage = $dosage;
         $this->notes = $notes;
+    }
+
+    /**
+     * Returns a copy of this model with drugName replaced. This model is not changed.
+     */
+    public function withDrugName(string $drugName): self
+    {
+        return new self(
+            drugName: $drugName,
+            dosage: $this->dosage,
+            notes: $this->notes,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with dosage replaced. This model is not changed.
+     */
+    public function withDosage(?string $dosage): self
+    {
+        return new self(
+            drugName: $this->drugName,
+            dosage: $dosage,
+            notes: $this->notes,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with notes replaced. This model is not changed.
+     */
+    public function withNotes(?string $notes): self
+    {
+        return new self(
+            drugName: $this->drugName,
+            dosage: $this->dosage,
+            notes: $notes,
+        );
     }
 }

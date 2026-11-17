@@ -105,6 +105,7 @@ test('injected api client is wired into every api group', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             return new ApiHttpResponse(200, '', []);
         }
@@ -139,6 +140,7 @@ test('close on a client with a supplied transport leaves that transport usable',
             array $headers,
             mixed $body,
             bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
         ): ApiHttpResponse {
             $this->sent++;
 

@@ -22,72 +22,72 @@ class Pet
 {
     /** @example 10 */
     #[SerializedName('id')]
-    public ?int $id = null;
+    public readonly ?int $id;
 
     /** @example doggie */
     #[SerializedName('name')]
-    public string $name;
+    public readonly string $name;
 
     #[SerializedName('category')]
-    public ?\PetstoreClient\Models\Category $category = null;
+    public readonly ?\PetstoreClient\Models\Category $category;
 
     /** @var \Ds\Set<string> */
     #[SerializedName('photoUrls')]
-    public \Ds\Set $photoUrls;
+    public readonly \Ds\Set $photoUrls;
 
     /** @var \Ds\Vector<\PetstoreClient\Models\Tag>|null */
     #[SerializedName('tags')]
-    public ?\Ds\Vector $tags = null;
+    public readonly ?\Ds\Vector $tags;
 
     /**
      * pet status in the store
      * @deprecated This property is deprecated.
      */
     #[SerializedName('status')]
-    public ?PetStatusEnum $status = null;
+    public readonly ?PetStatusEnum $status;
 
     /** @var \Ds\Vector<mixed>|null */
     #[SerializedName('location')]
-    public ?\Ds\Vector $location = null;
+    public readonly ?\Ds\Vector $location;
 
     /**
      * Absolute URL to the pet's public profile page
      * @example https://example.com/pets/fido
      */
     #[SerializedName('homepageUrl')]
-    public ?\Uri\Rfc3986\Uri $homepageUrl = null;
+    public readonly ?string $homepageUrl;
 
     /**
      * Optionally-relative thumbnail location
      * @example /assets/thumb-fido.png
      */
     #[SerializedName('thumbnailRef')]
-    public ?string $thumbnailRef = null;
+    public readonly ?string $thumbnailRef;
 
     /**
      * RFC 6570 template for related-resource links
      * @example https://example.com/pets/{id}/photos{?size}
      */
     #[SerializedName('linkTemplate')]
-    public ?string $linkTemplate = null;
+    public readonly ?string $linkTemplate;
 
     /**
      * Contact email for the pet's owner
      * @example owner@example.com
      */
     #[SerializedName('ownerEmail')]
-    public ?string $ownerEmail = null;
+    public readonly ?string $ownerEmail;
 
     /**
      * Pet weight in kilograms (decimal precision)
      * @example 12.345
      */
     #[SerializedName('weightKg')]
-    public ?float $weightKg = null;
+    public readonly ?float $weightKg;
 
     /** @example rex */
     #[SerializedName('nickname')]
-    public ?string $nickname = null;
+    public readonly ?string $nickname;
 
     /**
      * @param \Ds\Set<string> $photoUrls
@@ -102,7 +102,7 @@ class Pet
         ?\Ds\Vector $tags = null,
         ?PetStatusEnum $status = null,
         ?\Ds\Vector $location = null,
-        ?\Uri\Rfc3986\Uri $homepageUrl = null,
+        ?string $homepageUrl = null,
         ?string $thumbnailRef = null,
         ?string $linkTemplate = null,
         ?string $ownerEmail = null,
@@ -122,5 +122,297 @@ class Pet
         $this->ownerEmail = $ownerEmail;
         $this->weightKg = $weightKg;
         $this->nickname = $nickname;
+    }
+
+    /**
+     * Returns a copy of this model with id replaced. This model is not changed.
+     */
+    public function withId(?int $id): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with name replaced. This model is not changed.
+     */
+    public function withName(string $name): self
+    {
+        return new self(
+            name: $name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with category replaced. This model is not changed.
+     */
+    public function withCategory(?\PetstoreClient\Models\Category $category): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with photoUrls replaced. This model is not changed.
+     *
+     * @param \Ds\Set<string> $photoUrls
+     */
+    public function withPhotoUrls(\Ds\Set $photoUrls): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with tags replaced. This model is not changed.
+     *
+     * @param \Ds\Vector<\PetstoreClient\Models\Tag>|null $tags
+     */
+    public function withTags(?\Ds\Vector $tags): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with status replaced. This model is not changed.
+     */
+    public function withStatus(?PetStatusEnum $status): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with location replaced. This model is not changed.
+     *
+     * @param \Ds\Vector<mixed>|null $location
+     */
+    public function withLocation(?\Ds\Vector $location): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with homepageUrl replaced. This model is not changed.
+     */
+    public function withHomepageUrl(?string $homepageUrl): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with thumbnailRef replaced. This model is not changed.
+     */
+    public function withThumbnailRef(?string $thumbnailRef): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with linkTemplate replaced. This model is not changed.
+     */
+    public function withLinkTemplate(?string $linkTemplate): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with ownerEmail replaced. This model is not changed.
+     */
+    public function withOwnerEmail(?string $ownerEmail): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with weightKg replaced. This model is not changed.
+     */
+    public function withWeightKg(?float $weightKg): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $weightKg,
+            nickname: $this->nickname,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with nickname replaced. This model is not changed.
+     */
+    public function withNickname(?string $nickname): self
+    {
+        return new self(
+            name: $this->name,
+            photoUrls: $this->photoUrls,
+            id: $this->id,
+            category: $this->category,
+            tags: $this->tags,
+            status: $this->status,
+            location: $this->location,
+            homepageUrl: $this->homepageUrl,
+            thumbnailRef: $this->thumbnailRef,
+            linkTemplate: $this->linkTemplate,
+            ownerEmail: $this->ownerEmail,
+            weightKg: $this->weightKg,
+            nickname: $nickname,
+        );
     }
 }

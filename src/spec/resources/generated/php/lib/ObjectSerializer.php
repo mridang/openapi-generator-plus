@@ -19,7 +19,6 @@ use PetstoreClient\Serializer\DsSetNormalizer;
 use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsVectorNormalizer;
 use PetstoreClient\Serializer\DurationNormalizer;
-use PetstoreClient\Serializer\UriNormalizer;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
@@ -199,7 +198,6 @@ class ObjectSerializer
                     }
                 },
                 new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
-                new UriNormalizer(),
                 /* A `format: uuid` model field is a Symfony Uuid. Without this
                  * normalizer the object normalizer sees a plain string on decode
                  * and rejects it, and would walk the Uuid object on encode. The
@@ -375,6 +373,13 @@ class ObjectSerializer
                 $normalized[$key] = self::flattenAdditionalProperties($properties[$key]->getValue($value), $item);
             }
         }
+        /* A required property that is nullable always has its key on the wire,
+         * as null when unset, although null values are otherwise skipped. */
+        foreach (self::requiredNullableProperties($value::class) as $wireName) {
+            if (!array_key_exists($wireName, $normalized)) {
+                $normalized[$wireName] = null;
+            }
+        }
         if (
             property_exists($value, 'additionalProperties')
             && $value->additionalProperties instanceof \Ds\Map
@@ -405,7 +410,7 @@ class ObjectSerializer
     private static function publicModelProperties(object $model): array
     {
         $properties = [];
-        foreach (new \ReflectionObject($model)->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+        foreach ((new \ReflectionObject($model))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
             if (
                 $property->isStatic()
                 || $property->getName() === 'additionalProperties'
@@ -989,6 +994,13 @@ class ObjectSerializer
                     return $data;
                 }
             } elseif ($class === 'float' || $class === 'number') {
+                if (is_float($data) && !is_finite($data)) {
+                    /* 1e400 overflows to INF in json_decode; a decoded number
+                     * must be finite. */
+                    throw new \InvalidArgumentException(
+                        sprintf("Expected a finite number of type '%s' but got a non-finite value", $class)
+                    );
+                }
                 if (is_int($data) || is_float($data)) {
                     return (float) $data;
                 }
@@ -1336,6 +1348,14 @@ class ObjectSerializer
             if ($value === null) {
                 continue;
             }
+            if ($typeName === 'float' && is_float($value) && !is_finite($value)) {
+                /* 1e400 overflows to INF in json_decode; a decoded number must be finite. */
+                throw new \InvalidArgumentException(sprintf(
+                    "Expected a finite number for property '%s' on %s but got a non-finite value",
+                    $serializedName,
+                    $class
+                ));
+            }
             $valid = match ($typeName) {
                 'int' => is_int($value),
                 'float' => is_int($value) || is_float($value),
@@ -1382,7 +1402,7 @@ class ObjectSerializer
          * model-side helper throws \InvalidArgumentException on an unknown key;
          * the surrounding deserialize() try/catch wraps it in
          * SerializationException. */
-        new \ReflectionMethod($class, 'assertNoUnknownProperties')->invoke(null, $data);
+        (new \ReflectionMethod($class, 'assertNoUnknownProperties'))->invoke(null, $data);
     }
 
     /**
@@ -1393,6 +1413,37 @@ class ObjectSerializer
     public static function isStrictBase64(string $text): bool
     {
         return preg_match('~\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?\z~', $text) === 1;
+    }
+
+    /**
+     * The wire names of the required properties of a model that are nullable.
+     * A model marks them in its protected REQUIRED_NULLABLE_PROPERTIES
+     * constant, read here through reflection so the marker is not part of the
+     * model's public surface; a subclass adds to what its parents declare.
+     *
+     * @param class-string $class
+     * @return list<string>
+     */
+    private static function requiredNullableProperties(string $class): array
+    {
+        $found = [];
+        $reflection = new \ReflectionClass($class);
+        while ($reflection !== false) {
+            $constant = $reflection->getReflectionConstant('REQUIRED_NULLABLE_PROPERTIES');
+            if ($constant !== false && $constant->getDeclaringClass()->getName() === $reflection->getName()) {
+                $value = $constant->getValue();
+                if (is_array($value)) {
+                    foreach ($value as $name) {
+                        if (is_string($name)) {
+                            $found[] = $name;
+                        }
+                    }
+                }
+            }
+            $reflection = $reflection->getParentClass();
+        }
+
+        return $found;
     }
 
     /**
@@ -1437,7 +1488,7 @@ class ObjectSerializer
      */
     private static function encodeByteVariant(object $wrapper, mixed $instance): mixed
     {
-        $constant = new \ReflectionClass($wrapper)->getReflectionConstant('BYTE_VARIANTS');
+        $constant = (new \ReflectionClass($wrapper))->getReflectionConstant('BYTE_VARIANTS');
         $variants = $constant === false ? [] : $constant->getValue();
         if (!is_array($variants)) {
             return $instance;
@@ -1542,10 +1593,14 @@ class ObjectSerializer
             }
         }
         if ($extra !== []) {
-            /* The property is a non-null `\Ds\Map` (empty by default); assign a
-             * populated map so callers read undeclared keys back through the
-             * same container type the model documents. */
-            $result->additionalProperties = new \Ds\Map($extra);
+            /* The property is a read-only, non-null `\Ds\Map` (empty by default
+             * and created by the constructor), so the undeclared keys are put
+             * into that map: callers read them back through the same container
+             * type the model documents. */
+            $bag = $result->additionalProperties;
+            if ($bag instanceof \Ds\Map) {
+                $bag->putAll($extra);
+            }
         }
         return $result;
     }

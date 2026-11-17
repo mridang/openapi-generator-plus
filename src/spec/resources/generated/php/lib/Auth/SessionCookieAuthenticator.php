@@ -20,7 +20,7 @@ final class SessionCookieAuthenticator extends ApiKeyAuthenticator
 {
     public function __construct(
         string $host,
-        #[\SensitiveParameter] string $apiKey
+        #[\SensitiveParameter] ?string $apiKey = null
     ) {
         parent::__construct(
             $host,

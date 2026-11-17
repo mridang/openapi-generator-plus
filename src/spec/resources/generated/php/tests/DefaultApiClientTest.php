@@ -292,7 +292,7 @@ test('integration includes transport default headers', function (): void {
 test('repeated response headers are joined in the order they arrive', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
-    $response = new DefaultApiClient()->sendRequest('GET', $chasmUrl . '/test/response-headers', [], null);
+    $response = (new DefaultApiClient())->sendRequest('GET', $chasmUrl . '/test/response-headers', [], null);
 
     expect($response->statusCode)->toBe(200);
     expect($response->headers['x-custom-header'] ?? null)->toBe('foo');

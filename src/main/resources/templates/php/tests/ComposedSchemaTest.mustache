@@ -34,6 +34,27 @@ test('one of deserializes wet food', function (): void {
     expect($instance->foodType)->toBe('wet');
 });
 
+test('a one of wrapper has a typed factory, test and accessor per variant', function (): void {
+    $dry = new DryFood(weightKg: 2.5);
+    $food = PetFood::fromDryFood($dry);
+
+    expect($food->getActualInstance())->toBe($dry);
+    expect($food->isDryFood())->toBeTrue();
+    expect($food->isWetFood())->toBeFalse();
+    expect($food->asDryFood())->toBe($dry);
+    expect($food->asWetFood())->toBeNull();
+});
+
+test('an any of wrapper has a typed factory, test and accessor per variant', function (): void {
+    $surgery = new Surgery(procedureName: 'Spay');
+    $treatment = PetTreatment::fromSurgery($surgery);
+
+    expect($treatment->isSurgery())->toBeTrue();
+    expect($treatment->isMedication())->toBeFalse();
+    expect($treatment->asSurgery())->toBe($surgery);
+    expect($treatment->asMedication())->toBeNull();
+});
+
 test('one of missing discriminator throws', function (): void {
     // Gap AU: missing discriminator field must throw, not silently wrap.
     $data = ['weightKg' => 2.5];
@@ -196,14 +217,12 @@ test('any of shared property collision keeps the later declared variant of a reo
 });
 
 test('any of variants with only numeric additional properties serialize as an object', function (): void {
-    $first = new Metadata();
     /** @var \Ds\Map<string, mixed> $firstExtra */
     $firstExtra = new \Ds\Map(['0' => 'x']);
-    $first->additionalProperties = $firstExtra;
-    $second = new Metadata();
+    $first = (new Metadata())->withAdditionalProperties($firstExtra);
     /** @var \Ds\Map<string, mixed> $secondExtra */
     $secondExtra = new \Ds\Map(['1' => 'y']);
-    $second->additionalProperties = $secondExtra;
+    $second = (new Metadata())->withAdditionalProperties($secondExtra);
 
     expect(ObjectSerializer::serialize(new PetTreatment([$first, $second])))->toBe('{"0":"x","1":"y"}');
 });

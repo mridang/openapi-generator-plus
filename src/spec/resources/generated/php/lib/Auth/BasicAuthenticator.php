@@ -22,8 +22,27 @@ class BasicAuthenticator extends BaseAuthenticator
     private readonly string $username;
     private readonly string $password;
 
-    public function __construct(string $host, string $username, #[\SensitiveParameter] string $password)
-    {
+    /**
+     * @param string      $host     the API base URL
+     * @param string|null $username the user name; when null, the PETSTORE_CLIENT_USERNAME environment
+     *                              variable is used (an empty value counts as unset)
+     * @param string|null $password the password; when null, the PETSTORE_CLIENT_PASSWORD environment
+     *                              variable is used (an empty value counts as unset)
+     * @throws \InvalidArgumentException when a credential is neither passed nor in the environment
+     */
+    public function __construct(
+        string $host,
+        ?string $username = null,
+        #[\SensitiveParameter] ?string $password = null
+    ) {
+        $username ??= self::environmentCredential('USERNAME');
+        $password ??= self::environmentCredential('PASSWORD');
+        if ($username === null || $password === null) {
+            throw new \InvalidArgumentException(
+                'Basic auth credentials are required: pass a username and a password, '
+                . 'or set the PETSTORE_CLIENT_USERNAME and PETSTORE_CLIENT_PASSWORD environment variables'
+            );
+        }
         /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
          * separator) and neither user-id nor password may carry CR/LF/NUL
          * (header-injection / smuggling vectors common when credentials

@@ -18,10 +18,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class TreeNode
 {
     #[SerializedName('value')]
-    public string $value;
+    public readonly string $value;
 
     #[SerializedName('child')]
-    public ?\PetstoreClient\Models\TreeNode $child = null;
+    public readonly ?\PetstoreClient\Models\TreeNode $child;
 
     /**
      */
@@ -31,5 +31,27 @@ class TreeNode
     ) {
         $this->value = $value;
         $this->child = $child;
+    }
+
+    /**
+     * Returns a copy of this model with value replaced. This model is not changed.
+     */
+    public function withValue(string $value): self
+    {
+        return new self(
+            value: $value,
+            child: $this->child,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with child replaced. This model is not changed.
+     */
+    public function withChild(?\PetstoreClient\Models\TreeNode $child): self
+    {
+        return new self(
+            value: $this->value,
+            child: $child,
+        );
     }
 }

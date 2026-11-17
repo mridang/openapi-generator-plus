@@ -21,20 +21,63 @@ class ApiKeyAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
     private readonly string $keyParamName;
-    private readonly string $apiKey;
+    private readonly ?string $apiKey;
     private readonly ApiKeyLocation $location;
 
+    /** @var (\Closure(): string)|null */
+    private readonly ?\Closure $apiKeyProvider;
+
+    /**
+     * @param string        $host           the API base URL
+     * @param string        $keyParamName   the name of the header, query parameter or cookie
+     * @param string|null   $apiKey         the key; when null, the PETSTORE_CLIENT_API_KEY environment
+     *                                      variable is used (an empty value counts as unset)
+     * @param ApiKeyLocation $location      where the key is sent
+     * @param \Closure|null $apiKeyProvider returns the key for each request, so a rotated key is
+     *                                      picked up; use it instead of $apiKey
+     * @throws \InvalidArgumentException when no key is available or both a key and a provider are passed
+     */
     public function __construct(
         string $host,
         string $keyParamName,
-        #[\SensitiveParameter] string $apiKey,
-        ApiKeyLocation $location
+        #[\SensitiveParameter] ?string $apiKey,
+        ApiKeyLocation $location,
+        ?\Closure $apiKeyProvider = null
     ) {
-        /* Validation applies to ALL locations: empty/whitespace API keys
-         * and CR/LF/NUL are always programmer errors. Blank means empty or
-         * only ASCII whitespace (space, tab, LF, CR, FF, VT); a Unicode space
-         * is a valid key. RFC 7230 §3.2.6 printable-ASCII rule still applies
-         * to HEADER values. */
+        if ($apiKey !== null && $apiKeyProvider instanceof \Closure) {
+            throw new \InvalidArgumentException('Pass either an API key or an API key provider, not both');
+        }
+        if ($apiKey === null && !$apiKeyProvider instanceof \Closure) {
+            $apiKey = self::environmentCredential('API_KEY');
+            if ($apiKey === null) {
+                throw new \InvalidArgumentException(
+                    "API key for '$keyParamName' is required: pass a key or a key provider, "
+                    . 'or set the PETSTORE_CLIENT_API_KEY environment variable'
+                );
+            }
+        }
+        if ($apiKey !== null) {
+            $this->assertValidKey($keyParamName, $location, $apiKey);
+        }
+        $this->host = $host;
+        $this->keyParamName = $keyParamName;
+        $this->apiKey = $apiKey;
+        $this->location = $location;
+        $this->apiKeyProvider = $apiKeyProvider;
+    }
+
+    /**
+     * Validation applies to ALL locations: empty/whitespace API keys
+     * and CR/LF/NUL are always programmer errors. Blank means empty or
+     * only ASCII whitespace (space, tab, LF, CR, FF, VT); a Unicode space
+     * is a valid key. RFC 7230 §3.2.6 printable-ASCII rule still applies
+     * to HEADER values.
+     */
+    private function assertValidKey(
+        string $keyParamName,
+        ApiKeyLocation $location,
+        #[\SensitiveParameter] string $apiKey
+    ): void {
         if (trim($apiKey, " \t\n\r\x0C\x0B") === '') {
             throw new \InvalidArgumentException(
                 "API key value for '$keyParamName' must not be empty"
@@ -53,10 +96,20 @@ class ApiKeyAuthenticator extends BaseAuthenticator
                 "API key for header '$keyParamName' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
             );
         }
-        $this->host = $host;
-        $this->keyParamName = $keyParamName;
-        $this->apiKey = $apiKey;
-        $this->location = $location;
+    }
+
+    /** The key to send: the one passed or read from the environment, or the provider's current one. */
+    private function currentKey(): string
+    {
+        if ($this->apiKey !== null) {
+            return $this->apiKey;
+        }
+        $provider = $this->apiKeyProvider;
+        assert($provider instanceof \Closure);
+        $key = (string) $provider();
+        $this->assertValidKey($this->keyParamName, $this->location, $key);
+
+        return $key;
     }
 
     public function getHost(): string
@@ -68,7 +121,7 @@ class ApiKeyAuthenticator extends BaseAuthenticator
     public function getAuthHeaders(): array
     {
         if ($this->location === ApiKeyLocation::HEADER) {
-            return [$this->keyParamName => $this->apiKey];
+            return [$this->keyParamName => $this->currentKey()];
         }
         return [];
     }
@@ -77,7 +130,7 @@ class ApiKeyAuthenticator extends BaseAuthenticator
     public function getQueryParams(): array
     {
         if ($this->location === ApiKeyLocation::QUERY) {
-            return [$this->keyParamName => $this->apiKey];
+            return [$this->keyParamName => $this->currentKey()];
         }
         return [];
     }
@@ -86,7 +139,7 @@ class ApiKeyAuthenticator extends BaseAuthenticator
     public function getCookieParams(): array
     {
         if ($this->location === ApiKeyLocation::COOKIE) {
-            return [$this->keyParamName => $this->apiKey];
+            return [$this->keyParamName => $this->currentKey()];
         }
         return [];
     }

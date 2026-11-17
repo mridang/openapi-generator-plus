@@ -261,7 +261,7 @@ final class OAuth2TokenManager
          * transport via $noRedirect=true so the 3xx surfaces here and is
          * refused below. A transport failure propagates unchanged as
          * NetworkException / NetworkTimeoutException. */
-        $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body, noRedirect: true);
+        $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body, noRedirect: true, noDefaultHeaders: true);
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
             /* Any non-2xx answer, a refused 3xx included, is an
              * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses

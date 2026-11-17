@@ -18,13 +18,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class Surgery
 {
     #[SerializedName('procedureName')]
-    public string $procedureName;
+    public readonly string $procedureName;
 
     #[SerializedName('durationMinutes')]
-    public ?int $durationMinutes = null;
+    public readonly ?int $durationMinutes;
 
     #[SerializedName('notes')]
-    public ?string $notes = null;
+    public readonly ?string $notes;
 
     /**
      */
@@ -36,5 +36,41 @@ class Surgery
         $this->procedureName = $procedureName;
         $this->durationMinutes = $durationMinutes;
         $this->notes = $notes;
+    }
+
+    /**
+     * Returns a copy of this model with procedureName replaced. This model is not changed.
+     */
+    public function withProcedureName(string $procedureName): self
+    {
+        return new self(
+            procedureName: $procedureName,
+            durationMinutes: $this->durationMinutes,
+            notes: $this->notes,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with durationMinutes replaced. This model is not changed.
+     */
+    public function withDurationMinutes(?int $durationMinutes): self
+    {
+        return new self(
+            procedureName: $this->procedureName,
+            durationMinutes: $durationMinutes,
+            notes: $this->notes,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with notes replaced. This model is not changed.
+     */
+    public function withNotes(?string $notes): self
+    {
+        return new self(
+            procedureName: $this->procedureName,
+            durationMinutes: $this->durationMinutes,
+            notes: $notes,
+        );
     }
 }

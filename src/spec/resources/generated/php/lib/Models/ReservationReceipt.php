@@ -19,11 +19,11 @@ class ReservationReceipt
 {
     /** @example rcpt-77 */
     #[SerializedName('receiptCode')]
-    public string $receiptCode;
+    public readonly string $receiptCode;
 
     /** @example 2030-01-01T00:00:00Z */
     #[SerializedName('expiresAt')]
-    public \DateTime $expiresAt;
+    public readonly \DateTime $expiresAt;
 
     /**
      */
@@ -33,5 +33,27 @@ class ReservationReceipt
     ) {
         $this->receiptCode = $receiptCode;
         $this->expiresAt = $expiresAt;
+    }
+
+    /**
+     * Returns a copy of this model with receiptCode replaced. This model is not changed.
+     */
+    public function withReceiptCode(string $receiptCode): self
+    {
+        return new self(
+            receiptCode: $receiptCode,
+            expiresAt: $this->expiresAt,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with expiresAt replaced. This model is not changed.
+     */
+    public function withExpiresAt(\DateTime $expiresAt): self
+    {
+        return new self(
+            receiptCode: $this->receiptCode,
+            expiresAt: $expiresAt,
+        );
     }
 }

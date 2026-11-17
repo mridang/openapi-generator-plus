@@ -18,10 +18,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class Error
 {
     #[SerializedName('code')]
-    public ?int $code = null;
+    public readonly ?int $code;
 
     #[SerializedName('message')]
-    public ?string $message = null;
+    public readonly ?string $message;
 
     /**
      */
@@ -31,5 +31,27 @@ class Error
     ) {
         $this->code = $code;
         $this->message = $message;
+    }
+
+    /**
+     * Returns a copy of this model with code replaced. This model is not changed.
+     */
+    public function withCode(?int $code): self
+    {
+        return new self(
+            code: $code,
+            message: $this->message,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with message replaced. This model is not changed.
+     */
+    public function withMessage(?string $message): self
+    {
+        return new self(
+            code: $this->code,
+            message: $message,
+        );
     }
 }

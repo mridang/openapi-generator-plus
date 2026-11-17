@@ -54,11 +54,10 @@ test('deserializes additional string properties', function (): void {
 });
 
 test('round trip preserves additional properties', function (): void {
-    $metadata = new Metadata();
-    $metadata->createdAt = new \DateTime('2024-01-01T00:00:00+00:00');
     /** @var \Ds\Map<string, mixed> $additionalProperties */
     $additionalProperties = new \Ds\Map(['customField' => 'hello', 'anotherField' => 'world']);
-    $metadata->additionalProperties = $additionalProperties;
+    $metadata = (new Metadata(new \DateTime('2024-01-01T00:00:00+00:00')))
+        ->withAdditionalProperties($additionalProperties);
 
     $json = ObjectSerializer::serialize($metadata);
     /** @var Metadata $deserialized */
@@ -67,10 +66,9 @@ test('round trip preserves additional properties', function (): void {
 });
 
 test('additional properties field is Ds\\Map typed', function (): void {
-    $metadata = new Metadata();
     /** @var \Ds\Map<string, mixed> $additionalProperties */
     $additionalProperties = new \Ds\Map(['key' => 'value']);
-    $metadata->additionalProperties = $additionalProperties;
+    $metadata = (new Metadata())->withAdditionalProperties($additionalProperties);
     expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
     expect($metadata->additionalProperties->get('key'))->toBe('value');
 });
@@ -121,14 +119,44 @@ test('generated models never claim a null example', function (): void {
 });
 
 test('a declared property wins over a colliding additional property', function (): void {
-    $metadata = new Metadata();
-    $metadata->createdAt = new \DateTime('2024-01-15T10:30:00+00:00');
     /** @var \Ds\Map<string, mixed> $additionalProperties */
     $additionalProperties = new \Ds\Map(['createdAt' => 'x', 'other' => 'y']);
-    $metadata->additionalProperties = $additionalProperties;
+    $metadata = (new Metadata(new \DateTime('2024-01-15T10:30:00+00:00')))
+        ->withAdditionalProperties($additionalProperties);
 
     $json = ObjectSerializer::serialize($metadata);
 
     expect($json)->toBe('{"createdAt":"2024-01-15T10:30:00.000+00:00","other":"y"}');
     expect(substr_count($json, '"createdAt"'))->toBe(1);
+});
+
+test('a model property cannot be assigned after construction', function (): void {
+    $category = new \PetstoreClient\Models\Category(id: 1, name: 'Dogs');
+
+    $property = new \ReflectionProperty($category, 'name');
+
+    expect(fn () => $property->setValue($category, 'Cats'))->toThrow(\Error::class);
+    expect($category->name)->toBe('Dogs');
+});
+
+test('a with method returns a changed copy and leaves the model as it was', function (): void {
+    $category = new \PetstoreClient\Models\Category(id: 1, name: 'Dogs');
+
+    $renamed = $category->withName('Cats');
+
+    expect($renamed)->not->toBe($category);
+    expect($renamed->name)->toBe('Cats');
+    expect($renamed->id)->toBe(1);
+    expect($category->name)->toBe('Dogs');
+});
+
+test('a with method carries the additional properties over to the copy', function (): void {
+    /** @var \Ds\Map<string, mixed> $extra */
+    $extra = new \Ds\Map(['customField' => 'hello']);
+    $metadata = (new Metadata())->withAdditionalProperties($extra);
+
+    $copy = $metadata->withCreatedAt(new \DateTime('2024-01-01T00:00:00+00:00'));
+
+    expect($copy->additionalProperties->get('customField'))->toBe('hello');
+    expect($metadata->createdAt)->toBeNull();
 });

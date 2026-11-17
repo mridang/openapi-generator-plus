@@ -17,14 +17,33 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class RequiredNullable
 {
+    /**
+     * The required properties that are nullable: their key is always on the wire, as null when unset.
+     *
+     * @var list<string>
+     */
+    protected const array REQUIRED_NULLABLE_PROPERTIES = [
+        'note',
+    ];
+
     #[SerializedName('note')]
-    public string $note;
+    public readonly ?string $note;
 
     /**
      */
     public function __construct(
-        string $note,
+        ?string $note,
     ) {
         $this->note = $note;
+    }
+
+    /**
+     * Returns a copy of this model with note replaced. This model is not changed.
+     */
+    public function withNote(?string $note): self
+    {
+        return new self(
+            note: $note,
+        );
     }
 }

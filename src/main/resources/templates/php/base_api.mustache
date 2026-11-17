@@ -83,6 +83,23 @@ class BaseApi
      *                                            file or stream go on the wire verbatim
      *                                            under whichever declared Content-Type
      *                                            was selected, even application/json.
+     * @param int|null              $timeout      Per-call request timeout in milliseconds,
+     *                                            replacing the transport timeout for this call
+     *                                            only (a transport that is not an
+     *                                            {@see AbstractApiClient} ignores it).
+     * @param array<string, string>|null $headers Per-call request headers. They win over the
+     *                                            configuration, operation and authentication
+     *                                            headers of the same name.
+     * @param int|null              $maxRetries   Per-call retry count, replacing the transport
+     *                                            retry count for this call only (a transport
+     *                                            that is not an {@see AbstractApiClient}
+     *                                            ignores it).
+     * @param array<int|string, string> $successTypes Model type of each success status of an
+     *                                            operation that declares several 2xx responses
+     *                                            (a status such as 201, or a range such as 2XX).
+     *                                            A success body is decoded as the type of its
+     *                                            actual status and wrapped in $returnType, the
+     *                                            union. Empty for every other operation.
      *
      * @return ApiResult<mixed> Result containing deserialized data, status code, raw body, and headers
      * @throws ApiException
@@ -98,8 +115,23 @@ class BaseApi
         ?string $returnType,
         ?Authenticator $auth = null,
         array $allowReservedKeys = [],
-        bool $rawBody = false
+        bool $rawBody = false,
+        ?int $timeout = null,
+        ?array $headers = null,
+        ?int $maxRetries = null,
+        array $successTypes = []
     ): ApiResult {
+        $callHeaders = $headers;
+        if ($timeout !== null && $timeout <= 0) {
+            throw new \InvalidArgumentException(
+                "Invalid timeout: must be a positive number of milliseconds (got $timeout)"
+            );
+        }
+        if ($maxRetries !== null && $maxRetries < 0) {
+            throw new \InvalidArgumentException(
+                "Invalid maxRetries: must not be negative (got $maxRetries)"
+            );
+        }
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             $url = $path;
         } else {
@@ -152,6 +184,7 @@ class BaseApi
             $isMultipart,
             $headerParams,
             $effectiveAuth,
+            $callHeaders,
         ): array {
             $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
             $headers = array_merge($headers, $this->config->defaultHeaders);
@@ -183,6 +216,14 @@ class BaseApi
                     $headers['Cookie'] = $existing !== '' ? $existing . '; ' . $cookieStr : $cookieStr;
                 }
             }
+            foreach ($callHeaders ?? [] as $name => $value) {
+                foreach (array_keys($headers) as $existing) {
+                    if (strcasecmp((string) $existing, (string) $name) === 0) {
+                        unset($headers[$existing]);
+                    }
+                }
+                $headers[$name] = $value;
+            }
             TraceContextUtil::injectTraceContext($headers);
 
             return $headers;
@@ -208,7 +249,14 @@ class BaseApi
          * transient failure (TransportOptions::$maxRetries); any other
          * ApiClient implementation sends once. */
         $response = $this->apiClient instanceof AbstractApiClient
-            ? $this->apiClient->sendWithRetries($method, $url, $headersForAttempt, $serializedBody)
+            ? $this->apiClient->sendWithRetries(
+                $method,
+                $url,
+                $headersForAttempt,
+                $serializedBody,
+                $timeout,
+                $maxRetries
+            )
             : $this->apiClient->sendRequest($method, $url, $headersForAttempt(), $serializedBody);
 
         if ($response->statusCode === 401
@@ -237,7 +285,13 @@ class BaseApi
         }
 
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            throw ApiException::fromResponse($response->statusCode, $response->headers, $response->body);
+            throw ApiException::fromResponse(
+                $response->statusCode,
+                $response->headers,
+                $response->body,
+                $method,
+                $url
+            );
         }
 
         $data = null;
@@ -292,7 +346,18 @@ class BaseApi
                  * letting the string cast turn the decoded array into "Array". */
                 $data = $response->body;
             } elseif ($returnType !== null) {
-                $data = ObjectSerializer::deserialize($response->body, $returnType, []);
+                $variantType = $successTypes[$response->statusCode]
+                    ?? $successTypes[intdiv($response->statusCode, 100) . 'XX']
+                    ?? null;
+                if ($variantType !== null) {
+                    /* An operation with several 2xx responses decodes the body
+                     * as the schema of the status that arrived, then wraps it
+                     * in the result union, never by trying each variant. */
+                    /** @var class-string $returnType */
+                    $data = new $returnType(ObjectSerializer::deserialize($response->body, $variantType, []));
+                } else {
+                    $data = ObjectSerializer::deserialize($response->body, $returnType, []);
+                }
             }
         }
 

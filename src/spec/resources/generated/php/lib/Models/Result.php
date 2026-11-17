@@ -18,7 +18,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class Result
 {
     #[SerializedName('ok')]
-    public ?bool $ok = null;
+    public readonly ?bool $ok;
 
     /**
      */
@@ -26,5 +26,15 @@ class Result
         ?bool $ok = null,
     ) {
         $this->ok = $ok;
+    }
+
+    /**
+     * Returns a copy of this model with ok replaced. This model is not changed.
+     */
+    public function withOk(?bool $ok): self
+    {
+        return new self(
+            ok: $ok,
+        );
     }
 }

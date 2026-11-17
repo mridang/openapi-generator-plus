@@ -1,0 +1,12 @@
+{{#vendorExtensions.op.hasOptionsParam}}
+            timeout: $options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}->timeout,
+            headers: $options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}->headers,
+            maxRetries: $options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}->maxRetries,
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}

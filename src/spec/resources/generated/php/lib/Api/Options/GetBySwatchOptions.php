@@ -20,9 +20,27 @@ use PetstoreClient\Models\Swatch;
  */
 class GetBySwatchOptions
 {
+    /**
+     * @param int|null $timeout Request timeout in milliseconds for this call; replaces the transport timeout
+     * @param array<string, string>|null $headers Request headers for this call; they win over a header of the same name
+     * @param int|null $maxRetries Retries after a transient failure for this call; replaces the transport retry count
+     */
     public function __construct(
         public readonly ?Swatch $querySwatch = null,
         public readonly ?Swatch $preferredSwatch = null,
+        public readonly ?int $timeout = null,
+        public readonly ?array $headers = null,
+        public readonly ?int $maxRetries = null,
     ) {
+        if ($timeout !== null && $timeout <= 0) {
+            throw new \InvalidArgumentException(
+                "Invalid timeout: must be a positive number of milliseconds (got $timeout)"
+            );
+        }
+        if ($maxRetries !== null && $maxRetries < 0) {
+            throw new \InvalidArgumentException(
+                "Invalid maxRetries: must not be negative (got $maxRetries)"
+            );
+        }
     }
 }

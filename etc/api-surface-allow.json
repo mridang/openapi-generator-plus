@@ -2262,6 +2262,121 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.headers",
+    "*options.maxretries"
+   ],
+   "aspect": "member",
+   "languages": [
+    "php"
+   ],
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F827 per-call timeout, headers and maxRetries on every Options object; the other eleven land in their own waves, so php is the only extra until the majority has them"
+  },
+  {
+   "element": [
+    "apiclient.sendrequest",
+    "defaultapiclient.sendrequest",
+    "abstractapiclient.sendrequest"
+   ],
+   "aspect": "params",
+   "languages": [
+    "php"
+   ],
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F860 a noDefaultHeaders argument keeps the API's default headers off OpenID Connect discovery and the token request; PHP names it, so the redirect flag is no longer reused for it"
+  },
+  {
+   "element": [
+    "apikeyauthenticator.<ctor>",
+    "bearerauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "php"
+   ],
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F862 an optional token or key provider callback (a Closure) beside the explicit credential; the credential may be null to read the environment variable"
+  },
+  {
+   "element": [
+    "apikeyheaderauthenticator.<ctor>",
+    "apikeyqueryauthenticator.<ctor>",
+    "internalapikeyauthenticator.<ctor>",
+    "sessioncookieauthenticator.<ctor>",
+    "basicauthenticator.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "php"
+   ],
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F862 a credential left null is read from the environment variable (<PREFIX>_API_KEY, _USERNAME, _PASSWORD), explicit argument first"
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "php"
+   ],
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F830 requestMethod and requestPath on ApiException and every subclass (getRequestMethod and getRequestPath in php); the other eleven land in their own waves"
+  },
+  {
+   "element": [
+    "apierror.fromresponse"
+   ],
+   "aspect": "params",
+   "languages": [
+    "php"
+   ],
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F830 fromResponse takes the request method and path of the failed request"
+  },
+  {
+   "element": [
+    "*error.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "php"
+   ],
+   "value": "*previous, requestmethod, requestpath)",
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F830 every API error constructor ends with the request method and path; php's \\Throwable chains through the constructor argument named $previous"
+  },
+  {
+   "element": [
+    "petfood.*",
+    "pettreatment.*",
+    "reservestockresponse.*",
+    "setpetavatarthumbnailrequest.*",
+    "treatmentrecord.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "php"
+   ],
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F878 a typed factory (fromX), test (isX) and accessor (asX, null for another variant) per variant of a oneOf or anyOf wrapper; php has no sum types, and a wrapper class is how the SDK models a union"
+  },
+  {
+   "element": [
+    "*.with*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "php"
+   ],
+   "reason": "wave 2 (owner decision 2026-11-17, ids in generators/php/AGENTS.md): F868 models are immutable (readonly properties) and withX() returns a changed copy; php has no data-class copy, and clone cannot change a readonly property before PHP 8.5"
+  },
+  {
+   "element": [
+    "abstractapiclient.sendrequest"
+   ],
+   "aspect": "params",
+   "languages": [
+    "dart"
+   ],
+   "reason": "wave 2 (F860): only php and dart have an AbstractApiClient, php now takes noDefaultHeaders and dart takes it in its own wave; drop this row and the php one once both do"
   }
  ]
 }

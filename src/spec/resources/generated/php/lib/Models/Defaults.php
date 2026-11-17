@@ -18,31 +18,31 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class Defaults
 {
     #[SerializedName('swatch')]
-    public ?\PetstoreClient\Models\Swatch $swatch = null;
+    public readonly ?\PetstoreClient\Models\Swatch $swatch;
 
     #[SerializedName('retries')]
-    public int $retries = 3;
+    public readonly int $retries;
 
     #[SerializedName('mode')]
-    public DefaultsModeEnum $mode = DefaultsModeEnum::MEDIUM;
+    public readonly DefaultsModeEnum $mode;
 
     #[SerializedName('label')]
-    public ?string $label = 'untitled';
+    public readonly ?string $label;
 
     #[SerializedName('greeting')]
-    public string $greeting = "it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b";
+    public readonly string $greeting;
 
     #[SerializedName('ratio')]
-    public float $ratio = 1.5;
+    public readonly float $ratio;
 
     #[SerializedName('scale')]
-    public float $scale = 0.25;
+    public readonly float $scale;
 
     #[SerializedName('weight')]
-    public float $weight = 2;
+    public readonly float $weight;
 
     #[SerializedName('ceiling')]
-    public int $ceiling = 9000000000;
+    public readonly int $ceiling;
 
     /**
      */
@@ -66,5 +66,167 @@ class Defaults
         $this->scale = $scale;
         $this->weight = $weight;
         $this->ceiling = $ceiling;
+    }
+
+    /**
+     * Returns a copy of this model with swatch replaced. This model is not changed.
+     */
+    public function withSwatch(?\PetstoreClient\Models\Swatch $swatch): self
+    {
+        return new self(
+            retries: $this->retries,
+            mode: $this->mode,
+            label: $this->label,
+            greeting: $this->greeting,
+            swatch: $swatch,
+            ratio: $this->ratio,
+            scale: $this->scale,
+            weight: $this->weight,
+            ceiling: $this->ceiling,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with retries replaced. This model is not changed.
+     */
+    public function withRetries(int $retries): self
+    {
+        return new self(
+            retries: $retries,
+            mode: $this->mode,
+            label: $this->label,
+            greeting: $this->greeting,
+            swatch: $this->swatch,
+            ratio: $this->ratio,
+            scale: $this->scale,
+            weight: $this->weight,
+            ceiling: $this->ceiling,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with mode replaced. This model is not changed.
+     */
+    public function withMode(DefaultsModeEnum $mode): self
+    {
+        return new self(
+            retries: $this->retries,
+            mode: $mode,
+            label: $this->label,
+            greeting: $this->greeting,
+            swatch: $this->swatch,
+            ratio: $this->ratio,
+            scale: $this->scale,
+            weight: $this->weight,
+            ceiling: $this->ceiling,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with label replaced. This model is not changed.
+     */
+    public function withLabel(?string $label): self
+    {
+        return new self(
+            retries: $this->retries,
+            mode: $this->mode,
+            label: $label,
+            greeting: $this->greeting,
+            swatch: $this->swatch,
+            ratio: $this->ratio,
+            scale: $this->scale,
+            weight: $this->weight,
+            ceiling: $this->ceiling,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with greeting replaced. This model is not changed.
+     */
+    public function withGreeting(string $greeting): self
+    {
+        return new self(
+            retries: $this->retries,
+            mode: $this->mode,
+            label: $this->label,
+            greeting: $greeting,
+            swatch: $this->swatch,
+            ratio: $this->ratio,
+            scale: $this->scale,
+            weight: $this->weight,
+            ceiling: $this->ceiling,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with ratio replaced. This model is not changed.
+     */
+    public function withRatio(float $ratio): self
+    {
+        return new self(
+            retries: $this->retries,
+            mode: $this->mode,
+            label: $this->label,
+            greeting: $this->greeting,
+            swatch: $this->swatch,
+            ratio: $ratio,
+            scale: $this->scale,
+            weight: $this->weight,
+            ceiling: $this->ceiling,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with scale replaced. This model is not changed.
+     */
+    public function withScale(float $scale): self
+    {
+        return new self(
+            retries: $this->retries,
+            mode: $this->mode,
+            label: $this->label,
+            greeting: $this->greeting,
+            swatch: $this->swatch,
+            ratio: $this->ratio,
+            scale: $scale,
+            weight: $this->weight,
+            ceiling: $this->ceiling,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with weight replaced. This model is not changed.
+     */
+    public function withWeight(float $weight): self
+    {
+        return new self(
+            retries: $this->retries,
+            mode: $this->mode,
+            label: $this->label,
+            greeting: $this->greeting,
+            swatch: $this->swatch,
+            ratio: $this->ratio,
+            scale: $this->scale,
+            weight: $weight,
+            ceiling: $this->ceiling,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with ceiling replaced. This model is not changed.
+     */
+    public function withCeiling(int $ceiling): self
+    {
+        return new self(
+            retries: $this->retries,
+            mode: $this->mode,
+            label: $this->label,
+            greeting: $this->greeting,
+            swatch: $this->swatch,
+            ratio: $this->ratio,
+            scale: $this->scale,
+            weight: $this->weight,
+            ceiling: $ceiling,
+        );
     }
 }

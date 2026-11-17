@@ -18,17 +18,43 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class Metadata
 {
     #[SerializedName('createdAt')]
-    public ?\DateTime $createdAt = null;
+    public readonly ?\DateTime $createdAt;
 
     /** @var \Ds\Map<string, mixed> */
-    public \Ds\Map $additionalProperties;
+    public readonly \Ds\Map $additionalProperties;
 
     /**
+     * @param \Ds\Map<string, mixed>|null $additionalProperties
      */
     public function __construct(
         ?\DateTime $createdAt = null,
+        ?\Ds\Map $additionalProperties = null,
     ) {
         $this->createdAt = $createdAt;
-        $this->additionalProperties = new \Ds\Map();
+        $this->additionalProperties = $additionalProperties ?? new \Ds\Map();
+    }
+
+    /**
+     * Returns a copy of this model with createdAt replaced. This model is not changed.
+     */
+    public function withCreatedAt(?\DateTime $createdAt): self
+    {
+        return new self(
+            createdAt: $createdAt,
+            additionalProperties: $this->additionalProperties,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with the additional properties replaced. This model is not changed.
+     *
+     * @param \Ds\Map<string, mixed> $additionalProperties
+     */
+    public function withAdditionalProperties(\Ds\Map $additionalProperties): self
+    {
+        return new self(
+            createdAt: $this->createdAt,
+            additionalProperties: $additionalProperties,
+        );
     }
 }

@@ -10,6 +10,20 @@ namespace {{invokerPackage}}\Auth;
  */
 abstract class BaseAuthenticator implements Authenticator
 {
+    /** Prefix of the environment variables a credential is read from when none is passed. */
+    protected const string ENV_PREFIX = '{{envPrefix}}';
+
+    /**
+     * The credential in the environment variable ENV_PREFIX_FIELD, or null when it is unset or empty.
+     * Read once, when the authenticator is built.
+     */
+    protected static function environmentCredential(string $field): ?string
+    {
+        $value = getenv(self::ENV_PREFIX . '_' . $field);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
     abstract public function getHost(): string;
 
     abstract public function getAuthHeaders(): array;

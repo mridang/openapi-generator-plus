@@ -29,6 +29,8 @@ $authenticator = new BearerAuthenticator('https://api.example.com', 'your-token'
 $client = new Client($authenticator);
 ```
 
+Pass `null` as the token to read `PETSTORE_CLIENT_TOKEN` from the environment (read once, an empty value counts as unset; a missing credential throws when the authenticator is built). Pass a `\Closure` as the third argument to supply a rotating token on every request. `BasicAuthenticator` reads `PETSTORE_CLIENT_USERNAME` and `PETSTORE_CLIENT_PASSWORD`, `ApiKeyAuthenticator` reads `PETSTORE_CLIENT_API_KEY`; an argument always wins.
+
 ### Basic Auth
 
 ```php
@@ -174,6 +176,8 @@ $client = new Client($fake);
 
 ## Error Handling
 
+An `ApiException` carries `getRequestMethod()` and `getRequestPath()` (no query string) next to `getStatusCode()`.
+
 Every failure the SDK raises derives from `OpenAPIException`; catching it handles them all. It has four direct subtypes: `ApiException` (an HTTP response or transport failure), `SerializationException` (a request or response body that cannot be encoded or decoded), `OAuth2ServerException` (the token endpoint answered with an error) and `OAuth2TokenException` (the token response was unusable). The last two are raised from the first authenticated call, so they are siblings of `ApiException`, not subclasses. The error hierarchy is:
 
 - `OpenAPIException` (root)
@@ -255,6 +259,14 @@ $client = Client::withToken('https://api.example.com', 'your-token', null, $apiC
 
 The SDK sends every request through your client and never closes it. Combining a supplied client with `proxy`, `caCertPath` or `verifySsl(false)` throws `InvalidArgumentException`.
 
+### Per-call options
+
+An operation's options object takes `timeout` (ms), `headers` and `maxRetries` for that call only, replacing the transport settings.
+
+```php
+$api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+```
+
 ### Cancellation
 
 The SDK has no per-call cancellation. Bound a call with `TransportOptions::builder()->timeout(5000)`; a call that exceeds it throws `NetworkTimeoutException`.
@@ -269,7 +281,7 @@ Each API group is exposed as a typed property on the client (e.g., `$client->pet
 
 ## Models
 
-Models are generated as PHP classes under the `PetstoreClient\Models` namespace.
+Models are generated as PHP classes under the `PetstoreClient\Models` namespace. They are immutable: properties are `readonly` and `withX()` returns a changed copy. A `oneOf` or `anyOf` wrapper has `fromX()`, `isX()` and `asX()` per variant, and an operation with several 2xx responses returns such a wrapper decoded by the status code that arrived.
 
 ```php
 use PetstoreClient\Models\Account;
@@ -279,7 +291,7 @@ $model = new Account(username: 'example');
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `\SplFileObject`. Binary response bodies are returned as `string`.
+A multipart file field is a `\SplFileObject` (or a PSR-7 stream). A binary request body is a `\SplFileObject`, a PSR-7 `StreamInterface` or a `string` of raw bytes, so in-memory content needs no temporary file. Binary response bodies are returned as `string`.
 
 ## Comment Style
 

@@ -19,13 +19,13 @@ class Category
 {
     /** @example 1 */
     #[SerializedName('id')]
-    public ?int $id = null;
+    public readonly ?int $id;
 
     /** @example Dogs */
     /** @example Chihuahua Small breed */
     /** @example GreatDane Large breed */
     #[SerializedName('name')]
-    public ?string $name = null;
+    public readonly ?string $name;
 
     /**
      */
@@ -35,5 +35,27 @@ class Category
     ) {
         $this->id = $id;
         $this->name = $name;
+    }
+
+    /**
+     * Returns a copy of this model with id replaced. This model is not changed.
+     */
+    public function withId(?int $id): self
+    {
+        return new self(
+            id: $id,
+            name: $this->name,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with name replaced. This model is not changed.
+     */
+    public function withName(?string $name): self
+    {
+        return new self(
+            id: $this->id,
+            name: $name,
+        );
     }
 }

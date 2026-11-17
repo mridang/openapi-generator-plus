@@ -18,16 +18,16 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class Photo
 {
     #[SerializedName('id')]
-    public ?int $id = null;
+    public readonly ?int $id;
 
     #[SerializedName('caption')]
-    public ?string $caption = null;
+    public readonly ?string $caption;
 
     #[SerializedName('isPrimary')]
-    public ?bool $isPrimary = null;
+    public readonly ?bool $isPrimary;
 
     #[SerializedName('url')]
-    public ?string $url = null;
+    public readonly ?string $url;
 
     /**
      */
@@ -41,5 +41,57 @@ class Photo
         $this->caption = $caption;
         $this->isPrimary = $isPrimary;
         $this->url = $url;
+    }
+
+    /**
+     * Returns a copy of this model with id replaced. This model is not changed.
+     */
+    public function withId(?int $id): self
+    {
+        return new self(
+            id: $id,
+            caption: $this->caption,
+            isPrimary: $this->isPrimary,
+            url: $this->url,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with caption replaced. This model is not changed.
+     */
+    public function withCaption(?string $caption): self
+    {
+        return new self(
+            id: $this->id,
+            caption: $caption,
+            isPrimary: $this->isPrimary,
+            url: $this->url,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with isPrimary replaced. This model is not changed.
+     */
+    public function withIsPrimary(?bool $isPrimary): self
+    {
+        return new self(
+            id: $this->id,
+            caption: $this->caption,
+            isPrimary: $isPrimary,
+            url: $this->url,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with url replaced. This model is not changed.
+     */
+    public function withUrl(?string $url): self
+    {
+        return new self(
+            id: $this->id,
+            caption: $this->caption,
+            isPrimary: $this->isPrimary,
+            url: $url,
+        );
     }
 }

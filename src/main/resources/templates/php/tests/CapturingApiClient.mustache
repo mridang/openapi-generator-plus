@@ -25,6 +25,7 @@ class CapturingApiClient implements ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
+        bool $noDefaultHeaders = false,
     ): ApiHttpResponse {
         $this->capturedUrl = $url;
         $this->capturedHeaders = $headers;

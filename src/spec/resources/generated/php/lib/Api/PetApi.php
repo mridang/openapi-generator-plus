@@ -102,7 +102,10 @@ class PetApi extends BaseApi
             'application/json',
             \PetstoreClient\Models\Pet::class,
             $auth,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -188,7 +191,10 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options->timeout,
+            headers: $options->headers,
+            maxRetries: $options->maxRetries,
         );
         return $result;
     }
@@ -272,7 +278,10 @@ class PetApi extends BaseApi
             'application/json',
             \PetstoreClient\Models\PetTreatment::class,
             $auth,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -359,7 +368,10 @@ class PetApi extends BaseApi
             'application/json',
             null,
             $auth,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -459,7 +471,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -542,7 +554,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -654,7 +666,10 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -740,7 +755,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -826,7 +841,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -907,7 +922,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -988,7 +1003,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1081,7 +1096,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1187,7 +1202,10 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options->timeout,
+            headers: $options->headers,
+            maxRetries: $options->maxRetries,
         );
         return $result;
     }
@@ -1268,7 +1286,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1368,7 +1386,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1501,7 +1519,10 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options->timeout,
+            headers: $options->headers,
+            maxRetries: $options->maxRetries,
         );
         return $result;
     }
@@ -1708,7 +1729,10 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
         );
         return $result;
     }
@@ -1794,7 +1818,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -1805,7 +1829,7 @@ class PetApi extends BaseApi
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetAvatar(int $petId, \SplFileObject $body, ?string $requestContentType = null): void
+    public function setPetAvatar(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?string $requestContentType = null): void
     {
         $this->setPetAvatarWithHttpInfo($petId, $body, $requestContentType);
     }
@@ -1815,7 +1839,7 @@ class PetApi extends BaseApi
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject $body, ?string $requestContentType = null): ApiResult
+    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?string $requestContentType = null): ApiResult
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
@@ -1872,7 +1896,7 @@ class PetApi extends BaseApi
              * falls back to the client credential. */
             null,
             $allowReservedKeys,
-            rawBody: true
+            rawBody: true,
         );
         return $result;
     }
@@ -1937,7 +1961,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -2036,7 +2060,10 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options->timeout,
+            headers: $options->headers,
+            maxRetries: $options->maxRetries,
         );
         return $result;
     }
@@ -2120,7 +2147,7 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
         );
         return $result;
     }
@@ -2204,7 +2231,10 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options->timeout,
+            headers: $options->headers,
+            maxRetries: $options->maxRetries,
         );
         return $result;
     }
@@ -2318,7 +2348,10 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            timeout: $options->timeout,
+            headers: $options->headers,
+            maxRetries: $options->maxRetries,
         );
         return $result;
     }

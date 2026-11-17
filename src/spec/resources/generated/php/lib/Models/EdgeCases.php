@@ -21,73 +21,73 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class EdgeCases
 {
     #[SerializedName('freeFormAny')]
-    public mixed $freeFormAny = null;
+    public readonly mixed $freeFormAny;
 
     #[SerializedName('favoriteColor')]
-    public ?\PetstoreClient\Models\Color $favoriteColor = null;
+    public readonly ?\PetstoreClient\Models\Color $favoriteColor;
 
     /**
      * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
      */
     #[SerializedName('permissionsNote')]
-    public ?string $permissionsNote = null;
+    public readonly ?string $permissionsNote;
 
     #[SerializedName('and')]
-    public ?bool $and = null;
+    public readonly ?bool $and;
 
     #[SerializedName('or')]
-    public ?bool $or = null;
+    public readonly ?bool $or;
 
     #[SerializedName('not')]
-    public ?bool $not = null;
+    public readonly ?bool $not;
 
     #[SerializedName('class')]
-    public ?string $class = null;
+    public readonly ?string $class;
 
     #[SerializedName('return')]
-    public ?string $return = null;
+    public readonly ?string $return;
 
     /**
      * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
      */
     #[SerializedName('retryAfter')]
-    public ?\DateInterval $retryAfter = null;
+    public readonly ?\DateInterval $retryAfter;
 
     /**
      * Absolute expiry instant
      */
     #[SerializedName('expiresAt')]
-    public ?\DateTime $expiresAt = null;
+    public readonly ?\DateTime $expiresAt;
 
     #[SerializedName('2fa')]
-    public ?bool $n2fa = null;
+    public readonly ?bool $n2fa;
 
     #[SerializedName('separator')]
-    public ?\PetstoreClient\Models\Separator $separator = null;
+    public readonly ?\PetstoreClient\Models\Separator $separator;
 
     #[SerializedName('null')]
-    public ?string $null = null;
+    public readonly ?string $null;
 
     #[SerializedName('true')]
-    public ?bool $true = null;
+    public readonly ?bool $true;
 
     #[SerializedName('false')]
-    public ?bool $false = null;
+    public readonly ?bool $false;
 
     #[SerializedName('lastError')]
-    public ?\PetstoreClient\Models\Error $lastError = null;
+    public readonly ?\PetstoreClient\Models\Error $lastError;
 
     #[SerializedName('outcome')]
-    public ?\PetstoreClient\Models\Result $outcome = null;
+    public readonly ?\PetstoreClient\Models\Result $outcome;
 
     #[SerializedName('cutoff')]
-    public ?\DateTimeImmutable $cutoff = null;
+    public readonly ?\DateTimeImmutable $cutoff;
 
     #[SerializedName('phase')]
-    public ?EdgeCasesPhaseEnum $phase = null;
+    public readonly ?EdgeCasesPhaseEnum $phase;
 
     #[SerializedName('slug')]
-    public ?string $slug = null;
+    public readonly ?string $slug;
 
     /**
      */
@@ -133,5 +133,585 @@ class EdgeCases
         $this->cutoff = $cutoff;
         $this->phase = $phase;
         $this->slug = $slug;
+    }
+
+    /**
+     * Returns a copy of this model with freeFormAny replaced. This model is not changed.
+     */
+    public function withFreeFormAny(mixed $freeFormAny): self
+    {
+        return new self(
+            freeFormAny: $freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with favoriteColor replaced. This model is not changed.
+     */
+    public function withFavoriteColor(?\PetstoreClient\Models\Color $favoriteColor): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with permissionsNote replaced. This model is not changed.
+     */
+    public function withPermissionsNote(?string $permissionsNote): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with and replaced. This model is not changed.
+     */
+    public function withAnd(?bool $and): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with or replaced. This model is not changed.
+     */
+    public function withOr(?bool $or): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with not replaced. This model is not changed.
+     */
+    public function withNot(?bool $not): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with class replaced. This model is not changed.
+     */
+    public function withClass(?string $class): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with return replaced. This model is not changed.
+     */
+    public function withReturn(?string $return): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with retryAfter replaced. This model is not changed.
+     */
+    public function withRetryAfter(?\DateInterval $retryAfter): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with expiresAt replaced. This model is not changed.
+     */
+    public function withExpiresAt(?\DateTime $expiresAt): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with n2fa replaced. This model is not changed.
+     */
+    public function withN2fa(?bool $n2fa): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with separator replaced. This model is not changed.
+     */
+    public function withSeparator(?\PetstoreClient\Models\Separator $separator): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with null replaced. This model is not changed.
+     */
+    public function withNull(?string $null): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with true replaced. This model is not changed.
+     */
+    public function withTrue(?bool $true): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with false replaced. This model is not changed.
+     */
+    public function withFalse(?bool $false): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with lastError replaced. This model is not changed.
+     */
+    public function withLastError(?\PetstoreClient\Models\Error $lastError): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with outcome replaced. This model is not changed.
+     */
+    public function withOutcome(?\PetstoreClient\Models\Result $outcome): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with cutoff replaced. This model is not changed.
+     */
+    public function withCutoff(?\DateTimeImmutable $cutoff): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $cutoff,
+            phase: $this->phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with phase replaced. This model is not changed.
+     */
+    public function withPhase(?EdgeCasesPhaseEnum $phase): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $phase,
+            slug: $this->slug,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with slug replaced. This model is not changed.
+     */
+    public function withSlug(?string $slug): self
+    {
+        return new self(
+            freeFormAny: $this->freeFormAny,
+            favoriteColor: $this->favoriteColor,
+            permissionsNote: $this->permissionsNote,
+            and: $this->and,
+            or: $this->or,
+            not: $this->not,
+            class: $this->class,
+            return: $this->return,
+            retryAfter: $this->retryAfter,
+            expiresAt: $this->expiresAt,
+            n2fa: $this->n2fa,
+            separator: $this->separator,
+            null: $this->null,
+            true: $this->true,
+            false: $this->false,
+            lastError: $this->lastError,
+            outcome: $this->outcome,
+            cutoff: $this->cutoff,
+            phase: $this->phase,
+            slug: $slug,
+        );
     }
 }

@@ -304,7 +304,7 @@ test('print_r() redacts the secret and shows ***', function (): void {
 
 test('secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
-    foreach (new \ReflectionMethod(OAuth2AuthorizationCodeAuthenticator::class, '__construct')->getParameters() as $param) {
+    foreach ((new \ReflectionMethod(OAuth2AuthorizationCodeAuthenticator::class, '__construct'))->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
             $sensitive[] = $param->getName();
         }

@@ -38,6 +38,62 @@ class PetFood
         return $this->actualInstance;
     }
 
+    /**
+     * Creates this union holding a DryFood.
+     */
+    public static function fromDryFood(\PetstoreClient\Models\DryFood $value): self
+    {
+        return new self($value);
+    }
+
+    /**
+     * Whether this union holds a DryFood.
+     */
+    public function isDryFood(): bool
+    {
+        $value = $this->actualInstance;
+
+        return $value instanceof \PetstoreClient\Models\DryFood;
+    }
+
+    /**
+     * The DryFood this union holds, or null when it holds another variant.
+     */
+    public function asDryFood(): ?\PetstoreClient\Models\DryFood
+    {
+        $value = $this->actualInstance;
+
+        return $value instanceof \PetstoreClient\Models\DryFood ? $value : null;
+    }
+
+    /**
+     * Creates this union holding a WetFood.
+     */
+    public static function fromWetFood(\PetstoreClient\Models\WetFood $value): self
+    {
+        return new self($value);
+    }
+
+    /**
+     * Whether this union holds a WetFood.
+     */
+    public function isWetFood(): bool
+    {
+        $value = $this->actualInstance;
+
+        return $value instanceof \PetstoreClient\Models\WetFood;
+    }
+
+    /**
+     * The WetFood this union holds, or null when it holds another variant.
+     */
+    public function asWetFood(): ?\PetstoreClient\Models\WetFood
+    {
+        $value = $this->actualInstance;
+
+        return $value instanceof \PetstoreClient\Models\WetFood ? $value : null;
+    }
+
     public static function build(mixed $data): self
     {
         /* Gap AU: throw on missing / unknown / non-string discriminator

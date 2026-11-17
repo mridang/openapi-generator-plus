@@ -24,6 +24,9 @@ use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
+use PetstoreClient\Models\Reservation;
+use PetstoreClient\Models\ReservationReceipt;
+use PetstoreClient\Models\ReserveStockResponse;
 
 beforeEach(function (): void {
     $config = Configuration::builder()
@@ -43,7 +46,7 @@ function newStoreApiForMock(int $statusCode, string $requestContentType, string 
 }
 
 test('data methods declare a native return type', function (string $method, string $expected): void {
-    $returnType = new \ReflectionMethod(StoreApi::class, $method)->getReturnType();
+    $returnType = (new \ReflectionMethod(StoreApi::class, $method))->getReturnType();
     expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
     assert($returnType instanceof \ReflectionNamedType);
     expect($returnType->getName())->toBe($expected);
@@ -91,13 +94,14 @@ test('get order by id with http info', function (): void {
 });
 
 test('place order with http info', function (): void {
-    $order = new Order();
-    $order->id = 1;
-    $order->petId = 12345;
-    $order->quantity = 1;
-    $order->shipDate = new \DateTime();
-    $order->status = OrderStatusEnum::PLACED;
-    $order->complete = false;
+    $order = new Order(
+        id: 1,
+        petId: 12345,
+        quantity: 1,
+        shipDate: new \DateTime(),
+        status: OrderStatusEnum::PLACED,
+        complete: false,
+    );
 
     $result = $this->api->placeOrderWithHttpInfo($order);
 
@@ -108,13 +112,14 @@ test('place order with http info', function (): void {
 });
 
 test('place order', function (): void {
-    $order = new Order();
-    $order->id = 1;
-    $order->petId = 12345;
-    $order->quantity = 1;
-    $order->shipDate = new \DateTime();
-    $order->status = OrderStatusEnum::PLACED;
-    $order->complete = false;
+    $order = new Order(
+        id: 1,
+        petId: 12345,
+        quantity: 1,
+        shipDate: new \DateTime(),
+        status: OrderStatusEnum::PLACED,
+        complete: false,
+    );
 
     $result = $this->api->placeOrder($order);
 
@@ -169,13 +174,14 @@ test('get order not found', function (): void {
 });
 
 test('place order server error', function (): void {
-    $order = new Order();
-    $order->id = 1;
-    $order->petId = 12345;
-    $order->quantity = 1;
-    $order->shipDate = new \DateTime();
-    $order->status = OrderStatusEnum::PLACED;
-    $order->complete = false;
+    $order = new Order(
+        id: 1,
+        petId: 12345,
+        quantity: 1,
+        shipDate: new \DateTime(),
+        status: OrderStatusEnum::PLACED,
+        complete: false,
+    );
 
     $api = newStoreApiForMock(500, 'application/json', '{"message":"Internal server error"}');
 
@@ -207,6 +213,34 @@ test('get order by id picks the status specific error class', function (int $sta
     [502, ServerException::class],
 ]);
 
+test('an operation with several 2xx responses decodes the body as the schema of the actual status', function (
+    int $status,
+    string $expected
+): void {
+    /* The body satisfies both schemas, so only the status can pick the variant. */
+    $body = '{"reservationId":7,"quantity":2,"receiptCode":"r-1","expiresAt":"2024-01-01T00:00:00.000+00:00"}';
+    $api = newStoreApiForMock($status, 'application/json', $body);
+
+    $union = $api->reserveStock();
+
+    expect($union)->toBeInstanceOf(ReserveStockResponse::class);
+    assert(class_exists($expected));
+    expect($union->getActualInstance())->toBeInstanceOf($expected);
+})->with([
+    'the 200 body is a Reservation' => [200, Reservation::class],
+    'the 201 body is a ReservationReceipt' => [201, ReservationReceipt::class],
+]);
+
+test('a multi 2xx result has a typed factory, test and accessor per variant', function (): void {
+    $reservation = new Reservation(reservationId: 7, quantity: 2);
+    $union = ReserveStockResponse::fromReservation($reservation);
+
+    expect($union->isReservation())->toBeTrue();
+    expect($union->isReservationReceipt())->toBeFalse();
+    expect($union->asReservation())->toBe($reservation);
+    expect($union->asReservationReceipt())->toBeNull();
+});
+
 test('delete order not found', function (): void {
     $api = newStoreApiForMock(404, 'application/json', '{"message":"Order not found"}');
 
@@ -237,7 +271,7 @@ function newCapturingStoreApi(): array
         {
         }
 
-        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \PetstoreClient\ApiHttpResponse
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
         {
             $this->captured->url = $url;
             $this->captured->headers = $headers;

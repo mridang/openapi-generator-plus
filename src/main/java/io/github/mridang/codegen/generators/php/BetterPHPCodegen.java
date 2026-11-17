@@ -58,6 +58,17 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     "int", "float", "bool", "string", "true", "false", "null", "void", "iterable",
                     "object", "mixed", "never", "self", "parent");
 
+    /**
+     * The declared type of a {@code format: binary} request body: a file for its name and MIME type,
+     * a PSR-7 stream, or the raw bytes as a string, so in-memory content needs no temporary file.
+     */
+    private static final String BINARY_BODY_TYPE =
+            "\\SplFileObject|\\Psr\\Http\\Message\\StreamInterface|string";
+
+    /** The authenticators that read a credential from the environment when none is passed. */
+    private static final Set<String> CREDENTIAL_FALLBACK_BASES =
+            Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator");
+
     protected String invokerPackage = "OpenAPI\\Client";
 
     /**
@@ -97,7 +108,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         typeMapping.put("time", "\\DateTimeImmutable");
         typeMapping.put("duration", "\\DateInterval");
         typeMapping.put("UUID", "\\Symfony\\Component\\Uid\\Uuid");
-        typeMapping.put("URI", "\\Uri\\Rfc3986\\Uri");
+        typeMapping.put("URI", "string");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "mixed");
         typeMapping.put("array", "\\Ds\\Vector");
@@ -129,7 +140,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                                 "\\DateInterval",
                                 "\\SplFileObject",
                                 "\\Symfony\\Component\\Uid\\Uuid",
-                                "\\Uri\\Rfc3986\\Uri",
                                 "\\Ds\\Vector",
                                 "\\Ds\\Set",
                                 "\\Ds\\Map"));
@@ -218,7 +228,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected Set<String> getInjectedArgumentNames() {
-        return Set.of("options", "server", "requestContentType");
+        return Set.of(
+                "options", "server", "requestContentType", "auth", "timeout", "headers", "maxRetries");
     }
 
     /** {@inheritDoc} */
@@ -289,7 +300,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.php"),
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.php"),
             new SupportingFileSpec("precise_duration.mustache", invokerFolder, "PreciseDuration.php"),
-            new SupportingFileSpec("serializer/uri_normalizer.mustache", serializerFolder, "UriNormalizer.php"),
             new SupportingFileSpec("serializer/duration_normalizer.mustache", serializerFolder, "DurationNormalizer.php"),
             new SupportingFileSpec("serializer/ds_vector_normalizer.mustache", serializerFolder, "DsVectorNormalizer.php"),
             new SupportingFileSpec("serializer/ds_set_normalizer.mustache", serializerFolder, "DsSetNormalizer.php"),
@@ -478,6 +488,127 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return "openapi/" + invokerPackage.toLowerCase(java.util.Locale.ROOT);
     }
 
+    /**
+     * The prefix of the environment variables the authenticators read credentials from
+     * ({@code <PREFIX>_TOKEN}): the {@code envPrefix} option when given, otherwise the invoker
+     * package in upper snake case ({@code PetstoreClient} becomes {@code PETSTORE_CLIENT}).
+     */
+    static String resolveEnvPrefix(@Nullable Object option, String invokerPackage) {
+        if (option != null && isNotBlank(option.toString())) {
+            return option.toString().trim();
+        }
+        return invokerPackage
+                .replace("\\", "_")
+                .replaceAll("([a-z0-9])([A-Z])", "$1_$2")
+                .replaceAll("[^A-Za-z0-9]+", "_")
+                .replaceAll("^_+|_+$", "")
+                .toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * The package metadata lines of {@code composer.json} that the generator options produce
+     * ({@code authors}, {@code homepageUrl}, {@code repositoryUrl}, {@code documentationUrl},
+     * {@code issueTrackerUrl}), each one a complete, comma-terminated JSON member line; empty when
+     * none is set. {@code authors} is a comma or semicolon separated list of {@code Name} or
+     * {@code Name <email>}.
+     */
+    static String composerExtras(Map<String, Object> options) {
+        final StringBuilder extras = new StringBuilder();
+        final String homepage = optionText(options, "homepageUrl");
+        if (homepage != null) {
+            extras.append("    \"homepage\": ").append(jsonString(homepage)).append(",\n");
+        }
+        final List<String> authorLines = new ArrayList<>();
+        for (final String trimmed : authorList(options.get("authors"))) {
+            final int open = trimmed.indexOf('<');
+            final int close = trimmed.indexOf('>', open + 1);
+            if (open > 0 && close > open) {
+                authorLines.add(
+                        "{\"name\": " + jsonString(trimmed.substring(0, open).trim())
+                                + ", \"email\": "
+                                + jsonString(trimmed.substring(open + 1, close).trim()) + "}");
+            } else {
+                authorLines.add("{\"name\": " + jsonString(trimmed) + "}");
+            }
+        }
+        if (!authorLines.isEmpty()) {
+            extras.append("    \"authors\": [").append(String.join(", ", authorLines)).append("],\n");
+        }
+        final List<String> support = new ArrayList<>();
+        addSupport(support, "source", optionText(options, "repositoryUrl"));
+        addSupport(support, "docs", optionText(options, "documentationUrl"));
+        addSupport(support, "issues", optionText(options, "issueTrackerUrl"));
+        if (!support.isEmpty()) {
+            extras.append("    \"support\": {").append(String.join(", ", support)).append("},\n");
+        }
+        return extras.toString();
+    }
+
+    /**
+     * The authors option as a list: a comma or semicolon separated string, or an iterable of
+     * strings, each trimmed and none blank.
+     */
+    static List<String> authorList(@Nullable Object option) {
+        final List<String> raw = new ArrayList<>();
+        if (option instanceof Iterable<?>) {
+            for (final Object author : (Iterable<?>) option) {
+                raw.add(String.valueOf(author));
+            }
+        } else if (option != null) {
+            raw.addAll(Arrays.asList(option.toString().split("[,;]")));
+        }
+        final List<String> authors = new ArrayList<>();
+        for (final String author : raw) {
+            if (!author.trim().isEmpty()) {
+                authors.add(author.trim());
+            }
+        }
+        return authors;
+    }
+
+    private static void addSupport(List<String> support, String key, @Nullable String url) {
+        if (url != null) {
+            support.add("\"" + key + "\": " + jsonString(url));
+        }
+    }
+
+    @Nullable
+    private static String optionText(Map<String, Object> options, String key) {
+        final Object value = options.get(key);
+        return value != null && isNotBlank(value.toString()) ? value.toString().trim() : null;
+    }
+
+    private static String jsonString(String text) {
+        final StringBuilder json = new StringBuilder("\"");
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            switch (c) {
+                case '"':
+                    json.append("\\\"");
+                    break;
+                case '\\':
+                    json.append("\\\\");
+                    break;
+                case '\n':
+                    json.append("\\n");
+                    break;
+                case '\r':
+                    json.append("\\r");
+                    break;
+                case '\t':
+                    json.append("\\t");
+                    break;
+                default:
+                    if (c < 0x20) {
+                        json.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        json.append(c);
+                    }
+            }
+        }
+        return json.append('"').toString();
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
@@ -494,6 +625,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final String composerPackage = composerName.substring(composerName.indexOf('/') + 1);
         additionalProperties.put(
                 "userAgentDefault", composerPackage + "/" + packageVersion + " (php)");
+
+        additionalProperties.put(
+                "envPrefix", resolveEnvPrefix(additionalProperties.get("envPrefix"), invokerPackage));
+        additionalProperties.put("composerExtras", composerExtras(additionalProperties));
+        additionalProperties.put(
+                "authorsText", String.join(", ", authorList(additionalProperties.get("authors"))));
 
         apiPackage = invokerPackage + "\\" + API_DIR_NAME;
         modelPackage = invokerPackage + "\\" + MODEL_DIR_NAME;
@@ -961,6 +1098,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             if (SENSITIVE_PARAMS.contains(name)) {
                 param.put("sensitive", "true");
             }
+            final boolean environmentCredential =
+                    CREDENTIAL_FALLBACK_BASES.contains(spec.baseClass())
+                            && (SENSITIVE_PARAMS.contains(name) || "username".equals(name));
+            if (environmentCredential) {
+                /* The credential may be left out and read from the environment. */
+                param.put("type", "?string");
+                param.put("defaultNull", "true");
+            }
             constructorParams.add(param);
         }
         ctx.put("constructorParams", constructorParams);
@@ -1148,8 +1293,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      */
     static List<String> exampleDocLines(CodegenParameter p) {
         final List<String> lines = new ArrayList<>();
-        final Object pluralExamples =
+        Object pluralExamples =
                 p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+        if (!(pluralExamples instanceof List) && p.examples != null && !p.examples.isEmpty()) {
+            /* The options class is written before the shared pass lifts the OAS examples map into
+             * pluralExamples, so read the map itself. */
+            pluralExamples = buildPluralExamplesList(p.examples);
+        }
         if (!(pluralExamples instanceof List)) {
             return lines;
         }
@@ -1344,11 +1494,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Honour URI subformat discrimination — {@code format: uri-reference}
-     * and {@code format: uri-template} stay as plain {@code string} per
-     * {@link AbstractBetterCodegen#keepStringForUriSubformats}, only the
-     * absolute-URI {@code format: uri} maps to the native PHP 8.5
-     * {@code \Uri\Rfc3986\Uri}.
+     * Every URI format ({@code uri}, {@code uri-reference}, {@code uri-template}) is a plain
+     * {@code string} in PHP: the native URI type needs PHP 8.5 and the floor is 8.3. The
+     * subformat check stays so a future typed mapping of {@code uri} does not capture the other two.
      */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
@@ -1507,14 +1655,27 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     (List<CodegenOperation>) processedOps.get("operation");
             if (orderedOps != null) {
                 for (final CodegenOperation op : orderedOps) {
+                    final boolean binaryBody =
+                            op.bodyParam != null && "\\SplFileObject".equals(op.bodyParam.dataType);
+                    if (binaryBody) {
+                        op.bodyParam.dataType = BINARY_BODY_TYPE;
+                    }
                     final Object deco = op.vendorExtensions == null
                             ? null : op.vendorExtensions.get("op");
                     if (deco instanceof Map) {
                         final Map<String, Object> decoMap = (Map<String, Object>) deco;
                         final Object sigArgs = decoMap.get("signatureArgs");
                         if (sigArgs instanceof List) {
-                            decoMap.put("signatureArgs",
-                                    serverBeforeOptions((List<Map<String, Object>>) sigArgs));
+                            final List<Map<String, Object>> ordered =
+                                    serverBeforeOptions((List<Map<String, Object>>) sigArgs);
+                            if (binaryBody) {
+                                for (final Map<String, Object> arg : ordered) {
+                                    if (Boolean.TRUE.equals(arg.get("isBody"))) {
+                                        arg.put("dataType", BINARY_BODY_TYPE);
+                                    }
+                                }
+                            }
+                            decoMap.put("signatureArgs", ordered);
                         }
                     }
                 }
@@ -1639,13 +1800,23 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             && model.getComposedSchemas().getOneOf() != null
                             && model.getComposedSchemas().getOneOf().stream().anyMatch(
                                     BetterPHPCodegen::holdsBytes));
+            modelMap.put("unionVariants", unionVariants(model));
             if (model.vars == null) {
                 continue;
             }
             modelMap.put("hasByteVars", model.vars.stream().anyMatch(
                     BetterPHPCodegen::holdsBytes));
+            addCopyArguments(model);
             modelMap.put("hasPasswordVars", model.vars.stream().anyMatch(
                     var -> var.isPassword));
+            final List<String> requiredNullableNames = new ArrayList<>();
+            for (final CodegenProperty var : model.vars) {
+                if (var.required && var.isNullable && !var.isAnyType) {
+                    requiredNullableNames.add(var.baseName);
+                }
+            }
+            modelMap.put("requiredNullableNames", requiredNullableNames);
+            modelMap.put("hasRequiredNullableVars", !requiredNullableNames.isEmpty());
             for (final CodegenProperty var : model.vars) {
                 if (!var.isEnum || var.allowableValues == null) {
                     continue;
@@ -1663,6 +1834,128 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
         }
         return result;
+    }
+
+    /**
+     * Gives each property of an immutable model its copy method: {@code withMethod} is the
+     * method name and {@code copyArguments} the named constructor arguments of the copy, every
+     * other property carried over and this one replaced by the method parameter.
+     */
+    private static void addCopyArguments(CodegenModel model) {
+        for (int index = 0; index < model.vars.size(); index++) {
+            final CodegenProperty property = model.vars.get(index);
+            final List<Map<String, String>> arguments = new ArrayList<>();
+            for (int other = 0; other < model.vars.size(); other++) {
+                final String name = model.vars.get(other).name;
+                final Map<String, String> argument = new HashMap<>();
+                argument.put("line", name + ": " + (other == index ? "$" : "$this->") + name);
+                arguments.add(argument);
+            }
+            if (model.isAdditionalPropertiesTrue) {
+                final Map<String, String> carried = new HashMap<>();
+                carried.put("line", "additionalProperties: $this->additionalProperties");
+                arguments.add(carried);
+            }
+            if (property.vendorExtensions == null) {
+                property.vendorExtensions = new HashMap<>();
+            }
+            property.vendorExtensions.put("withMethod", "with" + upperFirst(property.name));
+            property.vendorExtensions.put("copyArguments", arguments);
+        }
+    }
+
+    private static String upperFirst(String name) {
+        return name.isEmpty() ? name : name.substring(0, 1).toUpperCase(Locale.ROOT) + name.substring(1);
+    }
+
+    /**
+     * The variants of a oneOf or anyOf wrapper that get a typed factory and accessors
+     * ({@code fromX}, {@code isX}, {@code asX}). Each entry carries {@code label} (the method
+     * suffix), {@code nativeType}, {@code check} (a test of {@code $value}) and the variant
+     * property as {@code prop} for its PHPDoc type. A variant of no checkable type is left out.
+     */
+    private static List<Map<String, Object>> unionVariants(CodegenModel model) {
+        final List<Map<String, Object>> variants = new ArrayList<>();
+        if (model.getComposedSchemas() == null) {
+            return variants;
+        }
+        List<CodegenProperty> source = model.getComposedSchemas().getOneOf();
+        if (source == null || source.isEmpty()) {
+            source = model.getComposedSchemas().getAnyOf();
+        }
+        if (source == null) {
+            return variants;
+        }
+        final Set<String> labels = new HashSet<>();
+        for (final CodegenProperty variant : source) {
+            final String type = variant.dataType;
+            if (type == null) {
+                continue;
+            }
+            final String label;
+            final String check;
+            final String nativeType = type;
+            if (type.startsWith("\\Ds\\") || type.equals("\\SplFileObject")) {
+                continue;
+            }
+            if (type.startsWith("\\")) {
+                final String shortName = type.substring(type.lastIndexOf('\\') + 1);
+                label = shortName;
+                check = "$value instanceof " + type;
+            } else {
+                switch (type) {
+                    case "string":
+                    case "byte":
+                        label = "String";
+                        check = "is_string($value)";
+                        break;
+                    case "int":
+                    case "integer":
+                        label = "Int";
+                        check = "is_int($value)";
+                        break;
+                    case "float":
+                    case "number":
+                        label = "Float";
+                        check = "is_float($value)";
+                        break;
+                    case "bool":
+                    case "boolean":
+                        label = "Bool";
+                        check = "is_bool($value)";
+                        break;
+                    default:
+                        continue;
+                }
+            }
+            final String phpNativeType;
+            switch (type) {
+                case "byte":
+                    phpNativeType = "string";
+                    break;
+                case "integer":
+                    phpNativeType = "int";
+                    break;
+                case "number":
+                    phpNativeType = "float";
+                    break;
+                case "boolean":
+                    phpNativeType = "bool";
+                    break;
+                default:
+                    phpNativeType = nativeType;
+            }
+            if (!labels.add(label)) {
+                continue;
+            }
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("label", label);
+            entry.put("nativeType", phpNativeType);
+            entry.put("check", check);
+            entry.put("prop", variant);
+            variants.add(entry);
+        }
+        return variants;
     }
 
     /**

@@ -72,7 +72,7 @@ test('print_r() redacts the secret and shows ***', function (): void {
 
 test('secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
-    foreach (new \ReflectionMethod(BasicAuthenticator::class, '__construct')->getParameters() as $param) {
+    foreach ((new \ReflectionMethod(BasicAuthenticator::class, '__construct'))->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
             $sensitive[] = $param->getName();
         }
@@ -115,3 +115,52 @@ test('every generated basic wrapper sends the basic header and masks the passwor
     }
     expect($wrappers)->toBeGreaterThan(0);
 });
+
+/**
+ * Runs $body with the user name and password environment variables set (null unsets one), then restores them.
+ */
+function withBasicEnvironment(?string $user, ?string $secret, callable $body): void
+{
+    $names = ['PETSTORE_CLIENT_USERNAME' => $user, 'PETSTORE_CLIENT_PASSWORD' => $secret];
+    $previous = [];
+    foreach ($names as $name => $value) {
+        $previous[$name] = getenv($name);
+        putenv($value === null ? $name : $name . '=' . $value);
+    }
+    try {
+        $body();
+    } finally {
+        foreach ($previous as $name => $value) {
+            putenv($value === false ? $name : $name . '=' . $value);
+        }
+    }
+}
+
+test('basic credentials are read from the environment when none are passed', function (): void {
+    withBasicEnvironment('alice', 'env-secret', function (): void {
+        $auth = new BasicAuthenticator('https://api.example.com');
+        expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic ' . base64_encode('alice:env-secret'));
+    });
+});
+
+test('an explicit basic credential wins over the environment', function (): void {
+    withBasicEnvironment('env-user', 'env-secret', function (): void {
+        $auth = new BasicAuthenticator('https://api.example.com', 'alice', 'explicit-secret');
+        expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic ' . base64_encode('alice:explicit-secret'));
+    });
+});
+
+test('a missing or empty basic credential fails when the authenticator is built', function (
+    ?string $user,
+    ?string $secret
+): void {
+    withBasicEnvironment($user, $secret, function (): void {
+        expect(fn () => new BasicAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'PETSTORE_CLIENT_USERNAME');
+    });
+})->with([
+    'no user' => [null, 'x'],
+    'no password' => ['alice', null],
+    'empty user' => ['', 'x'],
+    'empty password' => ['alice', ''],
+]);

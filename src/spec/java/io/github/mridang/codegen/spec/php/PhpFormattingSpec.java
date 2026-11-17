@@ -50,4 +50,28 @@ public class PhpFormattingSpec extends AbstractFormattingSpec implements PhpSpec
         .withFailMessage("Generated PHP code is not properly formatted:\n%s", result.output())
         .isTrue();
   }
+
+  /** F1071: a plural example is written directly under the parameter it belongs to. */
+  @Test
+  void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+    Path petApi = tempOutputDir.resolve("lib/Api/PetApi.php");
+    String src = java.nio.file.Files.readString(petApi);
+    assertThat(src)
+        .as("php PetApi.php should list plural examples under their parameter")
+        .contains(
+            "     * @param int $petId ID of pet to return\n"
+                + "     * @example 1 Small breed ID\n"
+                + "     * @example 42 Large breed ID\n");
+  }
+
+  /** F893: the examples of an optional (options-object) parameter are kept in the API reference. */
+  @Test
+  void optionalParameterExamplesShouldBeKept() throws java.io.IOException {
+    Path options = tempOutputDir.resolve("lib/Api/Options/FindPetsByStatusOptions.php");
+    String src = java.nio.file.Files.readString(options);
+    assertThat(src)
+        .as("php FindPetsByStatusOptions.php should keep the examples of `status`")
+        .contains("@example available Available only")
+        .contains("@example sold Sold pets");
+  }
 }

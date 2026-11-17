@@ -47,6 +47,8 @@ test('builds authorization url from discovery', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
     expect($client->capturedRequests[0]['method'])->toBe('GET');
     expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/.well-known/openid-configuration');
+    /* The API's default headers (an Authorization or API key) must not reach the identity provider. */
+    expect($client->capturedRequests[0]['noDefaultHeaders'])->toBeTrue();
 
     // Verify authorization URL uses discovered endpoint
     expect($url)->toContain('https://auth.example.com/authorize?');
@@ -459,7 +461,7 @@ test('print_r() redacts the secret and shows ***', function (): void {
 
 test('secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
-    foreach (new \ReflectionMethod(OpenIdConnectAuthenticator::class, '__construct')->getParameters() as $param) {
+    foreach ((new \ReflectionMethod(OpenIdConnectAuthenticator::class, '__construct'))->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
             $sensitive[] = $param->getName();
         }
@@ -565,7 +567,7 @@ test('oidc clamps a max-age beyond one year to one year', function (string $maxA
     $authenticator->setApiClient($client);
     $authenticator->buildAuthorizationUrl();
 
-    $expiry = new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry')
+    $expiry = (new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry'))
         ->getValue($authenticator);
     expect($expiry)->toBeInt();
     expect($expiry)->toBeLessThanOrEqual(time() + 31536000);

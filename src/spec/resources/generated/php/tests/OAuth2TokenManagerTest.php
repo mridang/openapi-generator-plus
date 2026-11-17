@@ -201,7 +201,7 @@ test('an expires_in beyond one year is clamped to one year', function (mixed $ex
     $manager->setApiClient($client);
     $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
 
-    $expiry = new \ReflectionProperty(OAuth2TokenManager::class, 'tokenExpiry')->getValue($manager);
+    $expiry = (new \ReflectionProperty(OAuth2TokenManager::class, 'tokenExpiry'))->getValue($manager);
     expect($expiry)->toBeFloat();
     expect($expiry)->toBeLessThanOrEqual(microtime(true) + 31536000.0);
     expect($expiry)->toBeGreaterThan(microtime(true) + 31536000.0 - 120.0);
@@ -460,6 +460,7 @@ test('token post requests no redirect from transport', function (): void {
 
     expect($client->capturedRequests)->toHaveCount(1);
     expect($client->capturedRequests[0]['noRedirect'])->toBeTrue();
+    expect($client->capturedRequests[0]['noDefaultHeaders'])->toBeTrue();
     expect($client->capturedRequests[0]['method'])->toBe('POST');
 });
 

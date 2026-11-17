@@ -22,14 +22,14 @@ class Account
 {
     /** Read only: the server sets this value. */
     #[SerializedName('id')]
-    public ?int $id = null;
+    public readonly ?int $id;
 
     #[SerializedName('username')]
-    public string $username;
+    public readonly string $username;
 
     /** @writeOnly */
     #[SerializedName('password')]
-    public ?string $password = null;
+    public readonly ?string $password;
 
     /**
      */
@@ -41,6 +41,42 @@ class Account
         $this->id = $id;
         $this->username = $username;
         $this->password = $password;
+    }
+
+    /**
+     * Returns a copy of this model with id replaced. This model is not changed.
+     */
+    public function withId(?int $id): self
+    {
+        return new self(
+            username: $this->username,
+            id: $id,
+            password: $this->password,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with username replaced. This model is not changed.
+     */
+    public function withUsername(string $username): self
+    {
+        return new self(
+            username: $username,
+            id: $this->id,
+            password: $this->password,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with password replaced. This model is not changed.
+     */
+    public function withPassword(?string $password): self
+    {
+        return new self(
+            username: $this->username,
+            id: $this->id,
+            password: $password,
+        );
     }
 
     /**

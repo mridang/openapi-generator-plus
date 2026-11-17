@@ -33,21 +33,21 @@ class BinaryVault
      * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('seal')]
-    public ?string $seal = null;
+    public readonly ?string $seal;
 
     /**
      * Raw bytes; base64-encoded only on the wire.
      * @var \Ds\Vector<string>|null
      */
     #[SerializedName('shards')]
-    public ?\Ds\Vector $shards = null;
+    public readonly ?\Ds\Vector $shards;
 
     /**
      * Raw bytes; base64-encoded only on the wire.
      * @var \Ds\Map<string, string>|null
      */
     #[SerializedName('labels')]
-    public ?\Ds\Map $labels = null;
+    public readonly ?\Ds\Map $labels;
 
     /**
      * @param \Ds\Vector<string>|null $shards
@@ -61,5 +61,45 @@ class BinaryVault
         $this->seal = $seal;
         $this->shards = $shards;
         $this->labels = $labels;
+    }
+
+    /**
+     * Returns a copy of this model with seal replaced. This model is not changed.
+     */
+    public function withSeal(?string $seal): self
+    {
+        return new self(
+            seal: $seal,
+            shards: $this->shards,
+            labels: $this->labels,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with shards replaced. This model is not changed.
+     *
+     * @param \Ds\Vector<string>|null $shards
+     */
+    public function withShards(?\Ds\Vector $shards): self
+    {
+        return new self(
+            seal: $this->seal,
+            shards: $shards,
+            labels: $this->labels,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with labels replaced. This model is not changed.
+     *
+     * @param \Ds\Map<string, string>|null $labels
+     */
+    public function withLabels(?\Ds\Map $labels): self
+    {
+        return new self(
+            seal: $this->seal,
+            shards: $this->shards,
+            labels: $labels,
+        );
     }
 }

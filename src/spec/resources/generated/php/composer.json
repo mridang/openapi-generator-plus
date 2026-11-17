@@ -4,11 +4,10 @@
     "license": "MIT",
     "version": "1.0.0",
     "require": {
-        "php": "^8.5",
+        "php": "^8.3",
         "ext-curl": "*",
         "ext-json": "*",
         "ext-mbstring": "*",
-        "ext-uri": "*",
         "ext-zlib": "*",
         "symfony/http-client": "^6.4|^7.4",
         "symfony/mime": "^6.4|^7.4",

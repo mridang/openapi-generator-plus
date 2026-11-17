@@ -17,6 +17,7 @@ use PetstoreClient\Models\Pet;
 use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\PhotoMetadataLocation;
 use PetstoreClient\Models\Priority;
+use PetstoreClient\Models\RequiredNullable;
 use PetstoreClient\Models\SetPetAvatarRequest;
 use PetstoreClient\Models\StrictTag;
 use PetstoreClient\Models\StockItem;
@@ -524,9 +525,7 @@ test('thrown exception has message', function (): void {
 // -- serialize --
 
 test('serialize serializes model to valid json', function (): void {
-    $category = new Category();
-    $category->id = 1;
-    $category->name = 'Dogs';
+    $category = new Category(id: 1, name: 'Dogs');
     $json = ObjectSerializer::serialize($category);
     expect($json)->toBeJson();
     /** @var array<string, mixed> $data */
@@ -543,8 +542,7 @@ test('serialize serializes model to valid json', function (): void {
 // emits an unquoted number; this test pins that contract so a regression
 // (e.g. switching to a Decimal-as-string holder) would fail loudly.
 test('type number field serializes as unquoted json number', function (): void {
-    $pet = new Pet(name: 'Rex', photoUrls: new \Ds\Set());
-    $pet->weightKg = 1.5;
+    $pet = (new Pet(name: 'Rex', photoUrls: new \Ds\Set()))->withWeightKg(1.5);
 
     $json = ObjectSerializer::serialize($pet);
 
@@ -573,9 +571,7 @@ test('serialize empty object body emits {} not []', function (): void {
 });
 
 test('serialize includes fields set to default values', function (): void {
-    $category = new Category();
-    $category->id = 0;
-    $category->name = '';
+    $category = new Category(id: 0, name: '');
     $json = ObjectSerializer::serialize($category);
     expect($json)->toBeJson();
     /** @var array<string, mixed> $data */
@@ -809,6 +805,32 @@ test('a wrong typed leaf in a container is rejected not coerced', function (stri
     'bool for string' => ['{"a":true}', 'Ds\Map<string>', 'string', 'bool'],
     'string for float' => ['{"a":"1.5"}', 'Ds\Map<float>', 'float', 'string'],
     'string in nested int vector' => ['[["x"]]', 'Ds\Vector<Ds\Vector<int>>', 'int', 'string'],
+    'out of range for int' => ['{"a":99999999999999999999}', 'Ds\Map<int>', 'int', 'float'],
+]);
+
+test('required nullable property keeps an explicit null and writes the key', function (): void {
+    /** @var RequiredNullable $decoded */
+    $decoded = ObjectSerializer::deserialize('{"note":null}', RequiredNullable::class);
+
+    expect($decoded->note)->toBeNull();
+    expect(ObjectSerializer::serialize($decoded))->toBe('{"note":null}');
+    expect(ObjectSerializer::serialize(new RequiredNullable(note: null)))->toBe('{"note":null}');
+    expect(ObjectSerializer::serialize(new RequiredNullable(note: 'x')))->toBe('{"note":"x"}');
+});
+
+test('required nullable property rejects a missing key', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{}', RequiredNullable::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('a number that overflows to infinity is rejected wherever a float is decoded', function (string $json, string $class): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, $class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'finite');
+})->with([
+    'top level float' => ['1e400', 'float'],
+    'float vector element' => ['[1.5,1e400]', 'Ds\Vector<float>'],
+    'float map element' => ['{"a":-1e400}', 'Ds\Map<float>'],
+    'model field' => ['{"name":"n","photoUrls":[],"weightKg":1e400}', Pet::class],
 ]);
 
 test('a wrong typed top level primitive body is rejected not coerced', function (string $json, string $class, string $actual): void {
@@ -1156,9 +1178,7 @@ test('deserialize PetFood missing discriminator does not wrap raw dict', functio
 test('serialize omits model fields that are null', function (): void {
     /* Category's id/name are nullable. A field left null must be dropped
      * from the JSON payload (SKIP_NULL_VALUES), not emitted as "id":null. */
-    $category = new Category();
-    $category->id = null;
-    $category->name = 'Dogs';
+    $category = new Category(name: 'Dogs');
     $json = ObjectSerializer::serialize($category);
     /** @var array<string, mixed> $data */
     $data = json_decode($json, true);
@@ -1515,7 +1535,7 @@ test('a plain model ignores an undeclared key and keeps the declared fields', fu
 });
 
 test('strict model has no public unknown-property hook', function (): void {
-    expect(new \ReflectionMethod(StrictTag::class, 'assertNoUnknownProperties')->isPublic())->toBeFalse();
+    expect((new \ReflectionMethod(StrictTag::class, 'assertNoUnknownProperties'))->isPublic())->toBeFalse();
 });
 
 // -- Canonical #4: a double field deserializes from an INTEGRAL JSON value --
@@ -1560,18 +1580,16 @@ test('additional property re-serializes at the top level not nested', function (
 });
 
 test('a model whose only fields are numeric additional properties serializes as an object', function (): void {
-    $meta = new Metadata();
     /** @var \Ds\Map<string, mixed> $extra */
     $extra = new \Ds\Map(['0' => 'x', '1' => 'y']);
-    $meta->additionalProperties = $extra;
+    $meta = (new Metadata())->withAdditionalProperties($extra);
     expect(ObjectSerializer::serialize($meta))->toBe('{"0":"x","1":"y"}');
 });
 
 test('a model with numeric and named fields keeps both as an object', function (): void {
-    $meta = new Metadata(new \DateTime('2024-01-01T00:00:00+00:00'));
     /** @var \Ds\Map<string, mixed> $extra */
     $extra = new \Ds\Map(['0' => 'x']);
-    $meta->additionalProperties = $extra;
+    $meta = (new Metadata(new \DateTime('2024-01-01T00:00:00+00:00')))->withAdditionalProperties($extra);
     expect(ObjectSerializer::serialize($meta))->toBe('{"createdAt":"2024-01-01T00:00:00.000+00:00","0":"x"}');
 });
 
@@ -1873,29 +1891,19 @@ test('byte field decode accepts strict base64', function (): void {
     expect(ObjectSerializer::deserialize('"dGVzdA=="', 'byte'))->toBe('test');
 });
 
-// -- format: uri is an absolute RFC 3986 URI, re-emitted verbatim --
+// -- format: uri is a plain string (the native URI type needs PHP 8.5), re-emitted verbatim --
 
-test('uri field decode accepts any absolute uri and re-emits it verbatim', function (string $uri): void {
+test('uri field is a plain string that is re-emitted verbatim', function (string $uri): void {
     $json = (string) json_encode(['name' => 'n', 'photoUrls' => [], 'homepageUrl' => $uri], JSON_UNESCAPED_SLASHES);
     /** @var Pet $item */
     $item = ObjectSerializer::deserialize($json, Pet::class);
-    expect($item->homepageUrl?->toRawString())->toBe($uri);
+    expect($item->homepageUrl)->toBe($uri);
     expect(ObjectSerializer::serialize($item))->toContain('"homepageUrl":"' . $uri . '"');
 })->with([
     'urn' => ['urn:isbn:0451450523'],
     'mailto' => ['mailto:a@b.com'],
     'ftp' => ['ftp://x.org/f'],
     'https' => ['https://example.com/items/1'],
-]);
-
-test('uri field decode rejects relative and malformed text', function (string $uri): void {
-    $json = (string) json_encode(['name' => 'n', 'photoUrls' => [], 'homepageUrl' => $uri]);
-    expect(fn () => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
-})->with([
-    'relative' => ['/relative'],
-    'spaces' => ['not a uri'],
-    'empty' => [''],
 ]);
 
 test('uri-reference field still accepts a relative reference', function (): void {
@@ -1906,7 +1914,7 @@ test('uri-reference field still accepts a relative reference', function (): void
 });
 
 test('model external docs description reaches the doc comment unescaped', function (): void {
-    $doc = new \ReflectionClass(Account::class)->getDocComment();
+    $doc = (new \ReflectionClass(Account::class))->getDocComment();
     expect($doc)->toBe("/**\n * @see https://example.com/docs/account Account <docs> & \"notes\" it's here\n */");
 });
 
