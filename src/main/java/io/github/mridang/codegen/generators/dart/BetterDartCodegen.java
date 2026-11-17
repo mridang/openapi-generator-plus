@@ -1122,6 +1122,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
             if (ops != null) {
+                final Map<String, Map<String, String>> errorImports = new java.util.LinkedHashMap<>();
                 for (final CodegenOperation op : ops) {
                     if (op.vendorExtensions == null) {
                         op.vendorExtensions = new HashMap<>();
@@ -1145,7 +1146,20 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                                 serverBeforeOptions((List<Map<String, Object>>) sigArgs));
                     }
                     op.vendorExtensions.put("op", opDeco);
+                    final Object declared = opDeco.get("errorSchemaResponses");
+                    if (declared instanceof List) {
+                        for (final Object row : (List<Object>) declared) {
+                            final String className = (String) ((Map<String, Object>) row).get("schemaClassName");
+                            errorImports.computeIfAbsent(className, name -> {
+                                final Map<String, String> entry = new HashMap<>();
+                                entry.put("className", name);
+                                entry.put("classFilename", NamingConvention.SNAKE_CASE.apply(name));
+                                return entry;
+                            });
+                        }
+                    }
                 }
+                objs.put("errorImports", new ArrayList<>(errorImports.values()));
             }
         }
 
@@ -1473,6 +1487,19 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                         + NamingConvention.SNAKE_CASE.apply(getAuthenticatorTypeName())
                         + ".dart");
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_exception.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(getOutputDir(), "lib", "src", "errors", NamingConvention.SNAKE_CASE.apply(className) + ".dart")
+                .toString();
     }
 
     /** {@inheritDoc} */

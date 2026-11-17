@@ -576,6 +576,137 @@ void main() {
     );
   });
 
+  group('typed errors', () {
+    test(
+      'bhv errors 201 an error is retryable exactly for the statuses the client retries',
+      () {
+        for (final status in [408, 409, 429, 500, 502, 503, 504, 599]) {
+          expect(
+            ApiException.fromResponse(status, const {}, null).isRetryable,
+            isTrue,
+            reason: 'status $status',
+          );
+        }
+        for (final status in [400, 401, 403, 404, 422, 501, 302]) {
+          expect(
+            ApiException.fromResponse(status, const {}, null).isRetryable,
+            isFalse,
+            reason: 'status $status',
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv errors 202 an error exposes the x-request-id response header as its request id',
+      () {
+        expect(
+          ApiException.fromResponse(500, const {
+            'X-Request-ID': 'abc',
+          }, null).requestId,
+          equals('abc'),
+        );
+        expect(
+          ApiException.fromResponse(500, const {
+            'x-request-id': 'abc',
+          }, null).requestId,
+          equals('abc'),
+        );
+        expect(
+          ApiException.fromResponse(500, const {
+            'other': 'abc',
+          }, null).requestId,
+          isNull,
+        );
+        expect(
+          const ApiException(statusCode: 0, message: 'no response').requestId,
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default',
+      () {
+        ErrorFactory factory(String message) =>
+            ({
+              required statusCode,
+              responseHeaders,
+              responseBody,
+              requestMethod,
+              requestPath,
+            }) => ApiException(statusCode: statusCode, message: message);
+        final factories = <String, ErrorFactory>{
+          '404': factory('exact'),
+          '4XX': factory('range'),
+          'default': factory('default'),
+        };
+
+        expect(
+          ApiException.fromResponse(
+            404,
+            const {},
+            '{}',
+            errorSchemas: factories,
+          ).message,
+          equals('exact'),
+        );
+        expect(
+          ApiException.fromResponse(
+            418,
+            const {},
+            '{}',
+            errorSchemas: factories,
+          ).message,
+          equals('range'),
+        );
+        expect(
+          ApiException.fromResponse(
+            502,
+            const {},
+            '{}',
+            errorSchemas: factories,
+          ).message,
+          equals('default'),
+        );
+        expect(
+          ApiException.fromResponse(
+            502,
+            const {},
+            '{}',
+            errorSchemas: const <String, ErrorFactory>{},
+          ),
+          isA<BadGatewayException>(),
+        );
+        expect(
+          ApiException.fromResponse(404, const {}, '{}'),
+          isA<NotFoundException>(),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause',
+      () {
+        final err = UnexpectedFailureException.fromErrorResponse(
+          statusCode: 400,
+          responseHeaders: const {},
+          responseBody: '[1, 2',
+          requestMethod: 'GET',
+          requestPath: '/x',
+        );
+
+        expect(
+          err.runtimeType,
+          equals(ApiException.fromResponse(400, const {}, '[1, 2').runtimeType),
+        );
+        expect(err.responseBody, equals('[1, 2'));
+        expect(err.statusCode, equals(400));
+        expect(err.cause, isNotNull);
+      },
+    );
+  });
+
   group('ApiException rendering', () {
     test(
       'bhv errors 024 renders the message, status, headers and body one field per line',

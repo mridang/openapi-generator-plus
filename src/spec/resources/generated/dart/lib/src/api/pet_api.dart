@@ -236,6 +236,7 @@ class PetApi extends BaseApi {
   /// Add a new pet to the store
   /// `pet` Create a new pet in the store
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `BadRequestException` on HTTP 400.
   Future<Pet> addPet(Pet pet, AddPetOptions? options) async {
     final result = await addPetWithHttpInfo(pet, options);
     final data = result.data;
@@ -256,6 +257,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the addPet operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
   Future<ApiResult<Pet>> addPetWithHttpInfo(
     Pet pet,
     AddPetOptions? options,
@@ -295,6 +297,7 @@ class PetApi extends BaseApi {
   /// Add photos to the pet's gallery
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
   /// `options` options for query, header, form, and cookie parameters
+  /// Throws `NotFoundException` on HTTP 404.
   Future<List<Photo>> addPetPhotos(
     int petId,
     AddPetPhotosOptions options,
@@ -318,6 +321,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the addPetPhotos operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<List<Photo>>> addPetPhotosWithHttpInfo(
     int petId,
     AddPetPhotosOptions options,
@@ -483,11 +487,13 @@ class PetApi extends BaseApi {
   /// `petId` Pet id to delete
   /// `apiKey` Session cookie used for authentication
   /// `options` options for query, header, form, and cookie parameters
+  /// Throws `BadRequestException` on HTTP 400.
   Future<void> deletePet(int petId, DeletePetOptions? options) async {
     await deletePetWithHttpInfo(petId, options);
   }
 
   /// Performs the deletePet operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
   Future<ApiResult<void>> deletePetWithHttpInfo(
     int petId,
     DeletePetOptions? options,
@@ -574,6 +580,7 @@ class PetApi extends BaseApi {
   /// Download a vet document
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `NotFoundException` on HTTP 404.
   Future<Uint8List> downloadPetDocument(
     int petId,
     int documentId,
@@ -603,6 +610,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the downloadPetDocument operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<Uint8List>> downloadPetDocumentWithHttpInfo(
     int petId,
     int documentId,
@@ -772,6 +780,7 @@ class PetApi extends BaseApi {
   /// sold
   /// ```
   /// See <https://example.com/docs/filtering> Find out more about filtering
+  /// Throws `BadRequestException` on HTTP 400.
   @Deprecated('This operation is deprecated.')
   Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options) async {
     final result = await findPetsByStatusWithHttpInfo(options);
@@ -794,6 +803,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the findPetsByStatus operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
   @Deprecated('This operation is deprecated.')
   Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(
     FindPetsByStatusOptions? options,
@@ -1060,6 +1070,7 @@ class PetApi extends BaseApi {
   /// Get the pet's profile photo
   /// Returns the raw image bytes of the pet's current avatar.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `NotFoundException` on HTTP 404.
   Future<Uint8List> getPetAvatar(
     int petId,
     GetPetAvatarOptions? options,
@@ -1083,6 +1094,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<Uint8List>> getPetAvatarWithHttpInfo(
     int petId,
     GetPetAvatarOptions? options,
@@ -1137,6 +1149,7 @@ class PetApi extends BaseApi {
   /// Get the pet's avatar thumbnail as base64
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `NotFoundException` on HTTP 404.
   Future<Uint8List> getPetAvatarThumbnail(
     int petId,
     GetPetAvatarThumbnailOptions? options,
@@ -1161,6 +1174,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHttpInfo(
     int petId,
     GetPetAvatarThumbnailOptions? options,
@@ -1226,6 +1240,8 @@ class PetApi extends BaseApi {
   /// ```json
   /// 42
   /// ```
+  /// Throws `BadRequestException` on HTTP 400.
+  /// Throws `NotFoundException` on HTTP 404.
   @Deprecated('This operation is deprecated.')
   Future<Pet> getPetById(
     int petId,
@@ -1251,6 +1267,8 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetById operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
+  /// Throws `NotFoundException` on HTTP 404.
   @Deprecated('This operation is deprecated.')
   Future<ApiResult<Pet>> getPetByIdWithHttpInfo(
     int petId,
@@ -1425,6 +1443,7 @@ class PetApi extends BaseApi {
   /// Get the pet's passport
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `NotFoundException` on HTTP 404.
   Future<PetPassport> getPetPassport(
     int petId,
     GetPetPassportOptions? options,
@@ -1449,6 +1468,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(
     int petId,
     GetPetPassportOptions? options,
@@ -1505,6 +1525,7 @@ class PetApi extends BaseApi {
   /// Get a photo or its metadata
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `NotFoundException` on HTTP 404.
   Future<Uint8List> getPetPhoto(
     int petId,
     int photoId,
@@ -1529,6 +1550,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetPhoto operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<Uint8List>> getPetPhotoWithHttpInfo(
     int petId,
     int photoId,
@@ -1608,6 +1630,7 @@ class PetApi extends BaseApi {
   /// `session` Session token: "a<b>" & it's required
   /// `days` Extra dates to summarise
   /// `options` options for query, header, form, and cookie parameters
+  /// Throws `NotFoundException` on HTTP 404.
   Future<String> getPetSummary(
     int petId,
     DateTime asOf,
@@ -1632,6 +1655,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetSummary operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<String>> getPetSummaryWithHttpInfo(
     int petId,
     DateTime asOf,
@@ -2065,6 +2089,7 @@ class PetApi extends BaseApi {
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `NotFoundException` on HTTP 404.
   Future<void> setPetAvatar(
     int petId,
     Uint8List body,
@@ -2075,6 +2100,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<void>> setPetAvatarWithHttpInfo(
     int petId,
     Uint8List body,
@@ -2141,6 +2167,7 @@ class PetApi extends BaseApi {
   /// Set the pet's avatar thumbnail as base64
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `NotFoundException` on HTTP 404.
   Future<void> setPetAvatarThumbnail(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -2154,6 +2181,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the setPetAvatarThumbnail operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<void>> setPetAvatarThumbnailWithHttpInfo(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -2208,6 +2236,7 @@ class PetApi extends BaseApi {
   /// Update a pet's notification preferences
   /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
   /// `options` options for query, header, form, and cookie parameters
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResponse> setPetPreferences(
     int petId,
     SetPetPreferencesOptions options,
@@ -2232,6 +2261,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the setPetPreferences operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<ApiResponse>> setPetPreferencesWithHttpInfo(
     int petId,
     SetPetPreferencesOptions options,
@@ -2322,6 +2352,8 @@ class PetApi extends BaseApi {
   /// `petId` ID of pet to update
   /// `pet` Pet object that needs to be updated
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `BadRequestException` on HTTP 400.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<Pet> updatePet(int petId, Pet pet, UpdatePetOptions? options) async {
     final result = await updatePetWithHttpInfo(petId, pet, options);
     final data = result.data;
@@ -2342,6 +2374,8 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the updatePet operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<Pet>> updatePetWithHttpInfo(
     int petId,
     Pet pet,
@@ -2398,6 +2432,7 @@ class PetApi extends BaseApi {
   /// Upload the pet's adoption certificate
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
   /// `options` options for query, header, form, and cookie parameters
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResponse> uploadPetCertificate(
     int petId,
     UploadPetCertificateOptions options,
@@ -2422,6 +2457,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<ApiResponse>> uploadPetCertificateWithHttpInfo(
     int petId,
     UploadPetCertificateOptions options,
@@ -2493,6 +2529,7 @@ class PetApi extends BaseApi {
   /// Attach a vet document or health record
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
   /// `options` options for query, header, form, and cookie parameters
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResponse> uploadPetDocument(
     int petId,
     UploadPetDocumentOptions options, [
@@ -2522,6 +2559,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the uploadPetDocument operation and returns the full API result.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<ApiResponse>> uploadPetDocumentWithHttpInfo(
     int petId,
     UploadPetDocumentOptions options, [

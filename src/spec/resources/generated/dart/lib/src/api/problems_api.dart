@@ -11,6 +11,12 @@ import 'base_api.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
 import '../errors/api_exception.dart';
+import '../errors/unexpected_failure_exception.dart';
+import '../errors/member_not_found_exception.dart';
+import '../errors/project_not_found_exception.dart';
+import '../errors/rejected_request_exception.dart';
+import '../errors/upstream_failure_exception.dart';
+import '../errors/state_conflict_exception.dart';
 import '../models/result.dart';
 import 'options/get_fallback_options.dart';
 import 'options/get_member_options.dart';
@@ -31,6 +37,7 @@ class ProblemsApi extends BaseApi {
 
   /// Read a fallback, declaring a default response
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `UnexpectedFailureException` on HTTP default with a `UnexpectedFailure` body.
   Future<Result> getFallback(
     String fallbackId,
     GetFallbackOptions? options,
@@ -54,6 +61,7 @@ class ProblemsApi extends BaseApi {
   }
 
   /// Performs the getFallback operation and returns the full API result.
+  /// Throws `UnexpectedFailureException` on HTTP default with a `UnexpectedFailure` body.
   Future<ApiResult<Result>> getFallbackWithHttpInfo(
     String fallbackId,
     GetFallbackOptions? options,
@@ -107,6 +115,9 @@ class ProblemsApi extends BaseApi {
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
+      errorSchemas: const {
+        'default': UnexpectedFailureException.fromErrorResponse,
+      },
 
       deserialize: (body) => deserialize(body, Result.fromJson) as Result,
     );
@@ -114,6 +125,7 @@ class ProblemsApi extends BaseApi {
 
   /// Read a member, declaring a 404 with a different schema
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `MemberNotFoundException` on HTTP 404 with a `MemberNotFound` body.
   Future<Result> getMember(String memberId, GetMemberOptions? options) async {
     final result = await getMemberWithHttpInfo(memberId, options);
     final data = result.data;
@@ -134,6 +146,7 @@ class ProblemsApi extends BaseApi {
   }
 
   /// Performs the getMember operation and returns the full API result.
+  /// Throws `MemberNotFoundException` on HTTP 404 with a `MemberNotFound` body.
   Future<ApiResult<Result>> getMemberWithHttpInfo(
     String memberId,
     GetMemberOptions? options,
@@ -187,6 +200,7 @@ class ProblemsApi extends BaseApi {
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
+      errorSchemas: const {'404': MemberNotFoundException.fromErrorResponse},
 
       deserialize: (body) => deserialize(body, Result.fromJson) as Result,
     );
@@ -194,6 +208,7 @@ class ProblemsApi extends BaseApi {
 
   /// Read a project, declaring a 404 with its own schema
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `ProjectNotFoundException` on HTTP 404 with a `ProjectNotFound` body.
   Future<Result> getProject(
     String projectId,
     GetProjectOptions? options,
@@ -217,6 +232,7 @@ class ProblemsApi extends BaseApi {
   }
 
   /// Performs the getProject operation and returns the full API result.
+  /// Throws `ProjectNotFoundException` on HTTP 404 with a `ProjectNotFound` body.
   Future<ApiResult<Result>> getProjectWithHttpInfo(
     String projectId,
     GetProjectOptions? options,
@@ -270,6 +286,7 @@ class ProblemsApi extends BaseApi {
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
+      errorSchemas: const {'404': ProjectNotFoundException.fromErrorResponse},
 
       deserialize: (body) => deserialize(body, Result.fromJson) as Result,
     );
@@ -277,6 +294,7 @@ class ProblemsApi extends BaseApi {
 
   /// Read a range, declaring one schema for every 4XX status
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `RejectedRequestException` on HTTP 4XX with a `RejectedRequest` body.
   Future<Result> getRange(String rangeId, GetRangeOptions? options) async {
     final result = await getRangeWithHttpInfo(rangeId, options);
     final data = result.data;
@@ -297,6 +315,7 @@ class ProblemsApi extends BaseApi {
   }
 
   /// Performs the getRange operation and returns the full API result.
+  /// Throws `RejectedRequestException` on HTTP 4XX with a `RejectedRequest` body.
   Future<ApiResult<Result>> getRangeWithHttpInfo(
     String rangeId,
     GetRangeOptions? options,
@@ -350,6 +369,7 @@ class ProblemsApi extends BaseApi {
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
+      errorSchemas: const {'4XX': RejectedRequestException.fromErrorResponse},
 
       deserialize: (body) => deserialize(body, Result.fromJson) as Result,
     );
@@ -357,6 +377,7 @@ class ProblemsApi extends BaseApi {
 
   /// Read an upstream, declaring one schema for every 5XX status
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `UpstreamFailureException` on HTTP 5XX with a `UpstreamFailure` body.
   Future<Result> getUpstream(
     String upstreamId,
     GetUpstreamOptions? options,
@@ -380,6 +401,7 @@ class ProblemsApi extends BaseApi {
   }
 
   /// Performs the getUpstream operation and returns the full API result.
+  /// Throws `UpstreamFailureException` on HTTP 5XX with a `UpstreamFailure` body.
   Future<ApiResult<Result>> getUpstreamWithHttpInfo(
     String upstreamId,
     GetUpstreamOptions? options,
@@ -433,6 +455,7 @@ class ProblemsApi extends BaseApi {
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
+      errorSchemas: const {'5XX': UpstreamFailureException.fromErrorResponse},
 
       deserialize: (body) => deserialize(body, Result.fromJson) as Result,
     );
@@ -440,6 +463,8 @@ class ProblemsApi extends BaseApi {
 
   /// Take a lock, declaring one schema under two statuses
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `StateConflictException` on HTTP 409 with a `StateConflict` body.
+  /// Throws `StateConflictException` on HTTP 423 with a `StateConflict` body.
   Future<Result> takeLock(String lockId, TakeLockOptions? options) async {
     final result = await takeLockWithHttpInfo(lockId, options);
     final data = result.data;
@@ -460,6 +485,8 @@ class ProblemsApi extends BaseApi {
   }
 
   /// Performs the takeLock operation and returns the full API result.
+  /// Throws `StateConflictException` on HTTP 409 with a `StateConflict` body.
+  /// Throws `StateConflictException` on HTTP 423 with a `StateConflict` body.
   Future<ApiResult<Result>> takeLockWithHttpInfo(
     String lockId,
     TakeLockOptions? options,
@@ -513,6 +540,10 @@ class ProblemsApi extends BaseApi {
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
+      errorSchemas: const {
+        '409': StateConflictException.fromErrorResponse,
+        '423': StateConflictException.fromErrorResponse,
+      },
 
       deserialize: (body) => deserialize(body, Result.fromJson) as Result,
     );

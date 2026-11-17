@@ -148,6 +148,10 @@ class OperationDecoratorTest {
                 (List<Map<String, Object>>) Objects.requireNonNull(codegen.additionalProperties().get("errorSchemas"));
         assertEquals(List.of("ThingMissing", "Fallback"), schemas.stream().map(s -> s.get("schemaName")).collect(java.util.stream.Collectors.toList()));
         assertEquals("ApiException", schemas.get(1).get("parentClassName"));
+        assertEquals("thing_missing_exception", schemas.get(0).get("classFilename"));
+        assertEquals("not_found_exception", schemas.get(0).get("parentFilename"));
+        assertEquals(false, schemas.get(0).get("parentIsApi"));
+        assertEquals(true, schemas.get(1).get("parentIsApi"));
     }
 
     @Test
