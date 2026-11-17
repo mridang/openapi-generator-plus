@@ -1353,7 +1353,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F857: an operation declared security none sends no credential")
+        @DisplayName("bhvAuthintegration016 F857: an operation declared security none sends no scheme credential")
         fun testUnsecuredOperationSendsNoCredential() {
             var authorization: String? = "unset"
             val engine =
@@ -1455,6 +1455,19 @@ class PetApiTest {
                 listOf("headers", "maxRetries", "timeout"),
                 AddPetOptions::class.java.declaredFields.map { it.name }.sorted(),
             )
+        }
+
+        @Test
+        @DisplayName("bhvAuthintegration011 has no per-call authenticator on any Options object")
+        fun noOptionsObjectHasAnAuthField() {
+            val optionClasses = listOf(
+                FindPetsByStatusOptions::class.java,
+                AddPetOptions::class.java,
+                {{apiPackage}}.options.GetPetByIdOptions::class.java,
+            )
+            for (cls in optionClasses) {
+                assertFalse(cls.declaredFields.any { it.name == "auth" }, "${cls.simpleName} must not carry an auth field")
+            }
         }
 
         @Test
