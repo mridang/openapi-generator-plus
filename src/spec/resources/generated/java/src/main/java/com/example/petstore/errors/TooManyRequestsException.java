@@ -62,4 +62,27 @@ public class TooManyRequestsException extends ClientException {
       @Nullable Throwable cause) {
     super(429, message, responseHeaders, responseBody, errorBody, cause);
   }
+
+  /**
+   * Creates a new exception that keeps the underlying failure and the request that drew it.
+   *
+   * @param message the error message
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param errorBody the deserialized error body, if available
+   * @param cause the underlying failure, if any
+   * @param requestMethod the HTTP method of the request, if known
+   * @param requestPath the path of the request, if known; a query string is stripped
+   */
+  public TooManyRequestsException(
+      String message,
+      @Nullable Map<String, String> responseHeaders,
+      @Nullable String responseBody,
+      @Nullable Object errorBody,
+      @Nullable Throwable cause,
+      @Nullable String requestMethod,
+      @Nullable String requestPath) {
+    super(
+        429, message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath);
+  }
 }

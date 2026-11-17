@@ -400,7 +400,7 @@ Test: the existing `ApiExceptionTest` constructor rows and `DefaultApiClientUnit
 
 ### Per-call options (F827)
 Rule: every per-operation Options object that exists carries `timeout(Integer millis)` (positive), `maxRetries(Integer)` (not negative) and `headers(Map)`, each with a getter. `timeout` and `maxRetries` replace the transport's value for that call (`TransportOptions` stays the default); `headers` are merged after the default headers and before the authentication headers. `ApiClient` gains two default methods, `sendRequest(..., Integer timeoutMillis, Integer maxRetries)` and `sendRequest(..., boolean noRedirect, boolean noDefaultHeaders)`; a transport that ignores them keeps working. `BaseApi` calls the four-argument method when no override is set. A parameter named `auth`, `timeout`, `maxRetries` or `headers` becomes `authParam` and so on (`getInjectedArgumentNames`).
-Limit: an operation with no query, header, form or cookie parameter and no security has no Options object at all (the shared generator decides that in `computeSignatureArgs`), so it has no slot for the per-call settings; minting an Options object for every operation is a shared change.
+Limit: superseded by wave 3: `mintsOptionsForEveryOperation()` is true, so an operation with no query, header, form or cookie parameter and no security has an Options object too (see "Every operation has an Options object (F827)" below).
 Where: `api/options.mustache`, `api/api.mustache`, `base_api.mustache`, `api_client.mustache`, `default_api_client.mustache`, `BetterJavaCodegen`. Test: `BaseApiTest` (`PerCallOptions`), `DefaultApiClientUnitTest` (`aPerCallRetryCountReplacesTheTransportsForThatCallOnly`, `aPerCallRetryCountCanRaiseWhatTheTransportSet`, `aPerCallTimeoutAppliesWhenTheTransportHasNone`), `BetterJavaCodegenTest` (`renamesAParameterNamedLikeAPerCallSetting`).
 
 ### OIDC discovery keeps the default headers off the identity provider (F860)
@@ -440,11 +440,30 @@ Rule: the README Caveats say that optional and nullable are one `null` (except r
 Where: `readme.mustache`, `skills.mustache`.
 
 ### Recorded, not implemented in wave 2
-- F862 (credential environment variables and token provider): needs the shared generator. The variable name is `{PREFIX}_{FIELD}` and the prefix and the field per security scheme must be computed once in `AbstractBetterCodegen` for all twelve; a java-only provider overload would fix a shape the other eleven have not agreed. The java authenticators (`BearerAuthenticator`, `ApiKeyAuthenticator`, `BasicAuthenticator` and the per-scheme classes composed over them) are final and take the secret in the constructor, so the change is additive once the shared option exists.
+- F862 (credential environment variables and token provider): landed in wave 3 (see below).
 - F1087 (runtime floor): java stays at 21. The floor is forced by `HttpClient.close()` (JDK 21), which `DefaultApiClient.close()` and the injected-transport rule depend on; the code otherwise needs 17 (sealed interfaces, records, pattern matching). 21 is a current LTS, so lowering it to 17 would mean giving up `close()` on the built-in client.
 - F1060 and F1061 (warning for dropped OAuth2 flows and unnamed HTTP schemes): the warning is emitted by `AbstractBetterCodegen.buildOAuthSpec` and the security mapping, shared code.
 - F1153 (unit tests for the OAS 3.1 normaliser rules) and F1172 (a spec scanning every golden for blanket disables) and F1174 (api-surface check in `etc/ci-local.sh` and the lint workflow): shared test and CI files, not java.
-- F866 ($ref sibling default): the sibling default is dropped before the template sees it, in shared Java.
+- F866 ($ref sibling default): landed in wave 3 (see below).
 - F1157 (`petstore_auth` in the petstore spec): the spec is shared by all twelve.
 - F889 (compression, logging, versioning): done for java in the README Caveats above.
 
+## Decisions taken in wave 3
+
+The shared generator now hands every language the data for F827, F862 and F866; java adopts it in its own templates only.
+
+### Every operation has an Options object (F827)
+Rule: `BetterJavaCodegen.mintsOptionsForEveryOperation()` returns true, so each operation takes a trailing `<Operation>Options` (nullable, with an overload that omits it) carrying `timeout`, `maxRetries` and `headers`, even with no query, header, form or cookie parameter and no security. Such an Options object has no `auth` field (`hasAuthField` is the operation's `hasAuthMethods`) and a public no-argument constructor. The operation javadoc documents `@param options` for it (`vendorExtensions.op.optionsMinted`).
+Where: `BetterJavaCodegen`, `api/api.mustache`, `api/operation_doc*.mustache`. Test: `BaseApiTest` (`PerCallOptions`: `anOperationWithNothingElseTakesThePerCallSettings`, `anOperationWithNothingElseWorksWithoutOptions`, `anInvalidTimeoutOrRetryCountIsRefused`), `BetterJavaCodegenTest` (`everyOperationGetsAnOptionsObject`).
+
+### Credentials default from the environment (F862)
+Rule: the generated per-scheme authenticator reads each credential it is given as `null` or empty from its `{PREFIX}_{FIELD}` variable (`securitySchemeEnvVars`, computed once for all twelve languages): the caller's value wins, then the variable, read once when the authenticator is built from `System.getenv()`; an empty variable counts as unset; a credential found nowhere throws `IllegalArgumentException` that names the scheme, the field and the variable. The package-private constructor `(…, Map<String, String> environment)` is the seam tests use, because a JVM cannot change its own environment; the public constructors pass `System.getenv()`. The general `BasicAuthenticator`, `BearerAuthenticator` and `ApiKeyAuthenticator` never read the environment. `BearerAuthenticator` gains `(host, tokenProvider)` and `(host, token, tokenProvider)` where the `Supplier<String>` runs before every request, each result validated like a fixed token; exactly one of token and provider is allowed. The per-scheme wrappers do not take the callback: a rotating token uses `BearerAuthenticator` directly, so the wrapper surface stays the majority `(host, token)`.
+Where: `auth/scheme_authenticator.mustache`, `auth/bearer_authenticator.mustache`, `BetterJavaCodegen.renderSchemeAuthenticator`. Test: `BearerAuthenticatorTest`, `ApiKeyAuthenticatorTest`, `BasicAuthenticatorTest`, `OAuth2ClientCredentialsAuthenticatorTest` (precedence, empty string, missing), `BetterJavaCodegenTest` (the three `...Wrapper...` rows).
+
+### A `$ref` with a sibling default starts at the default (F866)
+Rule: a property that is a `$ref` to a string enum with a `default` written next to it is initialised in the builder to `Enum.MEMBER` (`vendorExtensions.siblingDefaultIsEnum`, `siblingDefaultEnumType`, `siblingDefaultEnumVar`), so both the required-argument constructor and a decode that omits the key carry the default. A sibling default on a `$ref` to something other than an enum is still ignored.
+Where: `models/model.mustache`. Test: `ObjectSerializerTest` (`refPropertyWithSiblingDefaultStartsAtTheDefault`).
+
+### Error constructors take the request (F830, surface)
+Rule: `ApiException(statusCode, message, headers, body, errorBody, cause, requestMethod, requestPath)` is the full constructor (the path loses its query string there), the request fields are `final`, and each status exception has the matching `(message, headers, body, errorBody, cause, requestMethod, requestPath)` constructor, as the other eleven take them.
+Where: `api_error.mustache`, `errors/*Exception.mustache`. Test: `ApiExceptionTest` (`everyExceptionConstructorTakesTheRequestMethodAndPath`).

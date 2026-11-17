@@ -9,8 +9,14 @@
 package com.example.petstore.auth;
 
 import java.util.Map;
+import javax.annotation.Nullable;
 
-/** Authenticator for the {@code petStoreBasic} security scheme. */
+/**
+ * Authenticator for the {@code petStoreBasic} security scheme.
+ *
+ * <p>A credential that is {@code null} or empty is read once, when the authenticator is built, from
+ * its environment variable. A credential found nowhere raises an {@link IllegalArgumentException}.
+ */
 public final class PetStoreBasicAuthenticator extends BaseAuthenticator {
   private final BasicAuthenticator delegate;
 
@@ -18,11 +24,35 @@ public final class PetStoreBasicAuthenticator extends BaseAuthenticator {
    * Creates an authenticator for the {@code petStoreBasic} security scheme.
    *
    * @param host the host credential
-   * @param username the username credential
-   * @param password the password credential
+   * @param username the username credential; when {@code null} or empty it is read from the {@code
+   *     SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME} environment variable
+   * @param password the password credential; when {@code null} or empty it is read from the {@code
+   *     SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD} environment variable
    */
-  public PetStoreBasicAuthenticator(String host, String username, String password) {
-    this.delegate = new BasicAuthenticator(host, username, password);
+  public PetStoreBasicAuthenticator(
+      String host, @Nullable String username, @Nullable String password) {
+    this(host, username, password, System.getenv());
+  }
+
+  /* Package-private so a test can supply the environment instead of the process one. */
+  PetStoreBasicAuthenticator(
+      String host,
+      @Nullable String username,
+      @Nullable String password,
+      Map<String, String> environment) {
+    this.delegate =
+        new BasicAuthenticator(
+            host,
+            resolveCredential(
+                username,
+                "username",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME",
+                environment),
+            resolveCredential(
+                password,
+                "password",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD",
+                environment));
   }
 
   @Override
@@ -55,5 +85,25 @@ public final class PetStoreBasicAuthenticator extends BaseAuthenticator {
   public String toString() {
     String repr = delegate.toString();
     return getClass().getSimpleName() + repr.substring(repr.indexOf('('));
+  }
+
+  /* A credential comes from the caller first, then from its environment variable; an empty
+   * value counts as unset, and a credential found nowhere is refused. */
+  private static String resolveCredential(
+      @Nullable String explicit, String field, String envName, Map<String, String> environment) {
+    if (explicit != null && !explicit.isEmpty()) {
+      return explicit;
+    }
+    String fromEnvironment = environment.get(envName);
+    if (fromEnvironment != null && !fromEnvironment.isEmpty()) {
+      return fromEnvironment;
+    }
+    throw new IllegalArgumentException(
+        "The '"
+            + field
+            + "' credential of the 'petStoreBasic' security scheme is required: "
+            + "pass it or set the "
+            + envName
+            + " environment variable");
   }
 }

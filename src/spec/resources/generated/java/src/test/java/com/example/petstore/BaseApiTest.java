@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.example.petstore.api.PetApi;
 import com.example.petstore.api.StoreApi;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.api.options.GetInventoryOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
@@ -904,11 +905,46 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("an operation with no parameters and no security takes the per-call settings")
+    void anOperationWithNothingElseTakesThePerCallSettings() {
+      var client = new OverrideCapturingClient();
+      var api = new StoreApi(client, new Configuration("http://localhost", Map.of()));
+      try {
+        api.getInventory(
+            new GetInventoryOptions()
+                .timeout(1500)
+                .maxRetries(0)
+                .headers(Map.of("X-Trace", "abc")));
+      } catch (Exception ignored) {
+        // Response deserialization may fail; we only care about what the transport saw
+      }
+      assertTrue(client.overrideOverloadUsed);
+      assertEquals(1500, client.capturedTimeout);
+      assertEquals(0, client.capturedRetries);
+      assertEquals("abc", client.capturedHeaders.get("X-Trace"));
+    }
+
+    @Test
+    @DisplayName("an operation with no parameters and no security still works without options")
+    void anOperationWithNothingElseWorksWithoutOptions() {
+      var client = new OverrideCapturingClient();
+      var api = new StoreApi(client, new Configuration("http://localhost", Map.of()));
+      try {
+        api.getInventory();
+      } catch (Exception ignored) {
+        // Response deserialization may fail; we only care about what the transport saw
+      }
+      assertFalse(client.overrideOverloadUsed);
+    }
+
+    @Test
     @DisplayName("an invalid timeout or retry count is refused")
     void anInvalidTimeoutOrRetryCountIsRefused() {
       assertThrows(IllegalArgumentException.class, () -> new FindPetsByStatusOptions().timeout(0));
       assertThrows(
           IllegalArgumentException.class, () -> new FindPetsByStatusOptions().maxRetries(-1));
+      assertThrows(IllegalArgumentException.class, () -> new GetInventoryOptions().timeout(0));
+      assertThrows(IllegalArgumentException.class, () -> new GetInventoryOptions().maxRetries(-1));
     }
   }
 

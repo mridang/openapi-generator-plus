@@ -1493,6 +1493,31 @@ class ObjectSerializerTest {
             assertEquals({{modelPackage}}.Priority.NUMBER_2, item.priority);
         }
 
+        {{! StockItem.availability is a $ref to an enum with a default written next to the $ref. }}
+        @Test
+        @DisplayName("a $ref property with a sibling default starts at that default")
+        void refPropertyWithSiblingDefaultStartsAtTheDefault() {
+            {{modelPackage}}.StockItem built =
+                    new {{modelPackage}}.StockItem({{modelPackage}}.Priority.NUMBER_1);
+            assertEquals({{modelPackage}}.Availability.ON_HOLD, built.availability);
+
+            {{modelPackage}}.StockItem decoded =
+                    serializer.deserialize(
+                            "{\"priority\":1}",
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    {{modelPackage}}.StockItem>() {}.getType());
+            assertNotNull(decoded);
+            assertEquals({{modelPackage}}.Availability.ON_HOLD, decoded.availability);
+
+            {{modelPackage}}.StockItem supplied =
+                    serializer.deserialize(
+                            "{\"priority\":1,\"availability\":\"Sold\"}",
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    {{modelPackage}}.StockItem>() {}.getType());
+            assertNotNull(supplied);
+            assertEquals({{modelPackage}}.Availability.SOLD, supplied.availability);
+        }
+
         {{! Availability is a non-lowercase string enum: the wire casing }}
         {{! ("Available"/"Sold"/"on-hold") must survive a round-trip exactly. }}
         @Test

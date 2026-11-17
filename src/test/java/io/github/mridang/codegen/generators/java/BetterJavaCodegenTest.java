@@ -285,4 +285,84 @@ class BetterJavaCodegenTest {
                 List.of(Map.of("name", "Ada Lovelace"), Map.of("name", "Grace Hopper")),
                 codegen.additionalProperties().get("authorList"));
     }
+
+    /* F827 - every operation gets an Options object so each call has a per-call settings slot. */
+    @Test
+    void everyOperationGetsAnOptionsObject() {
+        assertTrue(new BetterJavaCodegen().mintsOptionsForEveryOperation());
+    }
+
+    /** Reaches the protected scheme rendering of the generator. */
+    private static final class SchemeRenderer extends BetterJavaCodegen {
+        String render(String schemeId, SecurityScheme scheme) {
+            return renderSchemeAuthenticator(
+                    java.util.Objects.requireNonNull(buildSchemeAuthSpec(schemeId, scheme)));
+        }
+    }
+
+    private static String renderedScheme(String schemeId, SecurityScheme scheme) {
+        SchemeRenderer codegen = new SchemeRenderer();
+        /* processOpenAPI writes the authenticator files, so keep them out of the repository. */
+        codegen.setOutputDir(
+                java.nio.file.Path.of(System.getProperty("java.io.tmpdir"), "scheme-render-" + schemeId)
+                        .toString());
+        codegen.additionalProperties().put("envVarPrefix", "Acme SDK");
+        codegen.processOpts();
+        codegen.processOpenAPI(
+                new OpenAPI()
+                        .info(new io.swagger.v3.oas.models.info.Info().title("Acme").version("1"))
+                        .components(new Components().addSecuritySchemes(schemeId, scheme)));
+        return codegen.render(schemeId, scheme);
+    }
+
+    /* F862 - a credential passed as null or empty is read from the scheme's variable. */
+    @Test
+    void apiKeyWrapperResolvesItsKeyFromTheEnvironmentVariable() {
+        String source =
+                renderedScheme(
+                        "headerKey",
+                        new SecurityScheme()
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER)
+                                .name("X-Api-Key"));
+
+        assertTrue(source.contains("@Nullable String apiKey"), source);
+        assertTrue(
+                source.contains("resolveCredential(apiKey, \"apiKey\", \"ACME_SDK_API_KEY\", environment)"),
+                source);
+        assertTrue(source.contains("this(host, apiKey, System.getenv())"), source);
+        assertTrue(!source.contains("Supplier"), source);
+    }
+
+    /* F862 - a bearer wrapper resolves its token like any other credential. */
+    @Test
+    void bearerWrapperResolvesItsTokenFromTheEnvironmentVariable() {
+        String source =
+                renderedScheme(
+                        "bearer", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer"));
+
+        assertTrue(
+                source.contains("resolveCredential(token, \"token\", \"ACME_SDK_TOKEN\", environment)"),
+                source);
+        assertTrue(source.contains("@Nullable String token"), source);
+        assertTrue(!source.contains("Supplier"), source);
+    }
+
+    /* F862 - the OAuth wrappers resolve every credential before the base constructor runs. */
+    @Test
+    void oauthWrapperResolvesEveryCredentialBeforeTheSuperConstructor() {
+        io.swagger.v3.oas.models.security.OAuthFlow flow =
+                new io.swagger.v3.oas.models.security.OAuthFlow().tokenUrl("https://auth.example.com/t");
+        String source =
+                renderedScheme(
+                        "machine",
+                        new SecurityScheme()
+                                .type(SecurityScheme.Type.OAUTH2)
+                                .flows(new io.swagger.v3.oas.models.security.OAuthFlows().clientCredentials(flow)));
+
+        assertTrue(source.contains("\"ACME_SDK_CLIENT_ID\""), source);
+        assertTrue(source.contains("\"ACME_SDK_CLIENT_SECRET\""), source);
+        assertTrue(source.contains("resolveCredential(clientId,"), source);
+        assertTrue(source.contains("resolveCredential(clientSecret,"), source);
+    }
 }

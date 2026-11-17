@@ -343,7 +343,8 @@ class PetApiTest {
                 .defaultHeader("Authorization", "Bearer test-token")
                 .build());
 
-    Pet result = externalApi.getExternalPetInfo(1L, new PetApi.GetExternalPetInfoServer.Server0());
+    Pet result =
+        externalApi.getExternalPetInfo(1L, new PetApi.GetExternalPetInfoServer.Server0(), null);
 
     assertNotNull(result);
     assertThat(requestedUrls).hasSize(1);
@@ -938,7 +939,7 @@ class PetApiTest {
     // (2) Selector set to image/png -> Content-Type is image/png, not jpeg.
     CapturingApiClient pngCapture = new CapturingApiClient();
     PetApi pngApi = new PetApi(pngCapture, config);
-    pngApi.setPetAvatar(1L, new ByteArrayInputStream(payload), "image/png");
+    pngApi.setPetAvatar(1L, new ByteArrayInputStream(payload), null, "image/png");
     assertNotNull(pngCapture.capturedHeaders);
     assertThat(pngCapture.capturedHeaders).containsEntry("Content-Type", "image/png");
 
@@ -958,7 +959,7 @@ class PetApiTest {
     CapturingApiClient jsonCapture = new CapturingApiClient();
     PetApi jsonApi = new PetApi(jsonCapture, config);
 
-    jsonApi.setPetAvatar(1L, new ByteArrayInputStream(payload), "application/json");
+    jsonApi.setPetAvatar(1L, new ByteArrayInputStream(payload), null, "application/json");
 
     assertThat(jsonCapture.capturedHeaders).containsEntry("Content-Type", "application/json");
     assertThat(jsonCapture.capturedBody).isInstanceOf(InputStream.class);
@@ -1234,14 +1235,16 @@ class PetApiTest {
         1L,
         new PetApi.GetStagingPetInfoServer.StagingServer(
             PetApi.GetStagingPetInfoServer.Environment.SANDBOX,
-            PetApi.GetStagingPetInfoServer.Version.V3));
+            PetApi.GetStagingPetInfoServer.Version.V3),
+        null);
     assertThat(capturing.capturedUrl).isEqualTo("https://sandbox.example.com/api/v3/pet/1/staging");
 
     petApi.getStagingPetInfo(
         2L,
         new PetApi.GetStagingPetInfoServer.StagingServer(
             PetApi.GetStagingPetInfoServer.Environment.STAGING,
-            PetApi.GetStagingPetInfoServer.Version.V2));
+            PetApi.GetStagingPetInfoServer.Version.V2),
+        null);
     assertThat(capturing.capturedUrl).isEqualTo("https://staging.example.com/api/v2/pet/2/staging");
 
     petApi.getStagingPetInfo(3L);
@@ -1254,12 +1257,13 @@ class PetApiTest {
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
-    petApi.getMultiServerPetInfo(1L, new PetApi.GetMultiServerPetInfoServer.Primary());
+    petApi.getMultiServerPetInfo(1L, new PetApi.GetMultiServerPetInfoServer.Primary(), null);
     assertThat(capturing.capturedUrl).isEqualTo("https://primary.example.com/v1/pet/1/multi");
 
     for (PetApi.GetMultiServerPetInfoServer.RegionalRegion region :
         PetApi.GetMultiServerPetInfoServer.RegionalRegion.values()) {
-      petApi.getMultiServerPetInfo(2L, new PetApi.GetMultiServerPetInfoServer.Regional(region));
+      petApi.getMultiServerPetInfo(
+          2L, new PetApi.GetMultiServerPetInfoServer.Regional(region), null);
       assertThat(capturing.capturedUrl)
           .isEqualTo("https://" + region.getValue() + ".example.com/v1/pet/2/multi");
     }
@@ -1268,7 +1272,8 @@ class PetApiTest {
         3L,
         new PetApi.GetMultiServerPetInfoServer.Mirror(
             PetApi.GetMultiServerPetInfoServer.MirrorRegion.EU,
-            PetApi.GetMultiServerPetInfoServer.Channel.A_B));
+            PetApi.GetMultiServerPetInfoServer.Channel.A_B),
+        null);
     assertThat(capturing.capturedUrl).isEqualTo("https://eu.mirror.example.com/a&b/v1/pet/3/multi");
     assertThat(PetApi.GetMultiServerPetInfoServer.Channel.IT_S.getValue()).isEqualTo("it's");
   }
@@ -1323,7 +1328,7 @@ class PetApiTest {
     assertThatThrownBy(
             () ->
                 petApi.setPetAvatar(
-                    1L, new ByteArrayInputStream(new byte[] {1}), "application/unknown-type"))
+                    1L, new ByteArrayInputStream(new byte[] {1}), null, "application/unknown-type"))
         .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessage(
             "Unsupported request content-type 'application/unknown-type' for"

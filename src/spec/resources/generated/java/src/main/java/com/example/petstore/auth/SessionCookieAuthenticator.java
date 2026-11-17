@@ -9,8 +9,14 @@
 package com.example.petstore.auth;
 
 import java.util.Map;
+import javax.annotation.Nullable;
 
-/** Authenticator for the {@code sessionCookie} security scheme. */
+/**
+ * Authenticator for the {@code sessionCookie} security scheme.
+ *
+ * <p>A credential that is {@code null} or empty is read once, when the authenticator is built, from
+ * its environment variable. A credential found nowhere raises an {@link IllegalArgumentException}.
+ */
 public final class SessionCookieAuthenticator extends BaseAuthenticator {
   private final ApiKeyAuthenticator delegate;
 
@@ -18,10 +24,26 @@ public final class SessionCookieAuthenticator extends BaseAuthenticator {
    * Creates an authenticator for the {@code sessionCookie} security scheme.
    *
    * @param host the host credential
-   * @param apiKey the apiKey credential
+   * @param apiKey the apiKey credential; when {@code null} or empty it is read from the {@code
+   *     SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY} environment variable
    */
-  public SessionCookieAuthenticator(String host, String apiKey) {
-    this.delegate = new ApiKeyAuthenticator(host, "SESSION_ID", apiKey, ApiKeyLocation.COOKIE);
+  public SessionCookieAuthenticator(String host, @Nullable String apiKey) {
+    this(host, apiKey, System.getenv());
+  }
+
+  /* Package-private so a test can supply the environment instead of the process one. */
+  SessionCookieAuthenticator(
+      String host, @Nullable String apiKey, Map<String, String> environment) {
+    this.delegate =
+        new ApiKeyAuthenticator(
+            host,
+            "SESSION_ID",
+            resolveCredential(
+                apiKey,
+                "apiKey",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY",
+                environment),
+            ApiKeyLocation.COOKIE);
   }
 
   @Override
@@ -54,5 +76,25 @@ public final class SessionCookieAuthenticator extends BaseAuthenticator {
   public String toString() {
     String repr = delegate.toString();
     return getClass().getSimpleName() + repr.substring(repr.indexOf('('));
+  }
+
+  /* A credential comes from the caller first, then from its environment variable; an empty
+   * value counts as unset, and a credential found nowhere is refused. */
+  private static String resolveCredential(
+      @Nullable String explicit, String field, String envName, Map<String, String> environment) {
+    if (explicit != null && !explicit.isEmpty()) {
+      return explicit;
+    }
+    String fromEnvironment = environment.get(envName);
+    if (fromEnvironment != null && !fromEnvironment.isEmpty()) {
+      return fromEnvironment;
+    }
+    throw new IllegalArgumentException(
+        "The '"
+            + field
+            + "' credential of the 'sessionCookie' security scheme is required: "
+            + "pass it or set the "
+            + envName
+            + " environment variable");
   }
 }

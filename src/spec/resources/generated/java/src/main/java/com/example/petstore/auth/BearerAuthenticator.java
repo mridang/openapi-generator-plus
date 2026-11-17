@@ -10,20 +10,74 @@ package com.example.petstore.auth;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
-/** Authenticator for HTTP Bearer token authentication. */
+/**
+ * Authenticator for HTTP Bearer token authentication.
+ *
+ * <p>The token is either fixed or handed out by a callback that runs before every request, so a
+ * rotating or short-lived token never needs a new client.
+ */
 public final class BearerAuthenticator extends BaseAuthenticator {
 
   private final String host;
-  private final String token;
+  @Nullable private final String token;
+  @Nullable private final Supplier<String> tokenProvider;
 
   /**
    * Creates an HTTP Bearer token authenticator.
    *
    * @param host the base URL of the API
    * @param token the bearer token
+   * @throws IllegalArgumentException if the token is empty or holds a character that is not
+   *     printable ASCII
    */
   public BearerAuthenticator(String host, String token) {
+    this(host, token, null);
+  }
+
+  /**
+   * Creates an HTTP Bearer token authenticator whose token comes from a callback.
+   *
+   * <p>The callback runs before every request and returns the current token; each token it returns
+   * is validated like a fixed one when the request is made.
+   *
+   * @param host the base URL of the API
+   * @param tokenProvider returns the current bearer token
+   */
+  public BearerAuthenticator(String host, Supplier<String> tokenProvider) {
+    this(host, null, tokenProvider);
+  }
+
+  /**
+   * Creates an HTTP Bearer token authenticator from a fixed token or a token callback.
+   *
+   * <p>Pass exactly one of {@code token} and {@code tokenProvider}. The callback runs before every
+   * request and returns the current token; each token it returns is validated like a fixed one when
+   * the request is made.
+   *
+   * @param host the base URL of the API
+   * @param token the bearer token, or {@code null} when {@code tokenProvider} is given
+   * @param tokenProvider returns the current bearer token, or {@code null} when {@code token} is
+   *     given
+   * @throws IllegalArgumentException if both or neither is given, or if the fixed token is empty or
+   *     holds a character that is not printable ASCII
+   */
+  public BearerAuthenticator(
+      String host, @Nullable String token, @Nullable Supplier<String> tokenProvider) {
+    if (token != null && tokenProvider != null) {
+      throw new IllegalArgumentException("Pass either token or tokenProvider, not both");
+    }
+    if (tokenProvider == null) {
+      validate(token);
+    }
+    this.host = host;
+    this.token = token;
+    this.tokenProvider = tokenProvider;
+  }
+
+  private static void validate(@Nullable String token) {
     if (token == null || isAsciiBlank(token)) {
       throw new IllegalArgumentException("Bearer token must not be empty");
     }
@@ -34,8 +88,6 @@ public final class BearerAuthenticator extends BaseAuthenticator {
             "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
       }
     }
-    this.host = host;
-    this.token = token;
   }
 
   /* Blank means empty or only ASCII whitespace (SP, HT, LF, VT, FF, CR). */
@@ -56,10 +108,15 @@ public final class BearerAuthenticator extends BaseAuthenticator {
 
   @Override
   public Map<String, String> getAuthHeaders() {
+    String current = token;
+    if (tokenProvider != null) {
+      current = tokenProvider.get();
+      validate(current);
+    }
     /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
      * from env files are commonly stored already-prefixed; emitting
      * "Bearer Bearer xyz" would otherwise silently break auth. */
-    String value = token;
+    String value = java.util.Objects.requireNonNull(current);
     if (value.length() >= 7) {
       String head = value.substring(0, 7);
       if ("bearer ".equalsIgnoreCase(head)) {

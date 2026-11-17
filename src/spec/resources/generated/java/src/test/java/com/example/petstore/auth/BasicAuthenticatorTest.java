@@ -103,4 +103,76 @@ class BasicAuthenticatorTest {
     assertEquals(
         "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", repr);
   }
+
+  private static final String USERNAME_VARIABLE =
+      "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME";
+  private static final String SECRET_VARIABLE =
+      "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD";
+
+  @Test
+  void schemeWrapperReadsBothCredentialsFromItsEnvironmentVariables() {
+    AdminBasicAuthenticator auth =
+        new AdminBasicAuthenticator(
+            "https://api.example.com",
+            null,
+            null,
+            Map.of(USERNAME_VARIABLE, "alice", SECRET_VARIABLE, "from-env"));
+    assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void schemeWrapperMixesPassedAndEnvironmentCredentialsPerField() {
+    AdminBasicAuthenticator auth =
+        new AdminBasicAuthenticator(
+            "https://api.example.com", "alice", null, Map.of(SECRET_VARIABLE, "from-env"));
+    assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void schemeWrapperPrefersWhatYouPassToTheEnvironment() {
+    AdminBasicAuthenticator auth =
+        new AdminBasicAuthenticator(
+            "https://api.example.com",
+            "alice",
+            "from-env",
+            Map.of(USERNAME_VARIABLE, "mallory", SECRET_VARIABLE, "ignored"));
+    assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void schemeWrapperTreatsEmptyValuesAsNotPassedAndNotSet() {
+    AdminBasicAuthenticator fromEnvironment =
+        new AdminBasicAuthenticator(
+            "https://api.example.com",
+            "",
+            "",
+            Map.of(USERNAME_VARIABLE, "alice", SECRET_VARIABLE, "from-env"));
+    assertEquals(
+        "Basic YWxpY2U6ZnJvbS1lbnY=", fromEnvironment.getAuthHeaders().get("Authorization"));
+
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new AdminBasicAuthenticator(
+                    "https://api.example.com", "alice", null, Map.of(SECRET_VARIABLE, "")));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage()).contains(SECRET_VARIABLE),
+        ex.getMessage());
+  }
+
+  @Test
+  void schemeWrapperWithAMissingCredentialNamesItsVariable() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new AdminBasicAuthenticator("https://api.example.com", null, "from-env", Map.of()));
+    assertEquals(
+        "The 'username' credential of the 'adminBasic' security scheme is required: "
+            + "pass it or set the "
+            + USERNAME_VARIABLE
+            + " environment variable",
+        ex.getMessage());
+  }
 }

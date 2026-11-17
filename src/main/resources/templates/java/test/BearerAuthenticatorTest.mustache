@@ -147,4 +147,103 @@ class BearerAuthenticatorTest {
         assertTrue(repr.contains("***"));
         assertEquals("BearerAuthenticator(host=https://api.example.com, token=***)", repr);
     }
+
+    private static final String HOST = "https://api.example.com";
+    private static final String TOKEN_VARIABLE = "{{envVarPrefix}}_PET_STORE_BEARER_TOKEN";
+
+    @Test
+    void tokenProviderIsCalledForEveryRequest() {
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        BearerAuthenticator auth =
+                new BearerAuthenticator(HOST, null, () -> "rotating-" + calls.incrementAndGet());
+
+        assertEquals("Bearer rotating-1", auth.getAuthHeaders().get("Authorization"));
+        assertEquals("Bearer rotating-2", auth.getAuthHeaders().get("Authorization"));
+        assertEquals(HOST, auth.getHost());
+        assertEquals("BearerAuthenticator(host=" + HOST + ", token=***)", auth.toString());
+    }
+
+    @Test
+    void tokenProviderResultIsValidatedAtRequestTime() {
+        BearerAuthenticator blank = new BearerAuthenticator(HOST, null, () -> "  ");
+        IllegalArgumentException empty =
+                assertThrows(IllegalArgumentException.class, blank::getAuthHeaders);
+        assertEquals("Bearer token must not be empty", empty.getMessage());
+
+        BearerAuthenticator control = new BearerAuthenticator(HOST, null, () -> "abc\ndef");
+        assertThrows(IllegalArgumentException.class, control::getAuthHeaders);
+    }
+
+    @Test
+    void tokenProviderResultKeepsTheBearerPrefixRule() {
+        BearerAuthenticator auth = new BearerAuthenticator(HOST, () -> "Bearer xyz");
+        assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void tokenAndTokenProviderTogetherAreRefused() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                new BearerAuthenticator(HOST, "xyz", () -> "other"));
+        assertEquals("Pass either token or tokenProvider, not both", ex.getMessage());
+    }
+
+    @Test
+    void neitherATokenNorATokenProviderIsRefused() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                new BearerAuthenticator(HOST, null, null));
+        assertEquals("Bearer token must not be empty", ex.getMessage());
+    }
+
+    @Test
+    void schemeWrapperReadsTheTokenFromItsEnvironmentVariable() {
+        PetStoreBearerAuthenticator auth =
+                new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "env-token"));
+        assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void schemeWrapperPrefersTheTokenYouPassToTheEnvironment() {
+        PetStoreBearerAuthenticator auth =
+                new PetStoreBearerAuthenticator(HOST, "explicit", Map.of(TOKEN_VARIABLE, "env-token"));
+        assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void schemeWrapperTreatsAnEmptyTokenAsNotPassed() {
+        PetStoreBearerAuthenticator auth =
+                new PetStoreBearerAuthenticator(HOST, "", Map.of(TOKEN_VARIABLE, "env-token"));
+        assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void schemeWrapperTreatsAnEmptyEnvironmentVariableAsNotSet() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "")));
+        assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(TOKEN_VARIABLE), ex.getMessage());
+    }
+
+    @Test
+    void schemeWrapperWithNoTokenAndNoVariableNamesTheVariable() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                new PetStoreBearerAuthenticator(HOST, null, Map.of()));
+        assertEquals(
+                "The 'token' credential of the 'petStoreBearer' security scheme is required: "
+                        + "pass it or set the " + TOKEN_VARIABLE + " environment variable",
+                ex.getMessage());
+    }
+
+    @Test
+    void schemeWrapperReadsOnlyItsOwnVariable() {
+        Map<String, String> environment = Map.of("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN", "service-token");
+        assertThrows(IllegalArgumentException.class, () ->
+                new PetStoreBearerAuthenticator(HOST, null, environment));
+        ServiceTokenAuthenticator service = new ServiceTokenAuthenticator(HOST, null, environment);
+        assertEquals("Bearer service-token", service.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void schemeWrapperValidatesAnEnvironmentToken() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "bad\ntoken")));
+    }
 }

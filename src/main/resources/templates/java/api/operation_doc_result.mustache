@@ -25,7 +25,9 @@
      * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
 {{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
      * @param options options carrying an optional per-call authenticator
-{{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.optionsMinted}}
+     * @param options options carrying the per-call timeout, retry count and headers
+{{/vendorExtensions.op.optionsMinted}}{{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
      * @param server the server to send the request to, or {@code null} for the default
 {{/-first}}{{/servers}}

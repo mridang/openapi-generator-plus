@@ -15,11 +15,24 @@ import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.AddPetTreatmentOptions;
 import com.example.petstore.api.options.DeletePetOptions;
+import com.example.petstore.api.options.DownloadPetDocumentOptions;
+import com.example.petstore.api.options.FindPetsBornOnOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.api.options.GetExternalPetInfoOptions;
+import com.example.petstore.api.options.GetMultiServerPetInfoOptions;
+import com.example.petstore.api.options.GetPetAvatarOptions;
+import com.example.petstore.api.options.GetPetAvatarThumbnailOptions;
+import com.example.petstore.api.options.GetPetByIdOptions;
 import com.example.petstore.api.options.GetPetByNameOptions;
+import com.example.petstore.api.options.GetPetPassportOptions;
+import com.example.petstore.api.options.GetPetPhotoOptions;
 import com.example.petstore.api.options.GetPetSummaryOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
+import com.example.petstore.api.options.GetStagingPetInfoOptions;
+import com.example.petstore.api.options.SetPetAvatarOptions;
+import com.example.petstore.api.options.SetPetAvatarThumbnailOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
+import com.example.petstore.api.options.UpdatePetOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
 import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.auth.Authenticator;
@@ -377,8 +390,8 @@ public class PetApi extends BaseApi {
    * Add a new pet to the store
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and per-call authenticator default to unset and the client's configured credentials
-   * are used.
+   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
+   * unset, so the client's configured settings apply.
    *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
@@ -391,8 +404,8 @@ public class PetApi extends BaseApi {
    * Add a new pet to the store
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and per-call authenticator default to unset and the client's configured credentials
-   * are used.
+   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
+   * unset, so the client's configured settings apply.
    *
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
@@ -530,8 +543,8 @@ public class PetApi extends BaseApi {
    * Record a treatment for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and per-call authenticator default to unset and the client's configured credentials
-   * are used.
+   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
+   * unset, so the client's configured settings apply.
    *
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
@@ -544,8 +557,8 @@ public class PetApi extends BaseApi {
    * Record a treatment for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and per-call authenticator default to unset and the client's configured credentials
-   * are used.
+   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
+   * unset, so the client's configured settings apply.
    *
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
@@ -630,8 +643,8 @@ public class PetApi extends BaseApi {
    * Deletes a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and per-call authenticator default to unset and the client's configured credentials
-   * are used.
+   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
+   * unset, so the client's configured settings apply.
    *
    * @throws ApiException if fails to make API call
    */
@@ -643,8 +656,8 @@ public class PetApi extends BaseApi {
    * Deletes a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and per-call authenticator default to unset and the client's configured credentials
-   * are used.
+   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
+   * unset, so the client's configured settings apply.
    *
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
@@ -741,16 +754,31 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Download a vet document Returns the raw document bytes as an octet-stream. The original MIME
-   * type is communicated via the Content-Type response header.
+   * Download a vet document
    *
-   * @param petId (required)
-   * @param documentId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
   public InputStream downloadPetDocument(Long petId, Long documentId) {
-    return requireBody(downloadPetDocumentWithHttpInfo(petId, documentId), "downloadPetDocument");
+    return downloadPetDocument(petId, documentId, null);
+  }
+
+  /**
+   * Download a vet document
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
+    return downloadPetDocumentWithHttpInfo(petId, documentId, null);
   }
 
   /**
@@ -759,10 +787,28 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param documentId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   */
+  public InputStream downloadPetDocument(
+      Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options) {
+    return requireBody(
+        downloadPetDocumentWithHttpInfo(petId, documentId, options), "downloadPetDocument");
+  }
+
+  /**
+   * Download a vet document Returns the raw document bytes as an octet-stream. The original MIME
+   * type is communicated via the Content-Type response header.
+   *
+   * @param petId (required)
+   * @param documentId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
+  public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(
+      Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.downloadPetDocument");
@@ -785,6 +831,12 @@ public class PetApi extends BaseApi {
                         "documentId", documentId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "downloadPetDocument",
         "GET",
@@ -796,30 +848,61 @@ public class PetApi extends BaseApi {
         "application/json",
         downloadPetDocumentTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
    * List pets born on a given date
    *
-   * @param bornOn Date of birth to match (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
    */
   public List<Pet> findPetsBornOn(LocalDate bornOn) {
-    return requireBody(findPetsBornOnWithHttpInfo(bornOn), "findPetsBornOn");
+    return findPetsBornOn(bornOn, null);
+  }
+
+  /**
+   * List pets born on a given date
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(LocalDate bornOn) {
+    return findPetsBornOnWithHttpInfo(bornOn, null);
   }
 
   /**
    * List pets born on a given date
    *
    * @param bornOn Date of birth to match (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Pet> findPetsBornOn(LocalDate bornOn, @Nullable FindPetsBornOnOptions options) {
+    return requireBody(findPetsBornOnWithHttpInfo(bornOn, options), "findPetsBornOn");
+  }
+
+  /**
+   * List pets born on a given date
+   *
+   * @param bornOn Date of birth to match (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(LocalDate bornOn) {
+  public ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(
+      LocalDate bornOn, @Nullable FindPetsBornOnOptions options) {
     if (bornOn == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'bornOn' when calling PetApi.findPetsBornOn");
@@ -833,6 +916,12 @@ public class PetApi extends BaseApi {
                         "bornOn", bornOn, "path", "LocalDate", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "findPetsBornOn",
         "GET",
@@ -844,8 +933,8 @@ public class PetApi extends BaseApi {
         "application/json",
         findPetsBornOnTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -853,7 +942,8 @@ public class PetApi extends BaseApi {
    * Finds Pets by status
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
@@ -867,7 +957,8 @@ public class PetApi extends BaseApi {
    * Finds Pets by status
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
@@ -972,6 +1063,34 @@ public class PetApi extends BaseApi {
    * Get external pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoOptions options) {
+    return getExternalPetInfo(petId, null, options);
+  }
+
+  /**
+   * Get external pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Pet> getExternalPetInfoWithHttpInfo(
+      Long petId, @Nullable GetExternalPetInfoOptions options) {
+    return getExternalPetInfoWithHttpInfo(petId, null, options);
+  }
+
+  /**
+   * Get external pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -982,7 +1101,10 @@ public class PetApi extends BaseApi {
   /**
    * Get external pet info
    *
-   * @param petId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -994,24 +1116,32 @@ public class PetApi extends BaseApi {
    * Get external pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) {
-    return requireBody(getExternalPetInfoWithHttpInfo(petId, server), "getExternalPetInfo");
+  public Pet getExternalPetInfo(
+      Long petId,
+      @Nullable GetExternalPetInfoServer server,
+      @Nullable GetExternalPetInfoOptions options) {
+    return requireBody(
+        getExternalPetInfoWithHttpInfo(petId, server, options), "getExternalPetInfo");
   }
 
   /**
    * Get external pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Pet> getExternalPetInfoWithHttpInfo(
-      Long petId, @Nullable GetExternalPetInfoServer server) {
+      Long petId,
+      @Nullable GetExternalPetInfoServer server,
+      @Nullable GetExternalPetInfoOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getExternalPetInfo");
@@ -1031,6 +1161,12 @@ public class PetApi extends BaseApi {
     }
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getExternalPetInfo",
         "GET",
@@ -1042,8 +1178,8 @@ public class PetApi extends BaseApi {
         "application/json",
         getExternalPetInfoTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -1051,6 +1187,34 @@ public class PetApi extends BaseApi {
    * Get multi-server pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public Pet getMultiServerPetInfo(Long petId, @Nullable GetMultiServerPetInfoOptions options) {
+    return getMultiServerPetInfo(petId, null, options);
+  }
+
+  /**
+   * Get multi-server pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
+      Long petId, @Nullable GetMultiServerPetInfoOptions options) {
+    return getMultiServerPetInfoWithHttpInfo(petId, null, options);
+  }
+
+  /**
+   * Get multi-server pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1061,7 +1225,10 @@ public class PetApi extends BaseApi {
   /**
    * Get multi-server pet info
    *
-   * @param petId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1073,24 +1240,32 @@ public class PetApi extends BaseApi {
    * Get multi-server pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getMultiServerPetInfo(Long petId, @Nullable GetMultiServerPetInfoServer server) {
-    return requireBody(getMultiServerPetInfoWithHttpInfo(petId, server), "getMultiServerPetInfo");
+  public Pet getMultiServerPetInfo(
+      Long petId,
+      @Nullable GetMultiServerPetInfoServer server,
+      @Nullable GetMultiServerPetInfoOptions options) {
+    return requireBody(
+        getMultiServerPetInfoWithHttpInfo(petId, server, options), "getMultiServerPetInfo");
   }
 
   /**
    * Get multi-server pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
-      Long petId, @Nullable GetMultiServerPetInfoServer server) {
+      Long petId,
+      @Nullable GetMultiServerPetInfoServer server,
+      @Nullable GetMultiServerPetInfoOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getMultiServerPetInfo");
@@ -1110,6 +1285,12 @@ public class PetApi extends BaseApi {
     }
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getMultiServerPetInfo",
         "GET",
@@ -1121,30 +1302,61 @@ public class PetApi extends BaseApi {
         "application/json",
         getMultiServerPetInfoTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
-   * Get the pet's profile photo Returns the raw image bytes of the pet's current avatar.
+   * Get the pet's profile photo
    *
-   * @param petId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
   public InputStream getPetAvatar(Long petId) {
-    return requireBody(getPetAvatarWithHttpInfo(petId), "getPetAvatar");
+    return getPetAvatar(petId, null);
+  }
+
+  /**
+   * Get the pet's profile photo
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
+    return getPetAvatarWithHttpInfo(petId, null);
   }
 
   /**
    * Get the pet's profile photo Returns the raw image bytes of the pet's current avatar.
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   */
+  public InputStream getPetAvatar(Long petId, @Nullable GetPetAvatarOptions options) {
+    return requireBody(getPetAvatarWithHttpInfo(petId, options), "getPetAvatar");
+  }
+
+  /**
+   * Get the pet's profile photo Returns the raw image bytes of the pet's current avatar.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
+  public ApiResult<InputStream> getPetAvatarWithHttpInfo(
+      Long petId, @Nullable GetPetAvatarOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getPetAvatar");
@@ -1158,6 +1370,12 @@ public class PetApi extends BaseApi {
                         "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getPetAvatar",
         "GET",
@@ -1169,21 +1387,37 @@ public class PetApi extends BaseApi {
         "application/json",
         getPetAvatarTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
-   * Get the pet's avatar thumbnail as base64 Returns a compact base64-encoded thumbnail suitable
-   * for embedding directly in mobile UI without a separate image request.
+   * Get the pet's avatar thumbnail as base64
    *
-   * @param petId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code byte[]}
    * @throws ApiException if fails to make API call
    */
   public byte[] getPetAvatarThumbnail(Long petId) {
-    return requireBody(getPetAvatarThumbnailWithHttpInfo(petId), "getPetAvatarThumbnail");
+    return getPetAvatarThumbnail(petId, null);
+  }
+
+  /**
+   * Get the pet's avatar thumbnail as base64
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code byte[]}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) {
+    return getPetAvatarThumbnailWithHttpInfo(petId, null);
   }
 
   /**
@@ -1191,10 +1425,25 @@ public class PetApi extends BaseApi {
    * for embedding directly in mobile UI without a separate image request.
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code byte[]}
+   * @throws ApiException if fails to make API call
+   */
+  public byte[] getPetAvatarThumbnail(Long petId, @Nullable GetPetAvatarThumbnailOptions options) {
+    return requireBody(getPetAvatarThumbnailWithHttpInfo(petId, options), "getPetAvatarThumbnail");
+  }
+
+  /**
+   * Get the pet's avatar thumbnail as base64 Returns a compact base64-encoded thumbnail suitable
+   * for embedding directly in mobile UI without a separate image request.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code byte[]}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) {
+  public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(
+      Long petId, @Nullable GetPetAvatarThumbnailOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getPetAvatarThumbnail");
@@ -1208,6 +1457,12 @@ public class PetApi extends BaseApi {
                         "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getPetAvatarThumbnail",
         "GET",
@@ -1219,8 +1474,8 @@ public class PetApi extends BaseApi {
         "application/json",
         getPetAvatarThumbnailTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -1229,13 +1484,14 @@ public class PetApi extends BaseApi {
    *
    * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
    *     breed ID: {@code 42}
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated.
    */
   @Deprecated
-  public Pet getPetById(Long petId) {
-    return getPetById(petId, null);
+  public Pet getPetById(Long petId, @Nullable GetPetByIdOptions options) {
+    return getPetById(petId, null, options);
   }
 
   /**
@@ -1243,9 +1499,40 @@ public class PetApi extends BaseApi {
    *
    * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
    *     breed ID: {@code 42}
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated.
+   */
+  @Deprecated
+  public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdOptions options) {
+    return getPetByIdWithHttpInfo(petId, null, options);
+  }
+
+  /**
+   * Find pet by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  @Deprecated
+  public Pet getPetById(Long petId) {
+    return getPetById(petId, null);
+  }
+
+  /**
+   * Find pet by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
    */
   @Deprecated
   public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId) {
@@ -1257,14 +1544,16 @@ public class PetApi extends BaseApi {
    *
    * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
    *     breed ID: {@code 42}
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated.
    */
   @Deprecated
-  public Pet getPetById(Long petId, @Nullable GetPetByIdServer server) {
-    return requireBody(getPetByIdWithHttpInfo(petId, server), "getPetById");
+  public Pet getPetById(
+      Long petId, @Nullable GetPetByIdServer server, @Nullable GetPetByIdOptions options) {
+    return requireBody(getPetByIdWithHttpInfo(petId, server, options), "getPetById");
   }
 
   /**
@@ -1272,13 +1561,15 @@ public class PetApi extends BaseApi {
    *
    * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
    *     breed ID: {@code 42}
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated.
    */
   @Deprecated
-  public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdServer server) {
+  public ApiResult<Pet> getPetByIdWithHttpInfo(
+      Long petId, @Nullable GetPetByIdServer server, @Nullable GetPetByIdOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getPetById");
@@ -1298,6 +1589,12 @@ public class PetApi extends BaseApi {
     }
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getPetById",
         "GET",
@@ -1309,8 +1606,8 @@ public class PetApi extends BaseApi {
         "application/json",
         getPetByIdTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -1404,16 +1701,31 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Get the pet's passport Returns a single JSON document combining the pet's profile with an
-   * embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile
-   * clients that prefer a single-request workflow.
+   * Get the pet's passport
    *
-   * @param petId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code PetPassport}
    * @throws ApiException if fails to make API call
    */
   public PetPassport getPetPassport(Long petId) {
-    return requireBody(getPetPassportWithHttpInfo(petId), "getPetPassport");
+    return getPetPassport(petId, null);
+  }
+
+  /**
+   * Get the pet's passport
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetPassport}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) {
+    return getPetPassportWithHttpInfo(petId, null);
   }
 
   /**
@@ -1422,10 +1734,26 @@ public class PetApi extends BaseApi {
    * clients that prefer a single-request workflow.
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code PetPassport}
+   * @throws ApiException if fails to make API call
+   */
+  public PetPassport getPetPassport(Long petId, @Nullable GetPetPassportOptions options) {
+    return requireBody(getPetPassportWithHttpInfo(petId, options), "getPetPassport");
+  }
+
+  /**
+   * Get the pet's passport Returns a single JSON document combining the pet's profile with an
+   * embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile
+   * clients that prefer a single-request workflow.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code PetPassport}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) {
+  public ApiResult<PetPassport> getPetPassportWithHttpInfo(
+      Long petId, @Nullable GetPetPassportOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getPetPassport");
@@ -1439,6 +1767,12 @@ public class PetApi extends BaseApi {
                         "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getPetPassport",
         "GET",
@@ -1450,22 +1784,37 @@ public class PetApi extends BaseApi {
         "application/json",
         getPetPassportTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
-   * Get a photo or its metadata Returns the raw image bytes or JSON metadata depending on the
-   * Accept header sent by the client.
+   * Get a photo or its metadata
    *
-   * @param petId (required)
-   * @param photoId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
   public InputStream getPetPhoto(Long petId, Long photoId) {
-    return requireBody(getPetPhotoWithHttpInfo(petId, photoId), "getPetPhoto");
+    return getPetPhoto(petId, photoId, null);
+  }
+
+  /**
+   * Get a photo or its metadata
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
+    return getPetPhotoWithHttpInfo(petId, photoId, null);
   }
 
   /**
@@ -1474,10 +1823,26 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param photoId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   */
+  public InputStream getPetPhoto(Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
+    return requireBody(getPetPhotoWithHttpInfo(petId, photoId, options), "getPetPhoto");
+  }
+
+  /**
+   * Get a photo or its metadata Returns the raw image bytes or JSON metadata depending on the
+   * Accept header sent by the client.
+   *
+   * @param petId (required)
+   * @param photoId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
+  public ApiResult<InputStream> getPetPhotoWithHttpInfo(
+      Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getPetPhoto");
@@ -1500,6 +1865,12 @@ public class PetApi extends BaseApi {
                         "photoId", photoId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getPetPhoto",
         "GET",
@@ -1511,8 +1882,8 @@ public class PetApi extends BaseApi {
         "application/json",
         getPetPhotoTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -1629,7 +2000,8 @@ public class PetApi extends BaseApi {
    * Get a tag for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
@@ -1642,7 +2014,8 @@ public class PetApi extends BaseApi {
    * Get a tag for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters default to unset and the client's configured credentials are used.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
@@ -1809,6 +2182,34 @@ public class PetApi extends BaseApi {
    * Get staging pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public Pet getStagingPetInfo(Long petId, @Nullable GetStagingPetInfoOptions options) {
+    return getStagingPetInfo(petId, null, options);
+  }
+
+  /**
+   * Get staging pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Pet> getStagingPetInfoWithHttpInfo(
+      Long petId, @Nullable GetStagingPetInfoOptions options) {
+    return getStagingPetInfoWithHttpInfo(petId, null, options);
+  }
+
+  /**
+   * Get staging pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1819,7 +2220,10 @@ public class PetApi extends BaseApi {
   /**
    * Get staging pet info
    *
-   * @param petId (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1831,24 +2235,31 @@ public class PetApi extends BaseApi {
    * Get staging pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getStagingPetInfo(Long petId, @Nullable GetStagingPetInfoServer server) {
-    return requireBody(getStagingPetInfoWithHttpInfo(petId, server), "getStagingPetInfo");
+  public Pet getStagingPetInfo(
+      Long petId,
+      @Nullable GetStagingPetInfoServer server,
+      @Nullable GetStagingPetInfoOptions options) {
+    return requireBody(getStagingPetInfoWithHttpInfo(petId, server, options), "getStagingPetInfo");
   }
 
   /**
    * Get staging pet info
    *
    * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Pet> getStagingPetInfoWithHttpInfo(
-      Long petId, @Nullable GetStagingPetInfoServer server) {
+      Long petId,
+      @Nullable GetStagingPetInfoServer server,
+      @Nullable GetStagingPetInfoOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getStagingPetInfo");
@@ -1868,6 +2279,12 @@ public class PetApi extends BaseApi {
     }
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getStagingPetInfo",
         "GET",
@@ -1879,9 +2296,36 @@ public class PetApi extends BaseApi {
         "application/json",
         getStagingPetInfoTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
+  }
+
+  /**
+   * Set the pet's profile photo
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @throws ApiException if fails to make API call
+   */
+  public void setPetAvatar(Long petId, InputStream body) {
+    setPetAvatar(petId, body, null);
+  }
+
+  /**
+   * Set the pet's profile photo
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
+    return setPetAvatarWithHttpInfo(petId, body, null);
   }
 
   /**
@@ -1890,10 +2334,11 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param body (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @throws ApiException if fails to make API call
    */
-  public void setPetAvatar(Long petId, InputStream body) {
-    setPetAvatarWithHttpInfo(petId, body);
+  public void setPetAvatar(Long petId, InputStream body, @Nullable SetPetAvatarOptions options) {
+    setPetAvatarWithHttpInfo(petId, body, options);
   }
 
   /**
@@ -1907,8 +2352,12 @@ public class PetApi extends BaseApi {
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @throws ApiException if fails to make API call
    */
-  public void setPetAvatar(Long petId, InputStream body, @Nullable String requestContentType) {
-    setPetAvatarWithHttpInfo(petId, body, requestContentType);
+  public void setPetAvatar(
+      Long petId,
+      InputStream body,
+      @Nullable SetPetAvatarOptions options,
+      @Nullable String requestContentType) {
+    setPetAvatarWithHttpInfo(petId, body, options, requestContentType);
   }
 
   /**
@@ -1924,8 +2373,11 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Void> setPetAvatarWithHttpInfo(
-      Long petId, InputStream body, @Nullable String requestContentType) {
-    return setPetAvatarInternal(petId, body, requestContentType);
+      Long petId,
+      InputStream body,
+      @Nullable SetPetAvatarOptions options,
+      @Nullable String requestContentType) {
+    return setPetAvatarInternal(petId, body, options, requestContentType);
   }
 
   /**
@@ -1934,15 +2386,20 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param body (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
-    return setPetAvatarInternal(petId, body, null);
+  public ApiResult<Void> setPetAvatarWithHttpInfo(
+      Long petId, InputStream body, @Nullable SetPetAvatarOptions options) {
+    return setPetAvatarInternal(petId, body, options, null);
   }
 
   private ApiResult<Void> setPetAvatarInternal(
-      Long petId, InputStream body, @Nullable String requestContentType) {
+      Long petId,
+      InputStream body,
+      @Nullable SetPetAvatarOptions options,
+      @Nullable String requestContentType) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.setPetAvatar");
@@ -1979,6 +2436,12 @@ public class PetApi extends BaseApi {
       }
       effectiveRequestContentType = requestContentType;
     }
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "setPetAvatar",
         "PUT",
@@ -1990,35 +2453,70 @@ public class PetApi extends BaseApi {
         effectiveRequestContentType,
         null,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
   /**
-   * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
-   * array of candidates; the server selects the most suitable one.
+   * Set the pet's avatar thumbnail as base64
    *
-   * @param petId (required)
-   * @param setPetAvatarThumbnailRequest (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @throws ApiException if fails to make API call
    */
   public void setPetAvatarThumbnail(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
-    setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest);
+    setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest, null);
   }
 
   /**
-   * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
-   * array of candidates; the server selects the most suitable one.
+   * Set the pet's avatar thumbnail as base64
    *
-   * @param petId (required)
-   * @param setPetAvatarThumbnailRequest (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
+    return setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest, null);
+  }
+
+  /**
+   * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
+   * array of candidates; the server selects the most suitable one.
+   *
+   * @param petId (required)
+   * @param setPetAvatarThumbnailRequest (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  public void setPetAvatarThumbnail(
+      Long petId,
+      SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+      @Nullable SetPetAvatarThumbnailOptions options) {
+    setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest, options);
+  }
+
+  /**
+   * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
+   * array of candidates; the server selects the most suitable one.
+   *
+   * @param petId (required)
+   * @param setPetAvatarThumbnailRequest (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
+      Long petId,
+      SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+      @Nullable SetPetAvatarThumbnailOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.setPetAvatarThumbnail");
@@ -2037,6 +2535,12 @@ public class PetApi extends BaseApi {
                         "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "setPetAvatarThumbnail",
         "PUT",
@@ -2048,8 +2552,8 @@ public class PetApi extends BaseApi {
         "application/json",
         null,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -2138,13 +2642,29 @@ public class PetApi extends BaseApi {
   /**
    * Update an existing pet
    *
-   * @param petId ID of pet to update (required)
-   * @param pet Pet object that needs to be updated (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
   public Pet updatePet(Long petId, Pet pet) {
-    return requireBody(updatePetWithHttpInfo(petId, pet), "updatePet");
+    return updatePet(petId, pet, null);
+  }
+
+  /**
+   * Update an existing pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) {
+    return updatePetWithHttpInfo(petId, pet, null);
   }
 
   /**
@@ -2152,10 +2672,25 @@ public class PetApi extends BaseApi {
    *
    * @param petId ID of pet to update (required)
    * @param pet Pet object that needs to be updated (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public Pet updatePet(Long petId, Pet pet, @Nullable UpdatePetOptions options) {
+    return requireBody(updatePetWithHttpInfo(petId, pet, options), "updatePet");
+  }
+
+  /**
+   * Update an existing pet
+   *
+   * @param petId ID of pet to update (required)
+   * @param pet Pet object that needs to be updated (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) {
+  public ApiResult<Pet> updatePetWithHttpInfo(
+      Long petId, Pet pet, @Nullable UpdatePetOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.updatePet");
@@ -2173,6 +2708,12 @@ public class PetApi extends BaseApi {
                         "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "updatePet",
         "PUT",
@@ -2184,8 +2725,8 @@ public class PetApi extends BaseApi {
         "application/json",
         updatePetTypeRef,
         null,
-        null,
-        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
