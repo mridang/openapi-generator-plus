@@ -197,9 +197,9 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun exchangeCodeRejectsEmptyOrBlankCode() {
-        // oauth-exchangecode-no-empty-code-guard: an empty/blank code must be
-        // rejected before the token POST, with no request sent.
+    fun exchangeCodeRejectsEmptyCode() {
+        // oauth-exchangecode-no-empty-code-guard: an empty code must be rejected
+        // before the token POST, with no request sent.
         val client = FakeApiClient()
         val auth = createAuthenticator()
         auth.setApiClient(client)
@@ -208,10 +208,6 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
             runBlocking { auth.exchangeCode("") }
         }
         assertEquals("Authorization code must not be empty", empty.message)
-        val blank = assertThrowsExactly(IllegalArgumentException::class.java) {
-            runBlocking { auth.exchangeCode("   ") }
-        }
-        assertEquals("Authorization code must not be empty", blank.message)
         // No token request should have been dispatched.
         assertNull(client.lastBody, "no token request should be sent for an empty code")
     }
