@@ -109,6 +109,70 @@ public sealed class SchemeAuthenticatorTest
 {{/schemeAuthTests}}
     }
 
+    [Fact]
+    public void BhvAuthapikey021ApiKeyIsReadFromTheEnvironmentUnlessPassed()
+    {
+{{#schemeAuthTests}}
+{{#isApiKey}}
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var fromEnvironment = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+            Assert.Contains(EnvValue("apiKey"), Carried(fromEnvironment));
+
+            var passed = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, ExplicitValue("apiKey"));
+            Assert.Contains(ExplicitValue("apiKey"), Carried(passed));
+        });
+{{/isApiKey}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthapikey025SchemeWrappersValidateEagerlyAndMaskTheKey()
+    {
+{{#schemeAuthTests}}
+{{#isApiKey}}
+        Assert.Throws<ArgumentException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, "tok\r\nInjected: yes"));
+        var masked = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, ExplicitValue("apiKey"));
+        Assert.DoesNotContain(ExplicitValue("apiKey"), masked.ToString(), StringComparison.Ordinal);
+{{/isApiKey}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbearer019EmptyEnvironmentValueCountsAsUnsetAndFailsNamingTheVariable()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbearer025EnvironmentVariableIsReadOnceAtConstruction()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+            foreach (string variable in {{className}}Variables)
+            {
+                Environment.SetEnvironmentVariable(variable, "changed");
+            }
+            Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+        });
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
 {{#schemeAuthTests}}
 
     private static readonly string[] {{className}}Variables = [{{#envVars}}"{{envName}}"{{^-last}}, {{/-last}}{{/envVars}}];

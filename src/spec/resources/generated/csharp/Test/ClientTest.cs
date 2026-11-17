@@ -462,7 +462,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void BearerWrappersSendTheTokenAsABearerCredential()
+    public void BhvAuthbearer023BearerWrappersSendTheTokenAsABearerCredential()
     {
         Assert.Equal(
             Pair("Authorization", "Bearer xyz"),
@@ -477,7 +477,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void BasicWrappersSendTheCredentialsAsABasicCredential()
+    public void BhvAuthbasic019BasicWrappersSendTheCredentialsAsABasicCredential()
     {
         Assert.Equal(
             Pair("Authorization", "Basic YWxpY2U6czNjcmV0"),

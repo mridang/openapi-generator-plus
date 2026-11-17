@@ -173,6 +173,22 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuthbearer022RejectsANonAsciiTokenAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "ñoño")
+        );
+    }
+
+    [Fact]
+    public void BhvAuthbearer027RejectsAWhitespaceOnlyTokenAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "\t\n")
+        );
+    }
+
+    [Fact]
     public void BhvAuthbearer010ANullTokenProviderIsRejected()
     {
         Assert.Throws<ArgumentNullException>(() =>

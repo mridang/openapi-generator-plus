@@ -114,7 +114,16 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void PasswordMayContainAColon()
+    public void BhvAuthbasic020MasksThePasswordInDebugOutput()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        string repr = auth.ToString();
+        Assert.DoesNotContain("s3cret", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthbasic018PasswordMayContainAColon()
     {
         var auth = new BasicAuthenticator("https://api.example.com", "alice", "p:ss");
 
