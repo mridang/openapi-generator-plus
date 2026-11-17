@@ -50,7 +50,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.auth_headers(auth)["X-Api-Key"] == "explicit-key"
     end
 
-    test "an empty or absent environment variable fails when the authenticator is built" do
+    test "bhv authscheme 012 an empty environment variable for the api key scheme credential is treated as unset and fails naming the variable" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
       on_exit(fn -> System.delete_env(name) end)
 

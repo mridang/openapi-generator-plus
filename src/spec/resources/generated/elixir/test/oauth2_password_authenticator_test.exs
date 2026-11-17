@@ -49,6 +49,26 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
   end
 
   describe "OAuth2PasswordAuthenticator" do
+    test "bhv authscheme 014 an empty environment variable for the password scheme credential is treated as unset and fails naming the variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'username': pass it, or set the environment variable #{name}",
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+                       "https://api.example.com",
+                       "my-client-id",
+                       "my-client-secret",
+                       "https://auth.example.com/token",
+                       nil,
+                       "testpass",
+                       ["read", "write"]
+                     )
+                   end
+    end
+
     test "bhv authoauthtwopassword 012 scheme authenticator keeps the declared scopes" do
       auth =
         PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator.new(

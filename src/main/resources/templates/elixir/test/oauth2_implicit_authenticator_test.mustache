@@ -12,6 +12,23 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
   end
 
   describe "OAuth2ImplicitAuthenticator" do
+    test "bhv authscheme 016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable" do
+      name = "{{envVarPrefix}}_CLIENT_ID"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'client_id': pass it, or set the environment variable #{name}",
+                   fn ->
+                     {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+                       "https://api.example.com",
+                       nil,
+                       "https://auth.example.com/authorize",
+                       ["read", "write"]
+                     )
+                   end
+    end
+
     test "bhv authoauthtwoimplicit 006 scheme authenticator keeps the declared scopes in the authorization URL" do
       auth =
         {{moduleName}}.Auth.OAuth.BrowserAuthImplicitAuthenticator.new(
