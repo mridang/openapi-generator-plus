@@ -1106,10 +1106,11 @@ class TestPetApi:
         await api.upload_pet_document(
             1, UploadPetDocumentOptions(file=b"doc-data", document_type="x", notes="y")
         )
-        assert (client.headers.get("Content-Type") or "").startswith(
-            "multipart/form-data"
-        )
+        # The request layer leaves Content-Type unset for multipart/form-data and hands the
+        # transport the form parts as a dict; the transport stamps the boundary-bearing header.
+        assert "Content-Type" not in client.headers
         assert isinstance(client.body, dict)
+        assert "file" in client.body
 
 
 def _create_mock_server(
