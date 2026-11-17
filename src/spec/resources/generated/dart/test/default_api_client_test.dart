@@ -460,7 +460,7 @@ Future<void> main(List<String> args) async {
     // HTTP target give precise control over scheme/status/body that the
     // chasm same-scheme redirect endpoints cannot express.
     test(
-      'bhv redirects 001 302 https->http with a body proceeds (body dropped, becomes GET)',
+      'bhv redirects 001 a 302 https->http with a body proceeds (body dropped, becomes GET)',
       () async {
         final certDir = 'test/fixtures/certs';
         final tlsContext = SecurityContext()
@@ -582,7 +582,7 @@ Future<void> main(List<String> args) async {
     );
 
     test(
-      'bhv retries 010 307 https->http with a body throws (no body replay)',
+      'bhv retries 010 a 307 https->http with a body throws (no body replay)',
       () async {
         final certDir = 'test/fixtures/certs';
         final tlsContext = SecurityContext()
@@ -651,7 +651,7 @@ Future<void> main(List<String> args) async {
     );
 
     test(
-      'bhv retries 011 308 https->http with a body throws (no body replay)',
+      'bhv retries 011 a 308 https->http with a body throws (no body replay)',
       () async {
         final certDir = 'test/fixtures/certs';
         final tlsContext = SecurityContext()
