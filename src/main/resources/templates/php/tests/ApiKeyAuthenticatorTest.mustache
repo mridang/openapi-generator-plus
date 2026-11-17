@@ -224,6 +224,13 @@ test('a missing or empty environment api key fails when the authenticator is bui
     'empty' => [''],
 ]);
 
+test('bhv authscheme 002 explicit arguments need no environment', function (): void {
+    withApiKeyEnvironment(null, function (): void {
+        $auth = new {{className}}('https://api.example.com', 'explicit');
+        expect(sentApiKeys($auth))->toBe(['explicit']);
+    });
+});
+
 test('the base class reads no environment variable', function (): void {
     withApiKeyEnvironment('from-environment', function (): void {
         $message = '';

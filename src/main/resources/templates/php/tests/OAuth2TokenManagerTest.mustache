@@ -761,3 +761,37 @@ test('a failed first exchange leaves the session unexchanged', function (): void
         ->toThrow(OAuth2ServerException::class);
     expect($manager->isExchanged())->toBeFalse();
 });
+
+test('bhv authoauthtwotokenmgr 017 a non string refresh token on a later response keeps the stored one', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('first', 3600, 'kept_refresh'));
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode(['access_token' => 'second', 'expires_in' => 3600, 'refresh_token' => 12345]),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $manager->invalidateAccessToken();
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($manager->getRefreshToken())->toBe('kept_refresh');
+});
+
+test('bhv authoauthtwotokenmgr 022 refresh grant carries the refresh token and the client credentials only', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 0, 'old_refresh'));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('fresh_access', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $params = ['grant_type' => 'client_credentials', 'client_id' => 'cid', 'client_secret' => 'sec', 'scope' => 'read'];
+
+    $manager->getAccessToken('https://auth.example.com/token', $params);
+    $manager->getAccessToken('https://auth.example.com/token', $params);
+
+    expect($client->capturedRequests[1]['body'])
+        ->toBe('grant_type=refresh_token&refresh_token=old_refresh&client_id=cid&client_secret=sec');
+});
