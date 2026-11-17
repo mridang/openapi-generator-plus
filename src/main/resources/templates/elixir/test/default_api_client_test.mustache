@@ -711,7 +711,7 @@ defmodule {{moduleName}}.DefaultApiClientTest do
     assert {{moduleName}}.DefaultApiClient.close(client) == :ok
   end
 
-  test "use-after-close raises RuntimeError" do
+  test "bhv lifecycle 023 use-after-close raises RuntimeError" do
     client = {{moduleName}}.DefaultApiClient.new()
     assert {{moduleName}}.DefaultApiClient.close(client) == :ok
 

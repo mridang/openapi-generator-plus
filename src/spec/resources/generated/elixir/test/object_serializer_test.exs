@@ -437,6 +437,21 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "bhv serializationobject 134 returns ISO 8601 date string for Date" do
       assert PetstoreClient.ObjectSerializer.stringify(~D[2024-01-15]) == "2024-01-15"
     end
+
+    test "bhv serializationobject 155 stringify writes a boolean as its lowercase word" do
+      assert PetstoreClient.ObjectSerializer.stringify(true) == "true"
+      assert PetstoreClient.ObjectSerializer.stringify(false) == "false"
+    end
+
+    test "bhv serializationobject 159 stringify returns a plain string unchanged" do
+      assert PetstoreClient.ObjectSerializer.stringify("a b") == "a b"
+      assert PetstoreClient.ObjectSerializer.stringify("") == ""
+    end
+
+    test "bhv serializationobject 157 stringify writes a DateTime as an ISO 8601 string" do
+      dt = ~U[2024-01-01 12:30:45Z]
+      assert PetstoreClient.ObjectSerializer.stringify(dt) == "2024-01-01T12:30:45.000+00:00"
+    end
   end
 
   describe "to_path_value/1" do
@@ -1589,6 +1604,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
       assert decoded.tracking_id == lower
 
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"trackingId":"not-a-uuid"}), "Order")
+      end
+    end
+
+    test "bhv serializationobject 103 malformed UUID string raises SerializationError on decode" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(~s({"trackingId":"not-a-uuid"}), "Order")
       end

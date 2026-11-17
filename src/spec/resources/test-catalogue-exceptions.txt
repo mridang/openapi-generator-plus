@@ -1,1 +1,2 @@
 # language | behaviour id | specific reason
+elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in

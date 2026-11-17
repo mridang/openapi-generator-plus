@@ -900,7 +900,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
   end
 
-  test "use-after-close raises RuntimeError" do
+  test "bhv lifecycle 023 use-after-close raises RuntimeError" do
     client = PetstoreClient.DefaultApiClient.new()
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
 
