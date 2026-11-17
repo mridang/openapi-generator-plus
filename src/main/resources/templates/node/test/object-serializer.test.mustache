@@ -89,7 +89,8 @@ describe('ObjectSerializer', () => {
     test('bhv serializationobject 149 bhv serializationobject 150 serialized datetime string ends with an offset', () => {
       const date = new Date('2024-01-01T12:30:45.000Z');
       const result = ObjectSerializer.stringify(date);
-      expect(result).toMatch(/[+-]\d{2}:\d{2}$|Z$/);
+      expect(result).toMatch(/[+-]\d{2}:\d{2}$/);
+      expect(result).not.toMatch(/Z$/);
     });
 
     test('bhv serializationobject 134 date formatted as ISO 8601 date-time contains T separator', () => {
@@ -696,6 +697,12 @@ describe('ObjectSerializer', () => {
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
         /^Failed to deserialize JSON: id must be a number, got string$/,
       );
+    });
+
+    test('bhv serializationobject 118 raises SerializationError for a scalar where a nested model is expected', () => {
+      const json = { value: 'root', child: 5 };
+      expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(SerializationError);
+      expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(/child must be an object, got number/);
     });
 
     test('applies required-field checks to a nested Pet', () => {
@@ -1745,6 +1752,7 @@ describe('ObjectSerializer', () => {
         StockItem,
       );
       expect(restored!.availability).toBe(Availability.OnHold);
+      expect(JSON.parse(ObjectSerializer.serialize(original)).availability).toBe('on-hold');
     });
   });
 
