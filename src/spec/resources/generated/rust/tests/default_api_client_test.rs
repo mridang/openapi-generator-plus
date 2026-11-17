@@ -215,6 +215,27 @@ async fn test_bhv_transport_021_default_api_client_proxy_with_credentials_inject
     assert_eq!(without_credentials.status_code(), 407);
 }
 
+/* The authenticating proxy answers 407 to a request that carries no credentials. */
+#[tokio::test]
+async fn test_bhv_transport_059_authenticating_proxy_refuses_a_request_without_credentials() {
+    let chasm_url = testcontainers_helper::chasm_internal_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(testcontainers_helper::auth_proxy_url())
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let answer = client
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("the proxy answers with a status");
+    assert_eq!(answer.status_code(), 407);
+}
+
 // Gap AK (fleet-wide regression guard) — a proxy URL carrying inline userinfo
 // (`http://user:pass@127.0.0.1:3128`) must preserve those credentials end-to-end
 // so the proxy can authenticate the tunnel (otherwise it 407s). Java's
@@ -995,6 +1016,33 @@ async fn test_default_api_client_close_leaves_supplied_client_usable() {
     client.close();
     assert!(client.is_closed());
     assert!(supplied.get("http://127.0.0.1:1/").build().is_ok());
+}
+
+/* lifecycle 024: a supplied client conflicts with the SDK proxy and TLS settings, each refused. */
+#[test]
+fn test_bhv_lifecycle_024_a_supplied_client_conflicts_with_proxy_and_tls_settings() {
+    let ca_path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/certs/ca.pem");
+    let options = [
+        TransportOptionsBuilder::new()
+            .proxy("http://proxy.invalid:3128")
+            .build(),
+        TransportOptionsBuilder::new().verify_ssl(false).build(),
+        TransportOptionsBuilder::new().ca_cert_path(ca_path).build(),
+    ];
+    for built in options {
+        let transport = built.expect("valid transport options");
+        match DefaultApiClient::with_client(reqwest::Client::new(), Some(transport)) {
+            Err(ConfigurationError::InvalidArgument(message)) => {
+                assert!(
+                    message.contains("custom reqwest::Client"),
+                    "unexpected message: {}",
+                    message
+                );
+            }
+            Err(other) => panic!("expected InvalidArgument, got {:?}", other),
+            Ok(_) => panic!("expected a conflict error, got a client"),
+        }
+    }
 }
 
 /* F405: TransportOptions that configure what only the HTTP client can

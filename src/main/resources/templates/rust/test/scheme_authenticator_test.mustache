@@ -94,6 +94,54 @@ mod {{module}} {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
         });
     }
+{{#isBasic}}
+
+    #[test]
+    fn test_bhv_authbasic_013_an_explicit_credential_wins_over_the_environment() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
+        with_variables(&unusable, || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+{{/isBasic}}
+{{#isApiKey}}
+
+    #[test]
+    fn test_bhv_serializationobject_187_an_explicit_key_wins_over_the_environment() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
+        with_variables(&unusable, || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+{{/isApiKey}}
+{{#bearerIdOnce}}
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_lifecycle_025_the_environment_is_read_once_when_the_authenticator_is_built() {
+        let auth = with_variables(&set_all(), || {
+            let auth = {{className}}::new({{{bareArgs}}}).unwrap();
+            std::env::set_var("{{firstEnvName}}", "changed-after-build");
+            auth
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer value-{{firstParam}}")
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_018_an_explicit_token_wins_over_the_environment() {
+        let auth = with_variables(&set_all(), || {
+            {{className}}::new({{{explicitArgs}}}).unwrap()
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer explicit-{{firstParam}}")
+        );
+    }
+{{/bearerIdOnce}}
 {{#isBearer}}
 
     #[tokio::test(flavor = "multi_thread")]

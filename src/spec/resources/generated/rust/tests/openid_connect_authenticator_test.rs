@@ -801,7 +801,7 @@ async fn test_bhv_authoidc_009_failed_rediscovery_keeps_the_old_delegate() {
 
 /// Concurrent calls on a cold authenticator share one discovery request.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_concurrent_cold_calls_issue_one_discovery_request() {
+async fn test_bhv_authoidc_029_concurrent_cold_calls_issue_one_discovery_request() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(DISCOVERY, 200);
     let mut auth = create_authenticator();

@@ -31,7 +31,7 @@ fn test_bhv_servers_016_empty_enum_values_means_any_value_allowed() {
 }
 
 #[test]
-fn test_enum_values_are_exposed_for_validation() {
+fn test_bhv_servers_018_enum_values_are_exposed_for_validation() {
     // ServerConfiguration validates overrides against this set, so the enum
     // slice must surface exactly the allowed values.
     let variable = ServerVariable::new(
@@ -49,7 +49,7 @@ fn test_enum_values_are_exposed_for_validation() {
 }
 
 #[test]
-fn test_enum_does_not_contain_a_value_outside_the_allowed_set() {
+fn test_bhv_servers_019_enum_does_not_contain_a_value_outside_the_allowed_set() {
     // An out-of-set value (e.g. "dev") is absent from the enum, which is what
     // drives ServerConfiguration to reject it.
     let variable = ServerVariable::new(
