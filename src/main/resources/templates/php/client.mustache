@@ -97,16 +97,17 @@ class {{clientClassName}}
         }
 {{/schemeCredentials}}
         $hostAuthenticator = $authenticator ?? (array_values($schemeAuthenticators)[0] ?? null);
-        if ($hostAuthenticator === null) {
-            throw new \InvalidArgumentException(
-                'A client needs an authenticator or the credential of at least one security scheme'
-            );
-        }
         $transportOptions ??= TransportOptions::builder()->build();
         $this->lifecycle = new ClientLifecycle();
         $this->sdkOwnsTransport = $apiClient === null;
         $apiClient ??= new DefaultApiClient($transportOptions);
         $this->sdkTransport = $apiClient;
+        if ($hostAuthenticator === null) {
+            $this->close();
+            throw new \InvalidArgumentException(
+                'A client needs an authenticator or the credential of at least one security scheme'
+            );
+        }
 
         foreach ([$authenticator, ...array_values($schemeAuthenticators)] as $credential) {
             if ($credential instanceof HttpAwareAuthenticator) {
@@ -146,9 +147,6 @@ class {{clientClassName}}
      */
     public function __destruct()
     {
-        if (!isset($this->lifecycle)) {
-            return;
-        }
         $this->close();
     }
 

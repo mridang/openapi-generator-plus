@@ -1033,7 +1033,9 @@ test('delete pet cookie param with a clean value is sent on the wire', function 
 
 test('delete pet cookie param with a character outside cookie-octet fails before sending', function (string $value): void {
     [$api, $captured] = newHeaderCapturingPetApi();
-    $captured->headers = [];
+    /** @var array<string, string> $none */
+    $none = [];
+    $captured->headers = $none;
 
     expect(fn () => $api->deletePet(1, new DeletePetOptions(apiKey: $value)))
         ->toThrow(\InvalidArgumentException::class, "Cookie value for 'api_key' contains characters forbidden by RFC 6265");
