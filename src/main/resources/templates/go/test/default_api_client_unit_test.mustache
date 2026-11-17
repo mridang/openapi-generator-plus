@@ -518,7 +518,7 @@ func TestBhvSerializationwire033_DefaultApiClientUnit_DecodesIso88591ResponseBod
 	}
 }
 
-func TestDefaultApiClientUnit_DecodesBomlessUtf16AsBigEndian(t *testing.T) {
+func TestBhvSerializationwire031_DefaultApiClientUnit_DecodesBomlessUtf16AsBigEndian(t *testing.T) {
 	t.Parallel()
 	/* A BOM-less utf-16 body must decode as big-endian per RFC 2781. The
 	 * bytes below are "Tag" in UTF-16BE with no byte-order mark; decoded
@@ -1132,7 +1132,7 @@ func TestBhvRedirects011_DefaultApiClientUnit_ApiKeyHeaderStrippedOnCrossOriginR
 // close-lifecycle-three-way: sending a request after Close() is a caller
 // mistake. It fails with the ErrClientClosed sentinel, not an SDK error, and
 // never silently succeeds or leaks a foreign library error.
-func TestDefaultApiClientUnit_UseAfterCloseReturnsErrClientClosed(t *testing.T) {
+func TestBhvLifecycle023_DefaultApiClientUnit_UseAfterCloseReturnsErrClientClosed(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -2259,5 +2259,99 @@ func TestBhvRetries013_DefaultApiClientUnit_IsRetryableTransportError_IsTheNetwo
 		if got := isRetryableTransportError(tc.err); got != tc.want {
 			t.Errorf("%s: expected %t, got %t", tc.name, tc.want, got)
 		}
+	}
+}
+
+func TestBhvSerializationwire030_DefaultApiClientUnit_DecodesBigEndianBomUtf16AsBigEndian(t *testing.T) {
+	t.Parallel()
+	/* A big-endian byte-order mark (FE FF) selects big-endian; "Tag" follows. */
+	body := []byte{0xFE, 0xFF, 0x00, 0x54, 0x00, 0x61, 0x00, 0x67}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-16")
+		w.WriteHeader(200)
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/utf16-be-bom", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != "Tag" {
+		t.Errorf("expected a big-endian BOM body to decode to \"Tag\", got %q", resp.Body)
+	}
+}
+
+func TestBhvSerializationwire032_DefaultApiClientUnit_DecodesIso88591ToUtf8WhenCharsetIsDeclaredInLowercase(t *testing.T) {
+	t.Parallel()
+	/* "Café" in ISO-8859-1: the lower-case charset label must still select the decoder. */
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=iso-8859-1")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte{'C', 'a', 'f', 0xE9})
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/latin1-lower", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != "Café" {
+		t.Errorf("expected the ISO-8859-1 body to decode to UTF-8 \"Café\", got %q", resp.Body)
+	}
+}
+
+// multipartWireStamp is a model whose Go field names differ from their wire names.
+type multipartWireStamp struct {
+	Label    string          `json:"label"`
+	FullName string          `json:"full_name"`
+	Moment   models.DateTime `json:"moment"`
+}
+
+func TestBhvSerializationwire045_DefaultApiClientUnit_MultipartModelPartUsesWirePropertyNamesAndDateTimeFormat(t *testing.T) {
+	t.Parallel()
+	boundary := "test-boundary-model"
+	body, err := buildMultipartBody(map[string]any{
+		"stamp": multipartWireStamp{
+			Label:    "x",
+			FullName: "y",
+			Moment:   models.DateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)),
+		},
+	}, boundary)
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	mr := multipart.NewReader(strings.NewReader(string(body)), boundary)
+	part, err := mr.NextPart()
+	if err != nil {
+		t.Fatalf("reading multipart part failed: %v", err)
+	}
+	content, _ := io.ReadAll(part)
+	want := `{"label":"x","full_name":"y","moment":"2024-01-15T10:30:00.000+00:00"}`
+	if string(content) != want {
+		t.Errorf("expected the model part %s, got %s", want, string(content))
+	}
+}
+
+func TestBhvSerializationwire047_DefaultApiClientUnit_MultipartPngFileGetsImagePngContentType(t *testing.T) {
+	t.Parallel()
+	var wireBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		wireBody = string(b)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	_, err := client.SendRequest("POST", server.URL+"/upload",
+		map[string]string{}, map[string]any{"picture.png": []byte{0x89, 0x50, 0x4E, 0x47}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(wireBody, `filename="picture.png"`) || !strings.Contains(wireBody, "Content-Type: image/png") {
+		t.Errorf("expected a picture.png part with Content-Type image/png, got: %q", wireBody)
 	}
 }
