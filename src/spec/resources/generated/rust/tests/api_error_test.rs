@@ -1123,3 +1123,43 @@ fn test_boxed_error_kind_can_be_matched() {
         Some(ApiErrorKind::NotFound(_))
     ));
 }
+/// Every error type is declared in the errors module, and the crate root
+/// re-exports the same type under its name.
+#[test]
+fn test_bhv_errors_044_every_error_lives_in_errors_and_the_root_exports_it() {
+    use petstore::errors;
+    use std::any::TypeId;
+
+    assert_eq!(
+        TypeId::of::<errors::ApiError>(),
+        TypeId::of::<petstore::ApiError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::ConfigurationError>(),
+        TypeId::of::<petstore::ConfigurationError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::SerializationError>(),
+        TypeId::of::<petstore::SerializationError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::NetworkError>(),
+        TypeId::of::<petstore::NetworkError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::NetworkTimeoutError>(),
+        TypeId::of::<petstore::NetworkTimeoutError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::OAuth2ServerError>(),
+        TypeId::of::<petstore::OAuth2ServerError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::OAuth2TokenError>(),
+        TypeId::of::<petstore::OAuth2TokenError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::OAuth2AuthorizationCodeError>(),
+        TypeId::of::<petstore::OAuth2AuthorizationCodeError>()
+    );
+}

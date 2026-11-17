@@ -139,7 +139,7 @@ fn test_bhv_config_001_configuration_base_url_override() {
 }
 
 #[test]
-fn test_configuration_default_headers_copy_isolation() {
+fn test_bhv_config_017_configuration_default_headers_copy_isolation() {
     let config = ConfigurationBuilder::new()
         .default_header("X-Test", "value")
         .build();

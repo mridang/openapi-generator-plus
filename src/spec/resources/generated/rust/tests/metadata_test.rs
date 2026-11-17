@@ -176,6 +176,18 @@ fn test_bhv_models_005_metadata_equality_includes_additional_properties() {
 }
 
 #[test]
+fn test_bhv_models_012_debug_dump_shows_the_fields_and_the_additional_properties() {
+    let metadata: Metadata =
+        serde_json::from_str(r#"{"extra":"shown"}"#).expect("failed to deserialize Metadata");
+
+    let dump = format!("{:?}", metadata);
+
+    assert!(dump.contains("additional_properties"), "{}", dump);
+    assert!(dump.contains("extra"), "{}", dump);
+    assert!(dump.contains("shown"), "{}", dump);
+}
+
+#[test]
 fn test_pet_location_free_form_json_round_trips() {
     /* FIX 3: Pet.location is Option<Vec<JsonValue>> (free-form JSON array). The
      * inner free-form JSON must round-trip losslessly through the public

@@ -2236,6 +2236,14 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationobject_182_unknown_enum_value_on_deserialize_is_a_serialization_error() {
+        let err: crate::errors::SerializationError =
+            object_serializer::deserialize::<crate::models::Separator>(br#""banana""#)
+                .expect_err("an enum value outside the schema must be refused");
+        assert!(!err.to_string().is_empty());
+    }
+
+    #[test]
     fn test_bhv_serializationobject_180_wrong_primitive_type_is_a_serialization_error() {
         assert!(
             object_serializer::deserialize::<crate::models::Order>(br#"{"quantity":"five"}"#)

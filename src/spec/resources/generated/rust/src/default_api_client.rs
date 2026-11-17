@@ -2032,7 +2032,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_text_body_utf16_honours_le_bom() {
+    fn test_bhv_serializationwire_054_decode_text_body_utf16_honours_le_bom() {
         /* A UTF-16LE BOM (FF FE) must override the big-endian default and
          * select little-endian. "Tag" as UTF-16LE: 54 00 61 00 67 00. */
         let le_with_bom = [0xFF, 0xFE, 0x54, 0x00, 0x61, 0x00, 0x67, 0x00];

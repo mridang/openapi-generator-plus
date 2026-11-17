@@ -638,7 +638,7 @@ fn test_bhv_options_034_transport_options_setting_proxy_is_supported_on_all_plat
 
 /// The README names the real builder setter, not another language's accessor.
 #[test]
-fn test_readme_socks_note_names_the_builder_proxy_setter() {
+fn test_bhv_options_044_readme_socks_note_names_the_builder_proxy_setter() {
     let readme = include_str!("../README.md");
     assert!(
         readme.contains(

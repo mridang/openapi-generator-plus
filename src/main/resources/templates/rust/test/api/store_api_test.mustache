@@ -99,7 +99,7 @@ impl {{packageName}}::api_client::ApiClient for RecordingApiClient {
 }
 
 #[tokio::test]
-async fn test_store_api_place_order_omitted_body_sends_no_body_and_no_content_type() {
+async fn test_bhv_operations_126_store_api_place_order_omitted_body_sends_no_body_and_no_content_type() {
     let client = Arc::new(RecordingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = StoreApi::new(client.clone(), config, None);

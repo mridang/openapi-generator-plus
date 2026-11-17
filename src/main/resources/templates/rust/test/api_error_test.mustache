@@ -926,3 +926,23 @@ fn test_boxed_error_kind_can_be_matched() {
 
     assert!(matches!(err.api_error_kind(), Some(ApiErrorKind::NotFound(_))));
 }
+/// Every error type is declared in the errors module, and the crate root
+/// re-exports the same type under its name.
+#[test]
+fn test_bhv_errors_044_every_error_lives_in_errors_and_the_root_exports_it() {
+    use std::any::TypeId;
+    use {{packageName}}::errors;
+
+    assert_eq!(TypeId::of::<errors::ApiError>(), TypeId::of::<{{packageName}}::ApiError>());
+    assert_eq!(TypeId::of::<errors::ConfigurationError>(), TypeId::of::<{{packageName}}::ConfigurationError>());
+    assert_eq!(TypeId::of::<errors::SerializationError>(), TypeId::of::<{{packageName}}::SerializationError>());
+    assert_eq!(TypeId::of::<errors::NetworkError>(), TypeId::of::<{{packageName}}::NetworkError>());
+    assert_eq!(TypeId::of::<errors::NetworkTimeoutError>(), TypeId::of::<{{packageName}}::NetworkTimeoutError>());
+    assert_eq!(TypeId::of::<errors::OAuth2ServerError>(), TypeId::of::<{{packageName}}::OAuth2ServerError>());
+    assert_eq!(TypeId::of::<errors::OAuth2TokenError>(), TypeId::of::<{{packageName}}::OAuth2TokenError>());
+    assert_eq!(
+        TypeId::of::<errors::OAuth2AuthorizationCodeError>(),
+        TypeId::of::<{{packageName}}::OAuth2AuthorizationCodeError>()
+    );
+}
+

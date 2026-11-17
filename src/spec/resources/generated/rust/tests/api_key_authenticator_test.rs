@@ -135,7 +135,7 @@ key_param_name: \"k-name\", api_key: \"***\", location: "
 }
 
 #[test]
-fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
+fn test_bhv_authapikey_020_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
     let auth =
         ApiKeyHeaderAuthenticator::new("https://api.example.com", Some("wrapper-key")).unwrap();
     let debug = format!("{:?}", auth);
@@ -185,7 +185,7 @@ async fn test_bhv_authapikey_007_scheme_wrappers_emit_the_key_at_the_declared_na
 
 /// A wrapper validates its key as eagerly as the authenticator it wraps.
 #[test]
-fn test_scheme_wrappers_reject_an_empty_key() {
+fn test_bhv_authapikey_019_scheme_wrappers_reject_an_empty_key() {
     let host = "https://api.example.com";
     for result in [
         ApiKeyHeaderAuthenticator::new(host, Some("")).map(|_| ()),
@@ -280,6 +280,14 @@ fn test_bhv_authapikey_006_empty_query_key_throws_at_construction() {
 #[test]
 fn test_bhv_authapikey_008_header_location_rejects_a_non_ascii_key() {
     assert!(refusal_reason("kéy", ApiKeyLocation::Header).contains("printable ASCII"));
+}
+
+#[test]
+fn test_bhv_authapikey_018_header_location_rejects_crlf_in_the_key_at_construction() {
+    assert!(
+        refusal_reason("abc\r\nInjected: yes", ApiKeyLocation::Header)
+            .contains("control characters")
+    );
 }
 
 #[test]

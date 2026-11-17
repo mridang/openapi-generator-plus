@@ -121,6 +121,24 @@ async fn test_bhv_authoauthtwoimplicit_013_set_access_token_rejects_invalid_toke
     assert!(auth.try_auth_headers().await.is_err());
 }
 
+/// RFC 7230 §3.2.6: a token outside printable ASCII is refused with the canonical
+/// message, and the token already set is kept.
+#[tokio::test]
+async fn test_bhv_authoauthtwoimplicit_014_rejects_a_non_ascii_access_token_with_the_rfc_7230_message() {
+    let auth = create_authenticator();
+    auth.set_access_token("kept").unwrap();
+
+    match auth.set_access_token("töken") {
+        Err(ConfigurationError::InvalidArgument(reason)) => assert_eq!(
+            "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+            reason
+        ),
+        other => panic!("expected ConfigurationError::InvalidArgument, got {:?}", other),
+    }
+    let headers = auth.auth_headers().await;
+    assert_eq!("Bearer kept", headers.get("Authorization").unwrap());
+}
+
 #[test]
 fn test_bhv_authoauthtwoimplicit_008_get_host_returns_configured_host() {
     let auth = create_authenticator();
