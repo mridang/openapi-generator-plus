@@ -14,31 +14,31 @@ import { SerializationError } from "../src/errors/serialization-error.js";
 
 describe("ValueSerializer", () => {
   describe("path location", () => {
-    test("null returns empty string", () => {
+    test("bhv serializationparam 065 null returns empty string", () => {
       expect(ValueSerializer.serialize(null, "path", "string")).toBe("");
     });
 
-    test("undefined returns empty string", () => {
+    test("bhv serializationparam 062 undefined returns empty string", () => {
       expect(ValueSerializer.serialize(undefined, "path", "string")).toBe("");
     });
 
-    test("string returns URL-encoded value", () => {
+    test("bhv serializationparam 100 string returns URL-encoded value", () => {
       expect(ValueSerializer.serialize("hello", "path", "string")).toBe(
         "hello",
       );
     });
 
-    test("string with spaces is URL-encoded", () => {
+    test("bhv serializationparam 102 string with spaces is URL-encoded", () => {
       expect(ValueSerializer.serialize("hello world", "path", "string")).toBe(
         "hello%20world",
       );
     });
 
-    test("string with slash is URL-encoded", () => {
+    test("bhv serializationparam 101 string with slash is URL-encoded", () => {
       expect(ValueSerializer.serialize("a/b", "path", "string")).toBe("a%2Fb");
     });
 
-    test("integer returns string", () => {
+    test("bhv serializationparam 044 integer returns string", () => {
       expect(ValueSerializer.serialize(42, "path", "integer")).toBe("42");
     });
 
@@ -70,11 +70,11 @@ describe("ValueSerializer", () => {
       );
     });
 
-    test('boolean true returns "true"', () => {
+    test('bhv serializationparam 021 boolean true returns "true"', () => {
       expect(ValueSerializer.serialize(true, "path", "boolean")).toBe("true");
     });
 
-    test('boolean false returns "false"', () => {
+    test('bhv serializationparam 018 boolean false returns "false"', () => {
       expect(ValueSerializer.serialize(false, "path", "boolean")).toBe("false");
     });
   });
@@ -86,63 +86,63 @@ describe("ValueSerializer", () => {
       ).toBeUndefined();
     });
 
-    test("undefined returns undefined", () => {
+    test("bhv serializationparam 067 undefined returns undefined", () => {
       expect(
         ValueSerializer.serialize(undefined, "query", "string"),
       ).toBeUndefined();
     });
 
-    test("string returns as-is", () => {
+    test("bhv serializationparam 096 string returns as-is", () => {
       expect(ValueSerializer.serialize("hello", "query", "string")).toBe(
         "hello",
       );
     });
 
-    test("integer returns string", () => {
+    test("bhv serializationparam 045 integer returns string", () => {
       expect(ValueSerializer.serialize(42, "query", "integer")).toBe("42");
     });
 
-    test('boolean true returns "true"', () => {
+    test('bhv serializationparam 022 boolean true returns "true"', () => {
       expect(ValueSerializer.serialize(true, "query", "boolean")).toBe("true");
     });
 
-    test('boolean false returns "false"', () => {
+    test('bhv serializationparam 019 boolean false returns "false"', () => {
       expect(ValueSerializer.serialize(false, "query", "boolean")).toBe(
         "false",
       );
     });
 
-    test("array joins with comma by default", () => {
+    test("bhv serializationparam 006 array joins with comma by default", () => {
       expect(ValueSerializer.serialize(["a", "b", "c"], "query", "array")).toBe(
         "a,b,c",
       );
     });
 
-    test("array joins with comma for csv", () => {
+    test("bhv serializationparam 007 array joins with comma for csv", () => {
       expect(
         ValueSerializer.serialize(["a", "b", "c"], "query", "array", "csv"),
       ).toBe("a,b,c");
     });
 
-    test("array joins with space for ssv", () => {
+    test("bhv serializationparam 009 array joins with space for ssv", () => {
       expect(
         ValueSerializer.serialize(["a", "b", "c"], "query", "array", "ssv"),
       ).toBe("a b c");
     });
 
-    test("array joins with tab for tsv", () => {
+    test("bhv serializationparam 010 array joins with tab for tsv", () => {
       expect(
         ValueSerializer.serialize(["a", "b", "c"], "query", "array", "tsv"),
       ).toBe("a\tb\tc");
     });
 
-    test("array joins with pipe for pipes", () => {
+    test("bhv serializationparam 008 array joins with pipe for pipes", () => {
       expect(
         ValueSerializer.serialize(["a", "b", "c"], "query", "array", "pipes"),
       ).toBe("a|b|c");
     });
 
-    test("array returns list for multi", () => {
+    test("bhv serializationparam 015 array returns list for multi", () => {
       expect(
         ValueSerializer.serialize(["a", "b", "c"], "query", "array", "multi"),
       ).toEqual(["a", "b", "c"]);
@@ -159,39 +159,39 @@ describe("ValueSerializer", () => {
       ).toBe(expected);
     });
 
-    test("a null element keeps its empty slot for multi", () => {
+    test("bhv serializationparam 011 a null element keeps its empty slot for multi", () => {
       expect(
         ValueSerializer.serialize([1, null, 3], "query", "array", "multi"),
       ).toEqual(["1", "", "3"]);
     });
 
-    test("an undefined element keeps its empty slot in a header array", () => {
+    test("bhv serializationparam 001 an undefined element keeps its empty slot in a header array", () => {
       expect(
         ValueSerializer.serialize(["a", undefined, "c"], "header", "array"),
       ).toBe("a,,c");
     });
 
-    test("empty array returns empty string for csv", () => {
+    test("bhv serializationparam 032 empty array returns empty string for csv", () => {
       expect(ValueSerializer.serialize([], "query", "array")).toBe("");
     });
 
-    test("empty array returns empty list for multi", () => {
+    test("bhv serializationparam 031 empty array returns empty list for multi", () => {
       expect(ValueSerializer.serialize([], "query", "array", "multi")).toEqual(
         [],
       );
     });
 
-    test("single-element array returns single value", () => {
+    test("bhv serializationparam 090 single-element array returns single value", () => {
       expect(ValueSerializer.serialize(["a"], "query", "array")).toBe("a");
     });
 
-    test("array of integers stringifies elements", () => {
+    test("bhv serializationparam 014 array of integers stringifies elements", () => {
       expect(ValueSerializer.serialize([1, 2, 3], "query", "array")).toBe(
         "1,2,3",
       );
     });
 
-    test("array of booleans stringifies elements", () => {
+    test("bhv serializationparam 012 array of booleans stringifies elements", () => {
       expect(ValueSerializer.serialize([true, false], "query", "array")).toBe(
         "true,false",
       );
@@ -199,35 +199,35 @@ describe("ValueSerializer", () => {
   });
 
   describe("header location", () => {
-    test("null returns empty string", () => {
+    test("bhv serializationparam 063 null returns empty string", () => {
       expect(ValueSerializer.serialize(null, "header", "string")).toBe("");
     });
 
-    test("string returns as-is", () => {
+    test("bhv serializationparam 097 string returns as-is", () => {
       expect(ValueSerializer.serialize("hello", "header", "string")).toBe(
         "hello",
       );
     });
 
-    test("integer returns string", () => {
+    test("bhv serializationparam 046 integer returns string", () => {
       expect(ValueSerializer.serialize(42, "header", "integer")).toBe("42");
     });
 
-    test('boolean true returns "true"', () => {
+    test('bhv serializationparam 023 boolean true returns "true"', () => {
       expect(ValueSerializer.serialize(true, "header", "boolean")).toBe("true");
     });
 
-    test("array joins with comma", () => {
+    test("bhv serializationparam 005 array joins with comma", () => {
       expect(
         ValueSerializer.serialize(["a", "b", "c"], "header", "array"),
       ).toBe("a,b,c");
     });
 
-    test("empty array joins to empty string", () => {
+    test("bhv serializationparam 030 empty array joins to empty string", () => {
       expect(ValueSerializer.serialize([], "header", "array")).toBe("");
     });
 
-    test("array of integers stringifies and joins", () => {
+    test("bhv serializationparam 013 array of integers stringifies and joins", () => {
       expect(ValueSerializer.serialize([1, 2, 3], "header", "array")).toBe(
         "1,2,3",
       );
@@ -254,7 +254,7 @@ describe("ValueSerializer", () => {
       },
     );
 
-    test("keeps a value that only contains dots", () => {
+    test("bhv serializationparam 072 keeps a value that only contains dots", () => {
       expect(
         ValueSerializer.serializeStyled(
           "name",
@@ -270,7 +270,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - matrix style", () => {
-    test("scalar returns semicolon-prefixed name=value", () => {
+    test("bhv serializationparam 058 scalar returns semicolon-prefixed name=value", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -284,7 +284,7 @@ describe("ValueSerializer", () => {
       ).toBe(";color=blue");
     });
 
-    test("array with explode false joins with comma", () => {
+    test("bhv serializationparam 055 array with explode false joins with comma", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -298,7 +298,7 @@ describe("ValueSerializer", () => {
       ).toBe(";color=blue,black");
     });
 
-    test("array with explode true repeats name", () => {
+    test("bhv serializationparam 056 array with explode true repeats name", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -312,7 +312,7 @@ describe("ValueSerializer", () => {
       ).toBe(";color=blue;color=black");
     });
 
-    test("null returns empty string", () => {
+    test("bhv serializationparam 057 null returns empty string", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -328,7 +328,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - label style", () => {
-    test("scalar returns dot-prefixed value", () => {
+    test("bhv serializationparam 052 scalar returns dot-prefixed value", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -342,7 +342,7 @@ describe("ValueSerializer", () => {
       ).toBe(".blue");
     });
 
-    test("array with explode false joins with dot then comma", () => {
+    test("bhv serializationparam 049 array with explode false joins with dot then comma", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -356,7 +356,7 @@ describe("ValueSerializer", () => {
       ).toBe(".blue,black");
     });
 
-    test("array with explode true joins with dot separator", () => {
+    test("bhv serializationparam 050 array with explode true joins with dot separator", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -370,7 +370,7 @@ describe("ValueSerializer", () => {
       ).toBe(".blue.black");
     });
 
-    test("null returns empty string", () => {
+    test("bhv serializationparam 051 null returns empty string", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -386,7 +386,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - spaceDelimited style", () => {
-    test("array joins with space", () => {
+    test("bhv serializationparam 093 array joins with space", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -400,7 +400,7 @@ describe("ValueSerializer", () => {
       ).toBe("blue black");
     });
 
-    test("array with explode true returns list", () => {
+    test("bhv serializationparam 094 array with explode true returns list", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -414,7 +414,7 @@ describe("ValueSerializer", () => {
       ).toEqual(["blue", "black"]);
     });
 
-    test("scalar returns stringified value", () => {
+    test("bhv serializationparam 095 scalar returns stringified value", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -430,7 +430,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - pipeDelimited style", () => {
-    test("array joins with pipe", () => {
+    test("bhv serializationparam 074 array joins with pipe", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -444,7 +444,7 @@ describe("ValueSerializer", () => {
       ).toBe("blue|black");
     });
 
-    test("array with explode true returns list", () => {
+    test("bhv serializationparam 075 array with explode true returns list", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -458,7 +458,7 @@ describe("ValueSerializer", () => {
       ).toEqual(["blue", "black"]);
     });
 
-    test("scalar returns stringified value", () => {
+    test("bhv serializationparam 076 scalar returns stringified value", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -474,7 +474,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - form style with explode", () => {
-    test("array with explode false joins with comma", () => {
+    test("bhv serializationparam 037 array with explode false joins with comma", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -488,7 +488,7 @@ describe("ValueSerializer", () => {
       ).toBe("blue,black");
     });
 
-    test("array with explode true returns list", () => {
+    test("bhv serializationparam 038 array with explode true returns list", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -502,7 +502,7 @@ describe("ValueSerializer", () => {
       ).toEqual(["blue", "black"]);
     });
 
-    test("scalar with explode true returns string not list", () => {
+    test("bhv serializationparam 041 scalar with explode true returns string not list", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -516,7 +516,7 @@ describe("ValueSerializer", () => {
       ).toBe("blue");
     });
 
-    test("single-element array with explode true returns list", () => {
+    test("bhv serializationparam 042 single-element array with explode true returns list", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -530,7 +530,7 @@ describe("ValueSerializer", () => {
       ).toEqual(["blue"]);
     });
 
-    test("null returns undefined for query location", () => {
+    test("bhv serializationparam 040 null returns undefined for query location", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -629,7 +629,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - simple style backward compatibility", () => {
-    test("scalar returns stringified value", () => {
+    test("bhv serializationparam 086 scalar returns stringified value", () => {
       expect(
         ValueSerializer.serializeStyled(
           "id",
@@ -643,7 +643,7 @@ describe("ValueSerializer", () => {
       ).toBe("5");
     });
 
-    test("array joins with comma", () => {
+    test("bhv serializationparam 084 array joins with comma", () => {
       expect(
         ValueSerializer.serializeStyled(
           "id",
@@ -657,7 +657,7 @@ describe("ValueSerializer", () => {
       ).toBe("3,4,5");
     });
 
-    test("null returns empty string", () => {
+    test("bhv serializationparam 085 null returns empty string", () => {
       expect(
         ValueSerializer.serializeStyled(
           "id",
@@ -671,7 +671,7 @@ describe("ValueSerializer", () => {
       ).toBe("");
     });
 
-    test("scalar URL-encodes path value", () => {
+    test("bhv serializationparam 087 scalar URL-encodes path value", () => {
       expect(
         ValueSerializer.serializeStyled(
           "id",
@@ -685,7 +685,7 @@ describe("ValueSerializer", () => {
       ).toBe("hello%20world");
     });
 
-    test("path value is encoded exactly once (no double-encoding)", () => {
+    test("bhv serializationparam 073 path value is encoded exactly once (no double-encoding)", () => {
       // path-double-encoding: serializeStyled already percent-encodes the
       // path segment, so the API template must NOT wrap it again. A space
       // must become %20 (never %2520) and a slash %2F (never %252F).
@@ -729,7 +729,7 @@ describe("ValueSerializer", () => {
       ).toBe("5");
     });
 
-    test("empty style falls back to location default", () => {
+    test("bhv serializationparam 035 empty style falls back to location default", () => {
       expect(
         ValueSerializer.serializeStyled(
           "id",
@@ -745,13 +745,13 @@ describe("ValueSerializer", () => {
   });
 
   describe("cookie location", () => {
-    test("string returns as-is", () => {
+    test("bhv serializationparam 099 string returns as-is", () => {
       expect(
         ValueSerializer.serialize("hello", "cookie", "string", undefined),
       ).toBe("hello");
     });
 
-    test("null returns empty string", () => {
+    test("bhv serializationparam 070 null returns empty string", () => {
       expect(
         ValueSerializer.serialize(null, "cookie", "string", undefined),
       ).toBe("");
@@ -759,7 +759,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeDeepObject", () => {
-    test("basic map returns bracketed keys", () => {
+    test("bhv serializationparam 017 basic map returns bracketed keys", () => {
       const result = ValueSerializer.serializeDeepObject("filter", {
         color: "blue",
         size: "large",
@@ -768,7 +768,7 @@ describe("ValueSerializer", () => {
       expect(result["filter[size]"]).toBe("large");
     });
 
-    test("null returns empty object", () => {
+    test("bhv serializationparam 061 null returns empty object", () => {
       const result = ValueSerializer.serializeDeepObject("filter", null);
       expect(result).toEqual({});
     });
@@ -814,7 +814,7 @@ describe("ValueSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("form with explode false is one comma-joined value", () => {
+    test("bhv serializationparam 039 form with explode false is one comma-joined value", () => {
       expect(
         ValueSerializer.serializeStyled(
           "criteria",
@@ -828,7 +828,7 @@ describe("ValueSerializer", () => {
       ).toBe("color,red,min_count,3");
     });
 
-    test("form with explode true expands to one entry per property", () => {
+    test("bhv serializationparam 036 form with explode true expands to one entry per property", () => {
       const result = ValueSerializer.serializeStyled(
         "criteria",
         criteria,
@@ -869,7 +869,7 @@ describe("ValueSerializer", () => {
       ).toBe(expected);
     });
 
-    test("a Date is still a single value, not an object", () => {
+    test("bhv serializationparam 048 a Date is still a single value, not an object", () => {
       expect(
         ValueSerializer.serializeStyled(
           "at",
@@ -902,80 +902,80 @@ describe("ValueSerializer", () => {
   });
 
   describe("form location", () => {
-    test("null returns empty string", () => {
+    test("bhv serializationparam 064 null returns empty string", () => {
       expect(ValueSerializer.serialize(null, "form", "string")).toBe("");
     });
 
-    test("string returns as-is", () => {
+    test("bhv serializationparam 098 string returns as-is", () => {
       expect(ValueSerializer.serialize("hello", "form", "string")).toBe(
         "hello",
       );
     });
 
-    test("integer returns string", () => {
+    test("bhv serializationparam 047 integer returns string", () => {
       expect(ValueSerializer.serialize(42, "form", "integer")).toBe("42");
     });
 
-    test('boolean true returns "true"', () => {
+    test('bhv serializationparam 024 boolean true returns "true"', () => {
       expect(ValueSerializer.serialize(true, "form", "boolean")).toBe("true");
     });
 
-    test('boolean false returns "false"', () => {
+    test('bhv serializationparam 020 boolean false returns "false"', () => {
       expect(ValueSerializer.serialize(false, "form", "boolean")).toBe("false");
     });
   });
 
   // Cross-language parity tests for path-segment percent-encoding.
   // Every SDK must produce identical encoded strings for these inputs.
-  test("ASCII-safe pass-through", () => {
+  test("bhv serializationparam 016 ASCII-safe pass-through", () => {
     expect(ValueSerializer.serialize("abc123", "path", "string")).toBe(
       "abc123",
     );
   });
 
-  test("space encoded as %20", () => {
+  test("bhv serializationparam 092 space encoded as %20", () => {
     expect(ValueSerializer.serialize("a b", "path", "string")).toBe("a%20b");
   });
 
-  test("slash encoded", () => {
+  test("bhv serializationparam 091 slash encoded", () => {
     expect(ValueSerializer.serialize("a/b", "path", "string")).toBe("a%2Fb");
   });
 
-  test("question mark encoded", () => {
+  test("bhv serializationparam 079 question mark encoded", () => {
     expect(ValueSerializer.serialize("a?b", "path", "string")).toBe("a%3Fb");
   });
 
-  test("hash encoded", () => {
+  test("bhv serializationparam 043 hash encoded", () => {
     expect(ValueSerializer.serialize("a#b", "path", "string")).toBe("a%23b");
   });
 
-  test("comma preserved (sub-delimiter)", () => {
+  test("bhv serializationparam 026 comma preserved (sub-delimiter)", () => {
     expect(ValueSerializer.serialize("a,b", "path", "string")).toBe("a,b");
   });
 
-  test("colon preserved (sub-delimiter)", () => {
+  test("bhv serializationparam 025 colon preserved (sub-delimiter)", () => {
     expect(ValueSerializer.serialize("a:b", "path", "string")).toBe("a:b");
   });
 
-  test("plus preserved (sub-delimiter)", () => {
+  test("bhv serializationparam 077 plus preserved (sub-delimiter)", () => {
     expect(ValueSerializer.serialize("a+b", "path", "string")).toBe("a+b");
   });
 
-  test("unicode encoded as UTF-8 percent", () => {
+  test("bhv serializationparam 103 unicode encoded as UTF-8 percent", () => {
     expect(ValueSerializer.serialize("日本", "path", "string")).toBe(
       "%E6%97%A5%E6%9C%AC",
     );
   });
 
-  test("empty string preserved", () => {
+  test("bhv serializationparam 034 empty string preserved", () => {
     expect(ValueSerializer.serialize("", "path", "string")).toBe("");
   });
 
-  test("null returns empty string in path location", () => {
+  test("bhv serializationparam 066 null returns empty string in path location", () => {
     expect(ValueSerializer.serialize(null, "path", "string")).toBe("");
   });
 
-  test("simple style encodes value", () => {
+  test("bhv serializationparam 089 simple style encodes value", () => {
     expect(
       ValueSerializer.serializeStyled(
         "color",
@@ -989,7 +989,7 @@ describe("ValueSerializer", () => {
     ).toBe("a%20b");
   });
 
-  test("simple style array encodes each item", () => {
+  test("bhv serializationparam 088 simple style array encodes each item", () => {
     expect(
       ValueSerializer.serializeStyled(
         "color",
@@ -1003,7 +1003,7 @@ describe("ValueSerializer", () => {
     ).toBe("a%20b,c%3Fd");
   });
 
-  test("path_array_item_with_reserved_char_is_percent_encoded", () => {
+  test("bhv serializationparam 069 path_array_item_with_reserved_char_is_percent_encoded", () => {
     // Gap W1 regression: every per-item path value in a styled array
     // must be percent-encoded BEFORE being joined with the structural
     // separator. Otherwise '/', '?', '#', space leak into the URL.
@@ -1043,7 +1043,7 @@ describe("ValueSerializer", () => {
     ).toBe(";name=a%2Fb,c");
   });
 
-  test("matrix style encodes value", () => {
+  test("bhv serializationparam 059 matrix style encodes value", () => {
     expect(
       ValueSerializer.serializeStyled(
         "color",
@@ -1057,7 +1057,7 @@ describe("ValueSerializer", () => {
     ).toBe(";color=a%20b");
   });
 
-  test("label style encodes value", () => {
+  test("bhv serializationparam 053 label style encodes value", () => {
     expect(
       ValueSerializer.serializeStyled(
         "color",
@@ -1071,7 +1071,7 @@ describe("ValueSerializer", () => {
     ).toBe(".a%20b");
   });
 
-  test("query location is not path-encoded", () => {
+  test("bhv serializationparam 078 query location is not path-encoded", () => {
     expect(
       ValueSerializer.serializeStyled(
         "color",
@@ -1085,7 +1085,7 @@ describe("ValueSerializer", () => {
     ).toBe("a b");
   });
 
-  test("empty string path param throws", () => {
+  test("bhv serializationparam 033 empty string path param throws", () => {
     // Gap W — empty-string path values silently produce malformed
     // URLs like `/resource//details`; reject at serialization time so
     // callers see the real error rather than a downstream 404.
@@ -1110,7 +1110,7 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.stringifyDate(date)).toBe("2024-01-15");
     });
 
-    test("a Date is read as its UTC date, not its local one", () => {
+    test("bhv serializationparam 028 a Date is read as its UTC date, not its local one", () => {
       expect(
         ValueSerializer.stringifyDate(
           new Date(Date.UTC(2024, 0, 15, 23, 59, 59, 999)),
@@ -1144,7 +1144,7 @@ describe("ValueSerializer", () => {
       expect(() => ValueSerializer.stringifyDate(value)).toThrow(TypeError);
     });
 
-    test("refuses an invalid Date", () => {
+    test("bhv serializationparam 029 refuses an invalid Date", () => {
       expect(() => ValueSerializer.stringifyDate(new Date(Number.NaN))).toThrow(
         TypeError,
       );
@@ -1159,7 +1159,7 @@ describe("ValueSerializer", () => {
       ).toEqual(["2024-02-01", "2024-01-15"]);
     });
 
-    test("stringifyDates expands a Set in iteration order", () => {
+    test("bhv serializationparam 083 stringifyDates expands a Set in iteration order", () => {
       expect(
         ValueSerializer.stringifyDates(new Set(["2024-01-15", "2024-02-01"])),
       ).toEqual(["2024-01-15", "2024-02-01"]);
@@ -1171,7 +1171,7 @@ describe("ValueSerializer", () => {
       ).toThrow(TypeError);
     });
 
-    test("a styled matrix path value keeps the date part only", () => {
+    test("bhv serializationparam 054 a styled matrix path value keeps the date part only", () => {
       expect(
         ValueSerializer.serializeStyled(
           "day",
@@ -1202,7 +1202,7 @@ describe("ValueSerializer", () => {
       );
     });
 
-    test("percent-encodes a space and a reserved character", () => {
+    test("bhv serializationparam 003 percent-encodes a space and a reserved character", () => {
       expect(ValueSerializer.encodeQueryComponent("a b&c=d")).toBe(
         "a%20b%26c%3Dd",
       );
@@ -1210,7 +1210,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("allowReserved query encoding", () => {
-    test("reserved characters are left literal, other characters still encoded", () => {
+    test("bhv serializationparam 080 reserved characters are left literal, other characters still encoded", () => {
       expect(ValueSerializer.encodeQueryAllowingReserved("v1.0/beta:rc1")).toBe(
         "v1.0/beta:rc1",
       );
@@ -1221,7 +1221,7 @@ describe("ValueSerializer", () => {
       );
     });
 
-    test("keeps only the RFC 3986 query-legal reserved set literal", () => {
+    test("bhv serializationparam 068 keeps only the RFC 3986 query-legal reserved set literal", () => {
       expect(
         ValueSerializer.encodeQueryAllowingReserved(
           "a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u",
@@ -1229,7 +1229,7 @@ describe("ValueSerializer", () => {
       ).toBe("a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u");
     });
 
-    test("maybeAllowReserved wraps only when allowReserved is true", () => {
+    test("bhv serializationparam 060 maybeAllowReserved wraps only when allowReserved is true", () => {
       expect(ValueSerializer.maybeAllowReserved("plain", false)).toBe("plain");
       const wrapped = ValueSerializer.maybeAllowReserved("v1/beta", true);
       expect(wrapped).toBeInstanceOf(AllowReservedValue);

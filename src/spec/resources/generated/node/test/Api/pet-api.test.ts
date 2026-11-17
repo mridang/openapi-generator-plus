@@ -69,7 +69,7 @@ describe("PetApi", () => {
     }
   });
 
-  test("addPet", async () => {
+  test("bhv operations 022 addPet", async () => {
     const pet = new Pet({
       id: 12345,
       name: "TestDog",
@@ -83,7 +83,7 @@ describe("PetApi", () => {
     expect(result.name).toBeDefined();
   });
 
-  test("findPetsByStatus", async () => {
+  test("bhv operations 039 findPetsByStatus", async () => {
     const result = await api.findPetsByStatus({
       status: PetStatusEnum.Available,
     });
@@ -92,7 +92,7 @@ describe("PetApi", () => {
     expect(result.length).toBeGreaterThan(0);
   });
 
-  test("getPetById", async () => {
+  test("bhv operations 047 getPetById", async () => {
     const result = await api.getPetById(1);
 
     expect(result).toBeDefined();
@@ -100,7 +100,7 @@ describe("PetApi", () => {
     expect(result.name).toBeDefined();
   });
 
-  test("updatePet", async () => {
+  test("bhv operations 087 updatePet", async () => {
     const pet = new Pet({
       id: 1,
       name: "UpdatedDog",
@@ -113,24 +113,24 @@ describe("PetApi", () => {
     expect(result).toBeDefined();
   });
 
-  test("deletePet", async () => {
+  test("bhv operations 027 deletePet", async () => {
     await api.deletePet(1);
   });
 
-  test("setPetAvatar", async () => {
+  test("bhv operations 070 setPetAvatar", async () => {
     const body = Buffer.from([0xff, 0xd8, 0xff]);
 
     await api.setPetAvatar(1, body);
   });
 
-  test("getPetAvatar", async () => {
+  test("bhv operations 045 getPetAvatar", async () => {
     const result = await api.getPetAvatarWithHttpInfo(1);
 
     expect(Buffer.isBuffer(result.data)).toBe(true);
     expect((result.data as Buffer).toString("base64")).toBe(result.rawBody);
   });
 
-  test("getPetAvatarThumbnail", async () => {
+  test("bhv operations 046 getPetAvatarThumbnail", async () => {
     // A top-level `type: string, format: byte` response carried as
     // application/json arrives as a JSON string literal ("dGVzdC1pbWFnZQ==").
     // The SDK must JSON-parse it and base64-decode the inner string to raw
@@ -141,7 +141,7 @@ describe("PetApi", () => {
     expect(result.toString("utf8")).toBe("test-image");
   });
 
-  test("setPetAvatarThumbnail", async () => {
+  test("bhv operations 074 setPetAvatarThumbnail", async () => {
     const request: SetPetAvatarThumbnailRequest = Buffer.from(
       "aGVsbG8=",
       "base64",
@@ -150,7 +150,7 @@ describe("PetApi", () => {
     await api.setPetAvatarThumbnail(1, request);
   });
 
-  test("uploadPetCertificate", async () => {
+  test("bhv operations 090 uploadPetCertificate", async () => {
     const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
 
     const result = await api.uploadPetCertificate(1, { file });
@@ -158,7 +158,7 @@ describe("PetApi", () => {
     expect(result).toBeDefined();
   });
 
-  test("uploadPetDocument", async () => {
+  test("bhv operations 091 uploadPetDocument", async () => {
     const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
 
     const result = await api.uploadPetDocument(1, {
@@ -170,7 +170,7 @@ describe("PetApi", () => {
     expect(result).toBeDefined();
   });
 
-  test("addPetPhotos", async () => {
+  test("bhv operations 023 addPetPhotos", async () => {
     const files = [Buffer.from([0xff, 0xd8, 0xff])];
     const metadata = new PhotoMetadata({
       caption: "Test photo",
@@ -182,13 +182,13 @@ describe("PetApi", () => {
     expect(Array.isArray(result)).toBe(true);
   });
 
-  test("downloadPetDocument", async () => {
+  test("bhv operations 035 downloadPetDocument", async () => {
     const result = await api.downloadPetDocument(1, 100);
 
     expect(result).toBeDefined();
   });
 
-  test("getPetPhoto", async () => {
+  test("bhv operations 055 getPetPhoto", async () => {
     const result = await api.getPetPhoto(1, 100);
 
     expect(result).toBeDefined();
@@ -201,7 +201,7 @@ describe("PetApi", () => {
    * must survive instead of being replaced by application/octet-stream or
    * application/json.
    */
-  test("setPetAvatar streams raw bytes with declared content type", async () => {
+  test("bhv operations 073 setPetAvatar streams raw bytes with declared content type", async () => {
     let capturedBody: unknown = null;
     let capturedHeaders: Record<string, string> = {};
     const capturingClient: ApiClient = {
@@ -231,7 +231,7 @@ describe("PetApi", () => {
     expect(capturedHeaders["Content-Type"]).toBe("image/jpeg");
   });
 
-  test("getPetTag sends styled parameters (matrix/label path styles)", async () => {
+  test("bhv operations 060 getPetTag sends styled parameters (matrix/label path styles)", async () => {
     const result = await api.getPetTag(5, "cute", {
       colors: ["blue", "black"],
       sizes: ["S", "M"],
@@ -248,7 +248,7 @@ describe("PetApi", () => {
   // they serialize to `colors=blue|black` and `sizes=S M` (the `|` and space
   // percent-encoded by the URL builder). We capture the outbound request URL and
   // assert the styled values are present and the debug form is absent.
-  test("getPetTag serializes optional array query params as styled values", async () => {
+  test("bhv operations 068 getPetTag serializes optional array query params as styled values", async () => {
     let capturedUrl: string | undefined;
     const server = http.createServer((req, res) => {
       capturedUrl = req.url;
@@ -294,7 +294,7 @@ describe("PetApi", () => {
   // both `format: date`; each must reach the wire as YYYY-MM-DD with NO time
   // component (java's LocalDate wire form), never a full ISO date-time. The
   // Date carries a non-midnight time so a leaked time would be visible.
-  test("findPetsByStatus serializes date-only query and header params as YYYY-MM-DD", async () => {
+  test("bhv operations 069 findPetsByStatus serializes date-only query and header params as YYYY-MM-DD", async () => {
     let capturedUrl: string | undefined;
     let capturedHeader: string | string[] | undefined;
     const server = http.createServer((req, res) => {
@@ -333,7 +333,7 @@ describe("PetApi", () => {
     }
   });
 
-  test("getExternalPetInfo uses the per-operation server", async () => {
+  test("bhv operations 061 getExternalPetInfo uses the per-operation server", async () => {
     /* The operation's own server wins over the client's base URL: the
      * client points at a closed port, the per-operation server at the mock. */
     class MockServer extends GetExternalPetInfoServer {
@@ -385,7 +385,7 @@ describe("PetApi", () => {
     expect(result.pet).toBeDefined();
   });
 
-  test("getPetPassport", async () => {
+  test("bhv operations 053 getPetPassport", async () => {
     const result = await api.getPetPassport(1);
 
     expect(result).toBeDefined();
@@ -394,7 +394,7 @@ describe("PetApi", () => {
     expect(result.scans).toBeDefined();
   });
 
-  test("addPetWithHttpInfo", async () => {
+  test("bhv operations 025 addPetWithHttpInfo", async () => {
     const pet = new Pet({
       id: 99,
       name: "HttpInfoDog",
@@ -409,7 +409,7 @@ describe("PetApi", () => {
     expect(result.data).toBeDefined();
   });
 
-  test("getPetByIdWithHttpInfo", async () => {
+  test("bhv operations 048 getPetByIdWithHttpInfo", async () => {
     const result = await api.getPetByIdWithHttpInfo(1);
 
     expect(result.statusCode).toBe(200);
@@ -417,7 +417,7 @@ describe("PetApi", () => {
     expect(result.rawBody).toBeDefined();
   });
 
-  test("updatePetWithHttpInfo", async () => {
+  test("bhv operations 088 updatePetWithHttpInfo", async () => {
     const pet = new Pet({
       id: 1,
       name: "UpdatedDog",
@@ -431,14 +431,14 @@ describe("PetApi", () => {
     expect(result.statusCode).toBeLessThan(300);
   });
 
-  test("deletePetWithHttpInfo", async () => {
+  test("bhv operations 031 deletePetWithHttpInfo", async () => {
     const result = await api.deletePetWithHttpInfo(1);
 
     expect(result.statusCode).toBeGreaterThanOrEqual(200);
     expect(result.statusCode).toBeLessThan(300);
   });
 
-  test("findPetsByStatusWithHttpInfo", async () => {
+  test("bhv operations 042 findPetsByStatusWithHttpInfo", async () => {
     const result = await api.findPetsByStatusWithHttpInfo({
       status: PetStatusEnum.Available,
     });
@@ -446,7 +446,7 @@ describe("PetApi", () => {
     expect(result.statusCode).toBe(200);
   });
 
-  test("getPetPassportWithHttpInfo", async () => {
+  test("bhv operations 054 getPetPassportWithHttpInfo", async () => {
     const result = await api.getPetPassportWithHttpInfo(1);
 
     expect(result.statusCode).toBe(200);
@@ -479,7 +479,7 @@ function createMockServer(
 }
 
 describe("PetApi top-level byte responses", () => {
-  test("getPetAvatarThumbnail rejects malformed base64 with a SerializationError", async () => {
+  test("bhv operations 063 getPetAvatarThumbnail rejects malformed base64 with a SerializationError", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -496,7 +496,7 @@ describe("PetApi top-level byte responses", () => {
 });
 
 describe("PetApi", () => {
-  test("error handling not found", async () => {
+  test("bhv operations 037 error handling not found", async () => {
     const { api: mockApi, close } = await createMockServer(
       404,
       "application/json",
@@ -511,7 +511,7 @@ describe("PetApi", () => {
     }
   });
 
-  test("500 response throws error", async () => {
+  test("bhv operations 038 500 response throws error", async () => {
     const { api: mockApi, close } = await createMockServer(
       500,
       "application/json",
@@ -526,7 +526,7 @@ describe("PetApi", () => {
     }
   });
 
-  test("download binary mock", async () => {
+  test("bhv operations 034 download binary mock", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/octet-stream",
@@ -543,7 +543,7 @@ describe("PetApi", () => {
   // A top-level `type: string, format: byte` value carried as application/json
   // arrives as a JSON string literal (quotes included). The SDK must JSON-parse
   // it and then base64-decode the inner string to the raw bytes.
-  test("getPetAvatarThumbnail decodes a JSON string literal as base64 bytes", async () => {
+  test("bhv operations 062 getPetAvatarThumbnail decodes a JSON string literal as base64 bytes", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -559,7 +559,7 @@ describe("PetApi", () => {
     }
   });
 
-  test("upload multipart mock", async () => {
+  test("bhv operations 089 upload multipart mock", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -577,7 +577,7 @@ describe("PetApi", () => {
   // convenience-empty-body-handling: a body-returning operation that receives a
   // 200 with an empty body must surface a typed ApiError from the plain
   // convenience method, never a silently-cast undefined.
-  test("empty body on a body-returning op throws ApiError", async () => {
+  test("bhv operations 036 empty body on a body-returning op throws ApiError", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -637,7 +637,7 @@ describe("PetApi", () => {
   // char) must FAIL CLOSED with the RFC-6265 error before any HTTP call.
   // deletePet's optional `api_key` cookie is the path; the guard mirrors the
   // auth-cookie validation in BaseApi.
-  test("deletePet api_key cookie with CR/LF fails closed (RFC 6265)", async () => {
+  test("bhv operations 029 deletePet api_key cookie with CR/LF fails closed (RFC 6265)", async () => {
     await expect(
       api.deletePet(1, { apiKey: "abc\r\nInjected: yes" }),
     ).rejects.toThrow(/RFC 6265/);
@@ -678,7 +678,7 @@ describe("PetApi", () => {
   // required-string-param-empty-string: a required STRING parameter must reject
   // the empty string the same way it rejects null, matching go/rust/swift/elixir.
   // Validation happens before any HTTP call, so no mock server is needed.
-  test("required string query param rejects empty string", async () => {
+  test("bhv operations 049 required string query param rejects empty string", async () => {
     await expect(
       api.getPetByName("Rex", {
         category: "",
@@ -689,7 +689,7 @@ describe("PetApi", () => {
     );
   });
 
-  test("required string path param rejects empty string", async () => {
+  test("bhv operations 052 required string path param rejects empty string", async () => {
     await expect(
       api.getPetByName("", {
         category: "dog",
@@ -817,7 +817,7 @@ describe("PetApi form-urlencoded body serialization", () => {
 
   // #4 — a `format: date` form field (renewalDate) is date-only on the wire:
   // renewalDate=2024-01-01, with no time component (java's LocalDate form).
-  test("#4 date-only form field serializes as YYYY-MM-DD", async () => {
+  test("bhv operations 019 #4 date-only form field serializes as YYYY-MM-DD", async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = {
@@ -996,7 +996,7 @@ describe("PetApi request content-type selector", () => {
   // OCTET-STREAM-RAW-BODY: selecting application/octet-stream must send the
   // single binary part's RAW bytes as the request body — never a multipart
   // envelope and never base64.
-  test("octet-stream selection sends raw bytes, not multipart", async () => {
+  test("bhv operations 092 octet-stream selection sends raw bytes, not multipart", async () => {
     const { api, getCapture, close } = await captureRawBody();
     try {
       const fileBytes = Buffer.from([
@@ -1037,7 +1037,7 @@ describe("PetApi request content-type selector", () => {
 
   // Over-correction guard: selecting multipart/form-data (the default) still
   // frames the body as a multipart/form-data envelope carrying the file part.
-  test("multipart selection still sends a multipart envelope", async () => {
+  test("bhv operations 094 multipart selection still sends a multipart envelope", async () => {
     const { api, getCapture, close } = await captureRawBody();
     try {
       const fileBytes = Buffer.from([
@@ -1066,7 +1066,7 @@ describe("PetApi request content-type selector", () => {
     }
   });
 
-  test("setPetAvatar with the JSON selector sends the binary body verbatim", async () => {
+  test("bhv operations 072 setPetAvatar with the JSON selector sends the binary body verbatim", async () => {
     const { api, getCapture, close } = await captureRawBody();
     try {
       const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
@@ -1082,7 +1082,7 @@ describe("PetApi request content-type selector", () => {
     }
   });
 
-  test("setPetAvatarThumbnail still sends a format:byte JSON body as base64", async () => {
+  test("bhv operations 077 setPetAvatarThumbnail still sends a format:byte JSON body as base64", async () => {
     const { api, getCapture, close } = await captureRawBody();
     try {
       await api
@@ -1198,7 +1198,7 @@ describe("PetApi against a recording client", () => {
     recorded.length = 0;
   });
 
-  test("the generated operation-server variants resolve the URLs the spec declares", () => {
+  test("bhv operations 083 the generated operation-server variants resolve the URLs the spec declares", () => {
     expect(new GetExternalPetInfoServerServer0().getUrl()).toBe(
       "https://external-api.example.com/v1",
     );
@@ -1309,7 +1309,7 @@ describe("PetApi against a recording client", () => {
     },
   );
 
-  test("getPetByName keeps a name that only contains dots", async () => {
+  test("bhv operations 064 getPetByName keeps a name that only contains dots", async () => {
     await recordingApi.getPetByName("a..b", {
       category: "sample",
       xCorrelationId: "sample-correlation",
@@ -1332,7 +1332,7 @@ describe("PetApi against a recording client", () => {
     },
   );
 
-  test("getPetTag percent-encodes # in an allowReserved value", async () => {
+  test("bhv operations 066 getPetTag percent-encodes # in an allowReserved value", async () => {
     await recordingApi.getPetTag(5, "sample", {
       revision: "v1.0/beta:rc1#frag",
     });
@@ -1356,7 +1356,7 @@ describe("PetApi against a recording client", () => {
     },
   );
 
-  test("getPetTag expands the object-valued criteria parameters per their styles", async () => {
+  test("bhv operations 067 getPetTag expands the object-valued criteria parameters per their styles", async () => {
     const criteria = new PetCriteria({ breed: "lab", min_age: 3 });
 
     await recordingApi.getPetTag(5, "sample", {
@@ -1378,7 +1378,7 @@ describe("PetApi against a recording client", () => {
     expect(new URL(recorded[0]!.url).pathname).toBe("/pet/;petId=5/tag/.cute");
   });
 
-  test("findPetsByStatus writes the deepObject filter as bracketed keys", async () => {
+  test("bhv operations 044 findPetsByStatus writes the deepObject filter as bracketed keys", async () => {
     await recordingApi
       .findPetsByStatus({ filter: { color: "blue", size: "large" } })
       .catch(() => undefined);
@@ -1388,13 +1388,13 @@ describe("PetApi against a recording client", () => {
     );
   });
 
-  test("findPetsByStatus keeps the digit-leading query parameter name", async () => {
+  test("bhv operations 021 findPetsByStatus keeps the digit-leading query parameter name", async () => {
     await recordingApi.findPetsByStatus({ n2ndPage: 2 }).catch(() => undefined);
 
     expect(new URL(recorded[0]!.url).searchParams.get("2ndPage")).toBe("2");
   });
 
-  test("getPetByName without the required X-Correlation-Id header sends no request", async () => {
+  test("bhv operations 050 getPetByName without the required X-Correlation-Id header sends no request", async () => {
     const error = await recordingApi
       .getPetByName("x", { category: "sample" } as never)
       .catch((e: unknown) => e);
@@ -1406,7 +1406,7 @@ describe("PetApi against a recording client", () => {
     expect(recorded).toHaveLength(0);
   });
 
-  test("getPetSummary without the required session cookie sends no request", async () => {
+  test("bhv operations 056 getPetSummary without the required session cookie sends no request", async () => {
     const error = await recordingApi
       .getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {} as never)
       .catch((e: unknown) => e);
@@ -1418,7 +1418,7 @@ describe("PetApi against a recording client", () => {
     expect(recorded).toHaveLength(0);
   });
 
-  test("addPetTreatment sends the chosen anyOf variant as the request body", async () => {
+  test("bhv operations 024 addPetTreatment sends the chosen anyOf variant as the request body", async () => {
     const sent: {
       path?: string;
       body?: string | Buffer | Record<string, unknown> | null;
@@ -1461,7 +1461,7 @@ describe("PetApi against a recording client", () => {
     expect(result.getActualInstance()).toBeInstanceOf(Medication);
   });
 
-  test("uploadPetDocument sends the non-string scalar parts as plain text parts", async () => {
+  test("bhv operations 095 uploadPetDocument sends the non-string scalar parts as plain text parts", async () => {
     const chunks: Buffer[] = [];
     const server = http.createServer((req, res) => {
       req.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -1528,7 +1528,7 @@ describe("PetApi against a recording client", () => {
     ).toBe(true);
   });
 
-  test("findPetsBornOn serializes the format:date path parameter as YYYY-MM-DD", async () => {
+  test("bhv operations 043 findPetsBornOn serializes the format:date path parameter as YYYY-MM-DD", async () => {
     await recordingApi.findPetsBornOn(
       new Date(Date.UTC(2024, 0, 1, 13, 45, 30)),
     );
@@ -1536,7 +1536,7 @@ describe("PetApi against a recording client", () => {
     expect(new URL(recorded[0]!.url).pathname).toBe("/pet/born-on/2024-01-01");
   });
 
-  test("getPetSummary applies the matrix style to the format:date path parameter", async () => {
+  test("bhv operations 057 getPetSummary applies the matrix style to the format:date path parameter", async () => {
     await recordingApi.getPetSummary(
       1,
       new Date(Date.UTC(2024, 0, 15, 13, 45, 30)),
@@ -1645,7 +1645,7 @@ describe("PetApi against a recording client", () => {
     const newPet = () =>
       new Pet({ id: 1, name: "x", photoUrls: new Set<string>() });
 
-    test("an operation uses the credential of the scheme its spec names", async () => {
+    test("bhv operations 079 an operation uses the credential of the scheme its spec names", async () => {
       const petApi = new PetApi(recordingClient, config, null, {
         petStoreBearer: bearer,
       });
@@ -1655,7 +1655,7 @@ describe("PetApi against a recording client", () => {
       expect(recorded[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
     });
 
-    test("an operation uses the first scheme of its own list that the client holds", async () => {
+    test("bhv operations 080 an operation uses the first scheme of its own list that the client holds", async () => {
       const petApi = new PetApi(recordingClient, config, null, {
         petStoreBearer: bearer,
         apiKeyHeader: apiKey,
@@ -1667,7 +1667,7 @@ describe("PetApi against a recording client", () => {
       expect(recorded[0]!.headers["Authorization"]).toBeUndefined();
     });
 
-    test("a credential held for a scheme the operation does not name is never sent", async () => {
+    test("bhv operations 020 a credential held for a scheme the operation does not name is never sent", async () => {
       const petApi = new PetApi(recordingClient, config, null, {
         adminBasic: apiKey,
       });
@@ -1678,7 +1678,7 @@ describe("PetApi against a recording client", () => {
       expect(recorded[0]!.headers["Authorization"]).toBeUndefined();
     });
 
-    test("an operation no scheme credential matches uses the client-level authenticator", async () => {
+    test("bhv operations 026 an operation no scheme credential matches uses the client-level authenticator", async () => {
       const petApi = new PetApi(recordingClient, config, fallback, {
         adminBasic: apiKey,
       });
@@ -1701,7 +1701,7 @@ describe("PetApi against a recording client", () => {
       expect(recorded[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
     });
 
-    test("there is no per-call authenticator: no Options object has an auth member", async () => {
+    test("bhv operations 086 there is no per-call authenticator: no Options object has an auth member", async () => {
       const options = fs.readFileSync(
         path.join(process.cwd(), "src/api/options/delete-pet-options.ts"),
         "utf8",

@@ -77,7 +77,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     );
   });
 
-  test("sends password grant type", async () => {
+  test("bhv authoauthtwopassword 014 sends password grant type", async () => {
     await authenticator.getAuthHeadersAsync();
 
     const body = mockClient.lastBody as string;
@@ -85,7 +85,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(params.get("grant_type")).toBe("password");
   });
 
-  test("sends username and password", async () => {
+  test("bhv authoauthtwopassword 016 sends username and password", async () => {
     await authenticator.getAuthHeadersAsync();
 
     const body = mockClient.lastBody as string;
@@ -94,7 +94,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(params.get("password")).toBe("testpass");
   });
 
-  test("sends client id and secret", async () => {
+  test("bhv authoauthtwopassword 013 sends client id and secret", async () => {
     await authenticator.getAuthHeadersAsync();
 
     const body = mockClient.lastBody as string;
@@ -103,7 +103,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(params.get("client_secret")).toBe("my-client-secret");
   });
 
-  test("returns authorization bearer header", async () => {
+  test("bhv authoauthtwopassword 011 returns authorization bearer header", async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "tok-pwd",
       expires_in: 3600,
@@ -114,7 +114,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer tok-pwd");
   });
 
-  test("uses refresh token on subsequent calls", async () => {
+  test("bhv authoauthtwopassword 019 uses refresh token on subsequent calls", async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "tok1",
       refresh_token: "ref1",
@@ -141,7 +141,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(params.get("refresh_token")).toBe("ref1");
   });
 
-  test("invalidateAccessToken drops the access token and renews through the refresh token", async () => {
+  test("bhv authoauthtwopassword 004 invalidateAccessToken drops the access token and renews through the refresh token", async () => {
     mockClient.queued = [
       {
         status: 200,
@@ -162,7 +162,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(mockClient.calls[1]!.params.get("refresh_token")).toBe("ref1");
   });
 
-  test("getHost returns configured host", () => {
+  test("bhv authoauthtwopassword 003 getHost returns configured host", () => {
     expect(authenticator.getHost()).toBe("https://api.example.com");
   });
 
@@ -177,7 +177,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(util.inspect(authenticator)).toContain("***");
   });
 
-  it("redacts secret", () => {
+  it("bhv authoauthtwopassword 007 redacts secret", () => {
     expect(util.inspect(authenticator)).not.toContain("my-client-secret");
     expect(util.inspect(authenticator)).not.toContain("testpass");
     expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
@@ -186,7 +186,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(JSON.stringify(authenticator)).toContain("***");
   });
 
-  test("basic auth url-encodes client id and secret", async () => {
+  test("bhv authoauthtwopassword 002 basic auth url-encodes client id and secret", async () => {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-
     // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -220,7 +220,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(decoded).toBe("id%2Bwith%2Fspecial:secret%26with%3Dstuff");
   });
 
-  test("basic auth keeps the unreserved tilde literal and percent-encodes * ! ' ( )", async () => {
+  test("bhv authoauthtwopassword 001 basic auth keeps the unreserved tilde literal and percent-encodes * ! ' ( )", async () => {
     // RFC 6749 §2.3.1 form-encoding keeps exactly "-._~" literal and
     // percent-encodes the sub-delimiters "* ! ' ( )".
     const basicAuth = new OAuth2PasswordAuthenticator(
@@ -251,7 +251,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(decoded).toBe("a~b%2Ac:d%21e%27f%28g%29");
   });
 
-  test("the request body keeps the tilde literal and percent-encodes * ! ' ( )", async () => {
+  test("bhv authoauthtwopassword 005 the request body keeps the tilde literal and percent-encodes * ! ' ( )", async () => {
     const bodyAuth = new OAuth2PasswordAuthenticator(
       "https://api.example.com",
       "a~b*c",
@@ -275,7 +275,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(body).toContain("client_secret=d%21e%27f%28g%29");
   });
 
-  test("sends the first grant to the token URL and the refresh grant to the refresh URL", async () => {
+  test("bhv authoauthtwopassword 017 sends the first grant to the token URL and the refresh grant to the refresh URL", async () => {
     const refreshing = new OAuth2PasswordAuthenticator(
       "https://api.example.com",
       "my-client-id",
@@ -341,7 +341,7 @@ describe("OAuth2PasswordAuthenticator", () => {
       return auth;
     }
 
-    test("in body mode the refresh grant carries client_id and client_secret", async () => {
+    test("bhv authoauthtwopassword 009 in body mode the refresh grant carries client_id and client_secret", async () => {
       mockClient.queued = [
         {
           status: 200,
@@ -364,7 +364,7 @@ describe("OAuth2PasswordAuthenticator", () => {
       });
     });
 
-    test("in basic mode the refresh grant carries the Basic header and no client_id", async () => {
+    test("bhv authoauthtwopassword 008 in basic mode the refresh grant carries the Basic header and no client_id", async () => {
       mockClient.queued = [
         {
           status: 200,
@@ -383,7 +383,7 @@ describe("OAuth2PasswordAuthenticator", () => {
       expect(refresh.params.has("client_id")).toBe(false);
     });
 
-    test("a rejected refresh re-runs the password grant against the token URL", async () => {
+    test("bhv authoauthtwopassword 010 a rejected refresh re-runs the password grant against the token URL", async () => {
       mockClient.queued = [
         {
           status: 200,
@@ -405,7 +405,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     });
   });
 
-  test("the redacted representation shows exactly the agreed non-secret fields", () => {
+  test("bhv authoauthtwopassword 018 the redacted representation shows exactly the agreed non-secret fields", () => {
     expect(util.inspect(authenticator)).toBe(
       "OAuth2PasswordAuthenticator(host=https://api.example.com, clientId=my-client-id, clientSecret=***, tokenUrl=https://auth.example.com/token, refreshUrl=https://auth.example.com/token, username=testuser, password=***, scopes=[read, write], clientAuthMethod=body)",
     );

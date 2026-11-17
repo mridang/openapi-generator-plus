@@ -15,28 +15,28 @@ describe('OAuth2ImplicitAuthenticator', () => {
     );
   });
 
-  test('builds authorization URL with response type token', () => {
+  test('bhv authoauthtwoimplicit 003 builds authorization URL with response type token', () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain('https://auth.example.com/authorize?');
     expect(url).toContain('response_type=token');
   });
 
-  test('builds authorization URL with client id', () => {
+  test('bhv authoauthtwoimplicit 002 builds authorization URL with client id', () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain('client_id=my-client-id');
   });
 
-  test('builds authorization URL with scopes', () => {
+  test('bhv authoauthtwoimplicit 004 builds authorization URL with scopes', () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain('scope=read%20write');
   });
 
-  test('builds authorization URL with state', () => {
+  test('bhv authoauthtwoimplicit 005 builds authorization URL with state', () => {
     const url = authenticator.buildAuthorizationUrl('my-state');
     expect(url).toContain('state=my-state');
   });
 
-  test('getAuthHeaders returns Bearer after setAccessToken', () => {
+  test('bhv authoauthtwoimplicit 007 getAuthHeaders returns Bearer after setAccessToken', () => {
     authenticator.setAccessToken('implicit-tok');
 
     const headers = authenticator.getAuthHeaders();
@@ -44,7 +44,7 @@ describe('OAuth2ImplicitAuthenticator', () => {
     expect(headers['Authorization']).toBe('Bearer implicit-tok');
   });
 
-  test('the authorize URL keeps the tilde literal and percent-encodes * ! \' ( )', () => {
+  test('bhv authoauthtwoimplicit 001 the authorize URL keeps the tilde literal and percent-encodes * ! \' ( )', () => {
     const auth = new OAuth2ImplicitAuthenticator(
       'https://api.example.com',
       "a~b*c!d'e(f)",
@@ -69,7 +69,7 @@ describe('OAuth2ImplicitAuthenticator', () => {
     expect(() => authenticator.getAuthHeaders()).toThrow('Must set the access token before making API requests');
   });
 
-  test('throws when access token not set', () => {
+  test('bhv authoauthtwoimplicit 012 throws when access token not set', () => {
     let caught: unknown;
     try {
       authenticator.getAuthHeaders();
@@ -80,11 +80,11 @@ describe('OAuth2ImplicitAuthenticator', () => {
     expect((caught as Error).message).toContain('Must set the access token before making API requests');
   });
 
-  test('getHost returns configured host', () => {
+  test('bhv authoauthtwoimplicit 008 getHost returns configured host', () => {
     expect(authenticator.getHost()).toBe('https://api.example.com');
   });
 
-  it('redacts secret', () => {
+  it('bhv authoauthtwoimplicit 010 redacts secret', () => {
     authenticator.setAccessToken('implicit-tok');
     expect(util.inspect(authenticator)).not.toContain('implicit-tok');
     expect(JSON.stringify(authenticator)).not.toContain('implicit-tok');
@@ -92,7 +92,7 @@ describe('OAuth2ImplicitAuthenticator', () => {
     expect(JSON.stringify(authenticator)).toContain('***');
   });
 
-  test('the redacted representation shows exactly the agreed non-secret fields', () => {
+  test('bhv authoauthtwoimplicit 011 the redacted representation shows exactly the agreed non-secret fields', () => {
     expect(util.inspect(authenticator)).toBe(
       'OAuth2ImplicitAuthenticator(host=https://api.example.com, clientId=my-client-id, authorizationUrl=https://auth.example.com/authorize, scopes=[read, write], accessToken=null)'
     );

@@ -21,7 +21,7 @@ import {
 describe("Composed Schema", () => {
   // -- oneOf with discriminator: PetFood --
 
-  test("oneOf: PetFood resolves to DryFood", () => {
+  test("bhv unions 012 oneOf: PetFood resolves to DryFood", () => {
     const data = { foodType: "dry", weightKg: 2.5 };
     const result = ObjectSerializer.deserialize(data, PetFood);
     expect(result).toBeDefined();
@@ -30,7 +30,7 @@ describe("Composed Schema", () => {
     expect(instance).toBeInstanceOf(DryFood);
   });
 
-  test("oneOf: PetFood resolves to WetFood", () => {
+  test("bhv unions 013 oneOf: PetFood resolves to WetFood", () => {
     const data = { foodType: "wet", volumeMl: 400 };
     const result = ObjectSerializer.deserialize(data, PetFood);
     expect(result).toBeDefined();
@@ -53,7 +53,7 @@ describe("Composed Schema", () => {
     );
   });
 
-  test("oneOf: unknown discriminator throws SerializationError (4.7)", () => {
+  test("bhv unions 016 oneOf: unknown discriminator throws SerializationError (4.7)", () => {
     // 4.7 — A discriminator value that is not listed in the schema mapping
     // used to silently fall through to the base envelope. We now surface
     // the wire/spec mismatch so callers see the bug instead of an
@@ -64,7 +64,7 @@ describe("Composed Schema", () => {
     );
   });
 
-  test("oneOf: unknown discriminator error names the offending value", () => {
+  test("bhv unions 026 oneOf: unknown discriminator error names the offending value", () => {
     const data = { foodType: "raw", calories: 300 };
     try {
       ObjectSerializer.deserialize(data, PetFood);
@@ -101,7 +101,7 @@ describe("Composed Schema", () => {
     );
   });
 
-  test("oneOf: missing discriminator throws SerializationError", () => {
+  test("bhv unions 015 oneOf: missing discriminator throws SerializationError", () => {
     // A payload omitting the discriminator property entirely cannot route to
     // any variant; the deserializer throws rather than structurally guessing
     // a variant. Aligns Node with Python / Swift / PHP / Ruby / Dart / Rust.
@@ -122,7 +122,7 @@ describe("Composed Schema", () => {
     }
   });
 
-  test("oneOf: empty discriminator throws SerializationError", () => {
+  test("bhv unions 024 oneOf: empty discriminator throws SerializationError", () => {
     // An empty discriminator value is present but not listed in the schema
     // mapping; it must throw rather than route to a structurally-fitting
     // variant. Aligns Node with Python / PHP on empty-discriminator rejection.
@@ -132,7 +132,7 @@ describe("Composed Schema", () => {
     );
   });
 
-  test("oneOf: serializes DryFood back to JSON", () => {
+  test("bhv unions 020 oneOf: serializes DryFood back to JSON", () => {
     const data = { foodType: "dry", weightKg: 2.5 };
     const result = ObjectSerializer.deserialize(data, PetFood);
     const serialized = ObjectSerializer.serialize(result!.getActualInstance());
@@ -148,7 +148,7 @@ describe("Composed Schema", () => {
     expect(typeof PetTreatment).toBe("function");
   });
 
-  test("anyOf: PetTreatment deserializes Medication", () => {
+  test("bhv unions 014 anyOf: PetTreatment deserializes Medication", () => {
     const data = { drugName: "Amoxicillin", dosage: "500mg" };
     const result = ObjectSerializer.deserialize(data, PetTreatment);
     expect(result).toBeDefined();
@@ -156,7 +156,7 @@ describe("Composed Schema", () => {
     expect(result!.getActualInstance()).toBeInstanceOf(Medication);
   });
 
-  test("anyOf: PetTreatment deserializes Surgery", () => {
+  test("bhv unions 006 anyOf: PetTreatment deserializes Surgery", () => {
     const data = { procedureName: "Spay", durationMinutes: 45 };
     const result = ObjectSerializer.deserialize(data, PetTreatment);
     expect(result).toBeDefined();
@@ -164,7 +164,7 @@ describe("Composed Schema", () => {
     expect(result!.getActualInstance()).toBeInstanceOf(Surgery);
   });
 
-  test("anyOf: PetTreatment with no matching variant throws SerializationError", () => {
+  test("bhv unions 007 anyOf: PetTreatment with no matching variant throws SerializationError", () => {
     // oneof-nondiscriminator-no-match-silent: a payload matching neither
     // Medication nor Surgery used to fall through to a generic
     // plainToInstance that stored the raw bag-of-keys (type confusion).
@@ -190,7 +190,7 @@ describe("Composed Schema", () => {
     );
   });
 
-  test("anyOf: PetTreatment serialize round-trip", () => {
+  test("bhv unions 008 anyOf: PetTreatment serialize round-trip", () => {
     const data = { drugName: "Amoxicillin", dosage: "500mg" };
     const result = ObjectSerializer.deserialize(data, PetTreatment);
     expect(result).toBeDefined();
@@ -198,7 +198,7 @@ describe("Composed Schema", () => {
     expect(serialized).toBeDefined();
   });
 
-  test("anyOf retains all matching variants (medication and surgery) losslessly", () => {
+  test("bhv unions 009 anyOf retains all matching variants (medication and surgery) losslessly", () => {
     // PetTreatment is a non-discriminated anyOf of Medication (drugName,
     // dosage) and Surgery (procedureName, durationMinutes), documented as
     // matching a medication, a surgery, OR BOTH. A payload satisfying BOTH
@@ -237,7 +237,7 @@ describe("Composed Schema", () => {
     expect(reparsed.durationMinutes).toBe(45);
   });
 
-  test("anyOf shared-property collision keeps the last variant, emitted once", () => {
+  test("bhv unions 010 anyOf shared-property collision keeps the last variant, emitted once", () => {
     // anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
     // When a PetTreatment retains both members with DIFFERENT `notes` values,
     // the merged encoding must keep the LAST-declared member's value (Surgery)
@@ -265,7 +265,7 @@ describe("Composed Schema", () => {
     expect(serialized.split('"notes"').length).toBe(2);
   });
 
-  test("anyOf single-variant payloads still decode correctly", () => {
+  test("bhv unions 003 anyOf single-variant payloads still decode correctly", () => {
     // The both-variants retention must not break the single-variant case: a
     // medication-only and a surgery-only payload each still decode, exposing
     // exactly one matched variant.
@@ -286,7 +286,7 @@ describe("Composed Schema", () => {
 
   // -- allOf: PetWithOwner --
 
-  test("allOf: PetWithOwner deserializes all properties", () => {
+  test("bhv unions 004 allOf: PetWithOwner deserializes all properties", () => {
     const data = {
       name: "doggie",
       photoUrls: ["http://example.com/photo.jpg"],
@@ -300,7 +300,7 @@ describe("Composed Schema", () => {
     expect(result!.ownerEmail).toBe("john@example.com");
   });
 
-  test("allOf: PetWithOwner serializes to JSON", () => {
+  test("bhv unions 021 allOf: PetWithOwner serializes to JSON", () => {
     const data = {
       name: "Fido",
       photoUrls: ["http://example.com/fido.jpg"],
@@ -313,7 +313,7 @@ describe("Composed Schema", () => {
     expect(serialized).toContain("John Doe");
   });
 
-  test("allOf: PetWithOwner round-trip preserves fields", () => {
+  test("bhv unions 017 allOf: PetWithOwner round-trip preserves fields", () => {
     const data = {
       name: "Buddy",
       photoUrls: ["http://example.com/buddy.jpg"],
@@ -329,7 +329,7 @@ describe("Composed Schema", () => {
     expect(restored!.ownerName).toBe(original!.ownerName);
   });
 
-  test("anyOf: variants are listed and retained in schema declaration order", () => {
+  test("bhv unions 005 anyOf: variants are listed and retained in schema declaration order", () => {
     expect(PetTreatment.ANY_OF_SCHEMAS).toEqual(["Medication", "Surgery"]);
     expect(TreatmentRecord.ANY_OF_SCHEMAS).toEqual(["Surgery", "Medication"]);
     const data = { drugName: "Amoxicillin", procedureName: "Spay" };
@@ -345,7 +345,7 @@ describe("Composed Schema", () => {
     ]);
   });
 
-  test("anyOf: wrappers compare by value", () => {
+  test("bhv unions 011 anyOf: wrappers compare by value", () => {
     const data = { drugName: "Amoxicillin", procedureName: "Spay" };
     const a = ObjectSerializer.deserialize(data, PetTreatment)!;
     const b = ObjectSerializer.deserialize(data, PetTreatment)!;
@@ -416,7 +416,7 @@ describe("Composed Schema", () => {
     expect(only.asSurgery()).toBeNull();
   });
 
-  test("anyOf: the declaration order of the variants does not change the accessors", () => {
+  test("bhv unions 025 anyOf: the declaration order of the variants does not change the accessors", () => {
     const record = ObjectSerializer.deserialize(
       { drugName: "Amoxicillin", procedureName: "Spay" },
       TreatmentRecord,

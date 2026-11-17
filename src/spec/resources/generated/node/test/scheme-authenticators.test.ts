@@ -172,7 +172,7 @@ describe("SchemeAuthenticators", () => {
   };
 
   for (const [name, cls, variables] of environmentSchemes) {
-    it(`${name} reads its own credential variables from the environment`, () => {
+    it(`bhv authscheme 001 ${name} reads its own credential variables from the environment`, () => {
       withVariables(
         variables,
         variables.map((variable) => `value-${variable}`),

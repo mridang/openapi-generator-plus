@@ -9,13 +9,13 @@ import * as util from "node:util";
 import { BearerAuthenticator } from "../src/auth/bearer-authenticator.js";
 
 describe("BearerAuthenticator", () => {
-  it("raw token is prefixed with Bearer", () => {
+  it("bhv authbearer 009 raw token is prefixed with Bearer", () => {
     const auth = new BearerAuthenticator("https://api.example.com", "xyz");
     const headers = auth.getAuthHeaders();
     expect(headers["Authorization"]).toBe("Bearer xyz");
   });
 
-  it("already-prefixed token is not doubled", () => {
+  it("bhv authbearer 003 already-prefixed token is not doubled", () => {
     const auth = new BearerAuthenticator(
       "https://api.example.com",
       "Bearer xyz",
@@ -24,7 +24,7 @@ describe("BearerAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer xyz");
   });
 
-  it("lowercase bearer prefix is stripped", () => {
+  it("bhv authbearer 007 lowercase bearer prefix is stripped", () => {
     const auth = new BearerAuthenticator(
       "https://api.example.com",
       "bearer xyz",
@@ -33,14 +33,14 @@ describe("BearerAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer xyz");
   });
 
-  it("mixed-case bearer prefix is stripped", () => {
+  it("bhv authbearer 008 mixed-case bearer prefix is stripped", () => {
     for (const token of ["BEARER xyz", "BeArEr xyz"]) {
       const auth = new BearerAuthenticator("https://api.example.com", token);
       expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer xyz" });
     }
   });
 
-  it("a token that merely begins with the word bearer is kept whole", () => {
+  it("bhv authbearer 015 a token that merely begins with the word bearer is kept whole", () => {
     const auth = new BearerAuthenticator(
       "https://api.example.com",
       "bearerxyz",
@@ -50,7 +50,7 @@ describe("BearerAuthenticator", () => {
     });
   });
 
-  it("the prefix is stripped only once", () => {
+  it("bhv authbearer 004 the prefix is stripped only once", () => {
     const auth = new BearerAuthenticator(
       "https://api.example.com",
       "Bearer Bearer xyz",
@@ -60,7 +60,7 @@ describe("BearerAuthenticator", () => {
     });
   });
 
-  it("rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
+  it("bhv authbearer 012 rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     expect(
       () =>
         new BearerAuthenticator(
@@ -78,7 +78,7 @@ describe("BearerAuthenticator", () => {
     );
   });
 
-  it("rejects an empty or whitespace token", () => {
+  it("bhv authbearer 017 rejects an empty or whitespace token", () => {
     // bearer-no-empty-token-guard: an empty/whitespace token would emit a
     // bare "Authorization: Bearer " header that silently fails auth.
     expect(
@@ -95,7 +95,7 @@ describe("BearerAuthenticator", () => {
     ).toThrow("Bearer token must not be empty");
   });
 
-  it("a Unicode space is not blank, it fails the printable ASCII check instead", () => {
+  it("bhv authbearer 016 a Unicode space is not blank, it fails the printable ASCII check instead", () => {
     expect(
       () => new BearerAuthenticator("https://api.example.com", "\u00a0"),
     ).toThrow(
@@ -103,7 +103,7 @@ describe("BearerAuthenticator", () => {
     );
   });
 
-  it("a scheme-specific subclass prints its own class name", () => {
+  it("bhv authbearer 001 a scheme-specific subclass prints its own class name", () => {
     class PetStoreBearerAuthenticator extends BearerAuthenticator {}
     const auth = new PetStoreBearerAuthenticator(
       "https://api.example.com",
@@ -114,7 +114,7 @@ describe("BearerAuthenticator", () => {
     );
   });
 
-  it("the redacted representation shows exactly the host", () => {
+  it("bhv authbearer 013 the redacted representation shows exactly the host", () => {
     const auth = new BearerAuthenticator(
       "https://api.example.com",
       "super-secret-token",
@@ -128,7 +128,7 @@ describe("BearerAuthenticator", () => {
     });
   });
 
-  it("redacts the secret from default string/inspect/JSON", () => {
+  it("bhv authbearer 011 redacts the secret from default string/inspect/JSON", () => {
     // authenticator-secret-in-default-string-repr: console.log / util.inspect
     // / JSON.stringify must never leak the live credential.
     const auth = new BearerAuthenticator(
@@ -151,7 +151,7 @@ describe("BearerAuthenticator", () => {
       }
     });
 
-    it("reads the token from the environment when none is passed", () => {
+    it("bhv authbearer 010 reads the token from the environment when none is passed", () => {
       process.env[variable] = "from-env";
       const auth = new BearerAuthenticator("https://api.example.com");
       expect(auth.getAuthHeaders()).toEqual({
@@ -195,14 +195,14 @@ describe("BearerAuthenticator", () => {
       },
     );
 
-    it("validates a token read from the environment like an explicit one", () => {
+    it("bhv authbearer 002 validates a token read from the environment like an explicit one", () => {
       process.env[variable] = "tok\r\nInjected: yes";
       expect(() => new BearerAuthenticator("https://api.example.com")).toThrow(
         TypeError,
       );
     });
 
-    it("a provider is called for every request, so a rotating token is current", async () => {
+    it("bhv authbearer 014 a provider is called for every request, so a rotating token is current", async () => {
       let calls = 0;
       const auth = new BearerAuthenticator(
         "https://api.example.com",

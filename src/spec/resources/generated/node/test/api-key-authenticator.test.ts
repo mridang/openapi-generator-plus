@@ -8,9 +8,15 @@
 import * as util from "node:util";
 import { ApiKeyAuthenticator } from "../src/auth/api-key-authenticator.js";
 import { ApiKeyLocation } from "../src/auth/api-key-location.js";
+import {
+  ApiKeyHeaderAuthenticator,
+  ApiKeyQueryAuthenticator,
+  InternalApiKeyAuthenticator,
+  SessionCookieAuthenticator,
+} from "../src/index.js";
 
 describe("ApiKeyAuthenticator", () => {
-  it("valid HEADER key produces the header", () => {
+  it("bhv authapikey 014 valid HEADER key produces the header", () => {
     const auth = new ApiKeyAuthenticator(
       "https://api.example.com",
       "X-Api-Key",
@@ -20,7 +26,7 @@ describe("ApiKeyAuthenticator", () => {
     expect(auth.getAuthHeaders()).toEqual({ "X-Api-Key": "abc123" });
   });
 
-  it("valid QUERY key produces the query param", () => {
+  it("bhv authapikey 015 valid QUERY key produces the query param", () => {
     const auth = new ApiKeyAuthenticator(
       "https://api.example.com",
       "api_key",
@@ -30,7 +36,7 @@ describe("ApiKeyAuthenticator", () => {
     expect(auth.getQueryParams()).toEqual({ api_key: "abc123" });
   });
 
-  it("valid COOKIE key produces the cookie param and nothing else", () => {
+  it("bhv authapikey 013 valid COOKIE key produces the cookie param and nothing else", () => {
     const auth = new ApiKeyAuthenticator(
       "https://api.example.com",
       "SESSION_ID",
@@ -56,7 +62,7 @@ describe("ApiKeyAuthenticator", () => {
     expect(util.inspect(auth)).not.toContain("abc123");
   });
 
-  it("rejects an empty key at construction", () => {
+  it("bhv authapikey 005 rejects an empty key at construction", () => {
     expect(
       () =>
         new ApiKeyAuthenticator(
@@ -77,7 +83,7 @@ describe("ApiKeyAuthenticator", () => {
     ).toThrow(TypeError);
   });
 
-  it("HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
+  it("bhv authapikey 008 HEADER location rejects a non-ASCII key and CR/LF (RFC 7230 §3.2.6)", () => {
     // HEADER location must reject anything outside printable ASCII +
     // TAB to prevent header injection (\r\n) and silent UTF-8 mangling.
     expect(
@@ -109,7 +115,9 @@ describe("ApiKeyAuthenticator", () => {
     ).toThrow(
       "API key for header 'X-Api-Key' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
     );
-    // Non-header locations accept non-ASCII (but see the control-character test below).
+  });
+
+  it("bhv authapikey 009 QUERY location accepts a non-ASCII key, and so does COOKIE", () => {
     const queryAuth = new ApiKeyAuthenticator(
       "https://api.example.com",
       "api_key",
@@ -125,6 +133,146 @@ describe("ApiKeyAuthenticator", () => {
     );
     expect(cookieAuth.getCookieParams()).toEqual({ SESSION_ID: "kéy" });
   });
+
+  it("bhv authapikey 002 a CR or LF in a cookie key throws at construction", () => {
+    for (const value of ["abc\rdef", "abc\ndef"]) {
+      expect(
+        () =>
+          new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "SESSION_ID",
+            value,
+            ApiKeyLocation.COOKIE,
+          ),
+      ).toThrow(TypeError);
+    }
+  });
+
+  it("bhv authapikey 003 a CR or LF in a query key throws at construction", () => {
+    for (const value of ["abc\rdef", "abc\ndef"]) {
+      expect(
+        () =>
+          new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "api_key",
+            value,
+            ApiKeyLocation.QUERY,
+          ),
+      ).toThrow(TypeError);
+    }
+  });
+
+  it("bhv authapikey 004 an empty cookie key throws at construction", () => {
+    expect(
+      () =>
+        new ApiKeyAuthenticator(
+          "https://api.example.com",
+          "SESSION_ID",
+          "",
+          ApiKeyLocation.COOKIE,
+        ),
+    ).toThrow("API key value for 'SESSION_ID' must not be empty");
+  });
+
+  it("bhv authapikey 006 an empty query key throws at construction", () => {
+    expect(
+      () =>
+        new ApiKeyAuthenticator(
+          "https://api.example.com",
+          "api_key",
+          "",
+          ApiKeyLocation.QUERY,
+        ),
+    ).toThrow("API key value for 'api_key' must not be empty");
+  });
+
+  it("bhv authapikey 017 a whitespace-only key throws at construction", () => {
+    expect(
+      () =>
+        new ApiKeyAuthenticator(
+          "https://api.example.com",
+          "api_key",
+          "   ",
+          ApiKeyLocation.QUERY,
+        ),
+    ).toThrow("API key value for 'api_key' must not be empty");
+  });
+
+  it("bhv authapikey 011 a key made only of ASCII whitespace such as a vertical tab is rejected", () => {
+    for (const location of [ApiKeyLocation.QUERY, ApiKeyLocation.COOKIE]) {
+      expect(
+        () =>
+          new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "key",
+            "\v",
+            location,
+          ),
+      ).toThrow("API key value for 'key' must not be empty");
+      expect(
+        () =>
+          new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "key",
+            " \t\n\v\f\r",
+            location,
+          ),
+      ).toThrow("API key value for 'key' must not be empty");
+    }
+  });
+
+  it("bhv authapikey 016 a valid query key passes and is emitted nowhere else", () => {
+    const auth = new ApiKeyAuthenticator(
+      "https://api.example.com",
+      "api_key",
+      "abc123",
+      ApiKeyLocation.QUERY,
+    );
+    expect(auth.getQueryParams()).toEqual({ api_key: "abc123" });
+    expect(auth.getAuthHeaders()).toEqual({});
+    expect(auth.getCookieParams()).toEqual({});
+  });
+
+  it.each([
+    [
+      "ApiKeyHeaderAuthenticator",
+      ApiKeyHeaderAuthenticator,
+      ApiKeyLocation.HEADER,
+      "X-API-Key",
+    ],
+    [
+      "InternalApiKeyAuthenticator",
+      InternalApiKeyAuthenticator,
+      ApiKeyLocation.HEADER,
+      "X-Internal-Key",
+    ],
+    [
+      "ApiKeyQueryAuthenticator",
+      ApiKeyQueryAuthenticator,
+      ApiKeyLocation.QUERY,
+      "api_key",
+    ],
+    [
+      "SessionCookieAuthenticator",
+      SessionCookieAuthenticator,
+      ApiKeyLocation.COOKIE,
+      "SESSION_ID",
+    ],
+  ])(
+    "bhv authapikey 007 %s emits its key at the location its scheme declares",
+    (_name, Wrapper, location, keyName) => {
+      const auth = new Wrapper("https://api.example.com", "abc123");
+      expect(auth.getAuthHeaders()).toEqual(
+        location === ApiKeyLocation.HEADER ? { [keyName]: "abc123" } : {},
+      );
+      expect(auth.getQueryParams()).toEqual(
+        location === ApiKeyLocation.QUERY ? { [keyName]: "abc123" } : {},
+      );
+      expect(auth.getCookieParams()).toEqual(
+        location === ApiKeyLocation.COOKIE ? { [keyName]: "abc123" } : {},
+      );
+    },
+  );
 
   it.each([
     [ApiKeyLocation.HEADER, "X-Api-Key"],
@@ -177,7 +325,7 @@ describe("ApiKeyAuthenticator", () => {
   );
 
   it.each(["\u00a0", "\u2003"])(
-    "a Unicode space %j is not blank, so a query or cookie key accepts it",
+    "bhv authapikey 001 a Unicode space %j is not blank, so a query or cookie key accepts it",
     (value) => {
       expect(
         () =>
@@ -200,7 +348,7 @@ describe("ApiKeyAuthenticator", () => {
     },
   );
 
-  it("the redacted representation shows the host, key name and location", () => {
+  it("bhv authapikey 012 the redacted representation shows the host, key name and location", () => {
     const auth = new ApiKeyAuthenticator(
       "https://api.example.com",
       "X-Api-Key",
@@ -218,7 +366,7 @@ describe("ApiKeyAuthenticator", () => {
     });
   });
 
-  it("redacts the secret from default string/inspect/JSON", () => {
+  it("bhv authapikey 010 redacts the secret from default string/inspect/JSON", () => {
     // authenticator-secret-in-default-string-repr: console.log / util.inspect
     // / JSON.stringify must never leak the live credential.
     const auth = new ApiKeyAuthenticator(

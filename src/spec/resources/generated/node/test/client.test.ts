@@ -35,13 +35,13 @@ import { Pet } from "../src/models/index.js";
 describe("Client", () => {
   const authenticator = new BearerAuthenticator("/api/v3", "test-token");
 
-  test("construct with authenticator only", () => {
+  test("bhv lifecycle 012 construct with authenticator only", () => {
     const client = new Client(authenticator);
 
     expect(client).toBeDefined();
   });
 
-  test("construct with authenticator and transport options", () => {
+  test("bhv lifecycle 011 construct with authenticator and transport options", () => {
     const transport = TransportOptions.builder().build();
 
     const client = new Client(authenticator, transport);
@@ -80,19 +80,19 @@ describe("Client", () => {
       }
     });
 
-    test("reads the token from the environment when none is passed", () => {
+    test("bhv lifecycle 014 reads the token from the environment when none is passed", () => {
       process.env[variable] = "from-env";
 
       expect(Client.withToken("/api/v3")).toBeDefined();
     });
 
-    test("accepts a provider function in place of the token", () => {
+    test("bhv lifecycle 017 accepts a provider function in place of the token", () => {
       expect(
         Client.withToken("/api/v3", async () => "rotating-token"),
       ).toBeDefined();
     });
 
-    test("fails when the client is built with no token and no variable", () => {
+    test("bhv lifecycle 013 fails when the client is built with no token and no variable", () => {
       delete process.env[variable];
 
       expect(() => Client.withToken("/api/v3")).toThrow(
@@ -198,7 +198,7 @@ describe("Client", () => {
       expect(seen[0]!.headers["Authorization"]).toBe("Bearer default-token");
     });
 
-    test("an operation no scheme credential matches is sent without a credential when there is no default", async () => {
+    test("bhv lifecycle 016 an operation no scheme credential matches is sent without a credential when there is no default", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         { adminBasic: new AdminBasicAuthenticator(host, "a", "b") },
@@ -370,7 +370,7 @@ describe("Client", () => {
     });
   });
 
-  test("close() makes the owned transport reject further requests", async () => {
+  test("bhv lifecycle 008 close() makes the owned transport reject further requests", async () => {
     const client = new Client(authenticator);
 
     await client.close();
@@ -395,7 +395,7 @@ describe("Client", () => {
     ).rejects.toThrow("closed");
   });
 
-  test("close() never calls or closes a caller-supplied fetch", async () => {
+  test("bhv lifecycle 009 close() never calls or closes a caller-supplied fetch", async () => {
     let called = 0;
     const customFetch = (async () => {
       called++;
@@ -414,14 +414,14 @@ describe("Client", () => {
     );
   });
 
-  test("BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
+  test("bhv lifecycle 006 BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     expect(
       () => new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes"),
     ).toThrow(TypeError);
     expect(() => new BearerAuthenticator("/api/v3", "ñoño")).toThrow(TypeError);
   });
 
-  test("BearerAuthenticator rejects an empty or whitespace token", () => {
+  test("bhv lifecycle 005 BearerAuthenticator rejects an empty or whitespace token", () => {
     // bearer-no-empty-token-guard: an empty/whitespace token would emit a
     // bare "Authorization: Bearer " header that silently fails auth.
     expect(() => new BearerAuthenticator("/api/v3", "")).toThrow(TypeError);
@@ -450,7 +450,7 @@ describe("Client", () => {
     expect(JSON.stringify(apiKey)).not.toContain("key-secret-xyz");
   });
 
-  test("ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
+  test("bhv lifecycle 004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     // HEADER location must reject anything outside printable ASCII +
     // TAB to prevent header injection (\r\n) and silent UTF-8 mangling.
     expect(
@@ -481,7 +481,7 @@ describe("Client", () => {
     expect(queryAuth.getQueryParams()).toEqual({ api_key: "kéy" });
   });
 
-  test("API groups are accessible", () => {
+  test("bhv lifecycle 001 API groups are accessible", () => {
     const client = new Client(authenticator);
 
     expect(client.pet).toBeDefined();

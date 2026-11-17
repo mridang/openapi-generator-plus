@@ -97,7 +97,7 @@ afterAll(async () => {
 });
 
 describe("DefaultApiClient unit", () => {
-  it("sends GET request and returns response", async () => {
+  it("bhv transport 054 sends GET request and returns response", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -110,7 +110,7 @@ describe("DefaultApiClient unit", () => {
     expect(body.method).toBe("GET");
   });
 
-  it("sends POST with JSON body", async () => {
+  it("bhv serializationwire 052 sends POST with JSON body", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "POST",
@@ -124,7 +124,7 @@ describe("DefaultApiClient unit", () => {
     expect(body.body).toContain("key");
   });
 
-  it("returns response headers", async () => {
+  it("bhv transport 051 returns response headers", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -135,7 +135,7 @@ describe("DefaultApiClient unit", () => {
     expect(response.headers["x-test-header"]).toBe("test-value");
   });
 
-  it("returns non-2xx status code", async () => {
+  it("bhv transport 050 returns non-2xx status code", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -147,7 +147,7 @@ describe("DefaultApiClient unit", () => {
     expect(response.body).toBe("not found");
   });
 
-  it("sends PUT request", async () => {
+  it("bhv transport 055 sends PUT request", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "PUT",
@@ -160,7 +160,7 @@ describe("DefaultApiClient unit", () => {
     expect(body.method).toBe("PUT");
   });
 
-  it("sends DELETE request", async () => {
+  it("bhv transport 053 sends DELETE request", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "DELETE",
@@ -173,7 +173,7 @@ describe("DefaultApiClient unit", () => {
     expect(body.method).toBe("DELETE");
   });
 
-  it("returns JSON body for vendor JSON content type", async () => {
+  it("bhv serializationwire 051 returns JSON body for vendor JSON content type", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -186,7 +186,7 @@ describe("DefaultApiClient unit", () => {
     expect(body.format).toBe("vendor");
   });
 
-  it("joins multi-value response headers", async () => {
+  it("bhv transport 044 joins multi-value response headers", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -198,7 +198,7 @@ describe("DefaultApiClient unit", () => {
     expect(response.headers["x-custom-value"]).toBe("val1, val2");
   });
 
-  it("injects custom User-Agent header", async () => {
+  it("bhv transport 041 injects custom User-Agent header", async () => {
     const transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -212,7 +212,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["user-agent"]).toBe("MyApp/1.0");
   });
 
-  it("keeps a caller-supplied empty User-Agent instead of replacing it", async () => {
+  it("bhv transport 052 keeps a caller-supplied empty User-Agent instead of replacing it", async () => {
     const transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -226,7 +226,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["user-agent"]).toBe("");
   });
 
-  it("keeps lower-case caller User-Agent and X-Request-ID headers without injecting its own", async () => {
+  it("bhv transport 026 keeps lower-case caller User-Agent and X-Request-ID headers without injecting its own", async () => {
     const transport = TransportOptions.builder()
       .userAgent("Sdk/1.0")
       .injectRequestId(true)
@@ -245,7 +245,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["x-request-id"]).toBe("abc");
   });
 
-  it("injects default User-Agent when not explicitly set", async () => {
+  it("bhv transport 042 injects default User-Agent when not explicitly set", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -258,7 +258,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["user-agent"]).toBeTruthy();
   });
 
-  it("advertises the codecs it can decode in Accept-Encoding by default", async () => {
+  it("bhv serializationwire 029 advertises the codecs it can decode in Accept-Encoding by default", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -272,7 +272,7 @@ describe("DefaultApiClient unit", () => {
     );
   });
 
-  it("keeps a caller-supplied Accept-Encoding", async () => {
+  it("bhv transport 045 keeps a caller-supplied Accept-Encoding", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -284,7 +284,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["accept-encoding"]).toBe("identity");
   });
 
-  it("injects X-Request-ID when enabled", async () => {
+  it("bhv transport 043 injects X-Request-ID when enabled", async () => {
     const transport = TransportOptions.builder().injectRequestId(true).build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -302,7 +302,7 @@ describe("DefaultApiClient unit", () => {
     );
   });
 
-  it("does not inject X-Request-ID when disabled", async () => {
+  it("bhv transport 036 does not inject X-Request-ID when disabled", async () => {
     const transport = TransportOptions.builder().injectRequestId(false).build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -316,7 +316,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["x-request-id"]).toBeUndefined();
   });
 
-  it("does not override caller-provided X-Request-ID", async () => {
+  it("bhv options 006 does not override caller-provided X-Request-ID", async () => {
     const transport = TransportOptions.builder().injectRequestId(true).build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -330,7 +330,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["x-request-id"]).toBe("caller-provided-id");
   });
 
-  it("generates unique X-Request-ID per request", async () => {
+  it("bhv transport 038 generates unique X-Request-ID per request", async () => {
     const transport = TransportOptions.builder().injectRequestId(true).build();
     const client = new DefaultApiClient(transport);
     const response1 = await client.sendRequest(
@@ -350,7 +350,7 @@ describe("DefaultApiClient unit", () => {
     expect(id1).not.toBe(id2);
   });
 
-  it("includes transport-level default headers", async () => {
+  it("bhv transport 039 includes transport-level default headers", async () => {
     const transport = TransportOptions.builder()
       .defaultHeader("X-Custom", "custom-value")
       .build();
@@ -366,7 +366,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["x-custom"]).toBe("custom-value");
   });
 
-  it("caller headers override transport default headers", async () => {
+  it("bhv options 005 caller headers override transport default headers", async () => {
     const transport = TransportOptions.builder()
       .defaultHeader("Accept", "text/plain")
       .build();
@@ -384,7 +384,7 @@ describe("DefaultApiClient unit", () => {
 });
 
 describe("DefaultApiClient CA certificate fail-fast", () => {
-  it("throws TypeError at construction for a non-existent caCertPath", () => {
+  it("bhv errors 041 throws TypeError at construction for a non-existent caCertPath", () => {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction with a
     // TypeError rather than silently falling back to the system trust store
@@ -433,7 +433,7 @@ describe("DefaultApiClient CA certificate fail-fast", () => {
     }
   });
 
-  it("throws TypeError at construction for a caCertPath that is not a PEM certificate", () => {
+  it("bhv errors 039 throws TypeError at construction for a caCertPath that is not a PEM certificate", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-cert-"));
     const garbage = path.join(dir, "garbage.pem");
     fs.writeFileSync(garbage, "this is not a certificate");
@@ -476,7 +476,7 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect((caught!.cause as Error).name).toBe("TypeError");
   });
 
-  it("an undici phase timeout throws NetworkTimeoutError", async () => {
+  it("bhv transport 031 an undici phase timeout throws NetworkTimeoutError", async () => {
     /* The client sets one deadline of its own, `AbortSignal.timeout`, which
      * rejects with a DOMException named TimeoutError. undici times the
      * connect, headers and body phases separately and reports each as a
@@ -510,7 +510,7 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     global.fetch = originalFetch;
   });
 
-  it("a per-call timeout replaces the transport timeout", async () => {
+  it("bhv transport 028 a per-call timeout replaces the transport timeout", async () => {
     const slow = http.createServer(() => {
       /* never respond */
     });
@@ -538,7 +538,7 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect((caught as Error).constructor).toBe(NetworkTimeoutError);
   });
 
-  it("a request that exceeds the timeout throws NetworkTimeoutError", async () => {
+  it("bhv transport 058 a request that exceeds the timeout throws NetworkTimeoutError", async () => {
     const slow = http.createServer(() => {
       /* never respond */
     });
@@ -581,7 +581,7 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect(caught).not.toBeInstanceOf(OpenAPIError);
   });
 
-  it("a malformed request URL throws TypeError, not NetworkError", async () => {
+  it("bhv errors 040 a malformed request URL throws TypeError, not NetworkError", async () => {
     const client = new DefaultApiClient();
     let caught: unknown;
     try {
@@ -639,19 +639,19 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
 });
 
 describe("DefaultApiClient.decodeBody charset handling", () => {
-  it("decodes ISO-8859-1 when declared via Content-Type charset", () => {
+  it("bhv serializationwire 032 decodes ISO-8859-1 when declared via Content-Type charset", () => {
     const buf = Buffer.from([0xe9]);
     expect(
       DefaultApiClient.decodeBody(buf, "text/plain; charset=ISO-8859-1"),
     ).toBe("é");
   });
 
-  it("defaults to UTF-8 when no charset is declared", () => {
+  it("bhv serializationwire 034 defaults to UTF-8 when no charset is declared", () => {
     const buf = Buffer.from([0xc3, 0xa9]);
     expect(DefaultApiClient.decodeBody(buf, "text/plain")).toBe("é");
   });
 
-  it("falls back to UTF-8 when an unknown charset is declared", () => {
+  it("bhv serializationwire 035 falls back to UTF-8 when an unknown charset is declared", () => {
     const buf = Buffer.from([0xc3, 0xa9]);
     expect(() =>
       DefaultApiClient.decodeBody(
@@ -674,7 +674,7 @@ describe("DefaultApiClient.decodeBody charset handling", () => {
     ).toBe("é");
   });
 
-  it("decodes a BOM-less utf-16 body as big-endian (RFC 2781)", () => {
+  it("bhv serializationwire 031 decodes a BOM-less utf-16 body as big-endian (RFC 2781)", () => {
     // "Log" encoded UTF-16 big-endian, no BOM: 00 4c 00 6f 00 67.
     // Node's TextDecoder maps the bare 'utf-16' label to little-endian,
     // which would mis-decode these bytes. An HTTP client resolving the
@@ -696,7 +696,7 @@ describe("DefaultApiClient.decodeBody charset handling", () => {
     );
   });
 
-  it("decodes a big-endian BOM utf-16 body as big-endian", () => {
+  it("bhv serializationwire 030 decodes a big-endian BOM utf-16 body as big-endian", () => {
     const buf = Buffer.from([0xfe, 0xff, 0x00, 0x41, 0x00, 0x42]);
     expect(DefaultApiClient.decodeBody(buf, "text/plain; charset=utf-16")).toBe(
       "AB",
@@ -705,13 +705,13 @@ describe("DefaultApiClient.decodeBody charset handling", () => {
 });
 
 describe("DefaultApiClient.buildContentDisposition multipart filename safety", () => {
-  it("throws on filename containing CR/LF (header-injection attempt)", () => {
+  it("bhv serializationwire 043 throws on filename containing CR/LF (header-injection attempt)", () => {
     expect(() =>
       DefaultApiClient.buildContentDisposition("file", "a\r\nX-Injected: yes"),
     ).toThrow(TypeError);
   });
 
-  it("throws on filename containing NUL", () => {
+  it("bhv serializationwire 050 throws on filename containing NUL", () => {
     expect(() =>
       DefaultApiClient.buildContentDisposition(
         "file",
@@ -720,18 +720,18 @@ describe("DefaultApiClient.buildContentDisposition multipart filename safety", (
     ).toThrow(TypeError);
   });
 
-  it("backslash-escapes quotes and backslashes in filename", () => {
+  it("bhv serializationwire 042 backslash-escapes quotes and backslashes in filename", () => {
     const header = DefaultApiClient.buildContentDisposition("file", 'a"b.txt');
     expect(header).toContain('filename="a\\"b.txt"');
   });
 
-  it("emits RFC 5987 filename* for non-ASCII filenames alongside ASCII fallback", () => {
+  it("bhv serializationwire 044 emits RFC 5987 filename* for non-ASCII filenames alongside ASCII fallback", () => {
     const header = DefaultApiClient.buildContentDisposition("file", "日本.pdf");
     expect(header).toContain("filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf");
     expect(header).toMatch(/filename="[^"]*\.pdf"/);
   });
 
-  it("omits filename* when filename is pure ASCII", () => {
+  it("bhv serializationwire 041 omits filename* when filename is pure ASCII", () => {
     const header = DefaultApiClient.buildContentDisposition(
       "file",
       "hello.txt",
@@ -759,7 +759,7 @@ describe("DefaultApiClient.buildContentDisposition multipart filename safety", (
 // derived from the filename extension, falling back to
 // application/octet-stream when the extension is unknown.
 describe("DefaultApiClient.mimeTypeForFilename (canonical behavior #4)", () => {
-  it("maps .png to image/png", () => {
+  it("bhv serializationwire 047 maps .png to image/png", () => {
     expect(DefaultApiClient.mimeTypeForFilename("avatar.png")).toBe(
       "image/png",
     );
@@ -770,7 +770,7 @@ describe("DefaultApiClient.mimeTypeForFilename (canonical behavior #4)", () => {
     expect(DefaultApiClient.mimeTypeForFilename("a.jpeg")).toBe("image/jpeg");
   });
 
-  it("falls back to application/octet-stream for an unknown extension", () => {
+  it("bhv serializationwire 040 falls back to application/octet-stream for an unknown extension", () => {
     expect(DefaultApiClient.mimeTypeForFilename("blob.xyzzy")).toBe(
       "application/octet-stream",
     );
@@ -815,7 +815,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     });
   }
 
-  it("#4 file part Content-Type is derived from the filename extension", async () => {
+  it("bhv serializationwire 037 #4 file part Content-Type is derived from the filename extension", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
       const client = new DefaultApiClient();
@@ -834,7 +834,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     }
   });
 
-  it("primitive parts are plain text in the stringify form and only an object is a JSON part", async () => {
+  it("bhv serializationwire 048 primitive parts are plain text in the stringify form and only an object is a JSON part", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
       const client = new DefaultApiClient();
@@ -923,7 +923,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     }
   });
 
-  it("#4 raw-bytes part with no extension reuses the field name as filename and falls back to application/octet-stream", async () => {
+  it("bhv serializationwire 049 #4 raw-bytes part with no extension reuses the field name as filename and falls back to application/octet-stream", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
       const client = new DefaultApiClient();
@@ -943,7 +943,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     }
   });
 
-  it("#5 non-ASCII field name is preserved as UTF-8 in the part header", async () => {
+  it("bhv serializationwire 046 #5 non-ASCII field name is preserved as UTF-8 in the part header", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
       const client = new DefaultApiClient();
@@ -961,11 +961,11 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
 });
 
 describe("DefaultApiClient.mimeTypeForFilename per-part MIME sniffing", () => {
-  it("maps .png to image/png", () => {
+  it("bhv serializationwire 039 maps .png to image/png", () => {
     expect(DefaultApiClient.mimeTypeForFilename("photo.png")).toBe("image/png");
   });
 
-  it("maps .pdf to application/pdf", () => {
+  it("bhv serializationwire 038 maps .pdf to application/pdf", () => {
     expect(DefaultApiClient.mimeTypeForFilename("doc.pdf")).toBe(
       "application/pdf",
     );
@@ -976,7 +976,7 @@ describe("DefaultApiClient.mimeTypeForFilename per-part MIME sniffing", () => {
     expect(DefaultApiClient.mimeTypeForFilename("a.jpeg")).toBe("image/jpeg");
   });
 
-  it("is case-insensitive on the extension", () => {
+  it("bhv serializationwire 036 is case-insensitive on the extension", () => {
     expect(DefaultApiClient.mimeTypeForFilename("PHOTO.PNG")).toBe("image/png");
   });
 
@@ -1012,7 +1012,7 @@ describe("SENSITIVE_HEADER_NAMES allowlist", () => {
    * scheme this spec declares must be present; query/cookie apiKeys are NOT
    * header credentials and must be absent.
    */
-  it("includes the spec-declared apiKey-in-header names", () => {
+  it("bhv transport 056 includes the spec-declared apiKey-in-header names", () => {
     expect(SENSITIVE_HEADER_NAMES.has("x-api-key")).toBe(true);
     expect(SENSITIVE_HEADER_NAMES.has("x-internal-key")).toBe(true);
   });
@@ -1090,7 +1090,7 @@ describe("cross-origin redirect strips API-key headers", () => {
     await new Promise<void>((resolve) => dstServer.close(() => resolve()));
   });
 
-  it("strips Authorization, the spec-declared apiKey headers, and Cookie on cross-origin 302", async () => {
+  it("bhv redirects 011 strips Authorization, the spec-declared apiKey headers, and Cookie on cross-origin 302", async () => {
     const transport = TransportOptions.builder().followRedirects(true).build();
     const client = new DefaultApiClient(transport);
     await client.sendRequest(
@@ -1119,7 +1119,7 @@ describe("cross-origin redirect strips API-key headers", () => {
     expect(lastReceivedHeaders["accept"]).toBe("application/json");
   });
 
-  it("strips a default header and an authenticator header the fixed list does not know on cross-origin 302", async () => {
+  it("bhv redirects 025 strips a default header and an authenticator header the fixed list does not know on cross-origin 302", async () => {
     const transport = TransportOptions.builder()
       .followRedirects(true)
       .defaultHeaders({ "X-Tenant-Token": "tenant-secret" })
@@ -1137,7 +1137,7 @@ describe("cross-origin redirect strips API-key headers", () => {
     expect(lastReceivedHeaders["x-correlation-id"]).toBe("corr-1");
   });
 
-  it("keeps Authorization and Cookie on a same-origin redirect", async () => {
+  it("bhv redirects 013 keeps Authorization and Cookie on a same-origin redirect", async () => {
     let landed: Record<string, string | string[] | undefined> = {};
     const same = http.createServer((req, res) => {
       if (req.url === "/start") {
@@ -1251,7 +1251,7 @@ describe("SendRequestOptions.noRedirect", () => {
     expect(response.body).toContain("final");
   });
 
-  it("surfaces the 307 untouched when noRedirect=true", async () => {
+  it("bhv redirects 021 surfaces the 307 untouched when noRedirect=true", async () => {
     const transport = TransportOptions.builder().followRedirects(true).build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -1288,7 +1288,7 @@ describe("HTTPS -> HTTP body replay guard", () => {
     global.fetch = originalFetch;
   });
 
-  it("refuses to replay POST body when redirected from HTTPS to HTTP", async () => {
+  it("bhv retries 020 refuses to replay POST body when redirected from HTTPS to HTTP", async () => {
     let call = 0;
     // First call: pretend the user posted to https://secure.example/token
     //             and the server responds with a 307 to http://evil/steal
@@ -1345,7 +1345,7 @@ describe("HTTPS -> HTTP body replay guard", () => {
     expect((error as ApiError).responseHeaders).toHaveProperty("location");
   });
 
-  it("allows HTTPS -> HTTPS replay (no downgrade)", async () => {
+  it("bhv retries 016 allows HTTPS -> HTTPS replay (no downgrade)", async () => {
     let call = 0;
     global.fetch = (async (): Promise<Response> => {
       call++;
@@ -1489,7 +1489,7 @@ describe("redirect method rewriting (RFC 9110 section 15.4)", () => {
     },
   );
 
-  it("refuses to replay a PUT body across an https to http 302 downgrade", async () => {
+  it("bhv retries 017 refuses to replay a PUT body across an https to http 302 downgrade", async () => {
     global.fetch = (async (): Promise<Response> =>
       new Response(null, {
         status: 302,
@@ -1516,7 +1516,7 @@ describe("redirect to non-HTTP(S) scheme is refused", () => {
     global.fetch = originalFetch;
   });
 
-  it("throws an ApiError when Location uses a file:/javascript: scheme", async () => {
+  it("bhv redirects 020 throws an ApiError when Location uses a file:/javascript: scheme", async () => {
     global.fetch = (async (): Promise<Response> => {
       return new Response(null, {
         status: 302,
@@ -1564,7 +1564,7 @@ describe("redirect responses release their body", () => {
     return new Response(body, { status: 302, headers: { Location: location } });
   }
 
-  it("cancels the body of each redirect it follows", async () => {
+  it("bhv redirects 017 cancels the body of each redirect it follows", async () => {
     const cancelled: string[] = [];
     let call = 0;
     global.fetch = (async (): Promise<Response> => {
@@ -1598,7 +1598,7 @@ describe("redirect responses release their body", () => {
     expect(cancelled).toEqual(["first", "second"]);
   });
 
-  it("cancels the body of a redirect it refuses to follow", async () => {
+  it("bhv redirects 014 cancels the body of a redirect it refuses to follow", async () => {
     const cancelled: string[] = [];
     global.fetch = (async (): Promise<Response> =>
       redirectWithTrackedBody(
@@ -1617,7 +1617,7 @@ describe("redirect responses release their body", () => {
     expect(cancelled).toEqual(["refused"]);
   });
 
-  it("cancels every body, the last one included, when the redirect budget is exhausted", async () => {
+  it("bhv redirects 018 cancels every body, the last one included, when the redirect budget is exhausted", async () => {
     const cancelled: string[] = [];
     let call = 0;
     global.fetch = (async (): Promise<Response> => {
@@ -1650,7 +1650,7 @@ describe("redirect exhaustion throws", () => {
     global.fetch = originalFetch;
   });
 
-  it("throws an ApiError once maxRedirects is exceeded", async () => {
+  it("bhv redirects 026 throws an ApiError once maxRedirects is exceeded", async () => {
     let n = 0;
     global.fetch = (async (): Promise<Response> => {
       n++;
@@ -1677,7 +1677,7 @@ describe("redirect exhaustion throws", () => {
     expect((error as ApiError).responseHeaders).toHaveProperty("location");
   });
 
-  it("returns the last 3xx when the budget is used up and it has no Location", async () => {
+  it("bhv redirects 023 returns the last 3xx when the budget is used up and it has no Location", async () => {
     let n = 0;
     global.fetch = (async (): Promise<Response> => {
       n++;
@@ -1711,7 +1711,7 @@ describe("redirect exhaustion throws", () => {
  * silently succeeding.
  */
 describe("use-after-close", () => {
-  it("throws the invalid-state Error when sendRequest is called after close()", async () => {
+  it("bhv lifecycle 023 throws the invalid-state Error when sendRequest is called after close()", async () => {
     const client = new DefaultApiClient();
     await client.close();
     const error = await client
@@ -1768,7 +1768,7 @@ describe("graceful close", () => {
     });
   }
 
-  it("lets a request that is already running finish", async () => {
+  it("bhv lifecycle 021 lets a request that is already running finish", async () => {
     const slow = await slowServer();
     const client = new DefaultApiClient(
       TransportOptions.builder().maxRetries(0).build(),
@@ -1812,7 +1812,7 @@ describe("graceful close", () => {
     }
   });
 
-  it("releases the transport at once when no request is running, and a second close() is a no-op", async () => {
+  it("bhv lifecycle 022 releases the transport at once when no request is running, and a second close() is a no-op", async () => {
     const client = new DefaultApiClient(
       TransportOptions.builder().maxRedirects(2).build(),
     );
@@ -1826,7 +1826,7 @@ describe("graceful close", () => {
     await expect(client.close()).resolves.toBeUndefined();
   });
 
-  it("a request issued while the last one is finishing fails with the closed-client error", async () => {
+  it("bhv lifecycle 019 a request issued while the last one is finishing fails with the closed-client error", async () => {
     const slow = await slowServer();
     const client = new DefaultApiClient(
       TransportOptions.builder().maxRetries(0).build(),
@@ -1869,7 +1869,7 @@ describe("graceful close", () => {
     }
   });
 
-  it("never closes a fetch the caller supplied, however many times it closes", async () => {
+  it("bhv lifecycle 020 never closes a fetch the caller supplied, however many times it closes", async () => {
     let called = 0;
     const customFetch = (async (): Promise<Response> => {
       called++;
@@ -1896,7 +1896,7 @@ describe("request header and byte body handling", () => {
     global.fetch = originalFetch;
   });
 
-  it("lets a caller header replace a default of another case", async () => {
+  it("bhv transport 047 lets a caller header replace a default of another case", async () => {
     let seen: Record<string, string> = {};
     global.fetch = (async (
       _url: unknown,
@@ -1921,7 +1921,7 @@ describe("request header and byte body handling", () => {
     expect(accepts).toEqual(["Accept"]);
   });
 
-  it("leaves the default headers off a request that asks for noDefaultHeaders", async () => {
+  it("bhv redirects 016 leaves the default headers off a request that asks for noDefaultHeaders", async () => {
     let seen: Record<string, string> = {};
     global.fetch = (async (
       _url: unknown,
@@ -1976,7 +1976,7 @@ describe("body-read error is wrapped in NetworkError", () => {
     global.fetch = originalFetch;
   });
 
-  it("wraps an arrayBuffer() rejection in NetworkError with the cause kept", async () => {
+  it("bhv transport 032 wraps an arrayBuffer() rejection in NetworkError with the cause kept", async () => {
     global.fetch = (async (): Promise<Response> => {
       // A Response whose body read rejects, simulating a mid-stream reset.
       const resp = new Response("", { status: 200 });
@@ -2021,7 +2021,7 @@ describe("body-read error is wrapped in NetworkError", () => {
       await new Promise<void>((resolve) => broken.close(() => resolve()));
     });
 
-    it("a body truncated after the headers throws NetworkError with status 0", async () => {
+    it("bhv errors 038 a body truncated after the headers throws NetworkError with status 0", async () => {
       const client = new DefaultApiClient();
       const error = await client
         .sendRequest("GET", `${brokenUrl}/truncated`, {}, null)
@@ -2032,7 +2032,7 @@ describe("body-read error is wrapped in NetworkError", () => {
       expect((error as NetworkError).cause).toBeDefined();
     });
 
-    it("a body that stalls after the headers throws NetworkTimeoutError with status 0", async () => {
+    it("bhv transport 029 a body that stalls after the headers throws NetworkTimeoutError with status 0", async () => {
       const client = new DefaultApiClient(
         TransportOptions.builder().timeout(300).build(),
       );
@@ -2067,7 +2067,7 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     global.fetch = originalFetch;
   });
 
-  it("throws ApiError when Content-Encoding: gzip body is not valid gzip", async () => {
+  it("bhv transport 034 throws ApiError when Content-Encoding: gzip body is not valid gzip", async () => {
     // gzip magic prefix + garbage tail: declares gzip, looks like gzip, but
     // is not a valid gzip stream.
     const lyingBody = Buffer.concat([
@@ -2121,7 +2121,7 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     ).rejects.toThrow(ApiError);
   });
 
-  it("passes an empty body declared gzip through as empty, not an error", async () => {
+  it("bhv transport 037 passes an empty body declared gzip through as empty, not an error", async () => {
     // A zero-byte body still declared `Content-Encoding: gzip` has nothing to
     // inflate and no gzip magic: ensureDecoded must return it unchanged rather
     // than rejecting on the absent gzip stream.
@@ -2129,7 +2129,7 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     expect(out.length).toBe(0);
   });
 
-  it("passes a body declared Content-Encoding: identity through unchanged", async () => {
+  it("bhv transport 033 passes a body declared Content-Encoding: identity through unchanged", async () => {
     global.fetch = (async (): Promise<Response> => {
       return new Response('{"userId":1}', {
         status: 200,
@@ -2158,7 +2158,7 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
 });
 
 describe("injected fetch (TransportOptions.fetch)", () => {
-  it("sends the request through the supplied fetch with the SDK defaults on top", async () => {
+  it("bhv transport 040 sends the request through the supplied fetch with the SDK defaults on top", async () => {
     const calls: Array<{ url: string; init: Record<string, unknown> }> = [];
     const customFetch = (async (
       input: string | URL | Request,
@@ -2277,7 +2277,7 @@ describe("the client keeps no ambient state between requests", () => {
     savedEnvironment.clear();
   });
 
-  it("a Set-Cookie response header is not replayed on the next request", async () => {
+  it("bhv retries 015 a Set-Cookie response header is not replayed on the next request", async () => {
     const seen: Array<Record<string, string>> = [];
     global.fetch = (async (
       _url: unknown,
@@ -2299,7 +2299,7 @@ describe("the client keeps no ambient state between requests", () => {
     ).not.toContain("cookie");
   });
 
-  it("ambient proxy variables are ignored; only TransportOptions.proxy is a proxy source", async () => {
+  it("bhv transport 046 ambient proxy variables are ignored; only TransportOptions.proxy is a proxy source", async () => {
     for (const name of proxyVariables) {
       savedEnvironment.set(name, process.env[name]);
       process.env[name] = "http://127.0.0.1:9";
@@ -2423,7 +2423,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     options?: Parameters<DefaultApiClient["sendRequest"]>[4],
   ) => client.sendRequest("GET", "http://api.example/items", {}, null, options);
 
-  it("retries twice by default and then returns the last response", async () => {
+  it("bhv retries 024 retries twice by default and then returns the last response", async () => {
     const response = await send(clientPlaying([reply(503)]));
 
     expect(response.statusCode).toBe(503);
@@ -2448,7 +2448,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("maxRetries(0) disables retries", async () => {
+  it("bhv retries 018 maxRetries(0) disables retries", async () => {
     const response = await send(
       clientPlaying([reply(503)], (builder) => builder.maxRetries(0)),
     );
@@ -2457,7 +2457,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("a per-call maxRetries of 0 disables the retries the transport allows", async () => {
+  it("bhv retries 014 a per-call maxRetries of 0 disables the retries the transport allows", async () => {
     const response = await send(clientPlaying([reply(503)]), { maxRetries: 0 });
 
     expect(response.statusCode).toBe(503);
@@ -2524,7 +2524,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(delays).toEqual([3000]);
   });
 
-  it("waits for a Retry-After given as an HTTP date", async () => {
+  it("bhv retries 022 waits for a Retry-After given as an HTTP date", async () => {
     const at = new Date(Date.now() + 30_000).toUTCString();
 
     await send(
@@ -2539,7 +2539,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(delays[0]!).toBeLessThanOrEqual(30_000);
   });
 
-  it("caps a Retry-After at 60 s", async () => {
+  it("bhv retries 023 caps a Retry-After at 60 s", async () => {
     await send(
       clientPlaying(
         [reply(503, { "Retry-After": "3600" }), reply(200)],
@@ -2560,7 +2560,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(delays[0]!).toBeLessThanOrEqual(500);
   });
 
-  it("never extends the end-to-end timeout: a wait longer than what is left ends the retries", async () => {
+  it("bhv retries 025 never extends the end-to-end timeout: a wait longer than what is left ends the retries", async () => {
     const response = await send(
       clientPlaying(
         [reply(503, { "Retry-After": "5" }), reply(200)],
@@ -2573,7 +2573,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(delays).toEqual([]);
   });
 
-  it("retries a network error that happened before any response", async () => {
+  it("bhv retries 013 retries a network error that happened before any response", async () => {
     const response = await send(
       clientPlaying([new TypeError("fetch failed"), reply(200)]),
     );
@@ -2591,7 +2591,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(calls).toHaveLength(3);
   });
 
-  it("does not retry a failure while reading the body of a response that arrived", async () => {
+  it("bhv errors 043 does not retry a failure while reading the body of a response that arrived", async () => {
     const broken = new Response("", { status: 200 });
     Object.defineProperty(broken, "arrayBuffer", {
       value: () => Promise.reject(new TypeError("terminated")),

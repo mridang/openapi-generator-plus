@@ -61,7 +61,7 @@ describe("Web (portable) transport", () => {
     expect(parsed.body).toContain("key");
   });
 
-  it("applies the shared header handling (User-Agent + lowercased response headers)", async () => {
+  it("bhv transport 003 applies the shared header handling (User-Agent + lowercased response headers)", async () => {
     const transport = TransportOptions.builder().userAgent("Edge/1.0").build();
     const client = new WebApiClient(transport);
     const response = await client.sendRequest(
@@ -81,7 +81,7 @@ describe("Web (portable) transport", () => {
     expect(() => new WebApiClient(transport)).toThrow(TypeError);
   });
 
-  it("rejects a custom CA certificate at construction with a TypeError", () => {
+  it("bhv transport 023 rejects a custom CA certificate at construction with a TypeError", () => {
     const transport = TransportOptions.builder()
       .caCertPath("/some/ca.pem")
       .build();

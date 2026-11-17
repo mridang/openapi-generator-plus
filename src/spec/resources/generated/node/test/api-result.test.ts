@@ -8,7 +8,7 @@
 import { ApiResult } from "../src/api-result.js";
 
 describe("ApiResult", () => {
-  it("carries deserialized data, status code, raw body, and headers", () => {
+  it("bhv results 003 carries deserialized data, status code, raw body, and headers", () => {
     const result: ApiResult<{ id: number }> = {
       statusCode: 200,
       data: { id: 42 },
@@ -22,7 +22,7 @@ describe("ApiResult", () => {
     expect(result.headers["content-type"]).toBe("application/json");
   });
 
-  it("allows undefined data with a non-null raw body", () => {
+  it("bhv results 001 allows undefined data with a non-null raw body", () => {
     // apiresult-rawbody-nullability: the transport always produces a body
     // string (possibly empty), so rawBody is non-null even when data is absent.
     const result: ApiResult<unknown> = {

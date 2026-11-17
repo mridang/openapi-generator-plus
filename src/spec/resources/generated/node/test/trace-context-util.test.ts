@@ -56,31 +56,31 @@ const {
 ) as typeof import("@opentelemetry/sdk-trace-base");
 
 describe("TraceContextUtil", () => {
-  test("is a no-op without tracer", () => {
+  test("bhv tracing 007 is a no-op without tracer", () => {
     const headers: Record<string, string> = {};
     injectTraceContext(headers);
     expect(Object.keys(headers).length).toBe(0);
   });
 
-  test("empty headers do not cause exception", () => {
+  test("bhv tracing 003 empty headers do not cause exception", () => {
     const headers: Record<string, string> = {};
     expect(() => injectTraceContext(headers)).not.toThrow();
     expect(Object.keys(headers).length).toBe(0);
   });
 
-  test("does not inject traceparent without OTel", () => {
+  test("bhv tracing 001 does not inject traceparent without OTel", () => {
     const headers: Record<string, string> = {};
     injectTraceContext(headers);
     expect(headers["traceparent"]).toBeUndefined();
   });
 
-  test("does not inject tracestate without OTel", () => {
+  test("bhv tracing 002 does not inject tracestate without OTel", () => {
     const headers: Record<string, string> = {};
     injectTraceContext(headers);
     expect(headers["tracestate"]).toBeUndefined();
   });
 
-  test("preserves Authorization header", () => {
+  test("bhv tracing 010 preserves Authorization header", () => {
     const headers: Record<string, string> = {
       Authorization: "Bearer token123",
     };
@@ -88,7 +88,7 @@ describe("TraceContextUtil", () => {
     expect(headers["Authorization"]).toBe("Bearer token123");
   });
 
-  test("preserves Content-Type header", () => {
+  test("bhv tracing 011 preserves Content-Type header", () => {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -96,13 +96,13 @@ describe("TraceContextUtil", () => {
     expect(headers["Content-Type"]).toBe("application/json");
   });
 
-  test("preserves X-Request-ID header", () => {
+  test("bhv tracing 012 preserves X-Request-ID header", () => {
     const headers: Record<string, string> = { "X-Request-ID": "req-12345" };
     injectTraceContext(headers);
     expect(headers["X-Request-ID"]).toBe("req-12345");
   });
 
-  test("preserves all existing headers", () => {
+  test("bhv tracing 009 preserves all existing headers", () => {
     const headers: Record<string, string> = {
       Authorization: "Bearer token",
       "Content-Type": "application/json",
@@ -115,7 +115,7 @@ describe("TraceContextUtil", () => {
     expect(headers["X-Request-ID"]).toBe("abc-123");
   });
 
-  test("injects traceparent when a span is active", async () => {
+  test("bhv tracing 006 injects traceparent when a span is active", async () => {
     const { tracer, exporter } = sdkTracer();
     const headers: Record<string, string> = {};
     const spanContext = await tracer.startActiveSpan(
@@ -135,7 +135,7 @@ describe("TraceContextUtil", () => {
     ).toEqual(["request"]);
   });
 
-  test("includes tracestate when present on the active span", async () => {
+  test("bhv tracing 005 includes tracestate when present on the active span", async () => {
     const { tracer } = sdkTracer();
     const headers: Record<string, string> = {};
     await tracer.startActiveSpan(
@@ -150,7 +150,7 @@ describe("TraceContextUtil", () => {
     expect(headers["tracestate"]).toBe("vendor=value");
   });
 
-  test("omits tracestate when empty on the active span", async () => {
+  test("bhv tracing 008 omits tracestate when empty on the active span", async () => {
     const { tracer } = sdkTracer();
     const headers: Record<string, string> = {};
     await tracer.startActiveSpan("request", async (span) => {
@@ -161,7 +161,7 @@ describe("TraceContextUtil", () => {
     expect(headers["tracestate"]).toBeUndefined();
   });
 
-  test("formats trace flags correctly on the active span", async () => {
+  test("bhv tracing 004 formats trace flags correctly on the active span", async () => {
     const sampled = sdkTracer().tracer;
     const unsampled = sdkTracer(new AlwaysOffSampler()).tracer;
     const sampledHeaders: Record<string, string> = {};

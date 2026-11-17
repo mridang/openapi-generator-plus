@@ -12,7 +12,7 @@ import {
 } from "../src/server-configuration.js";
 
 describe("ServerConfiguration", () => {
-  it("resolves a template-free URL unchanged", () => {
+  it("bhv servers 011 resolves a template-free URL unchanged", () => {
     const config = new ServerConfiguration(
       "https://api.example.com/v1",
       null,
@@ -21,7 +21,7 @@ describe("ServerConfiguration", () => {
     expect(config.getUrl()).toBe("https://api.example.com/v1");
   });
 
-  it("substitutes variables with their default values", () => {
+  it("bhv servers 010 substitutes variables with their default values", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com/v{version}",
       null,
@@ -42,7 +42,7 @@ describe("ServerConfiguration", () => {
     expect(config.getUrl()).toBe("https://prod.api.example.com/prod");
   });
 
-  it("does not expand a placeholder that a substituted value introduces", () => {
+  it("bhv servers 005 does not expand a placeholder that a substituted value introduces", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com/{version}",
       null,
@@ -74,7 +74,7 @@ describe("ServerConfiguration", () => {
     );
   });
 
-  it("accepts an override that is one of the enum values", () => {
+  it("bhv servers 003 accepts an override that is one of the enum values", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com",
       null,
@@ -85,7 +85,7 @@ describe("ServerConfiguration", () => {
     );
   });
 
-  it("rejects an override that is not one of the enum values", () => {
+  it("bhv servers 008 rejects an override that is not one of the enum values", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com",
       null,
@@ -104,7 +104,7 @@ describe("ServerConfiguration", () => {
     );
   });
 
-  it("rejects a default value that is not one of the enum values", () => {
+  it("bhv servers 004 rejects a default value that is not one of the enum values", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com",
       null,
@@ -116,7 +116,7 @@ describe("ServerConfiguration", () => {
     );
   });
 
-  it("accepts any override for a variable without an enum", () => {
+  it("bhv servers 014 accepts any override for a variable without an enum", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com",
       null,
@@ -127,7 +127,7 @@ describe("ServerConfiguration", () => {
     );
   });
 
-  it("keeps the defaults of the variables that are not overridden", () => {
+  it("bhv servers 001 keeps the defaults of the variables that are not overridden", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com/v{version}",
       null,
@@ -141,7 +141,7 @@ describe("ServerConfiguration", () => {
     );
   });
 
-  it("leaves a placeholder without a declared variable untouched", () => {
+  it("bhv servers 007 leaves a placeholder without a declared variable untouched", () => {
     const config = new ServerConfiguration(
       "https://api.example.com/{unknown}",
       null,
@@ -152,7 +152,7 @@ describe("ServerConfiguration", () => {
     );
   });
 
-  it("exposes the raw template, description and variables", () => {
+  it("bhv servers 006 exposes the raw template, description and variables", () => {
     const variables = { env: new ServerVariable("prod", null, []) };
     const config = new ServerConfiguration(
       "https://{env}.api.example.com",

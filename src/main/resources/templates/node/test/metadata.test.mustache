@@ -7,7 +7,7 @@ import { Metadata, Pet } from '../src/models/index{{importFileExtension}}';
 
 describe('Metadata', () => {
   describe('package.json manifest', () => {
-    test('declares a non-empty description', () => {
+    test('bhv models 002 declares a non-empty description', () => {
       // manifest-description-missing: the published manifest must carry a
       // description (wired from the spec's appDescription) so registries do
       // not show an empty description.
@@ -27,7 +27,7 @@ describe('Metadata', () => {
   });
 
   describe('generated model docblocks (L1 parity)', () => {
-    test('the file header prints the info description verbatim, without a backslash before a quote', () => {
+    test('bhv models 006 the file header prints the info description verbatim, without a backslash before a quote', () => {
       const source = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'models', 'account.ts'), 'utf-8');
       const header = source.split('\n').slice(0, 3).join('\n');
 
@@ -35,7 +35,7 @@ describe('Metadata', () => {
       expect(header).not.toContain('\\"');
     });
 
-    test('no generated model carries a literal "@example null" / "Example: null" doc line', () => {
+    test('bhv models 007 no generated model carries a literal "@example null" / "Example: null" doc line', () => {
       // A property whose schema example is the JSON null literal must not leak a
       // useless `@example null` JSDoc line into the generated model. The shared
       // codegen nulls such an example so the template's example section is
@@ -97,18 +97,18 @@ describe('Metadata', () => {
   });
 
   describe('Metadata model (typed additionalProperties)', () => {
-    test('serializes empty metadata', () => {
+    test('bhv models 008 serializes empty metadata', () => {
       const metadata = new Metadata();
       const json = ObjectSerializer.serialize(metadata);
       expect(json).toBeDefined();
     });
 
-    test('deserializes empty object', () => {
+    test('bhv models 003 deserializes empty object', () => {
       const metadata = ObjectSerializer.deserialize({}, Metadata);
       expect(metadata).toBeDefined();
     });
 
-    test('deserializes additional string properties', () => {
+    test('bhv models 004 deserializes additional string properties', () => {
       const json = {
         createdAt: '2024-01-01T00:00:00Z',
         customField: 'hello'
@@ -119,7 +119,7 @@ describe('Metadata', () => {
       expect(metadata!.createdAt!.toISOString()).toBe('2024-01-01T00:00:00.000Z');
     });
 
-    test('round-trip preserves additional properties', () => {
+    test('bhv models 011 round-trip preserves additional properties', () => {
       const original = new Metadata({
         createdAt: new Date('2024-01-15T10:30:00Z')
       });
@@ -132,7 +132,7 @@ describe('Metadata', () => {
       expect(deserialized!.createdAt!.toISOString()).toBe('2024-01-15T10:30:00.000Z');
     });
 
-    test('compiles with typed additional properties index signature', () => {
+    test('bhv models 009 compiles with typed additional properties index signature', () => {
       const metadata = new Metadata({ createdAt: new Date('2024-01-01T00:00:00Z') });
       const additionalValue: string = (metadata as Record<string, string>)['anyKey'] ?? '';
       expect(typeof additionalValue).toBe('string');
@@ -169,7 +169,7 @@ describe('Metadata', () => {
   });
 
   describe('Metadata additionalProperties accessor', () => {
-    test('exposes the undeclared keys of a deserialized instance', () => {
+    test('bhv models 001 exposes the undeclared keys of a deserialized instance', () => {
       const metadata = ObjectSerializer.deserialize(
         { createdAt: '2024-01-01T00:00:00Z', customField: 'hello' },
         Metadata,
@@ -209,7 +209,7 @@ describe('Metadata', () => {
       expect(empty).not.toHaveProperty('additionalProperties');
     });
 
-    test('does not affect equality', () => {
+    test('bhv models 005 does not affect equality', () => {
       const left = new Metadata({ foo: 1 });
       const right = new Metadata({ foo: 1 });
       expect(left.equals(right)).toBe(true);
