@@ -83,6 +83,30 @@ public final class Configuration {
     return defaultHeaders;
   }
 
+  /**
+   * Describe this configuration for a log. The value of every sensitive default header is replaced
+   * by {@code ***}, so the text never carries a credential.
+   *
+   * @return a masked description of the configuration
+   */
+  @Override
+  public String toString() {
+    Map<String, String> headers = new java.util.LinkedHashMap<>();
+    for (Map.Entry<String, String> header : defaultHeaders.entrySet()) {
+      headers.put(header.getKey(), isSensitiveHeader(header.getKey()) ? "***" : header.getValue());
+    }
+    return "Configuration{baseUrl=" + baseUrl + ", defaultHeaders=" + headers + "}";
+  }
+
+  /* The rule TransportOptions applies: the shared sensitive set, plus any name with key, token or secret. */
+  private static boolean isSensitiveHeader(String name) {
+    String lower = name.toLowerCase(java.util.Locale.ROOT);
+    return DefaultApiClient.SENSITIVE_HEADER_NAMES.contains(lower)
+        || lower.contains("key")
+        || lower.contains("token")
+        || lower.contains("secret");
+  }
+
   /** Builder for creating immutable {@link Configuration} instances. */
   public static final class Builder {
 

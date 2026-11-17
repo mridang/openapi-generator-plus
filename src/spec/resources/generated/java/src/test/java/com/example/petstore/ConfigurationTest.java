@@ -9,6 +9,7 @@
 package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -170,6 +171,20 @@ class ConfigurationTest {
     assertNotNull(config);
     assertEquals("/api/v3", config.getBaseUrl());
     assertTrue(config.getDefaultHeaders().isEmpty());
+  }
+
+  @Test
+  void bhvConfig015InspectMasksSensitiveDefaultHeaders() {
+    String text =
+        Configuration.builder()
+            .defaultHeader("Authorization", "Bearer c0nfig-value")
+            .defaultHeader("X-Trace", "trace-1")
+            .build()
+            .toString();
+
+    assertFalse(text.contains("c0nfig-value"));
+    assertTrue(text.contains("Authorization=***"));
+    assertTrue(text.contains("X-Trace=trace-1"));
   }
 
   @Test

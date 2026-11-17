@@ -482,6 +482,16 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("bhvUnions023 setPetAvatarThumbnail byte oneOf round-trips through base64")
+        fun testScalarByteVariantDecodesAndReencodesTheSameBase64() {
+            val wire = "\"AQIDBA==\""
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>(wire)
+            assertTrue(restored.actualInstance is ByteArray)
+            assertArrayEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), restored.actualInstance as ByteArray)
+            assertEquals(wire, json.encodeToString(restored))
+        }
+
+        @Test
         @DisplayName("bhvUnions018 a base64 scalar string deserializes to the scalar variant, not a list")
         fun testScalarStringIsNotMisParsedAsList() {
             // Ordering guard: a lone base64 string must resolve to the scalar
