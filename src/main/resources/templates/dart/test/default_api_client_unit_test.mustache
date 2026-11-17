@@ -2231,6 +2231,30 @@ void main() {
       }
     });
 
+    test('bhv serializationwire 037 multipart text file part sets text/plain Content-Type from its extension', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {'notes.txt': Uint8List.fromList(utf8.encode('hello'))},
+        );
+        expect(body, contains('content-type: text/plain'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv serializationwire 036 multipart file extension is matched case-insensitively', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

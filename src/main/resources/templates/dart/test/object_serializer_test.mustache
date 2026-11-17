@@ -1716,6 +1716,68 @@ void main() {
       final beyond = '[' * 1500 + ']' * 1500;
       expect(() => parseJson(beyond), throwsA(isA<SerializationException>()));
     });
+
+    test('bhv serializationobject 056 an explicit null is kept over the schema default', () {
+      final decoded = deserialize<Defaults>('{"label":null}', Defaults.fromJson);
+      expect(decoded!.label, isNull);
+    });
+
+    test('bhv serializationobject 064 a time value keeps its time portion as written', () {
+      final decoded =
+          deserialize<EdgeCases>('{"cutoff":"23:59:59.999"}', EdgeCases.fromJson)!;
+      expect(decoded.cutoff, equals('23:59:59.999'));
+    });
+
+    test('bhv serializationobject 065 a uuid string decodes to a UuidValue with the same text', () {
+      final order = deserialize<Order>(
+          '{"trackingId":"3f2504e0-4f89-11d3-9a0c-0305e82c3301"}', Order.fromJson)!;
+      expect(order.trackingId, isA<UuidValue>());
+      expect(order.trackingId.toString(),
+          equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'));
+    });
+
+    test('bhv serializationobject 070 a JSON object deserializes to the typed model', () {
+      final pet = deserialize<Pet>('{"name":"Fido","photoUrls":["u"]}', Pet.fromJson);
+      expect(pet, isA<Pet>());
+      expect(pet!.name, equals('Fido'));
+    });
+
+    test('bhv serializationobject 086 a null on a required non-nullable field throws SerializationException', () {
+      expect(
+        () => deserialize<Pet>('{"name":null,"photoUrls":["u"]}', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 091 an integer returns its string representation', () {
+      expect(stringify(42), equals('42'));
+    });
+
+    test('bhv serializationobject 095 a JSON array where an object is expected throws SerializationException', () {
+      expect(
+        () => deserialize<Pet>('[1,2]', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 096 an array joins with a comma in a header value', () {
+      expect(toHeaderValue([1, 2, 3]), equals('1,2,3'));
+    });
+
+    test('bhv serializationobject 098 an array joins with a comma for csv', () {
+      expect(toQueryValue(['a', 'b'], 'csv'), equals('a,b'));
+    });
+
+    test('bhv serializationobject 100 an array joins with a space for ssv', () {
+      expect(toQueryValue(['a', 'b'], 'ssv'), equals('a b'));
+    });
+
+    test('bhv serializationobject 103 a malformed uuid string raises SerializationException on decode', () {
+      expect(
+        () => deserialize<Order>('{"trackingId":"12345"}', Order.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
   });
 
   group('integer fields', () {
