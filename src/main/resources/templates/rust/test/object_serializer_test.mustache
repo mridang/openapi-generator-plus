@@ -656,7 +656,7 @@ fn test_bhv_serializationobject_173_uri_reference_field_still_accepts_a_relative
     use {{packageName}}::models::PetWithOwner;
 
     let owner: PetWithOwner = serde_json::from_str(
-        r#"{"name":"fido","photoUrls":[],"thumbnailRef":"../thumbs/fido.png"}"#,
+        r#"{"name":"fido","photoUrls":[],"ownerName":"owner","thumbnailRef":"../thumbs/fido.png"}"#,
     )
     .expect("a relative reference decodes");
     assert_eq!(owner.thumbnail_ref.as_deref(), Some("../thumbs/fido.png"));

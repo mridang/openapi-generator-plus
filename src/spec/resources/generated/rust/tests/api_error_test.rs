@@ -318,9 +318,8 @@ fn test_bhv_errors_002_every_status_error_carries_the_request_context() {
 /// A status-specific error keeps the optional cause it was built with, and reaches it through its source chain.
 #[test]
 fn test_bhv_errors_003_status_specific_errors_keep_an_optional_cause() {
-    let cause: std::sync::Arc<dyn std::error::Error + Send + Sync> = std::sync::Arc::new(
-        std::io::Error::new(std::io::ErrorKind::Other, "socket reset"),
-    );
+    let cause: std::sync::Arc<dyn std::error::Error + Send + Sync> =
+        std::sync::Arc::new(std::io::Error::other("socket reset"));
     let with_cause = ApiError::with_source(404, "missing".to_string(), None, None, cause);
     let not_found =
         NotFoundError::try_from(ClientError::try_from(with_cause).expect("a 4xx")).expect("a 404");
