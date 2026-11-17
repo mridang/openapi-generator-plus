@@ -48,6 +48,18 @@ class TreeNode {
     return json;
   }
 
+  /// Returns a copy of this [TreeNode] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  TreeNode copyWith({String? value, Object? child = copyUnset}) {
+    return TreeNode(
+      value: value ?? this.value,
+      child: copyField<TreeNode>(child, this.child),
+    );
+  }
+
   /// Value-equality based on all declared fields. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
   /// built-in `==` on those is identity), so two instances decoded from

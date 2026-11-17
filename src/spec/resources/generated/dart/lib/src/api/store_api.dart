@@ -20,6 +20,8 @@ import '../models/reserve_stock_response.dart';
 import '../models/stock_item.dart';
 import '../models/swatch.dart';
 import '../models/tree_node.dart';
+import '../models/reservation.dart';
+import '../models/reservation_receipt.dart';
 import 'options/get_by_swatch_options.dart';
 import 'options/get_stock_item_options.dart';
 import 'options/search_store_options.dart';
@@ -213,6 +215,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Category',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Category.fromJson) as Category,
     );
@@ -410,7 +415,7 @@ class StoreApi extends BaseApi {
       auth: noAuth,
 
       deserialize: (body) =>
-          deserializeMapFromJson(body, (e) => e as int) as Map<String, int>,
+          deserializeMapFromJson(body, (e) => readInt32(e)) as Map<String, int>,
     );
   }
 
@@ -459,7 +464,7 @@ class StoreApi extends BaseApi {
       deserialize: (body) =>
           deserializeArrayFromJson(
                 body,
-                (e) => deserializeArray(e, (e) => e as int),
+                (e) => deserializeArray(e, (e) => readInt32(e)),
               )
               as List<List<int>>,
     );
@@ -662,6 +667,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'StockItem',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, StockItem.fromJson) as StockItem,
     );
@@ -953,10 +961,16 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'ReserveStockResponse',
       auth: noAuth,
-
-      deserialize: (body) =>
-          deserialize(body, ReserveStockResponse.fromJson)
-              as ReserveStockResponse,
+      deserializeByStatus: (body, statusCode) {
+        if (statusCode == 200) {
+          return ReserveStockResponse(
+            deserialize(body, Reservation.fromJson) as Reservation,
+          );
+        }
+        return ReserveStockResponse(
+          deserialize(body, ReservationReceipt.fromJson) as ReservationReceipt,
+        );
+      },
     );
   }
 
@@ -1031,6 +1045,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Order>',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserializeList(body, Order.fromJson) as List<Order>,

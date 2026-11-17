@@ -1,0 +1,16 @@
+{{>api_info}}
+import 'environment_io.dart'
+    if (dart.library.js_interop) 'environment_web.dart';
+
+/// Reads the environment variable [name] once.
+///
+/// [environment] replaces the process environment when given: pass it on a
+/// platform that has none (the browser) or to keep a credential out of the real
+/// environment. An unset variable and an empty one both read as `null`.
+String? readEnvironmentVariable(
+  String name, [
+  Map<String, String>? environment,
+]) {
+  final value = (environment ?? processEnvironment())[name];
+  return value == null || value.isEmpty ? null : value;
+}

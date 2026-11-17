@@ -1,5 +1,7 @@
 {{>api_info}}
 {{#generateTests}}
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
@@ -24,6 +26,26 @@ class _CloseTrackingClient extends http.BaseClient {
 
 void main() {
   group('{{clientClassName}}', () {
+    test('withToken takes a token provider instead of a token', () {
+      final client = {{clientClassName}}.withToken(
+        host: '{{{basePath}}}',
+        tokenProvider: () => 'rotating-token',
+      );
+
+      expect(client, isNotNull);
+    });
+
+    test('withToken fails to build when no token is given or in the environment', () {
+      if (Platform.environment[BearerAuthenticator.defaultEnvironmentVariable] != null) {
+        return;
+      }
+
+      expect(
+        () => {{clientClassName}}.withToken(host: '{{{basePath}}}'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
     test('construct with authenticator only', () {
       final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
 

@@ -25,6 +25,31 @@ class ReserveStockResponse {
   /// Returns the resolved variant of the union.
   Object? get actualInstance => _value;
 
+  /// Wraps a [Reservation] as this union.
+  const ReserveStockResponse.reservation(Reservation value) : _value = value;
+
+  /// Whether this union holds a [Reservation].
+  bool get isReservation => _value is Reservation;
+
+  /// The held [Reservation], or null when this union holds another variant.
+  Reservation? get asReservation {
+    final v = _value;
+    return v is Reservation ? v : null;
+  }
+
+  /// Wraps a [ReservationReceipt] as this union.
+  const ReserveStockResponse.reservationReceipt(ReservationReceipt value)
+    : _value = value;
+
+  /// Whether this union holds a [ReservationReceipt].
+  bool get isReservationReceipt => _value is ReservationReceipt;
+
+  /// The held [ReservationReceipt], or null when this union holds another variant.
+  ReservationReceipt? get asReservationReceipt {
+    final v = _value;
+    return v is ReservationReceipt ? v : null;
+  }
+
   /// Converts this union type to a JSON value.
   Object? toJson() {
     final v = _value;

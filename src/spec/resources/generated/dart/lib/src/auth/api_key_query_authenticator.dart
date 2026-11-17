@@ -11,6 +11,14 @@ import 'api_key_location.dart';
 /// Authenticator for the `apiKeyQuery` security scheme.
 class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator {
   /// Creates an authenticator for the `apiKeyQuery` security scheme.
-  ApiKeyQueryAuthenticator({required super.host, required super.apiKey})
-    : super(keyParamName: 'api_key', location: ApiKeyLocation.query);
+  ApiKeyQueryAuthenticator({
+    required super.host,
+    super.apiKey,
+    super.apiKeyProvider,
+    super.environment,
+  }) : super(
+         keyParamName: 'api_key',
+         location: ApiKeyLocation.query,
+         environmentVariable: 'PETSTORE_CLIENT_API_KEY_QUERY',
+       );
 }

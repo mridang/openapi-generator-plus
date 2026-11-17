@@ -11,5 +11,10 @@ import 'network_exception.dart';
 /// status code is always 0 and the underlying transport exception (a
 /// `dart:async` `TimeoutException`) is kept as [cause].
 class NetworkTimeoutException extends NetworkException {
-  const NetworkTimeoutException({required super.message, super.cause});
+  const NetworkTimeoutException({
+    required super.message,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  });
 }

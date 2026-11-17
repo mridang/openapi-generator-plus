@@ -37,7 +37,7 @@ class Account {
       );
     }
     return Account(
-      id: json['id'] as int?,
+      id: readInt64OrNull(json['id']),
 
       username: json['username'] as String,
 
@@ -58,6 +58,23 @@ class Account {
       json['password'] = password;
     }
     return json;
+  }
+
+  /// Returns a copy of this [Account] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  Account copyWith({
+    Object? id = copyUnset,
+    String? username,
+    Object? password = copyUnset,
+  }) {
+    return Account(
+      id: copyField<int>(id, this.id),
+      username: username ?? this.username,
+      password: copyField<String>(password, this.password),
+    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

@@ -1,6 +1,26 @@
 # {{appNameBase}} SDK
 
 Auto-generated Dart SDK client for the {{appName}} API.
+{{#homepageUrl}}
+
+- Homepage: <{{{.}}}>
+{{/homepageUrl}}
+{{#repositoryUrl}}
+{{^homepageUrl}}
+
+{{/homepageUrl}}
+- Repository: <{{{.}}}>
+{{/repositoryUrl}}
+{{#documentationUrl}}
+- Documentation: <{{{.}}}>
+{{/documentationUrl}}
+{{#issueTrackerUrl}}
+- Issues: <{{{.}}}>
+{{/issueTrackerUrl}}
+{{#authors}}
+
+Authors: {{{.}}}
+{{/authors}}
 
 ## Requirements
 
@@ -112,6 +132,85 @@ closes the client: you own its lifecycle. Because the client carries its own
 proxy and TLS settings, combining it with `proxy`, `caCertPath` or
 `verifySsl(false)` is rejected when the options are built.
 
+### Per-call options
+
+Every operation that takes an options object accepts three more fields on it,
+for that call only: `timeout` (end-to-end, in milliseconds, replacing the
+transport's), `headers` (a header already set, in any case, is replaced) and
+`maxRetries` (replacing the transport's; `0` turns retries off). A negative
+`timeout` or `maxRetries` is refused with an `ArgumentError`.
+
+```dart
+// SomeOperationOptions stands for the options class of any operation.
+const options = SomeOperationOptions(
+  timeout: 2000,
+  headers: {'X-Trace': 'abc'},
+  maxRetries: 0,
+);
+```
+
+### Errors
+
+`ApiException` and every subclass carry `requestMethod` and `requestPath` (the
+path only, never the query string), and the message names them:
+`GET /items/7 returned status code 404`. `NetworkException` and
+`NetworkTimeoutException` carry them too.
+
+### Credentials
+
+Each credential comes from, in order: the argument you pass, then an
+environment variable read once when the authenticator is built (an empty value
+counts as unset). A bearer token or API key can also come from a callback that
+is called on every request, which suits a rotating or short-lived credential;
+passing both an argument and a callback is refused. A credential found nowhere
+fails when the authenticator (and so the client) is built. The variables are
+`{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_TOKEN`, `{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_API_KEY`, `{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_USERNAME` and
+`{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_PASSWORD`; an authenticator made for one security scheme reads
+`{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_<SCHEME>` (`..._<SCHEME>_USERNAME` and `..._<SCHEME>_PASSWORD`
+for basic). The browser has no environment: pass `environment:` a map.
+
+```dart
+final client = {{clientClassName}}.withToken(
+  host: 'https://api.example.com',
+  tokenProvider: () async => await vault.currentToken(),
+);
+```
+
+### Copying models
+
+Models are immutable: every field is `final`. `copyWith` returns a changed copy
+and leaves the original alone; a field you leave out keeps its value, and a
+nullable field is cleared by passing `null`. The collections inside a model are
+shared with the copy, not duplicated.
+
+### Several success responses
+
+An operation whose 2xx responses have different schemas returns a union, and
+the body is decoded as the schema of the status code the server answered with.
+The union has one named constructor, `isX` and `asX` accessor per model variant
+as well as `actualInstance`.
+
+### Response compression
+
+The SDK sends `Accept-Encoding: gzip, deflate` and decodes either; `br` and
+`zstd` are not offered. In the browser `fetch` negotiates and decodes the
+encoding itself.
+
+### Logging
+
+The SDK writes no logs. To see requests, give it your own `package:http`
+`Client` (see above) that logs, or wrap calls in your own code; a failed call
+carries its method, path, status and headers on the `ApiException`, with
+credential headers redacted in `toString()`. Set
+`TransportOptions.builder().injectRequestId(true)` to correlate with server logs.
+
+### Versioning
+
+The package version is `{{packageVersion}}` and follows semantic versioning: a
+breaking change to the public API raises the major version. Pin a range such as
+`^{{packageVersion}}` in `pubspec.yaml`. The Dart SDK floor is part of the
+contract and only rises in a major version.
+
 ## Platform support
 
 The HTTP transport ships in two variants selected automatically at compile time
@@ -195,6 +294,35 @@ The SDK's `ClientException` (every 4xx response) has the same name as
 `package:http` with a prefix, for example
 `import 'package:http/http.dart' as http;`, and refer to its type as
 `http.ClientException`. The SDK itself imports `package:http` that way.
+
+### Optional and nullable are one type
+
+A property that is optional, a property that is nullable and one that is both
+are all `T?`, so a missing key and an explicit `null` read the same after
+decoding. A required property that is nullable keeps its key mandatory on
+decode, and encoding always writes it (`null` when unset).
+
+### Unknown enum values and discriminators fail loudly
+
+A value that is not one of an enum's declared values throws `ArgumentError`
+and a discriminator value that is not mapped throws `SerializationException`;
+the SDK never maps an unknown value to a default.
+
+### Response headers
+
+`headers` on a response is a lower-cased map with one string per name; a header
+sent on several lines is joined with `, ` in the order received.
+
+### Streaming is not supported
+
+Request and response bodies are buffered in memory. To stream, supply your own
+`package:http` `Client` through `TransportOptions.builder().httpClient(...)`.
+
+### `Configuration` and `TransportOptions` are separate
+
+`Configuration` holds what belongs to the API (base URL, default headers).
+`TransportOptions` holds how the bytes travel (proxy, TLS, timeouts, retries,
+the HTTP client). They are built and passed separately on purpose.
 
 ### Schema constraints
 

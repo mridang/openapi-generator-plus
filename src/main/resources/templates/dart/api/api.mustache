@@ -508,6 +508,30 @@ class {{classname}} extends BaseApi {
       {{! entirely. A secured op passes its per-call override (`auth`, possibly }}
       {{! null for "use the client credential") unchanged. }}
       auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+      timeout: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.timeout,
+      callHeaders: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.headers,
+      maxRetries: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+{{! Several distinct 2xx schemas: the body is decoded by the status code the }}
+{{! server answered with, never by trying the variants in turn. }}
+      deserializeByStatus: (body, statusCode) {
+{{#vendorExtensions.op.successResponses}}
+{{^isLast}}
+        if ({{#isRange}}statusCode >= 200 && statusCode < 300{{/isRange}}{{^isRange}}statusCode == {{statusCode}}{{/isRange}}) {
+          return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
+        }
+{{/isLast}}
+{{#isLast}}
+        return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
+{{/isLast}}
+{{/vendorExtensions.op.successResponses}}
+      },
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{^vendorExtensions.op.hasMultiple2xx}}
 {{#returnType}}
 {{#returnTypeIsPrimitive}}
 {{#isMap}}
@@ -561,6 +585,7 @@ class {{classname}} extends BaseApi {
 {{/isArray}}
 {{/returnTypeIsPrimitive}}
 {{/returnType}}
+{{/vendorExtensions.op.hasMultiple2xx}}
     );
   }
 {{/operation}}

@@ -1,26 +1,110 @@
 {{>api_info}}
 import 'dart:convert';
 
+import '../environment.dart';
 import 'base_authenticator.dart';
 
+/* The user name and password a credentials callback returns. */
+typedef _Credentials = (String username, String password);
+
 /// BasicAuthenticator provides HTTP Basic authentication.
+///
+/// The credentials come from, in order: the explicit [username] and [password]
+/// arguments or the [credentialsProvider] callback (never both), then the
+/// environment variables named by [usernameVariable] and [passwordVariable].
+/// Credentials that are found nowhere fail the constructor, so a client is
+/// never built without them.
 class BasicAuthenticator extends BaseAuthenticator {
+  /// The environment variable read for the user name when no credential is
+  /// given and no [usernameVariable] names another one.
+  static const String defaultUsernameVariable = '{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_USERNAME';
+
+  /// The environment variable read for the password when no credential is
+  /// given and no [passwordVariable] names another one.
+  static const String defaultPasswordVariable = '{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_PASSWORD';
+
   final String _host;
-  final String _username;
-  final String _password;
+  final String? _username;
+  final String? _password;
+  final _Credentials Function()? _credentialsProvider;
 
   /// Creates a new Basic authenticator.
   ///
   /// Credentials are validated eagerly at construction, so a malformed
   /// credential surfaces where it is supplied rather than lazily at first
-  /// request.
+  /// request. [credentialsProvider] is called on every request and returns the
+  /// current user name and password, so rotating credentials never need a new
+  /// client. The variables are read once, here, and an empty value counts as
+  /// unset. [environment] replaces the process environment, for the browser or
+  /// for tests.
   BasicAuthenticator({
     required String host,
-    required String username,
-    required String password,
-  })  : _host = host,
-        _username = username,
-        _password = password {
+    String? username,
+    String? password,
+    (String username, String password) Function()? credentialsProvider,
+    String? usernameVariable,
+    String? passwordVariable,
+    Map<String, String>? environment,
+  }) : this._(
+          host,
+          _resolve(
+            username,
+            password,
+            credentialsProvider,
+            usernameVariable ?? defaultUsernameVariable,
+            passwordVariable ?? defaultPasswordVariable,
+            environment,
+          ),
+          credentialsProvider,
+        );
+
+  BasicAuthenticator._(
+    this._host,
+    (String?, String?) fixed,
+    this._credentialsProvider,
+  )   : _username = fixed.$1,
+        _password = fixed.$2 {
+    final user = _username;
+    final pass = _password;
+    if (user != null && pass != null) {
+      _validate(user, pass);
+    }
+  }
+
+  static (String?, String?) _resolve(
+    String? username,
+    String? password,
+    (String, String) Function()? credentialsProvider,
+    String usernameVariable,
+    String passwordVariable,
+    Map<String, String>? environment,
+  ) {
+    if ((username != null || password != null) && credentialsProvider != null) {
+      throw ArgumentError(
+          'Pass either username and password or credentialsProvider, not both');
+    }
+    if (username != null || password != null) {
+      if (username == null || password == null) {
+        throw ArgumentError('Basic auth needs both a username and a password');
+      }
+      return (username, password);
+    }
+    if (credentialsProvider != null) {
+      return (null, null);
+    }
+    final user = readEnvironmentVariable(usernameVariable, environment);
+    final pass = readEnvironmentVariable(passwordVariable, environment);
+    if (user == null || pass == null) {
+      throw ArgumentError(
+        'Basic auth credentials are required: pass username and password or '
+        'credentialsProvider, or set the $usernameVariable and '
+        '$passwordVariable environment variables',
+      );
+    }
+    return (user, pass);
+  }
+
+  static void _validate(String username, String password) {
     /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
      * separator) and neither user-id nor password may carry CR/LF/NUL
      * (header-injection / smuggling vectors common when credentials are
@@ -28,7 +112,7 @@ class BasicAuthenticator extends BaseAuthenticator {
      * message only, never the credential: the value-carrying ArgumentError
      * constructor would put it into toString() and invalidValue, and from
      * there into logs. */
-    for (final c in _username.codeUnits) {
+    for (final c in username.codeUnits) {
       if (c == 0x0D || c == 0x0A || c == 0x00) {
         throw ArgumentError(
           'Basic auth username must not contain CR, LF, or NUL characters',
@@ -40,7 +124,7 @@ class BasicAuthenticator extends BaseAuthenticator {
         );
       }
     }
-    for (final c in _password.codeUnits) {
+    for (final c in password.codeUnits) {
       if (c == 0x0D || c == 0x0A || c == 0x00) {
         throw ArgumentError(
           'Basic auth password must not contain CR, LF, or NUL characters',
@@ -54,8 +138,16 @@ class BasicAuthenticator extends BaseAuthenticator {
 
   @override
   Map<String, String> authHeaders() {
-    final authHeader =
-        'Basic ${base64Encode(utf8.encode('$_username:$_password'))}';
+    var user = _username;
+    var pass = _password;
+    final provider = _credentialsProvider;
+    if (provider != null) {
+      final provided = provider();
+      _validate(provided.$1, provided.$2);
+      user = provided.$1;
+      pass = provided.$2;
+    }
+    final authHeader = 'Basic ${base64Encode(utf8.encode('$user:$pass'))}';
     return {
       'Authorization': authHeader,
     };
@@ -65,5 +157,5 @@ class BasicAuthenticator extends BaseAuthenticator {
   /// interpolation, or `toString()`. Non-secret fields stay visible.
   @override
   String toString() =>
-      '$runtimeType(host: $_host, username: $_username, password: ***)';
+      '$runtimeType(host: $_host, username: ${_username ?? 'provided per request'}, password: ***)';
 }

@@ -2011,33 +2011,131 @@
   },
   {
    "element": [
-    "explodedobject.entries"
+    "*options.timeout",
+    "*options.headers",
+    "*options.maxretries"
    ],
    "aspect": "member",
    "languages": [
     "dart"
    ],
-   "reason": "tracked as F1182: node's ExplodedObject exposes `entries` while dart's exposes `pairs` for the same data; the field name should be aligned"
+   "reason": "F827: per-call timeout, headers and maxRetries on every per-operation Options object; the same three fields land in all twelve SDKs, so the canonical entry follows when the other eleven do"
   },
   {
    "element": [
-    "explodedobject.pairs"
+    "apiclient.sendrequest",
+    "abstractapiclient.sendrequest",
+    "defaultapiclient.sendrequest"
    ],
-   "aspect": "member",
-   "languages": [
-    "node"
-   ],
-   "reason": "tracked as F1182: dart's ExplodedObject exposes `pairs` while node's exposes `entries` for the same data; the field name should be aligned"
-  },
-  {
-   "element": [
-    "explodedobject.<ctor>"
-   ],
-   "aspect": "ctor",
+   "aspect": "params",
    "languages": [
     "dart"
    ],
-   "reason": "tracked as F1182: dart's ExplodedObject constructor argument is named pairs, node's is entries; the name should be aligned"
+   "reason": "F827 and F860: sendRequest takes the named arguments timeout (a per-call end-to-end timeout in milliseconds) and noDefaultHeaders (token and discovery requests must not carry the transport default headers); Dart has named optional arguments, the other SDKs carry them in their own request types"
+  },
+  {
+   "element": "client.withtoken",
+   "aspect": "params",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F862: withToken takes a tokenProvider callback beside accessToken (both optional, one required at runtime); Dart has no overloads, so the alternative is a named optional argument"
+  },
+  {
+   "element": [
+    "bearerauthenticator.defaultenvironmentvariable",
+    "apikeyauthenticator.defaultenvironmentvariable",
+    "basicauthenticator.defaultusernamevariable",
+    "basicauthenticator.defaultpasswordvariable"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F862: the default environment variable names are public constants so a caller and the tests can name them; the variable is {PACKAGE}_{FIELD}"
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F830: requestMethod and requestPath on ApiException and every subclass are added to all twelve SDKs in this wave; the canonical entry follows when the other eleven land"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F830: fromResponse takes the failed request as the named arguments requestMethod and requestPath"
+  },
+  {
+   "element": [
+    "apierror.withrequest",
+    "apierror.stripquery"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F830: the exception fields are final and the types const, and the transport raises network failures without knowing the operation, so the API layer rebuilds the error with its request through withRequest; stripQuery is the one place the query string is cut"
+  },
+  {
+   "element": [
+    "petfood.*",
+    "pettreatment.*",
+    "reservestockresponse.*",
+    "treatmentrecord.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "value": "extra  (is*",
+   "reason": "F878: a oneOf or anyOf wrapper has an isVariant getter and an asVariant getter per model variant beside a named constructor; the canonical entry follows when the other SDKs land their typed accessors"
+  },
+  {
+   "element": [
+    "petfood.*",
+    "pettreatment.*",
+    "reservestockresponse.*",
+    "treatmentrecord.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "value": "extra  (as*",
+   "reason": "F878: a oneOf or anyOf wrapper has an isVariant getter and an asVariant getter per model variant beside a named constructor; the canonical entry follows when the other SDKs land their typed accessors"
+  },
+  {
+   "element": [
+    "environment",
+    "environmentio",
+    "environmentweb"
+   ],
+   "aspect": "type",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F862: dart:io is not importable in the browser or under dart2wasm, so reading the process environment sits behind a conditional import (environment.dart selects environment_io.dart or environment_web.dart), as default_api_client does for the transport"
+  },
+  {
+   "element": [
+    "pettreatment.medication",
+    "pettreatment.surgery",
+    "treatmentrecord.medication",
+    "treatmentrecord.surgery"
+   ],
+   "aspect": "prop-optional",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F878: the checker reads dart's new isMedication and isSurgery accessors as a required property of the same name, so a majority of one makes rust's optional field a mismatch; it goes when the other SDKs land their typed accessors"
   },
   {
    "element": [

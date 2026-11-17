@@ -53,6 +53,23 @@ class Medication {
     return json;
   }
 
+  /// Returns a copy of this [Medication] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  Medication copyWith({
+    String? drugName,
+    Object? dosage = copyUnset,
+    Object? notes = copyUnset,
+  }) {
+    return Medication(
+      drugName: drugName ?? this.drugName,
+      dosage: copyField<String>(dosage, this.dosage),
+      notes: copyField<String>(notes, this.notes),
+    );
+  }
+
   /// Value-equality based on all declared fields. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
   /// built-in `==` on those is identity), so two instances decoded from

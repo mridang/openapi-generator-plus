@@ -83,6 +83,12 @@ class BaseApi {
   ///   - [auth]: optional authenticator for operation-specific auth
   ///   - [rawBody]: true when the body parameter is `format: binary`; its
   ///     bytes are then sent unchanged under any selected content type
+  ///   - [timeout]: end-to-end timeout in milliseconds for this call only,
+  ///     replacing the transport's; must not be negative
+  ///   - [callHeaders]: headers for this call only; they replace a default or
+  ///     operation header of the same name in any case
+  ///   - [maxRetries]: retries for this call only, replacing the transport's;
+  ///     0 disables them and a negative value is refused
   Future<ApiHttpResponse> invokeApi({
     required String method,
     required String path,
@@ -94,7 +100,22 @@ class BaseApi {
     String returnType = '',
     Authenticator? auth,
     bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
   }) async {
+    if (timeout != null && timeout < 0) {
+      throw ArgumentError(
+          'Invalid timeout: must be a positive number of milliseconds (got $timeout)');
+    }
+    if (maxRetries != null && maxRetries < 0) {
+      throw ArgumentError(
+          'Invalid maxRetries: must be zero or a positive number (got $maxRetries)');
+    }
+    /* The path the errors name: no scheme, host, query or fragment. */
+    final requestPath = path.startsWith('http://') || path.startsWith('https://')
+        ? ApiException.stripQuery(Uri.parse(path).path)
+        : ApiException.stripQuery(path);
     var targetUrl = path;
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       /* Strip trailing slash from baseUrl when path starts with `/` so
@@ -152,6 +173,15 @@ class BaseApi {
         headers.addAll(headerParams);
       }
 
+      if (callHeaders != null) {
+        /* A per-call header replaces a default or operation header of the
+         * same name whatever its case. */
+        callHeaders.forEach((name, value) {
+          headers.removeWhere((k, _) => k.toLowerCase() == name.toLowerCase());
+          headers[name] = value;
+        });
+      }
+
       if (effectiveAuth != null) {
         /* Await the async variant so token-exchange OAuth flows (client-
            credentials, password, authorization-code) perform their token fetch
@@ -204,12 +234,15 @@ class BaseApi {
         requestUrl,
         headers,
         serializedBody,
+        timeout: timeout,
       );
     }
 
     final client = apiClient;
-    final maxRetries = client is RetryingApiClient ? client.maxRetries : 0;
-    final budgetMs = client is RetryingApiClient ? client.timeoutMillis : null;
+    final maxRetriesLeft =
+        maxRetries ?? (client is RetryingApiClient ? client.maxRetries : 0);
+    final budgetMs =
+        timeout ?? (client is RetryingApiClient ? client.timeoutMillis : null);
     /* A multipart body is never sent twice. */
     final replayable = contentType != 'multipart/form-data';
     final clock = Stopwatch()..start();
@@ -231,7 +264,9 @@ class BaseApi {
                     message: 'Request timed out after $budgetMs ms');
               });
       } on NetworkException catch (e) {
-        failure = e;
+        failure = e.withRequest(method, requestPath);
+      } on ApiException catch (e) {
+        throw e.withRequest(method, requestPath);
       }
       first = false;
 
@@ -257,7 +292,7 @@ class BaseApi {
             /* Fall through to the 401. */
           }
         } else if (replayable &&
-            retries < maxRetries &&
+            retries < maxRetriesLeft &&
             _isRetryableStatus(response.statusCode)) {
           final delay = _retryDelay(retries, response.headers);
           if (_withinBudget(delay, budgetMs, clock)) {
@@ -270,11 +305,13 @@ class BaseApi {
           response.statusCode,
           response.headers,
           response.body,
+          requestMethod: method,
+          requestPath: requestPath,
         );
       }
 
       /* No response arrived: a network error. */
-      if (replayable && retries < maxRetries) {
+      if (replayable && retries < maxRetriesLeft) {
         final delay = _retryDelay(retries, const {});
         if (_withinBudget(delay, budgetMs, clock)) {
           retries++;
@@ -376,8 +413,11 @@ class BaseApi {
   /// the response body when [returnType] is not empty.
   ///
   /// Parameters are as for [invokeApi], plus [deserialize], the function that
-  /// converts the response body into the return type, and [operation], the
-  /// `Class.operationId` name used in error messages.
+  /// converts the response body into the return type, [deserializeByStatus],
+  /// which does the same for an operation whose 2xx responses have different
+  /// schemas and is told the status code the server answered with (it takes
+  /// the place of [deserialize]), and [operation], the `Class.operationId`
+  /// name used in error messages.
   ///
   /// Returns an [ApiResult] containing deserialized data, status code, raw
   /// body, and headers.
@@ -393,7 +433,11 @@ class BaseApi {
     String returnType = '',
     Authenticator? auth,
     bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
     T Function(String body)? deserialize,
+    T Function(String body, int statusCode)? deserializeByStatus,
   }) async {
     final response = await invokeApi(
       method: method,
@@ -406,7 +450,15 @@ class BaseApi {
       returnType: returnType,
       auth: auth,
       rawBody: rawBody,
+      timeout: timeout,
+      callHeaders: callHeaders,
+      maxRetries: maxRetries,
     );
+
+    final T Function(String body)? decode = deserialize ??
+        (deserializeByStatus == null
+            ? null
+            : (String body) => deserializeByStatus(body, response.statusCode));
 
     T? data;
     if (returnType.isNotEmpty && response.body.isNotEmpty) {
@@ -457,11 +509,11 @@ class BaseApi {
         }
       } else if ((responseContentType.isEmpty ||
               _headerSelector.isJsonMime(responseContentType)) &&
-          deserialize != null) {
+          decode != null) {
         /* Some servers omit Content-Type on a JSON body; an absent/empty
          * content-type defaults to JSON deserialization rather than dropping
          * the body, matching swift/node and the other SDKs. */
-        data = deserialize(response.body);
+        data = decode(response.body);
       } else if (returnType == 'String' && _isTextContentType(responseContentType)) {
         data = response.body as T?;
       } else if (responseContentType.isEmpty ||
@@ -529,9 +581,9 @@ class BaseApi {
       }
 
       if (value is ExplodedObject) {
-        for (final pair in value.pairs.entries) {
-          parts.add('${encodeRfc3986QueryComponent(pair.key)}='
-              '${_encodeQueryValue(pair.value, allowReserved)}');
+        for (final (name, text) in value.entries) {
+          parts.add('${encodeRfc3986QueryComponent(name)}='
+              '${_encodeQueryValue(text, allowReserved)}');
         }
         continue;
       }

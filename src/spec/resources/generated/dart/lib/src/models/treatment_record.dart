@@ -34,6 +34,24 @@ class TreatmentRecord {
   /// [matchedInstances] or [valueOf] to reach every retained variant.
   Object? get actualInstance => _values.isEmpty ? null : _values.first;
 
+  /// Wraps a [Surgery] as this union.
+  TreatmentRecord.surgery(Surgery value) : _values = [value];
+
+  /// Whether a retained variant of this union is a [Surgery].
+  bool get isSurgery => valueOf<Surgery>() != null;
+
+  /// The retained [Surgery], or null when no variant is one.
+  Surgery? get asSurgery => valueOf<Surgery>();
+
+  /// Wraps a [Medication] as this union.
+  TreatmentRecord.medication(Medication value) : _values = [value];
+
+  /// Whether a retained variant of this union is a [Medication].
+  bool get isMedication => valueOf<Medication>() != null;
+
+  /// The retained [Medication], or null when no variant is one.
+  Medication? get asMedication => valueOf<Medication>();
+
   /// Returns every variant that successfully decoded from the wire payload.
   /// For a co-satisfied anyOf this holds more than one element.
   List<Object?> get matchedInstances => List.unmodifiable(_values);

@@ -56,4 +56,20 @@ class BetterDartCodegenTest {
     assertThat(codegen.toParamName("path")).isEqualTo("pathParam");
     assertThat(codegen.toParamName("petId")).isEqualTo("petId");
   }
+
+  @Test
+  void parametersNamedLikeAPerCallOptionGetASuffix() {
+    final BetterDartCodegen codegen = new BetterDartCodegen();
+    assertThat(codegen.toParamName("timeout")).isEqualTo("timeoutParam");
+    assertThat(codegen.toParamName("headers")).isEqualTo("headersParam");
+    assertThat(codegen.toParamName("maxRetries")).isEqualTo("maxRetriesParam");
+  }
+
+  @Test
+  void packageMetadataOptionsAreRegistered() {
+    final BetterDartCodegen codegen = new BetterDartCodegen();
+    assertThat(codegen.cliOptions())
+        .extracting(option -> option.getOpt())
+        .contains("repositoryUrl", "homepageUrl", "documentationUrl", "issueTrackerUrl", "authors");
+  }
 }

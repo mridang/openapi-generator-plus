@@ -213,6 +213,7 @@ class OAuth2TokenManager {
       headers,
       bodyBytes,
       noRedirect: true,
+      noDefaultHeaders: true,
     );
 
     /* Gap 3.2: refuse ANY 3xx on OAuth2 token POSTs (RFC 6749 §3.2 forbids

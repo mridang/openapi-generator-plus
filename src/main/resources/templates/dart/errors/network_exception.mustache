@@ -9,5 +9,7 @@ class NetworkException extends ApiException {
   const NetworkException({
     required super.message,
     super.cause,
+    super.requestMethod,
+    super.requestPath,
   }) : super(statusCode: 0);
 }

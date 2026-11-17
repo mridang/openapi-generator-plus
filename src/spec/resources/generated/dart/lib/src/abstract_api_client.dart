@@ -140,6 +140,8 @@ abstract class AbstractApiClient implements RetryingApiClient {
     Map<String, String> headers,
     Object? body, {
     bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
   }) async {
     /* Using a client after close() is a wrong call order: the invalid-state
      * built-in StateError, not an SDK exception. */
@@ -154,6 +156,9 @@ abstract class AbstractApiClient implements RetryingApiClient {
      * case, so `authorization` and `Authorization` are never both sent. */
     final callNames = headers.keys.map((k) => k.toLowerCase()).toSet();
     _transportOptions.defaultHeaders.forEach((name, value) {
+      if (noDefaultHeaders) {
+        return;
+      }
       if (!callNames.contains(name.toLowerCase())) {
         merged[name] = value;
       }
@@ -256,7 +261,7 @@ abstract class AbstractApiClient implements RetryingApiClient {
     http.StreamedResponse streamedResponse;
     Uri currentUri = uri;
     Uint8List rawBytes;
-    final clock = Stopwatch()..start();
+    final clock = _Deadline(timeout ?? _transportOptions.timeout);
     try {
       streamedResponse = await _sendWithin(request, clock);
       if (_transportOptions.followRedirects && !noRedirect) {
@@ -536,8 +541,8 @@ abstract class AbstractApiClient implements RetryingApiClient {
 
   /// Time left of the end-to-end timeout, measured on [clock] since the
   /// request started. Never negative.
-  Duration _remaining(Stopwatch clock) {
-    final left = _transportOptions.timeout! - clock.elapsedMilliseconds;
+  Duration _remaining(_Deadline clock) {
+    final left = clock.limit! - clock.elapsedMilliseconds;
     return Duration(milliseconds: left < 0 ? 0 : left);
   }
 
@@ -546,10 +551,10 @@ abstract class AbstractApiClient implements RetryingApiClient {
   /// the connection.
   Future<http.StreamedResponse> _sendWithin(
     http.BaseRequest request,
-    Stopwatch clock,
+    _Deadline clock,
   ) {
     final pending = _httpClient.send(request);
-    final limit = _transportOptions.timeout;
+    final limit = clock.limit;
     if (limit == null) return pending;
     return pending.timeout(
       _remaining(clock),
@@ -571,10 +576,10 @@ abstract class AbstractApiClient implements RetryingApiClient {
   /// (closing the connection) when the deadline passes.
   Future<Uint8List> _readWithin(
     http.ByteStream stream,
-    Stopwatch clock, {
+    _Deadline clock, {
     bool discard = false,
   }) {
-    final limit = _transportOptions.timeout;
+    final limit = clock.limit;
     if (limit == null) {
       return discard
           ? stream.drain<void>().then((_) => Uint8List(0))
@@ -608,7 +613,7 @@ abstract class AbstractApiClient implements RetryingApiClient {
   /// Reads and discards the rest of [stream] within what is left of the
   /// end-to-end timeout, without buffering it. Used for the body of a 3xx
   /// response that is not followed to a result.
-  Future<void> _drainWithin(http.ByteStream stream, Stopwatch clock) =>
+  Future<void> _drainWithin(http.ByteStream stream, _Deadline clock) =>
       _readWithin(stream, clock, discard: true);
 
   /// Builds a [http.MultipartRequest] for [method] and [uri] from the form
@@ -1039,4 +1044,18 @@ String rfc5987EncodeValue(String s) {
     }
   }
   return out.toString();
+}
+
+/// The end-to-end deadline of one request: the limit in milliseconds (null for
+/// none) and a clock that started with the request.
+class _Deadline {
+  _Deadline(this.limit) : _clock = Stopwatch()..start();
+
+  /// The limit in milliseconds, or null when the request has no timeout.
+  final int? limit;
+
+  final Stopwatch _clock;
+
+  /// Milliseconds since the request started.
+  int get elapsedMilliseconds => _clock.elapsedMilliseconds;
 }

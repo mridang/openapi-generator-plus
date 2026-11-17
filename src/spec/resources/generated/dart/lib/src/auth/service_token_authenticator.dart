@@ -10,5 +10,10 @@ import 'bearer_authenticator.dart';
 /// Authenticator for the `serviceToken` security scheme.
 class ServiceTokenAuthenticator extends BearerAuthenticator {
   /// Creates an authenticator for the `serviceToken` security scheme.
-  ServiceTokenAuthenticator({required super.host, required super.token});
+  ServiceTokenAuthenticator({
+    required super.host,
+    super.token,
+    super.tokenProvider,
+    super.environment,
+  }) : super(environmentVariable: 'PETSTORE_CLIENT_SERVICE_TOKEN');
 }

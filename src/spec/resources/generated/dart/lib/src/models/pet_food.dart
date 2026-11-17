@@ -25,6 +25,30 @@ class PetFood {
   /// Returns the resolved variant of the union.
   Object? get actualInstance => _value;
 
+  /// Wraps a [DryFood] as this union.
+  const PetFood.dryFood(DryFood value) : _value = value;
+
+  /// Whether this union holds a [DryFood].
+  bool get isDryFood => _value is DryFood;
+
+  /// The held [DryFood], or null when this union holds another variant.
+  DryFood? get asDryFood {
+    final v = _value;
+    return v is DryFood ? v : null;
+  }
+
+  /// Wraps a [WetFood] as this union.
+  const PetFood.wetFood(WetFood value) : _value = value;
+
+  /// Whether this union holds a [WetFood].
+  bool get isWetFood => _value is WetFood;
+
+  /// The held [WetFood], or null when this union holds another variant.
+  WetFood? get asWetFood {
+    final v = _value;
+    return v is WetFood ? v : null;
+  }
+
   /// Converts this union type to a JSON value.
   Object? toJson() {
     final v = _value;

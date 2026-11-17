@@ -11,6 +11,14 @@ import 'api_key_location.dart';
 /// Authenticator for the `apiKeyHeader` security scheme.
 class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator {
   /// Creates an authenticator for the `apiKeyHeader` security scheme.
-  ApiKeyHeaderAuthenticator({required super.host, required super.apiKey})
-    : super(keyParamName: 'X-API-Key', location: ApiKeyLocation.header);
+  ApiKeyHeaderAuthenticator({
+    required super.host,
+    super.apiKey,
+    super.apiKeyProvider,
+    super.environment,
+  }) : super(
+         keyParamName: 'X-API-Key',
+         location: ApiKeyLocation.header,
+         environmentVariable: 'PETSTORE_CLIENT_API_KEY_HEADER',
+       );
 }

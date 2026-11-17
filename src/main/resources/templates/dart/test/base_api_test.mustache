@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 import 'package:{{packageName}}/src/api/base_api.dart';
+import 'package:{{packageName}}/src/object_serializer.dart' show deserialize;
 
 import 'testcontainers_helper.dart';
 
@@ -64,6 +65,8 @@ class _CapturingApiClient implements ApiClient {
     Map<String, String> headers,
     Object? body, {
     bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
   }) async {
     capturedUrl = url;
     capturedBody = body is List<int> ? utf8.decode(body) : '';
@@ -82,6 +85,7 @@ class _ScriptedApiClient implements RetryingApiClient {
 
   final List<Object> script;
   final List<Map<String, String>> sentHeaders = [];
+  final List<int?> sentTimeouts = [];
 
   @override
   final int maxRetries;
@@ -96,8 +100,11 @@ class _ScriptedApiClient implements RetryingApiClient {
     Map<String, String> headers,
     Object? body, {
     bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
   }) async {
     sentHeaders.add(Map<String, String>.from(headers));
+    sentTimeouts.add(timeout);
     final next = script.removeAt(0);
     if (next is ApiHttpResponse) {
       return next;
@@ -2623,6 +2630,252 @@ void main() {
         throwsA(isA<ServerException>()),
       );
       expect(client.sentHeaders, hasLength(1));
+    });
+  });
+
+  group('Per-call options', () {
+    test('the headers replace a default header of the same name in any case', () async {
+      final client = _ScriptedApiClient([_reply(200)]);
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(
+        method: 'GET',
+        path: '/x',
+        headerParams: {'X-Trace': 'operation'},
+        callHeaders: {'x-trace': 'call', 'X-Extra': '1'},
+      );
+
+      expect(client.sentHeaders.single['x-trace'], equals('call'));
+      expect(client.sentHeaders.single.containsKey('X-Trace'), isFalse);
+      expect(client.sentHeaders.single['X-Extra'], equals('1'));
+    });
+
+    test('the timeout reaches the transport for this call only', () async {
+      final client = _ScriptedApiClient([_reply(200), _reply(200)]);
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(method: 'GET', path: '/x', timeout: 1500);
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(client.sentTimeouts, equals([1500, null]));
+    });
+
+    test('maxRetries 0 turns retries off for this call', () async {
+      final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x', maxRetries: 0),
+        throwsA(isA<ServerException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+    });
+
+    test('maxRetries 3 allows more retries than the transport default', () async {
+      final client = _ScriptedApiClient(
+          [_reply(503), _reply(503), _reply(503), _reply(200)]);
+      final api = _RecordingApi(client);
+
+      final response =
+          await api.invokeApi(method: 'GET', path: '/x', maxRetries: 3);
+
+      expect(response.statusCode, equals(200));
+      expect(client.sentHeaders, hasLength(4));
+    });
+
+    test('a negative timeout or maxRetries is refused before any request', () async {
+      final client = _ScriptedApiClient([_reply(200)]);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x', timeout: -1),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            'Invalid timeout: must be a positive number of milliseconds (got -1)')),
+      );
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x', maxRetries: -1),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            'Invalid maxRetries: must be zero or a positive number (got -1)')),
+      );
+      expect(client.sentHeaders, isEmpty);
+    });
+
+    test('an Options object carries all three into the call', () async {
+      final client = _ScriptedApiClient([
+        ApiHttpResponse(
+            statusCode: 200,
+            body: '[]',
+            headers: {'content-type': 'application/json'}),
+      ]);
+      final api = PetApi(
+        apiClient: client,
+        config: ConfigurationBuilder().baseUrl('https://api.example.com').build(),
+      );
+
+      await api.findPetsByStatus(FindPetsByStatusOptions(
+        timeout: 750,
+        headers: {'X-Call': 'yes'},
+        maxRetries: 0,
+      ));
+
+      expect(client.sentTimeouts, equals([750]));
+      expect(client.sentHeaders.single['X-Call'], equals('yes'));
+    });
+  });
+
+  group('Multiple 2xx responses', () {
+    StoreApi storeApi(_ScriptedApiClient client) => StoreApi(
+          apiClient: client,
+          config:
+              ConfigurationBuilder().baseUrl('https://api.example.com').build(),
+        );
+
+    ApiHttpResponse jsonReply(int status, String body) => ApiHttpResponse(
+        statusCode: status,
+        body: body,
+        headers: {'content-type': 'application/json'});
+
+    test('a 200 body is decoded as the schema of 200', () async {
+      final client = _ScriptedApiClient(
+          [jsonReply(200, '{"reservationId":1,"quantity":2}')]);
+
+      final result = await storeApi(client).reserveStock();
+
+      expect(result.actualInstance, isA<Reservation>());
+    });
+
+    test('a 201 body is decoded as the schema of 201', () async {
+      final client = _ScriptedApiClient(
+          [jsonReply(201, '{"receiptCode":"r1","expiresAt":"2030-01-01T00:00:00Z"}')]);
+
+      final result = await storeApi(client).reserveStock();
+
+      expect(result.actualInstance, isA<ReservationReceipt>());
+    });
+
+    test('a body that fits only the other status schema is refused', () async {
+      final client = _ScriptedApiClient(
+          [jsonReply(201, '{"reservationId":1,"quantity":2}')]);
+
+      await expectLater(storeApi(client).reserveStock(),
+          throwsA(isA<SerializationException>()));
+    });
+  });
+
+  group('Strict integers', () {
+    StoreApi storeApi(_ScriptedApiClient client) => StoreApi(
+          apiClient: client,
+          config:
+              ConfigurationBuilder().baseUrl('https://api.example.com').build(),
+        );
+
+    ApiHttpResponse jsonReply(String body) => ApiHttpResponse(
+        statusCode: 200,
+        body: body,
+        headers: {'content-type': 'application/json'});
+
+    test('a map of int32 leaves decodes integers', () async {
+      final client = _ScriptedApiClient([jsonReply('{"a":1,"b":-2147483648}')]);
+
+      expect(await storeApi(client).getInventory(),
+          equals({'a': 1, 'b': -2147483648}));
+    });
+
+    test('a map leaf that is fractional, quoted or out of range is refused', () async {
+      for (final leaf in ['1.5', '"1"', '2147483648', '-2147483649', 'null']) {
+        final client = _ScriptedApiClient([jsonReply('{"a":$leaf}')]);
+
+        await expectLater(storeApi(client).getInventory(),
+            throwsA(isA<SerializationException>()),
+            reason: leaf);
+      }
+    });
+
+    test('a nested array of int32 leaves is checked leaf by leaf', () async {
+      final ok = _ScriptedApiClient([jsonReply('[[1,2],[3]]')]);
+      expect(await storeApi(ok).getMatrix(), equals([[1, 2], [3]]));
+
+      for (final leaf in ['1.5', '"1"', '4294967296']) {
+        final client = _ScriptedApiClient([jsonReply('[[1,$leaf]]')]);
+
+        await expectLater(storeApi(client).getMatrix(),
+            throwsA(isA<SerializationException>()),
+            reason: leaf);
+      }
+    });
+
+    test('a model property is checked against its integer width', () async {
+      expect(deserialize<Order>('{"quantity":2147483647}', Order.fromJson)!.quantity,
+          equals(2147483647));
+      for (final value in ['2147483648', '1.5', '"7"']) {
+        expect(() => deserialize<Order>('{"quantity":$value}', Order.fromJson),
+            throwsA(isA<SerializationException>()),
+            reason: value);
+      }
+      expect(deserialize<Order>('{"id":9007199254740993}', Order.fromJson)!.id,
+          equals(9007199254740993));
+      expect(() => deserialize<Order>('{"id":1.5}', Order.fromJson),
+          throwsA(isA<SerializationException>()));
+    });
+  });
+
+  group('BaseApi request context on errors', () {
+    test('a status error names the method and the path without the query', () async {
+      final client = _ScriptedApiClient([_reply(404)], maxRetries: 0);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(
+          method: 'GET',
+          path: '/items/7?token=secret',
+          queryParams: {'q': 'a'},
+        ),
+        throwsA(isA<NotFoundException>()
+            .having((e) => e.requestMethod, 'requestMethod', 'GET')
+            .having((e) => e.requestPath, 'requestPath', '/items/7')
+            .having((e) => e.message, 'message',
+                'GET /items/7 returned status code 404')),
+      );
+    });
+
+    test('a network failure carries the method and the path', () async {
+      final client = _ScriptedApiClient(
+          [const NetworkException(message: 'reset')],
+          maxRetries: 0);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'DELETE', path: '/items/9'),
+        throwsA(isA<NetworkException>()
+            .having((e) => e.requestMethod, 'requestMethod', 'DELETE')
+            .having((e) => e.requestPath, 'requestPath', '/items/9')
+            .having((e) => e.message, 'message', 'reset')),
+      );
+    });
+
+    test('a timeout stays a timeout and carries the request', () async {
+      final client = _ScriptedApiClient(
+          [const NetworkTimeoutException(message: 'slow')],
+          maxRetries: 0);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/items'),
+        throwsA(isA<NetworkTimeoutException>()
+            .having((e) => e.requestMethod, 'requestMethod', 'GET')
+            .having((e) => e.requestPath, 'requestPath', '/items')),
+      );
+    });
+
+    test('an absolute url is reduced to its path', () async {
+      final client = _ScriptedApiClient([_reply(503)], maxRetries: 0);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: 'https://other.example.com/a/b?x=1'),
+        throwsA(isA<ServerException>()
+            .having((e) => e.requestPath, 'requestPath', '/a/b')),
+      );
     });
   });
 }

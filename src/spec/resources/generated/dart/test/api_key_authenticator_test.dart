@@ -10,6 +10,85 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('ApiKeyAuthenticator', () {
+    test('an explicit key wins over the environment', () {
+      final auth = ApiKeyAuthenticator(
+        host: '/api/v3',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'explicit',
+        location: ApiKeyLocation.header,
+        environment: {
+          ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv',
+        },
+      );
+
+      expect(auth.authHeaders(), equals({'X-Api-Key': 'explicit'}));
+    });
+
+    test('the key falls back to the environment variable, read once', () {
+      final environment = {
+        ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv',
+      };
+      final auth = ApiKeyAuthenticator(
+        host: '/api/v3',
+        keyParamName: 'api_key',
+        location: ApiKeyLocation.query,
+        environment: environment,
+      );
+
+      environment[ApiKeyAuthenticator.defaultEnvironmentVariable] = 'changed';
+
+      expect(auth.queryParams(), equals({'api_key': 'fromenv'}));
+    });
+
+    test('no key anywhere, or an empty variable, fails at construction', () {
+      for (final environment in <Map<String, String>>[
+        const {},
+        {ApiKeyAuthenticator.defaultEnvironmentVariable: ''},
+      ]) {
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            location: ApiKeyLocation.header,
+            environment: environment,
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(ApiKeyAuthenticator.defaultEnvironmentVariable),
+            ),
+          ),
+        );
+      }
+    });
+
+    test(
+      'the provider is asked on every request and a key with it is refused',
+      () {
+        var calls = 0;
+        final auth = ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'X-Api-Key',
+          apiKeyProvider: () => 'key${++calls}',
+          location: ApiKeyLocation.header,
+        );
+
+        expect(auth.authHeaders(), equals({'X-Api-Key': 'key1'}));
+        expect(auth.authHeaders(), equals({'X-Api-Key': 'key2'}));
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            apiKey: 'a',
+            apiKeyProvider: () => 'b',
+            location: ApiKeyLocation.header,
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
     test('valid header key is exposed in auth headers', () {
       final auth = ApiKeyAuthenticator(
         host: '/api/v3',

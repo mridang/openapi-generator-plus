@@ -11,6 +11,14 @@ import 'api_key_location.dart';
 /// Authenticator for the `internalApiKey` security scheme.
 class InternalApiKeyAuthenticator extends ApiKeyAuthenticator {
   /// Creates an authenticator for the `internalApiKey` security scheme.
-  InternalApiKeyAuthenticator({required super.host, required super.apiKey})
-    : super(keyParamName: 'X-Internal-Key', location: ApiKeyLocation.header);
+  InternalApiKeyAuthenticator({
+    required super.host,
+    super.apiKey,
+    super.apiKeyProvider,
+    super.environment,
+  }) : super(
+         keyParamName: 'X-Internal-Key',
+         location: ApiKeyLocation.header,
+         environmentVariable: 'PETSTORE_CLIENT_INTERNAL_API_KEY',
+       );
 }

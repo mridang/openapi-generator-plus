@@ -1,7 +1,7 @@
 {{>api_info}}
 /// {{#appName}}{{{.}}}{{/appName}} API client library.
 ///
-/// {{#appDescription}}{{{.}}}{{/appDescription}}
+/// {{#appDescription}}{{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}{{/appDescription}}
 library;
 
 {{#apiInfo}}

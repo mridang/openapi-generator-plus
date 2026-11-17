@@ -7,7 +7,7 @@
 
 /// Swagger Petstore - OpenAPI 3.0 API client library.
 ///
-/// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+/// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 library;
 
 export 'src/api/pet_api.dart';

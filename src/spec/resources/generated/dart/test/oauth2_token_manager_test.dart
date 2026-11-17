@@ -19,6 +19,7 @@ class _FakeApiClient implements ApiClient {
   final List<String> bodies = [];
   Object? failure;
   bool? lastNoRedirect;
+  bool? lastNoDefaultHeaders;
   int requestCount = 0;
 
   void enqueue(String body, {int statusCode = 200}) {
@@ -34,6 +35,8 @@ class _FakeApiClient implements ApiClient {
     Map<String, String> headers,
     Object? body, {
     bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
   }) async {
     lastUrl = url;
     urls.add(url);
@@ -42,6 +45,7 @@ class _FakeApiClient implements ApiClient {
       throw error;
     }
     lastNoRedirect = noRedirect;
+    lastNoDefaultHeaders = noDefaultHeaders;
     if (body != null) {
       final text = utf8.decode(body as List<int>);
       lastBody = text;
@@ -68,6 +72,8 @@ class _GatedApiClient implements ApiClient {
     Map<String, String> headers,
     Object? body, {
     bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
   }) async {
     requestCount++;
     await gate.future;
@@ -685,6 +691,19 @@ void main() {
       });
 
       expect(client.lastNoRedirect, isTrue);
+    });
+
+    test('token POST leaves the transport default headers off', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok","expires_in":3600}');
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await manager.getAccessToken('https://auth.example.com/token', {
+        'grant_type': 'client_credentials',
+      });
+
+      expect(client.lastNoDefaultHeaders, isTrue);
     });
 
     test(

@@ -233,6 +233,57 @@ class EdgeCases {
     return json;
   }
 
+  /// Returns a copy of this [EdgeCases] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  EdgeCases copyWith({
+    Object? freeFormAny = copyUnset,
+    Object? favoriteColor = copyUnset,
+    Object? permissionsNote = copyUnset,
+    Object? and = copyUnset,
+    Object? or = copyUnset,
+    Object? not = copyUnset,
+    Object? class_ = copyUnset,
+    Object? return_ = copyUnset,
+    Object? retryAfter = copyUnset,
+    Object? expiresAt = copyUnset,
+    Object? n2fa = copyUnset,
+    Object? separator = copyUnset,
+    Object? null_ = copyUnset,
+    Object? true_ = copyUnset,
+    Object? false_ = copyUnset,
+    Object? lastError = copyUnset,
+    Object? outcome = copyUnset,
+    Object? cutoff = copyUnset,
+    Object? phase = copyUnset,
+    Object? slug = copyUnset,
+  }) {
+    return EdgeCases(
+      freeFormAny: copyField<Object>(freeFormAny, this.freeFormAny),
+      favoriteColor: copyField<Color>(favoriteColor, this.favoriteColor),
+      permissionsNote: copyField<String>(permissionsNote, this.permissionsNote),
+      and: copyField<bool>(and, this.and),
+      or: copyField<bool>(or, this.or),
+      not: copyField<bool>(not, this.not),
+      class_: copyField<String>(class_, this.class_),
+      return_: copyField<String>(return_, this.return_),
+      retryAfter: copyField<Duration>(retryAfter, this.retryAfter),
+      expiresAt: copyField<DateTime>(expiresAt, this.expiresAt),
+      n2fa: copyField<bool>(n2fa, this.n2fa),
+      separator: copyField<Separator>(separator, this.separator),
+      null_: copyField<String>(null_, this.null_),
+      true_: copyField<bool>(true_, this.true_),
+      false_: copyField<bool>(false_, this.false_),
+      lastError: copyField<ModelError>(lastError, this.lastError),
+      outcome: copyField<Result>(outcome, this.outcome),
+      cutoff: copyField<String>(cutoff, this.cutoff),
+      phase: copyField<EdgeCasesPhaseEnum>(phase, this.phase),
+      slug: copyField<String>(slug, this.slug),
+    );
+  }
+
   /// Value-equality based on all declared fields. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
   /// built-in `==` on those is identity), so two instances decoded from

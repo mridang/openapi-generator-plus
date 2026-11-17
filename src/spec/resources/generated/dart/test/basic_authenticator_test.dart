@@ -10,6 +10,72 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('BasicAuthenticator', () {
+    test('explicit credentials win over the environment', () {
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: 'pw1',
+        environment: {
+          BasicAuthenticator.defaultUsernameVariable: 'bob',
+          BasicAuthenticator.defaultPasswordVariable: 'pw2',
+        },
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Basic YWxpY2U6cHcx'));
+    });
+
+    test('the credentials fall back to the environment, read once', () {
+      final environment = {
+        BasicAuthenticator.defaultUsernameVariable: 'alice',
+        BasicAuthenticator.defaultPasswordVariable: 'pw1',
+      };
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        environment: environment,
+      );
+
+      environment[BasicAuthenticator.defaultUsernameVariable] = 'bob';
+
+      expect(auth.authHeaders()['Authorization'], equals('Basic YWxpY2U6cHcx'));
+    });
+
+    test('missing or empty credentials fail at construction', () {
+      for (final environment in <Map<String, String>>[
+        const {},
+        {BasicAuthenticator.defaultUsernameVariable: 'alice'},
+        {
+          BasicAuthenticator.defaultUsernameVariable: 'alice',
+          BasicAuthenticator.defaultPasswordVariable: '',
+        },
+      ]) {
+        expect(
+          () => BasicAuthenticator(
+            host: 'https://api.example.com',
+            environment: environment,
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+      }
+      expect(
+        () => BasicAuthenticator(
+          host: 'https://api.example.com',
+          username: 'alice',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('the provider is asked on every request', () {
+      var calls = 0;
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        credentialsProvider: () => ('alice', 'pw${++calls}'),
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Basic YWxpY2U6cHcx'));
+      expect(auth.authHeaders()['Authorization'], equals('Basic YWxpY2U6cHcy'));
+    });
+
     test('valid credentials produce basic header', () {
       final auth = BasicAuthenticator(
         host: 'https://api.example.com',

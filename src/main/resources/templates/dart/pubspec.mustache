@@ -7,6 +7,18 @@ description: "{{{.}}}"
 description: "Generated API client for {{#appName}}{{{.}}}{{/appName}}"
 {{/appDescription}}
 version: {{#version}}{{{.}}}{{/version}}{{^version}}1.0.0{{/version}}
+{{#homepageUrl}}
+homepage: {{#lambda.doubleQuoted}}{{{.}}}{{/lambda.doubleQuoted}}
+{{/homepageUrl}}
+{{#repositoryUrl}}
+repository: {{#lambda.doubleQuoted}}{{{.}}}{{/lambda.doubleQuoted}}
+{{/repositoryUrl}}
+{{#issueTrackerUrl}}
+issue_tracker: {{#lambda.doubleQuoted}}{{{.}}}{{/lambda.doubleQuoted}}
+{{/issueTrackerUrl}}
+{{#documentationUrl}}
+documentation: {{#lambda.doubleQuoted}}{{{.}}}{{/lambda.doubleQuoted}}
+{{/documentationUrl}}
 
 environment:
   sdk: '>=3.11.0 <4.0.0'

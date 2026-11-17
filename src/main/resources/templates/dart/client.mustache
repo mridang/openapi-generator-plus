@@ -1,4 +1,6 @@
 {{>api_info}}
+import 'dart:async';
+
 import 'auth/authenticator.dart';
 import 'auth/bearer_authenticator.dart';
 import 'auth/http_aware_authenticator.dart';
@@ -99,20 +101,32 @@ class {{clientClassName}} {
     _apiClient.close();
   }
 
-  /// Creates a client authenticated with a static Bearer token.
+  /// Creates a client authenticated with a Bearer token.
+  ///
+  /// The token is [accessToken], or what [tokenProvider] returns on every
+  /// request (use it for a token that rotates or expires), or, when neither is
+  /// given, the value of the `{{#lambda.uppercase}}{{packageName}}{{/lambda.uppercase}}_TOKEN` environment variable read
+  /// now. When no token is found the client is not built: an [ArgumentError] is
+  /// thrown.
   ///
   /// Parameters:
   ///   - [host]: API base URL
   ///   - [accessToken]: Bearer token
+  ///   - [tokenProvider]: returns the current Bearer token; may be asynchronous
   ///   - [transportOptions]: optional HTTP transport configuration (proxy,
   ///     TLS, timeouts, etc.)
   factory {{clientClassName}}.withToken({
     required String host,
-    required String accessToken,
+    String? accessToken,
+    FutureOr<String> Function()? tokenProvider,
     TransportOptions? transportOptions,
   }) {
     return {{clientClassName}}(
-      authenticator: BearerAuthenticator(host: host, token: accessToken),
+      authenticator: BearerAuthenticator(
+        host: host,
+        token: accessToken,
+        tokenProvider: tokenProvider,
+      ),
       transportOptions: transportOptions,
     );
   }

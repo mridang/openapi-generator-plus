@@ -43,7 +43,7 @@ class StockItem {
       matrix: json['matrix'] != null
           ? deserializeArray(
               json['matrix'] as List,
-              (e) => deserializeArray(e, (e) => e as int),
+              (e) => deserializeArray(e, (e) => readInt32(e)),
             )
           : null,
     );
@@ -60,6 +60,23 @@ class StockItem {
       json['matrix'] = wireListOrNull(matrix, matrix);
     }
     return json;
+  }
+
+  /// Returns a copy of this [StockItem] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  StockItem copyWith({
+    Priority? priority,
+    Object? availability = copyUnset,
+    Object? matrix = copyUnset,
+  }) {
+    return StockItem(
+      priority: priority ?? this.priority,
+      availability: copyField<Availability>(availability, this.availability),
+      matrix: copyField<List<List<int>>>(matrix, this.matrix),
+    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

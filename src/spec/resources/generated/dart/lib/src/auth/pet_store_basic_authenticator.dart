@@ -12,7 +12,12 @@ class PetStoreBasicAuthenticator extends BasicAuthenticator {
   /// Creates an authenticator for the `petStoreBasic` security scheme.
   PetStoreBasicAuthenticator({
     required super.host,
-    required super.username,
-    required super.password,
-  });
+    super.username,
+    super.password,
+    super.credentialsProvider,
+    super.environment,
+  }) : super(
+         usernameVariable: 'PETSTORE_CLIENT_PET_STORE_BASIC_USERNAME',
+         passwordVariable: 'PETSTORE_CLIENT_PET_STORE_BASIC_PASSWORD',
+       );
 }
