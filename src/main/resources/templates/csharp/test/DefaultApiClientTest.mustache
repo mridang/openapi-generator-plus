@@ -869,6 +869,36 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task BhvTransport034DecompressesAValidGzipEncodedBody()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/compressed/gzip"),
+            new Dictionary<string, string> { { "Accept-Encoding", "gzip" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport027DecodedBodyDropsContentEncodingAndContentLengthHeaders()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/compressed/gzip"),
+            new Dictionary<string, string> { { "Accept-Encoding", "gzip" } },
+            null
+        );
+
+        Assert.False(response.Headers.ContainsKey("content-encoding"));
+        Assert.False(response.Headers.ContainsKey("content-length"));
+    }
+
+    [Fact]
     public async Task BhvTransport004DecompressesBrotliResponse()
     {
         var client = new DefaultApiClient();

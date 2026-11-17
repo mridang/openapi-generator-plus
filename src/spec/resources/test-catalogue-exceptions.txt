@@ -37,3 +37,5 @@ swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpar
 swift | retries019 | Psr18 is the PHP PSR-18 client interface and swift has no PSR-18 adapter; each sendRequest call starts its own end-to-end budget and the retries never extend it (bhv retries 025)
 swift | errors042 | URLSession owns Content-Encoding negotiation and has already decoded the body, so an unknown coding cannot be told apart from an encoded body; swift never raises on it (forced, see generators/swift AGENTS.md, Decompression and Content-Encoding)
 swift | models002 | a SwiftPM manifest (Package.swift) has no description field, so there is no package description to assert
+csharp | serializationobject015 | S6 leaves uniqueItems order to the natural collection, and a HashSet promises no insertion order
+csharp | operations111 | the uuid path parameter is typed System.Guid, so a malformed value cannot be built and the SDK never receives a string to reject
