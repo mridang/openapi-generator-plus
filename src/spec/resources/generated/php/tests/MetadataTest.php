@@ -169,6 +169,15 @@ test('a with method returns a changed copy and leaves the model as it was', func
     expect($category->name)->toBe('Dogs');
 });
 
+test('bhv models 012 the field dump lists the fields and the additional properties map', function (): void {
+    /** @var \Ds\Map<string, mixed> $extra */
+    $extra = new \Ds\Map(['customField' => 'hello']);
+    $dump = print_r((new Metadata())->withAdditionalProperties($extra), true);
+
+    expect($dump)->toContain('additionalProperties');
+    expect($dump)->toContain('customField');
+});
+
 test('a with method carries the additional properties over to the copy', function (): void {
     /** @var \Ds\Map<string, mixed> $extra */
     $extra = new \Ds\Map(['customField' => 'hello']);

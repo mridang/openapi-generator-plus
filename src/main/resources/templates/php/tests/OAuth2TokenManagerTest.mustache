@@ -529,7 +529,7 @@ test('bhv authoauthtwotokenmgr 003 a refresh response without expires_in clears 
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
-test('token response that is not JSON or not an object gets the canonical message', function (
+test('bhv authoauthtwotokenmgr 041 a non-JSON 2xx token body is not echoed into the error message', function (
     string $body,
     string $message
 ): void {
@@ -542,7 +542,10 @@ test('token response that is not JSON or not an object gets the canonical messag
     expect(fn (): string => $manager->getAccessToken(
         'https://auth.example.com/token',
         ['grant_type' => 'client_credentials']
-    ))->toThrow(OAuth2TokenException::class, $message);
+    ))->toThrow(function (OAuth2TokenException $e) use ($body, $message): void {
+        expect($e->getMessage())->toContain($message);
+        expect($e->getMessage())->not->toContain($body);
+    });
 })->with([
     'form encoded' => ['access_token=abc&token_type=bearer', 'Token response is not valid JSON'],
     'list' => ['["tok"]', 'Token response is not a JSON object'],

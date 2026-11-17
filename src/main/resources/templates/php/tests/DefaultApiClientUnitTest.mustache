@@ -399,6 +399,22 @@ test('bhv serializationwire 031 decodes bom-less utf-16 body as big endian', fun
     expect(mb_convert_encoding($body, 'UTF-8', 'UTF-16LE'))->not->toBe('Tag');
 });
 
+test('bhv serializationwire 054 decodes a little endian bom utf 16 body as little endian', function (): void {
+    // "Tag" encoded as UTF-16 little-endian behind a little-endian byte-order mark: the BOM
+    // selects the byte order and is not part of the text.
+    $body = "\xFF\xFE" . "T\x00a\x00g\x00";
+    $mockResponse = new MockResponse($body, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'text/plain; charset=utf-16'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/utf16le', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('Tag');
+});
+
 test('bhv serializationwire 030 decodes a big endian bom utf 16 body as big endian', function (): void {
     // "Tag" encoded as UTF-16 big-endian behind a big-endian byte-order mark: the BOM selects
     // the byte order and is not part of the text.
@@ -2059,6 +2075,17 @@ test('the backoff is shortened by up to 25 percent of jitter', function (): void
     expect($client->pauses)->toBe([0.375]);
 });
 
+test('bhv retries 027 backoff doubles from half a second to eight seconds with quarter jitter', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([500], TransportOptions::builder()->maxRetries(6)->timeout(null)->build(), $log);
+    $client->jitterValue = 1.0;
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($client->pauses)->toBe([0.375, 0.75, 1.5, 3.0, 6.0, 6.0]);
+});
+
 test('bhv retries 023 Retry-After in seconds replaces the backoff and is capped at 60 s', function (
     string $header,
     float $expected
@@ -2077,6 +2104,18 @@ test('bhv retries 023 Retry-After in seconds replaces the backoff and is capped 
     'zero' => ['0', 0.0],
     'above the cap' => ['600', 60.0],
 ]);
+
+test('bhv retries 026 waits for a Retry-After given in seconds', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $options = TransportOptions::builder()->maxRetries(1)->timeout(null)->build();
+    $client = retryTestClient([[429, ['Retry-After' => '1']], 200], $options, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/limited', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($client->pauses)->toBe([1.0]);
+});
 
 test('bhv retries 022 Retry-After as an HTTP date is honoured', function (): void {
     /** @var \ArrayObject<int, string> $log */

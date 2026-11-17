@@ -521,6 +521,11 @@ test('bhv serializationobject 172 unknown enum value on deserialize throws Seria
         });
 });
 
+test('bhv serializationobject 182 unknown enum value on deserialize throws', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('"teleporting"', OrderStatusEnum::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
 test('unknown enum value does not silently fall back to a default member', function (): void {
     // Guard against a regression where the unknown value is swallowed and a
     // valid Pet (with some default/first enum case) is returned instead of
@@ -593,6 +598,10 @@ test('bhv serializationobject 177 a weight of type number survives a serialize a
 test('bhv serializationobject 087 serialize handles null', function (): void {
     $json = ObjectSerializer::serialize(null);
     expect($json)->toBe('null');
+});
+
+test('bhv serializationobject 183 handles null', function (): void {
+    expect(ObjectSerializer::serialize(null))->toBe('null');
 });
 
 test('serialize empty object body emits {} not []', function (): void {

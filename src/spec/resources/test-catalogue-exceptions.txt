@@ -124,3 +124,6 @@ swift | transport020 | the test needs a URLProtocol stub, which FoundationNetwor
 swift | transport040 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | transport046 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | options034 | the Apple-platform variant of the proxy test; on Linux the SDK rejects a proxy with a configuration error, which the Linux variant testSettingProxyRaisesOnLinux covers (it carries no catalogue id)
+php | operations125 | GetPetByNameOptions types category as a non-nullable string, so a nil value is a PHP TypeError at construction and cannot reach the missing-parameter check; the empty string is bhv operations 049
+php | serializationparam104 | php has no content-cookie encoder: a cookie value is sent raw when every character is a cookie-octet and refused otherwise (F840), so the unreserved-set encoding does not apply
+php | retries028 | PHP has no per-call cancellation (S7), so there is no caller to cancel during a retry wait; the budget that ends a wait is bhv retries 025

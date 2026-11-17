@@ -186,7 +186,7 @@ test('bhv config 014 default configuration is stateless', function (): void {
     expect($second->baseUrl)->toBe($first->baseUrl);
 });
 
-test('configuration is immutable', function (): void {
+test('bhv config 017 configuration is immutable', function (): void {
     $config = Configuration::builder()
         ->defaultHeader('X-Key', 'value')
         ->build();
@@ -194,6 +194,18 @@ test('configuration is immutable', function (): void {
     // readonly properties cannot be modified after construction;
     // verify the values are frozen
     expect($config->defaultHeaders['X-Key'])->toBe('value');
+    expect(fn () => (new \ReflectionProperty(Configuration::class, 'baseUrl'))
+        ->setValue($config, 'https://other.example.com'))->toThrow(\Error::class);
+    expect(fn () => (new \ReflectionProperty(Configuration::class, 'defaultHeaders'))
+        ->setValue($config, ['X-Other' => 'value']))->toThrow(\Error::class);
+});
+
+test('bhv options 044 the README names the builder setter that rejects a SOCKS proxy', function (): void {
+    $readme = (string) file_get_contents(__DIR__ . '/../README.md');
+    $section = strpos($readme, '### SOCKS proxies');
+
+    expect($section)->not->toBeFalse();
+    expect(substr($readme, (int) $section, 400))->toContain('`TransportOptions::builder()->proxy()`');
 });
 
 test('bhv config 015 debug output masks credential default headers', function (): void {

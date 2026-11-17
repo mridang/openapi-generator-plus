@@ -173,6 +173,13 @@ test('bhv authbasic 003 a missing or empty basic credential fails when the authe
     'empty password' => ['alice', ''],
 ]);
 
+test('bhv authbasic 012 an empty variable counts as unset and fails naming the variable', function (): void {
+    withBasicEnvironment('env-user', '', function (): void {
+        expect(fn () => new PetStoreBasicAuthenticator('https://api.example.com', 'alice'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD');
+    });
+});
+
 test('the base class reads no environment variable', function (): void {
     withBasicEnvironment('alice', 'env-secret', function (): void {
         $message = '';

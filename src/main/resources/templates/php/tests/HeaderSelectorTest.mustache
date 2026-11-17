@@ -64,6 +64,15 @@ test('bhv headers 004 should not set accept header when accepts empty', function
     expect($headers)->not->toHaveKey('Accept');
 });
 
+test('bhv headers 027 returns empty string for empty accept array', function (): void {
+    $headers = $this->headerSelector->selectHeaders(
+        [],
+        'application/json',
+        false
+    );
+    expect($headers)->not->toHaveKey('Accept');
+});
+
 test('bhv headers 025 should set content type header when not multipart', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['application/json'],
