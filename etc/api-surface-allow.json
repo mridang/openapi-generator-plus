@@ -1905,14 +1905,6 @@
    "reason": "tracked as F1177: csharp orders innerException before responseHeaders; to be aligned with the canonical (statusCode, message, responseHeaders, cause)"
   },
   {
-   "element": "configurationerror",
-   "aspect": "cases",
-   "languages": [
-    "swift"
-   ],
-   "reason": "tracked as F1179 (parked F699): swift still has proxyUnsupported and tlsOptionsUnsupported where D76 folds them into invalidProxy and invalidCaCertificate and adds invalidTimeout"
-  },
-  {
    "element": [
     "*authenticator.invalidateaccesstoken"
    ],
@@ -2428,29 +2420,6 @@
    "reason": "F868: a dry-struct model has no writers, so Ruby copies a model with `with(**changes)`; every language names its copy method in its own idiom (toBuilder, copy, copyWith, WithX, with_, struct update)"
   },
   {
-   "element": [
-    "*options.timeout",
-    "*options.maxretries",
-    "*options.headers"
-   ],
-   "aspect": "member",
-   "languages": [
-    "ruby"
-   ],
-   "reason": "F827: the per-call options (timeout, headers, max_retries) of an Options object; the other languages' members arrive with their own wave branches, and this rule is removed when the integrator merges them"
-  },
-  {
-   "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath"
-   ],
-   "aspect": "member",
-   "languages": [
-    "ruby"
-   ],
-   "reason": "F830: the request context of an error; the other languages' members arrive with their own wave branches, and this rule is removed when the integrator merges them"
-  },
-  {
    "element": "*",
    "aspect": "member",
    "languages": [
@@ -2925,40 +2894,6 @@
   },
   {
    "element": [
-    "*options.timeout",
-    "*options.headers",
-    "*options.maxretries"
-   ],
-   "aspect": "member",
-   "languages": [
-    "swift"
-   ],
-   "reason": "F827 wave 2: every per-operation Options struct gains optional timeout, headers and maxRetries; swift lands in its own wave branch and the other languages add the same shape in theirs, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "client.fromenvironment"
-   ],
-   "aspect": "member",
-   "languages": [
-    "swift"
-   ],
-   "reason": "F862 wave 2: credentials are read from {PREFIX}_HOST and {PREFIX}_TOKEN when the client is built; swift lands in its own wave branch and the other languages add the same entry point in theirs, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "reservestockresponse.*",
-    "setpetavatarthumbnailrequest.*",
-    "petfood.*"
-   ],
-   "aspect": "member",
-   "languages": [
-    "swift"
-   ],
-   "reason": "F878 wave 2: a oneOf wrapper gains a typed from<Variant> factory and is<Variant>/as<Variant> accessors per variant; swift lands in its own wave branch and the other languages add typed accessors in their idiom in theirs, after which this rule is deleted"
-  },
-  {
-   "element": [
     "treenode.child",
     "department.lead",
     "employee.department"
@@ -3139,18 +3074,6 @@
    "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying timeout, headers and max_retries; python mints one for each operation first, the shared pass still mints it only for operations with parameters or security. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
-   "element": [
-    "*options.timeout",
-    "*options.headers",
-    "*options.maxretries"
-   ],
-   "aspect": "member",
-   "languages": [
-    "python"
-   ],
-   "reason": "owner decision F827 (2026-11-17): optional per-call timeout, headers and max_retries on every Options object (frozen dataclass fields in python). Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
    "element": "*api.*",
    "aspect": "params",
    "languages": [
@@ -3160,42 +3083,13 @@
    "reason": "owner decision F827 (2026-11-17): every operation, with or without parameters, takes the trailing optional Options argument that carries the per-call settings. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
-   "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath"
-   ],
-   "aspect": "member",
-   "languages": [
-    "python"
-   ],
-   "reason": "owner decision F830 (2026-11-17): ApiError and its subclasses expose request_method and request_path (read-only properties in python). Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": "*error.<ctor>",
-   "aspect": "ctor",
-   "languages": [
-    "python"
-   ],
-   "value": "*requestpath)",
-   "reason": "owner decision F830 (2026-11-17): the error constructors take the request method and path as trailing optional arguments. Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": "bearerauthenticator.<ctor>",
-   "aspect": "ctor",
-   "languages": [
-    "python"
-   ],
-   "value": "*tokenprovider)",
-   "reason": "owner decision F862 (2026-11-17): a token-provider callback beside the static token; python takes it as an optional dataclass field. Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
    "element": "client.withtoken",
    "aspect": "params",
    "languages": [
     "python"
    ],
    "value": "*tokenprovider)",
-   "reason": "owner decision F862 (2026-11-17): host and access token fall back to the environment and a token_provider callback replaces the static token; host and token become optional in python, whose pool_manager argument was already an allowed extra. Remove the rule when the other eleven SDKs land the same decision."
+   "reason": "python has no overloads, so the F862 token-provider callback is an optional keyword argument beside accessToken (host and token are optional too, one credential is required at runtime); pool_manager is the injected-transport extra"
   },
   {
    "element": [
@@ -3208,6 +3102,102 @@
    ],
    "value": "*options, requestcontenttype)",
    "reason": "owner decision F827 (2026-11-17): the trailing optional Options argument that carries the per-call settings, ahead of the content-type selector (S8 keeps the selector last in python). Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "*options.header",
+   "aspect": "member",
+   "languages": [
+    "python"
+   ],
+   "reason": "rust's Options struct has public fields and consuming builders, so it adds a one-header setter header(name, value) beside the headers map; python's Options is a frozen dataclass built by keyword with a headers mapping, which is its idiom for the same capability"
+  },
+  {
+   "element": [
+    "reservestockresponse.reservation",
+    "reservestockresponse.reservationreceipt",
+    "reservestockresponse.asreservation",
+    "reservestockresponse.asreservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python"
+   ],
+   "reason": "F878 (python/AGENTS.md): a oneOf wrapper holds its variant in actual_instance, a typed Union that isinstance narrows for mypy, so python has no per-variant is/as accessors, like node, kotlin, rust and elixir whose unions are native; the member only reads as missing here because the languages with wrapper objects are the majority"
+  },
+  {
+   "element": [
+    "reservestockresponse.reservation",
+    "reservestockresponse.reservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F878: ruby spells the per-variant test as a predicate `<variant>_variant?` so it never collides with a model attribute reader, where the wrapper languages have is<Variant>"
+  },
+  {
+   "element": [
+    "petfood.*",
+    "pettreatment.*",
+    "reservestockresponse.*",
+    "setpetavatarthumbnailrequest.*",
+    "treatmentrecord.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "ruby"
+   ],
+   "value": "(value)",
+   "reason": "F878: a ruby union value is the variant itself, so `as_<variant>` is a module function that takes the built value (as actual_instance does for ruby and elixir), where the wrapper languages read it from the receiver"
+  },
+  {
+   "element": [
+    "petfood.*",
+    "pettreatment.*",
+    "reservestockresponse.*",
+    "setpetavatarthumbnailrequest.*",
+    "treatmentrecord.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "ruby"
+   ],
+   "value": "(variant)",
+   "reason": "F878: the ruby `from_<variant>` factory names its argument variant, the value being a built variant; the call site passes it positionally so the name carries no meaning"
+  },
+  {
+   "element": "client.fromenvironment",
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "reason": "F862: swift has no overload by argument list and a throwing initialiser cannot read the environment lazily, so the {PREFIX}_HOST and {PREFIX}_TOKEN entry point is a static factory Client.fromEnvironment, as in csharp, where other languages let the constructor arguments default"
+  },
+  {
+   "element": [
+    "petfood.*",
+    "pettreatment.*",
+    "reservestockresponse.*",
+    "setpetavatarthumbnailrequest.*",
+    "treatmentrecord.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "value": "extra*",
+   "reason": "F878: a swift oneOf wrapper holds an Any, so each variant gets a typed from<Variant> factory and is<Variant>/as<Variant> accessors, like go, php and csharp; languages with native unions (node, rust, kotlin, elixir) or isinstance (python) need none"
+  },
+  {
+   "element": [
+    "*error.requestmethod",
+    "*error.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "reason": "F830: swift declares the request context as `public internal(set) var`, and the extractor's modifier pattern does not read `internal(set)` (as for `private(set)` above), so the public get-only property is reported missing; delete this rule when the extractor reads it"
   }
  ]
 }
