@@ -46,6 +46,11 @@ ERROR_TREE = [
 
 
 class TestApiErrorShape:
+    def test_bhv_errors_047_name_is_api_exception(self) -> None:
+        err = ApiException(status_code=500, message="boom")
+
+        assert type(err).__name__ == "ApiException"
+
     def test_bhv_errors_004_exposes_status_message_body_headers_error_body(
         self,
     ) -> None:
@@ -141,7 +146,9 @@ class TestExceptionHierarchy:
         assert isinstance(err, OpenAPIException)
         assert issubclass(SerializationException, OpenAPIException)
 
-    def test_oauth2_errors_inherit_from_branded_root_not_api_exception(self) -> None:
+    def test_bhv_errors_045_oauth2_errors_inherit_from_branded_root_not_api_exception(
+        self,
+    ) -> None:
         server = OAuth2ServerException(400, "invalid_grant", None, None, "{}")
         token = OAuth2TokenException("no access_token")
 
@@ -223,6 +230,12 @@ class TestFromResponse:
         assert err.response_headers == {"x-request-id": "abc"}
         assert err.response_body == '{"code":7}'
         assert err.error_body == {"code": 7}
+
+    def test_bhv_errors_048_418_throws_client_exception(self) -> None:
+        err = ApiException.from_response(418, None, None)
+
+        assert type(err) is ClientException
+        assert err.status_code == 418
 
     def test_status_at_or_above_600_is_not_a_server_error(self) -> None:
         # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
@@ -573,7 +586,7 @@ class TestOAuth2ServerExceptionMessage:
             ),
         ],
     )
-    def test_message_has_three_forms(
+    def test_bhv_errors_046_message_has_three_forms(
         self,
         code: Any,
         description: Any,

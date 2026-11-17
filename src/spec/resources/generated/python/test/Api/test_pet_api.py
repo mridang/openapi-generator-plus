@@ -873,6 +873,22 @@ class TestPetApi:
         assert "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00" in body
         assert "%20" not in body
 
+    async def test_bhv_serializationwire_055_space_in_a_form_value_encodes_as_plus(
+        self,
+    ) -> None:
+        client = _RecordingApiClient()
+        api = PetApi(
+            api_client=client,
+            config=Configuration.builder().base_url("http://localhost").build(),
+        )
+        await api.set_pet_preferences(
+            1, SetPetPreferencesOptions(nickname="good boy", note="very fast")
+        )
+        body = str(client.body)
+        assert "nickname=good+boy" in body
+        assert "note=very+fast" in body
+        assert "%20" not in body
+
     async def test_bhv_operations_061_get_external_pet_info_uses_per_operation_server(
         self, api_base_url: Any
     ) -> None:

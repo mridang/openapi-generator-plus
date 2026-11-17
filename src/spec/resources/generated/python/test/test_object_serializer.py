@@ -209,7 +209,9 @@ class TestNonAsciiSerialization:
         result = ObjectSerializer().serialize(Category(id=1, name=f"a{char}b"))
         assert f'"name":"a{char}b"' in result.replace(" ", "")
 
-    def test_only_quote_backslash_and_controls_are_escaped(self) -> None:
+    def test_bhv_serializationobject_186_only_quote_backslash_and_controls_are_escaped(
+        self,
+    ) -> None:
         assert ObjectSerializer().serialize('"\\\x01') == '"\\"\\\\\\u0001"'
 
 
@@ -928,6 +930,17 @@ class TestFixtureModelsOnTheWire:
         assert isinstance(decoded, PetPassport)
         assert decoded.biometric_chip == b"\x00\xfb\xff"
 
+    def test_bhv_serializationobject_185_canonical_padded_base64_is_accepted(
+        self,
+    ) -> None:
+        from petstore_client.models.pet_passport import PetPassport
+
+        decoded = ObjectSerializer().deserialize(
+            '{"biometricChip":"dGVzdA=="}', "PetPassport"
+        )
+        assert isinstance(decoded, PetPassport)
+        assert decoded.biometric_chip == b"test"
+
     def test_bhv_serializationobject_012_a_prefix_items_tuple_keeps_its_mixed_element_types(
         self,
     ) -> None:
@@ -1527,7 +1540,7 @@ class TestDurationFormat:
         parsed = ObjectSerializer()._deserialize(serialized, "datetime.timedelta")
         assert parsed == original
 
-    def test_iso8601_duration_is_rejected(self) -> None:
+    def test_bhv_serializationobject_184_iso8601_duration_is_rejected(self) -> None:
         # ISO-8601 durations are not valid protobuf-JSON and a protobuf-JSON
         # API rejects them with 400; surface the mismatch as a ValueError.
         with pytest.raises(ValueError):

@@ -114,7 +114,7 @@ class TestProxyWithCredentials:
         assert response.status_code == 200
         assert '"method"' in response.body
 
-    def test_authenticating_proxy_refuses_a_request_without_credentials(
+    def test_bhv_transport_059_authenticating_proxy_refuses_a_request_without_credentials(
         self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
     ) -> None:
         transport = (

@@ -9,6 +9,8 @@ import base64
 import hashlib
 import json
 import re
+import threading
+import time
 import pytest
 from typing import Any
 from unittest.mock import MagicMock
@@ -265,6 +267,50 @@ class TestOpenIdConnectAuthenticator:
         auth.build_authorization_url()
 
         assert mock_client.send_request.call_count == 1
+
+    def test_bhv_authoidc_029_concurrent_callers_on_a_cold_authenticator_share_one_discovery(
+        self,
+    ) -> None:
+        # The async layer runs each blocking call on its own thread, so callers
+        # that arrive together on a cold cache must share one discovery request.
+        auth = _create_authenticator()
+        discovery_response = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps(
+                {
+                    "authorization_endpoint": "https://auth.example.com/authorize",
+                    "token_endpoint": "https://auth.example.com/token",
+                    "issuer": "https://auth.example.com",
+                }
+            ),
+            headers={"content-type": "application/json"},
+        )
+        gate = threading.Event()
+        entered = threading.Event()
+        discoveries: list[int] = []
+
+        def gated_send(*args: Any, **kwargs: Any) -> ApiHttpResponse:
+            discoveries.append(1)
+            entered.set()
+            gate.wait(5)
+            return discovery_response
+
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = gated_send
+        auth.set_api_client(mock_client)
+
+        threads = [
+            threading.Thread(target=auth.build_authorization_url) for _ in range(5)
+        ]
+        for thread in threads:
+            thread.start()
+        assert entered.wait(5)
+        time.sleep(0.1)
+        gate.set()
+        for thread in threads:
+            thread.join(5)
+
+        assert len(discoveries) == 1
 
     def test_bhv_authoidc_018_discovery_empty_token_endpoint_raises(self) -> None:
         auth = _create_authenticator()

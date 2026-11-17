@@ -7,6 +7,7 @@
 
 import json
 import re
+import threading
 import time
 from typing import Dict, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
@@ -101,6 +102,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         self._delegate: Optional[OAuth2AuthorizationCodeAuthenticator] = None
         self._discovery_expiry: float = 0.0
         self._discovered_endpoints: Optional[Tuple[str, str]] = None
+        self._discovery_lock = threading.Lock()
 
     def set_api_client(self, api_client: ApiClient) -> None:
         """Inject the shared API client for making HTTP requests.
@@ -129,6 +131,19 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         """
         if self._delegate is not None and time.monotonic() < self._discovery_expiry:
             return self._delegate
+        # Callers run on worker threads (the async layer calls the blocking client
+        # through asyncio.to_thread), so a cold or expired cache is filled once:
+        # the first caller discovers, and callers that arrived meanwhile reuse it.
+        with self._discovery_lock:
+            if self._delegate is not None and time.monotonic() < self._discovery_expiry:
+                return self._delegate
+            return self._discover()
+
+    def _discover(self) -> OAuth2AuthorizationCodeAuthenticator:
+        """Fetch the discovery document and build or refresh the delegate.
+
+        Called with ``_discovery_lock`` held.
+        """
         if self._api_client is None:
             raise RuntimeError(
                 "ApiClient has not been injected. "
