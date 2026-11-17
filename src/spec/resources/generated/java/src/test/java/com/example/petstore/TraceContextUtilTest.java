@@ -39,8 +39,8 @@ import org.junit.jupiter.api.parallel.Isolated;
 class TraceContextUtilTest {
 
   @Test
-  @DisplayName("is a no-op without tracer")
-  void noOpWithoutTracer() {
+  @DisplayName("bhvTracing007 is a no-op without tracer")
+  void bhvTracing007NoOpWithoutTracer() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();
@@ -51,8 +51,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("empty headers map does not cause an exception")
-  void emptyHeadersDoNotCauseException() {
+  @DisplayName("bhvTracing003 empty headers map does not cause an exception")
+  void bhvTracing003EmptyHeadersDoNotCauseException() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();
@@ -64,8 +64,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("does not inject traceparent without OpenTelemetry")
-  void doesNotInjectTraceparentWithoutOTel() {
+  @DisplayName("bhvTracing001 does not inject traceparent without OpenTelemetry")
+  void bhvTracing001DoesNotInjectTraceparentWithoutOTel() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();
@@ -77,8 +77,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("does not inject tracestate without OpenTelemetry")
-  void doesNotInjectTracestateWithoutOTel() {
+  @DisplayName("bhvTracing002 does not inject tracestate without OpenTelemetry")
+  void bhvTracing002DoesNotInjectTracestateWithoutOTel() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();
@@ -90,8 +90,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("preserves existing Authorization header")
-  void preservesAuthorizationHeader() {
+  @DisplayName("bhvTracing010 preserves existing Authorization header")
+  void bhvTracing010PreservesAuthorizationHeader() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();
@@ -104,8 +104,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("preserves existing Content-Type header")
-  void preservesContentTypeHeader() {
+  @DisplayName("bhvTracing011 preserves existing Content-Type header")
+  void bhvTracing011PreservesContentTypeHeader() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();
@@ -118,8 +118,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("preserves existing X-Request-ID header")
-  void preservesXRequestIdHeader() {
+  @DisplayName("bhvTracing012 preserves existing X-Request-ID header")
+  void bhvTracing012PreservesXRequestIdHeader() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();
@@ -132,8 +132,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("preserves all existing headers together")
-  void preservesAllExistingHeaders() {
+  @DisplayName("bhvTracing009 preserves all existing headers together")
+  void bhvTracing009PreservesAllExistingHeaders() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();
@@ -201,8 +201,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("injects traceparent when a span is active")
-  void injectsTraceparentWhenSpanActive() {
+  @DisplayName("bhvTracing006 injects traceparent when a span is active")
+  void bhvTracing006InjectsTraceparentWhenSpanActive() {
     withTracing(
         exporter -> {
           Map<String, String> headers = injectUnder(Context.root());
@@ -219,8 +219,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("includes tracestate when present on the active span")
-  void includesTracestateWhenPresent() {
+  @DisplayName("bhvTracing005 includes tracestate when present on the active span")
+  void bhvTracing005IncludesTracestateWhenPresent() {
     withTracing(
         exporter -> {
           Map<String, String> headers =
@@ -237,8 +237,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("omits tracestate when empty on the active span")
-  void omitsTracestateWhenEmpty() {
+  @DisplayName("bhvTracing008 omits tracestate when empty on the active span")
+  void bhvTracing008OmitsTracestateWhenEmpty() {
     withTracing(
         exporter -> {
           Map<String, String> headers =
@@ -249,8 +249,8 @@ class TraceContextUtilTest {
   }
 
   @Test
-  @DisplayName("formats trace flags correctly on the active span")
-  void formatsTraceFlagsCorrectly() {
+  @DisplayName("bhvTracing004 formats trace flags correctly on the active span")
+  void bhvTracing004FormatsTraceFlagsCorrectly() {
     withTracing(
         exporter -> {
           Map<String, String> sampled =

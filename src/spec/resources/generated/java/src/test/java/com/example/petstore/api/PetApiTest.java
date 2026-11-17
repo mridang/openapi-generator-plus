@@ -85,7 +85,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPet() throws Exception {
+  void bhvOperations022TestAddPet() throws Exception {
     Pet pet =
         Pet.builder()
             .id(12345L)
@@ -101,7 +101,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetUsingConfiguredCredentials() throws Exception {
+  void bhvOperations081TestAddPetUsingConfiguredCredentials() throws Exception {
     // The Options arg is optional: omitting it sends the configured credentials
     // (the default Authorization header set in setUp), which must satisfy the
     // secured endpoint.
@@ -120,7 +120,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetWithHttpInfo() throws Exception {
+  void bhvOperations025TestAddPetWithHttpInfo() throws Exception {
     Pet pet =
         Pet.builder()
             .id(99L)
@@ -137,7 +137,7 @@ class PetApiTest {
   }
 
   @Test
-  void testFindPetsByStatus() throws Exception {
+  void bhvOperations039TestFindPetsByStatus() throws Exception {
     List<Pet> result = api.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
     assertNotNull(result);
 
@@ -146,7 +146,7 @@ class PetApiTest {
   }
 
   @Test
-  void testFindPetsByStatusWithHttpInfo() throws Exception {
+  void bhvOperations042TestFindPetsByStatusWithHttpInfo() throws Exception {
     var result =
         api.findPetsByStatusWithHttpInfo(new FindPetsByStatusOptions().status("available"));
     assertNotNull(result);
@@ -155,7 +155,7 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetById() throws Exception {
+  void bhvOperations047TestGetPetById() throws Exception {
     Pet result = api.getPetById(1L);
     assertNotNull(result);
 
@@ -164,7 +164,7 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetByIdWithHttpInfo() throws Exception {
+  void bhvOperations048TestGetPetByIdWithHttpInfo() throws Exception {
     var result = api.getPetByIdWithHttpInfo(1L);
     assertNotNull(result);
 
@@ -173,7 +173,7 @@ class PetApiTest {
   }
 
   @Test
-  void testUpdatePet() throws Exception {
+  void bhvOperations087TestUpdatePet() throws Exception {
     Pet pet =
         Pet.builder()
             .id(1L)
@@ -187,7 +187,7 @@ class PetApiTest {
   }
 
   @Test
-  void testUpdatePetWithHttpInfo() throws Exception {
+  void bhvOperations088TestUpdatePetWithHttpInfo() throws Exception {
     Pet pet =
         Pet.builder()
             .id(1L)
@@ -203,14 +203,14 @@ class PetApiTest {
   }
 
   @Test
-  void testDeletePet() throws Exception {
+  void bhvOperations027TestDeletePet() throws Exception {
     api.deletePet(1L);
 
     assertThat(true).isTrue();
   }
 
   @Test
-  void testDeletePetWithHttpInfo() throws Exception {
+  void bhvOperations031TestDeletePetWithHttpInfo() throws Exception {
     var result = api.deletePetWithHttpInfo(1L);
     assertNotNull(result);
 
@@ -218,7 +218,7 @@ class PetApiTest {
   }
 
   @Test
-  void testSetPetAvatar() throws Exception {
+  void bhvOperations070TestSetPetAvatar() throws Exception {
     InputStream fakeImageData =
         new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8));
     api.setPetAvatar(1L, fakeImageData);
@@ -227,13 +227,13 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetAvatar() throws Exception {
+  void bhvOperations045TestGetPetAvatar() throws Exception {
     InputStream result = api.getPetAvatar(1L);
     assertNotNull(result);
   }
 
   @Test
-  void testGetPetAvatarThumbnailRejectsMalformedBase64() {
+  void bhvOperations063TestGetPetAvatarThumbnailRejectsMalformedBase64() {
     ApiClient malformed =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -246,7 +246,7 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetAvatarThumbnail() throws Exception {
+  void bhvOperations046TestGetPetAvatarThumbnail() throws Exception {
     // The thumbnail is a top-level `format: byte` value carried as
     // application/json, so it arrives as the JSON string literal
     // "dGVzdC1pbWFnZQ==". The SDK must JSON-parse the literal and then
@@ -258,7 +258,7 @@ class PetApiTest {
   }
 
   @Test
-  void testSetPetAvatarThumbnail() throws Exception {
+  void bhvOperations074TestSetPetAvatarThumbnail() throws Exception {
     byte[] thumbnailData = new byte[] {0x01, 0x02, 0x03, 0x04};
     SetPetAvatarThumbnailRequest request = new SetPetAvatarThumbnailRequest(thumbnailData);
 
@@ -268,7 +268,7 @@ class PetApiTest {
   }
 
   @Test
-  void testUploadPetCertificate() throws Exception {
+  void bhvOperations090TestUploadPetCertificate() throws Exception {
     InputStream fakeFile =
         new ByteArrayInputStream("fake-pdf-data".getBytes(StandardCharsets.UTF_8));
     ApiResponse result = api.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
@@ -276,7 +276,7 @@ class PetApiTest {
   }
 
   @Test
-  void testUploadPetDocument() throws Exception {
+  void bhvOperations091TestUploadPetDocument() throws Exception {
     InputStream fakeDoc =
         new ByteArrayInputStream("fake-doc-data".getBytes(StandardCharsets.UTF_8));
     ApiResponse result =
@@ -289,7 +289,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetPhotos() throws Exception {
+  void bhvOperations023TestAddPetPhotos() throws Exception {
     PhotoMetadata metadata = PhotoMetadata.builder().caption("Test photo").isPrimary(true).build();
 
     List<InputStream> files =
@@ -299,19 +299,19 @@ class PetApiTest {
   }
 
   @Test
-  void testDownloadPetDocument() throws Exception {
+  void bhvOperations035TestDownloadPetDocument() throws Exception {
     InputStream result = api.downloadPetDocument(1L, 1L);
     assertNotNull(result);
   }
 
   @Test
-  void testGetPetPhoto() throws Exception {
+  void bhvOperations055TestGetPetPhoto() throws Exception {
     InputStream result = api.getPetPhoto(1L, 1L);
     assertNotNull(result);
   }
 
   @Test
-  void testGetPetTag() throws Exception {
+  void bhvOperations058TestGetPetTag() throws Exception {
     Pet result =
         api.getPetTag(
             5L,
@@ -321,7 +321,7 @@ class PetApiTest {
   }
 
   @Test
-  void testGetExternalPetInfo() throws Exception {
+  void bhvOperations061TestGetExternalPetInfo() throws Exception {
     /* The operation declares its own server. The client below sends every
      * request for that server to the mock server instead, and records the
      * URL the SDK asked for, so the test proves the chosen per-operation
@@ -359,7 +359,7 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetPassport() throws Exception {
+  void bhvOperations053TestGetPetPassport() throws Exception {
     PetPassport result = api.getPetPassport(1L);
     assertNotNull(result);
 
@@ -370,7 +370,7 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetPassportWithHttpInfo() throws Exception {
+  void bhvOperations054TestGetPetPassportWithHttpInfo() throws Exception {
     var result = api.getPetPassportWithHttpInfo(1L);
     assertNotNull(result);
 
@@ -396,7 +396,7 @@ class PetApiTest {
   }
 
   @Test
-  void testErrorHandlingNotFound() throws Exception {
+  void bhvOperations037TestErrorHandlingNotFound() throws Exception {
     PetApi mockApi = newPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
 
     assertThatThrownBy(() -> mockApi.getPetById(99999L))
@@ -411,7 +411,7 @@ class PetApiTest {
   }
 
   @Test
-  void testErrorHandlingServerError() throws Exception {
+  void bhvOperations038TestErrorHandlingServerError() throws Exception {
     PetApi mockApi =
         newPetApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
 
@@ -424,7 +424,7 @@ class PetApiTest {
   }
 
   @Test
-  void testEmptyBodyOnBodyReturningOperationThrows() throws Exception {
+  void bhvOperations036TestEmptyBodyOnBodyReturningOperationThrows() throws Exception {
     // A 200 with an empty body for a body-returning operation must surface
     // as a typed ApiException from the plain convenience accessor, never a
     // silent null return.
@@ -448,7 +448,7 @@ class PetApiTest {
   }
 
   @Test
-  void testDownloadBinaryMock() throws Exception {
+  void bhvOperations034TestDownloadBinaryMock() throws Exception {
     PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
     InputStream result = mockApi.getPetAvatar(1L);
@@ -456,7 +456,7 @@ class PetApiTest {
   }
 
   @Test
-  void testUploadMultipartMock() throws Exception {
+  void bhvOperations089TestUploadMultipartMock() throws Exception {
     PetApi mockApi =
         newPetApiForMock(
             200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
@@ -469,7 +469,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetUsesTheCredentialOfTheSchemeTheSpecRequires() throws Exception {
+  void bhvOperations079TestAddPetUsesTheCredentialOfTheSchemeTheSpecRequires() throws Exception {
     // addPet lists the apiKeyHeader and petStoreBearer schemes. The client holds only a
     // bearer credential, so it is the one on the wire, and it replaces the default header.
     CapturingApiClient capturing = new CapturingApiClient();
@@ -491,7 +491,8 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetUsesTheFirstDeclaredSchemeTheClientHoldsACredentialFor() throws Exception {
+  void bhvOperations080TestAddPetUsesTheFirstDeclaredSchemeTheClientHoldsACredentialFor()
+      throws Exception {
     // The spec lists apiKeyHeader before petStoreBearer, so holding both sends the key.
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi schemeApi =
@@ -512,7 +513,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetIgnoresACredentialHeldForAnotherScheme() throws Exception {
+  void bhvOperations020TestAddPetIgnoresACredentialHeldForAnotherScheme() throws Exception {
     // adminBasic is not one of the schemes addPet lists, so its credential never goes out.
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi schemeApi =
@@ -531,7 +532,8 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetFallsBackToTheClientLevelAuthenticatorWhenNoSchemeMatches() throws Exception {
+  void bhvOperations026TestAddPetFallsBackToTheClientLevelAuthenticatorWhenNoSchemeMatches()
+      throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi schemeApi =
         new PetApi(
@@ -614,7 +616,7 @@ class PetApiTest {
   }
 
   @Test
-  void testNoOperationOptionsOffersAPerCallAuthenticator() {
+  void bhvOperations082TestNoOperationOptionsOffersAPerCallAuthenticator() {
     for (Class<?> options : List.of(AddPetOptions.class, DeletePetOptions.class)) {
       assertThat(
               java.util.Arrays.stream(options.getMethods()).map(java.lang.reflect.Method::getName))
@@ -627,7 +629,8 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetUsesConfiguredCredentialsWhenNoSchemeCredentialIsHeld() throws Exception {
+  void bhvOperations078TestAddPetUsesConfiguredCredentialsWhenNoSchemeCredentialIsHeld()
+      throws Exception {
     // When the client holds no credential for the operation's scheme, the
     // credentials configured on the Configuration (the default Authorization
     // header) are all there is. Verify that token reaches the wire.
@@ -665,7 +668,7 @@ class PetApiTest {
   }
 
   @Test
-  void testUnsecuredOperationOptionsExposesNoAuth() throws Exception {
+  void bhvOperations086TestUnsecuredOperationOptionsExposesNoAuth() throws Exception {
     // Compile-level guard: an unsecured operation's Options object must NOT
     // expose an auth field/method, and unsecured ops with path params only
     // (getPetById) take no Options arg at all. This is a no-op at runtime;
@@ -718,7 +721,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetByNameRejectsADotSegmentBeforeDispatch() throws Exception {
+  void bhvOperations051GetPetByNameRejectsADotSegmentBeforeDispatch() throws Exception {
     // RFC 3986 section 5.2.4: '.' and '..' are path navigation, so a URL
     // parser could re-route the request. They are rejected client-side.
     CapturingApiClient capturing = new CapturingApiClient();
@@ -737,7 +740,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetTagSendsByteParametersAsStandardPaddedBase64() throws Exception {
+  void bhvOperations059GetPetTagSendsByteParametersAsStandardPaddedBase64() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
@@ -778,7 +781,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetTagPercentEncodesAHashInAnAllowReservedValue() throws Exception {
+  void bhvOperations066GetPetTagPercentEncodesAHashInAnAllowReservedValue() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
@@ -856,7 +859,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetByNameEmptyRequiredStringQueryParamThrows() throws Exception {
+  void bhvOperations049GetPetByNameEmptyRequiredStringQueryParamThrows() throws Exception {
     // Parity with go/rust/swift/elixir: a required STRING param that is the
     // empty string "" is treated as absent and must fail client-side with
     // the same missing-required-parameter error, before any request is made.
@@ -874,7 +877,7 @@ class PetApiTest {
   }
 
   @Test
-  void findPetsByStatusOmittingStatusSendsNoStatusKeyInQuery() throws Exception {
+  void bhvOperations041FindPetsByStatusOmittingStatusSendsNoStatusKeyInQuery() throws Exception {
     // allowEmptyValue:true means the server tolerates an empty value WHEN the
     // client chooses to send the key — it does not oblige the SDK to always
     // send it. An omitted optional param must be left out of the query string
@@ -896,7 +899,7 @@ class PetApiTest {
   }
 
   @Test
-  void findPetsByStatusExplicitEmptyStatusSendsStatusKeyInQuery() throws Exception {
+  void bhvOperations040FindPetsByStatusExplicitEmptyStatusSendsStatusKeyInQuery() throws Exception {
     // The counterpart to the omit case: when the caller explicitly opts into
     // an empty value (status=""), allowEmptyValue:true permits the key to ride
     // the wire with an empty value, so "status=" must be present.
@@ -974,7 +977,7 @@ class PetApiTest {
   }
 
   @Test
-  void setPetPreferencesFormBodyIsCanonical() throws Exception {
+  void bhvOperations075SetPetPreferencesFormBodyIsCanonical() throws Exception {
     // Parity regression: application/x-www-form-urlencoded body must encode
     //   - a space as '+' (nickname="a b" -> nickname=a+b)
     //   - an array as repeated keys, exploded (tags=x&tags=y, never tags=x,y)
@@ -1005,7 +1008,7 @@ class PetApiTest {
   }
 
   @Test
-  void setPetAvatarStreamsRawBytesWithDeclaredContentType() throws Exception {
+  void bhvOperations073SetPetAvatarStreamsRawBytesWithDeclaredContentType() throws Exception {
     // A request body declared `type: string, format: binary` with a declared
     // Content-Type of image/jpeg must ride the wire as the RAW bytes, with the
     // declared Content-Type preserved. It must NEVER be JSON-marshaled (a JSON
@@ -1039,7 +1042,7 @@ class PetApiTest {
   }
 
   @Test
-  void setPetAvatarHonoursTheSelectedRequestContentType() throws Exception {
+  void bhvOperations071SetPetAvatarHonoursTheSelectedRequestContentType() throws Exception {
     // setPetAvatar declares three request content-types
     // (image/jpeg, image/png, application/json). The optional
     // content-type selector must let the caller pick among them, with the
@@ -1073,7 +1076,7 @@ class PetApiTest {
   }
 
   @Test
-  void setPetAvatarSendsTheBytesVerbatimUnderTheJsonSelector() throws Exception {
+  void bhvOperations072SetPetAvatarSendsTheBytesVerbatimUnderTheJsonSelector() throws Exception {
     // A format:binary body is never routed through the JSON serializer:
     // the application/json selector only changes the Content-Type.
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
@@ -1091,7 +1094,8 @@ class PetApiTest {
   }
 
   @Test
-  void uploadPetDocumentOctetStreamSelectionSendsRawBytesNotMultipart() throws Exception {
+  void bhvOperations092UploadPetDocumentOctetStreamSelectionSendsRawBytesNotMultipart()
+      throws Exception {
     // uploadPetDocument declares TWO request content-types
     // (multipart/form-data AND application/octet-stream). When the caller
     // selects application/octet-stream the SDK must send the file's RAW
@@ -1184,7 +1188,7 @@ class PetApiTest {
   }
 
   @Test
-  void uploadPetDocumentPrimitivePartsArePlainTextParts() throws Exception {
+  void bhvOperations095UploadPetDocumentPrimitivePartsArePlainTextParts() throws Exception {
     // Primitive multipart fields are text parts with no part Content-Type
     // and the canonical stringify form; never quoted JSON parts.
     final byte[][] capturedBody = new byte[1][];
@@ -1227,7 +1231,7 @@ class PetApiTest {
   }
 
   @Test
-  void uploadPetDocumentMultipartSelectionStillSendsMultipart() throws Exception {
+  void bhvOperations094UploadPetDocumentMultipartSelectionStillSendsMultipart() throws Exception {
     // Over-correction guard: the default selection (and an explicit
     // multipart/form-data selection) must STILL send a multipart body. The
     // transport receives the form-style Map and turns it into a
@@ -1274,7 +1278,8 @@ class PetApiTest {
   }
 
   @Test
-  void testFindPetsByStatusSerialisesDateParamsWithoutTimeComponent() throws Exception {
+  void bhvOperations069TestFindPetsByStatusSerialisesDateParamsWithoutTimeComponent()
+      throws Exception {
     // format:date params (bornAfter query, Report-Date header) are typed
     // LocalDate and must hit the wire as a bare YYYY-MM-DD, never as a
     // date-time (no T00:00:00 / offset suffix).
@@ -1331,7 +1336,7 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetAvatarThumbnailDecodesMockedJsonBase64() throws Exception {
+  void bhvOperations062TestGetPetAvatarThumbnailDecodesMockedJsonBase64() throws Exception {
     // Deterministic (no live server) guard for the byte-over-JSON path: the
     // body is the JSON string literal "dGVzdC1pbWFnZQ==". It must be
     // JSON-parsed then base64-decoded to the raw bytes "test-image".
@@ -1348,7 +1353,7 @@ class PetApiTest {
   }
 
   @Test
-  void getStagingPetInfoResolvesTheSelectedServerVariables() throws Exception {
+  void bhvOperations083GetStagingPetInfoResolvesTheSelectedServerVariables() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
@@ -1374,7 +1379,7 @@ class PetApiTest {
   }
 
   @Test
-  void getMultiServerPetInfoPicksAmongItsDeclaredServers() throws Exception {
+  void bhvOperations085GetMultiServerPetInfoPicksAmongItsDeclaredServers() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
@@ -1401,7 +1406,8 @@ class PetApiTest {
   }
 
   @Test
-  void findPetsBornOnSendsTheDatePathParameterWithoutATimeComponent() throws Exception {
+  void bhvOperations043FindPetsBornOnSendsTheDatePathParameterWithoutATimeComponent()
+      throws Exception {
     String[] capturedUrl = new String[1];
     ApiClient recording =
         (method, url, headers, body) -> {
@@ -1444,7 +1450,7 @@ class PetApiTest {
   @org.junit.jupiter.params.ParameterizedTest
   @org.junit.jupiter.params.provider.ValueSource(
       strings = {"k-1", "a%20b%3D", "dG9rZW4=", "!#$%&'()*+-./:<=>?@[]^_`{|}~"})
-  void deletePetSendsALegalCookieValueRaw(String value) throws Exception {
+  void bhvOperations030DeletePetSendsALegalCookieValueRaw(String value) throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
@@ -1456,7 +1462,7 @@ class PetApiTest {
   }
 
   @Test
-  void setPetAvatarRejectsAnUndeclaredRequestContentType() throws Exception {
+  void bhvOperations076SetPetAvatarRejectsAnUndeclaredRequestContentType() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
@@ -1474,7 +1480,7 @@ class PetApiTest {
   }
 
   @Test
-  void uploadPetDocumentRejectsAnUndeclaredRequestContentType() throws Exception {
+  void bhvOperations093UploadPetDocumentRejectsAnUndeclaredRequestContentType() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
@@ -1511,7 +1517,8 @@ class PetApiTest {
   }
 
   @Test
-  void getPetSummarySendsTheMatrixPathTheDateArrayAndTheRequiredCookie() throws Exception {
+  void bhvOperations057GetPetSummarySendsTheMatrixPathTheDateArrayAndTheRequiredCookie()
+      throws Exception {
     SummaryRecording recording = new SummaryRecording();
     PetApi petApi =
         new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
@@ -1532,7 +1539,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetSummaryRefusesAnEmptyRequiredCookieBeforeSending() throws Exception {
+  void bhvOperations056GetPetSummaryRefusesAnEmptyRequiredCookieBeforeSending() throws Exception {
     SummaryRecording recording = new SummaryRecording();
     PetApi petApi =
         new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
@@ -1549,7 +1556,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetByNameRefusesAnEmptyRequiredHeaderBeforeSending() throws Exception {
+  void bhvOperations050GetPetByNameRefusesAnEmptyRequiredHeaderBeforeSending() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
@@ -1587,7 +1594,8 @@ class PetApiTest {
   }
 
   @Test
-  void testFindPetsByStatusSendsTheDigitLeadingQueryNameAndTheDeepObjectFilter() throws Exception {
+  void bhvOperations044TestFindPetsByStatusSendsTheDigitLeadingQueryNameAndTheDeepObjectFilter()
+      throws Exception {
     UrlRecording recording = new UrlRecording("[]");
     PetApi petApi =
         new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
@@ -1599,7 +1607,8 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetTagWiresTheMatrixLabelAndObjectValuedParameters() throws Exception {
+  void bhvOperations067TestGetPetTagWiresTheMatrixLabelAndObjectValuedParameters()
+      throws Exception {
     UrlRecording recording = new UrlRecording("{\"name\":\"x\",\"photoUrls\":[]}");
     PetApi petApi =
         new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
@@ -1626,7 +1635,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetTreatmentSendsExactlyTheChosenVariantAsTheBody() throws Exception {
+  void bhvOperations024TestAddPetTreatmentSendsExactlyTheChosenVariantAsTheBody() throws Exception {
     UrlRecording recording = new UrlRecording("{\"drugName\":\"aspirin\"}");
     PetApi petApi =
         new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
@@ -1645,7 +1654,7 @@ class PetApiTest {
   }
 
   @Test
-  void testDeprecationMarkersAreEmitted() throws Exception {
+  void bhvOperations032TestDeprecationMarkersAreEmitted() throws Exception {
     assertThat(
             PetApi.class
                 .getMethod("findPetsByStatus", FindPetsByStatusOptions.class)

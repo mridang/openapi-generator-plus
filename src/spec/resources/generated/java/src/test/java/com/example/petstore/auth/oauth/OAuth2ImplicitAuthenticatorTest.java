@@ -31,7 +31,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void buildsAuthorizationUrlWithResponseTypeToken() {
+  void bhvAuthOauthTwoImplicit003BuildsAuthorizationUrlWithResponseTypeToken() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl(null);
@@ -41,7 +41,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void buildsAuthorizationUrlWithClientId() {
+  void bhvAuthOauthTwoImplicit002BuildsAuthorizationUrlWithClientId() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl(null);
@@ -50,7 +50,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void buildsAuthorizationUrlWithScopes() {
+  void bhvAuthOauthTwoImplicit004BuildsAuthorizationUrlWithScopes() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl(null);
@@ -60,7 +60,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void buildsAuthorizationUrlWithState() {
+  void bhvAuthOauthTwoImplicit005BuildsAuthorizationUrlWithState() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl("my-state");
@@ -69,7 +69,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl() {
+  void bhvAuthOauthTwoImplicit001KeepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl("s-._~*!'() x");
@@ -92,7 +92,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperBuildsTheSpecAuthorizationUrl() {
+  void bhvAuthOauthTwoImplicit006SchemeWrapperBuildsTheSpecAuthorizationUrl() {
     BrowserAuthImplicitAuthenticator auth =
         new BrowserAuthImplicitAuthenticator("https://api.example.com", "my-client-id");
 
@@ -111,7 +111,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void getAuthHeadersReturnsBearerAfterSetAccessToken() {
+  void bhvAuthOauthTwoImplicit007GetAuthHeadersReturnsBearerAfterSetAccessToken() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
     auth.setAccessToken("implicit-tok");
 
@@ -121,7 +121,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void throwsWhenAccessTokenNotSet() {
+  void bhvAuthOauthTwoImplicit012ThrowsWhenAccessTokenNotSet() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     IllegalStateException ex =
@@ -132,7 +132,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void throwsWhenAccessTokenSetToEmpty() {
+  void bhvAuthOauthTwoImplicit013ThrowsWhenAccessTokenSetToEmpty() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
     auth.setAccessToken("");
 
@@ -142,7 +142,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void omitsAnEmptyStateFromTheAuthorizationUrl() {
+  void bhvAuthOauthTwoImplicit009OmitsAnEmptyStateFromTheAuthorizationUrl() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     String url = auth.buildAuthorizationUrl("");
@@ -152,7 +152,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void getHostReturnsConfiguredHost() {
+  void bhvAuthOauthTwoImplicit008GetHostReturnsConfiguredHost() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     assertEquals("https://api.example.com", auth.getHost());
@@ -163,8 +163,8 @@ class OAuth2ImplicitAuthenticatorTest {
    * set, its value must be absent from the string and a {@code ***} redaction marker present.
    */
   @Test
-  @DisplayName("toString() redacts the access token and shows ***")
-  void redactsSecret() {
+  @DisplayName("bhvAuthOauthTwoImplicit011 toString() redacts the access token and shows ***")
+  void bhvAuthOauthTwoImplicit011RedactsSecret() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
     auth.setAccessToken("implicit-tok");
     String repr = auth.toString();

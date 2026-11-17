@@ -212,7 +212,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void readsOnlyItsOwnVariable() {
+    void bhvAuthScheme001ReadsOnlyItsOwnVariable() {
       Map<String, String> environment =
           Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN", "service-token");
       assertThrows(
@@ -230,7 +230,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void explicitArgumentsNeedNoEnvironment() {
+    void bhvAuthScheme002ExplicitArgumentsNeedNoEnvironment() {
       PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator(HOST, "xyz", Map.of());
       assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
     }

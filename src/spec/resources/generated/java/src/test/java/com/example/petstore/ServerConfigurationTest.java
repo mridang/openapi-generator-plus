@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 class ServerConfigurationTest {
 
   @Test
-  void resolvesUrlTemplateUsingDefaultVariableValues() {
+  void bhvServers009ResolvesUrlTemplateUsingDefaultVariableValues() {
     ServerConfiguration config =
         new ServerConfiguration(
             "https://{env}.api.example.com/v{version}",
@@ -48,7 +48,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void exposesRawUrlTemplateAndDescription() {
+  void bhvServers006ExposesRawUrlTemplateAndDescription() {
     ServerConfiguration config =
         new ServerConfiguration(
             "https://{env}.api.example.com",
@@ -60,7 +60,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void rejectsOverrideValueOutsideTheVariableEnum() {
+  void bhvServers008RejectsOverrideValueOutsideTheVariableEnum() {
     // server-variable-enum-validation: an override that is not in the
     // variable's enum is rejected at resolution time.
     ServerConfiguration config =
@@ -80,7 +80,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void rejectsADefaultValueOutsideTheVariableEnum() {
+  void bhvServers004RejectsADefaultValueOutsideTheVariableEnum() {
     ServerConfiguration config =
         new ServerConfiguration(
             "https://{env}.api.example.com",
@@ -94,7 +94,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void variableWithoutAnEnumAcceptsAnyOverride() {
+  void bhvServers014VariableWithoutAnEnumAcceptsAnyOverride() {
     ServerConfiguration config =
         new ServerConfiguration(
             "https://{env}.api.example.com",
@@ -106,7 +106,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void templateWithoutVariablesIsReturnedUnchanged() {
+  void bhvServers011TemplateWithoutVariablesIsReturnedUnchanged() {
     ServerConfiguration config =
         new ServerConfiguration("https://api.example.com/v1", null, Map.of());
 
@@ -127,7 +127,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void doesNotExpandAPlaceholderThatASubstitutedValueIntroduces() {
+  void bhvServers005DoesNotExpandAPlaceholderThatASubstitutedValueIntroduces() {
     ServerConfiguration config =
         new ServerConfiguration(
             "https://{env}.api.example.com/{version}",
@@ -142,7 +142,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void leavesAnUnknownPlaceholderInTheTemplateUntouched() {
+  void bhvServers007LeavesAnUnknownPlaceholderInTheTemplateUntouched() {
     ServerConfiguration config =
         new ServerConfiguration(
             "https://{env}.api.example.com/{other}",
@@ -180,7 +180,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void theThirdGlobalServerKeepsItsHostileTextUnchanged() {
+  void bhvServers013TheThirdGlobalServerKeepsItsHostileTextUnchanged() {
     ServerConfiguration server = Servers.SERVER_2;
 
     assertEquals("https://{tenant}.example.com/api", server.getUrlTemplate());

@@ -174,7 +174,7 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void readsOnlyItsOwnVariable() {
+        void bhvAuthScheme001ReadsOnlyItsOwnVariable() {
             Map<String, String> environment = Map.of("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN", "service-token");
             assertThrows(IllegalArgumentException.class, () ->
                     new PetStoreBearerAuthenticator(HOST, null, environment));
@@ -189,7 +189,7 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void explicitArgumentsNeedNoEnvironment() {
+        void bhvAuthScheme002ExplicitArgumentsNeedNoEnvironment() {
             PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator(HOST, "xyz", Map.of());
             assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
         }

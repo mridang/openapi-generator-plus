@@ -36,7 +36,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsClientCredentialsGrantType() {
+  void bhvAuthOauthTwoClientCred010SendsClientCredentialsGrantType() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -56,7 +56,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsClientIdAndSecret() {
+  void bhvAuthOauthTwoClientCred011SendsClientIdAndSecret() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -77,7 +77,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsScopes() {
+  void bhvAuthOauthTwoClientCred013SendsScopes() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -117,7 +117,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperSendsTheSpecScopesToTheSpecTokenUrl() {
+  void bhvAuthOauthTwoClientCred009SchemeWrapperSendsTheSpecScopesToTheSpecTokenUrl() {
     AtomicReference<String> capturedUrl = new AtomicReference<>();
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
@@ -140,7 +140,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void keepsTheRfc3986UnreservedSetLiteralInTheBodyAndBasicHeader() {
+  void bhvAuthOauthTwoClientCred001KeepsTheRfc3986UnreservedSetLiteralInTheBodyAndBasicHeader() {
     // RFC 3986 unreserved '-._~' stays literal, '*!'()' is percent-encoded,
     // a space is '+', in the token body and in the Basic client credentials.
     AtomicReference<String> capturedBody = new AtomicReference<>();
@@ -189,7 +189,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void returnsAuthorizationBearerHeader() {
+  void bhvAuthOauthTwoClientCred008ReturnsAuthorizationBearerHeader() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -204,7 +204,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsRequestToTokenUrl() {
+  void bhvAuthOauthTwoClientCred012SendsRequestToTokenUrl() {
     AtomicReference<String> capturedUrl = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -222,14 +222,14 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void getHostReturnsConfiguredHost() {
+  void bhvAuthOauthTwoClientCred004GetHostReturnsConfiguredHost() {
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
 
     assertEquals("https://api.example.com", auth.getHost());
   }
 
   @Test
-  void tokenFetchErrorIsSurfacedNotSwallowed() {
+  void bhvAuthOauthTwoClientCred015TokenFetchErrorIsSurfacedNotSwallowed() {
     // oauth-cc-authheaders-error-swallow: a failed client-credentials token
     // exchange must surface to the caller as a thrown error — NOT be
     // swallowed into an empty header map that would send the API request
@@ -245,7 +245,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void cachesTokenAcrossCalls() {
+  void bhvAuthOauthTwoClientCred003CachesTokenAcrossCalls() {
     // The token manager caches the access token until expiry, so two
     // consecutive header requests must reuse the same token and issue only
     // a single token request to the endpoint.
@@ -270,7 +270,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void basicAuthUrlEncodesClientIdAndSecret() {
+  void bhvAuthOauthTwoClientCred002BasicAuthUrlEncodesClientIdAndSecret() {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-
     // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -314,8 +314,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
    * absent and a {@code ***} redaction marker present.
    */
   @Test
-  @DisplayName("toString() redacts the client secret and shows ***")
-  void redactsSecret() {
+  @DisplayName("bhvAuthOauthTwoClientCred007 toString() redacts the client secret and shows ***")
+  void bhvAuthOauthTwoClientCred007RedactsSecret() {
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
     String repr = auth.toString();
     assertFalse(repr.contains("my-client-secret"));
@@ -329,7 +329,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void invalidatingTheTokenFetchesANewOneOnTheNextRequest() {
+  void bhvAuthOauthTwoClientCred005InvalidatingTheTokenFetchesANewOneOnTheNextRequest() {
     java.util.concurrent.atomic.AtomicInteger posts =
         new java.util.concurrent.atomic.AtomicInteger();
     ApiClient client =

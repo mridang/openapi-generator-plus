@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class ApiResultTest {
 
   @Test
-  void carriesDataStatusCodeHeadersAndRawBodyAsConstructed() {
+  void bhvResults003CarriesDataStatusCodeHeadersAndRawBodyAsConstructed() {
     ApiResult<String> result =
         new ApiResult<>(
             200, "payload", "{\"value\":\"payload\"}", Map.of("content-type", "application/json"));
@@ -30,7 +30,7 @@ class ApiResultTest {
   }
 
   @Test
-  void allowsNullDataForVoidResponses() {
+  void bhvResults001AllowsNullDataForVoidResponses() {
     // data is @Nullable — void responses carry a null payload but still
     // expose status, raw body, and headers.
     ApiResult<String> result = new ApiResult<>(204, null, "", Map.of());

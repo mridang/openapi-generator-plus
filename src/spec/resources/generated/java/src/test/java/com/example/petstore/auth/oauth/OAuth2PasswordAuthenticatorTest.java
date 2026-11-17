@@ -35,7 +35,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void sendsPasswordGrantType() {
+  void bhvAuthOauthTwoPassword014SendsPasswordGrantType() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -55,7 +55,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void sendsUsernameAndPassword() {
+  void bhvAuthOauthTwoPassword016SendsUsernameAndPassword() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -76,7 +76,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void sendsClientIdAndSecret() {
+  void bhvAuthOauthTwoPassword013SendsClientIdAndSecret() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -97,7 +97,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void returnsAuthorizationBearerHeader() {
+  void bhvAuthOauthTwoPassword011ReturnsAuthorizationBearerHeader() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -112,7 +112,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void usesRefreshTokenOnSubsequentCalls() {
+  void bhvAuthOauthTwoPassword019UsesRefreshTokenOnSubsequentCalls() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     var calls =
         new Object() {
@@ -167,7 +167,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void refreshInBodyModeCarriesTheClientCredentials() {
+  void bhvAuthOauthTwoPassword009RefreshInBodyModeCarriesTheClientCredentials() {
     List<String> urls = new java.util.ArrayList<>();
     List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
@@ -207,7 +207,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void refreshInBasicModeCarriesTheBasicHeaderAndNoClientId() {
+  void bhvAuthOauthTwoPassword008RefreshInBasicModeCarriesTheBasicHeaderAndNoClientId() {
     List<String> bodies = new java.util.ArrayList<>();
     List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
     ApiClient client =
@@ -250,7 +250,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void rejectedRefreshReRunsThePasswordGrant() {
+  void bhvAuthOauthTwoPassword010RejectedRefreshReRunsThePasswordGrant() {
     List<String> urls = new java.util.ArrayList<>();
     List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
@@ -295,14 +295,14 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void getHostReturnsConfiguredHost() {
+  void bhvAuthOauthTwoPassword003GetHostReturnsConfiguredHost() {
     OAuth2PasswordAuthenticator auth = createAuthenticator();
 
     assertEquals("https://api.example.com", auth.getHost());
   }
 
   @Test
-  void basicAuthUrlEncodesClientIdAndSecret() {
+  void bhvAuthOauthTwoPassword002BasicAuthUrlEncodesClientIdAndSecret() {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-
     // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -345,7 +345,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void sendsTheFirstGrantToTokenUrlAndTheRefreshGrantToRefreshUrl() {
+  void bhvAuthOauthTwoPassword017SendsTheFirstGrantToTokenUrlAndTheRefreshGrantToRefreshUrl() {
     // RFC 6749 §4.3.2 and §6: the password grant goes to the token
     // endpoint, the refresh grant to the (distinct) refresh endpoint.
     List<String> urls = new java.util.ArrayList<>();
@@ -382,7 +382,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void sendsTheRefreshGrantToTokenUrlWhenNoRefreshUrlIsConfigured() {
+  void bhvAuthOauthTwoPassword006SendsTheRefreshGrantToTokenUrlWhenNoRefreshUrlIsConfigured() {
     List<String> urls = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -407,7 +407,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperSendsTheSpecScopesAndUrls() {
+  void bhvAuthOauthTwoPassword012SchemeWrapperSendsTheSpecScopesAndUrls() {
     List<String> urls = new java.util.ArrayList<>();
     List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
@@ -439,7 +439,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void keepsTheRfc3986UnreservedSetLiteralInTheBodyAndBasicHeader() {
+  void bhvAuthOauthTwoPassword001KeepsTheRfc3986UnreservedSetLiteralInTheBodyAndBasicHeader() {
     // RFC 3986 unreserved '-._~' stays literal, '*!'()' is percent-encoded,
     // a space is '+', in the token body and in the Basic client credentials.
     AtomicReference<String> capturedBody = new AtomicReference<>();
@@ -497,8 +497,9 @@ class OAuth2PasswordAuthenticatorTest {
    * resource-owner password may appear, and a {@code ***} redaction marker must be present.
    */
   @Test
-  @DisplayName("toString() redacts the client secret and password and shows ***")
-  void redactsSecret() {
+  @DisplayName(
+      "bhvAuthOauthTwoPassword007 toString() redacts the client secret and password and shows ***")
+  void bhvAuthOauthTwoPassword007RedactsSecret() {
     OAuth2PasswordAuthenticator auth = createAuthenticator();
     String repr = auth.toString();
     assertFalse(repr.contains("my-client-secret"));
@@ -515,7 +516,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void invalidatingTheTokenKeepsTheRefreshTokenForTheNextRequest() {
+  void bhvAuthOauthTwoPassword004InvalidatingTheTokenKeepsTheRefreshTokenForTheNextRequest() {
     java.util.List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {

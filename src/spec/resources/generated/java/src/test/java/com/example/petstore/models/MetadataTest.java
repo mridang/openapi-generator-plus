@@ -28,7 +28,7 @@ class MetadataTest {
   private final ObjectSerializer serializer = new ObjectSerializer();
 
   @Test
-  void testSerializeEmptyMetadata() {
+  void bhvModels008TestSerializeEmptyMetadata() {
     Metadata metadata = Metadata.builder().build();
 
     String json = serializer.serialize(metadata);
@@ -37,7 +37,7 @@ class MetadataTest {
   }
 
   @Test
-  void testDeserializeEmptyObject() {
+  void bhvModels003TestDeserializeEmptyObject() {
     String json = "{}";
 
     Metadata metadata = serializer.deserialize(json, METADATA_TYPE);
@@ -46,7 +46,7 @@ class MetadataTest {
   }
 
   @Test
-  void testDeserializesAdditionalStringProperties() {
+  void bhvModels004TestDeserializesAdditionalStringProperties() {
     String json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
     Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
 
@@ -57,7 +57,7 @@ class MetadataTest {
   }
 
   @Test
-  void testRoundTripPreservesAdditionalProperties() {
+  void bhvModels011TestRoundTripPreservesAdditionalProperties() {
     Metadata metadata =
         Metadata.builder()
             .putAdditionalProperty("customField", "hello")
@@ -117,7 +117,7 @@ class MetadataTest {
   }
 
   @Test
-  void testAdditionalPropertiesAreTypedAsString() {
+  void bhvModels009TestAdditionalPropertiesAreTypedAsString() {
     Metadata metadata = Metadata.builder().putAdditionalProperty("key", "value").build();
 
     java.util.Map<String, Object> additionalProps = metadata.getAdditionalProperties();
@@ -125,7 +125,7 @@ class MetadataTest {
   }
 
   @Test
-  void testEqualsAndHashCodeIncludeAdditionalProperties() {
+  void bhvModels005TestEqualsAndHashCodeIncludeAdditionalProperties() {
     Metadata first = Metadata.builder().putAdditionalProperty("customField", "hello").build();
     Metadata same = Metadata.builder().putAdditionalProperty("customField", "hello").build();
     Metadata differentValue =
@@ -138,7 +138,7 @@ class MetadataTest {
   }
 
   @Test
-  void testDeclaredPropertyWinsOverCollidingAdditionalProperty() {
+  void bhvModels010TestDeclaredPropertyWinsOverCollidingAdditionalProperty() {
     Metadata metadata =
         Metadata.builder()
             .createdAt(java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z"))
@@ -227,7 +227,7 @@ class MetadataTest {
   }
 
   @Test
-  void testPomManifestDeclaresNonEmptyDescription() throws IOException {
+  void bhvModels002TestPomManifestDeclaresNonEmptyDescription() throws IOException {
     Path pom = Path.of("pom.xml");
     assertThat(Files.exists(pom)).as("pom.xml must exist at the project root").isTrue();
     String contents = Files.readString(pom);
@@ -273,7 +273,7 @@ class MetadataTest {
   }
 
   @Test
-  void testModelDoesNotDocumentNullExample() throws IOException {
+  void bhvModels007TestModelDoesNotDocumentNullExample() throws IOException {
     Path model =
         Path.of("src", "main", "java")
             .resolve(Path.of("com.example.petstore.models".replace('.', '/')))

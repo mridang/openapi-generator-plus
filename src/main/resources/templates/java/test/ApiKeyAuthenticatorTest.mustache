@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 class ApiKeyAuthenticatorTest {
 
     @Test
-    void validHeaderKeyPasses() {
+    void bhvAuthApiKey014ValidHeaderKeyPasses() {
         ApiKeyAuthenticator auth = new ApiKeyAuthenticator(
                 "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER);
         Map<String, String> headers = auth.getAuthHeaders();
@@ -23,7 +23,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void validQueryKeyPasses() {
+    void bhvAuthApiKey016ValidQueryKeyPasses() {
         ApiKeyAuthenticator auth = new ApiKeyAuthenticator(
                 "https://api.example.com", "api_key", "abc123", ApiKeyLocation.QUERY);
         Map<String, String> params = auth.getQueryParams();
@@ -31,7 +31,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void validCookieKeyPasses() {
+    void bhvAuthApiKey013ValidCookieKeyPasses() {
         ApiKeyAuthenticator auth = new ApiKeyAuthenticator(
                 "https://api.example.com", "session", "abc123", ApiKeyLocation.COOKIE);
         assertEquals(Map.of("session", "abc123"), auth.getCookieParams());
@@ -55,7 +55,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void nonAsciiHeaderKeyIsRejectedWithTheExactMessage() {
+    void bhvAuthApiKey008NonAsciiHeaderKeyIsRejectedWithTheExactMessage() {
         IllegalArgumentException ex =
                 assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
                         "https://api.example.com", "X-API-Key", "café", ApiKeyLocation.HEADER));
@@ -66,7 +66,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void nonAsciiQueryAndCookieKeysAreAccepted() {
+    void bhvAuthApiKey009NonAsciiQueryAndCookieKeysAreAccepted() {
         ApiKeyAuthenticator query = new ApiKeyAuthenticator(
                 "https://api.example.com", "api_key", "café", ApiKeyLocation.QUERY);
         ApiKeyAuthenticator cookie = new ApiKeyAuthenticator(
@@ -77,7 +77,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void emptyKeyHeaderThrowsAtConstruction() {
+    void bhvAuthApiKey005EmptyKeyHeaderThrowsAtConstruction() {
         IllegalArgumentException ex =
                 assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
                         "https://api.example.com", "X-API-Key", "", ApiKeyLocation.HEADER));
@@ -87,19 +87,19 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void emptyKeyQueryThrowsAtConstruction() {
+    void bhvAuthApiKey006EmptyKeyQueryThrowsAtConstruction() {
         assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
                 "https://api.example.com", "api_key", "", ApiKeyLocation.QUERY));
     }
 
     @Test
-    void emptyKeyCookieThrowsAtConstruction() {
+    void bhvAuthApiKey004EmptyKeyCookieThrowsAtConstruction() {
         assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
                 "https://api.example.com", "session", "", ApiKeyLocation.COOKIE));
     }
 
     @Test
-    void whitespaceOnlyKeyThrowsAtConstruction() {
+    void bhvAuthApiKey017WhitespaceOnlyKeyThrowsAtConstruction() {
         assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
                 "https://api.example.com", "X-API-Key", "   ", ApiKeyLocation.HEADER));
     }
@@ -117,7 +117,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void unicodeSpaceKeyIsNotBlank() {
+    void bhvAuthApiKey001UnicodeSpaceKeyIsNotBlank() {
         for (String key : new String[] {"\u00a0", "\u2003"}) {
             ApiKeyAuthenticator auth = new ApiKeyAuthenticator(
                     "https://api.example.com", "api_key", key, ApiKeyLocation.QUERY);
@@ -136,7 +136,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void crlfInQueryKeyThrowsAtConstruction() {
+    void bhvAuthApiKey003CrlfInQueryKeyThrowsAtConstruction() {
         IllegalArgumentException ex =
                 assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
                         "https://api.example.com", "api_key", "abc\r\n", ApiKeyLocation.QUERY));
@@ -146,7 +146,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    void crlfInCookieKeyThrowsAtConstruction() {
+    void bhvAuthApiKey002CrlfInCookieKeyThrowsAtConstruction() {
         assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
                 "https://api.example.com", "session", "abc\n", ApiKeyLocation.COOKIE));
     }
@@ -162,8 +162,8 @@ class ApiKeyAuthenticatorTest {
      * value must be absent and a {@code ***} redaction marker present.
      */
     @Test
-    @DisplayName("toString() redacts the API key and shows ***")
-    void redactsSecret() {
+    @DisplayName("bhvAuthApiKey010 toString() redacts the API key and shows ***")
+    void bhvAuthApiKey010RedactsSecret() {
         ApiKeyAuthenticator auth = new ApiKeyAuthenticator(
                 "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER);
         String repr = auth.toString();
