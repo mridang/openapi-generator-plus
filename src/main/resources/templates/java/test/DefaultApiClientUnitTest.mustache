@@ -218,6 +218,17 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/utf16-bom",
+        exchange -> {
+          // A big-endian byte-order mark (FE FF) makes the BOM-less body that follows it big-endian.
+          byte[] body = new byte[] {(byte) 0xFE, (byte) 0xFF, 0x00, 0x44, 0x00, 0x6F, 0x00, 0x63};
+          exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-16");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
         "/utf16-no-bom",
         exchange -> {
           // RFC 2781: a UTF-16 body with NO byte-order mark defaults to
@@ -1160,6 +1171,11 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvSerializationWire036IsCaseInsensitiveOnTheExtension() {
+    assertEquals("image/png", DefaultApiClient.guessMimeTypeFromName("IMAGE.PNG"));
+  }
+
+  @Test
   void bhvSerializationWire038MultipartFileWithPdfExtensionSetsApplicationPdfContentType() {
     assertEquals("application/pdf", DefaultApiClient.guessMimeTypeFromName("doc.pdf"));
   }
@@ -1351,6 +1367,13 @@ class DefaultApiClientUnitTest {
     String directive = DefaultApiClient.buildFilenameDirective("file.png");
     assertEquals("filename=\"file.png\"", directive);
     assertFalse(directive.contains("filename*="));
+  }
+
+  @Test
+  void bhvSerializationWire028NonBmpCharacterInFilenameBecomesOneUnderscore() {
+    assertEquals(
+        "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
+        DefaultApiClient.buildFilenameDirective("😀.png"));
   }
 
   @Test
@@ -1586,6 +1609,38 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvRetries010Redirect307HttpsToHttpWithBodyIsRefused() {
+    assertHttpsToHttpBodyIsRefused(307);
+  }
+
+  @Test
+  void bhvRetries011Redirect308HttpsToHttpWithBodyIsRefused() {
+    assertHttpsToHttpBodyIsRefused(308);
+  }
+
+  private void assertHttpsToHttpBodyIsRefused(int status) {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.scripted =
+        RecordingHttpClient.redirect(
+            status,
+            "http://other.example.invalid/y",
+            java.net.http.HttpRequest.newBuilder(
+                    java.net.URI.create("https://api.example.invalid/x"))
+                .build());
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () -> client.sendRequest("POST", "https://api.example.invalid/x", Map.of(), "payload"));
+    assertEquals(status, ex.getStatusCode());
+    assertTrue(
+        ex.toString().contains("Refusing to replay request body across HTTPS->HTTP redirect"),
+        "was: " + ex);
+  }
+
+  @Test
   void redirectWithoutLocationIsReturnedWhenTheBudgetIsZero() throws Exception {
     // D70: "too many redirects" needs a Location to follow; a bare 3xx is returned.
     TransportOptions transport =
@@ -1760,7 +1815,15 @@ class DefaultApiClientUnitTest {
   {{! -- UTF-16 charset already honours this, so this guard is green here. -- }}
 
   @Test
-  void decodesBomlessUtf16AsBigEndian() throws Exception {
+  void bhvSerializationWire030DecodesBigEndianBomUtf16AsBigEndian() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf16-bom", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("Doc", response.body(), "a big-endian BOM must decode the body as big-endian");
+  }
+
+  @Test
+  void bhvSerializationWire031DecodesBomlessUtf16AsBigEndian() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf16-no-bom", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -2299,6 +2362,12 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvRetries022RetryAfterAsAnHttpDateIsHonoured() {
+    java.time.Instant now = java.time.Instant.parse("2026-01-01T00:00:00Z");
+    assertEquals(5000L, DefaultApiClient.retryAfterMillis("Thu, 01 Jan 2026 00:00:05 GMT", now));
+  }
+
+  @Test
   void backoffDoublesFromHalfASecondToEightSecondsWithQuarterJitter() {
     assertEquals(500L, DefaultApiClient.backoffMillis(0, 0.0));
     assertEquals(1000L, DefaultApiClient.backoffMillis(1, 0.0));
@@ -2447,7 +2516,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void perCallRetryCountReplacesTheTransportsForThatCallOnly() throws Exception {
+  void bhvRetries004PerCallRetryCountReplacesTheTransportsForThatCallOnly() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
     try {
