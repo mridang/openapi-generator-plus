@@ -57,7 +57,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
 
     /* Closing the client never invalidates a session the caller supplied. */
-    @Test func testBhvLifecycle007BhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
+    @Test func testBhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
         let probe = InvalidationProbe()
         let session = URLSession(configuration: .ephemeral, delegate: probe, delegateQueue: nil)
         let transport = try TransportOptionsBuilder().session(session).build()
@@ -68,10 +68,37 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         session.invalidateAndCancel()
     }
 
+    /* After the client closes, the caller's session still accepts new tasks. */
+    @Test func testBhvLifecycle007CloseOnAClientWithASuppliedTransportLeavesItUsable() throws {
+        let session = URLSession(configuration: .ephemeral)
+        let transport = try TransportOptionsBuilder().session(session).build()
+        let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+        client.close()
+        let url = try #require(URL(string: "https://api.example.com/"))
+        let task = session.dataTask(with: url)
+        #expect(task.state == .suspended)
+        task.cancel()
+        session.invalidateAndCancel()
+    }
+
     @Test func testBhvLifecycle011ConstructWithAuthenticatorAndTransportOptions() throws {
         let transport = try TransportOptionsBuilder().build()
 
         _ = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+    }
+
+    /* An API key sent in a header rejects CR/LF and non-ASCII characters at
+     * construction, with ConfigurationError.invalidArgument. */
+    @Test(arguments: ["abc\r\nInjected: yes", "kéy"])
+    func testBhvLifecycle002ApiKeyHeaderRejectsCrlfAndNonAscii(apiKey: String) {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try ApiKeyAuthenticator(
+                host: "{{{basePath}}}", keyParamName: "X-API-Key", apiKey: apiKey, location: .header)
+        }
+        guard case .invalidArgument? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
     }
 
     @Test func testBhvLifecycle003ApiKeyQueryAcceptsNonAscii() throws {
@@ -272,10 +299,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-value", {{/envVars}}])
     }
 
-    /* One optional keyword credential per scheme, named after it, and an explicit one
-     * needs no environment at all. */
-    @Test func testBhvLifecycle015BhvAuthscheme002{{className}}PrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws {
+    /* An explicit credential needs no environment at all. */
+    @Test func testBhvAuthscheme002{{className}}PrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws {
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-value", {{/envVars}}environment: [:])
+    }
+
+    /* The credential keyword is optional: leaving it out reads the environment. */
+    @Test func testBhvLifecycle015{{className}}CredentialKeywordCanBeOmitted() throws {
+        _ = try {{className}}(host: "https://api.example.com", environment: [{{#envVars}}"{{envName}}": "env-value", {{/envVars}}])
     }
 
     @Test func testBhvLifecycle004{{className}}FailsWhenACredentialIsMissing() {
