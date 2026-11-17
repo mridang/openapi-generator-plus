@@ -11,7 +11,7 @@ Read `CLAUDE.md` too: it holds the alignment rules for generated prose and examp
 
 The goal is best-in-class developer experience, harmonised across all twelve SDKs: the same capabilities, the same behaviour on the wire and the same shape of the API (parameter order, how a client is created and configured, how options, errors, retries, timeouts, cancellation, transports and authentication are used), expressed the way each language's developers expect. Some languages use builders and some do not; that is idiom, but the order of concepts and the capabilities stay the same. When a language cannot do something natively, a small pure library or a version bump is acceptable if it makes the SDK cleaner. The public API shape is fixed now so that later features (OpenAPI 3.1 and 3.2 support, epics #96 and #49) are additive and never breaking. The reference points are the major generated SDKs (Stainless-generated OpenAI, Anthropic and Cloudflare, Speakeasy, Fern, Stripe, AWS and Azure).
 
-Documentation lives in scoped `AGENTS.md` files, in one standard format, and nowhere else:
+Agent documentation lives in scoped `AGENTS.md` files, in one standard format (the human documentation is the README tree described in the next section):
 
 | File | What it holds |
 |---|---|
@@ -23,6 +23,22 @@ Read the root file, the shared file and the file of every language you touch bef
 
 Standing agents (read-only, rerun at any time, results go to the ledger): `oas-conformance-auditor` (OpenAPI feature coverage), `test-parity-auditor` (the same tests under the same names in all twelve) and `sdk-experience-auditor` (cross-SDK discrepancies, developer experience, likely bugs, comparison with the reference SDKs).
 
+
+## README and docs are part of every change
+
+Every change that touches behaviour, a type mapping, a supported version, an option or a generated file updates the human documentation in the same pull request. A change with no documentation update is not finished, exactly like a fix with no test. Check it before you commit, and name the pages you updated in the commit or the report.
+
+The documentation tree is fixed. Do not put language-specific tables in the root `README.md`; link to them.
+
+| Page | What it holds |
+|---|---|
+| `README.md` | What the generator is, how it works in a few paragraphs, the install and usage commands, and links to every page below. Short. |
+| `docs/how-it-works.md` | The pipeline: spec normalisation rules, the shared generator, the templates, the goldens, the gates, and the standard format every generated SDK follows. |
+| `docs/types.md` | The standard type table: every OpenAPI type and format, and the type each language uses for it, with the language version that type needs. |
+| `docs/languages/<lang>.md` | One page per language (twelve): supported language versions and the support policy, the type mapping for that language, dependencies, the options it accepts, idiom notes, known limits. |
+| `docs/decisions.md` | The settled cross-language decisions in prose for users, linking to the issues for deferred work. |
+
+Rules for the pages: keep tables in the language page and the types page only, one source of truth each (a version floor is written once and the other pages link to it); regenerate or edit the language page whenever its manifest floor, type mapping or option list changes; state the floor from the build manifest, not from memory; never describe a feature the generated SDK does not have.
 ## Parity workflow
 
 The twelve SDKs must be perfectly harmonised: the same public API shape, wire bytes,
