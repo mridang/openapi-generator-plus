@@ -3619,6 +3619,31 @@
     "csharp"
    ],
    "reason": "a typed variant member is named after the language's own spelling of the variant type, and byte[] and List<byte[]> are spelled Byte and ListByte in C# (kotlin ByteArray, swift Data, go ByteSlice), so the names differ from every other language by idiom"
+  },
+  {
+   "element": [
+    "pettreatment.frommedication",
+    "pettreatment.fromsurgery",
+    "treatmentrecord.frommedication",
+    "treatmentrecord.fromsurgery"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "a java anyOf wrapper names its typed factory of<Variant> (PetTreatment.ofMedication), the JDK's static factory convention (Optional.of, List.of); the other languages say from<Variant>. The extra of<Variant> rule for java unions is the other half of this difference."
+  },
+  {
+   "element": [
+    "petfood.fromdryfood",
+    "petfood.fromwetfood"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java",
+    "csharp"
+   ],
+   "reason": "a discriminated oneOf is the abstract base type PetFood with DryFood and WetFood as subtypes, so the decoded value is itself the variant and is built as one (new DryFood(...)); there is no wrapper to hold a typed factory"
   }
  ]
 }
