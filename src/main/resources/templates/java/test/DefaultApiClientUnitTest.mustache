@@ -337,6 +337,34 @@ class DefaultApiClientUnitTest {
             os.write(body);
           }
         });
+    server.createContext(
+        "/content-encoding-gzip",
+        exchange -> {
+          java.io.ByteArrayOutputStream compressed = new java.io.ByteArrayOutputStream();
+          try (java.util.zip.GZIPOutputStream gzip =
+              new java.util.zip.GZIPOutputStream(compressed)) {
+            gzip.write("{\"ok\":true}".getBytes(StandardCharsets.UTF_8));
+          }
+          byte[] body = compressed.toByteArray();
+          exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/repeated-header",
+        exchange -> {
+          exchange.getResponseHeaders().add("X-Repeated", "first");
+          exchange.getResponseHeaders().add("X-Repeated", "second");
+          exchange.getResponseHeaders().add("X-Repeated", "third");
+          byte[] response = "ok".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
     // A handler that stalls (/stalled-body) must not hold up the other requests.
     server.setExecutor(
         java.util.concurrent.Executors.newCachedThreadPool(
@@ -645,6 +673,30 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvTransport022RepeatedResponseHeadersAreJoinedInOrder() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/repeated-header", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    String joined =
+        response.headers().entrySet().stream()
+            .filter(e -> e.getKey().equalsIgnoreCase("X-Repeated"))
+            .findFirst()
+            .map(Map.Entry::getValue)
+            .orElse(null);
+    assertEquals("first, second, third", joined);
+  }
+
+  @Test
+  void bhvTransport052SendsAnEmptyUserAgentWhenTheOptionIsTheEmptyString() throws Exception {
+    TransportOptions transport = TransportOptions.builder().userAgent("").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"user-agent\":\"\""), response.body());
+  }
+
+  @Test
   void bhvTransport041InjectsCustomUserAgent() throws Exception {
     TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -694,6 +746,18 @@ class DefaultApiClientUnitTest {
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", headers, null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"x-request-id\":\"caller-provided-id\""));
+  }
+
+  @Test
+  void bhvTransport047CallerHeaderReplacesADefaultOfAnotherCase() throws Exception {
+    TransportOptions transport = TransportOptions.builder().defaultHeader("Accept", "text/plain").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response =
+        client.sendRequest(
+            "GET", baseUrl + "/echo-headers", Map.of("accept", "application/json"), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"accept\":\"application/json\""), response.body());
+    assertFalse(response.body().contains("text/plain"), response.body());
   }
 
   @Test
@@ -1646,6 +1710,17 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvTransport026CallerLowerCaseAcceptEncodingSuppressesTheSdkOwn() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest(
+            "GET", baseUrl + "/echo-headers", Map.of("accept-encoding", "identity"), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"accept-encoding\":\"identity\""), response.body());
+    assertFalse(response.body().contains("gzip"), response.body());
+  }
+
+  @Test
   void bhvTransport045CallerAcceptEncodingInAnyCaseIsKeptAlone() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response =
@@ -1807,6 +1882,25 @@ class DefaultApiClientUnitTest {
         client.sendRequest("GET", baseUrl + "/content-encoding-deflate", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertEquals("{\"ok\":true}", response.body());
+    assertFalse(response.headers().containsKey("content-encoding"));
+    assertFalse(response.headers().containsKey("content-length"));
+  }
+
+  @Test
+  void bhvTransport034DecompressesAValidGzipEncodedBody() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/content-encoding-gzip", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("{\"ok\":true}", response.body());
+  }
+
+  @Test
+  void bhvTransport027DecodedBodyDropsContentEncodingAndContentLength() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/content-encoding-gzip", Map.of(), null);
+    assertEquals(200, response.statusCode());
     assertFalse(response.headers().containsKey("content-encoding"));
     assertFalse(response.headers().containsKey("content-length"));
   }

@@ -513,6 +513,27 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvOperations018 the withHttpInfo variant returns ApiResult with status, data, headers and raw body")
+        void bhvOperations018WithHttpInfoReturnsApiResultWithStatusDataHeadersAndRawBody() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(201, "{\"ok\":true}", Map.of("x-test", "yes"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            {{invokerPackage}}.ApiResult<JsonNode> result =
+                    testApi.callForResult(
+                            "GET", "/test/echo", new HashMap<>(), new HashMap<>(), null,
+                            new String[] {"application/json"}, "application/json", JSON_NODE_TYPE, null);
+            assertEquals(201, result.statusCode());
+            assertEquals("{\"ok\":true}", result.rawBody());
+            assertEquals("yes", result.headers().get("x-test"));
+            assertTrue(result.data() != null && result.data().get("ok").asBoolean());
+        }
+
+        @Test
         @DisplayName("bhvOperations006 ApiResult.rawBody is never null")
         void bhvOperations006ApiResultRawBodyIsNonNull() throws ApiException {
             {{invokerPackage}}.ApiResult<JsonNode> result =
@@ -764,6 +785,28 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvTransport002 the timeout reaches the transport for this call only")
+        void bhvTransport002TimeoutReachesTheTransportForThisCallOnly() {
+            var client = new OverrideCapturingClient();
+            var api = apiOver(client);
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions().timeout(1500));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertEquals(1500, client.capturedTimeout);
+            client.overrideOverloadUsed = false;
+            client.capturedTimeout = null;
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions());
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertFalse(client.overrideOverloadUsed);
+            assertNull(client.capturedTimeout);
+        }
+
+        @Test
         @DisplayName("bhvRetries009 timeout and maxRetries reach the transport")
         void bhvRetries009TimeoutAndRetriesReachTheTransport() {
             var client = new OverrideCapturingClient();
@@ -820,8 +863,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("an operation with no parameters and no security takes the per-call settings")
-        void anOperationWithNothingElseTakesThePerCallSettings() {
+        @DisplayName("bhvOperations096 an operation with no parameters and no security takes the per-call settings")
+        void bhvOperations096AnOperationWithNothingElseTakesThePerCallSettings() {
             var client = new OverrideCapturingClient();
             var api = new StoreApi(client, new Configuration("http://localhost", Map.of()));
             try {
@@ -1523,6 +1566,24 @@ class BaseApiTest {
             assertEquals("text/plain", client.capturedHeaders.get("Accept"),
                     "an explicit Accept header parameter must beat the config default and the negotiated Accept");
         }
+
+        @Test
+        @DisplayName("bhvOperations004 an explicit Accept header parameter beats the config default and the negotiated Accept")
+        void bhvOperations004ExplicitAcceptHeaderBeatsConfigDefaultAndNegotiatedAccept() throws ApiException {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of("Accept", "application/xml"));
+            var testApi = new TestableApi(client, config);
+            Map<String, String> headerParams = new HashMap<>();
+            headerParams.put("Accept", "text/plain");
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), headerParams,
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("text/plain", client.capturedHeaders.get("Accept"));
+        }
     }
 
     // ── Binary response tests (Gap 3+4) ──
@@ -1817,8 +1878,8 @@ class BaseApiTest {
     class NullBodyContentTypeTests {
 
         @Test
-        @DisplayName("POST with null body does not send Content-Type")
-        void nullBodyPostDoesNotSendContentType() throws ApiException {
+        @DisplayName("bhvOperations013 POST with null body does not send Content-Type")
+        void bhvOperations013NullBodyPostDoesNotSendContentType() throws ApiException {
             var client = new CapturingApiClient() {
                 @Override
                 public ApiHttpResponse sendRequest(
