@@ -40,7 +40,7 @@ export function isTemporalValue(value: unknown, kind?: string): boolean {
 }
 
 /**
- * Total nanoseconds in a {@link Temporal.Duration} as an exact BigInt.
+ * Total nanoseconds in a `Temporal.Duration` as an exact BigInt.
  *
  * Avoids `Duration.prototype.total()` (which returns a `number` and loses
  * integer precision past 2^53 ns, i.e. ~104 days) by summing the duration's
@@ -65,7 +65,7 @@ function durationTotalNanos(d: Temporal.Duration): bigint {
 }
 
 /**
- * Serialize a {@link Temporal.Duration} to the protobuf-JSON wire format
+ * Serialize a `Temporal.Duration` to the protobuf-JSON wire format
  * (https://protobuf.dev/programming-guides/json/): a decimal number of
  * seconds suffixed with `s`, e.g. `"3600s"` or `"3600.000000001s"`.
  *
@@ -97,7 +97,7 @@ export function durationToProtoJson(d: Temporal.Duration): string {
 
 /**
  * Parse a protobuf-JSON duration string (see {@link durationToProtoJson})
- * back into a {@link Temporal.Duration}.
+ * back into a `Temporal.Duration`.
  *
  * @throws SerializationError if the input is not a valid protobuf-JSON
  *   duration (e.g. an ISO-8601 `"PT1H"`, a bare number, or a trailing
@@ -296,7 +296,7 @@ function validateDecoded<T>(model: T): T {
  * Nested-model validation. class-transformer builds every nested `@Type`
  * model with a no-argument `new X()` and then assigns the fields, so no
  * validation has run on a nested model. Only the root model is validated by
- * {@link ObjectSerializer.deserialize}, so a nested model with a missing
+ * `ObjectSerializer.deserialize`, so a nested model with a missing
  * required field or a wrong-typed field would otherwise decode silently.
  *
  * {@link revalidateNestedFields} walks a freshly built model graph (model

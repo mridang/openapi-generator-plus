@@ -17,7 +17,7 @@ import type { ApiHttpResponse } from "./api-http-response.js";
  *   host would replay the body (containing client_secret / refresh_token)
  *   to that host.
  * - `noDefaultHeaders` -- when `true`, the transport does not add
- *   {@link TransportOptions.defaultHeaders}. Used for OAuth2 token and OIDC
+ *   `TransportOptions.defaultHeaders`. Used for OAuth2 token and OIDC
  *   discovery requests, which go to the identity provider and must not carry
  *   an `Authorization` or API-key default meant for the API.
  * - `signal` -- aborts the request when it fires. The transport rejects with
@@ -26,9 +26,9 @@ import type { ApiHttpResponse } from "./api-http-response.js";
  * - `refreshAuthHeaders` -- called before each automatic retry for fresh
  *   authentication headers.
  * - `timeout` -- the end-to-end timeout of this request in milliseconds,
- *   replacing {@link TransportOptions.timeout}; `null` waits indefinitely.
+ *   replacing `TransportOptions.timeout`; `null` waits indefinitely.
  * - `maxRetries` -- the retries after the first attempt for this request,
- *   replacing {@link TransportOptions.maxRetries}; `0` disables retries.
+ *   replacing `TransportOptions.maxRetries`; `0` disables retries.
  */
 export interface SendRequestOptions {
   readonly noRedirect?: boolean;
@@ -54,7 +54,7 @@ export interface SendRequestOptions {
  * Per-call options accepted as the trailing argument of every operation.
  *
  * - `signal` -- cancels this call when it fires, in addition to any
- *   client-level signal set on the {@link Configuration}. Aborting rejects the
+ *   client-level signal set on the `Configuration`. Aborting rejects the
  *   call with the signal's reason (an `AbortError` by default), never with a
  *   timeout error.
  * - `timeout` -- the end-to-end timeout of this call in milliseconds,

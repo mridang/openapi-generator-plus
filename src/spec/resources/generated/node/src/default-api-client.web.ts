@@ -11,7 +11,7 @@ import { TransportOptions } from "./transport-options.js";
 export { SENSITIVE_HEADER_NAMES } from "./abstract-api-client.js";
 
 /**
- * Portable {@link ApiClient} transport for non-Node runtimes -- Deno, Bun,
+ * Portable `ApiClient` transport for non-Node runtimes -- Deno, Bun,
  * Cloudflare Workers, Vercel Edge -- resolved via the `#transport` conditional
  * import everywhere except Node. It uses only Web-standard APIs (`fetch`,
  * `crypto`, `DecompressionStream`), so it never imports `undici` or any

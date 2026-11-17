@@ -10,7 +10,7 @@ import { OpenAPIError } from "./open-api-error.js";
 /**
  * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
  * be used: a body that is not a JSON object, or one whose `access_token`
- * field is missing or empty. Distinct from {@link OAuth2ServerError} (which
+ * field is missing or empty. Distinct from `OAuth2ServerError` (which
  * represents non-2xx responses) so callers can recover differently via
  * `instanceof`.
  */

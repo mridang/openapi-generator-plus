@@ -15,7 +15,7 @@ import { ProxyAgent, Agent } from "undici";
 export { SENSITIVE_HEADER_NAMES } from "./abstract-api-client.js";
 
 /**
- * Node.js {@link ApiClient} transport: the default, resolved via the
+ * Node.js `ApiClient` transport: the default, resolved via the
  * `#transport` conditional import on Node. Backed by the Fetch API with undici
  * dispatchers for proxy and custom-TLS configuration. All redirect handling,
  * decompression, charset decoding, and header injection live in
