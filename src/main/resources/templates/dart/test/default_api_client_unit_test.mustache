@@ -181,6 +181,38 @@ void main() {
       }
     });
 
+    test('bhv transport 003 a caller header in mixed letter case suppresses the injected User-Agent and X-Request-ID', () async {
+      List<String>? receivedUA;
+      List<String>? receivedRequestId;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedUA = request.headers['user-agent'];
+        receivedRequestId = request.headers['x-request-id'];
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .userAgent('Sdk/9.9')
+            .injectRequestId(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/test',
+          {'User-Agent': 'MyApp', 'X-REQUEST-id': 'abc'},
+          null,
+        );
+        expect(receivedUA, equals(['MyApp']));
+        expect(receivedRequestId, equals(['abc']));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv transport 041 injects custom User-Agent header', () async {
       String? receivedUA;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1799,6 +1831,17 @@ void main() {
      * be read or parsed must fail fast at construction with an ArgumentError
      * (a configuration error) — NOT a raw dart:io FileSystemException /
      * TlsException, and not an ApiException. */
+    test('bhv transport 048 a nonexistent caCertPath fails even when verifySsl is false', () {
+      final transport = TransportOptionsBuilder()
+          .verifySsl(false)
+          .caCertPath('/nonexistent/ca.pem')
+          .build();
+      expect(
+        () => DefaultApiClient(transportOptions: transport),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
     test('bhv errors 041 non-existent caCertPath throws ArgumentError at construction', () {
       final transport =
           TransportOptionsBuilder().caCertPath('/nonexistent/ca.pem').build();
@@ -2348,6 +2391,56 @@ void main() {
                 ),
           ),
         );
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  group('Caller Accept-Encoding and decoded headers', () {
+    test('bhv transport 045 keeps a caller-supplied Accept-Encoding in any letter case', () async {
+      List<String>? received;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        received = request.headers['accept-encoding'];
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        await DefaultApiClient().sendRequest(
+          'GET',
+          'http://localhost:${server.port}/test',
+          {'accept-encoding': 'identity'},
+          null,
+        );
+        expect(received, equals(['identity']));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv transport 027 a decoded body drops the Content-Encoding and Content-Length headers', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Encoding', 'gzip')
+          ..add(GZipCodec().encode(utf8.encode('{"ok":true}')))
+          ..close();
+      });
+
+      try {
+        final resp = await DefaultApiClient().sendRequest(
+          'GET',
+          'http://localhost:${server.port}/gzip',
+          {},
+          null,
+        );
+        expect(resp.body, equals('{"ok":true}'));
+        expect(resp.headers.containsKey('content-encoding'), isFalse);
+        expect(resp.headers.containsKey('content-length'), isFalse);
       } finally {
         await server.close();
       }

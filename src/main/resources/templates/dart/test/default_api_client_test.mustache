@@ -72,7 +72,7 @@ void main() {
     // The fixture proxy's second port answers 407 unless the request carries
     // Proxy-Authorization, so these two prove the credentials in the proxy URL
     // reach the proxy on the wire.
-    test('authenticating proxy accepts the credentials from the proxy URL', () async {
+    test('bhv transport 001 proxy URL with embedded basic-auth credentials routes through proxy', () async {
       final transport = TransportOptionsBuilder()
           .proxy('http://user:pass@$proxyAuthHostPort')
           .build();
@@ -765,6 +765,77 @@ Future<void> main(List<String> args) async {
         );
       });
     }
+
+    test('bhv transport 010 includes transport default headers from a map', () async {
+      final transport = TransportOptionsBuilder()
+          .defaultHeaders({'X-Map-Header': 'map-value'})
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers['x-map-header'], equals('map-value'));
+    });
+
+    test('bhv transport 013 injects request id header', () async {
+      final transport = TransportOptionsBuilder()
+          .injectRequestId(true)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/echo',
+        {},
+        null,
+      );
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers.containsKey('x-request-id'), isTrue);
+    });
+
+    test('bhv transport 007 generates unique request ids across three requests', () async {
+      final transport = TransportOptionsBuilder()
+          .injectRequestId(true)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final ids = <Object?>{};
+
+      for (var i = 0; i < 3; i++) {
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        final headers = parsed['headers'] as Map<String, dynamic>;
+        ids.add(headers['x-request-id']);
+      }
+
+      expect(ids.length, equals(3));
+    });
+
+    test('bhv transport 046 leaves the proxy auth header null when no proxy is configured', () {
+      final client = DefaultApiClient();
+      expect(client.proxyAuthHeader, isNull);
+    });
+
+    test('bhv transport 023 the default transport rejects a certificate from an untrusted CA', () async {
+      final client = DefaultApiClient();
+      await expectLater(
+        client.sendRequest('GET', '$chasmHttpsUrl/test/echo', {}, null),
+        throwsA(
+          isA<NetworkException>()
+              .having((e) => e.statusCode, 'statusCode', 0)
+              .having((e) => e.cause, 'cause', isA<TlsException>()),
+        ),
+      );
+    });
 
     test('bhv transport 025 verifySsl=true rejects a certificate the system does not trust', () async {
       final transport = TransportOptionsBuilder().verifySsl(true).build();

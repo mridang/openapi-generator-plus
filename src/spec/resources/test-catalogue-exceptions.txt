@@ -9,3 +9,8 @@ swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentTy
 swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
 swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
 elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in
+dart | headers002 | selectHeaders takes a non-nullable String contentType, so a nil Content-Type cannot be passed; the empty-string default is covered by bhv headers 001
+dart | headers005 | selectHeaders takes a non-nullable List of accept values, so a null accept cannot be passed; the empty list is covered by bhv headers 004
+dart | headers015 | isJsonMime takes a non-nullable String, so nil cannot be passed; the empty string is covered by bhv headers 014
+dart | transport004 | Dart has no stdlib brotli decoder; a br response is refused as an unsupported Content-Encoding, not decompressed
+dart | transport006 | Dart has no stdlib zstd decoder; a zstd response is refused as an unsupported Content-Encoding, not decompressed
