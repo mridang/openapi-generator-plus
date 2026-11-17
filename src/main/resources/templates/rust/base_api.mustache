@@ -908,7 +908,7 @@ mod tests {
     }
 
     #[test]
-    fn test_backoff_doubles_from_half_a_second_to_eight_seconds_with_jitter() {
+    fn test_bhv_retries_027_backoff_doubles_from_half_a_second_to_eight_seconds_with_jitter() {
         use std::time::Duration;
         for (attempt, base_ms) in [(0u32, 500u64), (1, 1_000), (2, 2_000), (3, 4_000), (4, 8_000), (9, 8_000)] {
             for _ in 0..20 {
@@ -1416,7 +1416,7 @@ mod tests {
     /* An array form field MUST serialize as repeated keys (`tags=a&tags=b`),
      * never a bracketed/joined `tags=[a, b]` or `tags=a,b`. */
     #[test]
-    fn test_serialize_body_form_urlencoded_array_repeated_keys() {
+    fn test_bhv_serializationwire_053_serialize_body_form_urlencoded_array_repeated_keys() {
         let json_bytes = encode_form_pairs(&[
             ("nickname", serde_json::json!("Rex")),
             ("tags", serde_json::json!(["fluffy", "good boy"])),

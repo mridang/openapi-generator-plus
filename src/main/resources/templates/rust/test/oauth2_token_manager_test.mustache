@@ -949,6 +949,30 @@ async fn test_bhv_authoauthtwotokenmgr_040_unusable_token_response_bodies_use_th
     }
 }
 
+/* D07: a non-JSON 2xx token body is refused with the canonical message, and the
+ * body (here a form-encoded token) is never echoed into the error. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwotokenmgr_041_a_non_json_2xx_token_body_is_not_echoed_into_the_error() {
+    let secret = ["gho", "SECRET123"].join("_");
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(&format!("access_token={}&token_type=bearer", secret), 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a non-JSON token response must error");
+
+    let token_err = err
+        .downcast_ref::<OAuth2TokenError>()
+        .unwrap_or_else(|| panic!("expected OAuth2TokenError, got: {err}"));
+    assert_eq!("Token response is not valid JSON", token_err.message());
+    assert!(!err.to_string().contains(&secret), "the token body leaked into: {err}");
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_bhv_authoauthtwotokenmgr_032_token_endpoint_error_response_parsed_to_typed_error() {
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a

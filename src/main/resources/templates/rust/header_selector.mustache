@@ -212,6 +212,13 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_headers_027_select_accept_header_returns_empty_string_for_empty_accept() {
+        let hs = HeaderSelector::new();
+
+        assert_eq!("", hs.select_accept_header(&[]));
+    }
+
+    #[test]
     fn test_bhv_headers_007_header_selector_multipart_omits_content_type() {
         let hs = HeaderSelector::new();
 

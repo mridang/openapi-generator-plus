@@ -1078,7 +1078,7 @@ async fn test_pet_api_get_pet_by_name_path_encoded_once() {
 /// Calling the operation without Options (where the required value lives) must
 /// surface an error rather than silently omitting the parameter.
 #[tokio::test]
-async fn test_pet_api_get_pet_by_name_missing_required_query_errors() {
+async fn test_bhv_operations_125_pet_api_get_pet_by_name_missing_required_query_errors() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_by_name("rex".to_string(), None).await;
     assert!(

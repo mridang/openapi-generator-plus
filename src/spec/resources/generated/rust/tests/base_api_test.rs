@@ -315,7 +315,7 @@ async fn test_bhv_authintegration_010_base_api_forwards_auth_headers() {
 // -- Nil body handling --
 
 #[tokio::test]
-async fn test_base_api_handles_nil_body() {
+async fn test_bhv_serializationobject_183_base_api_handles_nil_body() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
@@ -2803,7 +2803,7 @@ async fn test_bhv_retries_005_a_retry_asks_the_authenticator_for_fresh_headers()
 }
 
 #[tokio::test]
-async fn test_retry_after_seconds_is_honoured() {
+async fn test_bhv_retries_026_retry_after_seconds_is_honoured() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(429, Some("1")),
@@ -2824,6 +2824,30 @@ async fn test_retry_after_seconds_is_honoured() {
         "waited {:?}",
         started.elapsed()
     );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_028_cancelling_during_the_backoff_stops_the_retrying() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some("30")),
+            Scripted::Status(200, None),
+        ],
+        2,
+        None,
+    );
+
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        retrying_api(&client).delete_pet(1, None),
+    )
+    .await;
+
+    assert!(
+        outcome.is_err(),
+        "the call must still be waiting out the Retry-After"
+    );
+    assert_eq!(1, client.calls());
 }
 
 #[tokio::test]
