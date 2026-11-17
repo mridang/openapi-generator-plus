@@ -38,10 +38,14 @@ class ClientTest {
     client.close();
     client.close();
 
-    assertThrows(
-        IllegalStateException.class,
-        () ->
-            client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+    IllegalStateException refused =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                client
+                    .transport()
+                    .sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+    assertEquals("ApiClient has been closed and can no longer send requests", refused.getMessage());
   }
 
   @Test
@@ -49,6 +53,65 @@ class ClientTest {
     java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
     Client client =
         new Client(authenticator, TransportOptions.builder().httpClient(supplied).build());
+    client.close();
+
+    assertFalse(supplied.isTerminated());
+    supplied.close();
+  }
+
+  @Test
+  void builderTakesOneSetterPerSecuritySchemeNamedAfterIt() {
+    java.util.List<String> setters =
+        java.util.Arrays.stream(Client.Builder.class.getDeclaredMethods())
+            .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers()))
+            .map(java.lang.reflect.Method::getName)
+            .sorted()
+            .collect(java.util.stream.Collectors.toList());
+
+    assertEquals(
+        java.util.List.of(
+                "petStoreBasic",
+                "adminBasic",
+                "petStoreBearer",
+                "serviceToken",
+                "apiKeyHeader",
+                "internalApiKey",
+                "apiKeyQuery",
+                "sessionCookie",
+                "machineAuth",
+                "legacyAuth",
+                "userAuth",
+                "browserAuth",
+                "ssoAuth",
+                "build",
+                "transportOptions")
+            .stream()
+            .sorted()
+            .collect(java.util.stream.Collectors.toList()),
+        setters);
+  }
+
+  @Test
+  void builderWithNoCredentialsBuildsAClientThatClosesLikeAnyOther() {
+    Client client =
+        Client.builder("/api/v3").transportOptions(TransportOptions.builder().build()).build();
+
+    assertNotNull(client);
+    client.close();
+    client.close();
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+  }
+
+  @Test
+  void closingTheClientLeavesASuppliedHttpClientOpenWhenBuiltFromTheBuilder() {
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    Client client =
+        Client.builder("/api/v3")
+            .transportOptions(TransportOptions.builder().httpClient(supplied).build())
+            .build();
     client.close();
 
     assertFalse(supplied.isTerminated());

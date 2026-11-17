@@ -34,6 +34,15 @@ public final class MachineAuthClientCredentialsAuthenticator
     this(host, clientId, clientSecret, System.getenv());
   }
 
+  /**
+   * Creates an authenticator whose every credential is read from its environment variable.
+   *
+   * @param host the API base URL (never read from the environment)
+   */
+  public MachineAuthClientCredentialsAuthenticator(String host) {
+    this(host, null, null, System.getenv());
+  }
+
   /* Package-private so a test can supply the environment instead of the process one. */
   MachineAuthClientCredentialsAuthenticator(
       String host,

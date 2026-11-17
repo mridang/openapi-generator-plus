@@ -16,18 +16,16 @@
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
+     * @param options options for query, header, form, and cookie parameters
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
+     * @param options options for query, header, form, and cookie parameters
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
+     * @param options options for query, header, form, and cookie parameters
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
-{{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
-     * @param options options carrying an optional per-call authenticator
-{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.optionsMinted}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{^cookieParams}}{{#vendorExtensions.op.optionsMinted}}
      * @param options options carrying the per-call timeout, retry count and headers
-{{/vendorExtensions.op.optionsMinted}}{{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{/vendorExtensions.op.optionsMinted}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#returnType}}
      * @return {@code {{{returnType}}}}
 {{/returnType}}

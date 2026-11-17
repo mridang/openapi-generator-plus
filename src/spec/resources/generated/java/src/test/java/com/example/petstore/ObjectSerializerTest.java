@@ -757,6 +757,66 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("building a model never validates the values it is given")
+    void constructionNeverValidatesTheValuesItIsGiven() {
+      // F316: the bounds on Order.quantity and the pattern on Pet.nickname are the
+      // server's to enforce, so a model built in code accepts any value of its type.
+      assertDoesNotThrow(
+          () -> {
+            com.example.petstore.models.Order order =
+                com.example.petstore.models.Order.builder().quantity(Integer.MIN_VALUE).build();
+            assertEquals(Integer.MIN_VALUE, order.quantity);
+            com.example.petstore.models.Pet pet =
+                com.example.petstore.models.Pet.builder()
+                    .name("")
+                    .photoUrls(java.util.Set.of())
+                    .nickname("not matching the pattern!")
+                    .build();
+            assertEquals("not matching the pattern!", pet.nickname);
+          });
+    }
+
+    @Test
+    @DisplayName("building a model accepts every declared enum constant")
+    void constructionAcceptsEveryDeclaredEnumConstant() {
+      for (com.example.petstore.models.Order.StatusEnum status :
+          com.example.petstore.models.Order.StatusEnum.values()) {
+        com.example.petstore.models.Order order =
+            com.example.petstore.models.Order.builder().status(status).build();
+        assertEquals(status, order.status);
+      }
+    }
+
+    @Test
+    @DisplayName("decoding a value of the wrong type throws SerializationException")
+    void decodingAWrongTypedValueFailsLoudly() {
+      // F316: validation happens at decode. A string where an integer is declared is
+      // refused with the SDK's exception, never coerced.
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"quantity\":\"many\"}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Order>() {}.getType()));
+    }
+
+    @Test
+    @DisplayName("an enum's decode factory is where an unknown string is refused")
+    void unknownEnumStringIsRefusedByTheEnumDecodeFactory() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> com.example.petstore.models.Order.StatusEnum.fromValue("banana"));
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"status\":\"banana\"}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Order>() {}.getType()));
+    }
+
+    @Test
     @DisplayName("malformed date-time throws SerializationException")
     void malformedDateTimeThrowsSerializationException() {
       // Order.shipDate is format: date-time; a value that is not an

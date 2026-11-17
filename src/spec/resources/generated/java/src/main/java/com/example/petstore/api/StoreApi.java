@@ -131,6 +131,24 @@ public class StoreApi extends BaseApi {
   }
 
   /**
+   * Creates an instance with the given client, configuration, default authenticator and one
+   * credential per security scheme. Each operation uses the credential of the first scheme its spec
+   * lists that is held here, and falls back to {@code authenticator} when it holds none.
+   *
+   * @param apiClient the API client used to execute requests
+   * @param config the client configuration
+   * @param authenticator the default authenticator, or {@code null} for none
+   * @param schemeAuthenticators the credential for each security scheme, keyed by scheme name
+   */
+  public StoreApi(
+      ApiClient apiClient,
+      Configuration config,
+      @Nullable Authenticator authenticator,
+      Map<String, Authenticator> schemeAuthenticators) {
+    super(apiClient, config, authenticator, schemeAuthenticators);
+  }
+
+  /**
    * Create an account
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -286,7 +304,7 @@ public class StoreApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -840,7 +858,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getOrderByIdTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1397,7 +1415,7 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         placeOrderTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);

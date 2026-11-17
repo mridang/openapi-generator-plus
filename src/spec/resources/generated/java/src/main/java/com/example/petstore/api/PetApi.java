@@ -387,11 +387,29 @@ public class PetApi extends BaseApi {
   }
 
   /**
+   * Creates an instance with the given client, configuration, default authenticator and one
+   * credential per security scheme. Each operation uses the credential of the first scheme its spec
+   * lists that is held here, and falls back to {@code authenticator} when it holds none.
+   *
+   * @param apiClient the API client used to execute requests
+   * @param config the client configuration
+   * @param authenticator the default authenticator, or {@code null} for none
+   * @param schemeAuthenticators the credential for each security scheme, keyed by scheme name
+   */
+  public PetApi(
+      ApiClient apiClient,
+      Configuration config,
+      @Nullable Authenticator authenticator,
+      Map<String, Authenticator> schemeAuthenticators) {
+    super(apiClient, config, authenticator, schemeAuthenticators);
+  }
+
+  /**
    * Add a new pet to the store
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
-   * unset, so the client's configured settings apply.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
@@ -404,8 +422,8 @@ public class PetApi extends BaseApi {
    * Add a new pet to the store
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
-   * unset, so the client's configured settings apply.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
@@ -418,7 +436,6 @@ public class PetApi extends BaseApi {
    * Add a new pet to the store
    *
    * @param pet Create a new pet in the store (required)
-   * @param options options carrying an optional per-call authenticator
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -430,16 +447,10 @@ public class PetApi extends BaseApi {
    * Add a new pet to the store
    *
    * @param pet Create a new pet in the store (required)
-   * @param options options carrying an optional per-call authenticator
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Pet> addPetWithHttpInfo(Pet pet, @Nullable AddPetOptions options) {
-    return addPetInternal(pet, options);
-  }
-
-  private ApiResult<Pet> addPetInternal(Pet pet, @Nullable AddPetOptions options) {
-    Authenticator auth = options != null ? options.auth() : null;
     if (pet == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'pet' when calling PetApi.addPet");
@@ -463,7 +474,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         addPetTypeRef,
-        auth,
+        resolveSchemeAuth("apiKeyHeader", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -533,7 +544,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "multipart/form-data",
         addPetPhotosTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -543,8 +554,8 @@ public class PetApi extends BaseApi {
    * Record a treatment for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
-   * unset, so the client's configured settings apply.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
@@ -557,8 +568,8 @@ public class PetApi extends BaseApi {
    * Record a treatment for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
-   * unset, so the client's configured settings apply.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
@@ -573,7 +584,6 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param petTreatment (required)
-   * @param options options carrying an optional per-call authenticator
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
@@ -588,18 +598,11 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param petTreatment (required)
-   * @param options options carrying an optional per-call authenticator
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
       Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options) {
-    return addPetTreatmentInternal(petId, petTreatment, options);
-  }
-
-  private ApiResult<PetTreatment> addPetTreatmentInternal(
-      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options) {
-    Authenticator auth = options != null ? options.auth() : null;
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.addPetTreatment");
@@ -633,7 +636,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         addPetTreatmentTypeRef,
-        auth,
+        null,
         callTimeout,
         callMaxRetries,
         null);
@@ -643,8 +646,8 @@ public class PetApi extends BaseApi {
    * Deletes a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
-   * unset, so the client's configured settings apply.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @throws ApiException if fails to make API call
    */
@@ -656,8 +659,8 @@ public class PetApi extends BaseApi {
    * Deletes a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters, the per-call authenticator and the per-call timeout, retry count and headers stay
-   * unset, so the client's configured settings apply.
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
    *
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
@@ -670,8 +673,7 @@ public class PetApi extends BaseApi {
    * Deletes a pet
    *
    * @param petId Pet id to delete (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @throws ApiException if fails to make API call
    */
   public void deletePet(Long petId, @Nullable DeletePetOptions options) {
@@ -682,17 +684,11 @@ public class PetApi extends BaseApi {
    * Deletes a pet
    *
    * @param petId Pet id to delete (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Void> deletePetWithHttpInfo(Long petId, @Nullable DeletePetOptions options) {
-    return deletePetInternal(petId, options);
-  }
-
-  private ApiResult<Void> deletePetInternal(Long petId, @Nullable DeletePetOptions options) {
-    Authenticator auth = options != null ? options.auth() : null;
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.deletePet");
@@ -712,19 +708,20 @@ public class PetApi extends BaseApi {
           String.valueOf(
               ValueSerializer.serializeStyled(
                   "api_key", options.apiKey(), "cookie", "String", null, "form", true));
-      /* RFC 6265 — validate the operation cookie name and the assembled
-       * value with the SAME rule the auth-provided cookie path applies in
-       * BaseApi. Without this, a CR/LF or control-char value supplied at
-       * the call site would be interpolated straight into the Cookie
-       * request header (header injection). Fail closed instead, mirroring
-       * the auth-cookie path's IllegalArgumentException. */
+      /* RFC 6265 — the value is sent exactly as given when every character is a
+       * legal cookie-octet (a value the caller percent-encoded stays as written),
+       * and is refused before any request otherwise: the SDK never encodes a
+       * cookie value, the caller does. The same rule guards the auth-provided
+       * cookie path in BaseApi, so a CR/LF or control character can never be
+       * interpolated into the Cookie request header (header injection). */
       if (!isValidCookieName("api_key")) {
         throw new IllegalArgumentException(
             "Cookie name 'api_key' contains characters forbidden by RFC 6265");
       }
       if (!isValidCookieValue(apiKeyCookieValue)) {
         throw new IllegalArgumentException(
-            "Cookie value for 'api_key' contains characters forbidden by RFC 6265");
+            "Cookie value for 'api_key' contains characters outside the RFC 6265"
+                + " cookie-octet set; percent-encode the value before passing it");
       }
       cookieJoiner.add("api_key=" + apiKeyCookieValue);
     }
@@ -747,7 +744,7 @@ public class PetApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
-        auth,
+        resolveSchemeAuth("adminBasic", "machineAuth"),
         callTimeout,
         callMaxRetries,
         null);
@@ -847,7 +844,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/octet-stream"},
         "application/json",
         downloadPetDocumentTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -932,7 +929,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         findPetsBornOnTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1053,7 +1050,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         findPetsByStatusTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1177,7 +1174,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getExternalPetInfoTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1301,7 +1298,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getMultiServerPetInfoTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1386,7 +1383,7 @@ public class PetApi extends BaseApi {
         new String[] {"image/jpeg", "image/png"},
         "application/json",
         getPetAvatarTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1473,7 +1470,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetAvatarThumbnailTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1605,7 +1602,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetByIdTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1694,7 +1691,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetByNameTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1783,7 +1780,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetPassportTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1881,7 +1878,7 @@ public class PetApi extends BaseApi {
         new String[] {"image/jpeg", "image/png", "application/json"},
         "application/json",
         getPetPhotoTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -1955,19 +1952,20 @@ public class PetApi extends BaseApi {
           String.valueOf(
               ValueSerializer.serializeStyled(
                   "session", options.session(), "cookie", "String", null, "form", true));
-      /* RFC 6265 — validate the operation cookie name and the assembled
-       * value with the SAME rule the auth-provided cookie path applies in
-       * BaseApi. Without this, a CR/LF or control-char value supplied at
-       * the call site would be interpolated straight into the Cookie
-       * request header (header injection). Fail closed instead, mirroring
-       * the auth-cookie path's IllegalArgumentException. */
+      /* RFC 6265 — the value is sent exactly as given when every character is a
+       * legal cookie-octet (a value the caller percent-encoded stays as written),
+       * and is refused before any request otherwise: the SDK never encodes a
+       * cookie value, the caller does. The same rule guards the auth-provided
+       * cookie path in BaseApi, so a CR/LF or control character can never be
+       * interpolated into the Cookie request header (header injection). */
       if (!isValidCookieName("session")) {
         throw new IllegalArgumentException(
             "Cookie name 'session' contains characters forbidden by RFC 6265");
       }
       if (!isValidCookieValue(sessionCookieValue)) {
         throw new IllegalArgumentException(
-            "Cookie value for 'session' contains characters forbidden by RFC 6265");
+            "Cookie value for 'session' contains characters outside the RFC 6265"
+                + " cookie-octet set; percent-encode the value before passing it");
       }
       cookieJoiner.add("session=" + sessionCookieValue);
     }
@@ -1990,7 +1988,7 @@ public class PetApi extends BaseApi {
         new String[] {"text/plain"},
         "application/json",
         getPetSummaryTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -2172,7 +2170,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetTagTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -2295,7 +2293,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getStagingPetInfoTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -2452,7 +2450,7 @@ public class PetApi extends BaseApi {
         new String[] {},
         effectiveRequestContentType,
         null,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -2551,7 +2549,7 @@ public class PetApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -2633,7 +2631,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/x-www-form-urlencoded",
         setPetPreferencesTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -2724,7 +2722,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         updatePetTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -2790,7 +2788,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "multipart/form-data",
         uploadPetCertificateTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);
@@ -2935,7 +2933,7 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         effectiveRequestContentType,
         uploadPetDocumentTypeRef,
-        null,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
         null);

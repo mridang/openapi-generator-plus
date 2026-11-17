@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.ChasmContainer;
+import com.example.petstore.Client;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.TransportOptions;
@@ -28,6 +29,7 @@ import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
 import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
 import com.example.petstore.auth.PetStoreBearerAuthenticator;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
@@ -63,9 +65,14 @@ class PetApiTest {
             .baseUrl(baseUrl)
             .defaultHeader("Authorization", "Bearer test-token")
             .build();
-    api = new PetApi(new DefaultApiClient(), config);
     bearerAuth = new PetStoreBearerAuthenticator(baseUrl, "test-token");
     basicAuth = new AdminBasicAuthenticator(baseUrl, "admin", "password");
+    api =
+        new PetApi(
+            new DefaultApiClient(),
+            config,
+            null,
+            Map.of("petStoreBearer", bearerAuth, "adminBasic", basicAuth));
   }
 
   @Test
@@ -87,7 +94,7 @@ class PetApiTest {
             .status(Pet.StatusEnum.AVAILABLE)
             .build();
 
-    Pet result = api.addPet(pet, new AddPetOptions().auth(bearerAuth));
+    Pet result = api.addPet(pet);
     assertNotNull(result);
 
     assertThat(result.name).isNotNull();
@@ -95,9 +102,9 @@ class PetApiTest {
 
   @Test
   void testAddPetUsingConfiguredCredentials() throws Exception {
-    // The Options arg (and its auth) is optional: omitting it falls back to
-    // the credentials configured on the client (the default Authorization
-    // header set in setUp), which must satisfy the secured endpoint.
+    // The Options arg is optional: omitting it sends the configured credentials
+    // (the default Authorization header set in setUp), which must satisfy the
+    // secured endpoint.
     Pet pet =
         Pet.builder()
             .id(54321L)
@@ -122,7 +129,7 @@ class PetApiTest {
             .status(Pet.StatusEnum.AVAILABLE)
             .build();
 
-    var result = api.addPetWithHttpInfo(pet, new AddPetOptions().auth(bearerAuth));
+    var result = api.addPetWithHttpInfo(pet);
     assertNotNull(result);
 
     assertThat(result.statusCode()).isBetween(200, 299);
@@ -197,14 +204,14 @@ class PetApiTest {
 
   @Test
   void testDeletePet() throws Exception {
-    api.deletePet(1L, new DeletePetOptions().auth(basicAuth));
+    api.deletePet(1L);
 
     assertThat(true).isTrue();
   }
 
   @Test
   void testDeletePetWithHttpInfo() throws Exception {
-    var result = api.deletePetWithHttpInfo(1L, new DeletePetOptions().auth(basicAuth));
+    var result = api.deletePetWithHttpInfo(1L);
     assertNotNull(result);
 
     assertThat(result.statusCode()).isBetween(200, 299);
@@ -462,18 +469,99 @@ class PetApiTest {
   }
 
   @Test
-  void testAddPetPerCallAuthOverride() throws Exception {
-    // Verify the auth carried inside the Options object on the BASE
-    // operation method (not just the WithHttpInfo variant) is applied to
-    // the outgoing request. The default header carries one token; the
-    // per-call authenticator carries a different one and must win on the
-    // wire.
-    final String[] capturedAuthHeader = new String[1];
+  void testAddPetUsesTheCredentialOfTheSchemeTheSpecRequires() throws Exception {
+    // addPet lists the apiKeyHeader and petStoreBearer schemes. The client holds only a
+    // bearer credential, so it is the one on the wire, and it replaces the default header.
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi schemeApi =
+        new PetApi(
+            capturing,
+            Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("Authorization", "Bearer default-token")
+                .build(),
+            null,
+            Map.of(
+                "petStoreBearer",
+                new PetStoreBearerAuthenticator("http://localhost", "scheme-token")));
+
+    schemeApi.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+
+    assertThat(capturing.capturedHeaders).containsEntry("Authorization", "Bearer scheme-token");
+  }
+
+  @Test
+  void testAddPetUsesTheFirstDeclaredSchemeTheClientHoldsACredentialFor() throws Exception {
+    // The spec lists apiKeyHeader before petStoreBearer, so holding both sends the key.
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi schemeApi =
+        new PetApi(
+            capturing,
+            Configuration.builder().baseUrl("http://localhost").build(),
+            null,
+            Map.of(
+                "petStoreBearer",
+                new PetStoreBearerAuthenticator("http://localhost", "scheme-token"),
+                "apiKeyHeader",
+                new ApiKeyHeaderAuthenticator("http://localhost", "key-1")));
+
+    schemeApi.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+
+    assertThat(capturing.capturedHeaders).containsEntry("X-API-Key", "key-1");
+    assertThat(capturing.capturedHeaders).doesNotContainKey("Authorization");
+  }
+
+  @Test
+  void testAddPetIgnoresACredentialHeldForAnotherScheme() throws Exception {
+    // adminBasic is not one of the schemes addPet lists, so its credential never goes out.
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi schemeApi =
+        new PetApi(
+            capturing,
+            Configuration.builder().baseUrl("http://localhost").build(),
+            null,
+            Map.of(
+                "adminBasic",
+                new AdminBasicAuthenticator("http://localhost", "admin", "password")));
+
+    schemeApi.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+
+    assertThat(capturing.capturedHeaders).doesNotContainKey("Authorization");
+    assertThat(capturing.capturedHeaders).doesNotContainKey("X-API-Key");
+  }
+
+  @Test
+  void testAddPetFallsBackToTheClientLevelAuthenticatorWhenNoSchemeMatches() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi schemeApi =
+        new PetApi(
+            capturing,
+            Configuration.builder().baseUrl("http://localhost").build(),
+            new PetStoreBearerAuthenticator("http://localhost", "single-token"),
+            Map.of(
+                "adminBasic",
+                new AdminBasicAuthenticator("http://localhost", "admin", "password")));
+
+    schemeApi.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+
+    assertThat(capturing.capturedHeaders).containsEntry("Authorization", "Bearer single-token");
+  }
+
+  @Test
+  void testTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt() throws Exception {
+    List<Map<String, String>> sent = new java.util.ArrayList<>();
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
         "/",
         exchange -> {
-          capturedAuthHeader[0] = exchange.getRequestHeaders().getFirst("Authorization");
+          Map<String, String> seen = new HashMap<>();
+          seen.put("path", exchange.getRequestURI().getPath());
+          seen.put(
+              "authorization",
+              String.valueOf(exchange.getRequestHeaders().getFirst("Authorization")));
+          synchronized (sent) {
+            sent.add(seen);
+          }
           byte[] responseBytes =
               "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -482,33 +570,67 @@ class PetApiTest {
           exchange.getResponseBody().close();
         });
     server.start();
-    String baseUrl = "http://localhost:" + server.getAddress().getPort();
-    Configuration overrideConfig =
-        Configuration.builder()
-            .baseUrl(baseUrl)
-            .defaultHeader("Authorization", "Bearer default-token")
-            .build();
-    PetApi overrideApi = new PetApi(new DefaultApiClient(), overrideConfig);
-    PetStoreBearerAuthenticator perCallAuth =
-        new PetStoreBearerAuthenticator(baseUrl, "per-call-token");
+    try (var client =
+        Client.builder("http://localhost:" + server.getAddress().getPort())
+            .petStoreBearer(new PetStoreBearerAuthenticator("http://ignored", "bearer-1"))
+            .adminBasic(new AdminBasicAuthenticator("http://ignored", "admin", "password"))
+            .build()) {
+      client.pet.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+      client.pet.deletePet(7L);
+    } finally {
+      server.stop(0);
+    }
 
-    Pet pet =
-        Pet.builder()
-            .id(1L)
-            .name("OverrideDog")
-            .photoUrls(Set.of("http://example.com/p.jpg"))
-            .build();
-    overrideApi.addPet(pet, new AddPetOptions().auth(perCallAuth));
-
-    assertThat(capturedAuthHeader[0]).isEqualTo("Bearer per-call-token");
+    assertThat(sent).hasSize(2);
+    assertThat(sent.get(0)).containsEntry("authorization", "Bearer bearer-1");
+    assertThat(sent.get(1).get("authorization")).startsWith("Basic ");
   }
 
   @Test
-  void testAddPetUsesConfiguredCredentialsWhenAuthOmitted() throws Exception {
-    // When no per-call auth is supplied (Options omitted entirely), the
-    // client falls back to the credentials configured on the Configuration
-    // (the default Authorization header). Verify that token reaches the
-    // wire.
+  void testAClientWithNoCredentialSendsNoAuthenticationHeader() throws Exception {
+    List<String> sent = new java.util.ArrayList<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          synchronized (sent) {
+            sent.add(String.valueOf(exchange.getRequestHeaders().getFirst("Authorization")));
+          }
+          byte[] responseBytes =
+              "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, responseBytes.length);
+          exchange.getResponseBody().write(responseBytes);
+          exchange.getResponseBody().close();
+        });
+    server.start();
+    try (var client = Client.builder("http://localhost:" + server.getAddress().getPort()).build()) {
+      client.pet.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+    } finally {
+      server.stop(0);
+    }
+
+    assertThat(sent).containsExactly("null");
+  }
+
+  @Test
+  void testNoOperationOptionsOffersAPerCallAuthenticator() {
+    for (Class<?> options : List.of(AddPetOptions.class, DeletePetOptions.class)) {
+      assertThat(
+              java.util.Arrays.stream(options.getMethods()).map(java.lang.reflect.Method::getName))
+          .doesNotContain("auth");
+      assertThat(
+              java.util.Arrays.stream(options.getDeclaredFields())
+                  .map(java.lang.reflect.Field::getName))
+          .doesNotContain("auth");
+    }
+  }
+
+  @Test
+  void testAddPetUsesConfiguredCredentialsWhenNoSchemeCredentialIsHeld() throws Exception {
+    // When the client holds no credential for the operation's scheme, the
+    // credentials configured on the Configuration (the default Authorization
+    // header) are all there is. Verify that token reaches the wire.
     final String[] capturedAuthHeader = new String[1];
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -1295,28 +1417,42 @@ class PetApiTest {
   }
 
   @org.junit.jupiter.params.ParameterizedTest
-  @org.junit.jupiter.params.provider.ValueSource(strings = {"abc\r\nInjected: yes", "abc\u0000def"})
-  void deletePetCookieParameterWithAControlCharacterFailsClosed(String value) {
+  @org.junit.jupiter.params.provider.ValueSource(
+      strings = {
+        "abc\r\nInjected: yes",
+        "abc\u0000def",
+        "a b",
+        "a\"b",
+        "a,b",
+        "a;b",
+        "a\\b",
+        "café"
+      })
+  void deletePetRefusesACookieValueWithAnIllegalCookieOctet(String value) {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
     assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey(value)))
         .isExactlyInstanceOf(IllegalArgumentException.class)
-        .hasMessage("Cookie value for 'api_key' contains characters forbidden by RFC 6265");
+        .hasMessage(
+            "Cookie value for 'api_key' contains characters outside the RFC 6265"
+                + " cookie-octet set; percent-encode the value before passing it");
     assertThat(capturing.capturedUrl).isNull();
   }
 
-  @Test
-  void deletePetSendsAValidCookieParameterInTheCookieHeader() throws Exception {
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(
+      strings = {"k-1", "a%20b%3D", "dG9rZW4=", "!#$%&'()*+-./:<=>?@[]^_`{|}~"})
+  void deletePetSendsALegalCookieValueRaw(String value) throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     PetApi petApi =
         new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
-    petApi.deletePet(1L, new DeletePetOptions().apiKey("k-1"));
+    petApi.deletePet(1L, new DeletePetOptions().apiKey(value));
 
     assertNotNull(capturing.capturedHeaders);
-    assertThat(capturing.capturedHeaders).containsEntry("Cookie", "api_key=k-1");
+    assertThat(capturing.capturedHeaders).containsEntry("Cookie", "api_key=" + value);
   }
 
   @Test

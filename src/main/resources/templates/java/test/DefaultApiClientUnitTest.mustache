@@ -2435,4 +2435,85 @@ class DefaultApiClientUnitTest {
       echo.stop(0);
     }
   }
+
+  @Test
+  void closingTheClientLetsARunningRequestFinish() throws Exception {
+    var entered = new java.util.concurrent.CountDownLatch(1);
+    var release = new java.util.concurrent.CountDownLatch(1);
+    HttpServer slow = HttpServer.create(new InetSocketAddress(0), 0);
+    slow.createContext(
+        "/",
+        exchange -> {
+          entered.countDown();
+          try {
+            release.await();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          byte[] response = "done".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+    slow.start();
+    var result = new java.util.concurrent.atomic.AtomicReference<ApiHttpResponse>();
+    try {
+      DefaultApiClient client = new DefaultApiClient();
+      Thread running =
+          new Thread(
+              () -> result.set(client.sendRequest("GET", urlOf(slow), Map.of(), null)));
+      running.start();
+      assertTrue(entered.await(10, java.util.concurrent.TimeUnit.SECONDS));
+
+      client.close();
+
+      assertFalse(client.isTransportReleased(), "a request is still in flight");
+      IllegalStateException refused =
+          assertThrowsExactly(
+              IllegalStateException.class,
+              () -> client.sendRequest("GET", urlOf(slow), Map.of(), null));
+      assertEquals("ApiClient has been closed and can no longer send requests", refused.getMessage());
+      release.countDown();
+      running.join(10_000);
+      ApiHttpResponse finished = java.util.Objects.requireNonNull(result.get());
+      assertEquals(200, finished.statusCode());
+      assertEquals("done", finished.body());
+      assertTrue(client.isTransportReleased(), "the last request released the transport");
+    } finally {
+      release.countDown();
+      slow.stop(0);
+    }
+  }
+
+  @Test
+  void closingTwiceIsANoOpAndReleasesTheTransportOnce() {
+    DefaultApiClient client = new DefaultApiClient();
+    assertFalse(client.isTransportReleased());
+
+    client.close();
+    assertTrue(client.isTransportReleased());
+    client.close();
+
+    assertTrue(client.isTransportReleased());
+  }
+
+  @Test
+  void closingNeverReleasesACallerSuppliedTransport() throws Exception {
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().httpClient(supplied).build());
+      client.close();
+      client.close();
+
+      assertFalse(supplied.isTerminated());
+      assertFalse(client.isTransportReleased());
+      assertThrowsExactly(
+          IllegalStateException.class,
+          () -> client.sendRequest("GET", baseUrl + "/echo", Map.of(), null));
+    } finally {
+      supplied.close();
+    }
+  }
 }

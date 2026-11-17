@@ -31,6 +31,15 @@ public final class SessionCookieAuthenticator extends BaseAuthenticator {
     this(host, apiKey, System.getenv());
   }
 
+  /**
+   * Creates an authenticator whose every credential is read from its environment variable.
+   *
+   * @param host the API base URL (never read from the environment)
+   */
+  public SessionCookieAuthenticator(String host) {
+    this(host, null, System.getenv());
+  }
+
   /* Package-private so a test can supply the environment instead of the process one. */
   SessionCookieAuthenticator(
       String host, @Nullable String apiKey, Map<String, String> environment) {

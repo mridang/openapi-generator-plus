@@ -38,6 +38,15 @@ public final class SsoAuthAuthenticator extends OpenIdConnectAuthenticator {
     this(host, clientId, clientSecret, redirectUri, System.getenv());
   }
 
+  /**
+   * Creates an authenticator whose every credential is read from its environment variable.
+   *
+   * @param host the API base URL (never read from the environment)
+   */
+  public SsoAuthAuthenticator(String host) {
+    this(host, null, null, null, System.getenv());
+  }
+
   /* Package-private so a test can supply the environment instead of the process one. */
   SsoAuthAuthenticator(
       String host,

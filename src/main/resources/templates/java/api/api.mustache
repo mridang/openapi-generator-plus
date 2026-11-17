@@ -128,6 +128,24 @@ public class {{classname}} extends BaseApi {
     public {{classname}}(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
         super(apiClient, config, authenticator);
     }
+
+    /**
+     * Creates an instance with the given client, configuration, default authenticator and one
+     * credential per security scheme. Each operation uses the credential of the first scheme its
+     * spec lists that is held here, and falls back to {@code authenticator} when it holds none.
+     *
+     * @param apiClient the API client used to execute requests
+     * @param config the client configuration
+     * @param authenticator the default authenticator, or {@code null} for none
+     * @param schemeAuthenticators the credential for each security scheme, keyed by scheme name
+     */
+    public {{classname}}(
+            ApiClient apiClient,
+            Configuration config,
+            @Nullable Authenticator authenticator,
+            Map<String, Authenticator> schemeAuthenticators) {
+        super(apiClient, config, authenticator, schemeAuthenticators);
+    }
     {{#operation}}
 
 {{#servers}}{{#-first}}
@@ -152,9 +170,8 @@ public class {{classname}} extends BaseApi {
      * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
-     * any optional parameters{{#hasAuthMethods}}, the per-call authenticator{{/hasAuthMethods}} and
-     * the per-call timeout, retry count and headers stay unset, so the client's configured
-     * settings apply.
+     * any optional parameters and the per-call timeout, retry count and headers stay unset, so
+     * the client's configured settings apply.
      *
 {{#returnType}}
      * @return {@code {{{returnType}}}}
@@ -172,9 +189,8 @@ public class {{classname}} extends BaseApi {
      * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
-     * any optional parameters{{#hasAuthMethods}}, the per-call authenticator{{/hasAuthMethods}} and
-     * the per-call timeout, retry count and headers stay unset, so the client's configured
-     * settings apply.
+     * any optional parameters and the per-call timeout, retry count and headers stay unset, so
+     * the client's configured settings apply.
      *
      * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
      * @throws ApiException if fails to make API call
@@ -275,15 +291,6 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
-{{#hasAuthMethods}}
-    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
-        return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}, null{{/vendorExtensions.hasMultipleConsumes}});
-    }
-
-    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}, @Nullable String requestContentType{{/vendorExtensions.hasMultipleConsumes}}) {
-        Authenticator auth = options != null ? options.auth() : null;
-{{/hasAuthMethods}}
-{{^hasAuthMethods}}
 {{#vendorExtensions.hasMultipleConsumes}}
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
         return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, null);
@@ -294,7 +301,6 @@ public class {{classname}} extends BaseApi {
 {{^vendorExtensions.hasMultipleConsumes}}
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
 {{/vendorExtensions.hasMultipleConsumes}}
-{{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
         if ({{paramName}} == null{{#isString}}{{^isUuid}} || {{paramName}}.isEmpty(){{/isUuid}}{{/isString}}) {
@@ -395,19 +401,20 @@ public class {{classname}} extends BaseApi {
         if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             String {{paramName}}CookieValue = {{#vendorExtensions.param.queryContent}}encodeContentCookie(objectSerializer.serialize(options.{{paramName}}())){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}String.valueOf(
                     ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}})){{/vendorExtensions.param.queryContent}};
-            /* RFC 6265 — validate the operation cookie name and the assembled
-             * value with the SAME rule the auth-provided cookie path applies in
-             * BaseApi. Without this, a CR/LF or control-char value supplied at
-             * the call site would be interpolated straight into the Cookie
-             * request header (header injection). Fail closed instead, mirroring
-             * the auth-cookie path's IllegalArgumentException. */
+            /* RFC 6265 — the value is sent exactly as given when every character is a
+             * legal cookie-octet (a value the caller percent-encoded stays as written),
+             * and is refused before any request otherwise: the SDK never encodes a
+             * cookie value, the caller does. The same rule guards the auth-provided
+             * cookie path in BaseApi, so a CR/LF or control character can never be
+             * interpolated into the Cookie request header (header injection). */
             if (!isValidCookieName("{{baseName}}")) {
                 throw new IllegalArgumentException(
                         "Cookie name '{{baseName}}' contains characters forbidden by RFC 6265");
             }
             if (!isValidCookieValue({{paramName}}CookieValue)) {
                 throw new IllegalArgumentException(
-                        "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265");
+                        "Cookie value for '{{baseName}}' contains characters outside the RFC 6265"
+                                + " cookie-octet set; percent-encode the value before passing it");
             }
             cookieJoiner.add("{{baseName}}=" + {{paramName}}CookieValue);
         }
@@ -502,7 +509,7 @@ public class {{classname}} extends BaseApi {
                 new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
                 {{#vendorExtensions.hasMultipleConsumes}}effectiveRequestContentType{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
                 {{#returnType}}{{operationId}}TypeRef{{/returnType}}{{^returnType}}null{{/returnType}},
-                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+                {{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}{{#vendorExtensions.op.hasSecuritySchemes}}resolveSchemeAuth({{#vendorExtensions.op.securitySchemeOrder}}"{{#lambda.javaString}}{{{schemeId}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}null{{/vendorExtensions.op.hasSecuritySchemes}}{{/vendorExtensions.op.securityNone}},
                 {{#vendorExtensions.op.optionsArgOptional}}callTimeout,
                 callMaxRetries,{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}callTimeout,
                 callMaxRetries,{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}null,

@@ -43,7 +43,11 @@ try (Client client = Client.withToken("https://api.example.com", "your-token")) 
 ```
 
 The client is `AutoCloseable`: close it (or use try-with-resources) to release
-its connections. A closed client throws `IllegalStateException`. Errors derive
+its connections. `close()` is graceful and idempotent: it marks the client closed and
+returns, requests already in flight finish, the transport the SDK created is released
+when the last of them completes, and a second `close()` does nothing. A request issued
+after that throws `IllegalStateException` ("ApiClient has been closed and can no longer
+send requests"). A `java.net.http.HttpClient` you supplied is never closed. Errors derive
 from `ApiException`; `NetworkException` and `NetworkTimeoutException` mean no
 HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See
 [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
@@ -115,7 +119,46 @@ parameters, it accepts three per-call settings that apply to that one call only:
 replaces its retry count (`0` turns retries off), and `headers(map)` adds
 request headers after the default headers; authentication headers are applied
 last and still win. Leave the options object out, or pass `null`, to use the
-client's settings.
+client's settings. An options object carries no authenticator: the credential comes
+from the client, as described next.
+
+### Credentials per security scheme
+
+`Client.builder(host)` takes one optional credential per security scheme,
+named after the scheme, so a client can hold several at once:
+
+```java
+var client = Client.builder("https://api.example.com")
+    .petStoreBasic(...)
+    .adminBasic(...)
+    .petStoreBearer(...)
+    .serviceToken(...)
+    .apiKeyHeader(...)
+    .internalApiKey(...)
+    .apiKeyQuery(...)
+    .sessionCookie(...)
+    .machineAuth(...)
+    .legacyAuth(...)
+    .userAuth(...)
+    .browserAuth(...)
+    .ssoAuth(...)
+    .transportOptions(transportOptions)
+    .build();
+```
+
+Each operation uses the credential of the first scheme in its own security list that
+the client holds. When it holds none of them, the operation falls back to the single
+authenticator of `new Client(authenticator)` if there is one, and is sent
+without a credential otherwise. An operation that declares `security: []` never sends one.
+There is no per-call override of the scheme.
+
+### Cookie parameters
+
+A cookie parameter is sent exactly as you give it when every character is a legal RFC 6265
+cookie-octet (a `%` is one, so a value you percent-encoded yourself goes out unchanged). A
+value with a space, double quote, comma, semicolon, backslash, control character or
+non-ASCII character fails with `IllegalArgumentException` before any request is sent;
+percent-encode it first. The SDK never encodes a cookie value for you.
 
 ### Credentials from the environment
 

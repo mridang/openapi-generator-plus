@@ -2911,6 +2911,49 @@
    "reason": "F878: typed factory ofVariant(v) and accessors isVariant() and asVariant() on a oneOf or anyOf wrapper; java's idiom for a union that holds an Object, with an Optional for the typed read"
   },
   {
+   "element": [
+    "baseapi.<ctor>",
+    "*api.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "java"
+   ],
+   "reason": "F857 owner decision: an API class also takes the per-scheme credentials the client holds (an optional fourth argument, a map keyed by scheme name), which an operation resolves for the first scheme its spec lists that the client holds; the (apiClient, config, authenticator) overload is kept, so a call site written against the canonical shape still compiles. Delete this rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "*options.auth",
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "F857 owner decision: no per-call scheme override. An operation uses the credential of the scheme its spec requires, so a java Options class carries no auth setter or getter; the other languages drop it when they adopt F857, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "petfood.dryfood",
+    "petfood.wetfood",
+    "petfood.asdryfood",
+    "petfood.aswetfood"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "S4: a discriminated oneOf is the abstract base class PetFood with the subclasses DryFood and WetFood, so the decoded value is itself the variant and the caller reads it with instanceof and a cast; there is no wrapper to hold a per-variant accessor (java has no actualInstance either, see the rules above)"
+  },
+  {
+   "element": [
+    "reservestockresponse.fromreservation",
+    "reservestockresponse.fromreservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "F878: a java union wrapper names its typed factory of<Variant> (ReserveStockResponse.ofReservation), the JDK's static factory convention (Optional.of, List.of); the other languages say from<Variant>. The extra of<Variant> rule above is the other half of this difference."
+  },
+  {
    "element": "baseapi.invokeapi",
    "aspect": "optional",
    "languages": [
@@ -3316,22 +3359,6 @@
    "element": "apierror.fromresponse",
    "aspect": "params",
    "languages": [
-    "java"
-   ],
-   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
-  },
-  {
-   "element": "apierror.fromresponse",
-   "aspect": "optional",
-   "languages": [
-    "java"
-   ],
-   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
-  },
-  {
-   "element": "apierror.fromresponse",
-   "aspect": "params",
-   "languages": [
     "kotlin",
     "node"
    ],
@@ -3430,35 +3457,6 @@
     "php"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
-  },
-  {
-   "element": "*options",
-   "aspect": "type",
-   "languages": [
-    "java"
-   ],
-   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying the per-call timeout, headers and maxRetries; java mints one for each operation the shared pass would leave without (mintsOptionsForEveryOperation). Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": "*api.*",
-   "aspect": "params",
-   "languages": [
-    "java"
-   ],
-   "value": "*options)",
-   "reason": "owner decision F827 (2026-11-17): every operation, with or without parameters, takes the trailing nullable Options argument that carries the per-call settings (after the server, S8); java has an overload that omits it. Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
-   "element": [
-    "petapi.setpetavatar",
-    "petapi.setpetavatarwithhttpinfo"
-   ],
-   "aspect": "params",
-   "languages": [
-    "java"
-   ],
-   "value": "*options, requestcontenttype)",
-   "reason": "owner decision F827 (2026-11-17): the trailing nullable Options argument that carries the per-call settings, ahead of the content-type selector, which java keeps last. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
    "element": [

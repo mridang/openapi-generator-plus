@@ -202,10 +202,54 @@ class BetterJavaCodegenTest {
     @Test
     void renamesAParameterNamedLikeAPerCallSetting() {
         BetterJavaCodegen codegen = new BetterJavaCodegen();
-        assertEquals("authParam", codegen.toParamName("auth"));
         assertEquals("timeoutParam", codegen.toParamName("timeout"));
         assertEquals("maxRetriesParam", codegen.toParamName("maxRetries"));
         assertEquals("headersParam", codegen.toParamName("headers"));
+    }
+
+    /* F857 - the per-call authenticator is gone, so a parameter named auth keeps its name. */
+    @Test
+    void aParameterNamedAuthKeepsItsNameBecauseNoOptionsObjectHasAnAuthSetting() {
+        assertEquals("auth", new BetterJavaCodegen().toParamName("auth"));
+    }
+
+    /* F857 - each client scheme carries the authenticator import and the builder setter name. */
+    @Test
+    void clientSchemesCarryTheAuthenticatorImportAndTheBuilderSetterName() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        /* processOpenAPI writes the authenticator files, so keep them out of the repository. */
+        codegen.setOutputDir(
+                java.nio.file.Path.of(System.getProperty("java.io.tmpdir"), "client-schemes-render")
+                        .toString());
+        OpenAPI openAPI = new OpenAPI().components(new Components()
+                .addSecuritySchemes("petStoreBasic",
+                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic"))
+                .addSecuritySchemes("machine_auth",
+                        new SecurityScheme().type(SecurityScheme.Type.OAUTH2)
+                                .flows(new io.swagger.v3.oas.models.security.OAuthFlows()
+                                        .clientCredentials(new io.swagger.v3.oas.models.security.OAuthFlow()
+                                                .tokenUrl("https://auth.example.com/token")
+                                                .scopes(new io.swagger.v3.oas.models.security.Scopes()))))
+                .addSecuritySchemes("default",
+                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer"))
+                .addSecuritySchemes("build",
+                        new SecurityScheme().type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER).name("X-Key")));
+
+        codegen.processOpenAPI(openAPI);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> schemes =
+                (List<Map<String, Object>>) codegen.additionalProperties().get("clientSchemes");
+        assertNotNull(schemes);
+        assertEquals(List.of("petStoreBasic", "machine_auth", "default", "build"),
+                schemes.stream().map(s -> s.get("schemeId")).collect(java.util.stream.Collectors.toList()));
+        assertEquals(List.of("petStoreBasic", "machineAuth", "defaultCredential", "buildCredential"),
+                schemes.stream().map(s -> s.get("methodName")).collect(java.util.stream.Collectors.toList()));
+        assertTrue(String.valueOf(schemes.get(0).get("importName")).endsWith(".auth.PetStoreBasicAuthenticator"));
+        assertTrue(String.valueOf(schemes.get(1).get("importName"))
+                .endsWith(".auth.oauth.MachineAuthClientCredentialsAuthenticator"));
+        assertEquals(true, codegen.additionalProperties().get("hasClientSchemes"));
     }
 
     @Test
@@ -332,6 +376,37 @@ class BetterJavaCodegenTest {
                 source);
         assertTrue(source.contains("this(host, apiKey, System.getenv())"), source);
         assertTrue(!source.contains("Supplier"), source);
+    }
+
+    /* F857 - a wrapper can be built from the host alone, every credential coming from the environment. */
+    @Test
+    void everyWrapperCanBeBuiltFromTheHostAlone() {
+        String apiKey =
+                renderedScheme(
+                        "headerKey",
+                        new SecurityScheme()
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER)
+                                .name("X-Api-Key"));
+        assertTrue(apiKey.contains("public HeaderKeyAuthenticator(String host)"), apiKey);
+        assertTrue(apiKey.contains("this(host, null, System.getenv())"), apiKey);
+
+        String basic =
+                renderedScheme(
+                        "basicLogin", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic"));
+        assertTrue(basic.contains("public BasicLoginAuthenticator(String host)"), basic);
+        assertTrue(basic.contains("this(host, null, null, System.getenv())"), basic);
+
+        io.swagger.v3.oas.models.security.OAuthFlow flow =
+                new io.swagger.v3.oas.models.security.OAuthFlow().tokenUrl("https://auth.example.com/t");
+        String oauth =
+                renderedScheme(
+                        "machine",
+                        new SecurityScheme()
+                                .type(SecurityScheme.Type.OAUTH2)
+                                .flows(new io.swagger.v3.oas.models.security.OAuthFlows().clientCredentials(flow)));
+        assertTrue(oauth.contains("public MachineClientCredentialsAuthenticator(String host)"), oauth);
+        assertTrue(oauth.contains("this(host, null, null, System.getenv())"), oauth);
     }
 
     /* F862 - a bearer wrapper resolves its token like any other credential. */
