@@ -11,6 +11,7 @@ import io.ktor.client.engine.mock.toByteArray
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -1375,6 +1376,29 @@ class DefaultApiClientUnitTest {
     inner class ResponseBodyReadError {
 
         @Test
+        @DisplayName("bhvErrors038 a body truncated after the headers throws NetworkException with status 0")
+        fun truncatedBodyAfterHeadersThrowsNetworkExceptionWithStatusZero() {
+            val engine = MockEngine { _ ->
+                val channel = io.ktor.utils.io.ByteChannel(autoFlush = true)
+                // Part of the body arrives, then the connection is reset before the rest.
+                channel.writeStringUtf8("{\"id\":")
+                channel.cancel(java.io.IOException("connection reset mid-body"))
+                respond(
+                    content = channel,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "application/json"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/truncated", emptyMap(), null)
+                }
+            }
+            assertEquals(0, ex.statusCode)
+        }
+
+        @Test
         @DisplayName("bhvErrors043 response-body-read-error-not-wrapped: body-read failure is a NetworkException")
         fun bodyReadFailureWrappedInNetworkException() {
             // Headers are received (status 200) but the body channel is closed
@@ -1803,6 +1827,47 @@ class DefaultApiClientUnitTest {
     inner class CloseLifecycle {
 
         @Test
+        @DisplayName("bhvLifecycle019 close lets an in-flight request finish with its body and refuses a new one")
+        fun closeLetsAnInFlightRequestFinishWithItsBody() {
+            val engine =
+                MockEngine { _ ->
+                    kotlinx.coroutines.delay(300)
+                    respond(
+                        content = "{\"ok\":true}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val apiClient = DefaultApiClient(io.ktor.client.HttpClient(engine))
+            val body =
+                runBlocking {
+                    val pending =
+                        async(kotlinx.coroutines.Dispatchers.Default) {
+                            apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                        }
+                    kotlinx.coroutines.delay(100)
+                    apiClient.close()
+                    assertThrowsExactly(IllegalStateException::class.java) {
+                        runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+                    }
+                    pending.await().body
+                }
+            assertEquals("{\"ok\":true}", body)
+        }
+
+        @Test
+        @DisplayName("bhvLifecycle020 close never closes a transport the caller supplied")
+        fun closeNeverClosesACallerSuppliedTransport() {
+            val custom = io.ktor.client.HttpClient(MockEngine { respond("{}") })
+            val apiClient = DefaultApiClient(TransportOptions.builder().httpClient(custom).build())
+
+            apiClient.close()
+
+            assertTrue(custom.coroutineContext[kotlinx.coroutines.Job]!!.isActive, "a caller-supplied transport was closed")
+            custom.close()
+        }
+
+        @Test
         @DisplayName("bhvLifecycle023 close-lifecycle-three-way: send after close throws IllegalStateException")
         fun sendAfterCloseThrowsIllegalStateException() {
             // Using a client after close() is a wrong call order: the built-in
@@ -1853,7 +1918,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("F1078: closing with nothing in flight releases the transport and a second close does nothing")
+        @DisplayName("bhvLifecycle022 F1078: closing with nothing in flight releases the transport and a second close does nothing")
         fun closeIsIdempotent() {
             val transport = io.ktor.client.HttpClient(MockEngine { respond("{}") })
             val apiClient = DefaultApiClient(transport)
@@ -1900,7 +1965,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a file without PEM blocks is reported as a parse failure naming the quoted path")
+        @DisplayName("bhvErrors039 a file without PEM blocks is reported as a parse failure naming the quoted path")
         fun nonPemCaCertFileNamesTheParseFailure(@org.junit.jupiter.api.io.TempDir dir: java.nio.file.Path) {
             val file = java.io.File(dir.toFile(), "ca.pem")
             file.writeText("not a certificate")

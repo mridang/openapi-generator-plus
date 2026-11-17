@@ -411,6 +411,47 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvErrors026 the request line is its own line and never carries the query string")
+        fun requestLineIsOwnLineWithoutQuery() {
+            val (client, _) = statusClient(404)
+            val ex = assertThrows(NotFoundException::class.java) {
+                runBlocking { PerCallApi(client).call(method = "GET", path = "/items/3?page=2") }
+            }
+            val lines = ex.toString().lines()
+            assertTrue(lines.contains("Request: GET /items/3"), ex.toString())
+            assertTrue(lines.none { it.contains("?") || it.contains("page") }, ex.toString())
+        }
+
+        @Test
+        @DisplayName("bhvErrors027 an absolute URL in the path bypasses the client base URL")
+        fun absoluteUrlInPathBypassesBaseUrl() {
+            val (client, seen) = statusClient(200)
+            runBlocking { PerCallApi(client).call(method = "GET", path = "https://other.example/items/3") }
+            assertEquals("https://other.example/items/3", seen[0].url.toString())
+        }
+
+        @Test
+        @DisplayName("bhvErrors037 each status code throws the matching exception class")
+        fun eachStatusThrowsTheMatchingClass() {
+            val expected =
+                mapOf(
+                    400 to BadRequestException::class.java,
+                    401 to UnauthorizedException::class.java,
+                    404 to NotFoundException::class.java,
+                    500 to InternalServerErrorException::class.java,
+                    503 to ServerException::class.java,
+                )
+            for ((status, type) in expected) {
+                val (client, _) = statusClient(status)
+                val ex = assertThrows(ApiException::class.java) {
+                    runBlocking { PerCallApi(client).call() }
+                }
+                assertInstanceOf(type, ex, "status $status")
+                assertEquals(status, ex.statusCode)
+            }
+        }
+
+        @Test
         @DisplayName("F830: a failure with no response carries the request too")
         fun transportFailureCarriesTheRequest() {
             val client = object : CapturingApiClient() {
