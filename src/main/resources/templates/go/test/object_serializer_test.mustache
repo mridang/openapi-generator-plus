@@ -810,7 +810,7 @@ func TestObjectSerializer_Stringify_Time(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Stringify_Nil(t *testing.T) {
+func TestBhvSerializationparam062_ObjectSerializer_Stringify_NullReturnsEmptyString(t *testing.T) {
 	t.Parallel()
 	result := stringify(nil)
 	if result != "" {

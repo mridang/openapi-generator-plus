@@ -620,9 +620,41 @@ func TestBhvRedirects015_DefaultApiClientUnit_NoRedirectOptionShortCircuits307(t
 	}
 }
 
+// NoRedirect returns a 307 exactly as it arrived: the status, the Location and
+// the body are all the server's own.
+func TestBhvRedirects021_DefaultApiClientUnit_NoRedirectReturnsThe307Verbatim(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "/followed")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+		_, _ = w.Write([]byte("temporary"))
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequestWithOptions(
+		"POST", server.URL+"/redirect",
+		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+		[]byte("client_secret=hunter2"),
+		&RequestOptions{NoRedirect: true},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 307 {
+		t.Errorf("expected raw 307 to surface, got %d", resp.StatusCode)
+	}
+	if got := resp.Headers["location"]; got != "/followed" {
+		t.Errorf("expected the Location /followed kept, got %q", got)
+	}
+	if resp.Body != "temporary" {
+		t.Errorf("expected the body of the 307 kept, got %q", resp.Body)
+	}
+}
+
 // Gap 3.2: NoRedirect must also short-circuit a 308 (Permanent Redirect),
 // returning it verbatim rather than replaying the body to the Location target.
-func TestDefaultApiClientUnit_NoRedirectOptionShortCircuits308(t *testing.T) {
+func TestBhvRedirects022_DefaultApiClientUnit_NoRedirectOptionShortCircuits308(t *testing.T) {
 	t.Parallel()
 	var followUpHit bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1280,7 +1312,7 @@ func TestBhvTransport037_DefaultApiClientUnit_EmptyGzipBodyPassesThroughAsEmpty(
 
 // A redirect to a non-HTTP scheme is refused: the redirect response arrived,
 // so the error is an *ApiError with its real status, never a *NetworkError.
-func TestDefaultApiClientUnit_RedirectToNonHttpSchemeIsApiErrorWithStatus(t *testing.T) {
+func TestBhvRedirects020_DefaultApiClientUnit_RedirectToNonHttpSchemeIsApiErrorWithStatus(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", "ftp://example.com/file")
@@ -1335,8 +1367,93 @@ func TestDefaultApiClientUnit_NetworkErrorMessageRedactsTheQuery(t *testing.T) {
 	}
 }
 
+// A redirect whose budget is spent, and whose last 3xx has no Location, is
+// returned as that response: the missing Location is not an error here.
+func TestBhvRedirects023_DefaultApiClientUnit_LastRedirectWithoutLocationIsReturned(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/last")
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).MaxRedirects(1).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("expected the last 3xx to be returned, got %v", err)
+	}
+	if resp.StatusCode != 302 {
+		t.Errorf("expected status 302, got %d", resp.StatusCode)
+	}
+}
+
+// An exhausted redirect budget is an *ApiError carrying the status of the
+// redirect that was refused, never a *NetworkError.
+func TestBhvRedirects018_DefaultApiClientUnit_ExhaustedRedirectBudgetRaisesApiError(t *testing.T) {
+	t.Parallel()
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", server.URL+"/again")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).MaxRedirects(2).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err = client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError for an exhausted redirect budget, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode() != http.StatusFound {
+		t.Errorf("expected StatusCode 302, got %d", apiErr.StatusCode())
+	}
+	var netErr *pkgerrors.NetworkError
+	if errors.As(err, &netErr) {
+		t.Errorf("an exhausted redirect budget must not be a *NetworkError, got %v", err)
+	}
+}
+
+// A refused redirect's message shows the query of the target as ***, so a
+// query-parameter credential in the Location never reaches the error text.
+func TestBhvRedirects019_DefaultApiClientUnit_RedirectRefusalMessageRedactsTheQuery(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "ftp://example.com/file?api_key=SECRET-KEY")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err = client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
+	if err == nil {
+		t.Fatal("expected the non-HTTP redirect to be refused")
+	}
+	if strings.Contains(err.Error(), "SECRET-KEY") {
+		t.Errorf("the API key leaked into the refusal message: %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "ftp://example.com/file?***") {
+		t.Errorf("expected the query to read ***, got %q", err.Error())
+	}
+}
+
 // Past maxRedirects the refusal reads "too many redirects (exceeded N)".
-func TestDefaultApiClientUnit_TooManyRedirectsUsesTheCanonicalMessage(t *testing.T) {
+func TestBhvRedirects026_DefaultApiClientUnit_ExceedingMaxRedirectsThrowsApiException(t *testing.T) {
 	t.Parallel()
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1353,6 +1470,10 @@ func TestDefaultApiClientUnit_TooManyRedirectsUsesTheCanonicalMessage(t *testing
 	_, err = client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "too many redirects (exceeded 2)") {
 		t.Fatalf("expected the canonical too-many-redirects message, got %v", err)
+	}
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError when maxRedirects is exceeded, got %T", err)
 	}
 }
 
@@ -1818,6 +1939,48 @@ func TestBhvRedirects025_DefaultApiClientUnit_CrossOriginRedirectDropsEveryCrede
 	}
 }
 
+// A 307 that stays on the same origin keeps Authorization and Cookie on the
+// followed request, which replays the body under the same credentials.
+func TestBhvRedirects013_DefaultApiClientUnit_SameOriginRedirectKeepsAuthorizationAndCookie(t *testing.T) {
+	t.Parallel()
+	var received http.Header
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/followed")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		received = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err := client.SendRequest("POST", server.URL+"/start",
+		map[string]string{
+			"Authorization": "Bearer kept-token",
+			"Cookie":        "session=kept",
+			"Content-Type":  "application/x-www-form-urlencoded",
+		},
+		[]byte("grant_type=client_credentials"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := received.Get("Authorization"); got != "Bearer kept-token" {
+		t.Errorf("expected Authorization kept on a same-origin 307, got %q", got)
+	}
+	if got := received.Get("Cookie"); got != "session=kept" {
+		t.Errorf("expected Cookie kept on a same-origin 307, got %q", got)
+	}
+}
+
 // A redirect that stays on the same origin keeps the credentials: dropping them
 // would turn a valid redirect into an unauthenticated request.
 func TestBhvRedirects024_DefaultApiClientUnit_SameOriginRedirectKeepsCredentialHeaders(t *testing.T) {
@@ -1931,7 +2094,7 @@ func TestBhvRetries015_DefaultApiClientUnit_SetCookieResponseIsNotReplayedOnTheN
 // F860: the caller's default headers belong to the API, so a token or discovery
 // request sent through the authenticator adapter leaves them off, while the
 // SDK's own User-Agent stays.
-func TestDefaultApiClientUnit_AuthRequestsOmitTheCallersDefaultHeaders(t *testing.T) {
+func TestBhvRedirects016_DefaultApiClientUnit_NoDefaultHeadersLeavesTransportDefaultsOff(t *testing.T) {
 	t.Parallel()
 	var received http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

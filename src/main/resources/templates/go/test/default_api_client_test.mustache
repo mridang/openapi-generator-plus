@@ -388,7 +388,7 @@ func TestBhvRedirects004_DefaultApiClient_FollowsRedirectsWhenEnabled(t *testing
 
 // An unusable Location (unparseable, or absent) stops the redirect loop: the
 // 3xx itself comes back with its status and body, never a transport error.
-func TestDefaultApiClient_UnusableLocationReturnsTheRedirect(t *testing.T) {
+func TestBhvRedirects010_DefaultApiClient_UnusableLocationReturnsTheRedirect(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		path     string
@@ -420,6 +420,110 @@ func TestDefaultApiClient_UnusableLocationReturnsTheRedirect(t *testing.T) {
 				t.Errorf("%s (follow=%v): expected the Location %q kept, got %q", tc.path, followRedirects, tc.location, got)
 			}
 		}
+	}
+}
+
+// With redirects disabled the 3xx comes back as it arrived, Location included,
+// and the redirect target is never requested.
+func TestBhvRedirects007_DefaultApiClient_ReturnsTheRedirectResponseWhenDisabled(t *testing.T) {
+	t.Parallel()
+	var targetHits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/followed")
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		targetHits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(false).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 302 {
+		t.Errorf("expected status 302, got %d", resp.StatusCode)
+	}
+	if got := resp.Headers["location"]; got != "/followed" {
+		t.Errorf("expected the Location /followed kept, got %q", got)
+	}
+	if targetHits != 0 {
+		t.Errorf("expected the redirect target not to be requested, got %d hits", targetHits)
+	}
+}
+
+// NoRedirect set to false is the default: the call follows redirects as the
+// client does when the flag is off.
+func TestBhvRedirects014_DefaultApiClient_NoRedirectFalseFollowsRedirects(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/followed")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequestWithOptions("GET", server.URL+"/start", map[string]string{}, nil,
+		&RequestOptions{NoRedirect: false})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected the redirect to be followed to 200, got %d", resp.StatusCode)
+	}
+}
+
+// A chain of redirects that stays inside maxRedirects completes with the last
+// response, here two hops within a budget of five.
+func TestBhvRedirects002_DefaultApiClient_RedirectChainWithinTheBudgetCompletes(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/hop1":
+			w.Header().Set("Location", "/hop2")
+			w.WriteHeader(http.StatusFound)
+		case "/hop2":
+			w.Header().Set("Location", "/done")
+			w.WriteHeader(http.StatusFound)
+		default:
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("done"))
+		}
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		MaxRedirects(5).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/hop1", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200 at the end of the chain, got %d", resp.StatusCode)
+	}
+	if resp.Body != "done" {
+		t.Errorf("expected body done from the last hop, got %q", resp.Body)
 	}
 }
 
@@ -856,6 +960,53 @@ func TestBhvRetries011_DefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t 
 				t.Errorf("a refused redirect must not be a *NetworkError, got %v", err)
 			}
 		})
+	}
+}
+
+// A 302 from HTTPS to HTTP proceeds, and the follow-up is a bodyless GET, so
+// the form body never crosses in plaintext.
+func TestBhvRedirects001_DefaultApiClient_Redirect302HttpsToHttpDropsTheBodyAndBecomesGet(t *testing.T) {
+	t.Parallel()
+	var method string
+	var bodyLen int
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		data, _ := io.ReadAll(r.Body)
+		bodyLen = len(data)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer plainTarget.Close()
+
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/downgraded")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer origin.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		VerifySsl(false).
+		FollowRedirects(true).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest(
+		"POST", origin.URL+"/start",
+		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+		[]byte("client_secret=hunter2"),
+	)
+	if err != nil {
+		t.Fatalf("expected the 302 HTTPS to HTTP redirect to proceed, got %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200 from the plaintext target, got %d", resp.StatusCode)
+	}
+	if method != "GET" {
+		t.Errorf("expected the follow-up to be a GET, got %q", method)
+	}
+	if bodyLen != 0 {
+		t.Errorf("expected no body on the follow-up, got %d bytes", bodyLen)
 	}
 }
 
