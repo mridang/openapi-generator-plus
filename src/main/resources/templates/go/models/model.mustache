@@ -243,6 +243,41 @@ func (o {{classname}}) Equal(other {{classname}}) bool {
 	return string(a) == string(b)
 }
 
+{{#hasPasswordProperty}}
+// String returns the model as JSON with every format: password property replaced
+// by "***", so a logged value never shows the secret. The copy is masked, never the
+// receiver, and MarshalJSON (the wire form) still sends the real value.
+func (o {{classname}}) String() string {
+	masked := o
+{{#vars}}
+{{#isPassword}}
+{{#required}}
+{{#isNullable}}
+	if masked.{{name}} != nil {
+		mask := "***"
+		masked.{{name}} = &mask
+	}
+{{/isNullable}}
+{{^isNullable}}
+	masked.{{name}} = "***"
+{{/isNullable}}
+{{/required}}
+{{^required}}
+	if masked.{{name}} != nil {
+		mask := "***"
+		masked.{{name}} = &mask
+	}
+{{/required}}
+{{/isPassword}}
+{{/vars}}
+	data, err := json.Marshal(masked)
+	if err != nil {
+		return "{{classname}}{<unprintable>}"
+	}
+	return string(data)
+}
+{{/hasPasswordProperty}}
+
 {{#vars}}
 // With{{name}} returns a copy of the model with {{name}} replaced; the receiver is unchanged.
 func (o {{classname}}) With{{name}}(value {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}) {{classname}} {

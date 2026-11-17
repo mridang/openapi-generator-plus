@@ -129,7 +129,7 @@ func TestModel_IntegerEnumMembersFollowTheEnumCasing(t *testing.T) {
 
 // F866: a default written next to a $ref initialises the property, both when the
 // model is built and when a payload leaves the key out.
-func TestModel_ASiblingDefaultNextToARefInitialisesTheProperty(t *testing.T) {
+func TestBhvSerializationobject001_Model_ASiblingDefaultNextToARefInitialisesTheProperty(t *testing.T) {
 	t.Parallel()
 	item := models.NewStockItem(models.PriorityNumber1)
 	if item.Availability == nil || *item.Availability != models.AvailabilityOnHold {
@@ -137,7 +137,7 @@ func TestModel_ASiblingDefaultNextToARefInitialisesTheProperty(t *testing.T) {
 	}
 }
 
-func TestModel_ASiblingDefaultNextToARefFillsAnAbsentKeyOnDecode(t *testing.T) {
+func TestBhvSerializationobject050_Model_ASiblingDefaultNextToARefFillsAnAbsentKeyOnDecode(t *testing.T) {
 	t.Parallel()
 	var item models.StockItem
 	if err := json.Unmarshal([]byte(`{"priority":1}`), &item); err != nil {
@@ -161,7 +161,7 @@ func TestModel_AValueSentNextToASiblingDefaultWinsOnDecode(t *testing.T) {
 
 // F316: building a model never validates; an unknown enum value is accepted at
 // construction and rejected loudly only when a payload is decoded.
-func TestModel_ConstructionNeverValidatesAnEnumValue(t *testing.T) {
+func TestBhvSerializationobject029_Model_ConstructionNeverValidatesAnEnumValue(t *testing.T) {
 	t.Parallel()
 	unknown := models.Availability("not-a-member")
 	item := models.NewStockItem(models.Priority(99)).WithAvailability(unknown)
@@ -178,5 +178,29 @@ func TestModel_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
 	}
 	if err := json.Unmarshal([]byte(`{"priority":99}`), &item); err == nil {
 		t.Error("expected the unknown priority to be rejected on decode")
+	}
+}
+
+// format: password is masked in the model's string form, and the wire form still
+// carries the real value. The receiver keeps the real value too.
+func TestBhvSerializationobject007_Model_PasswordIsMaskedInTheStringForm(t *testing.T) {
+	t.Parallel()
+	password := "hunter2"
+	account := models.Account{Username: "u", Password: &password}
+	if strings.Contains(account.String(), "hunter2") {
+		t.Errorf("expected the password masked in the string form, got %s", account.String())
+	}
+	if !strings.Contains(account.String(), `"password":"***"`) {
+		t.Errorf("expected the masked password in the string form, got %s", account.String())
+	}
+	data, err := json.Marshal(account)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"password":"hunter2"`) {
+		t.Errorf("expected the real password on the wire, got %s", data)
+	}
+	if *account.Password != "hunter2" {
+		t.Errorf("expected the receiver to keep the real password, got %q", *account.Password)
 	}
 }
