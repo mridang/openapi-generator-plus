@@ -16,7 +16,7 @@ namespace Test;
 public class ApiExceptionTest
 {
     [Fact]
-    public void ExposesStatusCodeMessageBodyHeadersErrorBody()
+    public void BhvErrors004ExposesStatusCodeMessageBodyHeadersErrorBody()
     {
         var ex = new ApiException(
             404,
@@ -33,7 +33,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void NullHeadersAndBodyMarkTransportNoResponse()
+    public void BhvErrors021NullHeadersAndBodyMarkTransportNoResponse()
     {
         // apierror-responsebody-headers-nullable-split: null is distinct from an
         // empty header map / empty body so a pre-response transport failure can
@@ -45,7 +45,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void IsAnExceptionWithStatusInItsStringForm()
+    public void BhvErrors019IsAnExceptionWithStatusInItsStringForm()
     {
         // Message stays the detail message the exception was constructed with;
         // the response context is rendered by the string conversion, one
@@ -87,7 +87,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyDeserializesTheBodyIntoTheGivenClass()
+    public void BhvErrors013GetTypedErrorBodyDeserializesTheBodyIntoTheGivenClass()
     {
         // Built through FromResponse, the way a real response reaches a caller:
         // the typed body must come out of the raw body, not out of whatever the
@@ -105,7 +105,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseNamesTheRequestMethodAndPathInTheMessage()
+    public void BhvErrors007FromResponseNamesTheRequestMethodAndPathInTheMessage()
     {
         var ex = ApiException.FromResponse(
             404,
@@ -137,7 +137,7 @@ public class ApiExceptionTest
     [InlineData(500)]
     [InlineData(503)]
     [InlineData(302)]
-    public void EveryStatusTypeCarriesTheRequestContext(int status)
+    public void BhvErrors002EveryStatusTypeCarriesTheRequestContext(int status)
     {
         var ex = ApiException.FromResponse(
             status,
@@ -153,7 +153,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseStripsAQueryStringFromTheRequestPath()
+    public void BhvErrors026FromResponseStripsAQueryStringFromTheRequestPath()
     {
         var ex = ApiException.FromResponse(
             400,
@@ -168,7 +168,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseWithoutARequestKeepsThePlainMessage()
+    public void BhvErrors012FromResponseWithoutARequestKeepsThePlainMessage()
     {
         var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null);
 
@@ -178,7 +178,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseRefusesAnOverDeepBodyButKeepsTheStatusType()
+    public void BhvErrors009FromResponseRefusesAnOverDeepBodyButKeepsTheStatusType()
     {
         string deep = new string('[', 2000) + new string(']', 2000);
 
@@ -200,7 +200,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponsePopulatesErrorBodyFromABomPrefixedBody()
+    public void BhvErrors008FromResponsePopulatesErrorBodyFromABomPrefixedBody()
     {
         var ex = ApiException.FromResponse(
             404,
@@ -213,7 +213,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseKeepsAScalarJsonBody()
+    public void BhvErrors010FromResponseKeepsAScalarJsonBody()
     {
         var ex = ApiException.FromResponse(400, new Dictionary<string, string>(), "\"just text\"");
 
@@ -222,7 +222,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseWithAnEmptyBodyHasNoErrorBody()
+    public void BhvErrors016FromResponseWithAnEmptyBodyHasNoErrorBody()
     {
         var ex = ApiException.FromResponse(404, new Dictionary<string, string>(), "");
 
@@ -232,7 +232,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void ToStringOmitsAnEmptyHeaderMapAndAnEmptyBody()
+    public void BhvErrors022ToStringOmitsAnEmptyHeaderMapAndAnEmptyBody()
     {
         var ex = new ApiException(500, "boom", new Dictionary<string, string>(), "");
 
@@ -259,7 +259,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyWithTheWrongShapeThrowsSerializationException()
+    public void BhvErrors017GetTypedErrorBodyWithTheWrongShapeThrowsSerializationException()
     {
         var ex = ApiException.FromResponse(
             400,
@@ -286,7 +286,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
+    public void BhvErrors015GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
     {
         var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null);
 
@@ -294,7 +294,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel()
+    public void BhvErrors014GetTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel()
     {
         var ex = ApiException.FromResponse(
             422,
@@ -309,7 +309,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void ApiExceptionDerivesFromBrandedRoot()
+    public void BhvErrors018ApiExceptionDerivesFromBrandedRoot()
     {
         // unified-exception-hierarchy: ApiException sits under the single
         // branded root so one catch covers every SDK-originated failure.
@@ -333,7 +333,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void NetworkExceptionsDeriveFromApiExceptionWithStatusZero()
+    public void BhvErrors020NetworkExceptionsDeriveFromApiExceptionWithStatusZero()
     {
         // No HTTP response arrived, so the status is 0 and the transport
         // failure is kept as the inner exception. Both sit under ApiException
@@ -352,7 +352,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void SerializationExceptionDerivesFromBrandedRoot()
+    public void BhvErrors025SerializationExceptionDerivesFromBrandedRoot()
     {
         var ex = new SerializationException("nope");
 
@@ -392,7 +392,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson()
+    public void BhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson()
     {
         var ex = ApiException.FromResponse(
             502,
@@ -474,7 +474,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void RenderedBodyEscapesLineBreaksAndControlCharacters()
+    public void BhvErrors001RenderedBodyEscapesLineBreaksAndControlCharacters()
     {
         var ex = new ApiException(500, "boom", null, "a\r\nforged: line\u0007");
 
@@ -486,7 +486,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void RenderedHeadersHideCredentialCarryingValues()
+    public void BhvErrors023RenderedHeadersHideCredentialCarryingValues()
     {
         var ex = new ApiException(
             401,

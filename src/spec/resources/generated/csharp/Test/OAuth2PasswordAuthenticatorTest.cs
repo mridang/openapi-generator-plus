@@ -61,7 +61,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task InvalidatingTheAccessTokenKeepsTheRefreshTokenAndRefreshesNext()
+    public async Task BhvAuthoauthtwopassword004InvalidatingTheAccessTokenKeepsTheRefreshTokenAndRefreshesNext()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -81,7 +81,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task SendsPasswordGrantType()
+    public async Task BhvAuthoauthtwopassword014SendsPasswordGrantType()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -96,7 +96,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task SendsUsernameAndPassword()
+    public async Task BhvAuthoauthtwopassword016SendsUsernameAndPassword()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -111,7 +111,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task SendsClientIdAndSecret()
+    public async Task BhvAuthoauthtwopassword013SendsClientIdAndSecret()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -130,7 +130,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task ReturnsAuthorizationBearerHeader()
+    public async Task BhvAuthoauthtwopassword011ReturnsAuthorizationBearerHeader()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok-pwd\",\"expires_in\":3600}");
@@ -144,7 +144,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task UsesRefreshTokenOnSubsequentCalls()
+    public async Task BhvAuthoauthtwopassword019UsesRefreshTokenOnSubsequentCalls()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -163,7 +163,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
+    public async Task BhvAuthoauthtwopassword017RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -190,7 +190,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public void GetHostReturnsConfiguredHost()
+    public void BhvAuthoauthtwopassword003GetHostReturnsConfiguredHost()
     {
         var auth = CreateAuthenticator();
 
@@ -198,7 +198,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task BasicAuthUrlEncodesClientIdAndSecret()
+    public async Task BhvAuthoauthtwopassword002BasicAuthUrlEncodesClientIdAndSecret()
     {
         // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
         // client_id and client_secret MUST be application/x-www-form-
@@ -239,7 +239,7 @@ public class OAuth2PasswordAuthenticatorTest
     /// must be present.
     /// </summary>
     [Fact]
-    public void RedactsSecret()
+    public void BhvAuthoauthtwopassword007RedactsSecret()
     {
         var auth = CreateAuthenticator();
         string repr = auth.ToString();
@@ -249,7 +249,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public void ReprShowsTheNonSecretFields()
+    public void BhvAuthoauthtwopassword018ReprShowsTheNonSecretFields()
     {
         string repr = CreateAuthenticator().ToString();
 
@@ -264,7 +264,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task SendsScopesSpaceJoinedAsPlus()
+    public async Task BhvAuthoauthtwopassword015SendsScopesSpaceJoinedAsPlus()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -277,7 +277,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task TokenBodyPercentEncodesEverythingButTheUnreservedSet()
+    public async Task BhvAuthoauthtwopassword005TokenBodyPercentEncodesEverythingButTheUnreservedSet()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -303,7 +303,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task BasicAuthPercentEncodesEverythingButTheUnreservedSet()
+    public async Task BhvAuthoauthtwopassword001BasicAuthPercentEncodesEverythingButTheUnreservedSet()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"at\",\"expires_in\":3600}");
@@ -329,7 +329,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
+    public async Task BhvAuthoauthtwopassword006RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -345,7 +345,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task BodyModeRefreshCarriesTheClientCredentials()
+    public async Task BhvAuthoauthtwopassword009BodyModeRefreshCarriesTheClientCredentials()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -373,7 +373,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task BasicModeRefreshCarriesTheBasicHeaderAndNoClientIdInTheBody()
+    public async Task BhvAuthoauthtwopassword008BasicModeRefreshCarriesTheBasicHeaderAndNoClientIdInTheBody()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
@@ -405,7 +405,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public async Task RejectedRefreshReRunsThePasswordGrantAtTheTokenUrl()
+    public async Task BhvAuthoauthtwopassword010RejectedRefreshReRunsThePasswordGrantAtTheTokenUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");

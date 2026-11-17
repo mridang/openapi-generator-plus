@@ -14,7 +14,7 @@ namespace Test;
 public class BearerAuthenticatorTest
 {
     [Fact]
-    public void RawTokenIsPrefixedWithBearer()
+    public void BhvAuthbearer009RawTokenIsPrefixedWithBearer()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "xyz");
         var headers = auth.GetAuthHeaders();
@@ -22,7 +22,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void AlreadyPrefixedTokenIsNotDoubled()
+    public void BhvAuthbearer003AlreadyPrefixedTokenIsNotDoubled()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "Bearer xyz");
         var headers = auth.GetAuthHeaders();
@@ -30,7 +30,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void LowercaseBearerPrefixIsStripped()
+    public void BhvAuthbearer007LowercaseBearerPrefixIsStripped()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "bearer xyz");
         var headers = auth.GetAuthHeaders();
@@ -38,7 +38,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void MixedCaseBearerPrefixIsStripped()
+    public void BhvAuthbearer008MixedCaseBearerPrefixIsStripped()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "BeArEr xyz");
         var headers = auth.GetAuthHeaders();
@@ -46,7 +46,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void RejectsCrlfAndNonAscii()
+    public void BhvAuthbearer012RejectsCrlfAndNonAscii()
     {
         // auth-validation-timing: the token is validated eagerly at
         // construction (matching the 10-SDK majority), so a malformed token
@@ -60,7 +60,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void EmptyTokenIsRejectedAtConstruction()
+    public void BhvAuthbearer005EmptyTokenIsRejectedAtConstruction()
     {
         // bearer-no-empty-token-guard: an empty/whitespace token would emit a
         // bare "Authorization: Bearer " header, sending the request
@@ -72,7 +72,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void WhitespaceOnlyTokenIsRejectedAtConstruction()
+    public void BhvAuthbearer017WhitespaceOnlyTokenIsRejectedAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new BearerAuthenticator("https://api.example.com", "   ")
@@ -80,7 +80,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void UnicodeSpaceIsNotBlankItFailsThePrintableAsciiCheckInstead()
+    public void BhvAuthbearer016UnicodeSpaceIsNotBlankItFailsThePrintableAsciiCheckInstead()
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             new BearerAuthenticator("https://api.example.com", "\u00a0")
@@ -90,14 +90,14 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void TokenThatMerelyStartsWithTheLettersBearerIsKeptWhole()
+    public void BhvAuthbearer015TokenThatMerelyStartsWithTheLettersBearerIsKeptWhole()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "bearerxyz");
         Assert.Equal("Bearer bearerxyz", auth.GetAuthHeaders()["Authorization"]);
     }
 
     [Fact]
-    public void DoublePrefixIsStrippedOnlyOnce()
+    public void BhvAuthbearer004DoublePrefixIsStrippedOnlyOnce()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "Bearer Bearer xyz");
         Assert.Equal("Bearer Bearer xyz", auth.GetAuthHeaders()["Authorization"]);
@@ -108,7 +108,7 @@ public class BearerAuthenticatorTest
     /// must be absent and a *** redaction marker present.
     /// </summary>
     [Fact]
-    public void RedactsSecret()
+    public void BhvAuthbearer011RedactsSecret()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "xyz");
         string repr = auth.ToString();
@@ -117,7 +117,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void ReprShowsTheHostButMasksTheToken()
+    public void BhvAuthbearer013ReprShowsTheHostButMasksTheToken()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "xyz");
 
@@ -128,7 +128,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public async Task ATokenProviderIsCalledForEveryRequest()
+    public async Task BhvAuthbearer014ATokenProviderIsCalledForEveryRequest()
     {
         int calls = 0;
         var auth = new BearerAuthenticator(
@@ -152,7 +152,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public async Task ATokenProviderResultIsValidatedLikeAStaticToken()
+    public async Task BhvAuthbearer002ATokenProviderResultIsValidatedLikeAStaticToken()
     {
         var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult(" "));
 
@@ -160,7 +160,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void ANullTokenProviderIsRejected()
+    public void BhvAuthbearer010ANullTokenProviderIsRejected()
     {
         Assert.Throws<ArgumentNullException>(() =>
             new BearerAuthenticator(

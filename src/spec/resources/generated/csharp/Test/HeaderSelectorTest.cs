@@ -16,25 +16,25 @@ public static class HeaderSelectorTest
     public class IsJsonMimeTests
     {
         [Fact]
-        public void ShouldReturnTrueForApplicationJson()
+        public void BhvHeaders019ShouldReturnTrueForApplicationJson()
         {
             Assert.True(HeaderSelector.IsJsonMime("application/json"));
         }
 
         [Fact]
-        public void ShouldReturnTrueForApplicationJsonWithCharset()
+        public void BhvHeaders020ShouldReturnTrueForApplicationJsonWithCharset()
         {
             Assert.True(HeaderSelector.IsJsonMime("application/json; charset=UTF-8"));
         }
 
         [Fact]
-        public void ShouldReturnTrueForUppercaseApplicationJson()
+        public void BhvHeaders021ShouldReturnTrueForUppercaseApplicationJson()
         {
             Assert.True(HeaderSelector.IsJsonMime("APPLICATION/JSON"));
         }
 
         [Fact]
-        public void ShouldReturnTrueForVendorJsonTypes()
+        public void BhvHeaders022ShouldReturnTrueForVendorJsonTypes()
         {
             Assert.True(HeaderSelector.IsJsonMime("application/vnd.api+json"));
             Assert.True(HeaderSelector.IsJsonMime("application/vnd.company+json"));
@@ -42,31 +42,31 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldReturnFalseForTextHtml()
+        public void BhvHeaders016ShouldReturnFalseForTextHtml()
         {
             Assert.False(HeaderSelector.IsJsonMime("text/html"));
         }
 
         [Fact]
-        public void ShouldReturnFalseForApplicationXml()
+        public void BhvHeaders013ShouldReturnFalseForApplicationXml()
         {
             Assert.False(HeaderSelector.IsJsonMime("application/xml"));
         }
 
         [Fact]
-        public void ShouldReturnFalseForApplicationOctetStream()
+        public void BhvHeaders012ShouldReturnFalseForApplicationOctetStream()
         {
             Assert.False(HeaderSelector.IsJsonMime("application/octet-stream"));
         }
 
         [Fact]
-        public void ShouldReturnFalseForNull()
+        public void BhvHeaders015ShouldReturnFalseForNull()
         {
             Assert.False(HeaderSelector.IsJsonMime(null));
         }
 
         [Fact]
-        public void ShouldReturnFalseForEmptyString()
+        public void BhvHeaders014ShouldReturnFalseForEmptyString()
         {
             Assert.False(HeaderSelector.IsJsonMime(""));
         }
@@ -75,7 +75,7 @@ public static class HeaderSelectorTest
     public class SelectHeadersTests
     {
         [Fact]
-        public void ShouldSetAcceptHeaderWhenAcceptsProvided()
+        public void BhvHeaders024ShouldSetAcceptHeaderWhenAcceptsProvided()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["application/json"],
@@ -86,7 +86,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldNotSetAcceptHeaderWhenAcceptsEmpty()
+        public void BhvHeaders004ShouldNotSetAcceptHeaderWhenAcceptsEmpty()
         {
             var headers = HeaderSelector.SelectHeaders(
                 Array.Empty<string>(),
@@ -97,7 +97,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldSetContentTypeHeaderWhenNotMultipart()
+        public void BhvHeaders025ShouldSetContentTypeHeaderWhenNotMultipart()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["application/json"],
@@ -108,7 +108,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldNotSetContentTypeHeaderWhenMultipart()
+        public void BhvHeaders007ShouldNotSetContentTypeHeaderWhenMultipart()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["application/json"],
@@ -119,14 +119,14 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldDefaultContentTypeToApplicationJsonWhenEmpty()
+        public void BhvHeaders001ShouldDefaultContentTypeToApplicationJsonWhenEmpty()
         {
             var headers = HeaderSelector.SelectHeaders(["application/json"], "", false);
             Assert.Equal("application/json", headers["Content-Type"]);
         }
 
         [Fact]
-        public void ShouldReturnSingleAcceptAsIs()
+        public void BhvHeaders017ShouldReturnSingleAcceptAsIs()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["application/json"],
@@ -137,14 +137,14 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldReturnSingleNonJsonAcceptAsIs()
+        public void BhvHeaders018ShouldReturnSingleNonJsonAcceptAsIs()
         {
             var headers = HeaderSelector.SelectHeaders(["text/html"], "application/json", false);
             Assert.Equal("text/html", headers["Accept"]);
         }
 
         [Fact]
-        public void ShouldJoinInDeclarationOrderWithCommaSpace()
+        public void BhvHeaders011ShouldJoinInDeclarationOrderWithCommaSpace()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["image/jpeg", "image/png", "application/json"],
@@ -155,7 +155,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldNotReorderOrPrioritizeJson()
+        public void BhvHeaders003ShouldNotReorderOrPrioritizeJson()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["text/html", "application/vnd.api+json", "application/json"],
@@ -169,7 +169,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldFilterOutEmptyEntries()
+        public void BhvHeaders010ShouldFilterOutEmptyEntries()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["", "application/json"],
@@ -180,7 +180,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldFilterOutBlankEntries()
+        public void BhvHeaders009ShouldFilterOutBlankEntries()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["   ", "text/html", "", "text/plain"],
@@ -191,7 +191,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldDropWhitespaceOnlyEntries()
+        public void BhvHeaders008ShouldDropWhitespaceOnlyEntries()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["   ", "application/json"],
@@ -202,7 +202,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldNotSetAcceptHeaderWhenAllEntriesBlank()
+        public void BhvHeaders006ShouldNotSetAcceptHeaderWhenAllEntriesBlank()
         {
             var headers = HeaderSelector.SelectHeaders(["", "   "], "application/json", false);
             Assert.False(headers.ContainsKey("Accept"));
@@ -218,7 +218,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldReturnEmptyStringWhenAcceptsNull()
+        public void BhvHeaders005ShouldReturnEmptyStringWhenAcceptsNull()
         {
             Assert.Equal(string.Empty, HeaderSelector.SelectAcceptHeader(null));
         }

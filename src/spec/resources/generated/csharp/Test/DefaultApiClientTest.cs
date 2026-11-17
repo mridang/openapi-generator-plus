@@ -29,7 +29,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task MakesHttpsRequestWithVerifySslFalse()
+    public async Task BhvTransport018MakesHttpsRequestWithVerifySslFalse()
     {
         var transport = TransportOptions.Builder().VerifySsl(false).Build();
 
@@ -47,7 +47,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task RepeatedResponseHeadersArriveJoinedInOrderUnderTheirLowerCasedNames()
+    public async Task BhvTransport022RepeatedResponseHeadersArriveJoinedInOrderUnderTheirLowerCasedNames()
     {
         var client = new DefaultApiClient();
 
@@ -75,7 +75,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task VerifySslTrueRejectsAnUntrustedCertificate()
+    public async Task BhvTransport025VerifySslTrueRejectsAnUntrustedCertificate()
     {
         /* The mock server's certificate is signed by a test CA that the system
            trust store does not know. With verification on and no CA supplied the
@@ -97,7 +97,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task VerifySslDefaultRejectsAnUntrustedCertificate()
+    public async Task BhvTransport023VerifySslDefaultRejectsAnUntrustedCertificate()
     {
         var transport = TransportOptions.Builder().MaxRetries(0).Build();
 
@@ -115,7 +115,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task MakesHttpsRequestWithCustomCaCert()
+    public async Task BhvTransport017MakesHttpsRequestWithCustomCaCert()
     {
         // Test runs inside the dotnet container where /work is the project mount;
         // read the cert from the container's local FS, not from HOST_APP_PATH
@@ -307,7 +307,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task MakesHttpRequestThroughProxy()
+    public async Task BhvTransport015MakesHttpRequestThroughProxy()
     {
         var transport = TransportOptions.Builder().Proxy(_fixture.ProxyUrl).Build();
 
@@ -324,7 +324,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task IgnoresAmbientProxyWhenNoProxyIsConfigured()
+    public async Task BhvTransport009IgnoresAmbientProxyWhenNoProxyIsConfigured()
     {
         var original = HttpClient.DefaultProxy;
         HttpClient.DefaultProxy = new System.Net.WebProxy("http://127.0.0.1:1");
@@ -350,7 +350,7 @@ public class DefaultApiClientTest
     // and surfaced as Proxy-Authorization so the proxy can authenticate
     // the tunnel — otherwise the proxy 407s. This test is fixture-independent.
     [Fact]
-    public void ProxyWithCredentialsInjectsBasicAuthorization()
+    public void BhvTransport021ProxyWithCredentialsInjectsBasicAuthorization()
     {
         var transport = TransportOptions
             .Builder()
@@ -368,7 +368,7 @@ public class DefaultApiClientTest
     // surfaces them as a Basic Proxy-Authorization value rather than dropping
     // them. Fixture-independent — exercises only credential propagation.
     [Fact]
-    public void ProxyUrlWithUserPassCarriesProxyCredentials()
+    public void BhvTransport020ProxyUrlWithUserPassCarriesProxyCredentials()
     {
         var transport = TransportOptions.Builder().Proxy("http://user:pass@127.0.0.1:3128").Build();
 
@@ -379,7 +379,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task MakesHttpsRequestThroughProxyWithVerifySslFalse()
+    public async Task BhvTransport016MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
         var transport = TransportOptions
             .Builder()
@@ -402,7 +402,7 @@ public class DefaultApiClientTest
     // -- Request timeout --
 
     [Fact]
-    public async Task TimesOutOnSlowEndpoint()
+    public async Task BhvTransport024TimesOutOnSlowEndpoint()
     {
         var transport = TransportOptions.Builder().Timeout(1000).Build();
 
@@ -466,7 +466,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task TimeoutIsOneBudgetAcrossRedirectHops()
+    public async Task BhvRedirects009TimeoutIsOneBudgetAcrossRedirectHops()
     {
         var transport = TransportOptions.Builder().Timeout(1200).Build();
 
@@ -484,7 +484,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task RedirectChainWithinTheTimeoutBudgetSucceeds()
+    public async Task BhvRedirects002RedirectChainWithinTheTimeoutBudgetSucceeds()
     {
         var transport = TransportOptions.Builder().Timeout(5000).Build();
 
@@ -503,7 +503,7 @@ public class DefaultApiClientTest
     // -- User-Agent header --
 
     [Fact]
-    public async Task InjectsCustomUserAgentHeader()
+    public async Task BhvTransport012InjectsCustomUserAgentHeader()
     {
         var transport = TransportOptions.Builder().UserAgent("MyApp/1.0").Build();
 
@@ -527,7 +527,7 @@ public class DefaultApiClientTest
     // -- X-Request-ID injection --
 
     [Fact]
-    public async Task InjectsRequestIdHeader()
+    public async Task BhvTransport013InjectsRequestIdHeader()
     {
         var transport = TransportOptions.Builder().InjectRequestId(true).Build();
 
@@ -553,7 +553,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task GeneratesUniqueRequestIds()
+    public async Task BhvTransport007GeneratesUniqueRequestIds()
     {
         var transport = TransportOptions.Builder().InjectRequestId(true).Build();
 
@@ -589,7 +589,7 @@ public class DefaultApiClientTest
     // -- Default headers --
 
     [Fact]
-    public async Task IncludesTransportDefaultHeaders()
+    public async Task BhvTransport010IncludesTransportDefaultHeaders()
     {
         var transport = TransportOptions
             .Builder()
@@ -613,7 +613,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CallerHeadersOverrideTransportDefaults()
+    public async Task BhvOptions004CallerHeadersOverrideTransportDefaults()
     {
         var transport = TransportOptions.Builder().DefaultHeader("Accept", "text/plain").Build();
 
@@ -636,7 +636,7 @@ public class DefaultApiClientTest
     // -- Redirect handling --
 
     [Fact]
-    public async Task FollowsRedirectsWhenEnabled()
+    public async Task BhvRedirects004FollowsRedirectsWhenEnabled()
     {
         var transport = TransportOptions.Builder().FollowRedirects(true).Build();
 
@@ -654,7 +654,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task ReturnsRedirectWhenDisabled()
+    public async Task BhvRedirects008ReturnsRedirectWhenDisabled()
     {
         var transport = TransportOptions.Builder().FollowRedirects(false).Build();
 
@@ -673,7 +673,7 @@ public class DefaultApiClientTest
     /// Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.
     /// </summary>
     [Fact]
-    public async Task Redirect303SwitchesToGetAndDropsBody()
+    public async Task BhvRedirects005Redirect303SwitchesToGetAndDropsBody()
     {
         var transport = TransportOptions.Builder().FollowRedirects(true).MaxRedirects(5).Build();
 
@@ -701,7 +701,7 @@ public class DefaultApiClientTest
     // (throws where others proceed), the canonical guards 307/308 only.
 
     [Fact]
-    public async Task Downgrade302WithBodyProceedsAsGet()
+    public async Task BhvRedirects001Downgrade302WithBodyProceedsAsGet()
     {
         var handler = new DowngradeRedirectHandler(
             firstStatus: HttpStatusCode.Redirect, // 302
@@ -761,7 +761,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task Downgrade307WithBodyThrows()
+    public async Task BhvRetries011Downgrade307WithBodyThrows()
     {
         var handler = new DowngradeRedirectHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb, // 307
@@ -799,7 +799,7 @@ public class DefaultApiClientTest
     // -- Max redirects --
 
     [Fact]
-    public void RespectsMaxRedirectsLimit()
+    public void BhvRedirects006RespectsMaxRedirectsLimit()
     {
         var transport = TransportOptions.Builder().FollowRedirects(true).MaxRedirects(5).Build();
 
@@ -822,7 +822,7 @@ public class DefaultApiClientTest
     /// If counting were shared per-client this would flake or cross-fail.
     /// </summary>
     [Fact]
-    public async Task ConcurrentRedirectsAreCountedPerRequestNotPerClient()
+    public async Task BhvRedirects003ConcurrentRedirectsAreCountedPerRequestNotPerClient()
     {
         var transport = TransportOptions.Builder().FollowRedirects(true).MaxRedirects(5).Build();
 
@@ -872,7 +872,7 @@ public class DefaultApiClientTest
     // -- Multipart body --
 
     [Fact]
-    public async Task SendsMultipartFormData()
+    public async Task BhvSerializationwire027SendsMultipartFormData()
     {
         var client = new DefaultApiClient();
         var formData = new Dictionary<string, object>
@@ -897,7 +897,7 @@ public class DefaultApiClientTest
     /// smuggling.
     /// </summary>
     [Fact]
-    public async Task MultipartFieldNameWithCrlfRejectedOnStringValue()
+    public async Task BhvSerializationwire026MultipartFieldNameWithCrlfRejectedOnStringValue()
     {
         var client = new DefaultApiClient();
         var badFields = new Dictionary<string, object>
@@ -917,7 +917,7 @@ public class DefaultApiClientTest
     // -- HTTP compression --
 
     [Fact]
-    public async Task DecompressesGzipResponse()
+    public async Task BhvTransport005DecompressesGzipResponse()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -932,7 +932,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task DecompressesBrotliResponse()
+    public async Task BhvTransport004DecompressesBrotliResponse()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -947,7 +947,7 @@ public class DefaultApiClientTest
     }
 
     [Fact(Skip = "zstd is not supported by the platform: .NET has no built-in zstd decoder")]
-    public async Task DecompressesZstdResponse()
+    public async Task BhvTransport006DecompressesZstdResponse()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -968,7 +968,7 @@ public class DefaultApiClientTest
      * ByteArrayContent so HttpClient emits the header.
      */
     [Fact]
-    public async Task PostWithNullBodySendsContentLengthZero()
+    public async Task BhvTransport019PostWithNullBodySendsContentLengthZero()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -1023,7 +1023,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CloseReleasesUnderlyingClient()
+    public async Task BhvLifecycle018CloseReleasesUnderlyingClient()
     {
         var client = new DefaultApiClient();
         client.Dispose();

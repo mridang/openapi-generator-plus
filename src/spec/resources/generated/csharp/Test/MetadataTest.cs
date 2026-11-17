@@ -17,7 +17,7 @@ public class MetadataTest
     private readonly ObjectSerializer _serializer = new();
 
     [Fact]
-    public void SerializesEmptyMetadata()
+    public void BhvModels008SerializesEmptyMetadata()
     {
         var metadata = new Metadata();
 
@@ -27,7 +27,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void DeserializesEmptyObject()
+    public void BhvModels003DeserializesEmptyObject()
     {
         var json = "{}";
 
@@ -45,7 +45,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void AdditionalPropertiesIsEmptyWhenNoUnknownKeysArrive()
+    public void BhvModels001AdditionalPropertiesIsEmptyWhenNoUnknownKeysArrive()
     {
         var metadata = _serializer.Deserialize<Metadata>("{}");
         Assert.NotNull(metadata!.AdditionalProperties);
@@ -63,7 +63,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void DeserializesAdditionalStringProperties()
+    public void BhvModels004DeserializesAdditionalStringProperties()
     {
         var json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
         var metadata = _serializer.Deserialize<Metadata>(json);
@@ -73,7 +73,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void RoundTripPreservesAdditionalProperties()
+    public void BhvModels011RoundTripPreservesAdditionalProperties()
     {
         var metadata = new Metadata
         {
@@ -91,7 +91,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void AdditionalPropertiesContainStringValues()
+    public void BhvModels009AdditionalPropertiesContainStringValues()
     {
         var metadata = new Metadata
         {
@@ -157,7 +157,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void FileHeaderCarriesTheInfoDescriptionWithoutStringEscapes()
+    public void BhvModels006FileHeaderCarriesTheInfoDescriptionWithoutStringEscapes()
     {
         /* The description is escaped for string literals when it is read; a
            comment must show the prose, so no backslash may sit before a quote. */
@@ -176,7 +176,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ProjectManifestDeclaresANonEmptyDescription()
+    public void BhvModels002ProjectManifestDeclaresANonEmptyDescription()
     {
         /* The package manifest must carry a description, wired from the spec's
            description with a generated fallback, so the NuGet listing is never blank. */
@@ -299,7 +299,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ModelWithoutAnExampleDoesNotDocumentALiteralNull()
+    public void BhvModels007ModelWithoutAnExampleDoesNotDocumentALiteralNull()
     {
         /* A property that declares no example leaves the codegen example as the
            string "null", which is truthy in Mustache; Tag carries no example, so it
@@ -329,7 +329,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void EqualityIncludesAdditionalProperties()
+    public void BhvModels005EqualityIncludesAdditionalProperties()
     {
         var plain = new Metadata();
         var withExtra = new Metadata
@@ -365,7 +365,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void DeclaredPropertyWinsOverACollidingAdditionalProperty()
+    public void BhvModels010DeclaredPropertyWinsOverACollidingAdditionalProperty()
     {
         var metadata = new Metadata
         {

@@ -23,7 +23,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderProducesCorrectDefaults()
+    public void BhvConfig005BuilderProducesCorrectDefaults()
     {
         var config = Configuration.Builder().Build();
 
@@ -32,7 +32,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderReturnsConfigurationBuilderInstance()
+    public void BhvConfig007BuilderReturnsConfigurationBuilderInstance()
     {
         var builder = Configuration.Builder();
 
@@ -40,7 +40,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderSetsBaseUrl()
+    public void BhvConfig011BuilderSetsBaseUrl()
     {
         var config = Configuration.Builder().BaseUrl("https://custom.example.com").Build();
 
@@ -48,7 +48,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderSetsSingleDefaultHeader()
+    public void BhvConfig013BuilderSetsSingleDefaultHeader()
     {
         var config = Configuration
             .Builder()
@@ -60,7 +60,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderSetsMultipleDefaultHeaders()
+    public void BhvConfig012BuilderSetsMultipleDefaultHeaders()
     {
         var config = Configuration
             .Builder()
@@ -79,7 +79,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderAccumulatesHeaders()
+    public void BhvConfig002BuilderAccumulatesHeaders()
     {
         var config = Configuration
             .Builder()
@@ -95,7 +95,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderSetsAllFields()
+    public void BhvConfig010BuilderSetsAllFields()
     {
         var config = Configuration
             .Builder()
@@ -111,7 +111,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderServerResolvesUrl()
+    public void BhvConfig008BuilderServerResolvesUrl()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com/api/{version}",
@@ -129,7 +129,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderServerWithVariableOverrides()
+    public void BhvConfig009BuilderServerWithVariableOverrides()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com/api/{version}",
@@ -153,7 +153,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void InvalidServerVariableEnumValueThrows()
+    public void BhvConfig016InvalidServerVariableEnumValueThrows()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com",
@@ -173,7 +173,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderProducesIndependentInstances()
+    public void BhvConfig006BuilderProducesIndependentInstances()
     {
         var builder = Configuration.Builder().BaseUrl("https://example.com");
         var first = builder.Build();
@@ -184,7 +184,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderBaseUrlOverridesServer()
+    public void BhvConfig001BuilderBaseUrlOverridesServer()
     {
         var server = new ServerConfiguration(
             "https://api.example.com",
@@ -212,7 +212,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void DefaultConfigurationIsStateless()
+    public void BhvConfig014DefaultConfigurationIsStateless()
     {
         // There is no settable process-wide default: every call hands back a
         // fresh instance, so one caller cannot change what another gets.
@@ -233,7 +233,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BuilderIsFluent()
+    public void BhvConfig003BuilderIsFluent()
     {
         var builder = Configuration.Builder();
 

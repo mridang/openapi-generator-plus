@@ -17,7 +17,7 @@ public class ServerVariableTest
     private static readonly string[] ExpectedCopiedValues = ["api", "staging"];
 
     [Fact]
-    public void ExposesDefaultValueDescriptionAndEnum()
+    public void BhvServers017ExposesDefaultValueDescriptionAndEnum()
     {
         var variable = new ServerVariable("v3", "API version", ["v2", "v3"]);
 
@@ -27,7 +27,7 @@ public class ServerVariableTest
     }
 
     [Fact]
-    public void AllowsNullDescription()
+    public void BhvServers015AllowsNullDescription()
     {
         var variable = new ServerVariable("api", null, ["api", "staging"]);
 
@@ -36,7 +36,7 @@ public class ServerVariableTest
     }
 
     [Fact]
-    public void AllowsEmptyEnum()
+    public void BhvServers016AllowsEmptyEnum()
     {
         var variable = new ServerVariable("anything", null, []);
 

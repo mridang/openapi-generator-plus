@@ -19,31 +19,31 @@ public static class ObjectSerializerTest
     public class StringifyTests
     {
         [Fact]
-        public void NullReturnsEmptyString()
+        public void BhvSerializationobject110NullReturnsEmptyString()
         {
             Assert.Equal("", ObjectSerializer.Stringify(null));
         }
 
         [Fact]
-        public void BooleanTrueReturnsLowercaseString()
+        public void BhvSerializationobject028BooleanTrueReturnsLowercaseString()
         {
             Assert.Equal("true", ObjectSerializer.Stringify(true));
         }
 
         [Fact]
-        public void BooleanFalseReturnsLowercaseString()
+        public void BhvSerializationobject027BooleanFalseReturnsLowercaseString()
         {
             Assert.Equal("false", ObjectSerializer.Stringify(false));
         }
 
         [Fact]
-        public void IntegerReturnsStringRepresentation()
+        public void BhvSerializationobject091IntegerReturnsStringRepresentation()
         {
             Assert.Equal("42", ObjectSerializer.Stringify(42));
         }
 
         [Fact]
-        public void ByteArrayReturnsStandardBase64()
+        public void BhvSerializationobject156ByteArrayReturnsStandardBase64()
         {
             Assert.Equal("aGk=", ObjectSerializer.Stringify(new byte[] { 0x68, 0x69 }));
             Assert.Equal("+/8=", ObjectSerializer.Stringify(new byte[] { 0xFB, 0xFF }));
@@ -58,13 +58,13 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PlainStringPassesThroughUnchanged()
+        public void BhvSerializationobject114PlainStringPassesThroughUnchanged()
         {
             Assert.Equal("hello", ObjectSerializer.Stringify("hello"));
         }
 
         [Fact]
-        public void DoubleReturnsStringRepresentation()
+        public void BhvSerializationobject078DoubleReturnsStringRepresentation()
         {
             Assert.Equal("3.14", ObjectSerializer.Stringify(3.14));
         }
@@ -86,14 +86,14 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void GuidReturnsStringRepresentation()
+        public void BhvSerializationobject175GuidReturnsStringRepresentation()
         {
             var guid = System.Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
             Assert.Equal("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.Stringify(guid));
         }
 
         [Fact]
-        public void DateOnlyReturnsIso8601DateString()
+        public void BhvSerializationobject134DateOnlyReturnsIso8601DateString()
         {
             var date = new DateOnly(2024, 1, 15);
             Assert.Equal("2024-01-15", ObjectSerializer.Stringify(date));
@@ -103,31 +103,31 @@ public static class ObjectSerializerTest
     public class ToPathValueTests
     {
         [Fact]
-        public void ReturnsEmptyStringForNull()
+        public void BhvSerializationobject130ReturnsEmptyStringForNull()
         {
             Assert.Equal("", ObjectSerializer.ToPathValue(null));
         }
 
         [Fact]
-        public void ReturnsStringForStringValue()
+        public void BhvSerializationobject141ReturnsStringForStringValue()
         {
             Assert.Equal("hello", ObjectSerializer.ToPathValue("hello"));
         }
 
         [Fact]
-        public void ConvertsIntegerToString()
+        public void BhvSerializationobject036ConvertsIntegerToString()
         {
             Assert.Equal("42", ObjectSerializer.ToPathValue(42));
         }
 
         [Fact]
-        public void ConvertsTrueToString()
+        public void BhvSerializationobject043ConvertsTrueToString()
         {
             Assert.Equal("true", ObjectSerializer.ToPathValue(true));
         }
 
         [Fact]
-        public void ConvertsFalseToString()
+        public void BhvSerializationobject033ConvertsFalseToString()
         {
             Assert.Equal("false", ObjectSerializer.ToPathValue(false));
         }
@@ -136,72 +136,72 @@ public static class ObjectSerializerTest
     public class ToQueryValueTests
     {
         [Fact]
-        public void ReturnsNullForNull()
+        public void BhvSerializationobject137ReturnsNullForNull()
         {
             Assert.Null(ObjectSerializer.ToQueryValue(null, null));
         }
 
         [Fact]
-        public void ReturnsStringForStringValue()
+        public void BhvSerializationobject139ReturnsStringForStringValue()
         {
             Assert.Equal("hello", ObjectSerializer.ToQueryValue("hello", null));
         }
 
         [Fact]
-        public void ConvertsIntegerToString()
+        public void BhvSerializationobject037ConvertsIntegerToString()
         {
             Assert.Equal("42", ObjectSerializer.ToQueryValue(42, null));
         }
 
         [Fact]
-        public void ConvertsTrueToString()
+        public void BhvSerializationobject041ConvertsTrueToString()
         {
             Assert.Equal("true", ObjectSerializer.ToQueryValue(true, null));
         }
 
         [Fact]
-        public void ConvertsFalseToString()
+        public void BhvSerializationobject034ConvertsFalseToString()
         {
             Assert.Equal("false", ObjectSerializer.ToQueryValue(false, null));
         }
 
         [Fact]
-        public void JoinsListWithCommaByDefault()
+        public void BhvSerializationobject097JoinsListWithCommaByDefault()
         {
             var list = new List<string> { "a", "b", "c" };
             Assert.Equal("a,b,c", ObjectSerializer.ToQueryValue(list, null));
         }
 
         [Fact]
-        public void JoinsListWithCommaForCsv()
+        public void BhvSerializationobject098JoinsListWithCommaForCsv()
         {
             var list = new List<string> { "a", "b", "c" };
             Assert.Equal("a,b,c", ObjectSerializer.ToQueryValue(list, "csv"));
         }
 
         [Fact]
-        public void JoinsListWithSpaceForSsv()
+        public void BhvSerializationobject100JoinsListWithSpaceForSsv()
         {
             var list = new List<string> { "a", "b", "c" };
             Assert.Equal("a b c", ObjectSerializer.ToQueryValue(list, "ssv"));
         }
 
         [Fact]
-        public void JoinsListWithTabForTsv()
+        public void BhvSerializationobject101JoinsListWithTabForTsv()
         {
             var list = new List<string> { "a", "b", "c" };
             Assert.Equal("a\tb\tc", ObjectSerializer.ToQueryValue(list, "tsv"));
         }
 
         [Fact]
-        public void JoinsListWithPipeForPipes()
+        public void BhvSerializationobject099JoinsListWithPipeForPipes()
         {
             var list = new List<string> { "a", "b", "c" };
             Assert.Equal("a|b|c", ObjectSerializer.ToQueryValue(list, "pipes"));
         }
 
         [Fact]
-        public void ReturnsListForMulti()
+        public void BhvSerializationobject135ReturnsListForMulti()
         {
             var list = new List<string> { "a", "b", "c" };
             Assert.Equal(list, ObjectSerializer.ToQueryValue(list, "multi"));
@@ -211,25 +211,25 @@ public static class ObjectSerializerTest
     public class ToHeaderValueTests
     {
         [Fact]
-        public void ReturnsEmptyStringForNull()
+        public void BhvSerializationobject131ReturnsEmptyStringForNull()
         {
             Assert.Equal("", ObjectSerializer.ToHeaderValue(null));
         }
 
         [Fact]
-        public void ReturnsStringForStringValue()
+        public void BhvSerializationobject142ReturnsStringForStringValue()
         {
             Assert.Equal("hello", ObjectSerializer.ToHeaderValue("hello"));
         }
 
         [Fact]
-        public void ConvertsIntegerToString()
+        public void BhvSerializationobject038ConvertsIntegerToString()
         {
             Assert.Equal("42", ObjectSerializer.ToHeaderValue(42));
         }
 
         [Fact]
-        public void JoinsListWithComma()
+        public void BhvSerializationobject096JoinsListWithComma()
         {
             var list = new List<string> { "a", "b", "c" };
             Assert.Equal("a,b,c", ObjectSerializer.ToHeaderValue(list));
@@ -239,31 +239,31 @@ public static class ObjectSerializerTest
     public class ToFormValueTests
     {
         [Fact]
-        public void ReturnsEmptyStringForNull()
+        public void BhvSerializationobject132ReturnsEmptyStringForNull()
         {
             Assert.Equal("", ObjectSerializer.ToFormValue(null));
         }
 
         [Fact]
-        public void ReturnsStringForStringValue()
+        public void BhvSerializationobject140ReturnsStringForStringValue()
         {
             Assert.Equal("hello", ObjectSerializer.ToFormValue("hello"));
         }
 
         [Fact]
-        public void ConvertsIntegerToString()
+        public void BhvSerializationobject039ConvertsIntegerToString()
         {
             Assert.Equal("42", ObjectSerializer.ToFormValue(42));
         }
 
         [Fact]
-        public void ConvertsTrueToString()
+        public void BhvSerializationobject042ConvertsTrueToString()
         {
             Assert.Equal("true", ObjectSerializer.ToFormValue(true));
         }
 
         [Fact]
-        public void ConvertsFalseToString()
+        public void BhvSerializationobject035ConvertsFalseToString()
         {
             Assert.Equal("false", ObjectSerializer.ToFormValue(false));
         }
@@ -272,19 +272,19 @@ public static class ObjectSerializerTest
     public class ToCookieValueTests
     {
         [Fact]
-        public void ReturnsEmptyStringForNull()
+        public void BhvSerializationobject133ReturnsEmptyStringForNull()
         {
             Assert.Equal("", ObjectSerializer.ToCookieValue(null));
         }
 
         [Fact]
-        public void ReturnsStringForStringValue()
+        public void BhvSerializationobject143ReturnsStringForStringValue()
         {
             Assert.Equal("hello", ObjectSerializer.ToCookieValue("hello"));
         }
 
         [Fact]
-        public void ConvertsIntegerToString()
+        public void BhvSerializationobject040ConvertsIntegerToString()
         {
             Assert.Equal("42", ObjectSerializer.ToCookieValue(42));
         }
@@ -293,7 +293,7 @@ public static class ObjectSerializerTest
     public class DateTimeOffsetPreservationTests
     {
         [Fact]
-        public void UtcDateTimeSerializesContainingDateTimeAndOffset()
+        public void BhvSerializationobject174UtcDateTimeSerializesContainingDateTimeAndOffset()
         {
             var dt = DateTimeOffset.Parse(
                 "2024-01-01T12:30:45+00:00",
@@ -308,7 +308,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PositiveOffsetPreservedInSerializedString()
+        public void BhvSerializationobject116PositiveOffsetPreservedInSerializedString()
         {
             var dt = DateTimeOffset.Parse(
                 "2024-01-01T12:30:45+05:30",
@@ -319,7 +319,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NegativeOffsetPreservedInSerializedString()
+        public void BhvSerializationobject107NegativeOffsetPreservedInSerializedString()
         {
             var dt = DateTimeOffset.Parse(
                 "2024-01-01T12:30:45-08:00",
@@ -341,7 +341,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DateOnlySerializesAsIso8601DateWithoutTimeComponent()
+        public void BhvSerializationobject044DateOnlySerializesAsIso8601DateWithoutTimeComponent()
         {
             var date = new DateOnly(2024, 1, 1);
             var result = ObjectSerializer.Stringify(date);
@@ -349,7 +349,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void SerializedDatetimeStringEndsWithOffset()
+        public void BhvSerializationobject150SerializedDatetimeStringEndsWithOffset()
         {
             var dt = new DateTimeOffset(2024, 1, 1, 12, 30, 45, TimeSpan.Zero);
             var result = ObjectSerializer.Stringify(dt);
@@ -362,7 +362,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void RoundTripDatetimeYieldsEquivalentInstant()
+        public void BhvSerializationobject144RoundTripDatetimeYieldsEquivalentInstant()
         {
             var original = DateTimeOffset.Parse(
                 "2024-01-01T12:30:45+05:30",
@@ -380,7 +380,7 @@ public static class ObjectSerializerTest
          * Milliseconds (3 digits) are the cross-SDK common denominator every
          * native date-time type supports. */
         [Fact]
-        public void DateTimeSerializationPreservesSubSecondPrecision()
+        public void BhvSerializationobject046DateTimeSerializationPreservesSubSecondPrecision()
         {
             var serializer = new ObjectSerializer();
             var instant = new DateTimeOffset(2020, 1, 2, 3, 4, 5, 123, TimeSpan.Zero);
@@ -400,21 +400,21 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void AccentedCharacterNotUnicodeEscaped()
+        public void BhvSerializationobject019AccentedCharacterNotUnicodeEscaped()
         {
             var result = _serializer.Serialize("café");
             Assert.Contains("é", result, StringComparison.Ordinal);
         }
 
         [Fact]
-        public void CjkCharactersNotUnicodeEscaped()
+        public void BhvSerializationobject031CjkCharactersNotUnicodeEscaped()
         {
             var result = _serializer.Serialize("日本");
             Assert.Contains("日本", result, StringComparison.Ordinal);
         }
 
         [Fact]
-        public void TabCharacterEscapedProperlyInJson()
+        public void BhvSerializationobject160TabCharacterEscapedProperlyInJson()
         {
             var result = _serializer.Serialize("a\tb");
             Assert.Contains(@"\t", result, StringComparison.Ordinal);
@@ -431,7 +431,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void DeserializeFailureCarriesTheCanonicalPrefixAndDetail()
+        public void BhvSerializationobject004DeserializeFailureCarriesTheCanonicalPrefixAndDetail()
         {
             // D15: `Failed to deserialize JSON: <detail>`, keeping the cause.
             var ex = Assert.Throws<SerializationException>(() =>
@@ -474,7 +474,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void TruncatedJsonThrowsSerializationException()
+        public void BhvSerializationobject170TruncatedJsonThrowsSerializationException()
         {
             var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Category>("{")
@@ -483,7 +483,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void InvalidJsonStructureThrowsSerializationException()
+        public void BhvSerializationobject095InvalidJsonStructureThrowsSerializationException()
         {
             var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Category>("\"hello\"")
@@ -492,7 +492,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void WrongPrimitiveTypeThrowsSerializationException()
+        public void BhvSerializationobject180WrongPrimitiveTypeThrowsSerializationException()
         {
             var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Category>("{\"id\":\"not-a-number\",\"name\":\"Dogs\"}")
@@ -501,7 +501,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void MalformedDateTimeThrowsSerializationException()
+        public void BhvSerializationobject102MalformedDateTimeThrowsSerializationException()
         {
             // Order.shipDate is format: date-time; a value that is not an
             // RFC 3339 timestamp must fail with the SDK's SerializationException.
@@ -512,7 +512,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void Int32OverflowThrowsSerializationException()
+        public void BhvSerializationobject089Int32OverflowThrowsSerializationException()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Order>("{\"quantity\":3000000000}")
@@ -520,7 +520,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void FractionalNumberForAnIntegerThrowsSerializationException()
+        public void BhvSerializationobject120FractionalNumberForAnIntegerThrowsSerializationException()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Order>("{\"quantity\":1.5}")
@@ -552,7 +552,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void RequiredNullableKeepsAnExplicitNull()
+        public void BhvSerializationobject049RequiredNullableKeepsAnExplicitNull()
         {
             var model = _serializer.Deserialize<RequiredNullable>("{\"note\":null}");
 
@@ -560,7 +560,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void RequiredNullableRejectsAMissingKey()
+        public void BhvSerializationobject126RequiredNullableRejectsAMissingKey()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<RequiredNullable>("{}")
@@ -568,7 +568,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void RequiredNullableAlwaysWritesTheKey()
+        public void BhvSerializationobject125RequiredNullableAlwaysWritesTheKey()
         {
             Assert.Equal("{\"note\":null}", _serializer.Serialize(new RequiredNullable(null)));
             Assert.Equal("{\"note\":\"x\"}", _serializer.Serialize(new RequiredNullable("x")));
@@ -626,7 +626,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ThrownSerializationExceptionHasMessage()
+        public void BhvSerializationobject162ThrownSerializationExceptionHasMessage()
         {
             var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Category>("{")
@@ -645,7 +645,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void SerializationExceptionPreservesNativeInnerException()
+        public void BhvSerializationobject077SerializationExceptionPreservesNativeInnerException()
         {
             // The native JsonException is preserved as the inner exception so
             // callers who need the gory detail can still drill down.
@@ -662,7 +662,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void SerializesModelToValidJson()
+        public void BhvSerializationobject152SerializesModelToValidJson()
         {
             var category = new Category { Id = 1L, Name = "Dogs" };
             var json = _serializer.Serialize(category);
@@ -671,14 +671,14 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void HandlesNull()
+        public void BhvSerializationobject087HandlesNull()
         {
             var json = _serializer.Serialize(null);
             Assert.Equal("null", json);
         }
 
         [Fact]
-        public void IncludesFieldsSetToDefaultValues()
+        public void BhvSerializationobject088IncludesFieldsSetToDefaultValues()
         {
             var category = new Category { Id = 0L, Name = "" };
             var json = _serializer.Serialize(category);
@@ -692,7 +692,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void DeserializesJsonToTypedModel()
+        public void BhvSerializationobject070DeserializesJsonToTypedModel()
         {
             var json = "{\"id\":1,\"name\":\"Dogs\"}";
             var category = _serializer.Deserialize<Category>(json);
@@ -702,21 +702,21 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ReturnsDefaultForEmptyInput()
+        public void BhvSerializationobject136ReturnsDefaultForEmptyInput()
         {
             var result = _serializer.Deserialize<Category>("");
             Assert.Null(result);
         }
 
         [Fact]
-        public void ReturnsDefaultForNullInput()
+        public void BhvSerializationobject138ReturnsDefaultForNullInput()
         {
             var result = _serializer.Deserialize<Category>(null);
             Assert.Null(result);
         }
 
         [Fact]
-        public void StripsLeadingUtf8BomBeforeParsing()
+        public void BhvSerializationobject060StripsLeadingUtf8BomBeforeParsing()
         {
             // System.Text.Json does not strip a leading UTF-8 BOM (U+FEFF) and
             // would otherwise throw a JsonException on the first token. The
@@ -729,7 +729,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DeserializesSelfReferentialModelPreservingNesting()
+        public void BhvSerializationobject068DeserializesSelfReferentialModelPreservingNesting()
         {
             // A self-referential schema (TreeNode has an optional 'child' of its
             // own type) must decode the full nesting: the outer node's child is
@@ -751,7 +751,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void CompletePetDeserializesSuccessfully()
+        public void BhvSerializationobject061CompletePetDeserializesSuccessfully()
         {
             var json =
                 "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
@@ -762,7 +762,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void UnknownEnumValueThrows()
+        public void BhvSerializationobject172UnknownEnumValueThrows()
         {
             // Wire-format parity lock: a string enum value the schema does not
             // declare ("banana" for Pet.status) must hard-fail on deserialize
@@ -779,7 +779,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void MissingRequiredStringFieldThrows()
+        public void BhvSerializationobject083MissingRequiredStringFieldThrows()
         {
             // 'name' is required but absent — [JsonRequired] rejects it.
             var json = "{\"id\":1,\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
@@ -790,7 +790,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void MissingRequiredArrayFieldThrows()
+        public void BhvSerializationobject063MissingRequiredArrayFieldThrows()
         {
             // 'photoUrls' is required but absent — [JsonRequired] rejects it.
             var json = "{\"id\":1,\"name\":\"Fido\"}";
@@ -798,7 +798,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NullRequiredStringFieldThrows()
+        public void BhvSerializationobject084NullRequiredStringFieldThrows()
         {
             // 'name' is present but explicitly null — the model constructor's
             // null-guard surfaces this; the serializer wraps it as a
@@ -808,7 +808,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NullRequiredArrayFieldThrows()
+        public void BhvSerializationobject062NullRequiredArrayFieldThrows()
         {
             // 'photoUrls' is present but explicitly null — the model
             // constructor's null-guard surfaces this; the serializer wraps it
@@ -818,7 +818,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NullRequiredNonNullableFieldThrows()
+        public void BhvSerializationobject086NullRequiredNonNullableFieldThrows()
         {
             // Canonical scenario AJ: a JSON null for the required,
             // non-nullable 'name' field must hard-fail with the SDK
@@ -885,7 +885,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void EnumSerializesToWireValue()
+        public void BhvSerializationobject119EnumSerializesToWireValue()
         {
             var order = new Order { Status = Order.StatusEnum.Approved };
             var json = _serializer.Serialize(order);
@@ -893,14 +893,14 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void EnumDeserializesFromWireValue()
+        public void BhvSerializationobject069EnumDeserializesFromWireValue()
         {
             var order = _serializer.Deserialize<Order>("{\"status\":\"delivered\"}");
             Assert.Equal(Order.StatusEnum.Delivered, order!.Status);
         }
 
         [Fact]
-        public void EnumRoundTripsWireValue()
+        public void BhvSerializationobject022EnumRoundTripsWireValue()
         {
             var order = _serializer.Deserialize<Order>("{\"status\":\"placed\"}");
             var back = _serializer.Serialize(order);
@@ -908,7 +908,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DeserializeAppliesSchemaDefaultForAbsentField()
+        public void BhvSerializationobject053DeserializeAppliesSchemaDefaultForAbsentField()
         {
             // Order.status has schema `default: placed`. When the JSON response
             // omits "status", the deserialized model must populate it with the
@@ -922,7 +922,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DefaultsAbsentFieldsTakeSchemaDefaultExplicitNullIsPreserved()
+        public void BhvSerializationobject025DefaultsAbsentFieldsTakeSchemaDefaultExplicitNullIsPreserved()
         {
             // default-vs-explicit-null contract: a schema `default` applies ONLY
             // when the property is ABSENT from the payload. An explicit JSON null
@@ -945,7 +945,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DefaultsNumericLiteralsKeepTheirExactTypedValue()
+        public void BhvSerializationobject111DefaultsNumericLiteralsKeepTheirExactTypedValue()
         {
             var fromEmpty = _serializer.Deserialize<Defaults>("{}");
             Assert.NotNull(fromEmpty);
@@ -965,7 +965,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void NullPropertyIsOmittedFromSerializedJson()
+        public void BhvSerializationobject023NullPropertyIsOmittedFromSerializedJson()
         {
             var category = new Category { Id = 1L, Name = null };
             var json = _serializer.Serialize(category);
@@ -1002,7 +1002,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void DictionaryOfPetReturnsTypedPetEntries()
+        public void BhvSerializationobject147DictionaryOfPetReturnsTypedPetEntries()
         {
             var json =
                 "{"
@@ -1068,7 +1068,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void StrictModelRejectsUndeclaredKey()
+        public void BhvSerializationobject154StrictModelRejectsUndeclaredKey()
         {
             var json = "{\"id\":1,\"name\":\"x\",\"unexpected\":true}";
             var ex = Assert.Throws<SerializationException>(() =>
@@ -1078,7 +1078,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void StrictModelAcceptsDeclaredKeys()
+        public void BhvSerializationobject052StrictModelAcceptsDeclaredKeys()
         {
             var tag = _serializer.Deserialize<StrictTag>("{\"id\":1,\"name\":\"x\"}");
             Assert.NotNull(tag);
@@ -1122,7 +1122,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void TimeOnlyKeepsMillisecondsOnlyWhenNonZero()
+        public void BhvSerializationobject164TimeOnlyKeepsMillisecondsOnlyWhenNonZero()
         {
             Assert.Equal("10:30:00", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0)));
             Assert.Equal("10:30:00.123", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 123)));
@@ -1144,7 +1144,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void TimeOnlyBodyPropertyUsesTheSameWireText()
+        public void BhvSerializationobject163TimeOnlyBodyPropertyUsesTheSameWireText()
         {
             var edgeCases = new EdgeCases { Cutoff = new TimeOnly(10, 30, 0, 123, 456) };
 
@@ -1170,7 +1170,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void TimeSpanStringifiesAsProtobufDuration()
+        public void BhvSerializationobject158TimeSpanStringifiesAsProtobufDuration()
         {
             // 1h30m → 5400 seconds → "5400s"
             var ts = new TimeSpan(1, 30, 0);
@@ -1178,13 +1178,13 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void TimeSpanZeroStringifiesAs0s()
+        public void BhvSerializationobject181TimeSpanZeroStringifiesAs0s()
         {
             Assert.Equal("0s", ObjectSerializer.Stringify(TimeSpan.Zero));
         }
 
         [Fact]
-        public void DurationConverterRoundTripWholeSeconds()
+        public void BhvSerializationobject112DurationConverterRoundTripWholeSeconds()
         {
             // 2h15m30s → 8130 seconds → "8130s"
             var original = new TimeSpan(2, 15, 30);
@@ -1205,7 +1205,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRoundTripNegative()
+        public void BhvSerializationobject073DurationConverterRoundTripNegative()
         {
             var original = new TimeSpan(0, -45, 0);
             string formatted = ProtobufDurationConverter.Format(original);
@@ -1214,7 +1214,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterFormatsSubSecondPrecision()
+        public void BhvSerializationobject045DurationConverterFormatsSubSecondPrecision()
         {
             // 1 tick = 100ns → 9-digit fraction "3600.000000100s"
             var oneHourPlusTick = TimeSpan.FromHours(1) + TimeSpan.FromTicks(1);
@@ -1228,7 +1228,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterParsesFractionalSeconds()
+        public void BhvSerializationobject054DurationConverterParsesFractionalSeconds()
         {
             TimeSpan parsed = ProtobufDurationConverter.Parse("1.5s");
             Assert.Equal(TimeSpan.FromMilliseconds(1500), parsed);
@@ -1246,7 +1246,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRejectsInvalid()
+        public void BhvSerializationobject066DurationConverterRejectsInvalid()
         {
             Assert.Throws<System.Text.Json.JsonException>(() =>
                 ProtobufDurationConverter.Parse("not-a-duration")
@@ -1282,7 +1282,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationDeserializesThroughObjectSerializer()
+        public void BhvSerializationobject113DurationDeserializesThroughObjectSerializer()
         {
             TimeSpan ts = _serializer.Deserialize<TimeSpan>("\"8100s\"");
             Assert.Equal(new TimeSpan(2, 15, 0), ts);
@@ -1301,7 +1301,9 @@ public static class ObjectSerializerTest
         [InlineData("\"99999999999999999999s\"")] // does not fit a long
         [InlineData("\"999999999999s\"")] // fits a long, overflows TimeSpan ticks
         [InlineData("\"\u0661\u0662s\"")] // non-ASCII digits
-        public void MalformedOrOverflowingDurationRaisesSerializationException(string json)
+        public void BhvSerializationobject080MalformedOrOverflowingDurationRaisesSerializationException(
+            string json
+        )
         {
             // Neither a raw FormatException/OverflowException nor a silently
             // wrapped tick count: the caller sees the SDK's own error.
@@ -1317,7 +1319,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void DrySubtypeAutoEmitsDiscriminator()
+        public void BhvSerializationobject072DrySubtypeAutoEmitsDiscriminator()
         {
             var dry = new DryFood(2.5);
             var json = _serializer.Serialize(dry);
@@ -1326,7 +1328,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void WetSubtypeAutoEmitsDiscriminator()
+        public void BhvSerializationobject178WetSubtypeAutoEmitsDiscriminator()
         {
             var wet = new WetFood(350);
             var json = _serializer.Serialize(wet);
@@ -1334,7 +1336,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DeserializeParentRoutesToSubtype()
+        public void BhvSerializationobject055DeserializeParentRoutesToSubtype()
         {
             // A discriminator-tagged payload deserialized against the parent
             // PetFood type must come back as the concrete DryFood subtype via
@@ -1347,7 +1349,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void MissingDiscriminatorPropertyThrows()
+        public void BhvSerializationobject085MissingDiscriminatorPropertyThrows()
         {
             // Canonical scenario AU-residual: a PetFood payload missing the
             // 'foodType' discriminator property must hard-fail rather than wrap
@@ -1371,7 +1373,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void GuidFieldRoundTripsWithinModel()
+        public void BhvSerializationobject065GuidFieldRoundTripsWithinModel()
         {
             var holder = new GuidHolder { Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440000") };
             var json = _serializer.Serialize(holder);
@@ -1395,7 +1397,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void UuidIsWrittenLowercaseHyphenated()
+        public void BhvSerializationobject148UuidIsWrittenLowercaseHyphenated()
         {
             // format: uuid. Parsed from an upper-case, braced or bare-hex form,
             // the wire value is always lowercase and hyphenated, in a body and
@@ -1416,7 +1418,7 @@ public static class ObjectSerializerTest
         [InlineData("{\"id\":\"{550e8400-e29b-41d4-a716-446655440000}\"}")]
         [InlineData("{\"id\":\"550e8400-e29b-41d4-a716\"}")]
         [InlineData("{\"id\":12}")]
-        public void MalformedUuidFailsToDeserialize(string json)
+        public void BhvSerializationobject103MalformedUuidFailsToDeserialize(string json)
         {
             Assert.Throws<SerializationException>(() => _serializer.Deserialize<GuidHolder>(json));
         }
@@ -1425,7 +1427,7 @@ public static class ObjectSerializerTest
     public class ResolveOneOfTests
     {
         [Fact]
-        public void ResolveOneOfReturnsFirstMatchingVariant()
+        public void BhvSerializationobject128ResolveOneOfReturnsFirstMatchingVariant()
         {
             using var doc = System.Text.Json.JsonDocument.Parse("{\"k\":\"v\"}");
             object result = ObjectSerializer.ResolveOneOf(
@@ -1437,7 +1439,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ResolveOneOfThrowsOnNoMatch()
+        public void BhvSerializationobject129ResolveOneOfThrowsOnNoMatch()
         {
             using var doc = System.Text.Json.JsonDocument.Parse("{\"unexpected\":true}");
             Assert.Throws<System.Text.Json.JsonException>(() =>
@@ -1450,7 +1452,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ResolveAnyOfThrowsOnNoMatch()
+        public void BhvSerializationobject127ResolveAnyOfThrowsOnNoMatch()
         {
             using var doc = System.Text.Json.JsonDocument.Parse("{}");
             Assert.Throws<System.Text.Json.JsonException>(() =>
@@ -1464,7 +1466,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void PrioritySerializesAsJsonNumberNotString()
+        public void BhvSerializationobject093PrioritySerializesAsJsonNumberNotString()
         {
             var item = new StockItem(Priority.Number2);
             var json = _serializer.Serialize(item);
@@ -1474,7 +1476,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PriorityDeserializesFromJsonNumber()
+        public void BhvSerializationobject092PriorityDeserializesFromJsonNumber()
         {
             var item = _serializer.Deserialize<StockItem>("{\"priority\":3}");
             Assert.NotNull(item);
@@ -1482,7 +1484,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PriorityRoundTripsThroughJsonNumber()
+        public void BhvSerializationobject145PriorityRoundTripsThroughJsonNumber()
         {
             var item = _serializer.Deserialize<StockItem>("{\"priority\":1}");
             var back = _serializer.Serialize(item);
@@ -1516,7 +1518,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void AvailabilitySerializesPreservingWireCasing()
+        public void BhvSerializationobject109AvailabilitySerializesPreservingWireCasing()
         {
             var item = new StockItem(Priority.Number1) { Availability = Availability.Available };
             var json = _serializer.Serialize(item);
@@ -1551,21 +1553,21 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void AvailabilityStartsAtTheDefaultNextToItsReference()
+        public void BhvSerializationobject001AvailabilityStartsAtTheDefaultNextToItsReference()
         {
             var item = new StockItem(Priority.Number1);
             Assert.Equal(Availability.OnHold, item.Availability);
         }
 
         [Fact]
-        public void AvailabilityTakesTheDefaultNextToItsReferenceWhenTheKeyIsAbsent()
+        public void BhvSerializationobject050AvailabilityTakesTheDefaultNextToItsReferenceWhenTheKeyIsAbsent()
         {
             var item = _serializer.Deserialize<StockItem>("{\"priority\":1}");
             Assert.Equal(Availability.OnHold, item!.Availability);
         }
 
         [Fact]
-        public void AnExplicitAvailabilityWinsOverTheDefaultNextToItsReference()
+        public void BhvSerializationobject056AnExplicitAvailabilityWinsOverTheDefaultNextToItsReference()
         {
             var item = _serializer.Deserialize<StockItem>(
                 "{\"priority\":1,\"availability\":\"Sold\"}"
@@ -1574,7 +1576,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void AvailabilityRoundTripsAllWireValues()
+        public void BhvSerializationobject076AvailabilityRoundTripsAllWireValues()
         {
             foreach (
                 var (wire, member) in new[]
@@ -1597,7 +1599,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void AvailabilityRejectsUnknownWireValue()
+        public void BhvSerializationobject059AvailabilityRejectsUnknownWireValue()
         {
             // A lowercased "available" is NOT a declared wire value and must
             // hard-fail rather than silently mapping to a member.
@@ -1614,7 +1616,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void ScalarByteFieldRoundTripsThroughBase64()
+        public void BhvSerializationobject079ScalarByteFieldRoundTripsThroughBase64()
         {
             var bytes = new byte[] { 0x01, 0x02, 0x03, 0xFF };
             var passport = new PetPassport { Thumbnail = bytes };
@@ -1628,7 +1630,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ArrayOfByteFieldRoundTripsThroughBase64()
+        public void BhvSerializationobject026ArrayOfByteFieldRoundTripsThroughBase64()
         {
             var scans = new List<byte[]>
             {
@@ -1655,7 +1657,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void DoubleFieldDecodesFromIntegralJsonNumber()
+        public void BhvSerializationobject071DoubleFieldDecodesFromIntegralJsonNumber()
         {
             var loc = _serializer.Deserialize<PhotoMetadataLocation>("{\"lat\":5,\"lng\":-3}");
             Assert.NotNull(loc);
@@ -1677,7 +1679,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void UnknownKeyIsCapturedOnDeserialize()
+        public void BhvSerializationobject058UnknownKeyIsCapturedOnDeserialize()
         {
             var meta = _serializer.Deserialize<Metadata>(
                 "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"region\":\"emea\"}"
@@ -1688,7 +1690,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void CapturedExtraKeyReserializesAtTopLevelNotNested()
+        public void BhvSerializationobject020CapturedExtraKeyReserializesAtTopLevelNotNested()
         {
             var meta = _serializer.Deserialize<Metadata>("{\"region\":\"emea\",\"tier\":\"gold\"}");
             var json = _serializer.Serialize(meta);
@@ -1716,7 +1718,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void ArrayOfIntArraysDeserializesToTypedLeaves()
+        public void BhvSerializationobject108ArrayOfIntArraysDeserializesToTypedLeaves()
         {
             var item = _serializer.Deserialize<StockItem>(
                 "{\"priority\":1,\"matrix\":[[1,2],[3,4,5]]}"
@@ -1746,7 +1748,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void NonIntegerDecimalSerializesAsUnquotedNumber()
+        public void BhvSerializationobject171NonIntegerDecimalSerializesAsUnquotedNumber()
         {
             var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" })
             {
@@ -1758,7 +1760,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DecimalSurvivesRoundTripAsNumber()
+        public void BhvSerializationobject177DecimalSurvivesRoundTripAsNumber()
         {
             var pet = new Pet("Rex", new HashSet<string> { "http://example.com/rex.png" })
             {
@@ -1813,7 +1815,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void EqualContentDistinctArraysCompareEqual()
+        public void BhvSerializationobject090EqualContentDistinctArraysCompareEqual()
         {
             var left = VaultOf();
             var right = VaultOf();
@@ -1829,7 +1831,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DifferingBareArrayCompareUnequal()
+        public void BhvSerializationobject075DifferingBareArrayCompareUnequal()
         {
             var left = VaultOf();
             var right = VaultOf(seal: new byte[] { 1, 2, 4 });
@@ -1838,7 +1840,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DifferingListElementCompareUnequal()
+        public void BhvSerializationobject009DifferingListElementCompareUnequal()
         {
             var left = VaultOf();
             var right = VaultOf(shards: new List<byte[]> { new byte[] { 4, 5 }, new byte[] { 9 } });
@@ -1847,7 +1849,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DifferingMapValueCompareUnequal()
+        public void BhvSerializationobject005DifferingMapValueCompareUnequal()
         {
             var left = VaultOf();
             var right = VaultOf(
@@ -1884,7 +1886,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void NonFiniteDoubleThrowsOnSerialize()
+        public void BhvSerializationobject153NonFiniteDoubleThrowsOnSerialize()
         {
             // RFC 8259 §6 has no NaN/Infinity token, so a non-finite float must
             // reject with the SDK's SerializationException rather than leak the
@@ -1899,7 +1901,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void LiteralNullBodyDeserializesToNull()
+        public void BhvSerializationobject067LiteralNullBodyDeserializesToNull()
         {
             Assert.Null(_serializer.Deserialize<Category>("null"));
         }
@@ -1909,7 +1911,7 @@ public static class ObjectSerializerTest
         // reader throws rather than silently truncating, surfaced as the SDK's
         // SerializationException.
         [Fact]
-        public void InvalidBase64ByteFieldThrowsSerializationException()
+        public void BhvSerializationobject094InvalidBase64ByteFieldThrowsSerializationException()
         {
             var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<PetPassport>("{\"thumbnail\":\"!!!!\"}")
@@ -1918,7 +1920,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DeepJsonWithinCapDecodesButBeyondIsRejected()
+        public void BhvSerializationobject051DeepJsonWithinCapDecodesButBeyondIsRejected()
         {
             var within = new string('[', 600) + new string(']', 600);
             Assert.NotNull(_serializer.Deserialize<object>(within));
@@ -1938,7 +1940,7 @@ public static class ObjectSerializerTest
         [InlineData("10:00")]
         [InlineData("1700000000")]
         [InlineData("2024-01-01")]
-        public void NonRfc3339DateTimeIsRejected(string text)
+        public void BhvSerializationobject011NonRfc3339DateTimeIsRejected(string text)
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Order>("{\"shipDate\":\"" + text + "\"}")
@@ -1946,7 +1948,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void OffsetLessDateTimeIsRejectedUnderAnyHostZone()
+        public void BhvSerializationobject003OffsetLessDateTimeIsRejectedUnderAnyHostZone()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Order>("{\"shipDate\":\"2024-01-01T10:00:00\"}")
@@ -1957,7 +1959,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void UtcDateTimeIsAccepted()
+        public void BhvSerializationobject064UtcDateTimeIsAccepted()
         {
             Order? order = _serializer.Deserialize<Order>(
                 "{\"shipDate\":\"2024-01-01T10:00:00Z\"}"
@@ -2010,7 +2012,7 @@ public static class ObjectSerializerTest
         [InlineData("mailto:a@b.com")]
         [InlineData("ftp://x.org/f")]
         [InlineData("https://example.com/items/one")]
-        public void AbsoluteUriIsAcceptedAndReEmittedVerbatim(string text)
+        public void BhvSerializationobject021AbsoluteUriIsAcceptedAndReEmittedVerbatim(string text)
         {
             string json = "{\"name\":\"a\",\"photoUrls\":[],\"homepageUrl\":\"" + text + "\"}";
 
@@ -2038,7 +2040,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void UriReferenceStaysAPlainString()
+        public void BhvSerializationobject173UriReferenceStaysAPlainString()
         {
             Pet? decoded = _serializer.Deserialize<Pet>(
                 "{\"name\":\"a\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb-a.png\"}"
@@ -2048,7 +2050,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NullElementInAListOfModelsIsRejected()
+        public void BhvSerializationobject121NullElementInAListOfModelsIsRejected()
         {
             var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<List<Pet>>("[null,{\"name\":\"a\",\"photoUrls\":[]}]")
@@ -2057,7 +2059,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NullValueInAMapOfModelsIsRejected()
+        public void BhvSerializationobject123NullValueInAMapOfModelsIsRejected()
         {
             var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Dictionary<string, Pet>>(
@@ -2089,7 +2091,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PatternConstrainedStringIsAcceptedAndKeptVerbatim()
+        public void BhvSerializationobject074PatternConstrainedStringIsAcceptedAndKeptVerbatim()
         {
             EdgeCases decoded = _serializer.Deserialize<EdgeCases>("{\"slug\":\"12/ab\"}")!;
 
@@ -2102,7 +2104,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void StringBeyondItsLengthAndPatternConstraintsRoundTrips()
+        public void BhvSerializationobject010StringBeyondItsLengthAndPatternConstraintsRoundTrips()
         {
             string outOfBounds = new('Z', 10);
             string json = "{\"name\":\"n\",\"photoUrls\":[],\"nickname\":\"" + outOfBounds + "\"}";
@@ -2118,7 +2120,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void InlineEnumRejectsAnUnknownWireValue()
+        public void BhvSerializationobject024InlineEnumRejectsAnUnknownWireValue()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<EdgeCases>("{\"phase\":\"in-stock\"}")
@@ -2126,7 +2128,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PropertiesNamedAfterKeywordsAndLiteralsKeepTheirWireKeys()
+        public void BhvSerializationobject117PropertiesNamedAfterKeywordsAndLiteralsKeepTheirWireKeys()
         {
             const string json =
                 "{\"and\":true,\"or\":false,\"not\":true,\"class\":\"c\",\"return\":\"r\","
@@ -2159,7 +2161,11 @@ public static class ObjectSerializerTest
         [InlineData("3600.5s", 3600L, 5_000_000L)]
         [InlineData("-90s", -90L, 0L)]
         [InlineData("315576000000s", 315_576_000_000L, 0L)]
-        public void DurationDecodesAndKeepsItsSign(string wire, long seconds, long extraTicks)
+        public void BhvSerializationobject013DurationDecodesAndKeepsItsSign(
+            string wire,
+            long seconds,
+            long extraTicks
+        )
         {
             TimeSpan expected = TimeSpan.FromTicks(
                 (seconds * TimeSpan.TicksPerSecond) + (seconds < 0 ? -extraTicks : extraTicks)
@@ -2179,7 +2185,9 @@ public static class ObjectSerializerTest
         [InlineData("12345678901234567890.5")]
         [InlineData("0.00000001")]
         [InlineData("100000000000000000000")]
-        public void BareNumberIsExactAndWrittenInPlainNotation(string literal)
+        public void BhvSerializationobject002BareNumberIsExactAndWrittenInPlainNotation(
+            string literal
+        )
         {
             Pet? decoded = _serializer.Deserialize<Pet>(
                 "{\"name\":\"a\",\"photoUrls\":[],\"weightKg\":" + literal + "}"
@@ -2207,7 +2215,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void FormatPasswordPropertyIsHiddenInTheStringForm()
+        public void BhvSerializationobject007FormatPasswordPropertyIsHiddenInTheStringForm()
         {
             string text = new Account("u") { Password = "hunter2" }.ToString();
 
@@ -2216,7 +2224,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void UuidPropertyIsWrittenLowercaseAndDecodedFromUppercase()
+        public void BhvSerializationobject016UuidPropertyIsWrittenLowercaseAndDecodedFromUppercase()
         {
             Order? decoded = _serializer.Deserialize<Order>(
                 "{\"trackingId\":\"E621E1F8-C36C-495A-93FC-0C247A3E6E5F\"}"
@@ -2231,7 +2239,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void MalformedUuidPropertyIsRejectedOnDecode()
+        public void BhvSerializationobject048MalformedUuidPropertyIsRejectedOnDecode()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Order>("{\"trackingId\":\"not-a-uuid\"}")
@@ -2243,7 +2251,10 @@ public static class ObjectSerializerTest
         [InlineData("@@", Separator.VALUE00400040)]
         [InlineData("a-b", Separator.AB)]
         [InlineData("a_b", Separator.AB2)]
-        public void SeparatorKeepsEachWireValueDistinct(string wire, Separator member)
+        public void BhvSerializationobject161SeparatorKeepsEachWireValueDistinct(
+            string wire,
+            Separator member
+        )
         {
             EdgeCases? decoded = _serializer.Deserialize<EdgeCases>(
                 "{\"separator\":\"" + wire + "\"}"
@@ -2279,7 +2290,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void RequestJsonWritesLineSeparatorsAndDeleteLiterally()
+        public void BhvSerializationobject124RequestJsonWritesLineSeparatorsAndDeleteLiterally()
         {
             string text = "a\u2028b\u2029c\u007fd\u00e9/<>&";
 
@@ -2301,7 +2312,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ContentEncodedPropertyRoundTripsThroughBase64()
+        public void BhvSerializationobject115ContentEncodedPropertyRoundTripsThroughBase64()
         {
             var chip = new byte[] { 0x01, 0x02, 0x03, 0xFF };
 
@@ -2312,7 +2323,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PrefixItemsTupleKeepsItsMixedElements()
+        public void BhvSerializationobject012PrefixItemsTupleKeepsItsMixedElements()
         {
             Pet? pet = _serializer.Deserialize<Pet>(
                 "{\"name\":\"x\",\"photoUrls\":[],\"location\":[1.5,2,\"hq\"]}"
@@ -2327,7 +2338,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DuplicateKeyKeepsTheLastValue()
+        public void BhvSerializationobject006DuplicateKeyKeepsTheLastValue()
         {
             Order? order = _serializer.Deserialize<Order>("{\"id\":1,\"quantity\":3,\"id\":2}");
 
@@ -2346,7 +2357,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void SchemasNamedErrorAndResultRoundTripThroughTheirProperties()
+        public void BhvSerializationobject104SchemasNamedErrorAndResultRoundTripThroughTheirProperties()
         {
             const string json =
                 "{\"lastError\":{\"code\":1,\"message\":\"m\"},\"outcome\":{\"ok\":true}}";
@@ -2366,7 +2377,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ReadOnlyPropertyIsStillDecoded()
+        public void BhvSerializationobject014ReadOnlyPropertyIsStillDecoded()
         {
             Account? decoded = _serializer.Deserialize<Account>("{\"id\":7,\"username\":\"u\"}");
 
@@ -2374,7 +2385,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void WriteOnlyPropertyIsStillWritten()
+        public void BhvSerializationobject018WriteOnlyPropertyIsStillWritten()
         {
             string json = _serializer.Serialize(new Account("u") { Password = "p" });
 
@@ -2382,7 +2393,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void WriteOnlyPropertyIsStillDecoded()
+        public void BhvSerializationobject017WriteOnlyPropertyIsStillDecoded()
         {
             Account? decoded = _serializer.Deserialize<Account>(
                 "{\"username\":\"u\",\"password\":\"p\"}"

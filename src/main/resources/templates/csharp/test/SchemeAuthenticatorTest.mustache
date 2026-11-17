@@ -83,7 +83,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] {{className}}Fields = [{{#envVars}}"{{field}}"{{^-last}}, {{/-last}}{{/envVars}}];
 
     [Fact]
-    public void {{className}}ReadsEveryCredentialFromItsVariable()
+    public void BhvAuthscheme001{{className}}ReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
         {
@@ -164,7 +164,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void {{className}}TokenProviderNeedsNoEnvironment()
+    public void BhvAuthscheme002{{className}}TokenProviderNeedsNoEnvironment()
     {
         WithEnvironment(Complete({{className}}Variables, {{className}}Fields, {{className}}Variables[0], null), () =>
         {

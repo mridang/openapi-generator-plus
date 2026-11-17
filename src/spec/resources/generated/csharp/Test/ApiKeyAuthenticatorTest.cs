@@ -14,7 +14,7 @@ namespace Test;
 public class ApiKeyAuthenticatorTest
 {
     [Fact]
-    public void ValidHeaderKeyPasses()
+    public void BhvAuthapikey014ValidHeaderKeyPasses()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",
@@ -27,7 +27,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void ValidQueryKeyPasses()
+    public void BhvAuthapikey016ValidQueryKeyPasses()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",
@@ -40,7 +40,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void QueryAcceptsNonAscii()
+    public void BhvAuthapikey009QueryAcceptsNonAscii()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",
@@ -79,7 +79,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void EmptyKeyHeaderThrowsAtConstruction()
+    public void BhvAuthapikey005EmptyKeyHeaderThrowsAtConstruction()
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator(
@@ -93,7 +93,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void EmptyKeyQueryThrowsAtConstruction()
+    public void BhvAuthapikey006EmptyKeyQueryThrowsAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator("https://api.example.com", "api_key", "", ApiKeyLocation.Query)
@@ -101,7 +101,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void EmptyKeyCookieThrowsAtConstruction()
+    public void BhvAuthapikey004EmptyKeyCookieThrowsAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator("https://api.example.com", "session", "", ApiKeyLocation.Cookie)
@@ -109,7 +109,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void WhitespaceOnlyKeyThrowsAtConstruction()
+    public void BhvAuthapikey017WhitespaceOnlyKeyThrowsAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator(
@@ -124,7 +124,7 @@ public class ApiKeyAuthenticatorTest
     [Theory]
     [InlineData(" \t\n\r\f\v")]
     [InlineData("\f")]
-    public void AsciiWhitespaceOnlyQueryKeyThrowsAsEmpty(string key)
+    public void BhvAuthapikey011AsciiWhitespaceOnlyQueryKeyThrowsAsEmpty(string key)
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator("https://api.example.com", "api_key", key, ApiKeyLocation.Query)
@@ -135,7 +135,7 @@ public class ApiKeyAuthenticatorTest
     [Theory]
     [InlineData("\u00A0")]
     [InlineData("\u2003")]
-    public void UnicodeSpaceQueryKeyIsAccepted(string key)
+    public void BhvAuthapikey001UnicodeSpaceQueryKeyIsAccepted(string key)
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",
@@ -147,7 +147,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void CrlfInQueryKeyThrowsAtConstruction()
+    public void BhvAuthapikey003CrlfInQueryKeyThrowsAtConstruction()
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator(
@@ -161,7 +161,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void CrlfInCookieKeyThrowsAtConstruction()
+    public void BhvAuthapikey002CrlfInCookieKeyThrowsAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator(
@@ -191,7 +191,7 @@ public class ApiKeyAuthenticatorTest
     /// must be absent and a *** redaction marker present.
     /// </summary>
     [Fact]
-    public void RedactsSecret()
+    public void BhvAuthapikey010RedactsSecret()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",
@@ -205,7 +205,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void ReprShowsTheHostTheKeyNameAndTheLocation()
+    public void BhvAuthapikey012ReprShowsTheHostTheKeyNameAndTheLocation()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",
@@ -222,7 +222,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void ValidCookieKeyIsEmittedAsACookieOnly()
+    public void BhvAuthapikey013ValidCookieKeyIsEmittedAsACookieOnly()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",
@@ -240,7 +240,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void HeaderKeyIsNotEmittedAsACookieOrQueryParameter()
+    public void BhvAuthapikey015HeaderKeyIsNotEmittedAsACookieOrQueryParameter()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",

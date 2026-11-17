@@ -58,7 +58,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task SendsClientCredentialsGrantType()
+    public async Task BhvAuthoauthtwoclientcred010SendsClientCredentialsGrantType()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -77,7 +77,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task InvalidatingTheAccessTokenFetchesANewOneOnTheNextCall()
+    public async Task BhvAuthoauthtwoclientcred005InvalidatingTheAccessTokenFetchesANewOneOnTheNextCall()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -93,7 +93,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task SendsClientIdAndSecret()
+    public async Task BhvAuthoauthtwoclientcred011SendsClientIdAndSecret()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -112,7 +112,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task SendsScopes()
+    public async Task BhvAuthoauthtwoclientcred013SendsScopes()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -126,7 +126,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task ReturnsAuthorizationBearerHeader()
+    public async Task BhvAuthoauthtwoclientcred008ReturnsAuthorizationBearerHeader()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok-abc\",\"expires_in\":3600}");
@@ -140,7 +140,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task SendsRequestToTokenUrl()
+    public async Task BhvAuthoauthtwoclientcred012SendsRequestToTokenUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -154,7 +154,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task TokenFetchErrorIsSurfacedNotSwallowed()
+    public async Task BhvAuthoauthtwoclientcred015TokenFetchErrorIsSurfacedNotSwallowed()
     {
         // oauth-cc-authheaders-error-swallow: a failed client-credentials token
         // exchange must surface to the caller as a thrown error — NOT be
@@ -170,7 +170,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task CachesTokenAcrossCalls()
+    public async Task BhvAuthoauthtwoclientcred003CachesTokenAcrossCalls()
     {
         // The token manager caches the access token until expiry, so two
         // consecutive header requests must reuse the same token and issue only
@@ -190,7 +190,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public void GetHostReturnsConfiguredHost()
+    public void BhvAuthoauthtwoclientcred004GetHostReturnsConfiguredHost()
     {
         var auth = CreateAuthenticator();
 
@@ -198,7 +198,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task BasicAuthUrlEncodesClientIdAndSecret()
+    public async Task BhvAuthoauthtwoclientcred002BasicAuthUrlEncodesClientIdAndSecret()
     {
         // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
         // client_id and client_secret MUST be application/x-www-form-
@@ -235,7 +235,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     /// and the masked placeholder present.
     /// </summary>
     [Fact]
-    public void RedactsSecret()
+    public void BhvAuthoauthtwoclientcred007RedactsSecret()
     {
         var auth = CreateAuthenticator();
         string repr = auth.ToString();
@@ -244,7 +244,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public void ReprShowsTheNonSecretFields()
+    public void BhvAuthoauthtwoclientcred014ReprShowsTheNonSecretFields()
     {
         string repr = CreateAuthenticator().ToString();
 
@@ -258,7 +258,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task TokenBodyPercentEncodesEverythingButTheUnreservedSet()
+    public async Task BhvAuthoauthtwoclientcred006TokenBodyPercentEncodesEverythingButTheUnreservedSet()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -280,7 +280,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task BasicAuthPercentEncodesEverythingButTheUnreservedSet()
+    public async Task BhvAuthoauthtwoclientcred001BasicAuthPercentEncodesEverythingButTheUnreservedSet()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"at\",\"expires_in\":3600}");

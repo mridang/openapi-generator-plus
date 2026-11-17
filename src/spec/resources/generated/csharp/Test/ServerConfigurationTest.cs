@@ -17,7 +17,7 @@ public class ServerConfigurationTest
     private static readonly string[] ExpectedHostileValues = ["o'neil", "a&b"];
 
     [Fact]
-    public void GetUrlSubstitutesDefaultValues()
+    public void BhvServers010GetUrlSubstitutesDefaultValues()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com/api/{version}",
@@ -33,7 +33,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlAppliesOverrides()
+    public void BhvServers009GetUrlAppliesOverrides()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com/api/{version}",
@@ -71,7 +71,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlRejectsValueOutsideEnum()
+    public void BhvServers008GetUrlRejectsValueOutsideEnum()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com",
@@ -92,7 +92,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlRejectionMessageNamesTheValueTheVariableAndTheAllowedValues()
+    public void BhvServers012GetUrlRejectionMessageNamesTheValueTheVariableAndTheAllowedValues()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com",
@@ -114,7 +114,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlRejectsADefaultOutsideTheEnum()
+    public void BhvServers004GetUrlRejectsADefaultOutsideTheEnum()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com",
@@ -135,7 +135,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlLeavesATemplateWithoutVariablesUnchanged()
+    public void BhvServers011GetUrlLeavesATemplateWithoutVariablesUnchanged()
     {
         var server = new ServerConfiguration(
             "https://api.example.com/v1",
@@ -151,7 +151,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlSubstitutesARepeatedVariableEverywhere()
+    public void BhvServers002GetUrlSubstitutesARepeatedVariableEverywhere()
     {
         var server = new ServerConfiguration(
             "https://{region}.example.com/{region}/api",
@@ -169,7 +169,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlDoesNotExpandAPlaceholderThatASubstitutedValueIntroduces()
+    public void BhvServers005GetUrlDoesNotExpandAPlaceholderThatASubstitutedValueIntroduces()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com/{version}",
@@ -185,7 +185,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlLeavesAnUnknownPlaceholderAndUnbalancedBraceAsWritten()
+    public void BhvServers007GetUrlLeavesAnUnknownPlaceholderAndUnbalancedBraceAsWritten()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com/{other}/{",
@@ -239,7 +239,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void ThirdGeneratedServerKeepsItsHostileTextVerbatim()
+    public void BhvServers013ThirdGeneratedServerKeepsItsHostileTextVerbatim()
     {
         ServerConfiguration server = Servers.All[2];
 
@@ -257,7 +257,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void ExposesRawTemplateAndDescription()
+    public void BhvServers006ExposesRawTemplateAndDescription()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com",

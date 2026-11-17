@@ -42,7 +42,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPet()
+    public async Task BhvOperations022TestAddPet()
     {
         var pet = new Pet("TestDog", new HashSet<string> { "http://example.com/photo.jpg" })
         {
@@ -57,7 +57,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetUsingConfiguredCredentials()
+    public async Task BhvOperations081TestAddPetUsingConfiguredCredentials()
     {
         // The Options arg is optional: omitting it uses the credentials
         // configured on the client (the default Authorization header set in
@@ -75,7 +75,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestFindPetsByStatus()
+    public async Task BhvOperations039TestFindPetsByStatus()
     {
         var result = await _api.FindPetsByStatusAsync(
             new FindPetsByStatusOptions { Status = "available" }
@@ -87,7 +87,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestFindPetsByStatusOmittingStatusSendsNoStatusKey()
+    public async Task BhvOperations041TestFindPetsByStatusOmittingStatusSendsNoStatusKey()
     {
         // allowEmptyValue-omitted-key regression: findPetsByStatus's optional
         // 'status' query param is declared allowEmptyValue:true. That means the
@@ -107,7 +107,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestFindPetsByStatusExplicitEmptyStatusSendsStatusKey()
+    public async Task BhvOperations040TestFindPetsByStatusExplicitEmptyStatusSendsStatusKey()
     {
         // The flip side of allowEmptyValue: when the caller EXPLICITLY supplies
         // an empty string for status, the key MUST be present with an empty
@@ -146,7 +146,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetById()
+    public async Task BhvOperations047TestGetPetById()
     {
         var result = await _api.GetPetByIdAsync(1L);
 
@@ -156,7 +156,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetByName()
+    public async Task BhvOperations065TestGetPetByName()
     {
         var result = await _api.GetPetByNameAsync(
             "Rex",
@@ -189,7 +189,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetPhotosMissingRequiredFormParamThrows()
+    public async Task BhvOperations052TestAddPetPhotosMissingRequiredFormParamThrows()
     {
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _api.AddPetPhotosAsync(
@@ -236,7 +236,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetByNameEmptyRequiredStringQueryParamThrows()
+    public async Task BhvOperations049TestGetPetByNameEmptyRequiredStringQueryParamThrows()
     {
         // The required 'category' query parameter is a string. An empty string is
         // treated as a missing value (parity with go/rust/swift/elixir) and must
@@ -257,7 +257,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestUpdatePet()
+    public async Task BhvOperations087TestUpdatePet()
     {
         var pet = new Pet("UpdatedDog", new HashSet<string> { "http://example.com/updated.jpg" })
         {
@@ -271,14 +271,14 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestDeletePet()
+    public async Task BhvOperations027TestDeletePet()
     {
         await _api.DeletePetAsync(1L, new DeletePetOptions());
         Assert.True(true);
     }
 
     [Fact]
-    public async Task TestDeletePetRejectsCrlfInCookieParam()
+    public async Task BhvOperations029TestDeletePetRejectsCrlfInCookieParam()
     {
         // RFC 6265 header-injection guard for an OPERATION-LEVEL cookie param.
         // deletePet's api_key (in: cookie) is interpolated straight into the
@@ -309,7 +309,9 @@ public class PetApiTest
     [InlineData("a\"b")]
     [InlineData("a\\b")]
     [InlineData("caf\u00e9")]
-    public async Task TestDeletePetRefusesACookieValueWithAnIllegalCookieOctet(string value)
+    public async Task BhvOperations028TestDeletePetRefusesACookieValueWithAnIllegalCookieOctet(
+        string value
+    )
     {
         // Only RFC 6265 cookie-octets are sent, and they are sent raw. Anything
         // else is refused before a request: the caller percent-encodes it.
@@ -325,7 +327,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestDeletePetSendsALegalCookieValueRaw()
+    public async Task BhvOperations030TestDeletePetSendsALegalCookieValueRaw()
     {
         // '%' and '=' are legal cookie-octets, so a value the caller already
         // percent-encoded goes out unchanged, not encoded a second time.
@@ -338,7 +340,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestSetPetAvatar()
+    public async Task BhvOperations070TestSetPetAvatar()
     {
         var imageData = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 });
         await _api.SetPetAvatarAsync(1L, imageData);
@@ -346,7 +348,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestSetPetAvatarRejectsUnknownContentType()
+    public async Task BhvOperations076TestSetPetAvatarRejectsUnknownContentType()
     {
         // An unknown requestContentType must be rejected client-side
         // (ArgumentException), not passed onto the wire as an undeclared type.
@@ -362,7 +364,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestSetPetAvatarHonoursSelectedRequestContentType()
+    public async Task BhvOperations071TestSetPetAvatarHonoursSelectedRequestContentType()
     {
         // setPetAvatar declares THREE request content-types — image/jpeg,
         // image/png and application/json. The operation previously collapsed
@@ -397,7 +399,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestSetPetAvatarStreamsRawBytesWithDeclaredContentType()
+    public async Task BhvOperations073TestSetPetAvatarStreamsRawBytesWithDeclaredContentType()
     {
         // A request body declared type:string format:binary with a declared
         // Content-Type of image/jpeg must reach the transport as the raw
@@ -416,7 +418,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestSetPetAvatarSendsTheCallerBytesVerbatimUnderTheJsonSelector()
+    public async Task BhvOperations072TestSetPetAvatarSendsTheCallerBytesVerbatimUnderTheJsonSelector()
     {
         var client = new HeaderAndBodyCapturingApiClient();
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -433,7 +435,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestSetPetAvatarThumbnailByteBodyStaysBase64Json()
+    public async Task BhvOperations077TestSetPetAvatarThumbnailByteBodyStaysBase64Json()
     {
         var client = new HeaderAndBodyCapturingApiClient();
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -447,7 +449,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetAvatar()
+    public async Task BhvOperations045TestGetPetAvatar()
     {
         var result = await _api.GetPetAvatarAsync(1L);
 
@@ -456,7 +458,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetAvatarThumbnail()
+    public async Task BhvOperations046TestGetPetAvatarThumbnail()
     {
         var result = await _api.GetPetAvatarThumbnailAsync(1L);
 
@@ -465,7 +467,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestSetPetAvatarThumbnail()
+    public async Task BhvOperations074TestSetPetAvatarThumbnail()
     {
         var thumbnailData = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A };
         var request = new SetPetAvatarThumbnailRequest(thumbnailData);
@@ -475,7 +477,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestUploadPetCertificate()
+    public async Task BhvOperations090TestUploadPetCertificate()
     {
         var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46 });
         var result = await _api.UploadPetCertificateAsync(
@@ -488,7 +490,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestUploadPetDocument()
+    public async Task BhvOperations091TestUploadPetDocument()
     {
         var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
         var result = await _api.UploadPetDocumentAsync(
@@ -506,7 +508,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetPhotos()
+    public async Task BhvOperations023TestAddPetPhotos()
     {
         var files = new List<Stream>
         {
@@ -525,7 +527,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestDownloadPetDocument()
+    public async Task BhvOperations035TestDownloadPetDocument()
     {
         var result = await _api.DownloadPetDocumentAsync(1L, 100L);
 
@@ -534,7 +536,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetPhoto()
+    public async Task BhvOperations055TestGetPetPhoto()
     {
         var result = await _api.GetPetPhotoAsync(1L, 100L);
 
@@ -543,7 +545,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetPassport()
+    public async Task BhvOperations053TestGetPetPassport()
     {
         var result = await _api.GetPetPassportAsync(1L);
 
@@ -552,7 +554,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetByIdWithHttpInfo()
+    public async Task BhvOperations048TestGetPetByIdWithHttpInfo()
     {
         var result = await _api.GetPetByIdWithHttpInfoAsync(1L);
 
@@ -563,7 +565,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetWithHttpInfo()
+    public async Task BhvOperations025TestAddPetWithHttpInfo()
     {
         var pet = new Pet("HttpInfoDog", new HashSet<string> { "http://example.com/photo.jpg" })
         {
@@ -579,7 +581,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestUpdatePetWithHttpInfo()
+    public async Task BhvOperations088TestUpdatePetWithHttpInfo()
     {
         var pet = new Pet("UpdatedDog", new HashSet<string> { "http://example.com/updated.jpg" })
         {
@@ -594,7 +596,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestDeletePetWithHttpInfo()
+    public async Task BhvOperations031TestDeletePetWithHttpInfo()
     {
         var result = await _api.DeletePetWithHttpInfoAsync(1L, new DeletePetOptions());
 
@@ -603,7 +605,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestFindPetsByStatusWithHttpInfo()
+    public async Task BhvOperations042TestFindPetsByStatusWithHttpInfo()
     {
         var result = await _api.FindPetsByStatusWithHttpInfoAsync(
             new FindPetsByStatusOptions { Status = "available" }
@@ -614,7 +616,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetPassportWithHttpInfo()
+    public async Task BhvOperations054TestGetPetPassportWithHttpInfo()
     {
         var result = await _api.GetPetPassportWithHttpInfoAsync(1L);
 
@@ -624,7 +626,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetTagStyledParams()
+    public async Task BhvOperations058TestGetPetTagStyledParams()
     {
         var result = await _api.GetPetTagAsync(
             5L,
@@ -640,7 +642,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetExternalPetInfoUsesPerOperationServer()
+    public async Task BhvOperations061TestGetExternalPetInfoUsesPerOperationServer()
     {
         const string externalServer = "https://external-api.example.com/v1";
         var redirecting = new RedirectingApiClient(externalServer, _baseUrl);
@@ -677,7 +679,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestPerOperationServerVariantsResolveIntoTheRequestedUrl()
+    public async Task BhvOperations083TestPerOperationServerVariantsResolveIntoTheRequestedUrl()
     {
         var client = new UrlCapturingApiClient();
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -705,7 +707,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public void TestPerOperationServerTypesAreScopedToTheirOperation()
+    public void BhvOperations085TestPerOperationServerTypesAreScopedToTheirOperation()
     {
         Assert.Equal(
             "https://external-api.example.com/v1",
@@ -765,7 +767,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task GetPetAvatarThumbnailRejectsMalformedBase64()
+    public async Task BhvOperations063GetPetAvatarThumbnailRejectsMalformedBase64()
     {
         var api = new PetApi(
             new FakeApiClient(200, "application/json", "\"!!not*base64??\""),
@@ -877,7 +879,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetUsesTheCredentialOfTheSchemeTheSpecRequires()
+    public async Task BhvOperations079TestAddPetUsesTheCredentialOfTheSchemeTheSpecRequires()
     {
         // addPet accepts apiKeyHeader or petStoreBearer. The client holds a
         // credential per scheme, keyed by the scheme name, and the operation
@@ -901,7 +903,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetUsesTheFirstDeclaredSchemeTheClientHoldsACredentialFor()
+    public async Task BhvOperations080TestAddPetUsesTheFirstDeclaredSchemeTheClientHoldsACredentialFor()
     {
         var client = new HeaderCapturingApiClient();
         var config = Configuration.Builder().BaseUrl("http://localhost").Build();
@@ -923,7 +925,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetIgnoresACredentialHeldForAnotherScheme()
+    public async Task BhvOperations020TestAddPetIgnoresACredentialHeldForAnotherScheme()
     {
         var client = new HeaderCapturingApiClient();
         var config = Configuration.Builder().BaseUrl("http://localhost").Build();
@@ -968,7 +970,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetUsesConfiguredCredentialsWhenAuthOmitted()
+    public async Task BhvOperations078TestAddPetUsesConfiguredCredentialsWhenAuthOmitted()
     {
         // When no per-call auth is supplied (Options omitted entirely), the
         // client falls back to the credentials configured on the Configuration
@@ -1038,7 +1040,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public void TestNoOperationOptionsOffersAPerCallAuthenticator()
+    public void BhvOperations082TestNoOperationOptionsOffersAPerCallAuthenticator()
     {
         // There is no per-call scheme override: an operation uses the scheme
         // its spec requires, so a secured operation's options carry no Auth.
@@ -1077,7 +1079,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestOptionalArrayQueryParamsSerializeStyledNotDebugBlob()
+    public async Task BhvOperations068TestOptionalArrayQueryParamsSerializeStyledNotDebugBlob()
     {
         // optional-array-param parity (Wave D): getPetTag declares two OPTIONAL
         // array query params — `colors` (pipeDelimited, non-exploded) and
@@ -1146,7 +1148,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task AllowReservedQueryParamEncodesAFragmentDelimiter()
+    public async Task BhvOperations066AllowReservedQueryParamEncodesAFragmentDelimiter()
     {
         var client = new DateWireCapturingApiClient
         {
@@ -1170,7 +1172,7 @@ public class PetApiTest
     [Theory]
     [InlineData(".")]
     [InlineData("..")]
-    public async Task GetPetByNameRejectsDotSegmentBeforeAnyRequest(string segment)
+    public async Task BhvOperations051GetPetByNameRejectsDotSegmentBeforeAnyRequest(string segment)
     {
         var client = new DateWireCapturingApiClient();
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -1191,7 +1193,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task GetPetByNameKeepsDotsInsideTheSegment()
+    public async Task BhvOperations064GetPetByNameKeepsDotsInsideTheSegment()
     {
         var client = new DateWireCapturingApiClient
         {
@@ -1218,7 +1220,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestErrorHandlingNotFound()
+    public async Task BhvOperations037TestErrorHandlingNotFound()
     {
         var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
 
@@ -1228,7 +1230,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestEmptyBodyForBodyReturningOpThrowsApiException()
+    public async Task BhvOperations036TestEmptyBodyForBodyReturningOpThrowsApiException()
     {
         // convenience-empty-body-handling: a body-returning operation that
         // gets a 200 with an empty body must surface a typed, catchable
@@ -1298,7 +1300,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestNonJsonSuccessContentTypeNamesTheOperation()
+    public async Task BhvOperations093TestNonJsonSuccessContentTypeNamesTheOperation()
     {
         // A JSON-typed operation answered with a non-JSON Content-Type fails
         // with the canonical message, naming the operation and not the model.
@@ -1314,7 +1316,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestErrorHandlingServerError()
+    public async Task BhvOperations038TestErrorHandlingServerError()
     {
         var mockApi = NewPetApiForMock(
             500,
@@ -1328,7 +1330,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestDownloadBinaryMock()
+    public async Task BhvOperations034TestDownloadBinaryMock()
     {
         var mockApi = NewPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
@@ -1337,7 +1339,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestUploadMultipartMock()
+    public async Task BhvOperations089TestUploadMultipartMock()
     {
         var mockApi = NewPetApiForMock(
             200,
@@ -1402,7 +1404,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task UploadPetDocumentOctetStreamSendsRawBytes()
+    public async Task BhvOperations092UploadPetDocumentOctetStreamSendsRawBytes()
     {
         // uploadPetDocument declares TWO request content-types —
         // multipart/form-data AND application/octet-stream. When the caller
@@ -1476,7 +1478,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task SetPetPreferencesFormWireFormat()
+    public async Task BhvOperations075SetPetPreferencesFormWireFormat()
     {
         // Wire-format parity lock for the application/x-www-form-urlencoded
         // body of setPetPreferences. The canonical (identical across all 12
@@ -1535,7 +1537,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task FormatDateQueryAndHeaderParamsEmitDateOnlyWithNoTime()
+    public async Task BhvOperations069FormatDateQueryAndHeaderParamsEmitDateOnlyWithNoTime()
     {
         /* Case 14: a format:date query param (bornAfter) and header param
            (Report-Date) must serialise as YYYY-MM-DD with no time component,
@@ -1577,7 +1579,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task FormatDateFormParamEmitsDateOnlyWithNoTime()
+    public async Task BhvOperations019FormatDateFormParamEmitsDateOnlyWithNoTime()
     {
         /* Case 14: a format:date form field (renewalDate) must serialise as
            YYYY-MM-DD, never a culture-dependent DateOnly.ToString() such as
@@ -1647,7 +1649,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task GetPetAvatarThumbnailByteOverJsonDecodesBase64ToRawBytes()
+    public async Task BhvOperations062GetPetAvatarThumbnailByteOverJsonDecodesBase64ToRawBytes()
     {
         /* Case 13: a top-level format:byte response carried as
            application/json arrives as a JSON string literal. The SDK must
@@ -1664,7 +1666,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task FormatDatePathParamIsDateOnlyWithNoTime()
+    public async Task BhvOperations043FormatDatePathParamIsDateOnlyWithNoTime()
     {
         /* Case 15: a format:date PATH param must serialise as YYYY-MM-DD with no
            time component and no culture-dependent separators. */
@@ -1693,7 +1695,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public void DeprecatedOperationsCarryTheObsoleteMarkerOnEveryVariant()
+    public void BhvOperations033DeprecatedOperationsCarryTheObsoleteMarkerOnEveryVariant()
     {
         string[] names =
         [
@@ -1716,7 +1718,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public void DeprecatedModelCarriesTheObsoleteMarker()
+    public void BhvOperations032DeprecatedModelCarriesTheObsoleteMarker()
     {
         var marker = (ObsoleteAttribute?)
             Attribute.GetCustomAttribute(typeof(Tag), typeof(ObsoleteAttribute));
@@ -1734,7 +1736,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task GetPetSummarySendsTheMatrixDateSegmentTheCookieAndTheDateArray()
+    public async Task BhvOperations057GetPetSummarySendsTheMatrixDateSegmentTheCookieAndTheDateArray()
     {
         var client = new DateWireCapturingApiClient { ResponseBody = "\"ok\"" };
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -1760,7 +1762,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task GetPetSummaryWithoutTheRequiredCookieIsRefusedBeforeAnyRequest()
+    public async Task BhvOperations056GetPetSummaryWithoutTheRequiredCookieIsRefusedBeforeAnyRequest()
     {
         var client = new DateWireCapturingApiClient();
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -1782,7 +1784,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task GetPetByNameWithoutTheRequiredHeaderIsRefusedBeforeAnyRequest()
+    public async Task BhvOperations050GetPetByNameWithoutTheRequiredHeaderIsRefusedBeforeAnyRequest()
     {
         var client = new DateWireCapturingApiClient();
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -1803,7 +1805,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task FindPetsByStatusSendsTheDeepObjectFilterOneKeyPerEntry()
+    public async Task BhvOperations044FindPetsByStatusSendsTheDeepObjectFilterOneKeyPerEntry()
     {
         var client = new DateWireCapturingApiClient();
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -1823,7 +1825,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task GetPetTagWiresTheObjectValuedParameters()
+    public async Task BhvOperations067GetPetTagWiresTheObjectValuedParameters()
     {
         var client = new DateWireCapturingApiClient
         {
@@ -1854,7 +1856,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task AddPetTreatmentSendsExactlyTheChosenVariantAsTheBody()
+    public async Task BhvOperations024AddPetTreatmentSendsExactlyTheChosenVariantAsTheBody()
     {
         var client = new DateWireCapturingApiClient { ResponseBody = "{\"drugName\":\"aspirin\"}" };
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -1874,7 +1876,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task UploadPetDocumentSendsEachScalarPartAsText()
+    public async Task BhvOperations095UploadPetDocumentSendsEachScalarPartAsText()
     {
         var client = new HeaderAndBodyCapturingApiClient();
         var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
