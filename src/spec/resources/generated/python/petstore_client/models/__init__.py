@@ -10,7 +10,9 @@ from petstore_client.models.account import Account as Account
 from petstore_client.models.api_response import ApiResponse as ApiResponse
 from petstore_client.models.availability import Availability as Availability
 from petstore_client.models.binary_vault import BinaryVault as BinaryVault
+from petstore_client.models.car import Car as Car
 from petstore_client.models.category import Category as Category
+from petstore_client.models.circle import Circle as Circle
 from petstore_client.models.color import Color as Color
 from petstore_client.models.defaults import Defaults as Defaults
 from petstore_client.models.department import Department as Department
@@ -54,6 +56,8 @@ from petstore_client.models.set_pet_avatar_request import (
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
 )
+from petstore_client.models.shape import Shape as Shape
+from petstore_client.models.square import Square as Square
 from petstore_client.models.state_conflict import StateConflict as StateConflict
 from petstore_client.models.stock_item import StockItem as StockItem
 from petstore_client.models.strict_tag import StrictTag as StrictTag
@@ -62,8 +66,10 @@ from petstore_client.models.swatch import Swatch as Swatch
 from petstore_client.models.tag import Tag as Tag
 from petstore_client.models.treatment_record import TreatmentRecord as TreatmentRecord
 from petstore_client.models.tree_node import TreeNode as TreeNode
+from petstore_client.models.truck import Truck as Truck
 from petstore_client.models.unexpected_failure import (
     UnexpectedFailure as UnexpectedFailure,
 )
 from petstore_client.models.upstream_failure import UpstreamFailure as UpstreamFailure
+from petstore_client.models.vehicle import Vehicle as Vehicle
 from petstore_client.models.wet_food import WetFood as WetFood

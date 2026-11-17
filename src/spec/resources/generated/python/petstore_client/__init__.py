@@ -51,7 +51,9 @@ __all__ = [
     "ApiResponse",
     "Availability",
     "BinaryVault",
+    "Car",
     "Category",
+    "Circle",
     "Color",
     "Defaults",
     "Department",
@@ -83,6 +85,8 @@ __all__ = [
     "Separator",
     "SetPetAvatarRequest",
     "SetPetAvatarThumbnailRequest",
+    "Shape",
+    "Square",
     "StateConflict",
     "StockItem",
     "StrictTag",
@@ -91,8 +95,10 @@ __all__ = [
     "Tag",
     "TreatmentRecord",
     "TreeNode",
+    "Truck",
     "UnexpectedFailure",
     "UpstreamFailure",
+    "Vehicle",
     "WetFood",
 ]
 
@@ -163,8 +169,14 @@ from petstore_client.models.availability import (
 from petstore_client.models.binary_vault import (
     BinaryVault as BinaryVault,
 )
+from petstore_client.models.car import (
+    Car as Car,
+)
 from petstore_client.models.category import (
     Category as Category,
+)
+from petstore_client.models.circle import (
+    Circle as Circle,
 )
 from petstore_client.models.color import (
     Color as Color,
@@ -259,6 +271,12 @@ from petstore_client.models.set_pet_avatar_request import (
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
 )
+from petstore_client.models.shape import (
+    Shape as Shape,
+)
+from petstore_client.models.square import (
+    Square as Square,
+)
 from petstore_client.models.state_conflict import (
     StateConflict as StateConflict,
 )
@@ -283,11 +301,17 @@ from petstore_client.models.treatment_record import (
 from petstore_client.models.tree_node import (
     TreeNode as TreeNode,
 )
+from petstore_client.models.truck import (
+    Truck as Truck,
+)
 from petstore_client.models.unexpected_failure import (
     UnexpectedFailure as UnexpectedFailure,
 )
 from petstore_client.models.upstream_failure import (
     UpstreamFailure as UpstreamFailure,
+)
+from petstore_client.models.vehicle import (
+    Vehicle as Vehicle,
 )
 from petstore_client.models.wet_food import (
     WetFood as WetFood,

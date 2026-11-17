@@ -2281,6 +2281,78 @@ components:
               type: string
               format: email
 
+    # Classic allOf inheritance: a base schema with a discriminator and children that
+    # compose it. Vehicle uses an explicit mapping, Shape the implicit schema-name one.
+    Vehicle:
+      type: object
+      required:
+        - vehicleType
+        - plate
+      properties:
+        vehicleType:
+          type: string
+        plate:
+          type: string
+      discriminator:
+        propertyName: vehicleType
+        mapping:
+          car: '#/components/schemas/Car'
+          truck: '#/components/schemas/Truck'
+
+    Car:
+      allOf:
+        - $ref: '#/components/schemas/Vehicle'
+        - type: object
+          required:
+            - doorCount
+          properties:
+            doorCount:
+              type: integer
+              format: int32
+
+    Truck:
+      allOf:
+        - $ref: '#/components/schemas/Vehicle'
+        - type: object
+          properties:
+            payloadKg:
+              type: integer
+              format: int32
+
+    Shape:
+      type: object
+      required:
+        - shapeType
+      properties:
+        shapeType:
+          type: string
+        label:
+          type: string
+      discriminator:
+        propertyName: shapeType
+
+    Circle:
+      allOf:
+        - $ref: '#/components/schemas/Shape'
+        - type: object
+          required:
+            - radius
+          properties:
+            radius:
+              type: number
+              format: double
+
+    Square:
+      allOf:
+        - $ref: '#/components/schemas/Shape'
+        - type: object
+          required:
+            - side
+          properties:
+            side:
+              type: number
+              format: double
+
     Photo:
       type: object
       properties:

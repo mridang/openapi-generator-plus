@@ -36,7 +36,25 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Car",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Category",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Circle",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
@@ -359,6 +377,24 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Shape",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Square",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.StateConflict",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -431,6 +467,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Truck",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.UnexpectedFailure",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -441,6 +486,15 @@
   },
   {
     "name": "com.example.petstore.models.UpstreamFailure",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Vehicle",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
