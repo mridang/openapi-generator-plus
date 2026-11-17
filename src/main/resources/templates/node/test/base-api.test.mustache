@@ -461,6 +461,15 @@ describe('BaseApi', () => {
     expect((result as { headers: Record<string, string> }).headers['x-custom']).toBe('auth-value');
   });
 
+  test('bhv authintegration 004 appends auth cookies to a Cookie header the operation already set', async () => {
+    const capturing = new CapturingApiClient();
+    const auth = new TestAuthenticator({}, {}, { session: 'abc123' });
+    await new TestableApi(capturing, new Configuration({ baseUrl: 'https://api.example.com' })).call(
+      'GET', '/items', {}, { Cookie: 'theme=dark' }, null, ['application/json'], 'application/json', null, auth);
+
+    expect(capturing.capturedHeaders['Cookie']).toBe('theme=dark; session=abc123');
+  });
+
   test('bhv authintegration 017 sets Cookie header from auth cookies', async () => {
     const capturing = new CapturingApiClient();
     const auth = new TestAuthenticator({}, {}, { session: 'abc123', theme: 'dark' });
@@ -1250,6 +1259,29 @@ describe('BaseApi scheme credentials', () => {
     await testApi.call('GET', '/test/echo', {}, {}, null, ['application/json'], 'application/json', null, testApi.resolve(['bearer']));
 
     expect(client.capturedHeaders['Authorization']).toBe('Bearer b');
+  });
+
+  test('bhv authintegration 007 each operation sends the credential of its own scheme', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }), null, { bearer, apiKey });
+
+    await testApi.call('GET', '/test/echo', {}, {}, null, ['application/json'], 'application/json', null, testApi.resolve(['bearer']));
+    expect(client.capturedHeaders['Authorization']).toBe('Bearer b');
+    expect(client.capturedHeaders['X-Api-Key']).toBeUndefined();
+
+    await testApi.call('GET', '/test/echo', {}, {}, null, ['application/json'], 'application/json', null, testApi.resolve(['apiKey']));
+    expect(client.capturedHeaders['X-Api-Key']).toBe('k');
+    expect(client.capturedHeaders['Authorization']).toBeUndefined();
+  });
+
+  test('bhv authintegration 008 a call with no scheme credential falls back to the client-level authenticator', async () => {
+    const client = new CapturingApiClient();
+    const clientAuth = new TestAuthenticator({ 'X-Client-Auth': 'client-level-token' });
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }), clientAuth, { bearer });
+
+    await testApi.call('GET', '/test/echo', {}, {}, null, ['application/json'], 'application/json', null, testApi.resolve(['apiKey']));
+
+    expect(client.capturedHeaders['X-Client-Auth']).toBe('client-level-token');
   });
 
   test('bhv authintegration 009 falls back to client-level authenticator when no scheme credential resolved', async () => {

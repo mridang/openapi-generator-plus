@@ -21,13 +21,25 @@ describe('ServerConfiguration', () => {
     expect(config.getUrl()).toBe('https://prod.api.example.com/v2');
   });
 
-  it('substitutes every occurrence of a variable', () => {
+  it('bhv servers 002 a variable repeated in the template is replaced everywhere', () => {
     const config = new ServerConfiguration(
       'https://{env}.api.example.com/{env}',
       null,
       { env: new ServerVariable('prod', null, []) }
     );
     expect(config.getUrl()).toBe('https://prod.api.example.com/prod');
+  });
+
+  it('bhv servers 009 resolves a url template using default variable values', () => {
+    const config = new ServerConfiguration(
+      'https://{region}.api.example.com:{port}',
+      null,
+      {
+        region: new ServerVariable('eu', null, []),
+        port: new ServerVariable('8443', null, [])
+      }
+    );
+    expect(config.getUrl()).toBe('https://eu.api.example.com:8443');
   });
 
   it('bhv servers 005 does not expand a placeholder that a substituted value introduces', () => {
@@ -95,6 +107,23 @@ describe('ServerConfiguration', () => {
     expect((caught as Error).message).toBe(
       "Invalid value 'dev' for server variable 'env'. Allowed values: prod, staging"
     );
+  });
+
+  it('bhv servers 012 the rejection names the value, the variable and the allowed values', () => {
+    const config = new ServerConfiguration(
+      'https://{region}.api.example.com',
+      null,
+      { region: new ServerVariable('eu', null, ['eu', 'us', 'ap']) }
+    );
+    let caught: unknown;
+    try {
+      config.getUrl({ region: 'mars' });
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as Error).message).toContain("'mars'");
+    expect((caught as Error).message).toContain("'region'");
+    expect((caught as Error).message).toContain('eu, us, ap');
   });
 
   it('bhv servers 004 rejects a default value that is not one of the enum values', () => {

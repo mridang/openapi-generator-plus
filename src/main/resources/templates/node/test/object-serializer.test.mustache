@@ -1803,7 +1803,7 @@ describe('ObjectSerializer', () => {
     // element-by-element into a list on the way back.
 
     // (1) SCALAR variant — a single Buffer.
-    test('scalar Buffer variant serializes to a base64 STRING, not an int-array', () => {
+    test('bhv unions 019 scalar Buffer variant serializes to a base64 STRING, not an int-array', () => {
       const request: SetPetAvatarThumbnailRequest = Buffer.from([0x01, 0x02, 0x03, 0x04]);
       const wire = JSON.parse(ObjectSerializer.serialize(request)) as unknown;
       // Must be the base64 string "AQIDBA==" — NOT the int-array [1,2,3,4],
@@ -1813,7 +1813,7 @@ describe('ObjectSerializer', () => {
       expect(Array.isArray(wire)).toBe(false);
     });
 
-    test('scalar base64 string deserializes back to the original 4 bytes', () => {
+    test('bhv unions 023 SetPetAvatarThumbnail byte oneOf round-trips a scalar through base64', () => {
       // The union has no runtime decode wrapper, so the scalar variant decodes
       // through the same base64 path the bare `format: byte` field uses:
       // a JSON string -> Buffer.from(str, 'base64').
@@ -1826,7 +1826,7 @@ describe('ObjectSerializer', () => {
     });
 
     // (2) ARRAY variant — a list of two byte payloads.
-    test('array-of-Buffer variant serializes to an array of base64 strings and round-trips', () => {
+    test('bhv unions 022 SetPetAvatarThumbnail array byte oneOf round-trips through base64', () => {
       const payloads = [Buffer.from([0x01, 0x02, 0x03, 0x04]), Buffer.from([0x05, 0x06])];
       const request: SetPetAvatarThumbnailRequest = payloads;
       const wire = JSON.parse(ObjectSerializer.serialize(request)) as unknown;
@@ -1844,7 +1844,7 @@ describe('ObjectSerializer', () => {
     // bare-union encoding keeps the two cases structurally distinct: a scalar
     // is a JSON string, the array is a JSON array, so the wire form alone
     // disambiguates and a scalar string can never decode as a list.
-    test('bhv serializationobject 118 a scalar base64 wire value resolves to the scalar variant, not a list', () => {
+    test('bhv unions 018 a scalar base64 wire value resolves to the scalar variant, not a list', () => {
       const wire = JSON.parse(ObjectSerializer.serialize(Buffer.from([0x01, 0x02, 0x03, 0x04]) as SetPetAvatarThumbnailRequest)) as unknown;
       expect(Array.isArray(wire)).toBe(false);
       expect(typeof wire).toBe('string');
