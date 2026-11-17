@@ -1046,3 +1046,180 @@ serializationwire056 | Falls back to application/octet-stream when extension is 
 serializationparam106 | Path with null style behaves like simple
 authoidc029 | Concurrent callers on a cold authenticator share one discovery request
 retries029 | Falls back to the backoff when Retry-After is not understood
+authapikey021 | An API key is read from the environment when none is passed, and a passed key wins
+authapikey022 | An API key is emitted only at its own location and not at the other two
+authapikey023 | A cookie key accepts a non-ASCII value
+authapikey025 | Generated API key scheme wrappers mask the key in their debug output
+authscheme003 | A scheme authenticator fails at construction naming the variable when its environment variable is empty
+authbearer019 | An empty environment value for the token or host counts as unset and fails construction naming the variable
+authapikey026 | An API key authenticator does not leak its key in its default debug output
+authbasic018 | A basic password may contain a colon
+authbasic019 | Generated basic scheme wrappers emit the same Basic header as the base authenticator
+authscheme004 | The AdminBasic scheme authenticator treats an empty environment variable as unset and names it
+authscheme005 | The ApiKeyHeader scheme authenticator treats an empty environment variable as unset and names it
+authscheme006 | The ApiKeyQuery scheme authenticator treats an empty environment variable as unset and names it
+authscheme007 | The SessionCookie scheme authenticator treats an empty environment variable as unset and names it
+authscheme008 | The SsoAuth scheme authenticator treats an empty environment variable as unset and names it
+authbearer022 | A bearer authenticator rejects a non-ASCII token at construction
+authbearer023 | Generated bearer scheme wrappers emit a Bearer header and keep their own name
+authbasic020 | A basic authenticator masks the password in its debug output
+authbearer025 | The environment variable is read once at construction
+authbearer026 | A token and a token provider passed together are refused
+authbearer027 | A bearer authenticator rejects a whitespace-only token
+authintegration018 | A configured client authenticator is applied to a secured operation
+authintegration019 | An invalid auth cookie fails the call with an invalid argument error before any request is sent
+serializationparam107 | A query value keeps only the unreserved set literal and percent-encodes * ! ' ( )
+authoauthtwoauthcode030 | Auth headers before the code exchange fail naming the exchange call to make first
+errors049 | An OAuth2 server error message names the status and the error code
+authoauthtwoauthcode032 | The authorization code exchange body uses a fixed parameter order
+authoauthtwoclientcred016 | The client credentials token request body uses a fixed parameter order
+authoauthtwoimplicit016 | An implicit access token may contain a tab
+authoauthtwopassword021 | The password grant token request body uses a fixed parameter order
+authoauthtwopassword022 | The generated password scheme wrapper sends the first grant to the declared token URL and the refresh grant to the declared refresh URL
+authoauthtwotokenmgr042 | A token server error message names the status and, when present, the error code and description
+authoauthtwotokenmgr043 | The token request body is serialised with the parameters in a fixed shared key order
+authoauthtwotokenmgr045 | A padded decimal string expires_in is accepted as a lifetime so the token is cached
+authoauthtwotokenmgr046 | A string expires_in outside the plain decimal grammar leaves the token stale
+authoidc030 | A discovery document served with max-age=0 is fetched again on every use
+authoidc031 | A cached discovery document is fetched again once its Cache-Control max-age has elapsed
+authoidc032 | A discovered endpoint that is not https is rejected
+authoidc033 | A failed discovery request reports its method and path in the error
+authscheme009 | A credential passed explicitly wins over its environment variable
+authscheme010 | An empty environment variable for the bearer scheme credential is treated as unset and fails naming the variable
+authscheme011 | An empty environment variable for the service token scheme credential is treated as unset and fails naming the variable
+authscheme012 | An empty environment variable for the api key scheme credential is treated as unset and fails naming the variable
+authscheme013 | An empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable
+authscheme014 | An empty environment variable for the password scheme credential is treated as unset and fails naming the variable
+authscheme015 | An empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable
+authscheme016 | An empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable
+config018 | A default constructed or built configuration uses the base URL from the spec
+config019 | The default configuration factory returns the spec base URL and no default headers
+config020 | A configuration builder chain sets the base URL and default headers in one configuration
+config021 | A server URL template resolves its variables to their defaults
+config022 | Mutating the returned default headers does not change the configuration
+config023 | Each call to the default configuration factory returns a fresh instance with the same base URL
+config024 | The configuration has no settable process-wide default
+errors050 | Response headers render in the error text as compact JSON with sorted keys and unescaped slashes
+errors051 | An empty error message falls back to the generic error line
+errors052 | A typed client error is caught by a base API error catch and chains to the API error root
+errors053 | Each named error pins its own HTTP status code
+errors054 | An unexpected content type error names the operation rather than the HTTP verb
+errors055 | Status error constructors default the response context to null
+errors056 | A status at or above 600 yields the base error and not a server error
+errors057 | A network failure error carries the request method and path
+errors058 | A 400 response maps to the bad request error
+errors059 | A 403 response maps to the forbidden error
+errors060 | A 404 response maps to the not found error
+errors061 | A bad request error is a client error, an API error and an OpenAPI error
+authoauthtwotokenmgr047 | An OAuth2 server error without an error code names the status and the raw body
+errors064 | An empty error message renders the default text, like a missing one
+errors065 | The error text cuts a long response body at 1 KiB and counts the bytes left out
+errors066 | A 429 response becomes a too-many-requests error that is a client error
+errors067 | A 409 response becomes a conflict error
+errors068 | A 422 response becomes an unprocessable entity error
+errors069 | A 500 response becomes an internal server error
+errors070 | A 502 response becomes a server error
+headers029 | The Accept header is empty when every entry is blank
+lifecycle026 | A client built with no credential at all is refused
+lifecycle028 | An explicit host and token win over the environment
+lifecycle030 | The base URL comes from the default authenticator first, then from the first scheme credential
+lifecycle032 | A token passed to the client is preferred to the one in the environment
+authbearer028 | A bearer token containing CRLF is rejected at construction
+lifecycle035 | A request issued after close fails with the one closed-client error and never reaches the transport
+serializationobject188 | An empty object serializes to an empty JSON object
+operations127 | A malformed 2xx body fails loud with a serialization error instead of returning the raw string
+operations128 | A content query parameter that cannot be serialized raises a serialization error and sends no request
+operations129 | A 200 response from reserveStock decodes as the existing reservation
+operations130 | A malformed 2xx JSON body propagates the deserialization error
+operations131 | A request with no body sends no Content-Type header
+operations132 | A missing required options object or body names the first required field
+operations136 | A bare JSON null body from a model operation throws an API error naming the operation
+operations138 | An error response is thrown as the exception class specific to its status through the typed routes
+operations139 | A time query parameter keeps its fractional seconds when non-zero
+skills001 | The skills guide names the root error and the error types that are siblings of the API error
+operations147 | Multipart parts are sent in declaration order
+operations148 | An operation uses the first scheme of its security requirement that the client holds
+skills002 | The skills guide documents the retries in its configuration section
+operations153 | An operation with no chosen server is sent to the client base URL
+serializationobject189 | Mutually recursive models decode from nested JSON
+options045 | A negative maxRedirects is rejected at configuration
+options046 | Constructing transport options directly with a non-http proxy scheme is rejected
+options047 | A negative timeout is rejected at configuration
+options051 | A proxy URL with a scheme other than http or https is rejected
+options052 | A proxy URL carrying credentials is accepted
+retries030 | The retry backoff jitter takes at most a quarter off the delay
+redirects029 | A redirect rewrites the method only as RFC 9110 section 15.4 allows
+redirects030 | An explicit default port is the same origin as the implicit one
+redirects031 | A 3xx response without a Location header is returned unchanged instead of failing
+redirects033 | A redirect to a different port is a different origin and drops the credentials
+redirects034 | Origin comparison separates a different scheme, host or port
+redirects036 | A 303 redirect turns every method except HEAD into GET
+results004 | An API result exposes the deserialized data
+results005 | A result exposes the raw response body
+retries032 | A stream body is never retried
+retries033 | The last network error is reported once the retries are spent
+retries034 | A string body is sent again unchanged on every retry
+errors071 | A 401 response surfaces as an unauthorized error
+retries038 | A 503 is sent again until it succeeds
+retries039 | Every retry is a fresh request that carries the same authentication headers again
+retries041 | The retry backoff starts at 0.5 s, doubles up to 8 s and has up to 25% jitter taken off
+serializationobject190 | A long is stringified to its exact decimal digits
+serializationobject191 | An int64 above 2^53 keeps every digit when decoded
+serializationobject192 | An unknown enum string fails at decode
+serializationobject193 | An unknown integer enum value is rejected on decode
+serializationobject194 | A hyphenated enum wire value is serialized exactly as declared
+serializationobject196 | An explicit value on the wire replaces the declared default
+serializationobject199 | Subseconds are preserved in a serialized datetime
+serializationobject200 | A serialize failure carries the canonical prefix and names the detail
+serializationobject202 | A null field is omitted on serialize while non-null fields are kept
+serializationobject205 | An extra key survives a full deserialize then serialize round-trip
+serializationobject206 | A differing map key makes two models unequal
+serializationobject207 | A non-standard base64 value is rejected on decode
+serializationobject208 | Hostile enum member wire strings are kept exactly through serialize and decode
+serializationobject209 | A model copy replaces the given fields and leaves the original unchanged
+serializationobject210 | A header value for a list of strings is joined with commas
+serializationobject211 | An int64 is stringified to its decimal digits
+serializationobject212 | A sub-0.0001s or negative duration is written without scientific notation
+serializationobject218 | A required nullable property that has a value is written as given
+serializationobject219 | A time value keeps its milliseconds when it is written
+serializationobject221 | Deserializing an array of base64 strings decodes each element to raw bytes
+serializationobject222 | Serializing an array of byte values encodes each element to base64 in the wire array
+serializationobject223 | A protobuf duration at the bound of plus or minus 315576000000 seconds is accepted and one past it is rejected
+serializationobject224 | A content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal
+serializationobject227 | A model externalDocs description is documented verbatim without HTML entities
+serializationobject229 | Deserializing a map of models returns a model instance for each value
+serializationobject230 | A time value survives a stringify and parse round trip
+serializationparam108 | A nested object leaf in a styled parameter is rejected with a serialization error
+serializationparam109 | An unknown parameter style falls back to plain value serialization
+serializationparam110 | A date value is written as YYYY-MM-DD
+serializationparam111 | A deepObject parameter writes each property as name[key]
+serializationparam115 | A csv query array keeps an empty slot for a null element
+serializationparam117 | A set in form style without explode joins its elements with commas like an array
+serializationparam118 | A content cookie value is encoded to the shared percent encoded bytes
+serializationparam119 | A tilde is kept literal in a path parameter value
+serializationparam120 | An array of date values is written with each element as YYYY-MM-DD
+serializationparam122 | An allowReserved query value keeps its reserved characters literal on the wire
+serializationwire057 | A form-urlencoded body keeps only the unreserved set literal and escapes the rest
+serializationwire060 | A binary return type gets the raw bytes of a JSON body
+serializationwire061 | A multipart filename with an embedded quote is backslash-escaped
+serializationobject231 | Deserializing a payload that omits optional fields leaves them unset
+servers020 | A per-operation server variable value outside its enum is rejected
+servers021 | A server URL with special characters in its default and enum values resolves to the raw characters
+servers023 | A server variable value containing replacement patterns is substituted literally
+servers024 | A server variable freezes its enum values so they cannot be mutated
+redirects037 | A redirect to the explicit default port of the same origin keeps the Authorization header
+transport060 | Cancelling an in-flight call aborts the request without reporting a timeout
+transport061 | A caller-supplied stream is left open after the request body is sent
+transport062 | With TLS verification disabled a certificate that fails validation is accepted
+transport063 | A proxy that requires credentials answers 407 when none are sent
+transport064 | The intermediate response of a refused redirect is released
+transport065 | A configured CA bundle replaces the system trust store instead of adding to it
+transport066 | A CA bundle file trusts every certificate it contains
+retries042 | A timeout is not retried
+headers030 | A default header in another case replaces the negotiated one instead of being sent beside it
+unions029 | oneOf wrappers have value equality
+unions030 | A subtype whose discriminator key is absent is filled with the mapping default
+unions032 | A oneOf wrapper built from a variant holds that variant and serializes it with its discriminator
+unions033 | An unknown, missing or empty discriminator fails with the SDK's serialization error
+unions034 | A oneOf wrapper's typed accessor returns the held variant and nothing for the other variant
+unions035 | A discriminator value not listed in the mapping fails to deserialize
