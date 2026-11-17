@@ -3,6 +3,7 @@ package io.github.mridang.codegen.generators.swift;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,13 +75,41 @@ class BetterSwiftCodegenTest {
         assertEquals("", BetterSwiftCodegen.escapeSwiftString(null));
     }
 
-    /* The environment variables of the credential factory are named after the package. */
+    /* Every operation gets an options struct, so each call has a slot for per-call settings (F827). */
     @Test
-    void environmentPrefixIsTheUpperSnakeCaseOfThePackageName() {
-        assertEquals("PETSTORE_CLIENT", BetterSwiftCodegen.environmentPrefix("PetstoreClient"));
-        assertEquals("OPEN_API_CLIENT", BetterSwiftCodegen.environmentPrefix("OpenApiClient"));
-        assertEquals("ACME_SDK", BetterSwiftCodegen.environmentPrefix("acme-sdk"));
-        assertEquals("HTTP2", BetterSwiftCodegen.environmentPrefix("HTTP2"));
+    void everyOperationGetsAnOptionsStruct() {
+        assertTrue(new BetterSwiftCodegen().mintsOptionsForEveryOperation());
+    }
+
+    private static AbstractBetterCodegen.SchemeAuthSpec scheme(String baseClass, List<String> params) {
+        return new AbstractBetterCodegen.SchemeAuthSpec(
+                "scheme", "Scheme", "", baseClass, false, params, null, null, null, null, null, null, null);
+    }
+
+    /* A credential that an environment variable can supply is optional; the host never is (F862). */
+    @Test
+    void credentialsThatTheEnvironmentCanSupplyAreOptional() {
+        final AbstractBetterCodegen.SchemeAuthSpec basic =
+                scheme("BasicAuthenticator", List.of("host", "username", "password"));
+        assertEquals(
+                "host: String, username: String? = nil, password: String? = nil",
+                BetterSwiftCodegen.buildSwiftConstructorSignature(basic, true, true));
+        assertEquals(
+                "host: String, username: String, password: String",
+                BetterSwiftCodegen.buildSwiftConstructorSignature(basic, false, true));
+        assertEquals(
+                "host: String, username: String?, password: String?",
+                BetterSwiftCodegen.buildSwiftConstructorSignature(basic, true, false));
+    }
+
+    @Test
+    void theForwardingCallPassesEveryParameterOn() {
+        assertEquals(
+                "host: host, clientId: clientId, clientSecret: clientSecret",
+                BetterSwiftCodegen.buildSwiftForwardArguments(
+                        scheme(
+                                "OAuth2ClientCredentialsAuthenticator",
+                                List.of("host", "clientId", "clientSecret"))));
     }
 
     /* An integer enum member follows the same lowerCamel naming as the rest of the SDK. */

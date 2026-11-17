@@ -1519,6 +1519,32 @@ import Testing
         #expect(mockClient.lastURL.isEmpty)
     }
 
+    /* An operation with no query, header, form or cookie parameter and no security
+     * still takes an options struct, so it has a slot for per-call settings. */
+    @Test func testAnOperationWithoutParametersTakesPerCallHeaders() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try? await api.getPetById(petId: 3, options: GetPetByIdOptions(headers: ["X-Extra": "1"]))
+
+        #expect(mockClient.lastHeaders["X-Extra"] == "1")
+    }
+
+    @Test func testAnOperationWithoutParametersValidatesItsPerCallSettings() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        await #expect(throws: ConfigurationError.invalidTimeout(0)) {
+            _ = try await api.getInventory(options: GetInventoryOptions(timeout: 0))
+        }
+        await #expect(throws: ConfigurationError.invalidArgument("maxRetries must not be negative: -1")) {
+            _ = try await api.getInventory(options: GetInventoryOptions(maxRetries: -1))
+        }
+        #expect(mockClient.lastURL.isEmpty)
+    }
+
     // MARK: - Several success responses
 
     /* The body is decoded as the schema of the status that arrived. */

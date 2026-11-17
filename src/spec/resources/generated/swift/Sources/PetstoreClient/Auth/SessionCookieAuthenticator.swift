@@ -7,8 +7,26 @@
 
 import Foundation
 
+/// The `sessionCookie` security scheme.
+///
+/// Each credential is the argument you pass, else the environment variable named
+/// below, read once when the authenticator is built (an empty variable counts as
+/// unset). A credential found in neither place throws
+/// ``ConfigurationError/invalidArgument(_:)`` there, before any request.
+///
+/// - `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY`
 public final class SessionCookieAuthenticator: ApiKeyAuthenticator, @unchecked Sendable {
-  public init(host: String, apiKey: String) throws {
+  /// Creates the authenticator from explicit credentials and the process environment.
+  public convenience init(host: String, apiKey: String? = nil) throws {
+    try self.init(host: host, apiKey: apiKey, environment: ProcessInfo.processInfo.environment)
+  }
+
+  /// The same over a given environment, so the lookup can be exercised without touching
+  /// the process's own.
+  init(host: String, apiKey: String?, environment: [String: String]) throws {
+    let apiKey = try BaseAuthenticator.credential(
+      apiKey, name: "apiKey", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY",
+      environment: environment)
     try super.init(host: host, keyParamName: "SESSION_ID", apiKey: apiKey, location: .cookie)
   }
 }

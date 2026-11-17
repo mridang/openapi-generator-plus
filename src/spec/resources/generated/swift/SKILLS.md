@@ -238,11 +238,37 @@ Cancel the Swift `Task` that made the call and the call throws `CancellationErro
 
 ### Per-call options
 
-An operation's options struct also takes `timeout` (milliseconds, greater than zero), `maxRetries` (`0` turns retries off) and `headers` for that call alone; a `nil` keeps the transport's setting. An operation with no parameters and no security requirement has no options struct yet.
+An operation's options struct also takes `timeout` (milliseconds, greater than zero), `maxRetries` (`0` turns retries off) and `headers` for that call alone; a `nil` keeps the transport's setting. Every operation takes an options struct as its last argument, even one with no parameters and no security requirement, so each call can carry them.
 
 ### Credentials from the environment
 
-`Client.fromEnvironment()` reads `PETSTORE_CLIENT_HOST` and `PETSTORE_CLIENT_TOKEN` once, when the client is built (an empty value is unset); the `host`, `token` and `tokenProvider` arguments win, and a missing host or credential throws `ConfigurationError.invalidArgument`.
+`Client.fromEnvironment()` reads `SWAGGER_PETSTORE_OPEN_API_3_0_HOST` and `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` once, when the client is built (an empty value is unset); the `host`, `token` and `tokenProvider` arguments win, and a missing host or credential throws `ConfigurationError.invalidArgument`.
+
+Each scheme authenticator takes its credentials as optional arguments and reads the variable below when one is left out (an empty value is unset); a credential found in neither place throws `ConfigurationError.invalidArgument` when the authenticator is built.
+
+- `adminBasic` `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME`
+- `adminBasic` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD`
+- `apiKeyHeader` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY`
+- `apiKeyQuery` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY`
+- `browserAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID`
+- `internalApiKey` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY`
+- `legacyAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID`
+- `legacyAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET`
+- `legacyAuth` `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME`
+- `legacyAuth` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD`
+- `machineAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID`
+- `machineAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET`
+- `petStoreBasic` `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME`
+- `petStoreBasic` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD`
+- `petStoreBearer` `token`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN`
+- `serviceToken` `token`: `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN`
+- `sessionCookie` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY`
+- `ssoAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID`
+- `ssoAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET`
+- `ssoAuth` `redirectUri`: `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI`
+- `userAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID`
+- `userAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET`
+- `userAuth` `redirectUri`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI`
 
 ### Raw responses, timeouts and request ids
 

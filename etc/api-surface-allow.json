@@ -3522,6 +3522,38 @@
     "rust"
    ],
    "reason": "F857 owner decision: rust holds the per-scheme credentials in a Credentials struct (one with_<scheme> setter per scheme, handed to Client::with_credentials) because it has no named constructor arguments or optional parameters to give the client one argument per scheme. Delete this rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "*api.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "swift"
+   ],
+   "value": "*options*",
+   "reason": "F827 wave 3: every operation takes an options object as its last argument (before requestContentType where there is one); swift lands first and the other languages add the same slot in their own adoption branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "*options"
+   ],
+   "aspect": "type",
+   "languages": [
+    "swift"
+   ],
+   "reason": "F827 wave 3: every operation has an <Operation>Options type carrying timeout, headers and maxRetries, even one with no parameters and no security; swift lands first and the other languages mint the same types in their own adoption branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "*authenticator.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "swift"
+   ],
+   "value": "*?*",
+   "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the credential arguments of each scheme authenticator are optional so the variable can supply them; a missing one throws ConfigurationError at construction. Drop this row once the majority has it, as the kotlin rows above"
   }
  ]
 }

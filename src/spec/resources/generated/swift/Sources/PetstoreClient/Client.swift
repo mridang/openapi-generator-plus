@@ -93,8 +93,8 @@ public final class Client: Sendable {
   /// Creates a client from explicit arguments first and the environment second.
   ///
   /// The host is the `host` argument, else the environment variable
-  /// `PETSTORE_CLIENT_HOST`; the credential is the `tokenProvider` callback, else the
-  /// `token` argument, else `PETSTORE_CLIENT_TOKEN`. The environment is read once, here,
+  /// `SWAGGER_PETSTORE_OPEN_API_3_0_HOST`; the credential is the `tokenProvider` callback, else the
+  /// `token` argument, else `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`. The environment is read once, here,
   /// and an empty value counts as unset. A missing host or credential fails the call
   /// that builds the client, not a later request. The callback runs before every
   /// request, so a token refreshed elsewhere is picked up.
@@ -135,18 +135,18 @@ public final class Client: Sendable {
       }
       return nil
     }
-    guard let resolvedHost = firstSet(host, "PETSTORE_CLIENT_HOST") else {
+    guard let resolvedHost = firstSet(host, "SWAGGER_PETSTORE_OPEN_API_3_0_HOST") else {
       throw ConfigurationError.invalidArgument(
-        "No API host: pass host or set the PETSTORE_CLIENT_HOST environment variable")
+        "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
     }
     if let tokenProvider = tokenProvider {
       return try Client(
         authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),
         transportOptions: transportOptions)
     }
-    guard let resolvedToken = firstSet(token, "PETSTORE_CLIENT_TOKEN") else {
+    guard let resolvedToken = firstSet(token, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN") else {
       throw ConfigurationError.invalidArgument(
-        "No credential: pass token or tokenProvider, or set the PETSTORE_CLIENT_TOKEN environment variable"
+        "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
       )
     }
     return try Client(

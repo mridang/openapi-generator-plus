@@ -7,8 +7,34 @@
 
 import Foundation
 
+/// The `petStoreBasic` security scheme.
+///
+/// Each credential is the argument you pass, else the environment variable named
+/// below, read once when the authenticator is built (an empty variable counts as
+/// unset). A credential found in neither place throws
+/// ``ConfigurationError/invalidArgument(_:)`` there, before any request.
+///
+/// - `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME`
+/// - `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD`
 public final class PetStoreBasicAuthenticator: BasicAuthenticator, @unchecked Sendable {
-  override public init(host: String, username: String, password: String) throws {
+  /// Creates the authenticator from explicit credentials and the process environment.
+  override public convenience init(host: String, username: String? = nil, password: String? = nil)
+    throws
+  {
+    try self.init(
+      host: host, username: username, password: password,
+      environment: ProcessInfo.processInfo.environment)
+  }
+
+  /// The same over a given environment, so the lookup can be exercised without touching
+  /// the process's own.
+  init(host: String, username: String?, password: String?, environment: [String: String]) throws {
+    let username = try BaseAuthenticator.credential(
+      username, name: "username",
+      variable: "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME", environment: environment)
+    let password = try BaseAuthenticator.credential(
+      password, name: "password",
+      variable: "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD", environment: environment)
     try super.init(host: host, username: username, password: password)
   }
 }

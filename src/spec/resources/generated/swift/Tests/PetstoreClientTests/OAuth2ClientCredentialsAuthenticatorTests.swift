@@ -262,8 +262,8 @@ import Testing
 
   /* The client-credentials securityScheme's wrapper carries the spec's
    * token URL and scopes and masks the client secret. */
-  @Test func schemeWrapperCarriesTheSpecTokenUrlAndScopes() {
-    let auth = MachineAuthClientCredentialsAuthenticator(
+  @Test func schemeWrapperCarriesTheSpecTokenUrlAndScopes() throws {
+    let auth = try MachineAuthClientCredentialsAuthenticator(
       host: "https://api.example.com", clientId: "cid", clientSecret: "csecret")
     #expect(
       String(describing: auth)

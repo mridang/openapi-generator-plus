@@ -257,11 +257,19 @@ Cancel the Swift `Task` that made the call and the call throws `CancellationErro
 
 ### Per-call options
 
-An operation's options struct also takes `timeout` (milliseconds, greater than zero), `maxRetries` (`0` turns retries off) and `headers` for that call alone; a `nil` keeps the transport's setting. An operation with no parameters and no security requirement has no options struct yet.
+An operation's options struct also takes `timeout` (milliseconds, greater than zero), `maxRetries` (`0` turns retries off) and `headers` for that call alone; a `nil` keeps the transport's setting. Every operation takes an options struct as its last argument, even one with no parameters and no security requirement, so each call can carry them.
 
 ### Credentials from the environment
 
-`{{clientClassName}}.fromEnvironment()` reads `{{envPrefix}}_HOST` and `{{envPrefix}}_TOKEN` once, when the client is built (an empty value is unset); the `host`, `token` and `tokenProvider` arguments win, and a missing host or credential throws `ConfigurationError.invalidArgument`.
+`{{clientClassName}}.fromEnvironment()` reads `{{envVarPrefix}}_HOST` and `{{envVarPrefix}}_TOKEN` once, when the client is built (an empty value is unset); the `host`, `token` and `tokenProvider` arguments win, and a missing host or credential throws `ConfigurationError.invalidArgument`.
+{{#hasSecuritySchemeEnvVars}}
+
+Each scheme authenticator takes its credentials as optional arguments and reads the variable below when one is left out (an empty value is unset); a credential found in neither place throws `ConfigurationError.invalidArgument` when the authenticator is built.
+
+{{#securitySchemeEnvVars}}
+- `{{schemeId}}` `{{field}}`: `{{envName}}`
+{{/securitySchemeEnvVars}}
+{{/hasSecuritySchemeEnvVars}}
 
 ### Raw responses, timeouts and request ids
 

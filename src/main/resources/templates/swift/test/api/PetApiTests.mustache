@@ -83,11 +83,12 @@ final class PetApiTests {
         #expect(block.last == "@available(*, deprecated, message: \"This operation is deprecated.\")")
     }
 
-    @Test func testOperationDocumentsItsOptionsParameter() throws {
-        let block = try leadingDocBlock(before: "public func addPet(", in: "PetApi.swift")
+    @Test(arguments: ["addPet", "getPetById"])
+    func testOperationDocumentsItsOptionsParameter(operation: String) throws {
+        let block = try leadingDocBlock(before: "public func \(operation)(", in: "PetApi.swift")
         #expect(
             block.contains(
-                "///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator."
+                "///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator."
             ))
     }
 

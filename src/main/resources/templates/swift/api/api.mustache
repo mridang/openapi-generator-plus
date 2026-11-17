@@ -83,7 +83,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/allParams}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
-    ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+    ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
 {{/isOptions}}
 {{#isServer}}
     ///   - server: Optional per-operation server override.

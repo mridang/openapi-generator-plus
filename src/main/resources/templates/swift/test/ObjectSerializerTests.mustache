@@ -1335,6 +1335,38 @@ import Testing
         }
     }
 
+    // MARK: - a default next to the $ref of an enum (StockItem.availability)
+
+    /* StockItem.availability is a $ref to Availability with `default: on-hold` written
+     * beside it. The property starts at that member when the caller leaves it out, and
+     * a payload without the key decodes to it; a value or an explicit null is kept. */
+    @Test func testSiblingDefaultInitialisesTheProperty() throws {
+        let item = StockItem(priority: .number1)
+        #expect(item.availability == .onHold)
+        let json = try ObjectSerializer.serialize(item)
+        #expect(json.contains("\"availability\":\"on-hold\""),
+            "the defaulted member must be written as its wire value, got: \(json)")
+    }
+
+    @Test func testSiblingDefaultAppliesWhenTheKeyIsAbsentOnDecode() throws {
+        let item = try ObjectSerializer.deserialize("{\"priority\":1}", as: StockItem.self)
+        #expect(item?.availability == .onHold)
+    }
+
+    @Test func testSiblingDefaultIsReplacedByAGivenValue() throws {
+        #expect(StockItem(priority: .number1, availability: .sold).availability == .sold)
+        let item = try ObjectSerializer.deserialize(
+            "{\"priority\":1,\"availability\":\"Sold\"}", as: StockItem.self)
+        #expect(item?.availability == .sold)
+    }
+
+    @Test func testSiblingDefaultKeepsAnExplicitNull() throws {
+        let item = try ObjectSerializer.deserialize(
+            "{\"priority\":1,\"availability\":null}", as: StockItem.self)
+        #expect(item != nil)
+        #expect(item?.availability == nil)
+    }
+
     // MARK: - format:byte round-trips through base64 (scalar + array)
 
     // PetPassport.thumbnail is a `format: byte` scalar (Swift `Data`); Swift's

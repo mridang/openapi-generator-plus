@@ -109,7 +109,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}}{{#defaultValue}} = {{classname}}{{enumName}}(rawValue: {{{.}}}){{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
+    public init({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}}{{#defaultValue}} = {{classname}}{{enumName}}(rawValue: {{{.}}}){{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{^vendorExtensions.siblingDefaultIsEnum}} = nil{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
 {{#requiredVars}}
         self.{{name}} = {{name}}
 {{/requiredVars}}
@@ -194,7 +194,16 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
             : {{#isEnum}}{{classname}}{{enumName}}(rawValue: {{{.}}}){{/isEnum}}{{^isEnum}}{{{.}}}{{/isEnum}}
 {{/defaultValue}}
 {{^defaultValue}}
+{{#vendorExtensions.siblingDefaultIsEnum}}
+        /* A default written next to the $ref of an enum applies when the key is
+           absent; an explicit null stays nil. */
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent({{{dataType}}}.self, forKey: .{{name}})
+            : {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{^vendorExtensions.siblingDefaultIsEnum}}
         self.{{name}} = try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+{{/vendorExtensions.siblingDefaultIsEnum}}
 {{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}
@@ -297,7 +306,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{name}}: {{{dataType}}}{{#isNullable}}?{{/isNullable}}, {{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? = nil, {{/optionalVars}}additionalProperties: [String: AnyCodable] = [:]) {
+    public init({{#requiredVars}}{{name}}: {{{dataType}}}{{#isNullable}}?{{/isNullable}}, {{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{^vendorExtensions.siblingDefaultIsEnum}} = nil{{/vendorExtensions.siblingDefaultIsEnum}}, {{/optionalVars}}additionalProperties: [String: AnyCodable] = [:]) {
 {{#requiredVars}}
         self.{{name}} = {{name}}
 {{/requiredVars}}
@@ -373,7 +382,16 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
             : {{#isEnum}}{{classname}}{{enumName}}(rawValue: {{{.}}}){{/isEnum}}{{^isEnum}}{{{.}}}{{/isEnum}}
 {{/defaultValue}}
 {{^defaultValue}}
+{{#vendorExtensions.siblingDefaultIsEnum}}
+        /* A default written next to the $ref of an enum applies when the key is
+           absent; an explicit null stays nil. */
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent({{{dataType}}}.self, forKey: .{{name}})
+            : {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{^vendorExtensions.siblingDefaultIsEnum}}
         self.{{name}} = try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+{{/vendorExtensions.siblingDefaultIsEnum}}
 {{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}

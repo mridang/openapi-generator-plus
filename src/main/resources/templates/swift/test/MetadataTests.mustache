@@ -207,6 +207,23 @@ import Testing
         #expect(text.contains("API returned status code 404 for GET /items/7"))
     }
 
+{{#hasSecuritySchemeEnvVars}}
+    @Test(arguments: [
+{{#securitySchemeEnvVars}}
+        "{{envName}}",
+{{/securitySchemeEnvVars}}
+    ])
+    func testReadmeNamesEverySchemeEnvironmentVariable(variable: String) throws {
+        #expect(try readme().contains("`\(variable)`"))
+    }
+
+{{/hasSecuritySchemeEnvVars}}
+    @Test func testReadmeSaysEveryOperationTakesAnOptionsStruct() throws {
+        let text = try readme()
+        #expect(text.contains("Every operation takes an options struct"))
+        #expect(!text.contains("has no options struct yet"))
+    }
+
     @Test func testReadmeListsTheLicenseInThePackageSection() throws {
         #expect(try readme().contains("- License: {{licenseId}}"))
     }

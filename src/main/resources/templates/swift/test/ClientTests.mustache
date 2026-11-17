@@ -170,8 +170,8 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     @Test func testFromEnvironmentReadsTheHostAndTheToken() async throws {
         let client = try environmentClient(environment: [
-            "{{envPrefix}}_HOST": "https://env.example.com",
-            "{{envPrefix}}_TOKEN": "env-token",
+            "{{envVarPrefix}}_HOST": "https://env.example.com",
+            "{{envVarPrefix}}_TOKEN": "env-token",
         ])
         let auth = try #require(firstApiAuthenticator(of: client))
         #expect(auth.host() == "https://env.example.com")
@@ -182,8 +182,8 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         let client = try environmentClient(
             host: "https://explicit.example.com", token: "explicit-token",
             environment: [
-                "{{envPrefix}}_HOST": "https://env.example.com",
-                "{{envPrefix}}_TOKEN": "env-token",
+                "{{envVarPrefix}}_HOST": "https://env.example.com",
+                "{{envVarPrefix}}_TOKEN": "env-token",
             ])
         let auth = try #require(firstApiAuthenticator(of: client))
         #expect(auth.host() == "https://explicit.example.com")
@@ -192,17 +192,17 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     @Test func testAnEmptyEnvironmentValueCountsAsUnset() {
         #expect(throws: ConfigurationError.invalidArgument(
-            "No API host: pass host or set the {{envPrefix}}_HOST environment variable")
+            "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
         ) {
             _ = try self.environmentClient(environment: [
-                "{{envPrefix}}_HOST": "", "{{envPrefix}}_TOKEN": "env-token",
+                "{{envVarPrefix}}_HOST": "", "{{envVarPrefix}}_TOKEN": "env-token",
             ])
         }
         #expect(throws: ConfigurationError.invalidArgument(
-            "No credential: pass token or tokenProvider, or set the {{envPrefix}}_TOKEN environment variable")
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
         ) {
             _ = try self.environmentClient(environment: [
-                "{{envPrefix}}_HOST": "https://env.example.com", "{{envPrefix}}_TOKEN": "",
+                "{{envVarPrefix}}_HOST": "https://env.example.com", "{{envVarPrefix}}_TOKEN": "",
             ])
         }
     }
@@ -223,12 +223,82 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         let counter = TokenCounter()
         let client = try environmentClient(
             host: "https://explicit.example.com", tokenProvider: { counter.next() },
-            environment: ["{{envPrefix}}_TOKEN": "env-token"])
+            environment: ["{{envVarPrefix}}_TOKEN": "env-token"])
         let auth = try #require(firstApiAuthenticator(of: client))
         #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
         #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
     }
 
+    // MARK: - Credentials of the scheme authenticators
+
+    @Test func testAnExplicitCredentialWinsOverTheEnvironment() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "explicit-value")
+    }
+
+    @Test func testTheEnvironmentSuppliesACredentialThatWasNotPassed() throws {
+        let value = try BaseAuthenticator.credential(
+            nil, name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "env-value")
+    }
+
+    @Test func testAnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
+        let value = try BaseAuthenticator.credential(
+            "", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "")
+    }
+
+    @Test func testAnEmptyOrMissingVariableIsAMissingCredential() {
+        let missing = ConfigurationError.invalidArgument(
+            "Missing the credential 'token': pass it, or set the EXAMPLE_TOKEN environment variable")
+        #expect(throws: missing) {
+            _ = try BaseAuthenticator.credential(
+                nil, name: "token", variable: "EXAMPLE_TOKEN", environment: [:])
+        }
+        #expect(throws: missing) {
+            _ = try BaseAuthenticator.credential(
+                nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
+        }
+    }
+
+{{#perSchemeAuthEntries}}
+    @Test func test{{className}}ReadsItsCredentialsFromTheEnvironment() throws {
+        _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-value", {{/envVars}}])
+    }
+
+    @Test func test{{className}}PrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws {
+        _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-value", {{/envVars}}environment: [:])
+    }
+
+    @Test func test{{className}}FailsWhenACredentialIsMissing() {
+{{#envVars}}
+{{#-first}}
+        let missing = ConfigurationError.invalidArgument(
+            "Missing the credential '{{field}}': pass it, or set the {{envName}} environment variable")
+{{/-first}}
+{{/envVars}}
+        #expect(throws: missing) {
+            _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [:])
+        }
+    }
+
+    @Test func test{{className}}TreatsAnEmptyVariableAsUnset() {
+{{#envVars}}
+{{#-first}}
+        let missing = ConfigurationError.invalidArgument(
+            "Missing the credential '{{field}}': pass it, or set the {{envName}} environment variable")
+{{/-first}}
+{{/envVars}}
+        #expect(throws: missing) {
+            _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
+        }
+    }
+
+{{/perSchemeAuthEntries}}
     @Test func testApiGroupsAreAccessible() throws {
         let client = try {{clientClassName}}(authenticator: authenticator)
 

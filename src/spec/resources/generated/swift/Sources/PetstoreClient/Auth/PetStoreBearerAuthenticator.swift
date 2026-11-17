@@ -7,8 +7,26 @@
 
 import Foundation
 
+/// The `petStoreBearer` security scheme.
+///
+/// Each credential is the argument you pass, else the environment variable named
+/// below, read once when the authenticator is built (an empty variable counts as
+/// unset). A credential found in neither place throws
+/// ``ConfigurationError/invalidArgument(_:)`` there, before any request.
+///
+/// - `token`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN`
 public final class PetStoreBearerAuthenticator: BearerAuthenticator, @unchecked Sendable {
-  override public init(host: String, token: String) throws {
+  /// Creates the authenticator from explicit credentials and the process environment.
+  override public convenience init(host: String, token: String? = nil) throws {
+    try self.init(host: host, token: token, environment: ProcessInfo.processInfo.environment)
+  }
+
+  /// The same over a given environment, so the lookup can be exercised without touching
+  /// the process's own.
+  init(host: String, token: String?, environment: [String: String]) throws {
+    let token = try BaseAuthenticator.credential(
+      token, name: "token", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN",
+      environment: environment)
     try super.init(host: host, token: token)
   }
 }

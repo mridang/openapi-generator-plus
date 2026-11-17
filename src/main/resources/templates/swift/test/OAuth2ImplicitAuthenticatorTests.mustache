@@ -158,7 +158,7 @@ import Testing
     /* The implicit securityScheme's wrapper carries the spec's authorization
      * URL and scopes. */
     @Test func schemeWrapperCarriesTheSpecAuthorizationUrlAndScopes() throws {
-        let auth = BrowserAuthImplicitAuthenticator(host: "https://api.example.com", clientId: "cid")
+        let auth = try BrowserAuthImplicitAuthenticator(host: "https://api.example.com", clientId: "cid")
         #expect(
             String(describing: auth)
                 == "BrowserAuthImplicitAuthenticator(host: https://api.example.com, clientID: cid, authorizationURL: https://auth.example.com/authorize, scopes: [\"read\"], accessToken: nil)"
