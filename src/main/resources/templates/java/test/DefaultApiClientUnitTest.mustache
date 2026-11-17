@@ -376,6 +376,23 @@ class DefaultApiClientUnitTest {
             os.write(response);
           }
         });
+
+        "/redirect-bad-location",
+        exchange -> {
+          // A Location that does not parse as a URI: the 3xx is returned as it is.
+          exchange.getResponseHeaders().add("Location", "http://[::1");
+          exchange.sendResponseHeaders(302, -1);
+          exchange.close();
+        });
+    server.createContext(
+        "/truncated-body",
+        exchange -> {
+          // Declares 100 bytes, sends 9 and closes, so reading the body fails.
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, 100);
+          exchange.getResponseBody().write("{\"partial\"".getBytes(StandardCharsets.UTF_8));
+          exchange.close();
+        });
     // A handler that stalls (/stalled-body) must not hold up the other requests.
     server.setExecutor(
         java.util.concurrent.Executors.newCachedThreadPool(
@@ -1528,6 +1545,178 @@ class DefaultApiClientUnitTest {
     }
   }
 {{/hasApiKeyHeaderNames}}
+
+  @Test
+  void bhvRedirects008ReturnsTheRedirectWhenFollowingIsDisabled() throws Exception {
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().followRedirects(false).build());
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/redirect-status?302", Map.of(), null);
+    assertEquals(302, response.statusCode());
+    assertEquals("/echo", response.headers().get("location"));
+  }
+
+  @Test
+  void bhvRedirects010UnparseableLocationComesBackAsTheRedirectResponse() throws Exception {
+    // A Location that cannot be parsed leaves nothing to follow, exactly like a
+    // missing one: the 3xx is the terminal response.
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/redirect-bad-location", Map.of(), null);
+    assertEquals(302, response.statusCode());
+  }
+
+  @Test
+  void bhvRedirects013SameOriginRedirectKeepsAuthorizationAndCookie() throws Exception {
+    final Map<String, String> seen = new java.util.concurrent.ConcurrentHashMap<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/start",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", "/landed");
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    server.createContext(
+        "/landed",
+        exchange -> {
+          for (String name : List.of("Authorization", "Cookie")) {
+            String value = exchange.getRequestHeaders().getFirst(name);
+            seen.put(name, value == null ? "<absent>" : value);
+          }
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      String url = "http://localhost:" + server.getAddress().getPort() + "/start";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Authorization", "Bearer secret");
+      headers.put("Cookie", "session=secret");
+      ApiHttpResponse response = client.sendRequest("GET", url, headers, null);
+      assertEquals(200, response.statusCode());
+      assertEquals(
+          Map.of("Authorization", "Bearer secret", "Cookie", "session=secret"),
+          seen,
+          "a same-origin redirect must keep the caller's credential headers");
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRedirects019RefusalMessageNeverCarriesAQueryParameterCredential() {
+    String url = "https://api.example.invalid/x?api_key=secret-value";
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.scripted =
+        RecordingHttpClient.redirect(
+            307,
+            "http://other.example.invalid/y",
+            java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).build());
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiException ex =
+        assertThrowsExactly(ApiException.class, () -> client.sendRequest("POST", url, Map.of(), "payload"));
+    assertFalse(ex.toString().contains("secret-value"), "was: " + ex);
+    assertFalse(ex.toString().contains("api_key"), "was: " + ex);
+    assertTrue(
+        ex.toString()
+            .contains(
+                "Refusing to replay request body across HTTPS->HTTP redirect: "
+                    + "https://api.example.invalid/x -> http://other.example.invalid/y"),
+        "was: " + ex);
+  }
+
+  @Test
+  void bhvRedirects021NoRedirectReturnsThe307Verbatim() throws Exception {
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+    ApiHttpResponse response =
+        client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "payload", true);
+    assertEquals(307, response.statusCode());
+  }
+
+  @Test
+  void bhvRedirects025CrossOriginRedirectStripsDefaultAndCredentialHeaders() throws Exception {
+    final Map<String, String> seen = new java.util.concurrent.ConcurrentHashMap<>();
+    HttpServer target = HttpServer.create(new InetSocketAddress(0), 0);
+    target.createContext(
+        "/landed",
+        exchange -> {
+          for (String name : List.of("Authorization", "Cookie", "X-Trace")) {
+            String value = exchange.getRequestHeaders().getFirst(name);
+            seen.put(name, value == null ? "<absent>" : value);
+          }
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    target.start();
+    String targetUrl = "http://localhost:" + target.getAddress().getPort() + "/landed";
+
+    HttpServer origin = HttpServer.create(new InetSocketAddress(0), 0);
+    origin.createContext(
+        "/start",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", targetUrl);
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    origin.start();
+    String originUrl = "http://localhost:" + origin.getAddress().getPort() + "/start";
+
+    try {
+      TransportOptions transport =
+          TransportOptions.builder()
+              .followRedirects(true)
+              .defaultHeader("Authorization", "Bearer default-secret")
+              .defaultHeader("X-Trace", "keep")
+              .build();
+      DefaultApiClient client = new DefaultApiClient(transport);
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Cookie", "session=secret");
+      ApiHttpResponse response = client.sendRequest("GET", originUrl, headers, null);
+      assertEquals(200, response.statusCode());
+      assertEquals(
+          Map.of("Authorization", "<absent>", "Cookie", "<absent>", "X-Trace", "keep"),
+          seen,
+          "a cross-origin redirect drops default and credential headers, other defaults stay");
+    } finally {
+      origin.stop(0);
+      target.stop(0);
+    }
+  }
+
+  @Test
+  void bhvErrors038TruncatedBodyThrowsNetworkExceptionWithStatusZero() {
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+    {{invokerPackage}}.errors.NetworkException ex =
+        assertThrowsExactly(
+            {{invokerPackage}}.errors.NetworkException.class,
+            () -> client.sendRequest("GET", baseUrl + "/truncated-body", Map.of(), null));
+    assertEquals(0, ex.getStatusCode());
+  }
+
+  @Test
+  void bhvErrors043BodyReadFailureIsWrappedInNetworkException() {
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+    {{invokerPackage}}.errors.NetworkException ex =
+        assertThrowsExactly(
+            {{invokerPackage}}.errors.NetworkException.class,
+            () -> client.sendRequest("GET", baseUrl + "/truncated-body", Map.of(), null));
+    assertInstanceOf(java.io.IOException.class, ex.getCause());
+  }
+
+  @Test
+  void bhvErrors040MalformedRequestUrlRaisesIllegalArgumentException() {
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+    assertThrowsExactly(
+        IllegalArgumentException.class,
+        () -> client.sendRequest("GET", "http://exa mple.invalid/x", Map.of(), null));
+  }
 
   {{! -- Gap 3.2: noRedirect=true must surface a 308 verbatim -- }}
 

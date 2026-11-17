@@ -402,7 +402,7 @@ class OpenIdConnectAuthenticatorTest {
         "Cache-Control|max-age=9223372036854775807|1",
         "X-Other|max-age=0|1"
     })
-    void discoveryIsCachedForTheCacheControlMaxAge(
+    void bhvAuthOidc003DiscoveryIsCachedForTheCacheControlMaxAge(
             String header, String value, int expectedFetches) {
         // The discovery document is cached for the Cache-Control max-age, and
         // for a day when the response carries no usable max-age.
@@ -579,6 +579,63 @@ class OpenIdConnectAuthenticatorTest {
                         + ", redirectUri=https://app.example.com/callback"
                         + ", scopes=[openid, profile])",
                 repr);
+    }
+
+    @Test
+    void bhvAuthOidc001MaxAgeBeyondOneYearIsClampedToOneYear() throws ReflectiveOperationException {
+        // A max-age that fits a long but exceeds one year is capped at one year:
+        // the cached discovery expiry must not be pushed further out than that.
+        ApiClient client = (method, url, headers, body) ->
+                new ApiHttpResponse(200, DISCOVERY_RESPONSE,
+                        Map.of("Cache-Control", "max-age=99999999999"));
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        java.time.Instant before = java.time.Instant.now();
+        auth.buildAuthorizationUrl(null);
+
+        java.lang.reflect.Field expiryField =
+                OpenIdConnectAuthenticator.class.getDeclaredField("discoveryExpiry");
+        expiryField.setAccessible(true);
+        java.time.Instant expiry = (java.time.Instant) expiryField.get(auth);
+        assertFalse(expiry.isAfter(before.plusSeconds(31_536_000L + 60)),
+                "expiry must not exceed one year, was " + expiry);
+        assertTrue(expiry.isAfter(before.plusSeconds(31_536_000L - 60)),
+                "expiry must be about one year out, was " + expiry);
+    }
+
+    @Test
+    void bhvAuthOidc022AuthorizationUrlAlwaysRequestsTheOpenidScopeOnce() {
+        ApiClient client = (method, url, headers, body) ->
+                new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+
+        OpenIdConnectAuthenticator withOpenid = createAuthenticator();
+        withOpenid.setApiClient(client);
+        String url = withOpenid.buildAuthorizationUrl(null);
+        assertEquals("openid%20profile",
+                formField(url.substring(url.indexOf('?') + 1), "scope"), url);
+
+        OpenIdConnectAuthenticator withoutOpenid = new OpenIdConnectAuthenticator(
+                "https://api.example.com",
+                "https://auth.example.com/.well-known/openid-configuration",
+                "my-client-id",
+                "my-client-secret",
+                "https://app.example.com/callback",
+                List.of("profile"));
+        withoutOpenid.setApiClient(client);
+        String added = withoutOpenid.buildAuthorizationUrl(null);
+        assertEquals("openid%20profile",
+                formField(added.substring(added.indexOf('?') + 1), "scope"), added);
+    }
+
+    @Test
+    @DisplayName("bhvAuthOidc023 the redacted repr shows the non-secret fields")
+    void bhvAuthOidc023ReprShowsTheNonSecretFields() {
+        String repr = createAuthenticator().toString();
+        assertTrue(repr.contains("host=https://api.example.com"), repr);
+        assertTrue(repr.contains("clientId=my-client-id"), repr);
+        assertTrue(repr.contains("redirectUri=https://app.example.com/callback"), repr);
+        assertTrue(repr.contains("scopes=[openid, profile]"), repr);
     }
 
     @javax.annotation.Nullable
