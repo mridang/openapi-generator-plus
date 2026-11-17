@@ -109,6 +109,46 @@ public sealed class SchemeAuthenticatorTest
 {{/schemeAuthTests}}
     }
 
+    [Fact]
+    public void BhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsVariable()
+    {
+{{#schemeAuthTests}}
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+{{#isBasic}}
+            Assert.Equal(BasicHeader(ExplicitValue("username"), ExplicitValue("password")), auth.GetAuthHeaders()["Authorization"]);
+{{/isBasic}}
+{{#isBearer}}
+            Assert.Equal("Bearer " + ExplicitValue("token"), auth.GetAuthHeaders()["Authorization"]);
+{{/isBearer}}
+{{#isApiKey}}
+            Assert.Contains(ExplicitValue("apiKey"), Carried(auth));
+{{/isApiKey}}
+{{#isOAuth}}
+            Assert.Contains("ClientId=" + ExplicitValue("clientId"), auth.ToString(), StringComparison.Ordinal);
+{{/isOAuth}}
+        });
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme010AnEmptyBearerVariableIsUnsetAndIsNamed()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
 {{#schemeAuthTests}}
 
     private static readonly string[] {{className}}Variables = [{{#envVars}}"{{envName}}"{{^-last}}, {{/-last}}{{/envVars}}];
@@ -155,19 +195,6 @@ public sealed class SchemeAuthenticatorTest
             Assert.Contains("ClientId=" + ExplicitValue("clientId"), auth.ToString(), StringComparison.Ordinal);
 {{/isOAuth}}
         });
-    }
-
-    [Fact]
-    public void {{className}}TreatsAnEmptyVariableAsUnset()
-    {
-        foreach (string variable in {{className}}Variables)
-        {
-            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
-            {
-                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
-                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
-            });
-        }
     }
 
     [Fact]
