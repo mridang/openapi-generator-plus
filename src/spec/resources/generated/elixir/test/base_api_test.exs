@@ -235,7 +235,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 502
   end
 
-  test "raises ClientError for status 418", %{state: state} do
+  test "bhv errors 048 raises ClientError for status 418", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -848,6 +848,25 @@ defmodule PetstoreClient.Api.BaseApiTest do
         # The echo endpoint may not be reachable; that's OK for this test
         :ok
     end
+  end
+
+  test "bhv serializationwire 055 a space in a form value is encoded as plus" do
+    state = retry_state([200])
+
+    PetstoreClient.Api.BaseApi.invoke_api(
+      state,
+      :post,
+      "/things",
+      %{},
+      %{},
+      %{"name" => "#3 items"},
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      nil
+    )
+
+    assert [request] = attempts()
+    assert IO.iodata_to_binary(request.body) == "name=%233+items"
   end
 
   test "bhv serializationwire 021 serializes form-urlencoded body", %{state: state} do
@@ -3195,6 +3214,24 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 08:49:37 GMT"}) == 37_000
     assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 08:48:00 GMT"}) == 0
+  end
+
+  test "bhv retries 029 an unreadable Retry-After falls back to the backoff" do
+    state = retry_state([{503, [{"retry-after", "soon"}]}, 200])
+    started = System.monotonic_time(:millisecond)
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+    assert System.monotonic_time(:millisecond) - started >= 375
+  end
+
+  test "bhv transport 059 an authenticating proxy's 407 refusal is a ClientError and is not retried" do
+    state = retry_state([{407, [{"proxy-authenticate", "Basic"}]}, 200])
+
+    assert {:error, error} = get_thing(state)
+    assert %PetstoreClient.Errors.ClientError{} = error
+    assert error.status_code == 407
+    assert length(attempts()) == 1
   end
 
   test "bhv retries 023 Retry-After is capped at 60 seconds" do

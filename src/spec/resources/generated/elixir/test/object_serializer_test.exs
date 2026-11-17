@@ -213,6 +213,10 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert String.contains?(result, "日本"), "should contain literal CJK chars: #{result}"
     end
 
+    test "bhv serializationobject 186 request JSON escapes only the quote, the backslash and controls" do
+      assert PetstoreClient.ObjectSerializer.serialize("\"\\\u0001") == ~S("\"\\\u0001")
+    end
+
     test "bhv serializationobject 160 tab character is properly escaped in JSON" do
       result = PetstoreClient.ObjectSerializer.serialize("a\tb")
       assert String.contains?(result, "\\t"), "tab should be escaped: #{result}"
@@ -716,6 +720,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "decodes base64 wire value to raw bytes" do
       bytes = PetstoreClient.ObjectSerializer.convert_to_type("aGVsbG8=", "ByteArray")
       assert bytes == "hello"
+    end
+
+    test "bhv serializationobject 185 deserialize: canonical padded base64 is accepted" do
+      decoded = PetstoreClient.ObjectSerializer.convert_to_type("dGVzdA==", "ByteArray")
+      assert decoded == "test"
     end
 
     test "bhv serializationobject 102 rejects malformed base64 with SerializationError" do
@@ -1224,6 +1233,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "format: duration parsing and round-trips" do
+    test "bhv serializationobject 184 an ISO 8601 duration string is rejected" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.convert_to_type("PT1H", "Duration")
+      end
+    end
+
     test "bhv serializationobject 081 format_protobuf_duration emits whole seconds" do
       d = Duration.new!(second: 90)
       assert PetstoreClient.ObjectSerializer.format_protobuf_duration(d) == "90s"

@@ -291,6 +291,32 @@ defmodule PetstoreClient.ApiErrorTest do
   end
 
   describe "OAuth2ServerError message" do
+    test "bhv errors 046 the message has three forms: raw body, code, and code with description" do
+      raw =
+        PetstoreClient.Errors.OAuth2ServerError.exception(
+          status_code: 502,
+          raw_body: "<html>bad gateway</html>"
+        )
+
+      code =
+        PetstoreClient.Errors.OAuth2ServerError.exception(status_code: 400, code: "invalid_grant")
+
+      described =
+        PetstoreClient.Errors.OAuth2ServerError.exception(
+          status_code: 400,
+          code: "invalid_grant",
+          description: "refresh token expired"
+        )
+
+      assert Exception.message(raw) ==
+               "Token request failed with status 502: <html>bad gateway</html>"
+
+      assert Exception.message(code) == "Token request failed with status 400: invalid_grant"
+
+      assert Exception.message(described) ==
+               "Token request failed with status 400: invalid_grant -- refresh token expired"
+    end
+
     test "names the raw body when the response is not an OAuth2 error object" do
       err =
         PetstoreClient.Errors.OAuth2ServerError.exception(
@@ -380,6 +406,28 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.OpenAPIError.open_api_error?(api_error)
       assert PetstoreClient.Errors.OpenAPIError.open_api_error?(typed_error)
       assert PetstoreClient.Errors.OpenAPIError.open_api_error?(serialization_error)
+    end
+
+    test "bhv errors 045 the OAuth2 errors are not ApiError and the SDK error root recognises them" do
+      token = %PetstoreClient.Errors.OAuth2TokenError{message: "missing access_token"}
+
+      server = %PetstoreClient.Errors.OAuth2ServerError{
+        status_code: 400,
+        message: "invalid_grant"
+      }
+
+      refute PetstoreClient.Errors.ApiError.api_error?(token)
+      refute PetstoreClient.Errors.ApiError.api_error?(server)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(token)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(server)
+    end
+
+    test "bhv errors 047 a typed server error is an ApiError and an SDK error" do
+      err = PetstoreClient.Errors.ApiError.from_response(500, %{}, "boom")
+
+      assert %PetstoreClient.Errors.InternalServerError{} = err
+      assert PetstoreClient.Errors.ApiError.api_error?(err)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
     end
 
     test "bhv errors 018 every SDK exception module is listed in exceptions/0" do

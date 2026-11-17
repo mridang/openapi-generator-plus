@@ -1968,6 +1968,18 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
+  describe "multipart raw bytes" do
+    test "bhv serializationwire 056 a raw bytes part without an extension is application/octet-stream" do
+      body =
+        PetstoreClient.DefaultApiClient.build_multipart_body([{"blob", {:raw, <<1, 2, 3>>}}], "b")
+
+      assert body ==
+               "--b\r\nContent-Disposition: form-data; name=\"blob\"; filename=\"blob\"\r\n" <>
+                 "Content-Type: application/octet-stream\r\n\r\n" <>
+                 <<1, 2, 3>> <> "\r\n--b--\r\n"
+    end
+  end
+
   describe "redirect_method/2 (RFC 9110 section 15.4)" do
     alias PetstoreClient.DefaultApiClient
 
