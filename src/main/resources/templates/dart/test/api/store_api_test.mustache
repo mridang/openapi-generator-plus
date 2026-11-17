@@ -226,6 +226,32 @@ void main() {
       expect(result, isNotNull);
     });
 
+    test('bhv operations 126 place order without an argument sends no body', () async {
+      var bodyLength = -1;
+      String? contentType = 'unset';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        bodyLength = (await utf8.decoder.bind(request).join()).length;
+        contentType = request.headers.value('content-type');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1}')
+          ..close();
+      });
+
+      try {
+        final api = _storeApiFor(server);
+
+        await api.placeOrder(null, null);
+
+        expect(bodyLength, equals(0));
+        expect(contentType, isNull);
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
     test('bhv operations 119 placeOrderWithHttpInfo', () async {
       final api = _newStoreApiForIntegration();
 

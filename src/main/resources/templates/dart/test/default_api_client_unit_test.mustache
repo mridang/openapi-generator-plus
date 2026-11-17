@@ -1488,6 +1488,38 @@ void main() {
       }
     });
 
+    test('bhv serializationwire 054 decodes a little-endian BOM utf-16 body as little-endian', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      // UTF-16LE with a little-endian byte-order mark for the string "Log".
+      final payload = <int>[
+        0xFF, 0xFE, // BOM (little-endian)
+        0x4C, 0x00, // L
+        0x6F, 0x00, // o
+        0x67, 0x00, // g
+      ];
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Type', 'text/plain; charset=utf-16')
+          ..add(payload)
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/utf16-le',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, equals('Log'));
+      } finally {
+        await server.close();
+      }
+    });
+
     /* utf16-no-bom-big-endian: a charset=utf-16 response body WITHOUT a
      * byte-order mark must default to big-endian (RFC 2781), uniformly
      * with the other 11 SDKs. The bytes 00 54 00 61 00 67 are "Tag" when

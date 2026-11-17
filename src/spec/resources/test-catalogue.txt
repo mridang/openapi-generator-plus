@@ -1007,7 +1007,7 @@ retries027 | Backoff doubles from half a second to eight seconds with quarter ji
 serializationobject182 | Unknown enum value on deserialize throws
 serializationobject183 | Handles null
 authbasic012 | An empty variable counts as unset
-authoauthtwotokenmgr041 | A non-JSON 2xx token body is not echoed into the error message
+authoauthtwotokenmgr041 | A 2xx token response that is not a JSON object is refused with the canonical message
 operations126 | Place order without an argument sends no body
 authapikey019 | Wrappers reject an empty key at construction
 authapikey020 | Every API-key wrapper validates eagerly and redacts the key

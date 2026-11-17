@@ -121,7 +121,7 @@ void main() {
   });
 
   group('OAuth2ImplicitAuthenticator wire format', () {
-    test('rejects a non-ASCII access token with the RFC 7230 message', () {
+    test('bhv authoauthtwoimplicit 014 rejects a non-ASCII access token with the RFC 7230 message', () {
       final auth = _createAuthenticator();
 
       expect(

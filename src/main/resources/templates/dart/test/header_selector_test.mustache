@@ -75,6 +75,14 @@ void main() {
       expect(headers.containsKey('Accept'), isFalse);
     });
 
+    test('bhv headers 027 empty accept array yields an empty Accept value', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders([], 'application/json', false);
+
+      expect(headers['Accept'] ?? '', isEmpty);
+    });
+
     test('bhv headers 010 selectHeaders filters out empty entries', () {
       final hs = HeaderSelector();
 
