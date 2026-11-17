@@ -21,7 +21,14 @@ interface NodeSpec extends LanguageSpec {
 
   @Override
   default List<String> getSetupCommands() {
-    return List.of("npm install");
+    /* The Alpine image ships without make, which the SDK's own docs target
+     * needs. Installed once with the shared container, with retries because
+     * the package mirror is flaky on CI runners. */
+    return List.of(
+        "npm install",
+        "for i in 1 2 3 4 5; do apk add --no-cache make && break;"
+            + " echo \"apk attempt $i failed; retrying\" >&2; sleep 3; done;"
+            + " command -v make > /dev/null || { echo \"make missing after retries\" >&2; exit 1; }");
   }
 
   @Override
