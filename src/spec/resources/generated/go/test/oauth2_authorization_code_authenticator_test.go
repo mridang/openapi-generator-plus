@@ -72,7 +72,7 @@ func createAuthCodeAuthenticator() *oauth.OAuth2AuthorizationCodeAuthenticator {
 	)
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode006_OAuth2AuthorizationCodeAuthenticator_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
 	t.Parallel()
 	auth := createAuthCodeAuthenticator()
 
@@ -111,7 +111,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_AuthorizationUrlCa
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_BuildsAuthorizationUrlWithState(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode007_OAuth2AuthorizationCodeAuthenticator_BuildsAuthorizationUrlWithState(t *testing.T) {
 	t.Parallel()
 	auth := createAuthCodeAuthenticator()
 
@@ -159,7 +159,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_ExchangeCodeIsSafeAgainstConcurren
 
 // oauth-exchangecode-no-empty-code-guard: ExchangeCode must reject an empty or
 // whitespace-only code before issuing the token POST.
-func TestOAuth2AuthorizationCodeAuthenticator_ExchangeCodeRejectsEmptyCode(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode010_OAuth2AuthorizationCodeAuthenticator_ExchangeCodeRejectsEmptyCode(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{"", "   ", "\t"} {
 		authObj := createAuthCodeAuthenticator()
@@ -176,7 +176,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_ExchangeCodeRejectsEmptyCode(t *te
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_ExchangeCodeRejectsWhitespaceOnlyCode(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode011_OAuth2AuthorizationCodeAuthenticator_ExchangeCodeRejectsWhitespaceOnlyCode(t *testing.T) {
 	t.Parallel()
 	// oauth-exchangecode-no-empty-code-guard: a whitespace-only code is distinct
 	// from the empty-string case and must also be rejected (TrimSpace guard)
@@ -191,7 +191,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_ExchangeCodeRejectsWhitespaceOnlyC
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_ExchangesCodeWithCorrectGrantType(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode012_OAuth2AuthorizationCodeAuthenticator_ExchangesCodeWithCorrectGrantType(t *testing.T) {
 	t.Parallel()
 	client := &fakeAuthCodeClient{
 		responses: []fakeAuthCodeResponse{
@@ -221,7 +221,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_ExchangesCodeWithCorrectGrantType(
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_IncludesRefreshTokenOnRefresh(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode015_OAuth2AuthorizationCodeAuthenticator_IncludesRefreshTokenOnRefresh(t *testing.T) {
 	t.Parallel()
 	client := &fakeAuthCodeClient{
 		responses: []fakeAuthCodeResponse{
@@ -252,7 +252,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_IncludesRefreshTokenOnRefresh(t *t
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode027_OAuth2AuthorizationCodeAuthenticator_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
 	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 
@@ -272,7 +272,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_ThrowsBeforeExchangeCodeCalled(t *
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_AuthHeadersBeforeExchangeReturnsRecoverableError(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode003_OAuth2AuthorizationCodeAuthenticator_AuthHeadersBeforeExchangeReturnsRecoverableError(t *testing.T) {
 	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 
@@ -296,7 +296,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_AuthHeadersBeforeExchangeReturnsRe
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode014_OAuth2AuthorizationCodeAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
 	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 
@@ -305,7 +305,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_GetHostReturnsConfiguredHost(t *te
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_RedactsSecret(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode019_OAuth2AuthorizationCodeAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {
@@ -318,7 +318,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_RedactsSecret(t *testing.T) {
 	}
 }
 
-func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeURLWithExistingQueryStringUsesAmpSeparator(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode005_OAuth2AuthorizationCodeAuthenticator_AuthorizeURLWithExistingQueryStringUsesAmpSeparator(t *testing.T) {
 	t.Parallel()
 	// RFC 6749 §3.1: the authorization endpoint URI MAY already include a
 	// query component (e.g. tenant-scoped Auth0 URLs that bake `audience`
@@ -365,7 +365,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPe
 
 // Exactly `-._~` stays literal in the authorize URL's client_id, scope and
 // state, and `*`, `!`, `'`, `(` and `)` are percent-encoded.
-func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode004_OAuth2AuthorizationCodeAuthenticator_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
 	t.Parallel()
 	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
 		"https://api.example.com",
@@ -392,7 +392,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeUrlPercentEncodesReserved
 }
 
 // The code exchange is a form body, so the same punctuation rule applies there.
-func TestOAuth2AuthorizationCodeAuthenticator_ExchangeBodyPercentEncodesReservedPunctuation(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode017_OAuth2AuthorizationCodeAuthenticator_ExchangeBodyPercentEncodesReservedPunctuation(t *testing.T) {
 	t.Parallel()
 	client := &fakeAuthCodeClient{
 		responses: []fakeAuthCodeResponse{
@@ -427,7 +427,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_ExchangeBodyPercentEncodesReserved
 }
 
 // The code exchange goes to tokenUrl and the later refresh to refreshUrl.
-func TestOAuth2AuthorizationCodeAuthenticator_SendsTheExchangeToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode024_OAuth2AuthorizationCodeAuthenticator_SendsTheExchangeToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -496,7 +496,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_RoutesToTheDeclare
 }
 
 // The printed form shows the non-secret fields and masks only the secret.
-func TestOAuth2AuthorizationCodeAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode025_OAuth2AuthorizationCodeAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 	t.Parallel()
 	repr := createAuthCodeAuthenticator().String()
 	for _, want := range []string{
@@ -554,7 +554,7 @@ func pkceParams(t *testing.T, authorizeURL string) (challenge, method string) {
 
 // F858: the authorize URL carries an S256 challenge and the code exchange
 // proves it with the matching 43-character verifier (RFC 7636).
-func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeUrlCarriesAPkceChallengeThatTheExchangeProves(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode023_OAuth2AuthorizationCodeAuthenticator_AuthorizeUrlCarriesAPkceChallengeThatTheExchangeProves(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -588,7 +588,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeUrlCarriesAPkceChallengeT
 
 // Each authorize URL starts a new challenge, and the verifier is single-use: a
 // second exchange without a new URL sends none.
-func TestOAuth2AuthorizationCodeAuthenticator_EachAuthorizeUrlStartsANewChallengeAndTheVerifierIsSingleUse(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode009_OAuth2AuthorizationCodeAuthenticator_EachAuthorizeUrlStartsANewChallengeAndTheVerifierIsSingleUse(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -618,7 +618,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_EachAuthorizeUrlStartsANewChalleng
 
 // RFC 6749 §6: the refresh authenticates the client like the code exchange
 // did, and a rejected refresh is one POST that surfaces as *OAuth2ServerError.
-func TestOAuth2AuthorizationCodeAuthenticator_RefreshCarriesClientCredentialsAndFailsAfterOnePost(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode026_OAuth2AuthorizationCodeAuthenticator_RefreshCarriesClientCredentialsAndFailsAfterOnePost(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -647,7 +647,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_RefreshCarriesClientCredentialsAnd
 
 // A second ExchangeCode really sends its code, even while the first token is
 // still valid, and its token replaces the first.
-func TestOAuth2AuthorizationCodeAuthenticator_SecondExchangeCodeSendsTheNewCode(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode021_OAuth2AuthorizationCodeAuthenticator_SecondExchangeCodeSendsTheNewCode(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
@@ -676,7 +676,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_SecondExchangeCodeSendsTheNewCode(
 
 // A second exchange whose response has no refresh_token leaves no refresh
 // token behind: the later refresh sends an empty one, not the first session's.
-func TestOAuth2AuthorizationCodeAuthenticator_SecondExchangeWithoutRefreshTokenDropsTheOldOne(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode022_OAuth2AuthorizationCodeAuthenticator_SecondExchangeWithoutRefreshTokenDropsTheOldOne(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
@@ -703,7 +703,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_SecondExchangeWithoutRefreshTokenD
 
 // A rejected exchange keeps the previous session, so a mistyped code does not
 // log the user out.
-func TestOAuth2AuthorizationCodeAuthenticator_FailedExchangeKeepsThePreviousSession(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode013_OAuth2AuthorizationCodeAuthenticator_FailedExchangeKeepsThePreviousSession(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
@@ -728,7 +728,7 @@ func TestOAuth2AuthorizationCodeAuthenticator_FailedExchangeKeepsThePreviousSess
 
 // F855: InvalidateAccessToken keeps the refresh token and the exchanged state,
 // so the next call is a refresh grant rather than ErrAuthCodeNotExchanged.
-func TestOAuth2AuthorizationCodeAuthenticator_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode016_OAuth2AuthorizationCodeAuthenticator_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},

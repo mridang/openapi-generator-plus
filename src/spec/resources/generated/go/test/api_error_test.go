@@ -67,7 +67,7 @@ type OpenAPIErrorBrand = apierrors.OpenAPIError
 
 // TestApiError_NetworkErrors_AreApiErrorsWithStatusZero confirms the transport errors
 // carry status 0, keep their cause and satisfy the brand.
-func TestApiError_NetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
+func TestBhvErrors020_ApiError_NetworkErrors_AreApiErrorsWithStatusZero(t *testing.T) {
 	t.Parallel()
 	cause := errors.New("connection refused")
 	var netErr error = apierrors.NewNetworkError("request failed", cause)
@@ -141,7 +141,7 @@ func TestApiError_TypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
 	}
 }
 
-func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
+func TestBhvErrors004_ApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(
 		404,
@@ -169,7 +169,7 @@ func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
 	}
 }
 
-func TestApiError_NilHeadersAndBodyMarkTransportNoResponse(t *testing.T) {
+func TestBhvErrors021_ApiError_NilHeadersAndBodyMarkTransportNoResponse(t *testing.T) {
 	t.Parallel()
 	/* apierror-responsebody-headers-nullable-split: nil is distinct from an
 	 * empty header map / empty body, so a pre-response transport failure can
@@ -196,7 +196,7 @@ func TestApiError_ImplementsErrorInterface(t *testing.T) {
 	}
 }
 
-func TestApiError_GetTypedErrorBodyDeserializesBody(t *testing.T) {
+func TestBhvErrors013_ApiError_GetTypedErrorBodyDeserializesBody(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(400, "bad request", `{"id":42,"name":"Dogs"}`, nil, nil, nil)
 
@@ -212,7 +212,7 @@ func TestApiError_GetTypedErrorBodyDeserializesBody(t *testing.T) {
 	}
 }
 
-func TestApiError_GetTypedErrorBodyReturnsNilWhenNoBody(t *testing.T) {
+func TestBhvErrors015_ApiError_GetTypedErrorBodyReturnsNilWhenNoBody(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(500, "oops", "", nil, nil, nil)
 
@@ -256,7 +256,7 @@ func TestApiError_ErrorBodyIsDepthCapped(t *testing.T) {
 	}
 }
 
-func TestApiError_GetTypedErrorBodyMalformedBodyIsSerializationError(t *testing.T) {
+func TestBhvErrors017_ApiError_GetTypedErrorBodyMalformedBodyIsSerializationError(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(400, "bad request", `{"id":`, nil, nil, nil)
 
@@ -284,7 +284,7 @@ func TestApiError_GetTypedErrorBodyStripsByteOrderMark(t *testing.T) {
 	}
 }
 
-func TestApiError_GetTypedErrorBodyIgnoresExtraneousFields(t *testing.T) {
+func TestBhvErrors014_ApiError_GetTypedErrorBodyIgnoresExtraneousFields(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(422, "unprocessable", `{"id":1,"name":"Cat","extra":"drop-me"}`, nil, nil, nil)
 
@@ -345,7 +345,7 @@ func TestApiError_FieldsAreImmutable(t *testing.T) {
 // that every generated operation and the OpenID Connect discovery request use
 // builds the most specific type for each status, and keeps the status, headers
 // and body on the embedded ApiError.
-func TestApiError_FromResponse_MapsEveryStatusToItsType(t *testing.T) {
+func TestBhvErrors006_ApiError_FromResponse_MapsEveryStatusToItsType(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		status int
@@ -430,7 +430,7 @@ func TestApiError_PackageRoot_ReexportsTheErrorTree(t *testing.T) {
 
 // TestApiError_SatisfiesOpenAPIError confirms a plain *ApiError is recognised as
 // the branded root, both by direct assertion and via errors.As.
-func TestApiError_SatisfiesOpenAPIError(t *testing.T) {
+func TestBhvErrors018_ApiError_SatisfiesOpenAPIError(t *testing.T) {
 	t.Parallel()
 	var err error = apierrors.NewApiError(500, "boom", "", nil, nil, nil)
 
@@ -483,7 +483,7 @@ func TestApiError_TypedError_SatisfiesOpenAPIErrorAndApiError(t *testing.T) {
 // TestApiError_SerializationError_SatisfiesOpenAPIErrorAndKeepsCause confirms
 // *SerializationError is declared beside the rest of the hierarchy, satisfies
 // the brand, is re-exported by the main package and keeps its cause.
-func TestApiError_SerializationError_SatisfiesOpenAPIErrorAndKeepsCause(t *testing.T) {
+func TestBhvErrors025_ApiError_SerializationError_SatisfiesOpenAPIErrorAndKeepsCause(t *testing.T) {
 	t.Parallel()
 	cause := errors.New("unexpected end of JSON input")
 	var err error = apierrors.NewSerializationError("failed to decode", cause)
@@ -550,7 +550,7 @@ func TestApiError_ErrorRendersOnlyThePartsThatArePresent(t *testing.T) {
 // Error() shows at most 1 KiB of the body, escapes control characters so a
 // hostile body cannot forge a log line, and masks credential-bearing response
 // headers; the accessors keep the real body and headers.
-func TestApiError_ErrorCapsTheBodyEscapesControlsAndMasksSecretHeaders(t *testing.T) {
+func TestBhvErrors001_ApiError_ErrorCapsTheBodyEscapesControlsAndMasksSecretHeaders(t *testing.T) {
 	t.Parallel()
 	long := strings.Repeat("x", 1030)
 	capped := apierrors.NewApiError(500, "boom", long, nil, nil, nil)
@@ -600,7 +600,7 @@ func TestApiError_ErrorCapsTheBodyEscapesControlsAndMasksSecretHeaders(t *testin
 // FromResponse keeps whatever JSON the server sent as the error body, scalars
 // and a leading byte order mark included, and never fails on a body it cannot
 // parse: the raw body is still retained.
-func TestApiError_FromResponse_ParsesScalarAndBomPrefixedBodies(t *testing.T) {
+func TestBhvErrors008_ApiError_FromResponse_ParsesScalarAndBomPrefixedBodies(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -629,7 +629,7 @@ func TestApiError_FromResponse_ParsesScalarAndBomPrefixedBodies(t *testing.T) {
 
 // An error that knows its request names it on its own line between the message
 // and the status; the path is shown without a query string or fragment.
-func TestApiError_ErrorNamesTheRequestItAnswers(t *testing.T) {
+func TestBhvErrors011_ApiError_ErrorNamesTheRequestItAnswers(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(404, "gone", "nope", nil, nil, nil)
 	err.AttachRequest("GET", "/items/7?token=secret#top")
@@ -657,7 +657,7 @@ func TestApiError_AttachRequestKeepsTheFirstRequestAndIgnoresAnIncompleteOne(t *
 	}
 }
 
-func TestApiError_EverySubclassCarriesTheRequest(t *testing.T) {
+func TestBhvErrors002_ApiError_EverySubclassCarriesTheRequest(t *testing.T) {
 	t.Parallel()
 	for _, status := range []int{400, 401, 403, 404, 409, 422, 429, 500, 502, 302} {
 		failure := apierrors.FromResponse(status, nil, "")

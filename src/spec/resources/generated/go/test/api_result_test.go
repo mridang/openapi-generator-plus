@@ -42,7 +42,7 @@ func TestApiResult_ConstructorPopulatesAllFields(t *testing.T) {
 	}
 }
 
-func TestApiResult_NilDataForNoContentResponse(t *testing.T) {
+func TestBhvResults001_ApiResult_NilDataForNoContentResponse(t *testing.T) {
 	t.Parallel()
 	// A 204 No Content response carries no deserialized body, so Data is nil
 	// while the status, raw body, and headers are still populated.

@@ -18,7 +18,7 @@ import (
 	petstore "petstore/pkg"
 )
 
-func TestConfiguration_DefaultValues(t *testing.T) {
+func TestBhvConfig014_Configuration_DefaultValues(t *testing.T) {
 	t.Parallel()
 	config := petstore.DefaultConfiguration()
 
@@ -30,7 +30,7 @@ func TestConfiguration_DefaultValues(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BuilderReturnsBuilderInstance(t *testing.T) {
+func TestBhvConfig007_Configuration_BuilderReturnsBuilderInstance(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewConfigurationBuilder()
 	if builder == nil {
@@ -38,7 +38,7 @@ func TestConfiguration_BuilderReturnsBuilderInstance(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BuilderSetsBaseURL(t *testing.T) {
+func TestBhvConfig011_Configuration_BuilderSetsBaseURL(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		BaseURL("https://custom.example.com").
@@ -49,7 +49,7 @@ func TestConfiguration_BuilderSetsBaseURL(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BuilderSetsDefaultHeader(t *testing.T) {
+func TestBhvConfig013_Configuration_BuilderSetsDefaultHeader(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("X-Custom", "value").
@@ -61,7 +61,7 @@ func TestConfiguration_BuilderSetsDefaultHeader(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BuilderSetsMultipleDefaultHeaders(t *testing.T) {
+func TestBhvConfig012_Configuration_BuilderSetsMultipleDefaultHeaders(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeaders(map[string]string{
@@ -79,7 +79,7 @@ func TestConfiguration_BuilderSetsMultipleDefaultHeaders(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BuilderAccumulatesMultipleHeaders(t *testing.T) {
+func TestBhvConfig002_Configuration_BuilderAccumulatesMultipleHeaders(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("X-First", "one").
@@ -98,7 +98,7 @@ func TestConfiguration_BuilderAccumulatesMultipleHeaders(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BuilderMergesSingleAndBulkHeaders(t *testing.T) {
+func TestBhvConfig004_Configuration_BuilderMergesSingleAndBulkHeaders(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("X-First", "one").
@@ -136,7 +136,7 @@ func TestConfiguration_BuilderChaining(t *testing.T) {
 	}
 }
 
-func TestConfiguration_ServerURLResolution(t *testing.T) {
+func TestBhvConfig008_Configuration_ServerURLResolution(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com/api/{version}",
@@ -184,7 +184,7 @@ func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BaseURLOverride(t *testing.T) {
+func TestBhvConfig001_Configuration_BaseURLOverride(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		BaseURL("https://original.example.com").
@@ -211,7 +211,7 @@ func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
 	}
 }
 
-func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) {
+func TestBhvConfig016_Configuration_InvalidServerVariableEnumValueReturnsError(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com",
@@ -228,7 +228,7 @@ func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) 
 	}
 }
 
-func TestConfiguration_BuilderMethodsReturnBuilderForChaining(t *testing.T) {
+func TestBhvConfig003_Configuration_BuilderMethodsReturnBuilderForChaining(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewConfigurationBuilder()
 	server := petstore.NewServerConfiguration(
@@ -255,7 +255,7 @@ func TestConfiguration_BuilderMethodsReturnBuilderForChaining(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BuilderProducesIndependentInstances(t *testing.T) {
+func TestBhvConfig006_Configuration_BuilderProducesIndependentInstances(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewConfigurationBuilder().BaseURL("https://example.com")
 	first := builder.Build()
@@ -269,7 +269,7 @@ func TestConfiguration_BuilderProducesIndependentInstances(t *testing.T) {
 	}
 }
 
-func TestConfiguration_StringMasksSecretHeaders(t *testing.T) {
+func TestBhvConfig015_Configuration_StringMasksSecretHeaders(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("Authorization", "Bearer s3cret-value").

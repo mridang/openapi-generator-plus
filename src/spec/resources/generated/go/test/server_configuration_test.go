@@ -17,7 +17,7 @@ import (
 	apierrors "petstore/pkg/errors"
 )
 
-func TestServerConfiguration_URLSubstitutesOverrides(t *testing.T) {
+func TestBhvServers010_ServerConfiguration_URLSubstitutesOverrides(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com/api/{version}",
@@ -37,7 +37,7 @@ func TestServerConfiguration_URLSubstitutesOverrides(t *testing.T) {
 	}
 }
 
-func TestServerConfiguration_URLUsesDefaultsForMissingOverrides(t *testing.T) {
+func TestBhvServers009_ServerConfiguration_URLUsesDefaultsForMissingOverrides(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com/api/{version}",
@@ -57,7 +57,7 @@ func TestServerConfiguration_URLUsesDefaultsForMissingOverrides(t *testing.T) {
 	}
 }
 
-func TestServerConfiguration_URLPartialOverrideKeepsDefaults(t *testing.T) {
+func TestBhvServers001_ServerConfiguration_URLPartialOverrideKeepsDefaults(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com/api/{version}",
@@ -77,7 +77,7 @@ func TestServerConfiguration_URLPartialOverrideKeepsDefaults(t *testing.T) {
 	}
 }
 
-func TestServerConfiguration_URLRejectsValueOutsideEnum(t *testing.T) {
+func TestBhvServers008_ServerConfiguration_URLRejectsValueOutsideEnum(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com",
@@ -97,7 +97,7 @@ func TestServerConfiguration_URLRejectsValueOutsideEnum(t *testing.T) {
 	}
 }
 
-func TestServerConfiguration_URLAcceptsAnyValueWhenNoEnum(t *testing.T) {
+func TestBhvServers014_ServerConfiguration_URLAcceptsAnyValueWhenNoEnum(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com",
@@ -147,7 +147,7 @@ func TestServerConfiguration_AccessorsExposeImmutableState(t *testing.T) {
 
 // A template with no variables is returned as it is, whatever overrides are
 // passed.
-func TestServerConfiguration_URLWithoutVariablesIsReturnedUnchanged(t *testing.T) {
+func TestBhvServers011_ServerConfiguration_URLWithoutVariablesIsReturnedUnchanged(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration("https://api.example.com/v1", "", nil)
 
@@ -164,7 +164,7 @@ func TestServerConfiguration_URLWithoutVariablesIsReturnedUnchanged(t *testing.T
 
 // A default that is itself outside the enum is rejected even with no override,
 // so a mis-declared spec cannot resolve to a URL its own enum forbids.
-func TestServerConfiguration_URLRejectsADefaultOutsideTheEnum(t *testing.T) {
+func TestBhvServers004_ServerConfiguration_URLRejectsADefaultOutsideTheEnum(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com",
@@ -180,7 +180,7 @@ func TestServerConfiguration_URLRejectsADefaultOutsideTheEnum(t *testing.T) {
 }
 
 // The rejection names the offending value, the variable and every allowed value.
-func TestServerConfiguration_RejectionMessageNamesValueVariableAndAllowedValues(t *testing.T) {
+func TestBhvServers012_ServerConfiguration_RejectionMessageNamesValueVariableAndAllowedValues(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com",
@@ -224,7 +224,7 @@ func TestServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
 // The third global server carries hostile text in its description and variable:
 // quotes, an ampersand, a dollar sign, a hash-brace and a comment-closing
 // sequence all come back unchanged.
-func TestServerConfiguration_TheHostileThirdServerRoundTripsUnchanged(t *testing.T) {
+func TestBhvServers013_ServerConfiguration_TheHostileThirdServerRoundTripsUnchanged(t *testing.T) {
 	t.Parallel()
 	server := petstore.AllServers[2]
 

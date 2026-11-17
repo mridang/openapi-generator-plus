@@ -68,7 +68,7 @@ func createClientCredentialsAuthenticator() *oauth.OAuth2ClientCredentialsAuthen
 	)
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_SendsClientCredentialsGrantType(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred010_OAuth2ClientCredentialsAuthenticator_SendsClientCredentialsGrantType(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -88,7 +88,7 @@ func TestOAuth2ClientCredentialsAuthenticator_SendsClientCredentialsGrantType(t 
 
 // The per-scheme wrapper requests the scopes its security scheme declares, not
 // the provider's defaults.
-func TestOAuth2ClientCredentialsAuthenticator_MachineAuthWrapper_SendsDeclaredScopes(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred009_OAuth2ClientCredentialsAuthenticator_MachineAuthWrapper_SendsDeclaredScopes(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -109,7 +109,7 @@ func TestOAuth2ClientCredentialsAuthenticator_MachineAuthWrapper_SendsDeclaredSc
 	}
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_SendsClientIdAndSecret(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred011_OAuth2ClientCredentialsAuthenticator_SendsClientIdAndSecret(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -130,7 +130,7 @@ func TestOAuth2ClientCredentialsAuthenticator_SendsClientIdAndSecret(t *testing.
 	}
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_SendsScopes(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred013_OAuth2ClientCredentialsAuthenticator_SendsScopes(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -148,7 +148,7 @@ func TestOAuth2ClientCredentialsAuthenticator_SendsScopes(t *testing.T) {
 	}
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_ReturnsAuthorizationBearerHeader(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred008_OAuth2ClientCredentialsAuthenticator_ReturnsAuthorizationBearerHeader(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -166,7 +166,7 @@ func TestOAuth2ClientCredentialsAuthenticator_ReturnsAuthorizationBearerHeader(t
 	}
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_SendsRequestToTokenUrl(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred012_OAuth2ClientCredentialsAuthenticator_SendsRequestToTokenUrl(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -186,7 +186,7 @@ func TestOAuth2ClientCredentialsAuthenticator_SendsRequestToTokenUrl(t *testing.
 
 // oauth-cc-authheaders-error-swallow: AuthHeadersOrError must surface the real
 // token-endpoint failure instead of swallowing it into an empty header map.
-func TestOAuth2ClientCredentialsAuthenticator_TokenFetchErrorIsSurfacedNotSwallowed(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred015_OAuth2ClientCredentialsAuthenticator_TokenFetchErrorIsSurfacedNotSwallowed(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -226,7 +226,7 @@ func TestOAuth2ClientCredentialsAuthenticator_AuthHeadersCollapsesErrorToEmptyMa
 	}
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_CachesTokenAcrossCalls(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred003_OAuth2ClientCredentialsAuthenticator_CachesTokenAcrossCalls(t *testing.T) {
 	t.Parallel()
 	// The token manager caches the access token until expiry, so two
 	// consecutive header requests reuse the same token and issue only a single
@@ -252,7 +252,7 @@ func TestOAuth2ClientCredentialsAuthenticator_CachesTokenAcrossCalls(t *testing.
 	}
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred004_OAuth2ClientCredentialsAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
 	t.Parallel()
 	authObj := createClientCredentialsAuthenticator()
 
@@ -261,7 +261,7 @@ func TestOAuth2ClientCredentialsAuthenticator_GetHostReturnsConfiguredHost(t *te
 	}
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_RedactsSecret(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred007_OAuth2ClientCredentialsAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createClientCredentialsAuthenticator()
 	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj), fmt.Sprintf("%v", *authObj), fmt.Sprintf("%+v", *authObj), fmt.Sprintf("%#v", *authObj)} {
@@ -292,7 +292,7 @@ func TestOAuth2ClientCredentialsAuthenticator_MachineAuthWrapper_PrintsItsOwnNam
 	}
 }
 
-func TestOAuth2ClientCredentialsAuthenticator_BasicAuthUrlEncodesClientIdAndSecret(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred002_OAuth2ClientCredentialsAuthenticator_BasicAuthUrlEncodesClientIdAndSecret(t *testing.T) {
 	t.Parallel()
 	// Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
 	// client_id and client_secret MUST be application/x-www-form-
@@ -337,7 +337,7 @@ func TestOAuth2ClientCredentialsAuthenticator_BasicAuthUrlEncodesClientIdAndSecr
 // RFC 6749 §2.3.1 form-urlencoding, in the token body and in the Basic header:
 // exactly the RFC 3986 unreserved punctuation `-._~` stays literal, and `*`, `!`,
 // `'`, `(` and `)` are percent-encoded.
-func TestOAuth2ClientCredentialsAuthenticator_PercentEncodesReservedPunctuationInBodyAndBasicHeader(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred001_OAuth2ClientCredentialsAuthenticator_PercentEncodesReservedPunctuationInBodyAndBasicHeader(t *testing.T) {
 	t.Parallel()
 	const (
 		id            = "id~-._*!'()"
@@ -453,7 +453,7 @@ func TestOAuth2ClientCredentialsAuthenticator_TokenEndpointFailureIsOAuth2Server
 }
 
 // The printed form shows the non-secret fields and masks only the secret.
-func TestOAuth2ClientCredentialsAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred014_OAuth2ClientCredentialsAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 	t.Parallel()
 	repr := createClientCredentialsAuthenticator().String()
 	for _, want := range []string{
@@ -489,7 +489,7 @@ func TestOAuth2ClientCredentialsAuthenticator_TokenBodyUsesTheSharedKeyOrder(t *
 
 // F855: InvalidateAccessToken drops the cached token, so the next call fetches a
 // new one instead of serving the token the API rejected.
-func TestOAuth2ClientCredentialsAuthenticator_InvalidateAccessTokenForcesAFreshToken(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred005_OAuth2ClientCredentialsAuthenticator_InvalidateAccessTokenForcesAFreshToken(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},

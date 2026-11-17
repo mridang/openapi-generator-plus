@@ -35,7 +35,7 @@ func expectInvalidApiKey(t *testing.T, value string, location auth.ApiKeyLocatio
 	}
 }
 
-func TestApiKeyAuthenticator_ValidHeaderKeyPasses(t *testing.T) {
+func TestBhvAuthapikey014_ApiKeyAuthenticator_ValidHeaderKeyPasses(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "https://api.example.com", "X-API-Key", "abc123", auth.ApiKeyLocationHeader)
 	headers := a.AuthHeaders()
@@ -44,7 +44,7 @@ func TestApiKeyAuthenticator_ValidHeaderKeyPasses(t *testing.T) {
 	}
 }
 
-func TestApiKeyAuthenticator_ValidQueryKeyPasses(t *testing.T) {
+func TestBhvAuthapikey016_ApiKeyAuthenticator_ValidQueryKeyPasses(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "https://api.example.com", "api_key", "abc123", auth.ApiKeyLocationQuery)
 	params := a.QueryParams()
@@ -53,7 +53,7 @@ func TestApiKeyAuthenticator_ValidQueryKeyPasses(t *testing.T) {
 	}
 }
 
-func TestApiKeyAuthenticator_ValidCookieKeyPasses(t *testing.T) {
+func TestBhvAuthapikey013_ApiKeyAuthenticator_ValidCookieKeyPasses(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "https://api.example.com", "session", "abc123", auth.ApiKeyLocationCookie)
 	cookies := a.CookieParams()
@@ -64,7 +64,7 @@ func TestApiKeyAuthenticator_ValidCookieKeyPasses(t *testing.T) {
 
 // A non-header location accepts non-ASCII characters because only the HTTP
 // header value is subject to the RFC 7230 printable-ASCII rule.
-func TestApiKeyAuthenticator_QueryLocationAcceptsNonAscii(t *testing.T) {
+func TestBhvAuthapikey009_ApiKeyAuthenticator_QueryLocationAcceptsNonAscii(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "https://api.example.com", "api_key", "kéy", auth.ApiKeyLocationQuery)
 	params := a.QueryParams()
@@ -74,7 +74,7 @@ func TestApiKeyAuthenticator_QueryLocationAcceptsNonAscii(t *testing.T) {
 }
 
 // Empty or whitespace-only API keys are caller mistakes at every location.
-func TestApiKeyAuthenticator_RejectsEmptyOrWhitespaceKey(t *testing.T) {
+func TestBhvAuthapikey017_ApiKeyAuthenticator_RejectsEmptyOrWhitespaceKey(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name     string
@@ -95,7 +95,7 @@ func TestApiKeyAuthenticator_RejectsEmptyOrWhitespaceKey(t *testing.T) {
 }
 
 // Only ASCII whitespace counts as blank: a Unicode space is a valid key.
-func TestApiKeyAuthenticator_UnicodeSpaceIsNotBlank(t *testing.T) {
+func TestBhvAuthapikey001_ApiKeyAuthenticator_UnicodeSpaceIsNotBlank(t *testing.T) {
 	t.Parallel()
 	for _, value := range []string{"\u00a0", "\u2003"} {
 		a := mustApiKey(t, "https://api.example.com", "api_key", value, auth.ApiKeyLocationQuery)
@@ -126,7 +126,7 @@ func TestApiKeyAuthenticator_RejectsControlCharsAtEveryLocation(t *testing.T) {
 // RFC 7230 §3.2.6 — a header-location key must reject anything outside
 // printable ASCII + TAB to prevent silent UTF-8 mangling that varies per HTTP
 // lib.
-func TestApiKeyAuthenticator_HeaderLocationRejectsNonAscii(t *testing.T) {
+func TestBhvAuthapikey008_ApiKeyAuthenticator_HeaderLocationRejectsNonAscii(t *testing.T) {
 	t.Parallel()
 	expectInvalidApiKey(t, "kéy", auth.ApiKeyLocationHeader)
 }
@@ -154,7 +154,7 @@ func TestApiKeyAuthenticator_RejectionMessages(t *testing.T) {
 
 // authenticator-secret-in-default-string-repr: the API key must not leak
 // through the default string/format representation.
-func TestApiKeyAuthenticator_RedactsSecret(t *testing.T) {
+func TestBhvAuthapikey010_ApiKeyAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "https://api.example.com", "X-API-Key", "abc123", auth.ApiKeyLocationHeader)
 	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a), fmt.Sprintf("%v", *a), fmt.Sprintf("%+v", *a), fmt.Sprintf("%#v", *a)} {
@@ -178,7 +178,7 @@ type keyEmitter interface {
 // Each per-scheme wrapper fixes the key name and the location its security
 // scheme declares: the key is emitted there and nowhere else, an empty key is
 // refused up front, and the printed form names the wrapper and masks the key.
-func TestApiKeyAuthenticator_ApiKeyWrappers_EmitTheKeyWhereTheirSchemeDeclaresIt(t *testing.T) {
+func TestBhvAuthapikey007_ApiKeyAuthenticator_ApiKeyWrappers_EmitTheKeyWhereTheirSchemeDeclaresIt(t *testing.T) {
 	t.Parallel()
 	const host = "https://api.example.com"
 	none := map[string]string{}
@@ -241,7 +241,7 @@ func TestApiKeyAuthenticator_ApiKeyWrappers_EmitTheKeyWhereTheirSchemeDeclaresIt
 
 // The printed form shows the non-secret fields, host, key name and location, and
 // masks only the key.
-func TestApiKeyAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+func TestBhvAuthapikey012_ApiKeyAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "https://api.example.com", "X-API-Key", "abc123", auth.ApiKeyLocationHeader)
 	want := `ApiKeyAuthenticator{host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: ***, location: Header}`

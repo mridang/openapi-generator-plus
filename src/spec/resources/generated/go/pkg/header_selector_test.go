@@ -42,7 +42,7 @@ func TestHeaderSelector_IsJSONMIME(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectAcceptHeaderJoinsInDeclarationOrder(t *testing.T) {
+func TestBhvHeaders011_HeaderSelector_SelectAcceptHeaderJoinsInDeclarationOrder(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -53,7 +53,7 @@ func TestHeaderSelector_SelectAcceptHeaderJoinsInDeclarationOrder(t *testing.T) 
 	}
 }
 
-func TestHeaderSelector_SelectAcceptHeaderSingleElement(t *testing.T) {
+func TestBhvHeaders017_HeaderSelector_SelectAcceptHeaderSingleElement(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -64,7 +64,7 @@ func TestHeaderSelector_SelectAcceptHeaderSingleElement(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectAcceptHeaderFiltersEmptyEntries(t *testing.T) {
+func TestBhvHeaders009_HeaderSelector_SelectAcceptHeaderFiltersEmptyEntries(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -75,7 +75,7 @@ func TestHeaderSelector_SelectAcceptHeaderFiltersEmptyEntries(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectAcceptHeaderDropsWhitespaceOnlyEntries(t *testing.T) {
+func TestBhvHeaders008_HeaderSelector_SelectAcceptHeaderDropsWhitespaceOnlyEntries(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -86,7 +86,7 @@ func TestHeaderSelector_SelectAcceptHeaderDropsWhitespaceOnlyEntries(t *testing.
 	}
 }
 
-func TestHeaderSelector_SelectAcceptHeaderEmptyWhenNothingRemains(t *testing.T) {
+func TestBhvHeaders005_HeaderSelector_SelectAcceptHeaderEmptyWhenNothingRemains(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -98,7 +98,7 @@ func TestHeaderSelector_SelectAcceptHeaderEmptyWhenNothingRemains(t *testing.T) 
 	}
 }
 
-func TestHeaderSelector_SelectHeadersWithSingleAccept(t *testing.T) {
+func TestBhvHeaders023_HeaderSelector_SelectHeadersWithSingleAccept(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -112,7 +112,7 @@ func TestHeaderSelector_SelectHeadersWithSingleAccept(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectHeadersWithMultipleAccepts(t *testing.T) {
+func TestBhvHeaders024_HeaderSelector_SelectHeadersWithMultipleAccepts(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -123,7 +123,7 @@ func TestHeaderSelector_SelectHeadersWithMultipleAccepts(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectHeadersWithEmptyAccepts(t *testing.T) {
+func TestBhvHeaders004_HeaderSelector_SelectHeadersWithEmptyAccepts(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -134,7 +134,7 @@ func TestHeaderSelector_SelectHeadersWithEmptyAccepts(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectHeadersMultipartOmitsContentType(t *testing.T) {
+func TestBhvHeaders007_HeaderSelector_SelectHeadersMultipartOmitsContentType(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -145,7 +145,7 @@ func TestHeaderSelector_SelectHeadersMultipartOmitsContentType(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectHeadersDefaultContentType(t *testing.T) {
+func TestBhvHeaders001_HeaderSelector_SelectHeadersDefaultContentType(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -156,7 +156,7 @@ func TestHeaderSelector_SelectHeadersDefaultContentType(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectHeadersSingleNonJSONAcceptAsIs(t *testing.T) {
+func TestBhvHeaders018_HeaderSelector_SelectHeadersSingleNonJSONAcceptAsIs(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -167,7 +167,7 @@ func TestHeaderSelector_SelectHeadersSingleNonJSONAcceptAsIs(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectHeadersFiltersOutEmptyEntries(t *testing.T) {
+func TestBhvHeaders010_HeaderSelector_SelectHeadersFiltersOutEmptyEntries(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 

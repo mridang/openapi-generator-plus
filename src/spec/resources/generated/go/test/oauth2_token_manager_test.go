@@ -78,7 +78,7 @@ func newFakeTokenClient(responses ...fakeResponse) *fakeTokenClient {
 
 // F1075: a token request is a form POST that asks for JSON, whatever the
 // caller's extra headers add.
-func TestOAuth2TokenManager_TokenRequestCarriesFormContentTypeAndJsonAccept(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr035_OAuth2TokenManager_TokenRequestCarriesFormContentTypeAndJsonAccept(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{body: `{"access_token":"tok","expires_in":3600}`, statusCode: 200})
 	manager := oauth.NewOAuth2TokenManager()
@@ -123,7 +123,7 @@ func TestOAuth2TokenManager_RedactsStoredTokens(t *testing.T) {
 // replay the form-encoded `client_secret` (and `refresh_token` on refresh
 // grants) onto the redirect target. Pins the option propagation from the
 // token manager down to the underlying ApiClient.
-func TestOAuth2TokenManager_TokenPostsSetNoRedirect(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr034_OAuth2TokenManager_TokenPostsSetNoRedirect(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"access_token":"tok","expires_in":3600}`,
@@ -148,7 +148,7 @@ func TestOAuth2TokenManager_TokenPostsSetNoRedirect(t *testing.T) {
 // must refuse the whole 300-399 range (302 and 307 both exercised below, plus
 // 301/303/308) rather than silently falling through. Like any non-2xx answer,
 // the refusal is an *OAuth2ServerError carrying that status.
-func TestOAuth2TokenManager_RejectsRedirect(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr033_OAuth2TokenManager_RejectsRedirect(t *testing.T) {
 	t.Parallel()
 	for _, status := range []int{301, 302, 303, 307, 308} {
 		client := newFakeTokenClient(fakeResponse{body: "", statusCode: status})
@@ -174,7 +174,7 @@ func TestOAuth2TokenManager_RejectsRedirect(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ExtractsAccessTokenFromResponse(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr014_OAuth2TokenManager_ExtractsAccessTokenFromResponse(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"access_token":"tok123","expires_in":3600}`,
@@ -195,7 +195,7 @@ func TestOAuth2TokenManager_ExtractsAccessTokenFromResponse(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_StoresRefreshToken(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr028_OAuth2TokenManager_StoresRefreshToken(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`,
@@ -216,7 +216,7 @@ func TestOAuth2TokenManager_StoresRefreshToken(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ReturnsCachedTokenWhenNotExpired(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr025_OAuth2TokenManager_ReturnsCachedTokenWhenNotExpired(t *testing.T) {
 	t.Parallel()
 	callCount := int32(0)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -259,7 +259,7 @@ func TestOAuth2TokenManager_ReturnsCachedTokenWhenNotExpired(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_RefetchesTokenWhenExpired(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr021_OAuth2TokenManager_RefetchesTokenWhenExpired(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(
 		fakeResponse{body: `{"access_token":"tok1","expires_in":0}`, statusCode: 200},
@@ -289,7 +289,7 @@ func TestOAuth2TokenManager_RefetchesTokenWhenExpired(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_SetAccessTokenBypassesEndpoint(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr026_OAuth2TokenManager_SetAccessTokenBypassesEndpoint(t *testing.T) {
 	t.Parallel()
 	manager := oauth.NewOAuth2TokenManager()
 	manager.SetAccessToken("manual-token")
@@ -304,7 +304,7 @@ func TestOAuth2TokenManager_SetAccessTokenBypassesEndpoint(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_InvalidateAccessTokenForcesRefetch(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr018_OAuth2TokenManager_InvalidateAccessTokenForcesRefetch(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(
 		fakeResponse{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -357,7 +357,7 @@ func (c *slowFakeTokenClient) SendRequestWithOptions(_, _ string, _ map[string]s
 	return &auth.ApiHttpResponse{StatusCode: 200, Body: c.body, Headers: map[string]string{}}, nil
 }
 
-func TestOAuth2TokenManager_SingleFlightCoalescesConcurrentCallers(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr027_OAuth2TokenManager_SingleFlightCoalescesConcurrentCallers(t *testing.T) {
 	t.Parallel()
 	// 10 goroutines all see no cached token and race into GetAccessToken.
 	// The mutex + double-checked cache must coalesce them into exactly one
@@ -399,7 +399,7 @@ func TestOAuth2TokenManager_SingleFlightCoalescesConcurrentCallers(t *testing.T)
 	}
 }
 
-func TestOAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr030_OAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	t.Parallel()
 	manager := oauth.NewOAuth2TokenManager()
 
@@ -418,7 +418,7 @@ func TestOAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
 // Token endpoint: a 2xx body that is not JSON is an *OAuth2TokenError, and a
 // transport failure is returned unchanged as the *NetworkError /
 // *NetworkTimeoutError it already is.
-func TestOAuth2TokenManager_UnusableAnswersAndTransportFailuresAreTyped(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr037_OAuth2TokenManager_UnusableAnswersAndTransportFailuresAreTyped(t *testing.T) {
 	t.Parallel()
 	params := map[string]string{"grant_type": "client_credentials"}
 
@@ -458,7 +458,7 @@ func TestOAuth2TokenManager_UnusableAnswersAndTransportFailuresAreTyped(t *testi
 }
 
 // The three unusable 2xx answers carry fixed text with no parser detail.
-func TestOAuth2TokenManager_UnusableTokenResponsesUseTheFixedMessages(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr040_OAuth2TokenManager_UnusableTokenResponsesUseTheFixedMessages(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		body string
@@ -488,7 +488,7 @@ func TestOAuth2TokenManager_UnusableTokenResponsesUseTheFixedMessages(t *testing
 
 // RFC 6749 section 7.1: only a bearer token (any case) or an absent type is
 // used; the refusal does not echo the issued type.
-func TestOAuth2TokenManager_ATokenTypeThatIsNotBearerIsRefusedWithoutEchoingIt(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr038_OAuth2TokenManager_ATokenTypeThatIsNotBearerIsRefusedWithoutEchoingIt(t *testing.T) {
 	t.Parallel()
 	for _, tokenType := range []string{`"DPoP"`, `"MAC"`, `42`} {
 		manager := oauth.NewOAuth2TokenManager()
@@ -507,7 +507,7 @@ func TestOAuth2TokenManager_ATokenTypeThatIsNotBearerIsRefusedWithoutEchoingIt(t
 	}
 }
 
-func TestOAuth2TokenManager_ABearerOrMissingTokenTypeIsAccepted(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr002_OAuth2TokenManager_ABearerOrMissingTokenTypeIsAccepted(t *testing.T) {
 	t.Parallel()
 	for _, tokenType := range []string{`,"token_type":"bearer"`, `,"token_type":"Bearer"`, `,"token_type":"BEARER"`, `,"token_type":null`, ``} {
 		manager := oauth.NewOAuth2TokenManager()
@@ -521,7 +521,7 @@ func TestOAuth2TokenManager_ABearerOrMissingTokenTypeIsAccepted(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ExpiresInShortLivedTokenDoesNotStorm(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr013_OAuth2TokenManager_ExpiresInShortLivedTokenDoesNotStorm(t *testing.T) {
 	t.Parallel()
 	// Gap CM: a short-lived token (expires_in < buffer) must produce exactly
 	// ONE network call from a single GetAccessToken invocation.
@@ -547,7 +547,7 @@ func TestOAuth2TokenManager_ExpiresInShortLivedTokenDoesNotStorm(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ExpiresInLongLivedTokenAppliesFullBuffer(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr010_OAuth2TokenManager_ExpiresInLongLivedTokenAppliesFullBuffer(t *testing.T) {
 	t.Parallel()
 	// Gap CM: long-lived token gets full 30s buffer; second call uses cache.
 	client := newFakeTokenClient(fakeResponse{
@@ -579,7 +579,7 @@ func TestOAuth2TokenManager_ExpiresInLongLivedTokenAppliesFullBuffer(t *testing.
 
 // One safety margin, capped at half the lifetime, so a short token is reused
 // for part of its life instead of being refetched on every call.
-func TestOAuth2TokenManager_ShortLivedTokensAreStillReused(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr004_OAuth2TokenManager_ShortLivedTokensAreStillReused(t *testing.T) {
 	t.Parallel()
 	for _, expiresIn := range []int{30, 60, 90, 120} {
 		client := &recordingTokenClient{responses: []fakeResponse{
@@ -600,7 +600,7 @@ func TestOAuth2TokenManager_ShortLivedTokensAreStillReused(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_RefreshTokenEmptyStringPreservesExisting(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr024_OAuth2TokenManager_RefreshTokenEmptyStringPreservesExisting(t *testing.T) {
 	t.Parallel()
 	// Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
 	// MUST NOT clobber the cached refresh_token.
@@ -631,7 +631,7 @@ func TestOAuth2TokenManager_RefreshTokenEmptyStringPreservesExisting(t *testing.
 	}
 }
 
-func TestOAuth2TokenManager_ExpiresInAsJsonStringIsAccepted(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr009_OAuth2TokenManager_ExpiresInAsJsonStringIsAccepted(t *testing.T) {
 	t.Parallel()
 	// D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
 	// quoted string. The manager must accept it and cache the token; a
@@ -661,7 +661,7 @@ func TestOAuth2TokenManager_ExpiresInAsJsonStringIsAccepted(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ExpiresInAsFloatIsFloored(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr008_OAuth2TokenManager_ExpiresInAsFloatIsFloored(t *testing.T) {
 	t.Parallel()
 	// D1: some providers send expires_in as a JSON float (e.g. 3600.5).
 	// The manager must floor it and cache the token.
@@ -722,7 +722,7 @@ func TestOAuth2TokenManager_ExpiresInHugeValueIsClampedAndCached(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ExpiresInNegativeSkipsCaching(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr011_OAuth2TokenManager_ExpiresInNegativeSkipsCaching(t *testing.T) {
 	t.Parallel()
 	// D1: a negative expires_in (e.g. -1) must mark the token as
 	// immediately stale so the very next call refetches.
@@ -751,7 +751,7 @@ func TestOAuth2TokenManager_ExpiresInNegativeSkipsCaching(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr031_OAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"error":"invalid_client"}`,
@@ -769,7 +769,7 @@ func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_TokenResponseMissingAccessTokenThrowsTypedError(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr036_OAuth2TokenManager_TokenResponseMissingAccessTokenThrowsTypedError(t *testing.T) {
 	t.Parallel()
 	// A 2xx response whose body omits access_token must surface as the
 	// typed *OAuth2TokenError, not silently cache an empty token.
@@ -797,7 +797,7 @@ func TestOAuth2TokenManager_TokenResponseMissingAccessTokenThrowsTypedError(t *t
 	}
 }
 
-func TestOAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr032_OAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *testing.T) {
 	t.Parallel()
 	// RFC 6749 §5.2: a 4xx response with a JSON error object must surface
 	// as a typed *OAuth2ServerError carrying code/description/uri.
@@ -939,7 +939,7 @@ func (c *numberingSlowTokenClient) SendRequestWithOptions(_, _ string, _ map[str
 	return &auth.ApiHttpResponse{StatusCode: 200, Body: body, Headers: map[string]string{}}, nil
 }
 
-func TestOAuth2TokenManager_InvalidateTriggersSingleRefetchUnderConcurrency(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr019_OAuth2TokenManager_InvalidateTriggersSingleRefetchUnderConcurrency(t *testing.T) {
 	t.Parallel()
 	// After invalidation, 10 goroutines must coalesce into exactly ONE
 	// additional token request (single-flight), all observing the refreshed
@@ -1046,7 +1046,7 @@ func (c *recordingTokenClient) requestCount() int {
 // The refresh grant carries the cached refresh token and the client credentials
 // from the original grant, and nothing else of it: the ordered form body pins the
 // exact parameter set.
-func TestOAuth2TokenManager_RefreshGrantCarriesRefreshTokenAndClientCredentials(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr022_OAuth2TokenManager_RefreshGrantCarriesRefreshTokenAndClientCredentials(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"old_access","refresh_token":"old_refresh","expires_in":0}`, statusCode: 200},
@@ -1082,7 +1082,7 @@ func TestOAuth2TokenManager_RefreshGrantCarriesRefreshTokenAndClientCredentials(
 
 // A rejected refresh token is not fatal: the manager falls back to the original
 // grant, whose body is sent unchanged, and returns that token.
-func TestOAuth2TokenManager_RejectedRefreshFallsBackToTheOriginalGrant(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr016_OAuth2TokenManager_RejectedRefreshFallsBackToTheOriginalGrant(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"first","refresh_token":"revoked","expires_in":0}`, statusCode: 200},
@@ -1121,7 +1121,7 @@ func TestOAuth2TokenManager_RejectedRefreshFallsBackToTheOriginalGrant(t *testin
 
 // A token response without expires_in never expires: the second call is served
 // from the cache and sends no second request.
-func TestOAuth2TokenManager_NoExpiresInCachesTheTokenIndefinitely(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr039_OAuth2TokenManager_NoExpiresInCachesTheTokenIndefinitely(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"forever"}`, statusCode: 200},
@@ -1147,7 +1147,7 @@ func TestOAuth2TokenManager_NoExpiresInCachesTheTokenIndefinitely(t *testing.T) 
 // A refresh response that omits expires_in leaves the token no expiry, as the
 // first fetch does: the third call is served from the cache instead of running
 // another refresh grant.
-func TestOAuth2TokenManager_RefreshWithoutExpiresInCachesTheNewToken(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr003_OAuth2TokenManager_RefreshWithoutExpiresInCachesTheNewToken(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":0}`, statusCode: 200},
@@ -1179,7 +1179,7 @@ func TestOAuth2TokenManager_RefreshWithoutExpiresInCachesTheNewToken(t *testing.
 
 // The refresh goes to the refresh URL with the same extra headers as the
 // original grant, which still goes to the token URL.
-func TestOAuth2TokenManager_RefreshGoesToTheRefreshUrlWithTheSameHeaders(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr029_OAuth2TokenManager_RefreshGoesToTheRefreshUrlWithTheSameHeaders(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":0}`, statusCode: 200},
@@ -1213,7 +1213,7 @@ func TestOAuth2TokenManager_RefreshGoesToTheRefreshUrlWithTheSameHeaders(t *test
 
 // Params that already are a refresh_token grant are sent once, to the refresh
 // URL; a rejection is returned without a second, identical POST.
-func TestOAuth2TokenManager_RefreshGrantParamsSendExactlyOnePost(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr023_OAuth2TokenManager_RefreshGrantParamsSendExactlyOnePost(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":0}`, statusCode: 200},
@@ -1266,7 +1266,7 @@ func TestOAuth2TokenManager_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
 
 // Exchange always POSTs, even with a valid cached token and a refresh token
 // held, and replaces the session with exactly what the response carries.
-func TestOAuth2TokenManager_ExchangeBypassesTheCacheAndTheRefresh(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr006_OAuth2TokenManager_ExchangeBypassesTheCacheAndTheRefresh(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":3600}`, statusCode: 200},
@@ -1299,7 +1299,7 @@ func TestOAuth2TokenManager_ExchangeBypassesTheCacheAndTheRefresh(t *testing.T) 
 
 // A failed Exchange restores the previous access token, refresh token and
 // expiry, and returns the error.
-func TestOAuth2TokenManager_FailedExchangeRestoresThePreviousSession(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr015_OAuth2TokenManager_FailedExchangeRestoresThePreviousSession(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":3600}`, statusCode: 200},

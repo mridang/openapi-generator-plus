@@ -30,7 +30,7 @@ func TestServerVariable_AccessorsReturnConstructedState(t *testing.T) {
 	}
 }
 
-func TestServerVariable_EnumValuesIsNilWhenUnconstrained(t *testing.T) {
+func TestBhvServers015_ServerVariable_EnumValuesIsNilWhenUnconstrained(t *testing.T) {
 	t.Parallel()
 	v := petstore.NewServerVariable("api", "", nil)
 

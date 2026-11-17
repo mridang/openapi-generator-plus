@@ -21,7 +21,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func TestTraceContextUtil_NoOpWithoutTracer(t *testing.T) {
+func TestBhvTracing007_TraceContextUtil_NoOpWithoutTracer(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"X-Existing": "value",
@@ -36,7 +36,7 @@ func TestTraceContextUtil_NoOpWithoutTracer(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_EmptyHeadersDoNotCauseException(t *testing.T) {
+func TestBhvTracing003_TraceContextUtil_EmptyHeadersDoNotCauseException(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
@@ -44,7 +44,7 @@ func TestTraceContextUtil_EmptyHeadersDoNotCauseException(t *testing.T) {
 	InjectTraceContext(headers)
 }
 
-func TestTraceContextUtil_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
+func TestBhvTracing001_TraceContextUtil_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
@@ -55,7 +55,7 @@ func TestTraceContextUtil_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
+func TestBhvTracing002_TraceContextUtil_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
@@ -66,7 +66,7 @@ func TestTraceContextUtil_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_PreservesAuthorizationHeader(t *testing.T) {
+func TestBhvTracing010_TraceContextUtil_PreservesAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"Authorization": "Bearer token123",
@@ -79,7 +79,7 @@ func TestTraceContextUtil_PreservesAuthorizationHeader(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_PreservesContentTypeHeader(t *testing.T) {
+func TestBhvTracing011_TraceContextUtil_PreservesContentTypeHeader(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -92,7 +92,7 @@ func TestTraceContextUtil_PreservesContentTypeHeader(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_PreservesXRequestIdHeader(t *testing.T) {
+func TestBhvTracing012_TraceContextUtil_PreservesXRequestIdHeader(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"X-Request-ID": "req-12345",
@@ -105,7 +105,7 @@ func TestTraceContextUtil_PreservesXRequestIdHeader(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_PreservesAllExistingHeaders(t *testing.T) {
+func TestBhvTracing009_TraceContextUtil_PreservesAllExistingHeaders(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{
 		"Authorization": "Bearer token",
@@ -213,7 +213,7 @@ func remoteParent(t *testing.T, state string) context.Context {
 	return trace.ContextWithRemoteSpanContext(context.Background(), parent)
 }
 
-func TestTraceContextUtil_InjectsTraceparentWhenSpanActive(t *testing.T) {
+func TestBhvTracing006_TraceContextUtil_InjectsTraceparentWhenSpanActive(t *testing.T) {
 	span, exporter := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
 	headers := map[string]string{}
 
@@ -230,7 +230,7 @@ func TestTraceContextUtil_InjectsTraceparentWhenSpanActive(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_IncludesTracestateWhenPresent(t *testing.T) {
+func TestBhvTracing005_TraceContextUtil_IncludesTracestateWhenPresent(t *testing.T) {
 	span, _ := withActiveSpan(t, remoteParent(t, "vendor=value"), sdktrace.AlwaysSample())
 	defer span.End()
 	headers := map[string]string{}
@@ -242,7 +242,7 @@ func TestTraceContextUtil_IncludesTracestateWhenPresent(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_OmitsTracestateWhenEmpty(t *testing.T) {
+func TestBhvTracing008_TraceContextUtil_OmitsTracestateWhenEmpty(t *testing.T) {
 	span, _ := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
 	defer span.End()
 	headers := map[string]string{}
@@ -257,7 +257,7 @@ func TestTraceContextUtil_OmitsTracestateWhenEmpty(t *testing.T) {
 	}
 }
 
-func TestTraceContextUtil_FormatsTraceFlagsCorrectly(t *testing.T) {
+func TestBhvTracing004_TraceContextUtil_FormatsTraceFlagsCorrectly(t *testing.T) {
 	for _, tc := range []struct {
 		sampler sdktrace.Sampler
 		flags   string

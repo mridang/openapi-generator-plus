@@ -21,7 +21,7 @@ import (
 	apierrors "petstore/pkg/errors"
 )
 
-func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
+func TestBhvOptions043_TransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -32,7 +32,7 @@ func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_CaCertPathDefaultsToNull(t *testing.T) {
+func TestBhvOptions018_TransportOptions_CaCertPathDefaultsToNull(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -43,7 +43,7 @@ func TestTransportOptions_CaCertPathDefaultsToNull(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
+func TestBhvOptions032_TransportOptions_ProxyDefaultsToNull(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -54,7 +54,7 @@ func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_RejectsANonPositiveTimeoutWithTheCanonicalMessage(t *testing.T) {
+func TestBhvOptions033_TransportOptions_RejectsANonPositiveTimeoutWithTheCanonicalMessage(t *testing.T) {
 	t.Parallel()
 	for _, value := range []int{-1, 0} {
 		value := value
@@ -69,7 +69,7 @@ func TestTransportOptions_RejectsANonPositiveTimeoutWithTheCanonicalMessage(t *t
 	}
 }
 
-func TestTransportOptions_MaxRetriesDefaultsToTwoAndZeroDisablesThem(t *testing.T) {
+func TestBhvOptions026_TransportOptions_MaxRetriesDefaultsToTwoAndZeroDisablesThem(t *testing.T) {
 	t.Parallel()
 	defaults, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -91,7 +91,7 @@ func TestTransportOptions_MaxRetriesDefaultsToTwoAndZeroDisablesThem(t *testing.
 	}
 }
 
-func TestTransportOptions_RejectsANegativeMaxRetries(t *testing.T) {
+func TestBhvOptions007_TransportOptions_RejectsANegativeMaxRetries(t *testing.T) {
 	t.Parallel()
 	_, err := petstore.NewTransportOptionsBuilder().MaxRetries(-1).Build()
 	if !errors.Is(err, petstore.ErrInvalidMaxRetries) {
@@ -102,7 +102,7 @@ func TestTransportOptions_RejectsANegativeMaxRetries(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
+func TestBhvOptions038_TransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -116,7 +116,7 @@ func TestTransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
+func TestBhvOptions020_TransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -127,7 +127,7 @@ func TestTransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
+func TestBhvOptions025_TransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -138,7 +138,7 @@ func TestTransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_UserAgentDefaultsToBrandedValue(t *testing.T) {
+func TestBhvOptions042_TransportOptions_UserAgentDefaultsToBrandedValue(t *testing.T) {
 	t.Parallel()
 	// userAgent is a nullable *string (parity with Java @Nullable String, C#
 	// string?). The default builder injects the branded "<pkg>/<ver> (go)"
@@ -155,7 +155,7 @@ func TestTransportOptions_UserAgentDefaultsToBrandedValue(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_UserAgentDefaultsToNonEmptyString(t *testing.T) {
+func TestBhvOptions041_TransportOptions_UserAgentDefaultsToNonEmptyString(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -191,7 +191,7 @@ func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
+func TestBhvOptions019_TransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -202,7 +202,7 @@ func TestTransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
+func TestBhvOptions022_TransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -213,7 +213,7 @@ func TestTransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
+func TestBhvOptions017_TransportOptions_BuilderSetsAllFields(t *testing.T) {
 	t.Parallel()
 	customAgent := "CustomAgent/2.0"
 	customTimeout := 30000
@@ -264,7 +264,7 @@ func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *testing.T) {
+func TestBhvOptions021_TransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
@@ -281,7 +281,7 @@ func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *t
 	}
 }
 
-func TestTransportOptions_InvalidProxyUrlThrowsException(t *testing.T) {
+func TestBhvOptions024_TransportOptions_InvalidProxyUrlThrowsException(t *testing.T) {
 	t.Parallel()
 	for _, proxy := range []string{"not-a-valid-url", "ftp://proxy.example.com:21", "http://", "socks5://proxy.example.com:1080"} {
 		opts, err := petstore.NewTransportOptionsBuilder().
@@ -323,7 +323,7 @@ func TestTransportOptions_MissingCaCertFileIsRejected(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_NullProxyUrlIsAccepted(t *testing.T) {
+func TestBhvOptions030_TransportOptions_NullProxyUrlIsAccepted(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		Proxy("").
@@ -337,7 +337,7 @@ func TestTransportOptions_NullProxyUrlIsAccepted(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
+func TestBhvOptions015_TransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewTransportOptionsBuilder()
 
@@ -364,7 +364,7 @@ func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T) {
+func TestBhvOptions012_TransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("X-First", "one").
@@ -386,7 +386,7 @@ func TestTransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T)
 	}
 }
 
-func TestTransportOptions_MergesHeadersFromDefaultHeadersCall(t *testing.T) {
+func TestBhvOptions028_TransportOptions_MergesHeadersFromDefaultHeadersCall(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("X-First", "one").
@@ -414,7 +414,7 @@ func TestTransportOptions_MergesHeadersFromDefaultHeadersCall(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing.T) {
+func TestBhvOptions029_TransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("X-Test", "value").
@@ -432,7 +432,7 @@ func TestTransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing
 	}
 }
 
-func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
+func TestBhvOptions016_TransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewTransportOptionsBuilder().VerifySsl(false)
 	first, err := builder.Build()
@@ -454,7 +454,7 @@ func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
 
 // TimeoutConfigTests
 
-func TestTransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) {
+func TestBhvOptions039_TransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) {
 	t.Parallel()
 	// Default TransportOptions ships with a 10-second (10000ms) timeout to
 	// match Java, Python, Node, etc. and prevent runaway requests.
@@ -470,7 +470,7 @@ func TestTransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) 
 	}
 }
 
-func TestTransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
+func TestBhvOptions036_TransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
 	t.Parallel()
 	timeout := 5000
 	opts, err := petstore.NewTransportOptionsBuilder().Timeout(&timeout).Build()
@@ -485,7 +485,7 @@ func TestTransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
 // TestTransportOptions_NoTimeoutIsExpressible confirms "wait indefinitely" can
 // be asked for: Timeout(nil) clears the 10000ms default rather than being
 // indistinguishable from leaving the timeout unset.
-func TestTransportOptions_NoTimeoutIsExpressible(t *testing.T) {
+func TestBhvOptions037_TransportOptions_NoTimeoutIsExpressible(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Timeout(nil).Build()
 	if err != nil {
@@ -496,7 +496,7 @@ func TestTransportOptions_NoTimeoutIsExpressible(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
+func TestBhvOptions040_TransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
 	t.Parallel()
 	// Verify via the Timeout() accessor that the field is named 'Timeout'
 	// (not e.g. 'ConnectionTimeout' or 'OpenTimeout').
@@ -515,7 +515,7 @@ func TestTransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
 
 // ProxyConfigTests
 
-func TestTransportOptions_ProxyUrlIsPreservedOnReadBack(t *testing.T) {
+func TestBhvOptions035_TransportOptions_ProxyUrlIsPreservedOnReadBack(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		Proxy("http://proxy.example.com:8080").
@@ -532,7 +532,7 @@ func TestTransportOptions_ProxyUrlIsPreservedOnReadBack(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_SettingProxyIsSupportedOnAllPlatforms(t *testing.T) {
+func TestBhvOptions034_TransportOptions_SettingProxyIsSupportedOnAllPlatforms(t *testing.T) {
 	t.Parallel()
 	// Proxy configuration must not panic on any platform.
 	opts, err := petstore.NewTransportOptionsBuilder().
@@ -578,7 +578,7 @@ func TestTransportOptions_GarbagePemCaCertFileIsRejected(t *testing.T) {
 
 // Every rejected proxy value names itself and says why: a scheme other than
 // http or https, and a URL with no host.
-func TestTransportOptions_ProxyRejectionMessages(t *testing.T) {
+func TestBhvOptions031_TransportOptions_ProxyRejectionMessages(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		proxy string
@@ -628,7 +628,7 @@ func TestTransportOptions_EmptyCaCertFileAndDirectoryGetTheirOwnMessages(t *test
 
 // A bracketed IPv6 literal host is accepted and read back verbatim, and an
 // unterminated one is refused.
-func TestTransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndAnUnterminatedOneRefused(t *testing.T) {
+func TestBhvOptions010_TransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndAnUnterminatedOneRefused(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Proxy("http://[::1]:3128").Build()
 	if err != nil {
@@ -647,7 +647,7 @@ func TestTransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndAnUnterminatedOn
 }
 
 // A URL scheme is case-insensitive, so an upper-case proxy scheme is accepted.
-func TestTransportOptions_UpperCaseProxySchemeIsAccepted(t *testing.T) {
+func TestBhvOptions014_TransportOptions_UpperCaseProxySchemeIsAccepted(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		Proxy("HTTP://proxy.example.com:3128").
@@ -660,7 +660,7 @@ func TestTransportOptions_UpperCaseProxySchemeIsAccepted(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_StringMasksProxyPasswordAndSecretHeaders(t *testing.T) {
+func TestBhvOptions023_TransportOptions_StringMasksProxyPasswordAndSecretHeaders(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		Proxy("http://user:p4ssw0rd@proxy.example.com:8080").

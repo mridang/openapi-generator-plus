@@ -28,7 +28,7 @@ func createImplicitAuthenticator() *oauth.OAuth2ImplicitAuthenticator {
 	)
 }
 
-func TestOAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithResponseTypeToken(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit003_OAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithResponseTypeToken(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
@@ -42,7 +42,7 @@ func TestOAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithResponseTypeToken
 	}
 }
 
-func TestOAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithClientId(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit002_OAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithClientId(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
@@ -53,7 +53,7 @@ func TestOAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithClientId(t *testi
 	}
 }
 
-func TestOAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithScopes(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit004_OAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithScopes(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
@@ -94,7 +94,7 @@ func TestOAuth2ImplicitAuthenticator_SetAccessTokenIsSafeAgainstConcurrentReques
 }
 
 // The per-scheme wrapper requests the scopes its security scheme declares.
-func TestOAuth2ImplicitAuthenticator_BrowserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit006_OAuth2ImplicitAuthenticator_BrowserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
 	t.Parallel()
 	auth, err := oauth.NewBrowserAuthImplicitAuthenticator("https://api.example.com", "my-client-id")
 	if err != nil {
@@ -108,7 +108,7 @@ func TestOAuth2ImplicitAuthenticator_BrowserAuthWrapper_AuthorizationUrlCarriesD
 	}
 }
 
-func TestOAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithState(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit005_OAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithState(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
@@ -119,7 +119,7 @@ func TestOAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithState(t *testing.
 	}
 }
 
-func TestOAuth2ImplicitAuthenticator_GetAuthHeadersReturnsBearerAfterSetAccessToken(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit007_OAuth2ImplicitAuthenticator_GetAuthHeadersReturnsBearerAfterSetAccessToken(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 	if err := auth.SetAccessToken("implicit-tok"); err != nil {
@@ -135,7 +135,7 @@ func TestOAuth2ImplicitAuthenticator_GetAuthHeadersReturnsBearerAfterSetAccessTo
 
 // A request made before SetAccessToken is a wrong call order: the sentinel is
 // returned, never a panic, and AuthHeaders degrades to an empty map.
-func TestOAuth2ImplicitAuthenticator_ThrowsWhenAccessTokenNotSet(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit012_OAuth2ImplicitAuthenticator_ThrowsWhenAccessTokenNotSet(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
@@ -156,7 +156,7 @@ func TestOAuth2ImplicitAuthenticator_ThrowsWhenAccessTokenNotSet(t *testing.T) {
 
 // F-A5-04: a token that would inject a header is rejected with
 // ErrInvalidAccessToken, never a panic, and the previous token is kept.
-func TestOAuth2ImplicitAuthenticator_SetAccessTokenRejectsInvalidToken(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit013_OAuth2ImplicitAuthenticator_SetAccessTokenRejectsInvalidToken(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño", "tok\x00"} {
@@ -171,7 +171,7 @@ func TestOAuth2ImplicitAuthenticator_SetAccessTokenRejectsInvalidToken(t *testin
 	}
 }
 
-func TestOAuth2ImplicitAuthenticator_RedactsSecret(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit010_OAuth2ImplicitAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 	if err := auth.SetAccessToken("implicit-tok"); err != nil {
@@ -187,7 +187,7 @@ func TestOAuth2ImplicitAuthenticator_RedactsSecret(t *testing.T) {
 	}
 }
 
-func TestOAuth2ImplicitAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit008_OAuth2ImplicitAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
@@ -212,7 +212,7 @@ func TestOAuth2ImplicitAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t
 
 // Exactly `-._~` stays literal in the authorize URL's client_id, scope and
 // state, and `*`, `!`, `'`, `(` and `)` are percent-encoded.
-func TestOAuth2ImplicitAuthenticator_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
+func TestBhvAuthoauthtwoimplicit001_OAuth2ImplicitAuthenticator_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
 	t.Parallel()
 	authObj := oauth.NewOAuth2ImplicitAuthenticator(
 		"https://api.example.com",
