@@ -10,6 +10,7 @@ composer.lock
 
 # Tool caches
 .phpcsf
+.phpdoc/
 .phpstan/
 
 # Coverage output

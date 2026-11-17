@@ -739,7 +739,7 @@ class BaseApi
      * part is present the original map is returned unchanged so the caller's
      * existing handling (and any error surfaced downstream) is preserved.
      *
-     * @param array<mixed, mixed> $body Form-style body map
+     * @param array<array-key, mixed> $body Form-style body map
      *
      * @return mixed The single binary part, or the original map if none found
      */

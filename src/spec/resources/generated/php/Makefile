@@ -22,7 +22,7 @@ audit: install
 
 docs: install
 	mkdir -p .phpdoc
-	test -f .phpdoc/phpDocumentor.phar || curl -fsSL -o .phpdoc/phpDocumentor.phar https://github.com/phpDocumentor/phpDocumentor/releases/latest/download/phpDocumentor.phar
+	test -f .phpdoc/phpDocumentor.phar || curl -fsSL -o .phpdoc/phpDocumentor.phar https://github.com/phpDocumentor/phpDocumentor/releases/download/v3.10.0/phpDocumentor.phar
 	php .phpdoc/phpDocumentor.phar --config phpdoc.dist.xml --no-interaction -v 2>&1 | tee .phpdoc/phpdoc.log
 	! grep -iE 'unable to|an error was detected|could not|^[[:space:]]*WARNING|^[[:space:]]*ERROR' .phpdoc/phpdoc.log | grep -viE 'Writer twig|reports/(errors|deprecated|markers)\.html'
 	grep -qiE 'no errors have been found' .out/docs/reports/errors.html
