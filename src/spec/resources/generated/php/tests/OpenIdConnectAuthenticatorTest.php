@@ -210,7 +210,7 @@ test('obtains token after code exchange', function (): void {
     expect($tokenRequest['body'] ?? '')->toContain('code=oidc-code-123');
 });
 
-test('oidc get auth headers returns bearer after exchange', function (): void {
+test('get auth headers returns bearer after exchange', function (): void {
     $client = new MockTokenApiClient();
     // Discovery document
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
@@ -239,7 +239,7 @@ test('oidc get auth headers returns bearer after exchange', function (): void {
     expect($headers['Authorization'])->toBe('Bearer oidc-tok');
 });
 
-test('fetches discovery document', function (): void {
+test('fetches discovery document only once', function (): void {
     $client = new MockTokenApiClient();
     // Only one discovery response needed
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
@@ -367,7 +367,7 @@ test('oidc malformed discovery document raises SerializationException', function
         });
 });
 
-test('oidc throws when no api client injected', function (): void {
+test('throws when no api client injected', function (): void {
     $authenticator = new OpenIdConnectAuthenticator(
         'https://api.example.com',
         'https://auth.example.com/.well-known/openid-configuration',
@@ -383,7 +383,7 @@ test('oidc throws when no api client injected', function (): void {
         });
 });
 
-test('oidc get host returns configured host', function (): void {
+test('get host returns configured host', function (): void {
     $authenticator = new OpenIdConnectAuthenticator(
         'https://api.example.com',
         'https://auth.example.com/.well-known/openid-configuration',

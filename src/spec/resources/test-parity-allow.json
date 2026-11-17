@@ -416,7 +416,7 @@
     "php": {
       "extraGroups": [
         {
-          "reason": "tracked in #118",
+          "reason": "only the PHP SDK has an authenticator class that applies the several schemes of one security requirement together; no other SDK has such a type, so there is nothing to test under that name",
           "keys": [
             "compositeauthenticator"
           ]
@@ -425,37 +425,6 @@
           "reason": "PSR-18 is a PHP-only HTTP client interface, so only the PHP SDK has a client for it",
           "keys": [
             "psr18apiclientunit"
-          ]
-        }
-      ],
-      "missingTests": [
-        {
-          "reason": "tracked in #118",
-          "keys": [
-            "basicauthenticator::redactssecret",
-            "oauth2authorizationcodeauthenticator::authorizeurlwithexistingquerystringusesampseparator",
-            "oauth2authorizationcodeauthenticator::gethostreturnsconfiguredhost",
-            "oauth2clientcredentialsauthenticator::basicauthurlencodesclientidandsecret",
-            "oauth2clientcredentialsauthenticator::cachestokenacrosscalls",
-            "oauth2clientcredentialsauthenticator::gethostreturnsconfiguredhost",
-            "oauth2clientcredentialsauthenticator::returnsauthorizationbearerheader",
-            "oauth2clientcredentialsauthenticator::sendsrequesttotokenurl",
-            "oauth2clientcredentialsauthenticator::tokenfetcherrorissurfacednotswallowed",
-            "oauth2passwordauthenticator::basicauthurlencodesclientidandsecret",
-            "oauth2passwordauthenticator::gethostreturnsconfiguredhost",
-            "oauth2passwordauthenticator::returnsauthorizationbearerheader",
-            "oauth2passwordauthenticator::sendsclientidandsecret",
-            "oauth2tokenmanager::throwswhennoapiclientinjected",
-            "openidconnectauthenticator::fetchesdiscoverydocumentonlyonce",
-            "openidconnectauthenticator::getauthheadersreturnsbearerafterexchange",
-            "openidconnectauthenticator::gethostreturnsconfiguredhost",
-            "openidconnectauthenticator::throwswhennoapiclientinjected",
-            "petapi::addpetwithhttpinfo",
-            "petapi::deletepetwithhttpinfo",
-            "petapi::findpetsbystatuswithhttpinfo",
-            "petapi::getpetbyidwithhttpinfo",
-            "petapi::getpetpassportwithhttpinfo",
-            "petapi::updatepetwithhttpinfo"
           ]
         }
       ]

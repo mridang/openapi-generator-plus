@@ -105,7 +105,7 @@ test('invalidate access token forces refetch', function (): void {
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
-test('token manager throws when no api client injected', function (): void {
+test('throws when no api client injected', function (): void {
     $manager = new OAuth2TokenManager();
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))

@@ -187,7 +187,7 @@ test('throws before exchange code called', function (): void {
         });
 });
 
-test('auth code get host returns configured host', function (): void {
+test('get host returns configured host', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -262,7 +262,7 @@ test('auth headers before exchange returns recoverable error', function (): void
     expect($authenticator->getHost())->toBe('https://api.example.com');
 });
 
-test('authorize url with existing query string uses ampersand separator', function (): void {
+test('authorize url with existing query string uses amp separator', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',

@@ -111,7 +111,7 @@ test('add pet', function (): void {
     expect($result)->toBeInstanceOf(Pet::class);
 });
 
-test('add pet with http info exposes status and headers', function (): void {
+test('add pet with http info', function (): void {
     $pet = new Pet(name: 'TestDog', photoUrls: new \Ds\Set(['http://example.com/photo.jpg']));
     $pet = $pet->withId(67890)->withStatus(PetStatusEnum::AVAILABLE);
 
@@ -128,14 +128,14 @@ test('get pet by id', function (): void {
     expect($result)->toBeInstanceOf(Pet::class);
 });
 
-test('get pet by id with http info exposes status and data', function (): void {
+test('get pet by id with http info', function (): void {
     $result = $this->api->getPetByIdWithHttpInfo(1);
 
     expect($result->statusCode)->toBe(200);
     expect($result->data)->toBeInstanceOf(Pet::class);
 });
 
-test('update pet with http info exposes status', function (): void {
+test('update pet with http info', function (): void {
     $pet = new Pet(name: 'UpdatedDog', photoUrls: new \Ds\Set(['http://example.com/updated.jpg']));
     $pet = $pet->withId(1)->withStatus(PetStatusEnum::PENDING);
 
@@ -145,20 +145,20 @@ test('update pet with http info exposes status', function (): void {
     expect($result->statusCode)->toBeLessThan(300);
 });
 
-test('delete pet with http info exposes status', function (): void {
+test('delete pet with http info', function (): void {
     $result = $this->api->deletePetWithHttpInfo(1, new DeletePetOptions());
 
     expect($result->statusCode)->toBeGreaterThanOrEqual(200);
     expect($result->statusCode)->toBeLessThan(300);
 });
 
-test('find pets by status with http info exposes status', function (): void {
+test('find pets by status with http info', function (): void {
     $result = $this->api->findPetsByStatusWithHttpInfo(new FindPetsByStatusOptions('available'));
 
     expect($result->statusCode)->toBe(200);
 });
 
-test('get pet passport with http info exposes status', function (): void {
+test('get pet passport with http info', function (): void {
     $result = $this->api->getPetPassportWithHttpInfo(1);
 
     expect($result->statusCode)->toBe(200);
