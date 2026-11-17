@@ -18,6 +18,13 @@ import {{invokerPackage}}.auth.NoAuth
 {{#optionsImports}}
 import {{package}}.options.{{optionsClassName}}
 {{/optionsImports}}
+{{#operations}}
+{{#operation}}
+{{#vendorExtensions.op.successVariants}}
+import {{modelPackage}}.{{{returnType}}}
+{{/vendorExtensions.op.successVariants}}
+{{/operation}}
+{{/operations}}
 
 {{#operations}}
 /**
@@ -177,6 +184,18 @@ class {{classname}} : BaseApi {
 {{#hasAuthMethods}}
         val auth: Authenticator? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.auth
 {{/hasAuthMethods}}
+{{#vendorExtensions.op.hasOptionsParam}}
+        val callTimeout: Long? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.timeout
+        val callHeaders: Map<String, String>? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.headers
+        val callMaxRetries: Int? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
 {{#pathParams}}
 {{#required}}
         requireNotNull({{paramName}}) {
@@ -397,7 +416,22 @@ class {{classname}} : BaseApi {
                 arrayOf({{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}),
                 {{#consumes}}{{#-last}}{{^-first}}effectiveRequestContentType{{/-first}}{{#-first}}"{{vendorExtensions.op.effectiveConsumes}}"{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes}},
                 {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
-                "{{classname}}.{{operationId}}")
+                "{{classname}}.{{operationId}}"{{#vendorExtensions.op.hasOptionsParam}},
+                callTimeout = callTimeout,
+                callHeaders = callHeaders,
+                callMaxRetries = callMaxRetries{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}},
+                callTimeout = callTimeout,
+                callHeaders = callHeaders,
+                callMaxRetries = callMaxRetries{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}{{#vendorExtensions.op.hasMultiple2xx}},
+                decodeSuccess = { status, text ->
+                    when {
+{{#vendorExtensions.op.successResponses}}
+                        {{#isRange}}status in 200..299{{/isRange}}{{^isRange}}status == {{statusCode}}{{/isRange}} ->
+                            {{{vendorExtensions.op.successUnionType}}}(objectSerializer.deserialize<{{{returnType}}}>(text))
+{{/vendorExtensions.op.successResponses}}
+                        else -> objectSerializer.deserialize<{{{vendorExtensions.op.successUnionType}}}>(text)
+                    }
+                }{{/vendorExtensions.op.hasMultiple2xx}})
     }
     {{/operation}}
 }

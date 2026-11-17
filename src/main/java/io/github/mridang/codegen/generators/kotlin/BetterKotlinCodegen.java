@@ -137,6 +137,48 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 CodegenConstants.ARTIFACT_ID_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.ARTIFACT_VERSION,
                 CodegenConstants.ARTIFACT_VERSION_DESC));
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "Source repository URL, written to the POM (scm) and the README"));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "Project homepage URL; defaults to repositoryUrl"));
+        cliOptions.add(CliOption.newString("authors",
+                "Comma-separated author names, written to the POM developers"));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "Documentation URL, written to the README"));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "Issue tracker URL, written to the POM (issueManagement) and the README"));
+    }
+
+    /**
+     * Resolves the package link options (F894): {@code homepageUrl} falls back to
+     * {@code repositoryUrl}, and {@code authors} becomes the {@code authorList} the
+     * templates iterate. A blank value counts as not set.
+     */
+    void resolvePackageLinks() {
+        for (final String key :
+                List.of("repositoryUrl", "homepageUrl", "documentationUrl", "issueTrackerUrl")) {
+            final Object value = additionalProperties.get(key);
+            if (value == null || value.toString().isBlank()) {
+                additionalProperties.remove(key);
+            }
+        }
+        if (!additionalProperties.containsKey("homepageUrl")
+                && additionalProperties.containsKey("repositoryUrl")) {
+            additionalProperties.put("homepageUrl", additionalProperties.get("repositoryUrl"));
+        }
+        final List<Map<String, String>> authorList = new ArrayList<>();
+        final Object authors = additionalProperties.get("authors");
+        if (authors != null) {
+            for (final String name :
+                    com.google.common.base.Splitter.on(',')
+                            .trimResults()
+                            .omitEmptyStrings()
+                            .split(authors.toString())) {
+                authorList.add(Map.of("name", name));
+            }
+        }
+        additionalProperties.put("authorList", authorList);
+        additionalProperties.put("hasAuthors", !authorList.isEmpty());
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -403,6 +445,9 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 "server",
                 "requestContentType",
                 "auth",
+                "timeout",
+                "headers",
+                "maxRetries",
                 "path",
                 "url",
                 "headerParams",
@@ -546,6 +591,14 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         additionalProperties.put("artifactVersion", artifactVersion);
         additionalProperties.put(
                 "userAgentDefault", artifactId + "/" + artifactVersion + " (kotlin)");
+
+        resolvePackageLinks();
+        /* The credential environment variables are {PREFIX}_TOKEN, {PREFIX}_API_KEY and so on,
+           where the prefix is the SDK's own name (the error prefix) in upper snake case. */
+        additionalProperties.put(
+                "credentialEnvPrefix",
+                String.valueOf(additionalProperties.get("errorPrefixSnake"))
+                        .toUpperCase(java.util.Locale.ROOT));
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
@@ -1196,7 +1249,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
      * @param prop the property to classify
      * @return true when the property needs content-based comparison
      */
-    private static boolean markEquality(CodegenProperty prop) {
+    static boolean markEquality(CodegenProperty prop) {
         final String dataType = prop.dataType == null ? "" : prop.dataType;
         final boolean byteArray = "ByteArray".equals(dataType);
         final boolean array = dataType.startsWith("Array<");
@@ -1214,7 +1267,26 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         // the decimal types of the other SDKs: compare by numeric value.
         final boolean decimal = "BigDecimal".equals(dataType);
         prop.vendorExtensions.put("eqDecimal", decimal);
-        return byteArray || array || listByteArray || mapByteArray || decimal;
+        // The same holds for the elements of a list, set or map of decimals: they are
+        // compared by numeric value, so [1.5] equals [1.50] (F455).
+        final String bare = dataType.endsWith("?") ? dataType.substring(0, dataType.length() - 1) : dataType;
+        final boolean decimalList = "List<BigDecimal>".equals(bare);
+        final boolean decimalSet =
+                "Set<BigDecimal>".equals(bare) || "LinkedHashSet<BigDecimal>".equals(bare);
+        final boolean decimalMap = "Map<String, BigDecimal>".equals(bare);
+        prop.vendorExtensions.put("eqDecimalList", decimalList);
+        prop.vendorExtensions.put("eqDecimalSet", decimalSet);
+        prop.vendorExtensions.put("eqDecimalMap", decimalMap);
+        prop.vendorExtensions.put("eqDecimalContainer", decimalList || decimalSet || decimalMap);
+        prop.vendorExtensions.put("eqDecimalNullable", !prop.required || prop.isNullable);
+        return byteArray
+                || array
+                || listByteArray
+                || mapByteArray
+                || decimal
+                || decimalList
+                || decimalSet
+                || decimalMap;
     }
 
     /**

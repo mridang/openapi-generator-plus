@@ -7,15 +7,30 @@ import java.util.Base64
 /**
  * Authenticator for HTTP Basic authentication.
  *
+ * Each credential is the first of: the argument, the environment variable
+ * `{{credentialEnvPrefix}}_USERNAME` or `{{credentialEnvPrefix}}_PASSWORD` (read once, here; an empty
+ * value counts as unset). When one is missing, building the authenticator fails.
+ *
  * @param host the base URL of the API
  * @param username the Basic auth user-id
  * @param password the Basic auth password
+ * @throws IllegalArgumentException if a credential is missing or malformed
  */
 open class BasicAuthenticator(
     private val host: String,
-    private val username: String,
-    private val password: String
+    username: String? = null,
+    password: String? = null,
 ) : BaseAuthenticator() {
+
+    private val username: String =
+        username ?: CredentialEnvironment.read("USERNAME") ?: throw IllegalArgumentException(
+            "A Basic auth username is required: pass one or set ${CredentialEnvironment.variable("USERNAME")}"
+        )
+
+    private val password: String =
+        password ?: CredentialEnvironment.read("PASSWORD") ?: throw IllegalArgumentException(
+            "A Basic auth password is required: pass one or set ${CredentialEnvironment.variable("PASSWORD")}"
+        )
 
     init {
         // Validate eagerly at construction so a malformed credential surfaces
@@ -24,17 +39,17 @@ open class BasicAuthenticator(
         // separator) and neither user-id nor password may carry CR/LF/NUL
         // (header-injection / smuggling vectors common when credentials
         // are read from .env files or interactive prompts).
-        if (username.any { c -> c == '\r' || c == '\n' || c == '\u0000' }) {
+        if (this.username.any { c -> c == '\r' || c == '\n' || c == '\u0000' }) {
             throw IllegalArgumentException(
                 "Basic auth username must not contain CR, LF, or NUL characters"
             )
         }
-        if (username.contains(':')) {
+        if (this.username.contains(':')) {
             throw IllegalArgumentException(
                 "Basic auth username must not contain ':' (RFC 7617 §2)"
             )
         }
-        if (password.any { c -> c == '\r' || c == '\n' || c == '\u0000' }) {
+        if (this.password.any { c -> c == '\r' || c == '\n' || c == '\u0000' }) {
             throw IllegalArgumentException(
                 "Basic auth password must not contain CR, LF, or NUL characters"
             )

@@ -167,7 +167,8 @@ internal object StrictDoubleSerializer : KSerializer<Double> {
 
     override fun deserialize(decoder: Decoder): Double {
         val p = requireJsonNumber(decoder, "Double")
-        return p.content.toDoubleOrNull()
+        // A literal that overflows (1e400) parses to Infinity, which has no JSON form: refuse it.
+        return p.content.toDoubleOrNull()?.takeIf { it.isFinite() }
             ?: throw kotlinx.serialization.SerializationException("Invalid Double: ${p.content}")
     }
 }
@@ -182,7 +183,8 @@ internal object StrictFloatSerializer : KSerializer<Float> {
 
     override fun deserialize(decoder: Decoder): Float {
         val p = requireJsonNumber(decoder, "Float")
-        return p.content.toFloatOrNull()
+        // A literal that overflows (1e40) parses to Infinity, which has no JSON form: refuse it.
+        return p.content.toFloatOrNull()?.takeIf { it.isFinite() }
             ?: throw kotlinx.serialization.SerializationException("Invalid Float: ${p.content}")
     }
 }

@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.OpenAPIException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -27,6 +28,8 @@ class OpenIdConnectAuthenticatorTest {
         var lastMethod: String? = null
             private set
         var getCount: Int = 0
+            private set
+        var discoveryWasNoRedirect: Boolean = false
             private set
 
         fun enqueue(
@@ -49,6 +52,7 @@ class OpenIdConnectAuthenticatorTest {
             lastBody = body?.toString()
             if (method == "GET") {
                 getCount++
+                discoveryWasNoRedirect = noRedirect
             }
             return responses.poll() ?: throw IllegalStateException("No responses queued")
         }
@@ -114,6 +118,33 @@ class OpenIdConnectAuthenticatorTest {
 
         assertEquals("GET", client.lastMethod)
         assertEquals("https://auth.example.com/.well-known/openid-configuration", client.lastUrl)
+    }
+
+    @Test
+    fun discoveryIsAnIdentityProviderRequestThatCarriesNoDefaultHeaders() {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+        )
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.buildAuthorizationUrl() }
+
+        assertTrue(client.discoveryWasNoRedirect)
+    }
+
+    @Test
+    fun aFailedDiscoveryReportsItsRequest() {
+        val client = FakeApiClient()
+        client.enqueue("down", statusCode = 503)
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val ex = assertThrows(ApiException::class.java) { runBlocking { auth.buildAuthorizationUrl() } }
+
+        assertEquals("GET", ex.requestMethod)
+        assertEquals("/.well-known/openid-configuration", ex.requestPath)
     }
 
     @Test

@@ -71,6 +71,59 @@ class ApiExceptionTest {
     }
 
     @Test
+    fun requestContextIsRenderedBetweenTheStatusAndTheHeaders() {
+        val ex = ApiException(
+            statusCode = 500,
+            message = "boom",
+            responseHeaders = mapOf("x-request-id" to "abc"),
+            responseBody = "the body",
+            requestMethod = "PUT",
+            requestPath = "/items/3",
+        )
+
+        assertEquals("PUT", ex.requestMethod)
+        assertEquals("/items/3", ex.requestPath)
+        assertEquals(
+            "boom" +
+                "\nHTTP status code: 500" +
+                "\nRequest: PUT /items/3" +
+                "\nResponse headers: {\"x-request-id\":\"abc\"}" +
+                "\nResponse body: the body",
+            ex.toString(),
+        )
+    }
+
+    @Test
+    fun noRequestContextMeansNoRequestLine() {
+        val ex = ApiException(statusCode = 500, message = "boom", responseHeaders = null, responseBody = null)
+
+        assertNull(ex.requestMethod)
+        assertNull(ex.requestPath)
+        assertFalse(ex.toString().contains("Request:"), ex.toString())
+    }
+
+    @Test
+    fun everyStatusExceptionCarriesTheRequestFromFromResponse() {
+        for (status in listOf(400, 401, 403, 404, 409, 418, 422, 429, 500, 503, 302)) {
+            val ex = ApiException.fromResponse(status, emptyMap(), null, "DELETE", "/items/3")
+
+            assertEquals("DELETE", ex.requestMethod, "status $status")
+            assertEquals("/items/3", ex.requestPath, "status $status")
+        }
+    }
+
+    @Test
+    fun networkExceptionsCarryTheRequestToo() {
+        val cause = java.io.IOException("connection refused")
+        val network = {{invokerPackage}}.errors.NetworkException("refused", cause, "GET", "/items")
+        val timeout = {{invokerPackage}}.errors.NetworkTimeoutException("slow", cause, "GET", "/items")
+
+        assertEquals("GET", network.requestMethod)
+        assertEquals("/items", timeout.requestPath)
+        assertTrue(timeout.toString().contains("\nRequest: GET /items"), timeout.toString())
+    }
+
+    @Test
     fun responseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
         val ex = ApiException(
             statusCode = 404,

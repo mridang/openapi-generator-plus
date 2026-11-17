@@ -159,4 +159,69 @@ class BearerAuthenticatorTest {
             assertEquals("Bearer xyz", auth.getAuthHeaders()["Authorization"])
             assertEquals("PetStoreBearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
         }
+
+    private fun <T> withEnvironment(
+        values: Map<String, String>,
+        body: () -> T,
+    ): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("F862: with no token passed, OPEN_API_TOKEN is read once at construction")
+    fun tokenComesFromTheEnvironment() {
+        val auth =
+            withEnvironment(mapOf("OPEN_API_TOKEN" to "from-env")) {
+                BearerAuthenticator("https://api.example.com")
+            }
+        // The environment is read once: it is gone now, the token is not.
+        assertEquals("Bearer from-env", runBlocking { auth.getAuthHeaders()["Authorization"] })
+    }
+
+    @Test
+    @DisplayName("F862: an explicit token wins over the environment")
+    fun explicitTokenWinsOverTheEnvironment() {
+        val auth =
+            withEnvironment(mapOf("OPEN_API_TOKEN" to "from-env")) {
+                BearerAuthenticator("https://api.example.com", "explicit")
+            }
+        assertEquals("Bearer explicit", runBlocking { auth.getAuthHeaders()["Authorization"] })
+    }
+
+    @Test
+    @DisplayName("F862: an empty environment value counts as unset and a missing token fails at construction")
+    fun missingTokenFailsAtConstruction() {
+        val ex =
+            withEnvironment(mapOf("OPEN_API_TOKEN" to "")) {
+                assertThrows(IllegalArgumentException::class.java) { BearerAuthenticator("https://api.example.com") }
+            }
+        assertTrue(ex.message!!.contains("OPEN_API_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("F862: a token provider is called on every request and replaces the static token")
+    fun tokenProviderIsCalledOnEveryRequest() =
+        runBlocking {
+            var calls = 0
+            val auth =
+                withEnvironment(emptyMap()) {
+                    BearerAuthenticator("https://api.example.com", tokenProvider = { "rotating-" + (++calls) })
+                }
+            assertEquals("Bearer rotating-1", auth.getAuthHeaders()["Authorization"])
+            assertEquals("Bearer rotating-2", auth.getAuthHeaders()["Authorization"])
+            assertEquals(2, calls)
+        }
+
+    @Test
+    @DisplayName("F862: a token the provider returns is validated like a static one")
+    fun providerTokenIsValidated() {
+        val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { "bad\r\ntoken" })
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { auth.getAuthHeaders() } }
+    }
 }

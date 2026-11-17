@@ -1051,11 +1051,22 @@ data class {{classname}}(
 {{/isNullable}}
 {{/required}}
 {{/vendorExtensions.eqDecimal}}
+{{#vendorExtensions.eqDecimalList}}
+    if ({{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.map { it.stripTrailingZeros() } != other.{{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.map { it.stripTrailingZeros() }) return false
+{{/vendorExtensions.eqDecimalList}}
+{{#vendorExtensions.eqDecimalSet}}
+    if ({{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.map { it.stripTrailingZeros() }{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.toSet() != other.{{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.map { it.stripTrailingZeros() }{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.toSet()) return false
+{{/vendorExtensions.eqDecimalSet}}
+{{#vendorExtensions.eqDecimalMap}}
+    if ({{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.mapValues { it.value.stripTrailingZeros() } != other.{{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.mapValues { it.value.stripTrailingZeros() }) return false
+{{/vendorExtensions.eqDecimalMap}}
 {{^vendorExtensions.eqByteArray}}
 {{^vendorExtensions.eqListByteArray}}
 {{^vendorExtensions.eqMapByteArray}}
 {{^vendorExtensions.eqDecimal}}
+{{^vendorExtensions.eqDecimalContainer}}
     if ({{name}} != other.{{name}}) return false
+{{/vendorExtensions.eqDecimalContainer}}
 {{/vendorExtensions.eqDecimal}}
 {{/vendorExtensions.eqMapByteArray}}
 {{/vendorExtensions.eqListByteArray}}
@@ -1135,10 +1146,21 @@ data class {{classname}}(
 {{/isNullable}}
 {{/required}}
 {{/vendorExtensions.eqDecimal}}
+{{! Normalised like the equality above, so 1.5 and 1.50 hash alike. }}
+{{#vendorExtensions.eqDecimalList}}
+    result = 31 * result + ({{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.map { it.stripTrailingZeros() }{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.hashCode(){{#vendorExtensions.eqDecimalNullable}} ?: 0{{/vendorExtensions.eqDecimalNullable}})
+{{/vendorExtensions.eqDecimalList}}
+{{#vendorExtensions.eqDecimalSet}}
+    result = 31 * result + ({{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.map { it.stripTrailingZeros() }{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.toSet(){{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.hashCode(){{#vendorExtensions.eqDecimalNullable}} ?: 0{{/vendorExtensions.eqDecimalNullable}})
+{{/vendorExtensions.eqDecimalSet}}
+{{#vendorExtensions.eqDecimalMap}}
+    result = 31 * result + ({{name}}{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.mapValues { it.value.stripTrailingZeros() }{{#vendorExtensions.eqDecimalNullable}}?{{/vendorExtensions.eqDecimalNullable}}.hashCode(){{#vendorExtensions.eqDecimalNullable}} ?: 0{{/vendorExtensions.eqDecimalNullable}})
+{{/vendorExtensions.eqDecimalMap}}
 {{^vendorExtensions.eqByteArray}}
 {{^vendorExtensions.eqListByteArray}}
 {{^vendorExtensions.eqMapByteArray}}
 {{^vendorExtensions.eqDecimal}}
+{{^vendorExtensions.eqDecimalContainer}}
 {{#required}}
 {{^isNullable}}
     result = 31 * result + {{name}}.hashCode()
@@ -1152,6 +1174,7 @@ data class {{classname}}(
     result = 31 * result + ({{name}}?.hashCode() ?: 0)
 {{/isNullable}}
 {{/required}}
+{{/vendorExtensions.eqDecimalContainer}}
 {{/vendorExtensions.eqDecimal}}
 {{/vendorExtensions.eqMapByteArray}}
 {{/vendorExtensions.eqListByteArray}}

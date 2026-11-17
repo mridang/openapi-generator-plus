@@ -11,18 +11,39 @@ package com.example.petstore.auth
  * Authenticator for API key authentication. Supports sending the key
  * as a header, query parameter, or cookie.
  *
+ * The key is the first of: [apiKey], the environment variable `OPEN_API_API_KEY` (read
+ * once, here; an empty value counts as unset). [apiKeyProvider] is called on every request and
+ * replaces both, for a key that rotates. When none of the three is given, building the
+ * authenticator fails.
+ *
  * @param host the base URL of the API
  * @param keyParamName the name of the header, query parameter, or cookie carrying the key
  * @param apiKey the API key value
  * @param location where the API key is sent on each request
+ * @param apiKeyProvider returns the current API key on each request
+ * @throws IllegalArgumentException if there is no key, or it is not a valid value for its location
  */
 open class ApiKeyAuthenticator(
     private val host: String,
     private val keyParamName: String,
-    private val apiKey: String,
+    apiKey: String? = null,
     private val location: ApiKeyLocation,
+    private val apiKeyProvider: (suspend () -> String)? = null,
 ) : BaseAuthenticator() {
+    private val apiKey: String? =
+        if (apiKeyProvider != null) {
+            null
+        } else {
+            apiKey ?: CredentialEnvironment.read("API_KEY") ?: throw IllegalArgumentException(
+                "An API key for '$keyParamName' is required: pass one or set ${CredentialEnvironment.variable("API_KEY")}",
+            )
+        }
+
     init {
+        this.apiKey?.let { validateKey(it) }
+    }
+
+    private fun validateKey(apiKey: String) {
         // Validation applies to ALL locations: empty/whitespace API keys
         // are always a programmer error; CR/LF/NUL would either inject
         // HTTP headers (HEADER location) or break URL/cookie construction
@@ -50,13 +71,32 @@ open class ApiKeyAuthenticator(
 
     override fun getHost(): String = host
 
-    override suspend fun getAuthHeaders(): Map<String, String> =
-        if (location == ApiKeyLocation.HEADER) mapOf(keyParamName to apiKey) else emptyMap()
+    /* The key of this request: the provider's current value, or the one fixed at construction. The
+     * query and cookie accessors are not suspending, so a provider's value is fetched by
+     * getAuthHeaders (which runs first on every request) and kept for them. */
+    @Volatile
+    private var current: String? = this.apiKey
 
-    override fun getQueryParams(): Map<String, String> = if (location == ApiKeyLocation.QUERY) mapOf(keyParamName to apiKey) else emptyMap()
+    private suspend fun currentKey(): String {
+        val provider = apiKeyProvider
+        if (provider != null) {
+            val fresh = provider.invoke()
+            validateKey(fresh)
+            current = fresh
+        }
+        return requireNotNull(current)
+    }
+
+    override suspend fun getAuthHeaders(): Map<String, String> {
+        val key = currentKey()
+        return if (location == ApiKeyLocation.HEADER) mapOf(keyParamName to key) else emptyMap()
+    }
+
+    override fun getQueryParams(): Map<String, String> =
+        if (location == ApiKeyLocation.QUERY) mapOf(keyParamName to requireNotNull(current)) else emptyMap()
 
     override fun getCookieParams(): Map<String, String> =
-        if (location == ApiKeyLocation.COOKIE) mapOf(keyParamName to apiKey) else emptyMap()
+        if (location == ApiKeyLocation.COOKIE) mapOf(keyParamName to requireNotNull(current)) else emptyMap()
 
     /**
      * Returns a string representation that redacts the API key so credentials

@@ -236,6 +236,7 @@ class StoreApiTest {
 
         private fun capturingStoreApi(
             responseBody: String,
+            status: HttpStatusCode = HttpStatusCode.OK,
             capture: (io.ktor.client.request.HttpRequestData, String) -> Unit = { _, _ -> },
         ): StoreApi {
             val engine =
@@ -243,7 +244,7 @@ class StoreApiTest {
                     capture(request, String(request.body.toByteArray(), Charsets.UTF_8))
                     respond(
                         content = responseBody,
-                        status = HttpStatusCode.OK,
+                        status = status,
                         headers = headersOf("Content-Type", "application/json"),
                     )
                 }
@@ -257,7 +258,7 @@ class StoreApiTest {
             // F1128/D56
             var sent = ""
             val api =
-                capturingStoreApi("""{"id":7,"username":"u","password":"p"}""") { _, text -> sent = text }
+                capturingStoreApi("""{"id":7,"username":"u","password":"p"}""", capture = { _, text -> sent = text })
 
             val created = runBlocking { api.createAccount(Account(username = "u", password = "p")) }
 
@@ -307,6 +308,44 @@ class StoreApiTest {
             assertEquals(Priority.NUMBER_2, item.priority)
             assertEquals(Availability.ON_HOLD, item.availability)
             assertEquals(listOf(listOf(1, 2), listOf(3)), item.matrix)
+        }
+
+        @Test
+        @DisplayName("F1062: reserveStock decodes a 200 body as the Reservation and a 201 body as the receipt")
+        fun testReserveStockDecodesByStatusCode() {
+            val existing =
+                runBlocking {
+                    capturingStoreApi("""{"reservationId":31,"quantity":4}""").reserveStock()
+                }
+            assertTrue(existing.actualInstance is Reservation)
+            assertEquals(31L, (existing.actualInstance as Reservation).reservationId)
+
+            val created =
+                runBlocking {
+                    capturingStoreApi(
+                        """{"receiptCode":"rcpt-77","expiresAt":"2030-01-01T00:00:00Z"}""",
+                        HttpStatusCode.Created,
+                    ).reserveStock()
+                }
+            assertTrue(created.actualInstance is ReservationReceipt)
+            assertEquals("rcpt-77", (created.actualInstance as ReservationReceipt).receiptCode)
+        }
+
+        @Test
+        @DisplayName("F1062: the status code, not the shape of the body, picks the variant")
+        fun testReserveStockRefusesABodyThatDoesNotFitItsStatus() {
+            assertThrows({{invokerPackage}}.errors.SerializationException::class.java) {
+                runBlocking {
+                    capturingStoreApi("""{"reservationId":31,"quantity":4}""", HttpStatusCode.Created).reserveStock()
+                }
+            }
+            assertThrows({{invokerPackage}}.errors.SerializationException::class.java) {
+                runBlocking {
+                    capturingStoreApi(
+                        """{"receiptCode":"rcpt-77","expiresAt":"2030-01-01T00:00:00Z"}""",
+                    ).reserveStock()
+                }
+            }
         }
 
         @Test

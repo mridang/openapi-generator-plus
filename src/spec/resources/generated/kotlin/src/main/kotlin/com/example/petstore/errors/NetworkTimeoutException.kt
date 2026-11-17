@@ -14,8 +14,12 @@ package com.example.petstore.errors
  *
  * @param message the error message
  * @param cause the underlying transport exception
+ * @param requestMethod the HTTP method of the request that failed, if known
+ * @param requestPath the path of the request that failed, without its query string, if known
  */
 class NetworkTimeoutException(
     message: String,
     cause: Throwable,
-) : NetworkException(message, cause)
+    requestMethod: String? = null,
+    requestPath: String? = null,
+) : NetworkException(message, cause, requestMethod, requestPath)

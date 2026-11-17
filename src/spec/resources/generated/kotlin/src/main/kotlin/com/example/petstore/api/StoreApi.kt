@@ -24,6 +24,8 @@ import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
 import com.example.petstore.models.Order
+import com.example.petstore.models.Reservation
+import com.example.petstore.models.ReservationReceipt
 import com.example.petstore.models.ReserveStockResponse
 import com.example.petstore.models.StockItem
 import com.example.petstore.models.Swatch
@@ -146,6 +148,9 @@ class StoreApi : BaseApi {
         pathSwatch: Swatch,
         options: GetBySwatchOptions? = null,
     ): ApiResult<Category> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(pathSwatch) {
             "Missing the required parameter 'pathSwatch' when calling StoreApi.getBySwatch"
         }
@@ -188,6 +193,9 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getBySwatch",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -473,6 +481,9 @@ class StoreApi : BaseApi {
 
     /** Same as [getStockItem] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getStockItemWithHttpInfo(options: GetStockItemOptions? = null): ApiResult<StockItem> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/stock-item"
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.asOf != null) {
@@ -495,6 +506,9 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getStockItem",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -707,6 +721,15 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.reserveStock",
+            decodeSuccess = { status, text ->
+                when {
+                    status == 200 ->
+                        ReserveStockResponse(objectSerializer.deserialize<Reservation>(text))
+                    status == 201 ->
+                        ReserveStockResponse(objectSerializer.deserialize<ReservationReceipt>(text))
+                    else -> objectSerializer.deserialize<ReserveStockResponse>(text)
+                }
+            },
         )
     }
 
@@ -729,6 +752,9 @@ class StoreApi : BaseApi {
 
     /** Same as [searchStore] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun searchStoreWithHttpInfo(options: SearchStoreOptions? = null): ApiResult<List<Order>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/store/search"
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.q != null) {
@@ -765,6 +791,9 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.searchStore",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 }

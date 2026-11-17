@@ -15,7 +15,7 @@ package com.example.petstore
  * @property statusCode the HTTP status code
  * @property data the deserialized response body (null for void responses)
  * @property rawBody the raw response body string (never null; empty for no body)
- * @property headers the response headers
+ * @property headers the response headers; the result of an operation holds a read-only copy
  */
 data class ApiResult<T>(
     val statusCode: Int,

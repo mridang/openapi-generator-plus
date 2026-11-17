@@ -182,7 +182,9 @@ class DefaultApiClient internal constructor(
         }
         // `timeout` is one end-to-end budget for the whole call: every attempt, every redirect
         // hop, the body read and every wait between retries draw from it.
-        val budget = TimeoutBudget(transportOptions.timeout)
+        val callSettings = kotlin.coroutines.coroutineContext[CallSettings]
+        val budget = TimeoutBudget(callSettings?.timeout ?: transportOptions.timeout)
+        val maxRetries = callSettings?.maxRetries ?: transportOptions.maxRetries
         var attempt = 0
         while (true) {
             val response =
@@ -191,14 +193,14 @@ class DefaultApiClient internal constructor(
                 } catch (e: NetworkTimeoutException) {
                     throw e
                 } catch (e: NetworkException) {
-                    val pause = retryPause(attempt, null, budget) ?: throw e
+                    val pause = retryPause(attempt, maxRetries, null, budget) ?: throw e
                     sleeper(pause)
                     attempt++
                     continue
                 }
             val pause =
                 if (RetryPolicy.isRetryableStatus(response.statusCode)) {
-                    retryPause(attempt, response.headers["retry-after"], budget)
+                    retryPause(attempt, maxRetries, response.headers["retry-after"], budget)
                 } else {
                     null
                 }
@@ -216,10 +218,11 @@ class DefaultApiClient internal constructor(
      */
     private fun retryPause(
         attempt: Int,
+        maxRetries: Int,
         retryAfter: String?,
         budget: TimeoutBudget,
     ): Long? {
-        if (attempt >= transportOptions.maxRetries) {
+        if (attempt >= maxRetries) {
             return null
         }
         val pause = RetryPolicy.delayMillis(attempt, retryAfter, jitterSource())
@@ -640,6 +643,19 @@ class DefaultApiClient internal constructor(
         closed = true
         httpClient.close()
     }
+}
+
+/**
+ * The timeout and retry count one call asks for in place of the client's own
+ * [TransportOptions]. A generated API class puts it in the coroutine context of the request
+ * (the per-call `timeout` and `maxRetries` of an operation's options), and [DefaultApiClient]
+ * reads it; another [ApiClient] implementation keeps its own settings.
+ */
+internal class CallSettings(
+    val timeout: Long?,
+    val maxRetries: Int?,
+) : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
+    internal companion object Key : kotlin.coroutines.CoroutineContext.Key<CallSettings>
 }
 
 /**

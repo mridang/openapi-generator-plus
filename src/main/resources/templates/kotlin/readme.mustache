@@ -63,6 +63,21 @@ gradle ktlintFormat
 - Group: `{{groupId}}`
 - Artifact: `{{artifactId}}`
 - Version: `{{artifactVersion}}`
+{{#repositoryUrl}}
+- Repository: {{{repositoryUrl}}}
+{{/repositoryUrl}}
+{{#homepageUrl}}
+- Homepage: {{{homepageUrl}}}
+{{/homepageUrl}}
+{{#documentationUrl}}
+- Documentation: {{{documentationUrl}}}
+{{/documentationUrl}}
+{{#issueTrackerUrl}}
+- Issues: {{{issueTrackerUrl}}}
+{{/issueTrackerUrl}}
+{{#hasAuthors}}
+- Authors: {{#authorList}}{{{name}}}{{^-last}}, {{/-last}}{{/authorList}}
+{{/hasAuthors}}
 
 ## Cancellation
 
@@ -118,7 +133,99 @@ its headers are built again (a new `X-Request-ID`), and the body is sent again.
 val transport = TransportOptions.builder().maxRetries(0).build()
 ```
 
+## Credentials
+
+A credential you pass to an authenticator always wins. When you pass none, the
+authenticator reads the environment variable `{{credentialEnvPrefix}}_<FIELD>` once, when it
+is built: `{{credentialEnvPrefix}}_TOKEN` for a Bearer token, `{{credentialEnvPrefix}}_API_KEY` for an API key, and
+`{{credentialEnvPrefix}}_USERNAME` and `{{credentialEnvPrefix}}_PASSWORD` for Basic auth. An empty value counts as
+not set, and a credential that is neither passed nor set fails right there with an
+`IllegalArgumentException` that names the variable, before any request is made.
+
+A Bearer token or an API key that rotates takes a provider instead: the lambda is
+called on every request and its result is checked like a static value.
+
+```kotlin
+val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { vault.currentToken() })
+```
+
+## Per-call options
+
+The options object of an operation also takes `timeout` (milliseconds, one
+end-to-end budget for this call), `headers` (sent with this call only; a header of
+the same name set anywhere else is replaced) and `maxRetries` (`0` turns the
+retries of this call off). Each replaces the client-wide setting for that call
+and leaves it as it was for every other.
+
+```kotlin
+client.someApi.someOperation(options = SomeOperationOptions(timeout = 2_000, maxRetries = 0))
+```
+
+## Errors
+
+Every `ApiException` has `requestMethod` and `requestPath` (the path of the
+request, without its query string) next to `statusCode`, the headers and the
+body, and its string form shows them on a `Request:` line. They are null for an
+exception you built yourself.
+
+When an operation declares several `2xx` responses with different schemas, its
+result is a union and the body is decoded by the status code the server sent, not
+by guessing from its shape.
+
+## Response compression
+
+The SDK sends `Accept-Encoding: gzip, deflate` and decodes the answer itself;
+`br` and `zstd` are offered too when `org.brotli:dec` and `com.github.luben:zstd-jni` are on the
+classpath. A body in any other encoding is an error, never returned still encoded.
+After decoding, `Content-Encoding` and `Content-Length` are dropped from the returned
+headers.
+
+## Logging
+
+The SDK writes no logs. To see requests and responses, pass your own Ktor
+`HttpClient` with the `Logging` plugin installed through
+`TransportOptions.builder().httpClient(...)`; headers that carry credentials are
+masked in the string form of an exception.
+
+## Versioning
+
+The version in the build file (`{{artifactVersion}}`) comes from the `artifactVersion`
+generator option; publish releases with semantic versioning so that callers can
+rely on the major number. The generated code needs the JVM 17 or newer, the floor
+the build and the static analysis target.
+
 ## Caveats
+
+### Optional and nullable
+
+A property that is optional and a property that is nullable are both a nullable type
+(`T?`), so an absent key and an explicit `null` read the same once decoded. A required
+property that is nullable keeps its key: it is written as `null` when unset, and must be
+present when decoding.
+
+### Unknown enum values and discriminators
+
+A value the SDK does not know fails loudly: an enum value outside the declared set, and
+a discriminator value with no matching subtype, both raise `SerializationException`
+rather than falling back to a default or dropping the field.
+
+### Repeated response headers
+
+`ApiResult.headers` and `ApiException.responseHeaders` hold one string per header
+name (lower-cased). A header the server sent more than once is joined with `, `.
+
+### Streaming
+
+The SDK holds every request and response body in memory. It has no streaming upload or
+download; if you need one, send the request through the Ktor `HttpClient` you inject with
+`TransportOptions.builder().httpClient(...)`.
+
+### Configuration and transport options
+
+`Configuration` (base URL and default headers of an API class) and `TransportOptions`
+(proxy, TLS, timeout, retries, redirects of the HTTP client) are separate on purpose: the
+first says what is sent, the second how. `{{clientClassName}}` builds the `Configuration` from the
+authenticator's host, and you pass `TransportOptions` next to it.
 
 ### Decimal / `format: number` precision
 
@@ -190,6 +297,14 @@ also required" are **not enforced** by this SDK. No mainstream
 OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
+
+### Ambient proxy settings
+
+`TransportOptions.builder().proxy(...)` is the way to configure a proxy, but it is not the
+only source on the JVM: when no proxy is configured, the Ktor CIO engine asks the JVM's
+default `ProxySelector`, so `http.proxyHost` and the system proxy settings apply. The engine
+offers no way to ask for a direct connection, so the SDKs' rule that ambient proxy settings
+are ignored cannot hold here; set a `ProxySelector` of your own if you need to override it.
 
 ### SOCKS proxies
 
