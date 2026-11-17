@@ -32,7 +32,19 @@ interface CSharpSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default List<String> getSetupCommands() {
-    return List.of("dotnet restore");
+    /* The SDK image is Alpine and ships without make, which the SDK's own
+     * docs target needs. Installed once with the shared container, with
+     * retries because the package mirror is flaky on CI runners. */
+    return List.of(
+        "for i in 1 2 3 4 5; do apk add --no-cache make && break;"
+            + " echo \"apk attempt $i failed; retrying\" >&2; sleep 3; done;"
+            + " command -v make > /dev/null"
+            + " || { echo \"make missing after retries\" >&2; exit 1; }",
+        "dotnet restore",
+        /* Fetches the pinned docfx and csharpier from the local tool manifest
+         * into the shared package cache, so the docs target does not download
+         * docfx during the test. */
+        "dotnet tool restore");
   }
 
   @Override
