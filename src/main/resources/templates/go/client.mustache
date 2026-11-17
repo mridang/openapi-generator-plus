@@ -124,7 +124,7 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-		{{baseName}}: New{{classname}}(apiClient, config, authenticator),
+		{{baseName}}: New{{classname}}(apiClient, config, authenticator, Credentials{}),
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

@@ -55,14 +55,14 @@ func newPetApiForIntegration(t *testing.T) *{{packageName}}.PetApi {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	client := {{packageName}}.NewDefaultApiClient(transport)
-	return {{packageName}}.NewPetApi(client, config, nil)
+	return {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
 }
 
 func newPetApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.PetApi {
 	t.Helper()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := {{packageName}}.NewDefaultApiClient(noRetryTransport(t))
-	return {{packageName}}.NewPetApi(client, config, nil)
+	return {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
 }
 
 // newTempFile returns a temp *os.File with the supplied contents, registered for cleanup.
@@ -1396,7 +1396,7 @@ func TestPetApi_AddPetAppliesTheClientAuthenticator(t *testing.T) {
 	defer server.Close()
 
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
-	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, &perCallPetAuth{})
+	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, &perCallPetAuth{}, {{packageName}}.Credentials{})
 
 	pet := models.NewPet("OverrideDog", models.Set[string]{"http://example.com/p.jpg"})
 	if _, err := api.AddPet(context.Background(), *pet, nil); err != nil {
@@ -1528,7 +1528,7 @@ func TestPetApi_AddPetNilOptionsUsesConfiguredCredentials(t *testing.T) {
 		DefaultHeader("Authorization", "Bearer default-token").
 		Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)
-	api := {{packageName}}.NewPetApi(client, config, nil)
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
 
 	pet := models.NewPet("DefaultDog", models.Set[string]{"http://example.com/d.jpg"})
 
@@ -1569,7 +1569,7 @@ func TestPetApi_GetPetByIdUnsecuredHasNoAuthField(t *testing.T) {
 
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)
-	api := {{packageName}}.NewPetApi(client, config, nil)
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
 
 	// Compiles only because GetPetById takes (petId, server) — no Options/Auth.
 	result, err := api.GetPetById(context.Background(), int64(1), nil)
