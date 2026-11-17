@@ -1896,7 +1896,7 @@ func TestBhvTransport009_DefaultApiClientUnit_IgnoresAmbientProxyEnvironmentWith
 		t.Fatal("expected the guard to wrap an *http.Transport")
 	}
 	if transport.Proxy != nil {
-		t.Errorf("expected no proxy from the ambient environment, got %v", transport.Proxy)
+		t.Error("expected no proxy from the ambient environment")
 	}
 }
 

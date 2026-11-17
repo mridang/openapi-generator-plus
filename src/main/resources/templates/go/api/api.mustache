@@ -277,7 +277,9 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 {{/vendorExtensions.goContent}}
 {{^vendorExtensions.goContent}}
 {{#isDate}}
-	path = replacePathParam(path, "{{baseName}}", encodePathSegment(stringifyDate({{paramName}})))
+	/* A date is formatted as YYYY-MM-DD first and then styled like any other
+	 * path value, so a matrix or label style on a date parameter applies too. */
+	path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", serializeStyled("{{baseName}}", stringifyDate({{paramName}}), "path", "string", "", "{{style}}", {{isExplode}})))
 {{/isDate}}
 {{^isDate}}
 	/* Path params route through serializeStyled so OAS path styles

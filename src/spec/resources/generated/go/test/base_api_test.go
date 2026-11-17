@@ -2731,6 +2731,8 @@ func TestBhvAuthintegration016_BaseApi_Auth_SecurityNoneSendsNoSchemeCredential(
 	}
 }
 
+// The WithHTTPInfo form reports no data for an empty binary body; the
+// convenience method turns that into the typed empty-body ApiError instead.
 func TestBhvSerializationwire006_BaseApi_EmptyBinaryBodyYieldsNil(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
@@ -2739,12 +2741,12 @@ func TestBhvSerializationwire006_BaseApi_EmptyBinaryBodyYieldsNil(t *testing.T) 
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
-	got, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
+	result, err := api.GetPetAvatarThumbnailWithHTTPInfo(context.Background(), int64(1))
 	if err != nil {
-		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
+		t.Fatalf("GetPetAvatarThumbnailWithHTTPInfo returned error: %v", err)
 	}
-	if got != nil {
-		t.Errorf("expected a nil []byte for an empty binary body, got %v", got)
+	if result.Data != nil {
+		t.Errorf("expected nil data for an empty binary body, got %v", *result.Data)
 	}
 }
 
