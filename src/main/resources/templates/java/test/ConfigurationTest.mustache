@@ -16,11 +16,25 @@ import org.junit.jupiter.api.Test;
 class ConfigurationTest {
 
     @Test
-    void defaultConstructorUsesSpecBaseUrl() {
+    void bhvConfig005BuilderProducesCorrectDefaults() {
         Configuration config = Configuration.builder().build();
 
         assertEquals("{{{basePath}}}", config.getBaseUrl());
         assertTrue(config.getDefaultHeaders().isEmpty());
+    }
+
+    @Test
+    void bhvConfig004BuilderMergesSingleAndBulkHeaders() {
+        Configuration config = Configuration.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeaders(Map.of("X-Second", "two"))
+                .defaultHeader("X-Third", "three")
+                .build();
+
+        assertEquals(3, config.getDefaultHeaders().size());
+        assertEquals("one", config.getDefaultHeaders().get("X-First"));
+        assertEquals("two", config.getDefaultHeaders().get("X-Second"));
+        assertEquals("three", config.getDefaultHeaders().get("X-Third"));
     }
 
     @Test
