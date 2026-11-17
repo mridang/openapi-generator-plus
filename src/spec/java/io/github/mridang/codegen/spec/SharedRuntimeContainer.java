@@ -91,6 +91,30 @@ final class SharedRuntimeContainer {
 
   private SharedRuntimeContainer() {}
 
+  /**
+   * Where a language's generated tests look for ca.pem, server.pem and server-key.pem, relative to
+   * the SDK root. The files are not part of the generated SDK; the run generates them and mounts
+   * them here.
+   */
+  private static String certsDirectory(String language) {
+    switch (language) {
+      case "csharp":
+        return "Test/Resources/certs";
+      case "go":
+        return "testdata/certs";
+      case "java":
+      case "kotlin":
+        return "src/test/resources/certs";
+      case "php":
+      case "rust":
+        return "tests/fixtures/certs";
+      case "swift":
+        return "Tests/Fixtures/certs";
+      default:
+        return "test/fixtures/certs";
+    }
+  }
+
   static GenericContainer<?> getOrCreate(LanguageSpec spec, Path outputDir) {
     return pool.computeIfAbsent(
         spec.getGeneratorName(),
@@ -145,6 +169,10 @@ final class SharedRuntimeContainer {
                   .withLabel(
                       "com.mridang.openapi.workdir",
                       System.getProperty("openapi.workdir", ""))
+                  .withFileSystemBind(
+                      TestCertificates.directory().toString(),
+                      "/app/" + certsDirectory(language),
+                      BindMode.READ_ONLY)
                   .withWorkingDirectory("/app")
                   .withCommand("tail", "-f", "/dev/null")
                   .withCreateContainerCmdModifier(cmd -> cmd.withUser("root"))
