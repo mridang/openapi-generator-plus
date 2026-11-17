@@ -146,10 +146,10 @@ void main() {
 
   group('BearerAuthenticator', () {
     const prefixed = {
-      'already prefixed token is not doubled': 'Bearer xyz',
-      'lowercase bearer prefix is stripped': 'bearer xyz',
+      'bhv authbearer 003 already prefixed token is not doubled': 'Bearer xyz',
+      'bhv authbearer 007 lowercase bearer prefix is stripped': 'bearer xyz',
       'uppercase bearer prefix is stripped': 'BEARER xyz',
-      'mixed case bearer prefix is stripped': 'BeArEr xyz',
+      'bhv authbearer 008 mixed case bearer prefix is stripped': 'BeArEr xyz',
     };
     prefixed.forEach((name, token) {
       test(name, () {
@@ -166,6 +166,22 @@ void main() {
         auth.authHeaders(),
         equals({'Authorization': 'Bearer bearerxyz'}),
       );
+    });
+
+    test('bhv authbearer 004 doubled bearer prefix is stripped only once', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'Bearer Bearer xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer Bearer xyz'}));
+    });
+
+    test('bhv authscheme 002 explicit arguments need no environment', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: 'xyz',
+        environment: const {},
+      );
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
     });
 
     test('bhv authbearer 013 the redacted repr shows the host and masks the token', () {
@@ -213,6 +229,17 @@ void main() {
         expect(
           () => {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}),
           returnsNormally,
+        );
+      });
+
+      test('bhv authscheme 001 {{className}} reads only its own variable from the environment', () {
+        expect(
+          () => {{className}}(
+            host: '{{{basePath}}}',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
         );
       });
 
