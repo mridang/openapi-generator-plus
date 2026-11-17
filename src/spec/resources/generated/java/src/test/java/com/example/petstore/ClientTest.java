@@ -230,4 +230,45 @@ class ClientTest {
     assertNotNull(client.pet);
     assertNotNull(client.store);
   }
+
+  @Test
+  void bhvLifecycle010ConstructWithAuthenticatorAndNullTransportOptionsUsesDefaults() {
+    try (Client client = Client.withToken("/api/v3", "test-token", null)) {
+      assertNotNull(client);
+    }
+  }
+
+  @Test
+  void bhvLifecycle013WithTokenRefusesABlankTokenWhenNoVariableGivesOne() {
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", "   "));
+    assertEquals("Bearer token must not be empty", ex.getMessage());
+  }
+
+  @Test
+  void bhvLifecycle016WithTokenRefusesAnEmptyTokenInsteadOfSendingNoAuthentication() {
+    assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", ""));
+  }
+
+  @Test
+  void bhvLifecycle017ATokenProviderIsUsedInPlaceOfAStaticToken() {
+    BearerAuthenticator provided = new BearerAuthenticator("/api/v3", () -> "provided-token");
+    assertEquals("Bearer provided-token", provided.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvLifecycle004ApiKeyHeaderRejectsCrLfAndNonAscii() {
+    for (String key : new String[] {"abc\r\ndef", "töken"}) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new ApiKeyAuthenticator("/api/v3", "X-API-Key", key, ApiKeyLocation.HEADER));
+    }
+  }
+
+  @Test
+  void bhvLifecycle006BearerRejectsCrLfAndNonAscii() {
+    for (String token : new String[] {"abc\r\ndef", "töken"}) {
+      assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator("/api/v3", token));
+    }
+  }
 }

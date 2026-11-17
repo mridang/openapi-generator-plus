@@ -562,4 +562,49 @@ class ApiExceptionTest {
       assertTrue(OpenAPIException.class.isAssignableFrom(error), error.getName());
     }
   }
+
+  @Test
+  void bhvErrors025SerializationExceptionIsAnOpenApiException() {
+    assertInstanceOf(OpenAPIException.class, new SerializationException("bad"));
+  }
+
+  @Test
+  void bhvErrors036ErrorCarriesTheMethodAndPathWithoutTheQueryString() {
+    ApiException ex = ApiException.fromResponse("GET", "/pets/1?limit=2", 404, null, null);
+    assertEquals("GET", ex.getRequestMethod());
+    assertEquals("/pets/1", ex.getRequestPath());
+  }
+
+  @Test
+  void bhvErrors024RenderedFormPutsStatusThenHeadersThenBody() {
+    ApiException ex = ApiException.fromResponse(500, Map.of("X-Trace", "t1"), "oops");
+    String rendered = ex.toString();
+    assertTrue(rendered.indexOf("HTTP status code") < rendered.indexOf("Response headers"));
+    assertTrue(rendered.indexOf("Response headers") < rendered.indexOf("Response body"));
+  }
+
+  @Test
+  void bhvErrors011RenderedFormNamesTheRequestAfterTheStatus() {
+    ApiException ex = ApiException.fromResponse("POST", "/pets", 500, null, null);
+    String rendered = ex.toString();
+    assertTrue(rendered.indexOf("HTTP status code") < rendered.indexOf("Request: POST /pets"));
+  }
+
+  @Test
+  void bhvErrors008FromResponseParsesABomPrefixedErrorBody() {
+    ApiException ex = ApiException.fromResponse(400, null, "﻿{\"code\":7}");
+    assertNotNull(ex.getErrorBody());
+  }
+
+  @Test
+  void bhvErrors016GetTypedErrorBodyIsNullForAnEmptyResponseBody() {
+    ApiException ex = ApiException.fromResponse(400, null, "");
+    assertNull(ex.getTypedErrorBody(Map.class));
+  }
+
+  @Test
+  void bhvErrors028GetTypedErrorBodyIsNullForANullBody() {
+    ApiException ex = ApiException.fromResponse(400, null, null);
+    assertNull(ex.getTypedErrorBody(Map.class));
+  }
 }
