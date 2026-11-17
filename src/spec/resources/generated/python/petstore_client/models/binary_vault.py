@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
+from petstore_client._types import hash_model
 from typing import Dict, List, Optional
 
 
@@ -38,9 +39,12 @@ class BinaryVault(BaseModel):
     # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
-        validate_assignment=True,
+        frozen=True,
         protected_namespaces=(),
     )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
 
 
 from petstore_client._types import Base64Bytes

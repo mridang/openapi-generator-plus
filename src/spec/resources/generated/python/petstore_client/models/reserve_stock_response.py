@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, field_validator
+from petstore_client._types import hash_model
 from typing import Any, ClassVar, Optional, Tuple, Union
 
 
@@ -46,9 +47,12 @@ class ReserveStockResponse(BaseModel):
     # require per-field validators on int/bool/float specifically —
     # tracked in AGENT.md as a deferred sub-gap.
     model_config = ConfigDict(
-        validate_assignment=True,
+        frozen=True,
         protected_namespaces=(),
     )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:

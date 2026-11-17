@@ -75,6 +75,95 @@ class TestClient:
         assert client.store is not None
 
 
+def _authorization(client: Client) -> str:
+    api = client.pet
+    assert api._authenticator is not None
+    return api._authenticator.get_auth_headers()["Authorization"]
+
+
+def _host(client: Client) -> str:
+    api = client.pet
+    return api._config.base_url
+
+
+class TestClientCredentials:
+    """F862: an argument wins, then the environment variable read once at construction."""
+
+    def test_an_explicit_host_and_token_win_over_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PETSTORE_CLIENT_BASE_URL", "https://env.example.com")
+        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "env-token")
+
+        client = Client.with_token("https://arg.example.com", "arg-token")
+
+        assert _host(client) == "https://arg.example.com"
+        assert _authorization(client) == "Bearer arg-token"
+
+    def test_the_environment_fills_what_was_not_passed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PETSTORE_CLIENT_BASE_URL", "https://env.example.com")
+        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "env-token")
+
+        client = Client.with_token()
+
+        assert _host(client) == "https://env.example.com"
+        assert _authorization(client) == "Bearer env-token"
+
+    def test_the_environment_is_read_once_at_construction(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "first")
+        client = Client.with_token("https://arg.example.com")
+
+        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "second")
+
+        assert _authorization(client) == "Bearer first"
+
+    def test_an_empty_environment_value_counts_as_unset(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "")
+
+        with pytest.raises(ValueError, match="PETSTORE_CLIENT_ACCESS_TOKEN"):
+            Client.with_token("https://arg.example.com")
+
+    def test_a_missing_host_fails_when_the_client_is_built(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PETSTORE_CLIENT_BASE_URL", raising=False)
+
+        with pytest.raises(ValueError, match="PETSTORE_CLIENT_BASE_URL"):
+            Client.with_token(access_token="arg-token")
+
+    def test_a_token_provider_runs_for_every_request(self) -> None:
+        tokens = iter(["one", "two"])
+        client = Client.with_token(
+            "https://arg.example.com", token_provider=lambda: next(tokens)
+        )
+
+        assert _authorization(client) == "Bearer one"
+        assert _authorization(client) == "Bearer two"
+
+    def test_a_token_provider_needs_no_environment_token(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PETSTORE_CLIENT_ACCESS_TOKEN", raising=False)
+
+        client = Client.with_token(
+            "https://arg.example.com", token_provider=lambda: "live"
+        )
+
+        assert _authorization(client) == "Bearer live"
+
+    def test_a_token_and_a_token_provider_together_are_rejected(self) -> None:
+        with pytest.raises(ValueError, match="not both"):
+            Client.with_token(
+                "https://arg.example.com", "arg-token", token_provider=lambda: "live"
+            )
+
+
 class _OwnedPool(urllib3.PoolManager):
     cleared = False
 

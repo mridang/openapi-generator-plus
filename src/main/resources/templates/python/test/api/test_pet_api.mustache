@@ -986,27 +986,33 @@ class TestPetApiErrorHandling:
         assert captured.get('Authorization') == 'Bearer config-default-token'
 
     def test_unsecured_op_options_has_no_auth_field(self) -> None:
-        # Regression: get_pet_by_id is an unsecured operation, so it must not
-        # mint an Options class carrying an `auth` field. The options package
-        # must expose no GetPetByIdOptions at all.
+        # Regression: get_pet_by_id is an unsecured operation, so its Options
+        # class (which always exists, for the per-call timeout, headers and
+        # retry budget) must not carry an `auth` field.
+        import dataclasses
         import importlib
 
-        with pytest.raises(ModuleNotFoundError):
-            importlib.import_module(
-                '{{packageName}}.api.options.get_pet_by_id_options'
-            )
+        module = importlib.import_module(
+            '{{packageName}}.api.options.get_pet_by_id_options'
+        )
+        names = {field.name for field in dataclasses.fields(module.GetPetByIdOptions)}
+        assert 'auth' not in names
+        assert {'timeout', 'headers', 'max_retries'} <= names
 
     def test_options_doc_mentions_the_authenticator_only_where_the_options_class_has_one(self) -> None:
         import inspect
 
-        params_only = 'options for query, header, form, and cookie parameters'
+        base = 'per-call options: the query, header, form and cookie parameters'
+        tail = ', and an optional timeout, extra headers and retry budget for this call'
+        with_auth = base + ', an optional per-call authenticator' + tail
+        without_auth = base + tail
         cases = [
-            (PetApi.add_pet, 'options carrying an optional per-call authenticator'),
-            (PetApi.add_pet_with_http_info, 'options carrying an optional per-call authenticator'),
-            (PetApi.delete_pet, params_only + ', plus an optional per-call authenticator'),
-            (PetApi.delete_pet_with_http_info, params_only + ', plus an optional per-call authenticator'),
-            (PetApi.get_pet_by_name, params_only),
-            (PetApi.get_pet_by_name_with_http_info, params_only),
+            (PetApi.add_pet, with_auth),
+            (PetApi.add_pet_with_http_info, with_auth),
+            (PetApi.delete_pet, with_auth),
+            (PetApi.delete_pet_with_http_info, with_auth),
+            (PetApi.get_pet_by_name, without_auth),
+            (PetApi.get_pet_by_name_with_http_info, without_auth),
         ]
         for method, expected in cases:
             doc = inspect.getdoc(method)

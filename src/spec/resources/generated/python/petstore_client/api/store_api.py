@@ -32,6 +32,21 @@ from ..errors import ApiException
 from .options.get_by_swatch_options import GetBySwatchOptions
 from .options.get_stock_item_options import GetStockItemOptions
 from .options.search_store_options import SearchStoreOptions
+from .options.create_account_options import CreateAccountOptions
+from .options.delete_order_options import DeleteOrderOptions
+from .options.get_defaults_options import GetDefaultsOptions
+from .options.get_department_options import GetDepartmentOptions
+from .options.get_grouped_categories_options import GetGroupedCategoriesOptions
+from .options.get_inventory_options import GetInventoryOptions
+from .options.get_matrix_options import GetMatrixOptions
+from .options.get_order_by_id_options import GetOrderByIdOptions
+from .options.get_order_by_tracking_id_options import GetOrderByTrackingIdOptions
+from .options.get_swatch_options import GetSwatchOptions
+from .options.get_swatch_groups_options import GetSwatchGroupsOptions
+from .options.get_timestamp_groups_options import GetTimestampGroupsOptions
+from .options.get_tree_options import GetTreeOptions
+from .options.place_order_options import PlaceOrderOptions
+from .options.reserve_stock_options import ReserveStockOptions
 
 
 class StoreApi(BaseApi):
@@ -50,15 +65,17 @@ class StoreApi(BaseApi):
     async def create_account(
         self,
         account: Account,
+        options: Optional[CreateAccountOptions] = None,
     ) -> Account:
         """Create an account
         :param account:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Account
         :raises ApiException: if fails to make API call
         """
         result = await self.create_account_with_http_info(
             account,
+            options=options,
         )
 
         if result.data is None:
@@ -77,10 +94,11 @@ class StoreApi(BaseApi):
     async def create_account_with_http_info(
         self,
         account: Account,
+        options: Optional[CreateAccountOptions] = None,
     ) -> "ApiResult[Account]":
         """Create an account (with HTTP info)
         :param account:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -105,19 +123,22 @@ class StoreApi(BaseApi):
             "Account",
             NO_AUTH,
             operation_name="create_account",
+            request_options=options,
         )
 
     async def delete_order(
         self,
         order_id: StrictInt,
+        options: Optional[DeleteOrderOptions] = None,
     ) -> None:
         """Delete purchase order by ID
         :param order_id: ID of the order to delete (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
         """
         result = await self.delete_order_with_http_info(
             order_id,
+            options=options,
         )
 
         return result.data
@@ -125,10 +146,11 @@ class StoreApi(BaseApi):
     async def delete_order_with_http_info(
         self,
         order_id: StrictInt,
+        options: Optional[DeleteOrderOptions] = None,
     ) -> "ApiResult[None]":
         """Delete purchase order by ID (with HTTP info)
         :param order_id: ID of the order to delete (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -161,6 +183,7 @@ class StoreApi(BaseApi):
             None,
             None,
             operation_name="delete_order",
+            request_options=options,
         )
 
     async def get_by_swatch(
@@ -170,8 +193,7 @@ class StoreApi(BaseApi):
     ) -> Category:
         """Echoes a swatch supplied via path, query and header parameters.
         :param path_swatch:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Category
         :raises ApiException: if fails to make API call
         """
@@ -200,8 +222,7 @@ class StoreApi(BaseApi):
     ) -> "ApiResult[Category]":
         """Echoes a swatch supplied via path, query and header parameters. (with HTTP info)
         :param path_swatch:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -264,17 +285,21 @@ class StoreApi(BaseApi):
             "Category",
             NO_AUTH,
             operation_name="get_by_swatch",
+            request_options=options,
         )
 
     async def get_defaults(
         self,
+        options: Optional[GetDefaultsOptions] = None,
     ) -> Defaults:
         """Returns a model exercising schema defaults on deserialize.
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Defaults
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_defaults_with_http_info()
+        result = await self.get_defaults_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -291,9 +316,10 @@ class StoreApi(BaseApi):
 
     async def get_defaults_with_http_info(
         self,
+        options: Optional[GetDefaultsOptions] = None,
     ) -> "ApiResult[Defaults]":
         """Returns a model exercising schema defaults on deserialize. (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -313,17 +339,21 @@ class StoreApi(BaseApi):
             "Defaults",
             NO_AUTH,
             operation_name="get_defaults",
+            request_options=options,
         )
 
     async def get_department(
         self,
+        options: Optional[GetDepartmentOptions] = None,
     ) -> Department:
         """Returns a department (mutual-recursion codegen fixture).
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Department
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_department_with_http_info()
+        result = await self.get_department_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -340,9 +370,10 @@ class StoreApi(BaseApi):
 
     async def get_department_with_http_info(
         self,
+        options: Optional[GetDepartmentOptions] = None,
     ) -> "ApiResult[Department]":
         """Returns a department (mutual-recursion codegen fixture). (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -362,17 +393,21 @@ class StoreApi(BaseApi):
             "Department",
             NO_AUTH,
             operation_name="get_department",
+            request_options=options,
         )
 
     async def get_grouped_categories(
         self,
+        options: Optional[GetGroupedCategoriesOptions] = None,
     ) -> List[Dict[str, Category]]:
         """Returns categories grouped into an array of string-keyed maps.
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Dict[str, Category]]
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_grouped_categories_with_http_info()
+        result = await self.get_grouped_categories_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -389,9 +424,10 @@ class StoreApi(BaseApi):
 
     async def get_grouped_categories_with_http_info(
         self,
+        options: Optional[GetGroupedCategoriesOptions] = None,
     ) -> "ApiResult[List[Dict[str, Category]]]":
         """Returns categories grouped into an array of string-keyed maps. (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -411,17 +447,21 @@ class StoreApi(BaseApi):
             "List[Dict[str, Category]]",
             NO_AUTH,
             operation_name="get_grouped_categories",
+            request_options=options,
         )
 
     async def get_inventory(
         self,
+        options: Optional[GetInventoryOptions] = None,
     ) -> Dict[str, StrictInt]:
         """Returns pet inventories by status
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Dict[str, StrictInt]
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_inventory_with_http_info()
+        result = await self.get_inventory_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -438,9 +478,10 @@ class StoreApi(BaseApi):
 
     async def get_inventory_with_http_info(
         self,
+        options: Optional[GetInventoryOptions] = None,
     ) -> "ApiResult[Dict[str, StrictInt]]":
         """Returns pet inventories by status (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -460,17 +501,21 @@ class StoreApi(BaseApi):
             "Dict[str, StrictInt]",
             NO_AUTH,
             operation_name="get_inventory",
+            request_options=options,
         )
 
     async def get_matrix(
         self,
+        options: Optional[GetMatrixOptions] = None,
     ) -> List[List[StrictInt]]:
         """Returns a matrix as an array of integer arrays.
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[List[StrictInt]]
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_matrix_with_http_info()
+        result = await self.get_matrix_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -487,9 +532,10 @@ class StoreApi(BaseApi):
 
     async def get_matrix_with_http_info(
         self,
+        options: Optional[GetMatrixOptions] = None,
     ) -> "ApiResult[List[List[StrictInt]]]":
         """Returns a matrix as an array of integer arrays. (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -509,20 +555,23 @@ class StoreApi(BaseApi):
             "List[List[StrictInt]]",
             NO_AUTH,
             operation_name="get_matrix",
+            request_options=options,
         )
 
     async def get_order_by_id(
         self,
         order_id: StrictInt,
+        options: Optional[GetOrderByIdOptions] = None,
     ) -> Order:
         """Find purchase order by ID
         :param order_id: ID of order to return (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Order
         :raises ApiException: if fails to make API call
         """
         result = await self.get_order_by_id_with_http_info(
             order_id,
+            options=options,
         )
 
         if result.data is None:
@@ -541,10 +590,11 @@ class StoreApi(BaseApi):
     async def get_order_by_id_with_http_info(
         self,
         order_id: StrictInt,
+        options: Optional[GetOrderByIdOptions] = None,
     ) -> "ApiResult[Order]":
         """Find purchase order by ID (with HTTP info)
         :param order_id: ID of order to return (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -577,20 +627,23 @@ class StoreApi(BaseApi):
             "Order",
             None,
             operation_name="get_order_by_id",
+            request_options=options,
         )
 
     async def get_order_by_tracking_id(
         self,
         tracking_id: uuid.UUID,
+        options: Optional[GetOrderByTrackingIdOptions] = None,
     ) -> Order:
         """Find purchase order by tracking id
         :param tracking_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Order
         :raises ApiException: if fails to make API call
         """
         result = await self.get_order_by_tracking_id_with_http_info(
             tracking_id,
+            options=options,
         )
 
         if result.data is None:
@@ -609,10 +662,11 @@ class StoreApi(BaseApi):
     async def get_order_by_tracking_id_with_http_info(
         self,
         tracking_id: uuid.UUID,
+        options: Optional[GetOrderByTrackingIdOptions] = None,
     ) -> "ApiResult[Order]":
         """Find purchase order by tracking id (with HTTP info)
         :param tracking_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -651,6 +705,7 @@ class StoreApi(BaseApi):
             "Order",
             NO_AUTH,
             operation_name="get_order_by_tracking_id",
+            request_options=options,
         )
 
     async def get_stock_item(
@@ -658,8 +713,7 @@ class StoreApi(BaseApi):
         options: Optional[GetStockItemOptions] = None,
     ) -> StockItem:
         """Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: StockItem
         :raises ApiException: if fails to make API call
         """
@@ -685,8 +739,7 @@ class StoreApi(BaseApi):
         options: Optional[GetStockItemOptions] = None,
     ) -> "ApiResult[StockItem]":
         """Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields. (with HTTP info)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -724,17 +777,21 @@ class StoreApi(BaseApi):
             "StockItem",
             NO_AUTH,
             operation_name="get_stock_item",
+            request_options=options,
         )
 
     async def get_swatch(
         self,
+        options: Optional[GetSwatchOptions] = None,
     ) -> Swatch:
         """Returns a bare enum (value-type response codegen fixture).
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Swatch
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_swatch_with_http_info()
+        result = await self.get_swatch_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -751,9 +808,10 @@ class StoreApi(BaseApi):
 
     async def get_swatch_with_http_info(
         self,
+        options: Optional[GetSwatchOptions] = None,
     ) -> "ApiResult[Swatch]":
         """Returns a bare enum (value-type response codegen fixture). (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -773,17 +831,21 @@ class StoreApi(BaseApi):
             "Swatch",
             NO_AUTH,
             operation_name="get_swatch",
+            request_options=options,
         )
 
     async def get_swatch_groups(
         self,
+        options: Optional[GetSwatchGroupsOptions] = None,
     ) -> List[Dict[str, Swatch]]:
         """Returns swatches grouped as an array of string-keyed enum maps.
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Dict[str, Swatch]]
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_swatch_groups_with_http_info()
+        result = await self.get_swatch_groups_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -800,9 +862,10 @@ class StoreApi(BaseApi):
 
     async def get_swatch_groups_with_http_info(
         self,
+        options: Optional[GetSwatchGroupsOptions] = None,
     ) -> "ApiResult[List[Dict[str, Swatch]]]":
         """Returns swatches grouped as an array of string-keyed enum maps. (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -822,17 +885,21 @@ class StoreApi(BaseApi):
             "List[Dict[str, Swatch]]",
             NO_AUTH,
             operation_name="get_swatch_groups",
+            request_options=options,
         )
 
     async def get_timestamp_groups(
         self,
+        options: Optional[GetTimestampGroupsOptions] = None,
     ) -> List[Dict[str, AwareDatetime]]:
         """Returns timestamps grouped as an array of string-keyed maps.
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Dict[str, AwareDatetime]]
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_timestamp_groups_with_http_info()
+        result = await self.get_timestamp_groups_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -849,9 +916,10 @@ class StoreApi(BaseApi):
 
     async def get_timestamp_groups_with_http_info(
         self,
+        options: Optional[GetTimestampGroupsOptions] = None,
     ) -> "ApiResult[List[Dict[str, AwareDatetime]]]":
         """Returns timestamps grouped as an array of string-keyed maps. (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -871,17 +939,21 @@ class StoreApi(BaseApi):
             "List[Dict[str, AwareDatetime]]",
             NO_AUTH,
             operation_name="get_timestamp_groups",
+            request_options=options,
         )
 
     async def get_tree(
         self,
+        options: Optional[GetTreeOptions] = None,
     ) -> TreeNode:
         """Returns a self-referential tree (recursive-type codegen fixture)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: TreeNode
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_tree_with_http_info()
+        result = await self.get_tree_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -898,9 +970,10 @@ class StoreApi(BaseApi):
 
     async def get_tree_with_http_info(
         self,
+        options: Optional[GetTreeOptions] = None,
     ) -> "ApiResult[TreeNode]":
         """Returns a self-referential tree (recursive-type codegen fixture) (with HTTP info)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -920,20 +993,23 @@ class StoreApi(BaseApi):
             "TreeNode",
             NO_AUTH,
             operation_name="get_tree",
+            request_options=options,
         )
 
     async def place_order(
         self,
         order: Optional[Order] = None,
+        options: Optional[PlaceOrderOptions] = None,
     ) -> Order:
         """Place an order for a pet
         :param order:  (optional)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Order
         :raises ApiException: if fails to make API call
         """
         result = await self.place_order_with_http_info(
             order,
+            options=options,
         )
 
         if result.data is None:
@@ -952,10 +1028,11 @@ class StoreApi(BaseApi):
     async def place_order_with_http_info(
         self,
         order: Optional[Order] = None,
+        options: Optional[PlaceOrderOptions] = None,
     ) -> "ApiResult[Order]":
         """Place an order for a pet (with HTTP info)
         :param order:  (optional)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -975,18 +1052,22 @@ class StoreApi(BaseApi):
             "Order",
             None,
             operation_name="place_order",
+            request_options=options,
         )
 
     async def reserve_stock(
         self,
+        options: Optional[ReserveStockOptions] = None,
     ) -> ReserveStockResponse:
         """Reserve stock, answering with the existing or a new reservation
         Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ReserveStockResponse
         :raises ApiException: if fails to make API call
         """
-        result = await self.reserve_stock_with_http_info()
+        result = await self.reserve_stock_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1003,10 +1084,11 @@ class StoreApi(BaseApi):
 
     async def reserve_stock_with_http_info(
         self,
+        options: Optional[ReserveStockOptions] = None,
     ) -> "ApiResult[ReserveStockResponse]":
         """Reserve stock, answering with the existing or a new reservation (with HTTP info)
         Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1014,6 +1096,18 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
+
+        def decode_success(status_code: int, body: str) -> Any:
+            """Decode the body by the status code the server answered with."""
+            if status_code == 200:
+                return ReserveStockResponse(
+                    self._object_serializer.deserialize(body, "Reservation")
+                )
+            if status_code == 201:
+                return ReserveStockResponse(
+                    self._object_serializer.deserialize(body, "ReservationReceipt")
+                )
+            return self._object_serializer.deserialize(body, "ReserveStockResponse")
 
         return await self._invoke_api_for_result(
             "POST",
@@ -1026,6 +1120,8 @@ class StoreApi(BaseApi):
             "ReserveStockResponse",
             NO_AUTH,
             operation_name="reserve_stock",
+            request_options=options,
+            decode_success=decode_success,
         )
 
     async def search_store(
@@ -1033,8 +1129,7 @@ class StoreApi(BaseApi):
         options: Optional[SearchStoreOptions] = None,
     ) -> List[Order]:
         """Searches the store; exercises content-encoded, Set and time-of-day parameters.
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Order]
         :raises ApiException: if fails to make API call
         """
@@ -1060,8 +1155,7 @@ class StoreApi(BaseApi):
         options: Optional[SearchStoreOptions] = None,
     ) -> "ApiResult[List[Order]]":
         """Searches the store; exercises content-encoded, Set and time-of-day parameters. (with HTTP info)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1127,4 +1221,5 @@ class StoreApi(BaseApi):
             "List[Order]",
             NO_AUTH,
             operation_name="search_store",
+            request_options=options,
         )

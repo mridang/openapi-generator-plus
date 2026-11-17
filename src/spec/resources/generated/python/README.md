@@ -4,7 +4,7 @@ Auto-generated Python SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- Python 3.13+
+- Python 3.10+
 - `pip`
 
 ## Installation
@@ -80,10 +80,53 @@ cancels every request still in flight; those calls raise `RuntimeError`. To
 bound how long a call can take, set the request timeout on `TransportOptions`;
 a call that exceeds it fails with `NetworkTimeoutException`.
 
+### Credentials
+
+`Client.with_token(host, access_token)` builds a client with a Bearer token. Each credential is resolved once, when the client is built: the argument you pass wins, then the environment variable (`PETSTORE_CLIENT_BASE_URL` for the host, `PETSTORE_CLIENT_ACCESS_TOKEN` for the token); an empty value counts as unset. A host or token that cannot be resolved raises `ValueError` there and then, not on the first request. Pass `token_provider=` (a callable returning the current token, run for every request) instead of a static token when the token rotates. The other authenticators take their credentials as constructor arguments.
+
+### Per-call options
+
+Every operation takes an optional `options` argument, an Options object that also carries three settings for that one call: `timeout` (milliseconds, one end-to-end budget of at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off). `None` keeps the client's setting.
+
+```python
+await client.pet.add_pet(Pet.model_construct(), options=AddPetOptions(timeout=2000, max_retries=0))
+```
+
+A custom `ApiClient` owns its own timeout, so only the headers and the retry budget reach it.
+
+### Errors
+
+An API error (`ApiException` and every subclass) carries `status_code`, `response_headers`, `response_body`, `error_body`, and the request it answers: `request_method` and `request_path` (the path without its query string). `str(error)` shows them on a `Request: METHOD /path` line before the status code.
+
+### Operations with several success responses
+
+When an operation declares more than one 2xx response with different schemas, it returns a union (a generated `<Operation>Response` model with the decoded value in `actual_instance`), and the body is decoded by the status code the server answered with, never by guessing from its shape.
+
+### Models are immutable
+
+Models are frozen pydantic models: assigning a field raises `pydantic.ValidationError`, and they are hashable (a model that holds a list, map or set is hashed by value), so they work as dict keys and set members. Make a changed copy with `model.model_copy(update={"name": "new"})`; the update is not validated, so validate by constructing the model again when the value comes from outside.
+
+### Logging and tracing
+
+The SDK writes no log lines. To log requests, pass your own `urllib3.PoolManager` or wrap `DefaultApiClient`; every `repr` of a configuration, authenticator or error masks credentials. When `opentelemetry` is installed, the current trace context is sent as `traceparent` and `tracestate` request headers.
+
+### Versioning and supported Python
+
+The package version follows semantic versioning; the clients, Options objects, models and errors are the public API, and a name that starts with an underscore is private. Python is supported from the oldest release that has not reached end of life; the floor moves up when a release does.
+
+### Behaviours to know
+
+- Optional and nullable: an optional property that is absent and one that is `null` both read as `None`, and `None` is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it.
+- Unknown values fail loudly: an enum value or a discriminator value the SDK does not know raises `SerializationException` and names the value; it is never coerced to a default.
+- Repeated response headers are joined into one value with `, ` in `headers` and `response_headers` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
+- Streaming is not supported: a response is read whole before it is decoded, so server-sent events and JSON Lines are out of scope. Supply your own `ApiClient` or `urllib3.PoolManager` for those calls.
+- `Configuration` (base URL, default headers) and `TransportOptions` (timeout, proxy, TLS, retries) stay separate objects: the client builds the first from the authenticator's host and takes the second as an argument.
+
 ## Package
 
 - Name: `petstore-client`
 - Version: `1.0.0`
+- License: MIT
 
 ## OpenAPI type mapping
 

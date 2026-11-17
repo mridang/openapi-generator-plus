@@ -11,6 +11,7 @@ from typing import Annotated, Any
 from pydantic import (
     AfterValidator,
     AwareDatetime,
+    BaseModel,
     BeforeValidator,
     Field,
     PlainSerializer,
@@ -33,6 +34,26 @@ _ABSOLUTE_URI_PATTERN = re.compile(r'^[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1f\x7f]
 RFC3339_DATE_TIME_PATTERN = re.compile(
     r'^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$'
 )
+
+
+def _freeze(value: Any) -> Any:
+    """A hashable stand-in for a field value, equal for equal values."""
+    if isinstance(value, dict):
+        return frozenset((key, _freeze(item)) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(_freeze(item) for item in value)
+    return value
+
+
+def hash_model(model: BaseModel) -> int:
+    """The hash of a frozen model, equal for models that compare equal.
+
+    Pydantic's own frozen hash fails on a list, map or set field; this one
+    freezes those first, so every model is usable as a dict key or set member.
+    """
+    return hash((type(model), _freeze(model.__dict__)))
 
 
 def _coerce_int_to_float(value: Any) -> Any:

@@ -1,6 +1,7 @@
 {{>api_info}}
 
-from typing import Any, Optional
+import os
+from typing import Any, Callable, Optional
 
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
@@ -15,6 +16,11 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+
+
+def _from_environment(field: str) -> Optional[str]:
+    """The value of ``{{envPrefix}}_<field>``, or ``None`` when it is unset or empty."""
+    return os.environ.get('{{envPrefix}}_' + field) or None
 
 
 class {{clientClassName}}:
@@ -90,12 +96,20 @@ class {{clientClassName}}:
     @classmethod
     def with_token(
         cls,
-        host: str,
-        access_token: str,
+        host: Optional[str] = None,
+        access_token: Optional[str] = None,
         transport_options: Optional[TransportOptions] = None,
         pool_manager: Optional[Any] = None,
+        token_provider: Optional[Callable[[], str]] = None,
     ) -> '{{clientClassName}}':
-        """Creates a client authenticated with a static Bearer token.
+        """Creates a client authenticated with a Bearer token.
+
+        Each credential is resolved once, here, in this order: the argument
+        you pass, then the environment variable (an empty value counts as
+        unset). ``host`` falls back to ``{{envPrefix}}_BASE_URL`` and
+        ``access_token`` to ``{{envPrefix}}_ACCESS_TOKEN``. Instead of a
+        static token you can pass ``token_provider``, a callable that returns
+        the current token and runs for every request.
 
         Args:
             host: API base URL.
@@ -103,11 +117,36 @@ class {{clientClassName}}:
             transport_options: Optional HTTP transport configuration (proxy,
                 TLS, timeouts, etc.).
             pool_manager: Optional caller-owned ``urllib3.PoolManager``.
+            token_provider: Optional callable returning the current token.
+                It replaces ``access_token`` and the environment variable.
 
         Returns:
             Configured client instance.
+
+        Raises:
+            ValueError: If the host or the token cannot be resolved, or both
+                ``access_token`` and ``token_provider`` are given.
         """
-        return cls(BearerAuthenticator(host, access_token), transport_options, pool_manager)
+        resolved_host = host if host is not None else _from_environment('BASE_URL')
+        if resolved_host is None:
+            raise ValueError(
+                'The API host is required: pass host or set {{envPrefix}}_BASE_URL'
+            )
+        if token_provider is not None:
+            if access_token is not None:
+                raise ValueError('Give an access token or a token provider, not both')
+            authenticator = BearerAuthenticator(resolved_host, token_provider=token_provider)
+        else:
+            resolved_token = (
+                access_token if access_token is not None else _from_environment('ACCESS_TOKEN')
+            )
+            if resolved_token is None:
+                raise ValueError(
+                    'The access token is required: pass access_token or token_provider, '
+                    'or set {{envPrefix}}_ACCESS_TOKEN'
+                )
+            authenticator = BearerAuthenticator(resolved_host, resolved_token)
+        return cls(authenticator, transport_options, pool_manager)
 
     @classmethod
     def with_authenticator(

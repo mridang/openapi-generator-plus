@@ -73,6 +73,8 @@ class ApiException(OpenAPIException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
         cause: Optional[BaseException] = None,
+        request_method: Optional[str] = None,
+        request_path: Optional[str] = None,
     ) -> None:
         # Forward the message to the base Exception so `args`, `str()` and
         # standard logging/pickling behave like every other SDK's exceptions.
@@ -86,6 +88,8 @@ class ApiException(OpenAPIException):
         self._response_headers = response_headers
         self._response_body = response_body
         self._error_body = error_body
+        self._request_method = request_method
+        self._request_path = request_path
         # Same chaining a `raise ... from cause` produces, so the cause is
         # reachable as `__cause__` however the error was constructed.
         if cause is not None:
@@ -111,11 +115,29 @@ class ApiException(OpenAPIException):
     def error_body(self) -> Optional[Any]:
         return self._error_body
 
+    @property
+    def request_method(self) -> Optional[str]:
+        """The HTTP method of the request that failed (``GET``, ``POST``, ...)."""
+        return self._request_method
+
+    @property
+    def request_path(self) -> Optional[str]:
+        """The path of the request that failed, without its query string."""
+        return self._request_path
+
+    def _with_request(self, method: str, path: str) -> "ApiException":
+        """Record the request this error answers; the SDK calls it where it builds the error."""
+        self._request_method = method
+        self._request_path = path.split("?", 1)[0]
+        return self
+
     @staticmethod
     def from_response(
         status_code: int,
         headers: Optional[Mapping[str, str]],
         body: Optional[str],
+        request_method: Optional[str] = None,
+        request_path: Optional[str] = None,
     ) -> "ApiException":
         """Build the exception that a non-2xx response with this status raises.
 
@@ -126,6 +148,9 @@ class ApiException(OpenAPIException):
             status_code: The HTTP status code of the response.
             headers: The response headers.
             body: The raw response body, if any.
+            request_method: The HTTP method of the request, if known.
+            request_path: The path of the request, query string stripped,
+                if known.
 
         Returns:
             The status-specific subclass where there is one (for example
@@ -172,6 +197,8 @@ class ApiException(OpenAPIException):
                 response_headers=response_headers,
                 response_body=body,
                 error_body=error_body,
+                request_method=request_method,
+                request_path=request_path,
             )
         if 400 <= status_code < 500:
             return ClientException(
@@ -180,6 +207,8 @@ class ApiException(OpenAPIException):
                 response_headers=response_headers,
                 response_body=body,
                 error_body=error_body,
+                request_method=request_method,
+                request_path=request_path,
             )
         if 500 <= status_code < 600:
             return ServerException(
@@ -188,6 +217,8 @@ class ApiException(OpenAPIException):
                 response_headers=response_headers,
                 response_body=body,
                 error_body=error_body,
+                request_method=request_method,
+                request_path=request_path,
             )
         return ApiException(
             status_code=status_code,
@@ -195,6 +226,8 @@ class ApiException(OpenAPIException):
             response_headers=response_headers,
             response_body=body,
             error_body=error_body,
+            request_method=request_method,
+            request_path=request_path,
         )
 
     def get_typed_error_body(self, clazz: Type[T]) -> Optional[T]:
@@ -228,6 +261,8 @@ class ApiException(OpenAPIException):
         """
         msg = self.message or "Error message: the server returns an error"
 
+        if self.request_method and self.request_path:
+            msg += f"\nRequest: {self.request_method} {self.request_path}"
         if self.status_code:
             msg += f"\nHTTP status code: {self.status_code}"
         if self.response_headers:

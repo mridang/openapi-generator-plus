@@ -4,6 +4,7 @@ package io.github.mridang.codegen.generators.python;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
+import com.google.common.base.Splitter;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
 import java.nio.file.Path;
@@ -13,6 +14,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,7 +50,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
 
 
     /** An identifier inside a Python type annotation (dotted names kept whole). */
-    private static final Pattern TYPE_NAME_TOKEN = Pattern.compile("[A-Za-z_][A-Za-z0-9_.]*");
+    private static final String OPTION_REPOSITORY_URL = "repositoryUrl";
+    private static final String OPTION_HOMEPAGE_URL = "homepageUrl";
+    private static final String OPTION_AUTHORS = "authors";
+    private static final String OPTION_DOCUMENTATION_URL = "documentationUrl";
+    private static final String OPTION_ISSUE_TRACKER_URL = "issueTrackerUrl";
+
+    private static final Pattern TYPE_NAME_TOKEN =Pattern.compile("[A-Za-z_][A-Za-z0-9_.]*");
 
     /** Generic names an options annotation may use, imported from typing. */
     private static final Set<String> TYPING_NAMES = Set.of("List", "Dict", "Set", "Optional", "Any", "Union");
@@ -222,6 +230,36 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 CodegenConstants.PACKAGE_NAME_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated package (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString(OPTION_REPOSITORY_URL,
+                "Source repository URL, written to the manifest and README."));
+        cliOptions.add(CliOption.newString(OPTION_HOMEPAGE_URL,
+                "Project homepage URL, written to the manifest and README."));
+        cliOptions.add(CliOption.newString(OPTION_AUTHORS,
+                "Comma-separated author names, written to the manifest."));
+        cliOptions.add(CliOption.newString(OPTION_DOCUMENTATION_URL,
+                "Documentation URL, written to the manifest and README (optional)."));
+        cliOptions.add(CliOption.newString(OPTION_ISSUE_TRACKER_URL,
+                "Issue tracker URL, written to the manifest and README (optional)."));
+    }
+
+    /**
+     * Options classes this generator mints for operations the shared pass leaves without one
+     * (no query, header, form or cookie parameter and no security), so that every operation
+     * can take the per-call timeout, headers and retry budget (F827).
+     */
+    private final List<Map<String, String>> extraOptionsFiles = new ArrayList<>();
+
+    /** The names the generated operations add to their own signature, which a path or body parameter must not reuse (F1055). */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "self", "options", "server", "request_content_type", "timeout", "headers", "max_retries");
+    }
+
+    /** A parameter named like an injected argument gets this suffix, snake-cased like the rest. */
+    @Override
+    protected String getInjectedArgumentSuffix() {
+        return "_param";
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -407,6 +445,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         }
         final OperationsMap processed =
                 super.postProcessOperationsWithModels(objs, allModels);
+        addCallOptionsWhereMissing(processed);
         // A format:date parameter (query, header, path, or form) types the
         // method signature as `date`, but openapi-generator only collects
         // model imports from body/response schemas, never from scalar
@@ -432,6 +471,89 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             }
         }
         return processed;
+    }
+
+    /**
+     * Mints an Options class, and the signature entry that takes it, for every operation the
+     * shared pass gave none. The per-call timeout, headers and retry budget live on that class,
+     * so an operation without parameters still has the slot (F827). When the shared pass starts
+     * minting the class itself, every operation already has one and this does nothing.
+     */
+    @SuppressWarnings("unchecked")
+    private void addCallOptionsWhereMissing(OperationsMap processed) {
+        final Map<String, Object> operations = (Map<String, Object>) processed.get("operations");
+        if (operations == null) {
+            return;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            final Object decorator = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (!(decorator instanceof Map)) {
+                continue;
+            }
+            final Map<String, Object> deco = (Map<String, Object>) decorator;
+            final List<Map<String, Object>> sig = (List<Map<String, Object>>) deco.get("signatureArgs");
+            final List<Map<String, Object>> sigNoServer =
+                    (List<Map<String, Object>>) deco.get("signatureArgsNoServer");
+            if (sig == null || sigNoServer == null
+                    || sig.stream().anyMatch(a -> Boolean.TRUE.equals(a.get("isOptions")))) {
+                continue;
+            }
+            final String className = Objects.requireNonNull((String) deco.get("optionsClassName"));
+            final String content = generateOptionsFileContent(op, new ArrayList<>(), className);
+            if (content == null) {
+                continue;
+            }
+            final String filePath = getOptionsFilePath(op.operationId, className);
+            writeFile(filePath, content);
+            postProcessFile(Path.of(filePath).toFile(), "source");
+
+            final Map<String, String> meta = new HashMap<>();
+            meta.put("optionsClassName", className);
+            meta.put("optionsFilePath", filePath);
+            extraOptionsFiles.add(meta);
+
+            final Map<String, String> importMeta = new HashMap<>();
+            importMeta.put("optionsClassName", className);
+            importMeta.put("optionsFileName", NamingConvention.SNAKE_CASE.apply(className));
+            List<Map<String, String>> optionsImports =
+                    (List<Map<String, String>>) processed.get("optionsImports");
+            if (optionsImports == null) {
+                optionsImports = new ArrayList<>();
+                processed.put("optionsImports", optionsImports);
+            }
+            optionsImports.add(importMeta);
+
+            for (final List<Map<String, Object>> args : List.of(sig, sigNoServer)) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("kind", "options");
+                entry.put("isPath", false);
+                entry.put("isBody", false);
+                entry.put("isOptions", true);
+                entry.put("isServer", false);
+                entry.put("paramName", "options");
+                entry.put("dataType", className);
+                entry.put("nullable", true);
+                entry.put("isNullable", false);
+                args.add(entry);
+            }
+            deco.put("hasOptionsParam", true);
+        }
+    }
+
+    /**
+     * Writes the options barrel even when every Options class is one this generator minted,
+     * which the shared pass does not count.
+     */
+    @Override
+    public void postProcess() {
+        if (getAccumulatedOptionsFiles().isEmpty() && !extraOptionsFiles.isEmpty()) {
+            emitBarrelFiles(new ArrayList<>());
+        }
+        super.postProcess();
     }
 
     /**
@@ -510,6 +632,36 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         final String distributionName = getPropertyOrDefault("projectName", packageName);
         additionalProperties.put(
                 "userAgentDefault", distributionName + "/" + packageVersion + " (python)");
+
+        /* The environment-variable prefix of the credentials the client reads
+         * once at construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL). */
+        additionalProperties.put(
+                "envPrefix", NamingConvention.SNAKE_CASE.apply(distributionName).toUpperCase(Locale.ROOT));
+
+        /* Package metadata options: the manifest and the README show only the
+         * ones that were given. */
+        final List<Map<String, String>> authorsList = new ArrayList<>();
+        final Object authorsOption = additionalProperties.get(OPTION_AUTHORS);
+        if (authorsOption != null) {
+            for (final String author : Splitter.on(',').split(String.valueOf(authorsOption))) {
+                if (!author.trim().isEmpty()) {
+                    authorsList.add(Map.of("name", author.trim().replace("\\", "\\\\").replace("\"", "\\\"")));
+                }
+            }
+        }
+        additionalProperties.put("authorsList", authorsList);
+        additionalProperties.put("hasAuthors", !authorsList.isEmpty());
+        boolean hasProjectUrls = false;
+        for (final String urlOption : new String[] {
+            OPTION_REPOSITORY_URL, OPTION_HOMEPAGE_URL, OPTION_DOCUMENTATION_URL, OPTION_ISSUE_TRACKER_URL}) {
+            final Object value = additionalProperties.get(urlOption);
+            if (value != null && !String.valueOf(value).trim().isEmpty()) {
+                hasProjectUrls = true;
+            } else {
+                additionalProperties.remove(urlOption);
+            }
+        }
+        additionalProperties.put("hasProjectUrls", hasProjectUrls);
 
         modelPackage = packageName + ".models";
         apiPackage = packageName + ".api";
@@ -1416,8 +1568,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // The optional per-operation `auth` field is typed Optional[Authenticator],
         // so authed operations always need the Optional import even when they
         // carry no optional query/header/form/cookie params.
-        boolean needsOptional = op.hasAuthMethods;
+        boolean needsOptional = true;
         final List<String> typingNames = new ArrayList<>();
+        /* Every Options class carries the per-call timeout, headers and retry budget (F827). */
+        typingNames.add("Mapping");
         for (final CodegenParameter p : optionsParams) {
             if (!p.required) {
                 needsOptional = true;
@@ -1556,7 +1710,14 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
         final List<Map<String, String>> exports = new ArrayList<>();
-        for (final Map<String, String> meta : optionsFiles) {
+        final List<Map<String, String>> all = new ArrayList<>(optionsFiles);
+        for (final Map<String, String> extra : extraOptionsFiles) {
+            final String extraName = Objects.requireNonNull(extra.get("optionsClassName"));
+            if (all.stream().noneMatch(m -> extraName.equals(m.get("optionsClassName")))) {
+                all.add(extra);
+            }
+        }
+        for (final Map<String, String> meta : all) {
             final String className =
                     Objects.requireNonNull(meta.get("optionsClassName"));
             final Map<String, String> export = new HashMap<>();

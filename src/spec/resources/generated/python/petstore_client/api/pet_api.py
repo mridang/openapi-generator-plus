@@ -40,6 +40,19 @@ from .options.get_pet_tag_options import GetPetTagOptions
 from .options.set_pet_preferences_options import SetPetPreferencesOptions
 from .options.upload_pet_certificate_options import UploadPetCertificateOptions
 from .options.upload_pet_document_options import UploadPetDocumentOptions
+from .options.download_pet_document_options import DownloadPetDocumentOptions
+from .options.find_pets_born_on_options import FindPetsBornOnOptions
+from .options.get_external_pet_info_options import GetExternalPetInfoOptions
+from .options.get_multi_server_pet_info_options import GetMultiServerPetInfoOptions
+from .options.get_pet_avatar_options import GetPetAvatarOptions
+from .options.get_pet_avatar_thumbnail_options import GetPetAvatarThumbnailOptions
+from .options.get_pet_by_id_options import GetPetByIdOptions
+from .options.get_pet_passport_options import GetPetPassportOptions
+from .options.get_pet_photo_options import GetPetPhotoOptions
+from .options.get_staging_pet_info_options import GetStagingPetInfoOptions
+from .options.set_pet_avatar_options import SetPetAvatarOptions
+from .options.set_pet_avatar_thumbnail_options import SetPetAvatarThumbnailOptions
+from .options.update_pet_options import UpdatePetOptions
 
 
 class GetExternalPetInfoServer(ABC):
@@ -208,9 +221,7 @@ class PetApi(BaseApi):
     ) -> Pet:
         """Add a new pet to the store
         :param pet: Create a new pet in the store (required)
-
-        :param options: options carrying an optional per-call authenticator
-
+        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -239,9 +250,7 @@ class PetApi(BaseApi):
     ) -> "ApiResult[Pet]":
         """Add a new pet to the store (with HTTP info)
         :param pet: Create a new pet in the store (required)
-
-        :param options: options carrying an optional per-call authenticator
-
+        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -266,6 +275,7 @@ class PetApi(BaseApi):
             "Pet",
             (options.auth if options is not None else None),
             operation_name="add_pet",
+            request_options=options,
         )
 
     async def add_pet_photos(
@@ -276,8 +286,7 @@ class PetApi(BaseApi):
         """Add photos to the pet's gallery
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
         :param pet_id:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Photo]
         :raises ApiException: if fails to make API call
         """
@@ -307,8 +316,7 @@ class PetApi(BaseApi):
         """Add photos to the pet's gallery (with HTTP info)
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
         :param pet_id:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -355,6 +363,7 @@ class PetApi(BaseApi):
             "List[Photo]",
             None,
             operation_name="add_pet_photos",
+            request_options=options,
         )
 
     async def add_pet_treatment(
@@ -366,9 +375,7 @@ class PetApi(BaseApi):
         """Record a treatment for a pet
         :param pet_id:  (required)
         :param pet_treatment:  (required)
-
-        :param options: options carrying an optional per-call authenticator
-
+        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
         :return: PetTreatment
         :raises ApiException: if fails to make API call
         """
@@ -400,9 +407,7 @@ class PetApi(BaseApi):
         """Record a treatment for a pet (with HTTP info)
         :param pet_id:  (required)
         :param pet_treatment:  (required)
-
-        :param options: options carrying an optional per-call authenticator
-
+        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -440,6 +445,7 @@ class PetApi(BaseApi):
             "PetTreatment",
             (options.auth if options is not None else None),
             operation_name="add_pet_treatment",
+            request_options=options,
         )
 
     async def delete_pet(
@@ -449,8 +455,7 @@ class PetApi(BaseApi):
     ) -> None:
         """Deletes a pet
         :param pet_id: Pet id to delete (required)
-        :param options: options for query, header, form, and cookie parameters, plus an optional per-call authenticator
-
+        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
         """
         result = await self.delete_pet_with_http_info(
@@ -467,8 +472,7 @@ class PetApi(BaseApi):
     ) -> "ApiResult[None]":
         """Deletes a pet (with HTTP info)
         :param pet_id: Pet id to delete (required)
-        :param options: options for query, header, form, and cookie parameters, plus an optional per-call authenticator
-
+        :param options: per-call options: the query, header, form and cookie parameters, an optional per-call authenticator, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -527,24 +531,27 @@ class PetApi(BaseApi):
             None,
             (options.auth if options is not None else None),
             operation_name="delete_pet",
+            request_options=options,
         )
 
     async def download_pet_document(
         self,
         pet_id: StrictInt,
         document_id: StrictInt,
+        options: Optional[DownloadPetDocumentOptions] = None,
     ) -> bytes:
         """Download a vet document
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
         :param pet_id:  (required)
         :param document_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: bytes
         :raises ApiException: if fails to make API call
         """
         result = await self.download_pet_document_with_http_info(
             pet_id,
             document_id,
+            options=options,
         )
 
         if result.data is None:
@@ -564,12 +571,13 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         document_id: StrictInt,
+        options: Optional[DownloadPetDocumentOptions] = None,
     ) -> "ApiResult[bytes]":
         """Download a vet document (with HTTP info)
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
         :param pet_id:  (required)
         :param document_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -621,20 +629,23 @@ class PetApi(BaseApi):
             "bytes",
             None,
             operation_name="download_pet_document",
+            request_options=options,
         )
 
     async def find_pets_born_on(
         self,
         born_on: date,
+        options: Optional[FindPetsBornOnOptions] = None,
     ) -> List[Pet]:
         """List pets born on a given date
         :param born_on: Date of birth to match (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Pet]
         :raises ApiException: if fails to make API call
         """
         result = await self.find_pets_born_on_with_http_info(
             born_on,
+            options=options,
         )
 
         if result.data is None:
@@ -653,10 +664,11 @@ class PetApi(BaseApi):
     async def find_pets_born_on_with_http_info(
         self,
         born_on: date,
+        options: Optional[FindPetsBornOnOptions] = None,
     ) -> "ApiResult[List[Pet]]":
         """List pets born on a given date (with HTTP info)
         :param born_on: Date of birth to match (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -689,6 +701,7 @@ class PetApi(BaseApi):
             "List[Pet]",
             None,
             operation_name="find_pets_born_on",
+            request_options=options,
         )
 
     async def find_pets_by_status(
@@ -696,8 +709,7 @@ class PetApi(BaseApi):
         options: Optional[FindPetsByStatusOptions] = None,
     ) -> List[Pet]:
         """Finds Pets by status
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: List[Pet]
         :raises ApiException: if fails to make API call
 
@@ -729,8 +741,7 @@ class PetApi(BaseApi):
         options: Optional[FindPetsByStatusOptions] = None,
     ) -> "ApiResult[List[Pet]]":
         """Finds Pets by status (with HTTP info)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
 
@@ -823,21 +834,24 @@ class PetApi(BaseApi):
             "List[Pet]",
             None,
             operation_name="find_pets_by_status",
+            request_options=options,
         )
 
     async def get_external_pet_info(
         self,
         pet_id: StrictInt,
         server: Optional["GetExternalPetInfoServer"] = None,
+        options: Optional[GetExternalPetInfoOptions] = None,
     ) -> Pet:
         """Get external pet info
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
         """
         result = await self.get_external_pet_info_with_http_info(
             pet_id,
+            options=options,
             server=server,
         )
 
@@ -858,10 +872,11 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         server: Optional["GetExternalPetInfoServer"] = None,
+        options: Optional[GetExternalPetInfoOptions] = None,
     ) -> "ApiResult[Pet]":
         """Get external pet info (with HTTP info)
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -898,21 +913,24 @@ class PetApi(BaseApi):
             "Pet",
             None,
             operation_name="get_external_pet_info",
+            request_options=options,
         )
 
     async def get_multi_server_pet_info(
         self,
         pet_id: StrictInt,
         server: Optional["GetMultiServerPetInfoServer"] = None,
+        options: Optional[GetMultiServerPetInfoOptions] = None,
     ) -> Pet:
         """Get multi-server pet info
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
         """
         result = await self.get_multi_server_pet_info_with_http_info(
             pet_id,
+            options=options,
             server=server,
         )
 
@@ -933,10 +951,11 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         server: Optional["GetMultiServerPetInfoServer"] = None,
+        options: Optional[GetMultiServerPetInfoOptions] = None,
     ) -> "ApiResult[Pet]":
         """Get multi-server pet info (with HTTP info)
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -973,21 +992,24 @@ class PetApi(BaseApi):
             "Pet",
             None,
             operation_name="get_multi_server_pet_info",
+            request_options=options,
         )
 
     async def get_pet_avatar(
         self,
         pet_id: StrictInt,
+        options: Optional[GetPetAvatarOptions] = None,
     ) -> bytes:
         """Get the pet's profile photo
         Returns the raw image bytes of the pet's current avatar.
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: bytes
         :raises ApiException: if fails to make API call
         """
         result = await self.get_pet_avatar_with_http_info(
             pet_id,
+            options=options,
         )
 
         if result.data is None:
@@ -1006,11 +1028,12 @@ class PetApi(BaseApi):
     async def get_pet_avatar_with_http_info(
         self,
         pet_id: StrictInt,
+        options: Optional[GetPetAvatarOptions] = None,
     ) -> "ApiResult[bytes]":
         """Get the pet's profile photo (with HTTP info)
         Returns the raw image bytes of the pet's current avatar.
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1043,21 +1066,24 @@ class PetApi(BaseApi):
             "bytes",
             None,
             operation_name="get_pet_avatar",
+            request_options=options,
         )
 
     async def get_pet_avatar_thumbnail(
         self,
         pet_id: StrictInt,
+        options: Optional[GetPetAvatarThumbnailOptions] = None,
     ) -> bytes:
         """Get the pet's avatar thumbnail as base64
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: bytes
         :raises ApiException: if fails to make API call
         """
         result = await self.get_pet_avatar_thumbnail_with_http_info(
             pet_id,
+            options=options,
         )
 
         if result.data is None:
@@ -1076,11 +1102,12 @@ class PetApi(BaseApi):
     async def get_pet_avatar_thumbnail_with_http_info(
         self,
         pet_id: StrictInt,
+        options: Optional[GetPetAvatarThumbnailOptions] = None,
     ) -> "ApiResult[bytes]":
         """Get the pet's avatar thumbnail as base64 (with HTTP info)
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1113,12 +1140,14 @@ class PetApi(BaseApi):
             "bytes",
             None,
             operation_name="get_pet_avatar_thumbnail",
+            request_options=options,
         )
 
     async def get_pet_by_id(
         self,
         pet_id: StrictInt,
         server: Optional["GetPetByIdServer"] = None,
+        options: Optional[GetPetByIdOptions] = None,
     ) -> Pet:
         """Find pet by ID
         Returns a single pet
@@ -1129,7 +1158,7 @@ class PetApi(BaseApi):
         # Large breed ID
         # A common large-breed pet identifier
         # >>> 42
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
 
@@ -1138,6 +1167,7 @@ class PetApi(BaseApi):
         """
         result = await self.get_pet_by_id_with_http_info(
             pet_id,
+            options=options,
             server=server,
         )
 
@@ -1158,11 +1188,12 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         server: Optional["GetPetByIdServer"] = None,
+        options: Optional[GetPetByIdOptions] = None,
     ) -> "ApiResult[Pet]":
         """Find pet by ID (with HTTP info)
         Returns a single pet
         :param pet_id: ID of pet to return (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
 
@@ -1202,6 +1233,7 @@ class PetApi(BaseApi):
             "Pet",
             None,
             operation_name="get_pet_by_id",
+            request_options=options,
         )
 
     async def get_pet_by_name(
@@ -1211,8 +1243,7 @@ class PetApi(BaseApi):
     ) -> Pet:
         """Look up a pet by name (simple string path param + required query)
         :param name:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -1241,8 +1272,7 @@ class PetApi(BaseApi):
     ) -> "ApiResult[Pet]":
         """Look up a pet by name (simple string path param + required query) (with HTTP info)
         :param name:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1319,21 +1349,24 @@ class PetApi(BaseApi):
             "Pet",
             None,
             operation_name="get_pet_by_name",
+            request_options=options,
         )
 
     async def get_pet_passport(
         self,
         pet_id: StrictInt,
+        options: Optional[GetPetPassportOptions] = None,
     ) -> PetPassport:
         """Get the pet's passport
         Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: PetPassport
         :raises ApiException: if fails to make API call
         """
         result = await self.get_pet_passport_with_http_info(
             pet_id,
+            options=options,
         )
 
         if result.data is None:
@@ -1352,11 +1385,12 @@ class PetApi(BaseApi):
     async def get_pet_passport_with_http_info(
         self,
         pet_id: StrictInt,
+        options: Optional[GetPetPassportOptions] = None,
     ) -> "ApiResult[PetPassport]":
         """Get the pet's passport (with HTTP info)
         Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1389,24 +1423,27 @@ class PetApi(BaseApi):
             "PetPassport",
             None,
             operation_name="get_pet_passport",
+            request_options=options,
         )
 
     async def get_pet_photo(
         self,
         pet_id: StrictInt,
         photo_id: StrictInt,
+        options: Optional[GetPetPhotoOptions] = None,
     ) -> bytes:
         """Get a photo or its metadata
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
         :param pet_id:  (required)
         :param photo_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: bytes
         :raises ApiException: if fails to make API call
         """
         result = await self.get_pet_photo_with_http_info(
             pet_id,
             photo_id,
+            options=options,
         )
 
         if result.data is None:
@@ -1426,12 +1463,13 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         photo_id: StrictInt,
+        options: Optional[GetPetPhotoOptions] = None,
     ) -> "ApiResult[bytes]":
         """Get a photo or its metadata (with HTTP info)
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
         :param pet_id:  (required)
         :param photo_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1477,6 +1515,7 @@ class PetApi(BaseApi):
             "bytes",
             None,
             operation_name="get_pet_photo",
+            request_options=options,
         )
 
     async def get_pet_summary(
@@ -1489,8 +1528,7 @@ class PetApi(BaseApi):
         Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
         :param pet_id:  (required)
         :param as_of: Summary date, sent as a matrix-style path segment (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: StrictStr
         :raises ApiException: if fails to make API call
         """
@@ -1523,8 +1561,7 @@ class PetApi(BaseApi):
         Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
         :param pet_id:  (required)
         :param as_of: Summary date, sent as a matrix-style path segment (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1619,6 +1656,7 @@ class PetApi(BaseApi):
             "StrictStr",
             None,
             operation_name="get_pet_summary",
+            request_options=options,
         )
 
     async def get_pet_tag(
@@ -1630,8 +1668,7 @@ class PetApi(BaseApi):
         """Get a tag for a pet
         :param pet_id:  (required)
         :param tag_name:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -1663,8 +1700,7 @@ class PetApi(BaseApi):
         """Get a tag for a pet (with HTTP info)
         :param pet_id:  (required)
         :param tag_name:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1866,21 +1902,24 @@ class PetApi(BaseApi):
             "Pet",
             None,
             operation_name="get_pet_tag",
+            request_options=options,
         )
 
     async def get_staging_pet_info(
         self,
         pet_id: StrictInt,
         server: Optional["GetStagingPetInfoServer"] = None,
+        options: Optional[GetStagingPetInfoOptions] = None,
     ) -> Pet:
         """Get staging pet info
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
         """
         result = await self.get_staging_pet_info_with_http_info(
             pet_id,
+            options=options,
             server=server,
         )
 
@@ -1901,10 +1940,11 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         server: Optional["GetStagingPetInfoServer"] = None,
+        options: Optional[GetStagingPetInfoOptions] = None,
     ) -> "ApiResult[Pet]":
         """Get staging pet info (with HTTP info)
         :param pet_id:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1941,25 +1981,28 @@ class PetApi(BaseApi):
             "Pet",
             None,
             operation_name="get_staging_pet_info",
+            request_options=options,
         )
 
     async def set_pet_avatar(
         self,
         pet_id: StrictInt,
         body: bytes,
+        options: Optional[SetPetAvatarOptions] = None,
         request_content_type: Optional[str] = None,
     ) -> None:
         """Set the pet's profile photo
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
         :param pet_id:  (required)
         :param body:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (image/jpeg, image/png, application/json); defaults to the first declared type when omitted.
         :raises ApiException: if fails to make API call
         """
         result = await self.set_pet_avatar_with_http_info(
             pet_id,
             body,
+            options=options,
             request_content_type=request_content_type,
         )
 
@@ -1969,13 +2012,14 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         body: bytes,
+        options: Optional[SetPetAvatarOptions] = None,
         request_content_type: Optional[str] = None,
     ) -> "ApiResult[None]":
         """Set the pet's profile photo (with HTTP info)
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
         :param pet_id:  (required)
         :param body:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (image/jpeg, image/png, application/json); defaults to the first declared type when omitted.
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -2031,23 +2075,26 @@ class PetApi(BaseApi):
             None,
             raw_body=True,
             operation_name="set_pet_avatar",
+            request_options=options,
         )
 
     async def set_pet_avatar_thumbnail(
         self,
         pet_id: StrictInt,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Optional[SetPetAvatarThumbnailOptions] = None,
     ) -> None:
         """Set the pet's avatar thumbnail as base64
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
         :param pet_id:  (required)
         :param set_pet_avatar_thumbnail_request:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
         """
         result = await self.set_pet_avatar_thumbnail_with_http_info(
             pet_id,
             set_pet_avatar_thumbnail_request,
+            options=options,
         )
 
         return result.data
@@ -2056,12 +2103,13 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Optional[SetPetAvatarThumbnailOptions] = None,
     ) -> "ApiResult[None]":
         """Set the pet's avatar thumbnail as base64 (with HTTP info)
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
         :param pet_id:  (required)
         :param set_pet_avatar_thumbnail_request:  (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -2099,6 +2147,7 @@ class PetApi(BaseApi):
             None,
             None,
             operation_name="set_pet_avatar_thumbnail",
+            request_options=options,
         )
 
     async def set_pet_preferences(
@@ -2109,8 +2158,7 @@ class PetApi(BaseApi):
         """Update a pet's notification preferences
         Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
         :param pet_id:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
@@ -2140,8 +2188,7 @@ class PetApi(BaseApi):
         """Update a pet's notification preferences (with HTTP info)
         Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
         :param pet_id:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -2189,23 +2236,26 @@ class PetApi(BaseApi):
             "ApiResponse",
             None,
             operation_name="set_pet_preferences",
+            request_options=options,
         )
 
     async def update_pet(
         self,
         pet_id: StrictInt,
         pet: Pet,
+        options: Optional[UpdatePetOptions] = None,
     ) -> Pet:
         """Update an existing pet
         :param pet_id: ID of pet to update (required)
         :param pet: Pet object that needs to be updated (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Pet
         :raises ApiException: if fails to make API call
         """
         result = await self.update_pet_with_http_info(
             pet_id,
             pet,
+            options=options,
         )
 
         if result.data is None:
@@ -2225,11 +2275,12 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         pet: Pet,
+        options: Optional[UpdatePetOptions] = None,
     ) -> "ApiResult[Pet]":
         """Update an existing pet (with HTTP info)
         :param pet_id: ID of pet to update (required)
         :param pet: Pet object that needs to be updated (required)
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -2267,6 +2318,7 @@ class PetApi(BaseApi):
             "Pet",
             None,
             operation_name="update_pet",
+            request_options=options,
         )
 
     async def upload_pet_certificate(
@@ -2277,8 +2329,7 @@ class PetApi(BaseApi):
         """Upload the pet's adoption certificate
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
         :param pet_id:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
@@ -2308,8 +2359,7 @@ class PetApi(BaseApi):
         """Upload the pet's adoption certificate (with HTTP info)
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
         :param pet_id:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -2349,6 +2399,7 @@ class PetApi(BaseApi):
             "ApiResponse",
             None,
             operation_name="upload_pet_certificate",
+            request_options=options,
         )
 
     async def upload_pet_document(
@@ -2360,8 +2411,7 @@ class PetApi(BaseApi):
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
         :param pet_id:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (multipart/form-data, application/octet-stream); defaults to the first declared type when omitted.
         :return: ApiResponse
         :raises ApiException: if fails to make API call
@@ -2394,8 +2444,7 @@ class PetApi(BaseApi):
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
         :param pet_id:  (required)
-        :param options: options for query, header, form, and cookie parameters
-
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (multipart/form-data, application/octet-stream); defaults to the first declared type when omitted.
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -2464,4 +2513,5 @@ class PetApi(BaseApi):
             "ApiResponse",
             None,
             operation_name="upload_pet_document",
+            request_options=options,
         )

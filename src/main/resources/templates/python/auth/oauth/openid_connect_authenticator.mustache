@@ -129,7 +129,12 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
                 'on HttpAwareAuthenticator before making API requests.'
             )
         headers: Dict[str, str] = {'Accept': 'application/json'}
-        response = self._api_client.send_request('GET', self._openid_connect_url, headers, None)
+        # no_redirect also leaves out the transport's default headers, so an
+        # Authorization or API-key header meant for the API never reaches the
+        # identity provider's host.
+        response = self._api_client.send_request(
+            'GET', self._openid_connect_url, headers, None, no_redirect=True
+        )
         # Guard the HTTP status before parsing: a 500-HTML error page would
         # otherwise surface as a confusing "invalid JSON" error instead of
         # the real discovery failure. Discovery is an HTTP call like any

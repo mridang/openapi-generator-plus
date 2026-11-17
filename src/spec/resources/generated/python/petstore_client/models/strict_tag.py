@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic import StrictInt, StrictStr
+from petstore_client._types import hash_model
 from typing import Optional
 
 
@@ -26,13 +27,16 @@ class StrictTag(BaseModel):
     # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
-        validate_assignment=True,
+        frozen=True,
         protected_namespaces=(),
         # Item 9 — OAS 3.1 unevaluatedProperties:false → pydantic native
         # rejection of extra JSON keys (replaces the hand-rolled
         # _reject_unknown_keys model_validator).
         extra="forbid",
     )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
 
 
 StrictTag.model_rebuild(raise_errors=False)

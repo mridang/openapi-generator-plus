@@ -7,8 +7,19 @@
 
 import asyncio
 import time
-from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
-from urllib.parse import quote, urlencode
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Protocol,
+    TypeVar,
+    Union,
+)
+from urllib.parse import quote, urlencode, urlsplit
 
 from pydantic import BaseModel
 
@@ -39,6 +50,24 @@ from ..auth.authenticator import Authenticator
 from ..auth.http_aware_authenticator import HttpAwareAuthenticator
 
 T = TypeVar("T")
+
+
+class CallOptions(Protocol):
+    """The per-call settings every operation's Options object carries.
+
+    ``timeout`` (milliseconds, one end-to-end budget), ``headers`` (replace a
+    default header of the same name) and ``max_retries`` override the client's
+    settings for one call; ``None`` keeps the client's.
+    """
+
+    @property
+    def timeout(self) -> Optional[int]: ...
+
+    @property
+    def headers(self) -> Optional[Mapping[str, str]]: ...
+
+    @property
+    def max_retries(self) -> Optional[int]: ...
 
 
 class _NoAuth:
@@ -149,6 +178,8 @@ class BaseApi:
         auth: Union[Authenticator, "_NoAuth", None] = None,
         raw_body: bool = False,
         operation_name: str = "",
+        request_options: Optional[CallOptions] = None,
+        decode_success: Optional[Callable[[int, str], Any]] = None,
     ) -> "ApiResult[Any]":
         """Invoke an API operation and return the full result including status
         code, headers, and raw body alongside the deserialized data.
@@ -169,6 +200,10 @@ class BaseApi:
             raw_body: Send the body as raw bytes.
             operation_name: The operation id, named in the error text for an
                 unexpected response Content-Type.
+            request_options: The operation's Options object: its ``timeout``,
+                ``headers`` and ``max_retries`` apply to this call only.
+            decode_success: Decodes a 2xx body by the status code it came with,
+                for an operation that answers different schemas per status.
 
         Returns:
             ApiResult containing deserialized data, status code, raw body,
@@ -189,6 +224,9 @@ class BaseApi:
                 if path.startswith("/")
                 else self._config.base_url + path
             )
+
+        # The path of the request without its query, named on every error.
+        request_path = urlsplit(url).path
 
         # Resolve auth into three states (see _NoAuth):
         #   - auth is NO_AUTH         -> suppress auth; do NOT fall back to the
@@ -255,6 +293,12 @@ class BaseApi:
                 if query_string:
                     url += "?" + query_string
 
+        call_headers = request_options.headers if request_options is not None else None
+        call_timeout = request_options.timeout if request_options is not None else None
+        call_max_retries = (
+            request_options.max_retries if request_options is not None else None
+        )
+
         is_multipart = content_type is not None and content_type.lower().startswith(
             "multipart/"
         )
@@ -272,6 +316,8 @@ class BaseApi:
             _merge_headers(headers, self._config.default_headers)
             if header_params:
                 _merge_headers(headers, header_params)
+            if call_headers:
+                _merge_headers(headers, call_headers)
             if effective_auth is not None:
                 # Offload auth-header acquisition to a worker thread. For OAuth this
                 # call acquires a threading.Lock and may perform a blocking HTTP
@@ -396,12 +442,23 @@ class BaseApi:
             else:
                 serialized_body = self._object_serializer.serialize(body)
 
-        response = await self._send_with_policy(
-            method, url, headers, serialized_body, build_headers, effective_auth
-        )
+        try:
+            response = await self._send_with_policy(
+                method,
+                url,
+                headers,
+                serialized_body,
+                build_headers,
+                effective_auth,
+                call_timeout,
+                call_max_retries,
+            )
+        except NetworkException as error:
+            error._with_request(method, request_path)
+            raise
 
         if response.status_code < 200 or response.status_code >= 300:
-            self._throw_api_exception(response)
+            self._throw_api_exception(response, method, request_path)
 
         data: Any = None
         if return_type is not None and response.body:
@@ -438,6 +495,8 @@ class BaseApi:
                     if isinstance(response.body, str)
                     else response.body
                 )
+            elif decode_success is not None:
+                data = decode_success(response.status_code, response.body)
             else:
                 data = self._object_serializer.deserialize(response.body, return_type)
 
@@ -456,10 +515,13 @@ class BaseApi:
         body: Any,
         rebuild_headers: Callable[[], Awaitable[Dict[str, str]]],
         auth: Optional[Authenticator],
+        call_timeout: Optional[int] = None,
+        call_max_retries: Optional[int] = None,
     ) -> ApiHttpResponse:
         """Send the request, retrying and re-authenticating as the policy says.
 
-        Retries follow ``TransportOptions.max_retries``. A ``401`` on a call
+        Retries follow ``TransportOptions.max_retries``, or the call's own
+        ``max_retries`` and ``timeout`` when the Options object sets them. A ``401`` on a call
         authenticated by an OAuth2 or OpenID Connect authenticator drops the
         cached access token (the refresh token is kept) and replays the request
         once with fresh headers; a second ``401`` is returned as it is. A body
@@ -472,13 +534,18 @@ class BaseApi:
             body, (str, bytes, bytearray, memoryview)
         )
         max_retries = 0
+        timeout = call_timeout
         deadline: Optional[float] = None
         if isinstance(client, DefaultApiClient):
             options = client.transport_options
             if replayable:
                 max_retries = options.max_retries
-            if options.timeout is not None:
-                deadline = time.monotonic() + options.timeout / 1000.0
+            if timeout is None:
+                timeout = options.timeout
+        if replayable and call_max_retries is not None:
+            max_retries = call_max_retries
+        if timeout is not None:
+            deadline = time.monotonic() + timeout / 1000.0
         response = await self._send_with_retries(
             method, url, headers, body, rebuild_headers, max_retries, deadline
         )
@@ -654,12 +721,20 @@ class BaseApi:
         )
 
     @staticmethod
-    def _throw_api_exception(response: "ApiHttpResponse") -> None:
+    def _throw_api_exception(
+        response: "ApiHttpResponse",
+        request_method: Optional[str] = None,
+        request_path: Optional[str] = None,
+    ) -> None:
         """Raise the exception :meth:`ApiException.from_response` maps the
         error response to. The body is parsed as JSON where possible so that
         structured error data (e.g. from a ``default`` response schema) is
         available via :attr:`ApiException.error_body`.
         """
         raise ApiException.from_response(
-            response.status_code, response.headers, response.body
+            response.status_code,
+            response.headers,
+            response.body,
+            request_method,
+            request_path,
         )

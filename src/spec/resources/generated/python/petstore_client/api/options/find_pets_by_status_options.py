@@ -11,12 +11,22 @@ from dataclasses import dataclass
 from datetime import date
 from pydantic import StrictInt
 from pydantic import StrictStr
-from typing import Optional, Dict
+from typing import Optional, Mapping, Dict
+from petstore_client.transport_options import _validated_call_headers
 
 
 @dataclass(frozen=True)
 class FindPetsByStatusOptions:
-    """Options for the find_pets_by_status operation."""
+    """Options for the find_pets_by_status operation.
+
+    Besides the operation's own parameters, every Options object carries three
+    per-call settings that override the client's for this call only: a
+    ``timeout`` in milliseconds (one end-to-end budget, at least 1), extra
+    request ``headers`` (they replace a default header of the same name) and
+    ``max_retries`` (at least 0; ``0`` turns retrying off). ``None`` keeps the
+    client's setting. A custom ``ApiClient`` owns its own timeout, so only the
+    headers and the retry budget reach it.
+    """
 
     # Example for `status`: Available only
     # Show only pets currently in stock
@@ -30,3 +40,13 @@ class FindPetsByStatusOptions:
     born_after: Optional[date] = None
     n2nd_page: Optional[StrictInt] = None
     report_date: Optional[date] = None
+    timeout: Optional[int] = None
+    headers: Optional[Mapping[str, str]] = None
+    max_retries: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "headers",
+            _validated_call_headers(self.timeout, self.headers, self.max_retries),
+        )

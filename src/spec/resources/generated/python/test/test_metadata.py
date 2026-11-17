@@ -3,9 +3,14 @@ import ast
 import dataclasses
 import json
 import os
-import tomllib
+import sys
 
 import pytest
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from petstore_client.object_serializer import ObjectSerializer
 
@@ -208,6 +213,26 @@ class TestReadmeAndSkillsText:
         ):
             assert readme.index(heading) < not_supported
 
+    def test_readme_documents_credentials_per_call_options_and_the_behaviours_to_know(
+        self,
+    ) -> None:
+        readme = self._read("README.md")
+        not_supported = readme.index("## Not supported")
+        for heading in (
+            "### Credentials",
+            "### Per-call options",
+            "### Errors",
+            "### Operations with several success responses",
+            "### Models are immutable",
+            "### Logging and tracing",
+            "### Versioning and supported Python",
+            "### Behaviours to know",
+        ):
+            assert readme.index(heading) < not_supported
+        assert "Unknown values fail loudly" in readme
+        assert "Streaming is not supported" in readme
+        assert "stay separate objects" in readme
+
     def test_readme_not_supported_lists_xml_links_and_mutual_tls(self) -> None:
         readme = self._read("README.md")
         for heading in ("### XML bodies", "### Link Objects", "### Mutual TLS"):
@@ -263,6 +288,49 @@ class TestOptionsImmutability:
 
         with pytest.raises(dataclasses.FrozenInstanceError):
             cast(Any, options).status = "sold"
+
+
+class TestOptionsPerCallSettings:
+    @staticmethod
+    def _options() -> Any:
+        from petstore_client.api.options.find_pets_by_status_options import (
+            FindPetsByStatusOptions,
+        )
+
+        return FindPetsByStatusOptions
+
+    def test_the_per_call_settings_default_to_the_clients(self) -> None:
+        options = self._options()()
+
+        assert options.timeout is None
+        assert options.headers is None
+        assert options.max_retries is None
+
+    @pytest.mark.parametrize("timeout", [0, -5, True, "10"])
+    def test_a_timeout_below_one_millisecond_or_not_a_number_is_rejected(
+        self, timeout: Any
+    ) -> None:
+        with pytest.raises(ValueError, match="timeout"):
+            self._options()(timeout=timeout)
+
+    @pytest.mark.parametrize("max_retries", [-1, True, 1.5])
+    def test_a_retry_budget_below_zero_or_not_a_whole_number_is_rejected(
+        self, max_retries: Any
+    ) -> None:
+        with pytest.raises(ValueError, match="max_retries"):
+            self._options()(max_retries=max_retries)
+
+    def test_zero_retries_is_allowed(self) -> None:
+        assert self._options()(max_retries=0).max_retries == 0
+
+    def test_the_headers_are_a_read_only_copy(self) -> None:
+        source = {"X-A": "1"}
+        options = self._options()(headers=source)
+        source["X-A"] = "2"
+
+        assert options.headers["X-A"] == "1"
+        with pytest.raises(TypeError):
+            cast(Any, options.headers)["X-B"] = "3"
 
 
 class TestMetadataEquality:

@@ -20,6 +20,8 @@ class NotFoundException(ClientException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
         cause: Optional[BaseException] = None,
+        request_method: Optional[str] = None,
+        request_path: Optional[str] = None,
     ) -> None:
         super().__init__(
             status_code=404,
@@ -28,4 +30,6 @@ class NotFoundException(ClientException):
             response_body=response_body,
             error_body=error_body,
             cause=cause,
+            request_method=request_method,
+            request_path=request_path,
         )

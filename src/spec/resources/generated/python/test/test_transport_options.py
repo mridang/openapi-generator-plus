@@ -1,9 +1,14 @@
 import dataclasses
 import os
-import tomllib
+import sys
 
 import pytest
 from types import MappingProxyType
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from petstore_client.errors import OpenAPIException
 from petstore_client.transport_options import TransportOptions
