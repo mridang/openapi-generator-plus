@@ -170,6 +170,47 @@ void main() {
       );
     });
 
+    test('bhv operations 093 uploadPetDocument rejects an undeclared request content type', () async {
+      final api = _newPetApiForIntegration();
+      await expectLater(
+        api.uploadPetDocument(
+          1,
+          UploadPetDocumentOptions(file: Uint8List.fromList(<int>[0xFF, 0xD8, 0xFF])),
+          'application/unknown-type',
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            startsWith("Unsupported request content-type 'application/unknown-type' for uploadPetDocument; declared types are ["))),
+      );
+    });
+
+    test('bhv operations 077 SetPetAvatarThumbnail still sends a byte body as a base64 json string', () async {
+      String? requestBody;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        requestBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.setPetAvatarThumbnail(
+          1,
+          SetPetAvatarThumbnailRequest(Uint8List.fromList(<int>[1, 2, 3])),
+          null,
+        );
+
+        expect(jsonDecode(requestBody!), equals('AQID'));
+      } finally {
+        await server.close();
+      }
+    });
+
     /* binary-request-body-streamed-raw (canonical scenario C1): setPetAvatar's
      * request body is declared `type: string, format: binary` with a declared
      * Content-Type of `image/jpeg`. The raw bytes must reach the wire UNCHANGED
@@ -730,6 +771,74 @@ void main() {
       );
     });
 
+    test('bhv operations 028 a deletePet cookie value with a character outside cookie-octet fails before sending', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      for (final value in ['a b', 'a;b', 'a,b', 'a"b', r'a\b', 'café']) {
+        await expectLater(
+          api.deletePet(1, DeletePetOptions(apiKey: value)),
+          throwsA(isA<ArgumentError>()),
+          reason: value,
+        );
+      }
+    });
+
+    test('bhv operations 062 getPetAvatarThumbnail decodes a JSON string literal as base64 bytes', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('"AQID"')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final bytes = await api.getPetAvatarThumbnail(1, null);
+        expect(bytes, equals(Uint8List.fromList(<int>[1, 2, 3])));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 066 getPetTag percent-encodes # in an allowReserved value', () async {
+      String? capturedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedQuery = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetTag(
+          5,
+          'cute',
+          const GetPetTagOptions(revision: 'v1/beta#rc'),
+        );
+
+        expect(capturedQuery, contains('revision=v1/beta%23rc'));
+      } finally {
+        await server.close();
+      }
+    });
+
     /* malformed-2xx-body-fails-loud (canonical scenario 11): a 200 response
      * carrying a JSON content-type but an undecodable body must propagate the
      * deserialize failure (SerializationException) rather than silently handing
@@ -1237,6 +1346,75 @@ void main() {
      * so the call must fail-fast with an ArgumentError rather than sending an
      * empty value on the wire. getPetByName's `category` is a required string
      * query param carried on the required Options object. */
+    test('bhv operations 051 getPetByName rejects a dot segment before dispatch', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      for (final name in ['.', '..']) {
+        await expectLater(
+          api.getPetByName(
+            name,
+            const GetPetByNameOptions(category: 'c', xCorrelationId: 'c-1'),
+          ),
+          throwsA(isA<ArgumentError>()),
+          reason: name,
+        );
+      }
+    });
+
+    test('bhv operations 052 getPetByName throws when the required path parameter is empty', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      await expectLater(
+        api.getPetByName(
+          '',
+          const GetPetByNameOptions(category: 'c', xCorrelationId: 'c-1'),
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            "Missing the required parameter 'name' when calling PetApi.getPetByName",
+          ),
+        ),
+      );
+    });
+
+    test('bhv operations 064 getPetByName keeps a name that only contains dots', () async {
+      String? capturedPath;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedPath = request.uri.path;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"...","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final pet = await api.getPetByName(
+          '...',
+          const GetPetByNameOptions(category: 'c', xCorrelationId: 'c-1'),
+        );
+
+        expect(capturedPath, equals('/pet/byName/...'));
+        expect(pet.name, equals('...'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv operations 049 getPetByName rejects empty-string required category', () async {
       final config = ConfigurationBuilder()
           .baseUrl('http://localhost:1')
