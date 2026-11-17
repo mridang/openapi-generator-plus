@@ -307,6 +307,50 @@ func TestBhvOperations040_PetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T)
 	}
 }
 
+// An optional query parameter that allows an empty value is sent as the bare
+// key when the caller passes an empty string.
+func TestBhvOperations003_PetApi_AllowEmptyValueSendsTheKeyWhenEmpty(t *testing.T) {
+	t.Parallel()
+	var capturedQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	empty := options.FindPetsByStatusStatus("")
+	if _, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &empty}); err != nil {
+		t.Fatalf("FindPetsByStatus failed: %v", err)
+	}
+	if !strings.Contains(capturedQuery, "status=") {
+		t.Errorf("expected the bare status= key for an empty value, got %q", capturedQuery)
+	}
+}
+
+// An omitted optional status sends no status key at all in the query string.
+func TestBhvOperations041_PetApi_FindPetsByStatusOmittingStatusSendsNoStatusKeyInQuery(t *testing.T) {
+	t.Parallel()
+	var capturedQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	if _, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{}); err != nil {
+		t.Fatalf("FindPetsByStatus failed: %v", err)
+	}
+	if capturedQuery != "" {
+		t.Errorf("expected an empty query string when status is omitted, got %q", capturedQuery)
+	}
+}
+
 // The digit-leading query param 2ndPage is carried by the Options field
 // N2ndPage, and the method reads that same field when it builds the query.
 func TestBhvOperations021_PetApi_FindPetsByStatusSendsTheDigitLeadingParam(t *testing.T) {
@@ -332,7 +376,7 @@ func TestBhvOperations021_PetApi_FindPetsByStatusSendsTheDigitLeadingParam(t *te
 
 // A string-returning operation answered with text/plain hands the body back
 // verbatim, spaces included, instead of the zero value.
-func TestPetApi_GetPetSummaryReturnsTheTextPlainBodyVerbatim(t *testing.T) {
+func TestBhvOperations017_PetApi_GetPetSummaryReturnsTheTextPlainBodyVerbatim(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -945,6 +989,140 @@ func TestBhvOperations058_PetApi_GetPetTag(t *testing.T) {
 	}
 }
 
+// The matrix date segment, the date array and the required session cookie all
+// reach the wire of getPetSummary.
+func TestBhvOperations057_PetApi_GetPetSummarySendsTheMatrixDateDateArrayAndSessionCookie(t *testing.T) {
+	t.Parallel()
+	var rawPath, query, cookie string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawPath, query, cookie = r.URL.Path, r.URL.RawQuery, r.Header.Get("Cookie")
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("summary"))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	days := []string{"2024-01-15", "2024-02-01"}
+	if _, err := api.GetPetSummary(context.Background(), int64(7), "2024-01-15", &options.GetPetSummaryOptions{
+		Session: "abc",
+		Days:    &days,
+	}); err != nil {
+		t.Fatalf("GetPetSummary failed: %v", err)
+	}
+	if rawPath != "/pet/7/summary/;asOf=2024-01-15" {
+		t.Errorf("expected the matrix date segment, got %q", rawPath)
+	}
+	if !strings.Contains(query, "days=2024-01-15&days=2024-02-01") {
+		t.Errorf("expected the date array in the query, got %q", query)
+	}
+	if cookie != "session=abc" {
+		t.Errorf("expected the session cookie session=abc, got %q", cookie)
+	}
+}
+
+// The matrix and label path styles of getPetTag reach the wire.
+func TestBhvOperations060_PetApi_GetPetTagUsesTheMatrixAndLabelPathStyles(t *testing.T) {
+	t.Parallel()
+	var rawPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	if _, err := api.GetPetTag(context.Background(), int64(5), "cute", &options.GetPetTagOptions{}); err != nil {
+		t.Fatalf("GetPetTag failed: %v", err)
+	}
+	if rawPath != "/pet/;petId=5/tag/.cute" {
+		t.Errorf("expected the matrix and label path styles, got %q", rawPath)
+	}
+}
+
+// A 200 JSON string literal holding base64 is decoded to the raw bytes.
+func TestBhvOperations062_PetApi_GetPetAvatarThumbnailDecodesAJsonStringLiteralAsBase64(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`"aGk="`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	result, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarThumbnail failed: %v", err)
+	}
+	if string(result) != "hi" {
+		t.Errorf("expected the decoded bytes %q, got %q", "hi", string(result))
+	}
+}
+
+// A JSON string literal that is not valid base64 is a SerializationError.
+func TestBhvOperations063_PetApi_GetPetAvatarThumbnailRejectsMalformedBase64(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`"!!not*base64??"`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// A name made only of dots is not a dot segment, so it is kept as the path segment.
+func TestBhvOperations064_PetApi_GetPetByNameKeepsANameThatOnlyContainsDots(t *testing.T) {
+	t.Parallel()
+	var rawPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	if _, err := api.GetPetByName(context.Background(), "...", &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"}); err != nil {
+		t.Fatalf("GetPetByName failed: %v", err)
+	}
+	if rawPath != "/pet/byName/..." {
+		t.Errorf("expected the name kept as the path segment, got %q", rawPath)
+	}
+}
+
+// An allowReserved query value keeps its reserved characters but always percent-encodes #.
+func TestBhvOperations066_PetApi_GetPetTagPercentEncodesAHashInAnAllowReservedValue(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	revision := "v1.0/beta:rc1#frag"
+	if _, err := api.GetPetTag(context.Background(), int64(5), "cute", &options.GetPetTagOptions{Revision: &revision}); err != nil {
+		t.Fatalf("GetPetTag failed: %v", err)
+	}
+	if !strings.Contains(query, "revision=v1.0/beta:rc1%23frag") {
+		t.Errorf("expected revision=v1.0/beta:rc1%%23frag in the query, got %q", query)
+	}
+}
+
 // mockExternalPetInfoServer points the operation's own server at the mock
 // server, which serves every path in the spec.
 type mockExternalPetInfoServer struct{}
@@ -1287,6 +1465,26 @@ func TestBhvOperations050_PetApi_RequiredHeaderAndCookieAreRefusedBeforeAnyReque
 	}
 }
 
+// An empty required session cookie is refused before any request is sent.
+func TestBhvOperations056_PetApi_GetPetSummaryRefusesAnEmptyRequiredCookieBeforeSending(t *testing.T) {
+	t.Parallel()
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-15", &options.GetPetSummaryOptions{Session: ""})
+	if !errors.Is(err, {{packageName}}.ErrMissingRequiredParameter) {
+		t.Fatalf("expected ErrMissingRequiredParameter, got %v", err)
+	}
+	if requests != 0 {
+		t.Errorf("expected no request to be sent, got %d", requests)
+	}
+}
+
 func TestPetApi_UploadFieldAcceptsAnIoReader(t *testing.T) {
 	t.Parallel()
 	var gotFile string
@@ -1343,6 +1541,27 @@ func TestBhvOperations037_PetApi_ErrorHandling_NotFound(t *testing.T) {
 	}
 	if notFound.StatusCode() != 404 {
 		t.Errorf("expected status 404, got %d", notFound.StatusCode())
+	}
+}
+
+// A 500 response is a typed InternalServerError that carries its status code.
+func TestBhvOperations038_PetApi_ErrorHandlingServerError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
+	var serverErr *pkgerrors.InternalServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *InternalServerError, got %T: %v", err, err)
+	}
+	if serverErr.StatusCode() != 500 {
+		t.Errorf("expected status 500, got %d", serverErr.StatusCode())
 	}
 }
 
@@ -1404,6 +1623,67 @@ func TestBhvOperations026_PetApi_AddPetAppliesTheClientAuthenticator(t *testing.
 	}
 	if capturedAuth != "Bearer per-call-token" {
 		t.Errorf("expected the client authenticator on the wire, got %q", capturedAuth)
+	}
+}
+
+// A credential held only for a scheme AddPet does not name is never sent.
+func TestBhvOperations020_PetApi_ACredentialForAnotherSchemeIsNeverSent(t *testing.T) {
+	t.Parallel()
+	var gotAuth, gotQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth, gotQuery = r.Header.Get("Authorization"), r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	query, err := auth.NewApiKeyQueryAuthenticator(server.URL, "query-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := {{packageName}}.New{{clientClassName}}WithCredentials(server.URL, {{packageName}}.Credentials{ApiKeyQuery: query}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	pet := models.NewPet("OtherDog", models.Set[string]{"http://example.com/o.jpg"})
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if strings.Contains(gotQuery, "query-key") {
+		t.Errorf("a credential of a scheme AddPet does not name leaked into the query: %q", gotQuery)
+	}
+	if gotAuth != "" {
+		t.Errorf("expected no Authorization header, got %q", gotAuth)
+	}
+}
+
+// With no credential held for the scheme AddPet requires, the client's
+// configured default credentials are used, even when options are passed.
+func TestBhvOperations078_PetApi_AddPetUsesConfiguredCredentialsWhenNoSchemeCredentialIsHeld(t *testing.T) {
+	t.Parallel()
+	var capturedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL(server.URL).
+		DefaultHeader("Authorization", "Bearer default-token").
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+
+	pet := models.NewPet("DefaultDog", models.Set[string]{"http://example.com/d.jpg"})
+	if _, err := api.AddPet(context.Background(), *pet, &options.AddPetOptions{}); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if capturedAuth != "Bearer default-token" {
+		t.Errorf("expected the configured default Authorization header, got %q", capturedAuth)
 	}
 }
 
