@@ -296,6 +296,21 @@ func TestBhvAuthoauthtwoauthcode003_OAuth2AuthorizationCodeAuthenticator_AuthHea
 	}
 }
 
+// Auth headers requested before the code exchange fail with an error that names
+// ExchangeCode, the call the caller has to make first.
+func TestBhvAuthoauthtwoauthcode030_OAuth2AuthorizationCodeAuthenticator_AuthHeadersBeforeExchangeNamesExchangeCode(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	_, err := authObj.AuthHeadersOrError()
+	if err == nil {
+		t.Fatal("expected AuthHeadersOrError to fail before ExchangeCode")
+	}
+	if !strings.Contains(err.Error(), "ExchangeCode") {
+		t.Errorf("expected the error to name ExchangeCode, got %q", err.Error())
+	}
+}
+
 func TestBhvAuthoauthtwoauthcode014_OAuth2AuthorizationCodeAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
 	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
@@ -519,7 +534,7 @@ func TestBhvAuthoauthtwoauthcode025_OAuth2AuthorizationCodeAuthenticator_ReprSho
 
 // The code exchange body and the authorize URL are emitted in the shared key
 // order, so the whole strings are pinned.
-func TestOAuth2AuthorizationCodeAuthenticator_ExchangeBodyAndAuthorizeUrlUseTheSharedOrder(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode032_OAuth2AuthorizationCodeAuthenticator_ExchangeBodyAndAuthorizeUrlUseTheSharedOrder(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},

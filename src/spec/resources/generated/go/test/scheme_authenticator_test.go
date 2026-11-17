@@ -126,6 +126,17 @@ func TestBhvAuthbasic013_SchemeAuthenticator_PetStoreBasicAuthenticator_PrefersT
 	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
+func TestSchemeAuthenticator_PetStoreBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
+
+	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
 func TestBhvAuthbasic012_SchemeAuthenticator_PetStoreBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemePetStoreBasicAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
@@ -181,6 +192,17 @@ func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEvery
 }
 
 func TestSchemeAuthenticator_AdminBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
+
+	a, err := auth.NewAdminBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeAdminBasicAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func TestBhvAuthscheme009_SchemeAuthenticator_AdminBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewAdminBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
@@ -256,6 +278,17 @@ func TestBhvAuthbearer018_SchemeAuthenticator_PetStoreBearerAuthenticator_Prefer
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
+func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
+
+	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, schemeArgValue("token"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
 func TestSchemeAuthenticator_PetStoreBearerAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemePetStoreBearerAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
@@ -271,7 +304,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_AnEmptyVariableCountsAs
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme010_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemePetStoreBearerAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBearerAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -351,6 +384,17 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_ReadsEveryCredentialFromI
 }
 
 func TestSchemeAuthenticator_ServiceTokenAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
+
+	a, err := auth.NewServiceTokenAuthenticator(schemeHost, schemeArgValue("token"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func TestSchemeAuthenticator_ServiceTokenAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, schemeArgValue("token"))
@@ -466,6 +510,17 @@ func TestBhvSerializationobject187_SchemeAuthenticator_ApiKeyHeaderAuthenticator
 	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
+func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
+
+	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, schemeArgValue("apiKey"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
 func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
@@ -535,6 +590,17 @@ func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ReadsEveryCredentialFro
 }
 
 func TestSchemeAuthenticator_InternalApiKeyAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
+
+	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
 
 	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -624,6 +690,17 @@ func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_PrefersTheArgumentsOverThe
 	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
+func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
+
+	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, schemeArgValue("apiKey"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
 func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeApiKeyQueryAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
@@ -693,6 +770,17 @@ func TestSchemeAuthenticator_SessionCookieAuthenticator_ReadsEveryCredentialFrom
 }
 
 func TestSchemeAuthenticator_SessionCookieAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
+
+	a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func TestSchemeAuthenticator_SessionCookieAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
 
 	a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -782,6 +870,17 @@ func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_PrefersTh
 	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
+func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
+
+	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
 func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
@@ -837,6 +936,17 @@ func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ReadsEveryCredentia
 }
 
 func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
+
+	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
 
 	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
@@ -912,6 +1022,17 @@ func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_PrefersTheAr
 	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
+func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
+
+	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
 func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
@@ -977,6 +1098,17 @@ func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_PrefersTheArgument
 	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
+func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
+
+	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, schemeArgValue("clientId"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
 func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
@@ -1032,6 +1164,17 @@ func TestSchemeAuthenticator_SsoAuthAuthenticator_ReadsEveryCredentialFromItsVar
 }
 
 func TestSchemeAuthenticator_SsoAuthAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
+
+	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func TestSchemeAuthenticator_SsoAuthAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
 
 	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))

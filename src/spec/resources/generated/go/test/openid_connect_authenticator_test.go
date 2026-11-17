@@ -19,6 +19,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"petstore/pkg/auth"
 	"petstore/pkg/auth/oauth"
@@ -462,6 +463,92 @@ func TestBhvAuthoidc005_OpenIdConnectAuthenticator_DiscoveryRefusesClearTextEndp
 		if !strings.Contains(err.Error(), "oidc discovery token_endpoint must use https") {
 			t.Errorf("%q: unexpected message %v", tc.endpoint, err)
 		}
+	}
+}
+
+// max-age=0 makes the discovery document stale at once, so every use fetches it again.
+func TestBhvAuthoidc030_OpenIdConnectAuthenticator_DiscoveryWithMaxAgeZeroIsFetchedOnEveryUse(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=0"),
+		oidcDiscoveryResponse("max-age=0"),
+		oidcDiscoveryResponse("max-age=0"),
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	for i := 0; i < 3; i++ {
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			t.Fatalf("unexpected error on use %d: %v", i+1, err)
+		}
+	}
+	if got := client.requestCount(); got != 3 {
+		t.Errorf("expected 3 discovery requests, got %d", got)
+	}
+}
+
+// Once a one-second max-age has elapsed the document is fetched again. The
+// authenticator is polled until the second request is seen, bounded by a deadline.
+func TestBhvAuthoidc031_OpenIdConnectAuthenticator_DiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=1"),
+		oidcDiscoveryResponse("max-age=1"),
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+		t.Fatalf("unexpected error on the first use: %v", err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for client.requestCount() < 2 && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			t.Fatalf("unexpected error while waiting for the max-age: %v", err)
+		}
+	}
+	if got := client.requestCount(); got != 2 {
+		t.Errorf("expected the document to be fetched again after max-age, got %d requests", got)
+	}
+}
+
+// A discovered authorization endpoint on plain http, not loopback, is refused.
+func TestBhvAuthoidc032_OpenIdConnectAuthenticator_DiscoveredEndpointThatIsNotHttpsIsRejected(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `{"authorization_endpoint":"http://idp.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if !strings.Contains(err.Error(), "oidc discovery authorization_endpoint must use https") {
+		t.Errorf("unexpected message %v", err)
+	}
+}
+
+// A failed discovery request reports the method and the path it was sent to.
+func TestBhvAuthoidc033_OpenIdConnectAuthenticator_FailedDiscoveryNamesTheRequestMethodAndPath(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `down`, statusCode: 500},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError, got %T: %v", err, err)
+	}
+	if got, want := apiErr.RequestMethod(), "GET"; got != want {
+		t.Errorf("expected request method %q, got %q", want, got)
+	}
+	if got, want := apiErr.RequestPath(), "/.well-known/openid-configuration"; got != want {
+		t.Errorf("expected request path %q, got %q", want, got)
 	}
 }
 

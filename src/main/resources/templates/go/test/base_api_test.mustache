@@ -319,7 +319,7 @@ func TestBhvAuthintegration004_BaseApi_SeveralAuthCookiesAreWrittenSortedByName(
 
 // An authenticator cookie containing characters RFC 6265 forbids is a caller
 // mistake: the request is refused with ErrInvalidCookie, never a panic.
-func TestBaseApi_InvalidCookieReturnsErrInvalidCookie(t *testing.T) {
+func TestBhvAuthintegration019_BaseApi_InvalidCookieReturnsErrInvalidCookie(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -365,6 +365,26 @@ func TestBhvAuthintegration006_BaseApi_ConfiguredAuthenticatorIsAppliedToSecured
 
 	if got, want := client.capturedHeaders["Authorization"], "Bearer secret-jwt"; got != want {
 		t.Fatalf("outbound Authorization header = %q, want %q (configured authenticator was dropped)", got, want)
+	}
+}
+
+// A configured api-key authenticator is applied to a secured operation the same
+// way a bearer one is: its header reaches the outbound request.
+func TestBhvAuthintegration018_BaseApi_ConfiguredApiKeyAuthenticatorIsAppliedToSecuredRequest(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	apiKey := &baseApiAuth{
+		headers: map[string]string{"X-API-Key": "secret-key"},
+		query:   map[string]string{},
+		cookies: map[string]string{},
+	}
+	api := {{packageName}}.NewPetApi(client, config, apiKey, {{packageName}}.Credentials{})
+
+	_, _ = api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
+
+	if got, want := client.capturedHeaders["X-API-Key"], "secret-key"; got != want {
+		t.Fatalf("outbound X-API-Key header = %q, want %q (configured authenticator was dropped)", got, want)
 	}
 }
 

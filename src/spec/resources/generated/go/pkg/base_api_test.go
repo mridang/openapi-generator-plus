@@ -128,3 +128,13 @@ func TestBhvOperations004_BaseApi_InvokeApi_AnExplicitAcceptHeaderParameterBeats
 		}
 	}
 }
+
+// A query value keeps the unreserved set literal and percent-encodes the other
+// sub-delims, so * ! ' ( ) never reach the wire unencoded.
+func TestBhvSerializationparam107_BaseApi_EncodeQueryValue_EncodesStarBangQuoteAndParensAndKeepsTheUnreservedSet(t *testing.T) {
+	t.Parallel()
+	got := encodeQueryValue("a~b*c!d'e(f)g h", false)
+	if want := "a~b%2Ac%21d%27e%28f%29g%20h"; got != want {
+		t.Errorf("encodeQueryValue = %q, want %q", got, want)
+	}
+}

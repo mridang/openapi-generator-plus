@@ -155,6 +155,19 @@ func TestBhvAuthoauthtwoimplicit012_OAuth2ImplicitAuthenticator_ThrowsWhenAccess
 }
 
 // A non-ASCII access token is refused with the RFC 7230 message.
+// An access token may contain a horizontal tab (RFC 7230 §3.2.6 allows it in a
+// field value), and the Bearer header carries it unchanged.
+func TestBhvAuthoauthtwoimplicit016_OAuth2ImplicitAuthenticator_SetAccessTokenAcceptsATab(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	if err := auth.SetAccessToken("tok\tvalue"); err != nil {
+		t.Fatalf("expected a token with a tab to be accepted, got %v", err)
+	}
+	if got, want := auth.AuthHeaders()["Authorization"], "Bearer tok\tvalue"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
 func TestBhvAuthoauthtwoimplicit014_OAuth2ImplicitAuthenticator_SetAccessTokenRejectsNonAsciiWithTheRfc7230Message(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
