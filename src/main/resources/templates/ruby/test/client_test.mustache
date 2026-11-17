@@ -8,9 +8,7 @@ require 'test_helper'
 class ClientTestHttpAwareCredential < {{moduleName}}::Auth::Authenticator
   include {{moduleName}}::Auth::HttpAwareAuthenticator
 
-  attr_reader :injected
-
-  attr_reader :host
+  attr_reader :host, :injected
 
   def initialize(host)
     super()

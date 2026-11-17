@@ -7,9 +7,7 @@ require 'test_helper'
 class ClientTestHttpAwareCredential < Petstore::Client::Auth::Authenticator
   include Petstore::Client::Auth::HttpAwareAuthenticator
 
-  attr_reader :injected
-
-  attr_reader :host
+  attr_reader :host, :injected
 
   def initialize(host)
     super()
