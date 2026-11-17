@@ -1911,7 +1911,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
           {[timeout: 0], "Invalid timeout: must be a positive number of milliseconds (got 0)"},
           {[timeout: 1.5], "Invalid timeout: must be a positive number of milliseconds (got 1.5)"},
           {[max_retries: -1], "Invalid max_retries: must be a non-negative integer (got -1)"},
-          {[headers: "x"], ~s(Invalid headers: must be a map of header names to values (got "x"))},
+          {[headers: "x"], "Invalid headers: must be a map of header names to values (got \"x\")"},
           {[headers: [:a]], "Invalid headers: must be a map of header names to values (got [:a])"}
         ] do
       err = assert_raise ArgumentError, fn -> {{moduleName}}.Api.BaseApi.call_settings(nil, opts) end
