@@ -12,7 +12,7 @@ import Testing
 
 @Suite final class MetadataTests {
 
-  @Test func testSerializeDeserialize() throws {
+  @Test func testBhvModels008SerializeDeserialize() throws {
     let original = Metadata()
 
     let data = try JSONEncoder().encode(original)
@@ -24,7 +24,7 @@ import Testing
 
   /* The header comment of a source file prints the API description as prose:
      a quote in it is a quote, not a backslash and a quote. */
-  @Test func testFileHeaderDescriptionHasNoEscapedQuotes() throws {
+  @Test func testBhvModels006FileHeaderDescriptionHasNoEscapedQuotes() throws {
     let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
       .appendingPathComponent("Sources/PetstoreClient/DefaultApiClient.swift")
     let source = try String(contentsOf: file, encoding: .utf8)
@@ -41,14 +41,14 @@ import Testing
     #expect(metadata != nil)
   }
 
-  @Test func testDeserializeEmptyObject() throws {
+  @Test func testBhvModels003DeserializeEmptyObject() throws {
     let jsonData = Data("{}".utf8)
 
     let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
     #expect(metadata != nil)
   }
 
-  @Test func testDeserializeWithAdditionalProperties() throws {
+  @Test func testBhvModels004DeserializeWithAdditionalProperties() throws {
     // Metadata may contain additional properties beyond the defined schema fields.
     // This test verifies that unknown fields are handled gracefully during
     // deserialization (either ignored or captured depending on schema config).
@@ -63,7 +63,7 @@ import Testing
 
   /* Two instances that differ only in the additionalProperties bucket are
    * not equal, and equal ones hash alike. */
-  @Test func testEqualityIncludesAdditionalProperties() {
+  @Test func testBhvModels005EqualityIncludesAdditionalProperties() {
     let first = Metadata(additionalProperties: ["extra": AnyCodable("x")])
     let different = Metadata(additionalProperties: ["extra": AnyCodable("y")])
     let same = Metadata(additionalProperties: ["extra": AnyCodable("x")])
@@ -76,7 +76,7 @@ import Testing
 
   /* A colliding additionalProperties key never overrides the declared
    * property: the declared value wins and the key is written once. */
-  @Test func testDeclaredPropertyWinsOverCollidingAdditionalProperty() throws {
+  @Test func testBhvModels010DeclaredPropertyWinsOverCollidingAdditionalProperty() throws {
     let when = Date(timeIntervalSince1970: 1_705_315_800)
     let metadata = Metadata(createdAt: when, additionalProperties: ["createdAt": AnyCodable("x")])
     let json = try ObjectSerializer.serialize(metadata)
@@ -84,7 +84,7 @@ import Testing
     #expect(!json.contains("\"x\""))
   }
 
-  @Test func testRoundTrip() throws {
+  @Test func testBhvModels011RoundTrip() throws {
     // Use ObjectSerializer for consistent date encoding/decoding
     let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
 
@@ -94,7 +94,7 @@ import Testing
     #expect(!(data.isEmpty))
   }
 
-  @Test func testNoNullExampleDocLine() throws {
+  @Test func testBhvModels007NoNullExampleDocLine() throws {
     // Cross-SDK parity guard (L1): a property whose schema carries no example
     // must not emit a placeholder example doc line whose body is the literal
     // "null". The codegen supplies the string "null" as the example when the

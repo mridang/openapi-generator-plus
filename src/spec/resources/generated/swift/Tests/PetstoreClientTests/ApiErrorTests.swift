@@ -16,7 +16,7 @@ import Testing
 
 @Suite final class ApiErrorTests {
 
-  @Test func testExposesStatusMessageBodyHeadersErrorBody() {
+  @Test func testBhvErrors004ExposesStatusMessageBodyHeadersErrorBody() {
     let err = ApiError(
       statusCode: 404,
       message: "not found",
@@ -32,7 +32,7 @@ import Testing
     #expect(err.errorBody == nil)
   }
 
-  @Test func testNilHeadersAndBodyMarkTransportNoResponse() {
+  @Test func testBhvErrors021NilHeadersAndBodyMarkTransportNoResponse() {
     // apierror-responsebody-headers-nullable-split: nil is distinct from an
     // empty header map / empty body so a pre-response transport failure can
     // be encoded.
@@ -56,7 +56,7 @@ import Testing
 
   /* A body that starts with a byte-order mark still populates errorBody,
    * as it does on the success path. */
-  @Test func testBomPrefixedErrorBodyPopulatesErrorBody() {
+  @Test func testBhvErrors008BomPrefixedErrorBodyPopulatesErrorBody() {
     let err = ApiError.fromResponse(
       statusCode: 404, headers: [:], body: "\u{FEFF}{\"code\":1}")
     #expect((err.errorBody as? [String: Any])?["code"] as? Int == 1)
@@ -64,7 +64,7 @@ import Testing
 
   /* A top-level scalar error body (JSON fragment) populates errorBody like
    * the other SDKs; a bare null stays absent. */
-  @Test func testFromResponseParsesScalarJsonBody() {
+  @Test func testBhvErrors010FromResponseParsesScalarJsonBody() {
     let text = ApiError.fromResponse(statusCode: 404, headers: [:], body: "\"Not found\"")
     #expect(text.errorBody as? String == "Not found")
     let number = ApiError.fromResponse(statusCode: 404, headers: [:], body: "123")
@@ -84,7 +84,7 @@ import Testing
     #expect(invalid.localizedDescription == "not a token object")
   }
 
-  @Test func testGetTypedErrorBodyDeserializesBody() throws {
+  @Test func testBhvErrors013GetTypedErrorBodyDeserializesBody() throws {
     let err = ApiError(
       statusCode: 400,
       message: "bad request",
@@ -97,14 +97,14 @@ import Testing
     #expect(typed?.name == "Dogs")
   }
 
-  @Test func testGetTypedErrorBodyReturnsNilWhenNoBody() throws {
+  @Test func testBhvErrors015GetTypedErrorBodyReturnsNilWhenNoBody() throws {
     let err = ApiError(statusCode: 500, message: "oops", responseBody: nil)
 
     let typed = try err.getTypedErrorBody(PetstoreClient.Category.self)
     #expect(typed == nil)
   }
 
-  @Test func testGetTypedErrorBodyReturnsNilWhenBodyIsEmptyString() throws {
+  @Test func testBhvErrors016GetTypedErrorBodyReturnsNilWhenBodyIsEmptyString() throws {
     let err = ApiError(statusCode: 500, message: "oops", responseBody: "")
 
     #expect(try err.getTypedErrorBody([String: Int].self) == nil)
@@ -112,7 +112,7 @@ import Testing
 
   /* A body that does not decode into the requested type is the SDK's
    * SerializationError, not a Foundation decoding error. */
-  @Test func testGetTypedErrorBodyThrowsSerializationErrorWhenBodyDoesNotDecode() {
+  @Test func testBhvErrors017GetTypedErrorBodyThrowsSerializationErrorWhenBodyDoesNotDecode() {
     let err = ApiError(statusCode: 500, message: "oops", responseBody: "not json at all")
 
     let error = #expect(throws: SerializationError.self) {
@@ -152,7 +152,7 @@ import Testing
 
   /* The rendered form caps the body, escapes control characters and masks
    * credential headers; the full body stays on responseBody. */
-  @Test func testErrorDescriptionCapsTheBodyEscapesControlsAndMasksSecretHeaders() {
+  @Test func testBhvErrors001ErrorDescriptionCapsTheBodyEscapesControlsAndMasksSecretHeaders() {
     let body = String(repeating: "a", count: 1024) + "tail\nforged: line"
     let err = ApiError(
       statusCode: 502, message: "bad gateway", responseBody: body,
@@ -180,7 +180,7 @@ import Testing
 
   /* A response body nested deeper than the serializer's cap is kept as the
    * raw body but is never handed to the JSON parser. */
-  @Test func testFromResponseDoesNotParseADeeplyNestedBody() {
+  @Test func testBhvErrors009FromResponseDoesNotParseADeeplyNestedBody() {
     func nested(_ depth: Int) -> String {
       String(repeating: "[", count: depth) + String(repeating: "]", count: depth)
     }
@@ -205,7 +205,7 @@ import Testing
 
   /* A 404 is a NotFoundError and a 500 an InternalServerError; each is an
    * ApiError of the right family and part of the OpenAPIError hierarchy. */
-  @Test func testStatusCodesMapToTypedErrors() {
+  @Test func testBhvErrors006StatusCodesMapToTypedErrors() {
     let notFound: any Error = ApiError.fromResponse(
       statusCode: 404, headers: [:], body: "")
     #expect(notFound is NotFoundError)
@@ -251,7 +251,7 @@ import Testing
     #expect(err.responseHeaders == ["a": "b"])
   }
 
-  @Test func testTypedErrorConformsToApiErrorAndOpenAPIError() {
+  @Test func testBhvErrors018TypedErrorConformsToApiErrorAndOpenAPIError() {
     // A typed HTTP error subclasses ApiError and therefore conforms to
     // OpenAPIError transitively.
     let err: any Error = BadRequestError(message: "bad")
@@ -261,7 +261,7 @@ import Testing
     #expect(err as? OpenAPIError != nil)
   }
 
-  @Test func testSerializationErrorConformsToOpenAPIError() {
+  @Test func testBhvErrors025SerializationErrorConformsToOpenAPIError() {
     // The serialization failure value type is branded too, so a single
     // OpenAPIError catch covers transport, HTTP, and (de)serialization.
     let err: any Error = SerializationError(message: "decode failed")
@@ -270,7 +270,7 @@ import Testing
     #expect(err as? OpenAPIError != nil)
   }
 
-  @Test func testGetTypedErrorBodyIgnoresExtraneousFields() throws {
+  @Test func testBhvErrors014GetTypedErrorBodyIgnoresExtraneousFields() throws {
     let err = ApiError(
       statusCode: 422,
       message: "unprocessable",
@@ -406,7 +406,7 @@ import Testing
     }
   }
 
-  @Test func testNetworkErrorsAreApiErrorsWithStatusZero() {
+  @Test func testBhvErrors020NetworkErrorsAreApiErrorsWithStatusZero() {
     let cause = URLError(.cannotConnectToHost)
     let network: ApiError = NetworkError(statusCode: 0, message: "refused", underlyingError: cause)
     let timeout: ApiError = NetworkTimeoutError(statusCode: 0, message: "timed out")
@@ -420,7 +420,7 @@ import Testing
   // MARK: - Request context
 
   /* An error for a response names the request it answered, without the query string. */
-  @Test func testFromResponseNamesTheRequestAndCutsTheQuery() {
+  @Test func testBhvErrors011FromResponseNamesTheRequestAndCutsTheQuery() {
     let err = ApiError.fromResponse(
       statusCode: 404, headers: [:], body: "", requestMethod: "GET",
       requestPath: "/v1/items/7?key=secret#top")
@@ -433,7 +433,7 @@ import Testing
     #expect(err.errorDescription?.contains("secret") == false)
   }
 
-  @Test func testFromResponseWithoutARequestKeepsTheMessage() {
+  @Test func testBhvErrors012FromResponseWithoutARequestKeepsTheMessage() {
     let err = ApiError.fromResponse(statusCode: 404, headers: [:], body: "")
     #expect(err.requestMethod == nil)
     #expect(err.requestPath == nil)
@@ -441,14 +441,14 @@ import Testing
   }
 
   /* A method with no path (or the reverse) names nothing, so a half request is never shown. */
-  @Test func testAMethodWithoutAPathIsNotRecorded() {
+  @Test func testBhvErrors007AMethodWithoutAPathIsNotRecorded() {
     let err = ApiError.fromResponse(statusCode: 500, headers: [:], body: "", requestMethod: "GET")
     #expect(err.requestMethod == nil)
     #expect(err.message == "API returned status code 500")
   }
 
   @Test(arguments: [302, 400, 401, 403, 404, 409, 418, 422, 429, 500, 503])
-  func testEveryStatusErrorCarriesTheRequest(status: Int) {
+  func testBhvErrors002EveryStatusErrorCarriesTheRequest(status: Int) {
     let err = ApiError.fromResponse(
       statusCode: status, headers: [:], body: "", requestMethod: "POST", requestPath: "/orders")
     #expect(err.statusCode == status)
@@ -457,7 +457,7 @@ import Testing
     #expect(err.message == "API returned status code \(status) for POST /orders")
   }
 
-  @Test func testSubclassConstructorsAcceptTheRequest() {
+  @Test func testBhvErrors019SubclassConstructorsAcceptTheRequest() {
     let err = NotFoundError(
       message: "missing", requestMethod: "DELETE", requestPath: "/items/7?x=1")
     #expect(err.statusCode == 404)
@@ -483,7 +483,39 @@ import Testing
     ("https://host.example?x=1", "/"),
     ("/already/a/path?q=1", "/already/a/path"),
   ])
-  func testPathOfRequestURLKeepsTheBasePathAndDropsHostAndQuery(url: String, path: String) {
+  func testBhvErrors026PathOfRequestURLKeepsTheBasePathAndDropsHostAndQuery(
+    url: String, path: String
+  ) {
     #expect(ApiError.pathOfRequestURL(url) == path)
+  }
+
+  @Test func testBhvErrors005FromResponseLeavesErrorBodyNilWhenBodyIsNotJson() {
+    let error = ApiError.fromResponse(statusCode: 500, headers: nil, body: "not json")
+    #expect(error.errorBody == nil)
+  }
+
+  @Test func testBhvErrors024ErrorDescriptionRendersMessageStatusHeadersAndBody() {
+    let error = ApiError(
+      statusCode: 418, message: "teapot", responseBody: "short-and-stout",
+      responseHeaders: ["X-Brew": "tea"])
+    let description = error.errorDescription ?? ""
+    #expect(description.contains("teapot"))
+    #expect(description.contains("418"))
+    #expect(description.contains("X-Brew"))
+    #expect(description.contains("short-and-stout"))
+  }
+
+  @Test func testBhvErrors023RenderedFormMasksCredentialHeaders() {
+    let error = ApiError(
+      statusCode: 401, message: "denied",
+      responseHeaders: ["Authorization": "Bearer leaked-token-value"])
+    #expect(!(error.errorDescription ?? "").contains("leaked-token-value"))
+  }
+
+  @Test func testBhvErrors030GetTypedErrorBodyReturnsNilWhenThereIsNoResponseBody() throws {
+    struct Detail: Decodable { let code: String }
+    let error = ApiError(statusCode: 500, message: "no body")
+    let typed: Detail? = try error.getTypedErrorBody(Detail.self)
+    #expect(typed == nil)
   }
 }

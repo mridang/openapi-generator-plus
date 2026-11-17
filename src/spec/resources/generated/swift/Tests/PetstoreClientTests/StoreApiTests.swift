@@ -31,7 +31,7 @@ import Testing
 
   // MARK: - Integration Tests
 
-  @Test func testPlaceOrder() async throws {
+  @Test func testBhvOperations117PlaceOrder() async throws {
     let api = storeApiForIntegration()
 
     let order = Order()
@@ -40,7 +40,7 @@ import Testing
     _ = result
   }
 
-  @Test func testPlaceOrderWithHTTPInfo() async throws {
+  @Test func testBhvOperations119PlaceOrderWithHTTPInfo() async throws {
     let api = storeApiForIntegration()
 
     let order = Order()
@@ -51,14 +51,14 @@ import Testing
     #expect(!(result.rawBody.isEmpty))
   }
 
-  @Test func testGetOrderById() async throws {
+  @Test func testBhvOperations104GetOrderById() async throws {
     let api = storeApiForIntegration()
 
     let result = try await api.getOrderById(orderId: 1)
     _ = result
   }
 
-  @Test func testGetOrderByIdWithHTTPInfo() async throws {
+  @Test func testBhvOperations105GetOrderByIdWithHTTPInfo() async throws {
     let api = storeApiForIntegration()
 
     let result = try await api.getOrderByIdWithHTTPInfo(orderId: 1)
@@ -66,20 +66,20 @@ import Testing
     _ = result.headers
   }
 
-  @Test func testDeleteOrder() async throws {
+  @Test func testBhvOperations099DeleteOrder() async throws {
     let api = storeApiForIntegration()
 
     try await api.deleteOrder(orderId: 1)
   }
 
-  @Test func testGetInventory() async throws {
+  @Test func testBhvOperations102GetInventory() async throws {
     let api = storeApiForIntegration()
 
     let result = try await api.getInventory()
     _ = result
   }
 
-  @Test func testGetInventoryWithHTTPInfo() async throws {
+  @Test func testBhvOperations103GetInventoryWithHTTPInfo() async throws {
     let api = storeApiForIntegration()
 
     let result = try await api.getInventoryWithHTTPInfo()
@@ -103,7 +103,7 @@ import Testing
 
   // MARK: - Mock Tests
 
-  @Test func testGetOrderNotFound() async throws {
+  @Test func testBhvOperations106GetOrderNotFound() async throws {
     let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
     let error = await #expect(throws: NotFoundError.self) {
       _ = try await mockApi.getOrderById(orderId: 99999)
@@ -122,7 +122,7 @@ import Testing
 
   /* readOnly and writeOnly have no wire effect: the writeOnly password is
      sent and the readOnly id is decoded from the response. */
-  @Test func testCreateAccountSendsWriteOnlyAndDecodesReadOnly() async throws {
+  @Test func testBhvOperations098CreateAccountSendsWriteOnlyAndDecodesReadOnly() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}"
@@ -152,7 +152,7 @@ import Testing
     #expect(try ObjectSerializer.serialize(account).contains("\"password\":\"\(marker)\""))
   }
 
-  @Test func testPlaceOrderServerError() async throws {
+  @Test func testBhvOperations118PlaceOrderServerError() async throws {
     let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
     let error = await #expect(throws: InternalServerError.self) {
       _ = try await mockApi.placeOrder(order: Order())
@@ -165,7 +165,7 @@ import Testing
   // value must decode into a TYPED Category instance (id/name accessible),
   // not a raw [String: Any] map. The mock server returns a two-element array
   // whose maps key onto Category objects.
-  @Test func testGetGroupedCategoriesDeserializesNestedTypedLeaves() async throws {
+  @Test func testBhvOperations101GetGroupedCategoriesDeserializesNestedTypedLeaves() async throws {
     let mockApi = storeApiForMock(
       statusCode: 200,
       body: "[{\"a\":{\"id\":1,\"name\":\"Dogs\"}},{\"b\":{\"id\":2,\"name\":\"Cats\"}}]"
@@ -183,7 +183,7 @@ import Testing
 
   /* A named enum travels as its wire value in the path, the query and a
    * header, never as the case name or a type-qualified description. */
-  @Test func testGetBySwatchSendsEnumWireValuesInPathQueryAndHeader() async throws {
+  @Test func testBhvOperations122GetBySwatchSendsEnumWireValuesInPathQueryAndHeader() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -198,7 +198,7 @@ import Testing
     #expect(mockClient.lastHeaders["Preferred-Swatch"] == "blue")
   }
 
-  @Test func testGetBySwatchOmitsUnsetQueryAndHeader() async throws {
+  @Test func testBhvOperations107GetBySwatchOmitsUnsetQueryAndHeader() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -211,7 +211,7 @@ import Testing
   }
 
   /* Nested containers decode their leaves into the declared element type. */
-  @Test func testGetMatrixDeserializesNestedIntegers() async throws {
+  @Test func testBhvOperations109GetMatrixDeserializesNestedIntegers() async throws {
     let mockApi = storeApiForMock(statusCode: 200, body: "[[1,2],[3,4,5]]")
     let result = try await mockApi.getMatrix()
     #expect(result == [[1, 2], [3, 4, 5]])
@@ -220,7 +220,7 @@ import Testing
   /* A content-encoded parameter goes through the SDK's own serializer in
      every location: the query value is the JSON text, the header is the
      JSON text verbatim, and neither is dropped. */
-  @Test func testSearchStoreEncodesContentParametersAsJson() async throws {
+  @Test func testBhvOperations121SearchStoreEncodesContentParametersAsJson() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "[]"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -251,7 +251,7 @@ import Testing
     #expect(mockClient.lastURL.isEmpty)
   }
 
-  @Test func testGetSwatchGroupsDeserializesEnumLeaves() async throws {
+  @Test func testBhvOperations114GetSwatchGroupsDeserializesEnumLeaves() async throws {
     let mockApi = storeApiForMock(
       statusCode: 200, body: "[{\"a\":\"red\"},{\"b\":\"blue\",\"c\":\"green\"}]")
     let result = try await mockApi.getSwatchGroups()
@@ -261,7 +261,7 @@ import Testing
     #expect(result[1]["c"] == Swatch.green)
   }
 
-  @Test func testGetTimestampGroupsDeserializesDateLeaves() async throws {
+  @Test func testBhvOperations115GetTimestampGroupsDeserializesDateLeaves() async throws {
     let mockApi = storeApiForMock(
       statusCode: 200, body: "[{\"t\":\"2024-01-02T03:04:05Z\"}]")
     let result = try await mockApi.getTimestampGroups()
@@ -270,7 +270,7 @@ import Testing
   }
 
   /* A uuid path parameter is written in lowercase whatever the caller's case. */
-  @Test func testGetOrderByTrackingIdPutsTheLowercaseUuidInThePath() async throws {
+  @Test func testBhvOperations124GetOrderByTrackingIdPutsTheLowercaseUuidInThePath() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -287,12 +287,12 @@ import Testing
   /* The response-shape operations decode a bare enum, a mutually recursive
      pair, a self-recursive model, schema defaults and an integer-backed enum
      with nested arrays. */
-  @Test func testGetSwatchDecodesABareEnum() async throws {
+  @Test func testBhvOperations113GetSwatchDecodesABareEnum() async throws {
     let mockApi = storeApiForMock(statusCode: 200, body: "\"green\"")
     #expect(try await mockApi.getSwatch() == Swatch.green)
   }
 
-  @Test func testGetDepartmentDecodesMutuallyRecursiveModels() async throws {
+  @Test func testBhvOperations108GetDepartmentDecodesMutuallyRecursiveModels() async throws {
     let mockApi = storeApiForMock(
       statusCode: 200,
       body: "{\"name\":\"d\",\"lead\":{\"name\":\"e\",\"department\":{\"name\":\"d2\"}}}")
@@ -302,7 +302,7 @@ import Testing
     #expect(result.lead?.department?.name == "d2")
   }
 
-  @Test func testGetTreeDecodesASelfRecursiveModel() async throws {
+  @Test func testBhvOperations116GetTreeDecodesASelfRecursiveModel() async throws {
     let mockApi = storeApiForMock(
       statusCode: 200,
       body: "{\"value\":\"a\",\"child\":{\"value\":\"b\",\"child\":{\"value\":\"c\"}}}")
@@ -311,7 +311,7 @@ import Testing
     #expect(result.child?.child?.value == "c")
   }
 
-  @Test func testGetDefaultsAppliesSchemaDefaults() async throws {
+  @Test func testBhvOperations123GetDefaultsAppliesSchemaDefaults() async throws {
     let mockApi = storeApiForMock(statusCode: 200, body: "{}")
     let result = try await mockApi.getDefaults()
     #expect(result.retries == 3)
@@ -319,7 +319,7 @@ import Testing
     #expect(result.ceiling == 9_000_000_000)
   }
 
-  @Test func testGetStockItemDecodesAnIntegerEnumAndNestedArrays() async throws {
+  @Test func testBhvOperations112GetStockItemDecodesAnIntegerEnumAndNestedArrays() async throws {
     let mockApi = storeApiForMock(
       statusCode: 200, body: "{\"priority\":2,\"matrix\":[[1],[2,3]]}")
     let result = try await mockApi.getStockItem()
@@ -327,7 +327,7 @@ import Testing
     #expect(result.matrix == [[1], [2, 3]])
   }
 
-  @Test func testDeleteOrderNotFound() async throws {
+  @Test func testBhvOperations100DeleteOrderNotFound() async throws {
     let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
     let error = await #expect(throws: NotFoundError.self) {
       try await mockApi.deleteOrder(orderId: 99999)

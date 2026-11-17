@@ -83,7 +83,7 @@ final class PetApiTests {
     }
   }
 
-  @Test func testDeprecatedOperationKeepsParameterDocsAboveTheAttribute() throws {
+  @Test func testBhvOperations033DeprecatedOperationKeepsParameterDocsAboveTheAttribute() throws {
     let block = try leadingDocBlock(before: "public func getPetById(", in: "PetApi.swift")
     #expect(block.contains("///   - petId: ID of pet to return"))
     #expect(block.contains("///   - server: Optional per-operation server override."))
@@ -91,7 +91,7 @@ final class PetApiTests {
   }
 
   @Test(arguments: ["addPet", "getPetById"])
-  func testOperationDocumentsItsOptionsParameter(operation: String) throws {
+  func testBhvOperations082OperationDocumentsItsOptionsParameter(operation: String) throws {
     let block = try leadingDocBlock(before: "public func \(operation)(", in: "PetApi.swift")
     #expect(
       block.contains(
@@ -135,7 +135,7 @@ final class PetApiTests {
 
   // MARK: - Integration Tests
 
-  @Test func testAddPet() async throws {
+  @Test func testBhvOperations022AddPet() async throws {
     let api = petApiForIntegration(schemes: ["petStoreBearer": TestAuthenticator()])
 
     let pet = Pet(name: "Fido", photoUrls: ["http://example.com/fido.jpg"])
@@ -144,7 +144,7 @@ final class PetApiTests {
     _ = result
   }
 
-  @Test func testAddPetWithHTTPInfo() async throws {
+  @Test func testBhvOperations025AddPetWithHTTPInfo() async throws {
     let api = petApiForIntegration(schemes: ["petStoreBearer": TestAuthenticator()])
 
     let pet = Pet(name: "Buddy", photoUrls: ["http://example.com/buddy.jpg"])
@@ -155,14 +155,14 @@ final class PetApiTests {
     #expect(!result.rawBody.isEmpty)
   }
 
-  @Test func testGetPetById() async throws {
+  @Test func testBhvOperations047GetPetById() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.getPetById(petId: 1)
     _ = result
   }
 
-  @Test func testGetPetByIdWithHTTPInfo() async throws {
+  @Test func testBhvOperations048GetPetByIdWithHTTPInfo() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
@@ -170,7 +170,7 @@ final class PetApiTests {
     #expect(!result.rawBody.isEmpty)
   }
 
-  @Test func testUpdatePet() async throws {
+  @Test func testBhvOperations087UpdatePet() async throws {
     let api = petApiForIntegration()
 
     let pet = Pet(name: "UpdatedFido", photoUrls: ["http://example.com/fido-updated.jpg"])
@@ -179,7 +179,7 @@ final class PetApiTests {
     _ = result
   }
 
-  @Test func testUpdatePetWithHTTPInfo() async throws {
+  @Test func testBhvOperations088UpdatePetWithHTTPInfo() async throws {
     let api = petApiForIntegration()
 
     let pet = Pet(name: "UpdatedFido", photoUrls: ["http://example.com/fido-updated.jpg"])
@@ -189,13 +189,13 @@ final class PetApiTests {
     #expect(result.statusCode < 300)
   }
 
-  @Test func testDeletePet() async throws {
+  @Test func testBhvOperations027DeletePet() async throws {
     let api = petApiForIntegration(schemes: ["adminBasic": TestAuthenticator()])
 
     try await api.deletePet(petId: 1)
   }
 
-  @Test func testDeletePetWithHTTPInfo() async throws {
+  @Test func testBhvOperations031DeletePetWithHTTPInfo() async throws {
     let api = petApiForIntegration(schemes: ["adminBasic": TestAuthenticator()])
 
     let result = try await api.deletePetWithHTTPInfo(petId: 1)
@@ -203,7 +203,7 @@ final class PetApiTests {
     #expect(result.statusCode < 300)
   }
 
-  @Test func testFindPetsByStatus() async throws {
+  @Test func testBhvOperations039FindPetsByStatus() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.findPetsByStatus(
@@ -211,7 +211,7 @@ final class PetApiTests {
     _ = result
   }
 
-  @Test func testFindPetsByStatusWithHTTPInfo() async throws {
+  @Test func testBhvOperations042FindPetsByStatusWithHTTPInfo() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.findPetsByStatusWithHTTPInfo(
@@ -219,28 +219,28 @@ final class PetApiTests {
     #expect(result.statusCode == 200)
   }
 
-  @Test func testGetPetPassport() async throws {
+  @Test func testBhvOperations053GetPetPassport() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.getPetPassport(petId: 1)
     _ = result
   }
 
-  @Test func testGetPetPassportWithHTTPInfo() async throws {
+  @Test func testBhvOperations054GetPetPassportWithHTTPInfo() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.getPetPassportWithHTTPInfo(petId: 1)
     #expect(result.statusCode == 200)
   }
 
-  @Test func testSetPetAvatar() async throws {
+  @Test func testBhvOperations070SetPetAvatar() async throws {
     let api = petApiForIntegration()
     let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
 
     try await api.setPetAvatar(petId: 1, body: imageData)
   }
 
-  @Test func testSetPetAvatarRejectsUnknownContentType() async throws {
+  @Test func testBhvOperations076SetPetAvatarRejectsUnknownContentType() async throws {
     let api = petApiForIntegration()
     let imageData = Data([0xFF, 0xD8, 0xFF])
     // An unknown requestContentType must be rejected client-side, not passed
@@ -252,7 +252,7 @@ final class PetApiTests {
   }
 
   /* D20: the refusal names the value, the operation and the declared types. */
-  @Test func testUnknownRequestContentTypeMessageIsCanonical() async throws {
+  @Test func testBhvOperations093UnknownRequestContentTypeMessageIsCanonical() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
@@ -279,7 +279,7 @@ final class PetApiTests {
   // and the Content-Type must never be overridden to application/octet-stream
   // or application/json. Captures the outgoing request and asserts both the
   // raw body bytes and the Content-Type header.
-  @Test func testSetPetAvatarStreamsRawBytesWithDeclaredContentType() async throws {
+  @Test func testBhvOperations073SetPetAvatarStreamsRawBytesWithDeclaredContentType() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = ""
@@ -310,7 +310,7 @@ final class PetApiTests {
    *   (1) default to the first declared type (image/jpeg) when omitted, and
    *   (2) override the Content-Type header to the selected declared type
    *       (image/png) when supplied, for the same raw bytes. */
-  @Test func testSetPetAvatarHonoursSelectedRequestContentType() async throws {
+  @Test func testBhvOperations071SetPetAvatarHonoursSelectedRequestContentType() async throws {
     let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
 
     /* Case (1): no selector — backward compatible, first declared type. */
@@ -350,7 +350,7 @@ final class PetApiTests {
 
   /* A format: binary body is sent verbatim under the JSON selector too:
    * the selector only changes the header, never the bytes. */
-  @Test func testSetPetAvatarSendsRawBytesUnderTheJsonSelector() async throws {
+  @Test func testBhvOperations072SetPetAvatarSendsRawBytesUnderTheJsonSelector() async throws {
     let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
     let client = MockApiClient()
     client.responseStatusCode = 200
@@ -366,7 +366,7 @@ final class PetApiTests {
 
   /* A format: byte JSON body is still base64 encoded: the raw-body rule
    * applies to format: binary only. */
-  @Test func testSetPetAvatarThumbnailStillSendsBase64Json() async throws {
+  @Test func testBhvOperations077SetPetAvatarThumbnailStillSendsBase64Json() async throws {
     let client = MockApiClient()
     client.responseStatusCode = 200
     client.responseBody = ""
@@ -381,7 +381,7 @@ final class PetApiTests {
 
   /* The typed multipart fields of uploadPetDocument are plain text parts
    * in their canonical stringify form, with no part Content-Type. */
-  @Test func testUploadPetDocumentSendsPrimitiveFieldsAsTextParts() async throws {
+  @Test func testBhvOperations095UploadPetDocumentSendsPrimitiveFieldsAsTextParts() async throws {
     let client = MockApiClient()
     client.responseStatusCode = 200
     client.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}"
@@ -411,7 +411,7 @@ final class PetApiTests {
    * envelope (no boundary), never a JSON-serialised form map, never base64.
    * The multipart case (no selector) is asserted alongside to guard against
    * over-correction. */
-  @Test func testUploadPetDocumentOctetStreamSendsRawBytes() async throws {
+  @Test func testBhvOperations092UploadPetDocumentOctetStreamSendsRawBytes() async throws {
     // A non-trivial binary payload including bytes that are not valid UTF-8.
     let docData = Data([0x25, 0x50, 0x44, 0x46, 0x00, 0xFF, 0xFE])
 
@@ -480,7 +480,7 @@ final class PetApiTests {
       "multipart body must be an envelope, not the raw file bytes")
   }
 
-  @Test func testGetPetAvatar() async throws {
+  @Test func testBhvOperations045GetPetAvatar() async throws {
     let api = petApiForIntegration()
 
     let r = try await api.getPetAvatarWithHTTPInfo(petId: 1)
@@ -491,14 +491,14 @@ final class PetApiTests {
     #expect(r.data?.base64EncodedString() == r.rawBody)
   }
 
-  @Test func testGetPetAvatarThumbnail() async throws {
+  @Test func testBhvOperations046GetPetAvatarThumbnail() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.getPetAvatarThumbnail(petId: 1)
     _ = result
   }
 
-  @Test func testSetPetAvatarThumbnail() async throws {
+  @Test func testBhvOperations074SetPetAvatarThumbnail() async throws {
     let api = petApiForIntegration()
 
     let thumbnail = SetPetAvatarThumbnailRequest(Data([0xFF, 0xD8, 0xFF, 0xE0]))
@@ -506,7 +506,7 @@ final class PetApiTests {
     try await api.setPetAvatarThumbnail(petId: 1, setPetAvatarThumbnailRequest: thumbnail)
   }
 
-  @Test func testUploadPetCertificate() async throws {
+  @Test func testBhvOperations090UploadPetCertificate() async throws {
     let api = petApiForIntegration()
     let fakeCert = Data("fake-pdf-data".utf8)
 
@@ -515,7 +515,7 @@ final class PetApiTests {
     _ = result
   }
 
-  @Test func testUploadPetDocument() async throws {
+  @Test func testBhvOperations091UploadPetDocument() async throws {
     let api = petApiForIntegration()
     let fakeDoc = Data("fake-doc-data".utf8)
 
@@ -527,7 +527,7 @@ final class PetApiTests {
     _ = result
   }
 
-  @Test func testAddPetPhotos() async throws {
+  @Test func testBhvOperations023AddPetPhotos() async throws {
     let api = petApiForIntegration()
     let photoData = Data("fake-photo-bytes".utf8)
     let metadata = PhotoMetadata(caption: "test")
@@ -535,19 +535,19 @@ final class PetApiTests {
     _ = try await api.addPetPhotos(petId: 1, options: options)
   }
 
-  @Test func testDownloadPetDocument() async throws {
+  @Test func testBhvOperations035DownloadPetDocument() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.downloadPetDocument(petId: 1, documentId: 1)
     _ = result
   }
 
-  @Test func testGetPetPhoto() async throws {
+  @Test func testBhvOperations055GetPetPhoto() async throws {
     let api = petApiForIntegration()
     _ = try await api.getPetPhoto(petId: 1, photoId: 1)
   }
 
-  @Test func testGetPetTag() async throws {
+  @Test func testBhvOperations058GetPetTag() async throws {
     let api = petApiForIntegration()
     let options = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S", "M"])
     _ = try await api.getPetTag(petId: 5, tagName: "cute", options: options)
@@ -556,7 +556,7 @@ final class PetApiTests {
   /* The operation's own server points at an external host, so the test
      supplies a server of its own that points at the mock server, which
      serves every path in the spec. */
-  @Test func testGetExternalPetInfo() async throws {
+  @Test func testBhvOperations061GetExternalPetInfo() async throws {
     let api = petApiForIntegration()
 
     let result = try await api.getExternalPetInfo(petId: 1, server: MockExternalPetInfoServer())
@@ -578,7 +578,7 @@ final class PetApiTests {
   /* An operation that declares its own servers sends the request to the
    * server it was given, with the variables substituted, instead of the
    * configured base URL. */
-  @Test func testOperationServerReplacesTheBaseUrl() async throws {
+  @Test func testBhvOperations083OperationServerReplacesTheBaseUrl() async throws {
     #expect(
       try await operationServerUrl {
         try await $0.getExternalPetInfo(petId: 1, server: GetExternalPetInfoServerServer0())
@@ -599,7 +599,7 @@ final class PetApiTests {
   }
 
   /* An operation with several servers offers one type per server. */
-  @Test func testMultiServerOperationOffersEachServer() async throws {
+  @Test func testBhvOperations085MultiServerOperationOffersEachServer() async throws {
     #expect(
       try await operationServerUrl {
         try await $0.getMultiServerPetInfo(petId: 3, server: GetMultiServerPetInfoServerPrimary())
@@ -653,7 +653,7 @@ final class PetApiTests {
 
   // MARK: - Mock Tests
 
-  @Test func testDownloadBinaryMock() async throws {
+  @Test func testBhvOperations034DownloadBinaryMock() async throws {
     let mockApi = petApiForMock(
       statusCode: 200, body: "FAKE_BINARY_DATA", contentType: "application/octet-stream")
     let result = try await mockApi.getPetAvatar(petId: 1)
@@ -664,14 +664,14 @@ final class PetApiTests {
   // string literal ("dGVzdC1pbWFnZQ=="). It must be JSON-parsed and then
   // base64-decoded into the raw bytes — not handed back as the utf8 bytes of the
   // quoted base64 text.
-  @Test func testGetPetAvatarThumbnailDecodesJsonBase64String() async throws {
+  @Test func testBhvOperations062GetPetAvatarThumbnailDecodesJsonBase64String() async throws {
     let mockApi = petApiForMock(
       statusCode: 200, body: "\"dGVzdC1pbWFnZQ==\"", contentType: "application/json")
     let result = try await mockApi.getPetAvatarThumbnail(petId: 1)
     #expect(result == Data("test-image".utf8))
   }
 
-  @Test func testUploadMultipartMock() async throws {
+  @Test func testBhvOperations089UploadMultipartMock() async throws {
     let mockApi = petApiForMock(
       statusCode: 200, body: "{\"code\":200,\"type\":\"\",\"message\":\"success\"}")
     let fakeCert = Data("fake-cert".utf8)
@@ -680,7 +680,7 @@ final class PetApiTests {
     _ = result
   }
 
-  @Test func testErrorHandlingNotFound() async throws {
+  @Test func testBhvOperations037ErrorHandlingNotFound() async throws {
     let mockApi = petApiForMock(statusCode: 404, body: "{\"message\":\"Pet not found\"}")
     let error = await #expect(throws: NotFoundError.self) {
       _ = try await mockApi.getPetById(petId: 99999)
@@ -688,7 +688,7 @@ final class PetApiTests {
     #expect(error?.statusCode == 404)
   }
 
-  @Test func testErrorHandlingServerError() async throws {
+  @Test func testBhvOperations038ErrorHandlingServerError() async throws {
     let mockApi = petApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
     let error = await #expect(throws: InternalServerError.self) {
       _ = try await mockApi.getPetById(petId: 1)
@@ -700,7 +700,7 @@ final class PetApiTests {
      is applied to the outgoing request, on the base operation method as on
      WithHTTPInfo. The default header carries one token; the scheme credential
      carries a different one and must win on the wire. */
-  @Test func testAddPetUsesTheCredentialOfItsScheme() async throws {
+  @Test func testBhvOperations079AddPetUsesTheCredentialOfItsScheme() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -740,7 +740,7 @@ final class PetApiTests {
   // ApiError from the plain (non-WithHTTPInfo) convenience method rather
   // than returning a silent nil or crashing — Swift is the canonical
   // throwing side and this pins that contract.
-  @Test func testEmptyBodyOnBodyReturningOpThrowsApiError() async {
+  @Test func testBhvOperations036EmptyBodyOnBodyReturningOpThrowsApiError() async {
     let mockApi = petApiForMock(statusCode: 200, body: "")
     var caught: ApiError? = nil
     do {
@@ -760,7 +760,7 @@ final class PetApiTests {
      when the client holds both, the api key is the credential and the bearer
      one is not sent; a credential held only for a scheme the operation does
      not name never reaches it. */
-  @Test func testAddPetTakesTheFirstSchemeItListsThatTheClientHolds() async throws {
+  @Test func testBhvOperations080AddPetTakesTheFirstSchemeItListsThatTheClientHolds() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -788,7 +788,7 @@ final class PetApiTests {
   // auth-omitted-falls-back: when the client holds no scheme credential, the
   // call falls back to the credentials configured on the Configuration (the
   // default Authorization header).
-  @Test func testAuthOmittedUsesConfiguredCredentials() async throws {
+  @Test func testBhvOperations078AuthOmittedUsesConfiguredCredentials() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -811,7 +811,7 @@ final class PetApiTests {
   // an unsecured op's Options object and must NOT expose an auth field. This
   // is a no-op at runtime; it fails to compile if a regression reintroduces
   // auth on unsecured operations.
-  @Test func testUnsecuredOperationHasNoAuthField() async throws {
+  @Test func testBhvOperations086UnsecuredOperationHasNoAuthField() async throws {
     let opts = FindPetsByStatusOptions(status: "available")
     #expect(opts.status == "available")
     let mockApi = petApiForMock(statusCode: 200, body: "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}")
@@ -883,7 +883,7 @@ final class PetApiTests {
   }
 
   /* A date-time form field is sent in the canonical stringify form. */
-  @Test func testSetPetPreferencesEncodesDateTimeFieldCanonically() async throws {
+  @Test func testBhvOperations075SetPetPreferencesEncodesDateTimeFieldCanonically() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -906,7 +906,7 @@ final class PetApiTests {
   // query param; an empty value for either must throw and never reach the
   // transport.
   @Test(arguments: [("Fido", ""), ("", "dog")])
-  func testRequiredParamEmptyThrows(name: String, category: String) async throws {
+  func testBhvOperations049RequiredParamEmptyThrows(name: String, category: String) async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -933,7 +933,7 @@ final class PetApiTests {
   // required-date-path-validation: a required `format: date` path param is a
   // String in swift, so an empty value must be rejected before dispatch just
   // like an empty string path param, never sent as `/pet/born-on/`.
-  @Test func testRequiredDatePathParamEmptyThrows() async throws {
+  @Test func testBhvOperations052RequiredDatePathParamEmptyThrows() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "[]"
@@ -974,7 +974,7 @@ final class PetApiTests {
   /* A simple-style path value of exactly "." or ".." would be resolved as a
      dot segment and reroute the request, so it is rejected before dispatch. */
   @Test(arguments: [".", ".."])
-  func testDotSegmentPathParamIsRejected(name: String) async throws {
+  func testBhvOperations051DotSegmentPathParamIsRejected(name: String) async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -995,7 +995,7 @@ final class PetApiTests {
   }
 
   /* Dots inside a longer value are not a dot segment and are sent as is. */
-  @Test func testPathParamContainingDotsIsSent() async throws {
+  @Test func testBhvOperations064PathParamContainingDotsIsSent() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -1013,7 +1013,7 @@ final class PetApiTests {
      form exploded is one pair per field, form not exploded is one comma
      separated value, deepObject is bracketed, and a simple header is comma
      separated. The matrix and label path styles prefix their values. */
-  @Test func testObjectValuedParametersAreExpandedByStyle() async throws {
+  @Test func testBhvOperations067ObjectValuedParametersAreExpandedByStyle() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":5,\"name\":\"cute\",\"photoUrls\":[]}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -1035,7 +1035,7 @@ final class PetApiTests {
   }
 
   /* findPetsByStatus.filter is a deepObject map. */
-  @Test func testFilterMapIsSentAsADeepObject() async throws {
+  @Test func testBhvOperations044FilterMapIsSentAsADeepObject() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "[]"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -1047,7 +1047,7 @@ final class PetApiTests {
   }
 
   /* The digit-leading query parameter keeps its wire name. */
-  @Test func testDigitLeadingQueryParameterKeepsItsWireName() async throws {
+  @Test func testBhvOperations021DigitLeadingQueryParameterKeepsItsWireName() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "[]"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -1060,7 +1060,7 @@ final class PetApiTests {
 
   /* getPetSummary: a matrix-style date path segment, a required cookie, and
      a repeated date query parameter, answered with text/plain. */
-  @Test func testGetPetSummarySendsMatrixPathCookieAndRepeatedDays() async throws {
+  @Test func testBhvOperations057GetPetSummarySendsMatrixPathCookieAndRepeatedDays() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "all quiet"
     mockClient.responseHeaders = ["Content-Type": "text/plain"]
@@ -1079,7 +1079,7 @@ final class PetApiTests {
   }
 
   /* A missing required header or cookie is refused before anything is sent. */
-  @Test func testRequiredHeaderEmptyThrows() async throws {
+  @Test func testBhvOperations050RequiredHeaderEmptyThrows() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
@@ -1097,7 +1097,7 @@ final class PetApiTests {
     #expect(mockClient.lastURL.isEmpty)
   }
 
-  @Test func testRequiredCookieEmptyThrows() async throws {
+  @Test func testBhvOperations056RequiredCookieEmptyThrows() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
@@ -1116,7 +1116,7 @@ final class PetApiTests {
 
   /* F840: a cookie parameter made only of RFC 6265 cookie-octets goes out as
      it is, never encoded by the SDK (a percent sign is one such octet). */
-  @Test func testCookieParameterOfLegalOctetsIsSentRaw() async throws {
+  @Test func testBhvOperations030CookieParameterOfLegalOctetsIsSentRaw() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "all quiet"
     mockClient.responseHeaders = ["Content-Type": "text/plain"]
@@ -1132,7 +1132,9 @@ final class PetApiTests {
   /* Any other character fails on the client, before a request is sent: the
      caller pre-encodes the value. */
   @Test(arguments: ["a b", "a;b", "a,b", "a\"b", "a\\b", "caf\u{00E9}", "a\tb"])
-  func testCookieParameterOfIllegalOctetsFailsBeforeSending(value: String) async throws {
+  func testBhvOperations028CookieParameterOfIllegalOctetsFailsBeforeSending(value: String)
+    async throws
+  {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
@@ -1154,7 +1156,7 @@ final class PetApiTests {
 
   /* A request body that is an anyOf wrapper goes out as the variant the
      caller chose, on the operation's own path. */
-  @Test func testAddPetTreatmentSendsTheChosenVariantAsTheBody() async throws {
+  @Test func testBhvOperations024AddPetTreatmentSendsTheChosenVariantAsTheBody() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"drugName\":\"Amoxicillin\"}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -1261,7 +1263,7 @@ final class PetApiTests {
   // the SDK must always send the key. When the caller omits status (nil), the
   // key must be omitted entirely from the query string, never emitted as a
   // spurious empty `status=` pair.
-  @Test func testFindPetsByStatusOmittedSendsNoStatusKey() async throws {
+  @Test func testBhvOperations041FindPetsByStatusOmittedSendsNoStatusKey() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "[]"
@@ -1280,7 +1282,7 @@ final class PetApiTests {
   // string for the allowEmptyValue status param, the key must be present with
   // an empty value (`status=`). This is the one case allowEmptyValue exists
   // for and is the complement of the omitted case above.
-  @Test func testFindPetsByStatusExplicitEmptySendsStatusKey() async throws {
+  @Test func testBhvOperations040FindPetsByStatusExplicitEmptySendsStatusKey() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "[]"
@@ -1299,7 +1301,7 @@ final class PetApiTests {
   // String in Swift (only date-time maps to Date), so the caller's value is sent
   // as-is: query `bornAfter` and header `Report-Date` must be the date-only
   // string 2024-01-01 with no time component.
-  @Test func testFormatDateQueryAndHeaderAreDateOnly() async throws {
+  @Test func testBhvOperations069FormatDateQueryAndHeaderAreDateOnly() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "[]"
@@ -1321,7 +1323,7 @@ final class PetApiTests {
 
   // format-date-path: a `format: date` path param `bornOn` must appear as the
   // date-only string 2024-01-01 in the URL path, with no time component.
-  @Test func testFormatDatePathParamIsDateOnly() async throws {
+  @Test func testBhvOperations043FormatDatePathParamIsDateOnly() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "[]"
@@ -1341,7 +1343,7 @@ final class PetApiTests {
 
   // format-date-form: a `format: date` form field `renewalDate` must be sent as
   // the date-only string 2024-01-01 in the urlencoded body, with no time part.
-  @Test func testFormatDateFormFieldIsDateOnly() async throws {
+  @Test func testBhvOperations019FormatDateFormFieldIsDateOnly() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
@@ -1382,7 +1384,7 @@ final class PetApiTests {
   // and sizes (style spaceDelimited → S M). Capture the outbound URL and
   // assert the styled forms are present and that no debug/bracketed blob
   // leaked through.
-  @Test func testOptionalArrayQueryParamsSerializeStyled() async throws {
+  @Test func testBhvOperations068OptionalArrayQueryParamsSerializeStyled() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":5,\"name\":\"cute\",\"photoUrls\":[]}"

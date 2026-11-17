@@ -7,29 +7,29 @@ import Testing
 
     // MARK: - SerializeValue by location
 
-    @Test func testSerializeValuePathNull() {
+    @Test func testBhvSerializationparam062SerializeValuePathNull() {
         let result = ValueSerializer.serializeValue(nil, location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "")
     }
 
-    @Test func testSerializeValuePathStringAsIs() {
+    @Test func testBhvSerializationparam100SerializeValuePathStringAsIs() {
         let result = ValueSerializer.serializeValue("hello", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "hello")
     }
 
-    @Test func testSerializeValuePathString() {
+    @Test func testBhvSerializationparam102SerializeValuePathString() {
         let result = ValueSerializer.serializeValue("hello world", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "hello%20world")
     }
 
-    @Test func testSerializeValuePathStringSlash() {
+    @Test func testBhvSerializationparam101SerializeValuePathStringSlash() {
         let result = ValueSerializer.serializeValue("a/b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a%2Fb")
     }
 
     /* "." and ".." are dot segments in the simple style and are rejected. */
     @Test(arguments: [".", ".."])
-    func testRequirePathParamRejectsDotSegments(value: String) {
+    func testBhvSerializationparam029RequirePathParamRejectsDotSegments(value: String) {
         var message: String?
         do {
             try ValueSerializer.requirePathParam("name", value, style: "simple", operation: "SampleApi.get")
@@ -44,49 +44,49 @@ import Testing
     /* Dots inside a value, and the prefixed label and matrix styles, are not
        dot segments. */
     @Test(arguments: [("a..b", "simple"), (".hidden", "simple"), ("..", "label"), ("..", "matrix")])
-    func testRequirePathParamAcceptsNonDotSegments(value: String, style: String) throws {
+    func testBhvSerializationparam072RequirePathParamAcceptsNonDotSegments(value: String, style: String) throws {
         try ValueSerializer.requirePathParam("name", value, style: style, operation: "SampleApi.get")
         #expect(
             ValueSerializer.serializeValue(value, location: "path", schemaType: "string", collectionFormat: "")
                 as? String == value)
     }
 
-    @Test func testSerializeValuePathInteger() {
+    @Test func testBhvSerializationparam044SerializeValuePathInteger() {
         let result = ValueSerializer.serializeValue(42, location: "path", schemaType: "integer", collectionFormat: "")
         #expect(result as? String == "42")
     }
 
-    @Test func testSerializeValuePathBooleanTrue() {
+    @Test func testBhvSerializationparam021SerializeValuePathBooleanTrue() {
         let result = ValueSerializer.serializeValue(true, location: "path", schemaType: "boolean", collectionFormat: "")
         #expect(result as? String == "true")
     }
 
-    @Test func testSerializeValuePathBooleanFalse() {
+    @Test func testBhvSerializationparam018SerializeValuePathBooleanFalse() {
         let result = ValueSerializer.serializeValue(false, location: "path", schemaType: "boolean", collectionFormat: "")
         #expect(result as? String == "false")
     }
 
-    @Test func testSerializeValueQueryNull() {
+    @Test func testBhvSerializationparam067SerializeValueQueryNull() {
         let result = ValueSerializer.serializeValue(nil, location: "query", schemaType: "string", collectionFormat: "")
         #expect(result == nil)
     }
 
-    @Test func testSerializeValueQueryString() {
+    @Test func testBhvSerializationparam096SerializeValueQueryString() {
         let result = ValueSerializer.serializeValue("hello", location: "query", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "hello")
     }
 
-    @Test func testSerializeValueQueryInteger() {
+    @Test func testBhvSerializationparam045SerializeValueQueryInteger() {
         let result = ValueSerializer.serializeValue(42, location: "query", schemaType: "integer", collectionFormat: "")
         #expect(result as? String == "42")
     }
 
-    @Test func testSerializeValueQueryBooleanTrue() {
+    @Test func testBhvSerializationparam022SerializeValueQueryBooleanTrue() {
         let result = ValueSerializer.serializeValue(true, location: "query", schemaType: "boolean", collectionFormat: "")
         #expect(result as? String == "true")
     }
 
-    @Test func testSerializeValueQueryBooleanFalse() {
+    @Test func testBhvSerializationparam019SerializeValueQueryBooleanFalse() {
         let result = ValueSerializer.serializeValue(false, location: "query", schemaType: "boolean", collectionFormat: "")
         #expect(result as? String == "false")
     }
@@ -96,49 +96,49 @@ import Testing
         #expect(result as? String == "a,b,c")
     }
 
-    @Test func testSerializeValueQuerySetExpandsLikeArray() {
+    @Test func testBhvSerializationparam083SerializeValueQuerySetExpandsLikeArray() {
         let result = ValueSerializer.serializeValue(Set(["red"]), location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == "red")
     }
 
-    @Test func testSerializeValueQueryArraySsv() {
+    @Test func testBhvSerializationparam009SerializeValueQueryArraySsv() {
         let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "ssv")
         #expect(result as? String == "a b c")
     }
 
-    @Test func testSerializeValueQueryArrayTsv() {
+    @Test func testBhvSerializationparam010SerializeValueQueryArrayTsv() {
         let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "tsv")
         #expect(result as? String == "a\tb\tc")
     }
 
-    @Test func testSerializeValueQueryArrayPipes() {
+    @Test func testBhvSerializationparam008SerializeValueQueryArrayPipes() {
         let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "pipes")
         #expect(result as? String == "a|b|c")
     }
 
-    @Test func testSerializeValueQueryArrayMulti() {
+    @Test func testBhvSerializationparam015SerializeValueQueryArrayMulti() {
         let result = ValueSerializer.serializeValue(["a", "b"], location: "query", schemaType: "array", collectionFormat: "multi")
         let items = result as? [String]
         #expect(items == ["a", "b"])
     }
 
-    @Test func testSerializeValueQueryArrayEmptyCsv() {
+    @Test func testBhvSerializationparam007SerializeValueQueryArrayEmptyCsv() {
         let result = ValueSerializer.serializeValue([] as [String], location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == "")
     }
 
-    @Test func testSerializeValueQueryArrayEmptyMulti() {
+    @Test func testBhvSerializationparam031SerializeValueQueryArrayEmptyMulti() {
         let result = ValueSerializer.serializeValue([] as [String], location: "query", schemaType: "array", collectionFormat: "multi")
         let items = result as? [String]
         #expect(items == [])
     }
 
-    @Test func testSerializeValueQueryArraySingleElement() {
+    @Test func testBhvSerializationparam090SerializeValueQueryArraySingleElement() {
         let result = ValueSerializer.serializeValue(["a"], location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == "a")
     }
 
-    @Test func testSerializeValueCsvArrayKeepsNilSlot() {
+    @Test func testBhvSerializationparam011SerializeValueCsvArrayKeepsNilSlot() {
         /* OAS csv style with explode=false preserves the position of nil
          * elements as empty strings, producing "a,,c" not "a,c". */
         let items: [String?] = ["a", nil, "c"]
@@ -146,155 +146,155 @@ import Testing
         #expect(result as? String == "a,,c")
     }
 
-    @Test func testSerializeValueCsvArrayMultipleNilsKeptAsEmptySlots() {
+    @Test func testBhvSerializationparam032SerializeValueCsvArrayMultipleNilsKeptAsEmptySlots() {
         let items: [String?] = [nil, "x", nil, "y", nil]
         let result = ValueSerializer.serializeValue(items, location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == ",x,,y,")
     }
 
-    @Test func testSerializeValueCsvArrayAnyOptionalKeepsNilSlot() {
+    @Test func testBhvSerializationparam001SerializeValueCsvArrayAnyOptionalKeepsNilSlot() {
         let items: [Any?] = [1, nil, 3]
         let result = ValueSerializer.serializeValue(items, location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == "1,,3")
     }
 
-    @Test func testSerializeValueQueryArrayIntegers() {
+    @Test func testBhvSerializationparam014SerializeValueQueryArrayIntegers() {
         let result = ValueSerializer.serializeValue([1, 2, 3], location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == "1,2,3")
     }
 
-    @Test func testSerializeValueQueryArrayBooleans() {
+    @Test func testBhvSerializationparam012SerializeValueQueryArrayBooleans() {
         let result = ValueSerializer.serializeValue([true, false], location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == "true,false")
     }
 
-    @Test func testSerializeValueHeaderNull() {
+    @Test func testBhvSerializationparam063SerializeValueHeaderNull() {
         let result = ValueSerializer.serializeValue(nil, location: "header", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "")
     }
 
-    @Test func testSerializeValueHeaderString() {
+    @Test func testBhvSerializationparam097SerializeValueHeaderString() {
         let result = ValueSerializer.serializeValue("hello", location: "header", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "hello")
     }
 
-    @Test func testSerializeValueHeaderInteger() {
+    @Test func testBhvSerializationparam046SerializeValueHeaderInteger() {
         let result = ValueSerializer.serializeValue(42, location: "header", schemaType: "integer", collectionFormat: "")
         #expect(result as? String == "42")
     }
 
-    @Test func testSerializeValueHeaderBooleanTrue() {
+    @Test func testBhvSerializationparam023SerializeValueHeaderBooleanTrue() {
         let result = ValueSerializer.serializeValue(true, location: "header", schemaType: "boolean", collectionFormat: "")
         #expect(result as? String == "true")
     }
 
-    @Test func testSerializeValueHeaderArray() {
+    @Test func testBhvSerializationparam005SerializeValueHeaderArray() {
         let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "header", schemaType: "array", collectionFormat: "")
         #expect(result as? String == "a,b,c")
     }
 
-    @Test func testSerializeValueHeaderArrayEmpty() {
+    @Test func testBhvSerializationparam030SerializeValueHeaderArrayEmpty() {
         let result = ValueSerializer.serializeValue([] as [String], location: "header", schemaType: "array", collectionFormat: "")
         #expect(result as? String == "")
     }
 
-    @Test func testSerializeValueHeaderArrayIntegers() {
+    @Test func testBhvSerializationparam013SerializeValueHeaderArrayIntegers() {
         let result = ValueSerializer.serializeValue([1, 2, 3], location: "header", schemaType: "array", collectionFormat: "")
         #expect(result as? String == "1,2,3")
     }
 
-    @Test func testSerializeValueCookieNull() {
+    @Test func testBhvSerializationparam065SerializeValueCookieNull() {
         let result = ValueSerializer.serializeValue(nil, location: "cookie", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "")
     }
 
-    @Test func testSerializeValueCookieString() {
+    @Test func testBhvSerializationparam099SerializeValueCookieString() {
         let result = ValueSerializer.serializeValue("hello", location: "cookie", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "hello")
     }
 
-    @Test func testSerializeValueFormNull() {
+    @Test func testBhvSerializationparam064SerializeValueFormNull() {
         let result = ValueSerializer.serializeValue(nil, location: "form", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "")
     }
 
-    @Test func testSerializeValueFormString() {
+    @Test func testBhvSerializationparam098SerializeValueFormString() {
         let result = ValueSerializer.serializeValue("hello", location: "form", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "hello")
     }
 
-    @Test func testSerializeValueFormInteger() {
+    @Test func testBhvSerializationparam047SerializeValueFormInteger() {
         let result = ValueSerializer.serializeValue(42, location: "form", schemaType: "integer", collectionFormat: "")
         #expect(result as? String == "42")
     }
 
-    @Test func testSerializeValueFormBooleanTrue() {
+    @Test func testBhvSerializationparam024SerializeValueFormBooleanTrue() {
         let result = ValueSerializer.serializeValue(true, location: "form", schemaType: "boolean", collectionFormat: "")
         #expect(result as? String == "true")
     }
 
-    @Test func testSerializeValueFormBooleanFalse() {
+    @Test func testBhvSerializationparam020SerializeValueFormBooleanFalse() {
         let result = ValueSerializer.serializeValue(false, location: "form", schemaType: "boolean", collectionFormat: "")
         #expect(result as? String == "false")
     }
 
     // MARK: - SerializeStyled: matrix
 
-    @Test func testSerializeStyledMatrixScalar() {
+    @Test func testBhvSerializationparam058SerializeStyledMatrixScalar() {
         let result = ValueSerializer.serializeStyled("id", value: "5", location: "path", schemaType: "string", collectionFormat: "", style: "matrix", explode: false)
         #expect(result as? String == ";id=5")
     }
 
-    @Test func testSerializeStyledMatrixArrayNoExplode() {
+    @Test func testBhvSerializationparam056SerializeStyledMatrixArrayNoExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green", "blue"], location: "path", schemaType: "array", collectionFormat: "", style: "matrix", explode: false)
         #expect(result as? String == ";color=red,green,blue")
     }
 
-    @Test func testSerializeStyledMatrixArrayExplode() {
+    @Test func testBhvSerializationparam055SerializeStyledMatrixArrayExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green", "blue"], location: "path", schemaType: "array", collectionFormat: "", style: "matrix", explode: true)
         #expect(result as? String == ";color=red;color=green;color=blue")
     }
 
-    @Test func testSerializeStyledMatrixNil() {
+    @Test func testBhvSerializationparam057SerializeStyledMatrixNil() {
         let result = ValueSerializer.serializeStyled("id", value: nil, location: "path", schemaType: "string", collectionFormat: "", style: "matrix", explode: false)
         #expect(result as? String == "")
     }
 
     // MARK: - SerializeStyled: label
 
-    @Test func testSerializeStyledLabelScalar() {
+    @Test func testBhvSerializationparam052SerializeStyledLabelScalar() {
         let result = ValueSerializer.serializeStyled("id", value: "5", location: "path", schemaType: "string", collectionFormat: "", style: "label", explode: false)
         #expect(result as? String == ".5")
     }
 
-    @Test func testSerializeStyledLabelArrayNoExplode() {
+    @Test func testBhvSerializationparam050SerializeStyledLabelArrayNoExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green"], location: "path", schemaType: "array", collectionFormat: "", style: "label", explode: false)
         #expect(result as? String == ".red,green")
     }
 
-    @Test func testSerializeStyledLabelArrayExplode() {
+    @Test func testBhvSerializationparam049SerializeStyledLabelArrayExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green"], location: "path", schemaType: "array", collectionFormat: "", style: "label", explode: true)
         #expect(result as? String == ".red.green")
     }
 
-    @Test func testSerializeStyledLabelNil() {
+    @Test func testBhvSerializationparam051SerializeStyledLabelNil() {
         let result = ValueSerializer.serializeStyled("color", value: nil, location: "path", schemaType: "string", collectionFormat: "", style: "label", explode: true)
         #expect(result as? String == "")
     }
 
     // MARK: - SerializeStyled: simple
 
-    @Test func testSerializeStyledSimpleScalar() {
+    @Test func testBhvSerializationparam086SerializeStyledSimpleScalar() {
         let result = ValueSerializer.serializeStyled("id", value: "5", location: "path", schemaType: "string", collectionFormat: "", style: "simple", explode: false)
         #expect(result as? String == "5")
     }
 
-    @Test func testSerializeStyledSimpleArray() {
+    @Test func testBhvSerializationparam084SerializeStyledSimpleArray() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green"], location: "path", schemaType: "array", collectionFormat: "", style: "simple", explode: false)
         #expect(result as? String == "red,green")
     }
 
-    @Test func testSerializeStyledSimpleNil() {
+    @Test func testBhvSerializationparam085SerializeStyledSimpleNil() {
         let result = ValueSerializer.serializeStyled("id", value: nil, location: "path", schemaType: "string", collectionFormat: "", style: "simple", explode: false)
         #expect(result as? String == "")
     }
@@ -306,52 +306,52 @@ import Testing
         #expect(result as? String == "blue")
     }
 
-    @Test func testSerializeStyledFormArrayExplode() {
+    @Test func testBhvSerializationparam038SerializeStyledFormArrayExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green"], location: "query", schemaType: "array", collectionFormat: "", style: "form", explode: true)
         let items = result as? [String]
         #expect(items == ["red", "green"])
     }
 
-    @Test func testSerializeStyledFormArrayNoExplode() {
+    @Test func testBhvSerializationparam037SerializeStyledFormArrayNoExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green"], location: "query", schemaType: "array", collectionFormat: "", style: "form", explode: false)
         #expect(result as? String == "red,green")
     }
 
-    @Test func testSerializeStyledFormNilQuery() {
+    @Test func testBhvSerializationparam040SerializeStyledFormNilQuery() {
         let result = ValueSerializer.serializeStyled("color", value: nil, location: "query", schemaType: "string", collectionFormat: "", style: "form", explode: true)
         #expect(result == nil)
     }
 
     // MARK: - SerializeStyled: spaceDelimited
 
-    @Test func testSerializeStyledSpaceDelimitedArray() {
+    @Test func testBhvSerializationparam093SerializeStyledSpaceDelimitedArray() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green", "blue"], location: "query", schemaType: "array", collectionFormat: "", style: "spaceDelimited", explode: false)
         #expect(result as? String == "red green blue")
     }
 
-    @Test func testSerializeStyledSpaceDelimitedArrayExplode() {
+    @Test func testBhvSerializationparam094SerializeStyledSpaceDelimitedArrayExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green", "blue"], location: "query", schemaType: "array", collectionFormat: "", style: "spaceDelimited", explode: true)
         #expect(result as? [String] == ["red", "green", "blue"])
     }
 
-    @Test func testSerializeStyledSpaceDelimitedScalar() {
+    @Test func testBhvSerializationparam095SerializeStyledSpaceDelimitedScalar() {
         let result = ValueSerializer.serializeStyled("color", value: "red", location: "query", schemaType: "string", collectionFormat: "", style: "spaceDelimited", explode: false)
         #expect(result as? String == "red")
     }
 
     // MARK: - SerializeStyled: pipeDelimited
 
-    @Test func testSerializeStyledPipeDelimitedArray() {
+    @Test func testBhvSerializationparam074SerializeStyledPipeDelimitedArray() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green", "blue"], location: "query", schemaType: "array", collectionFormat: "", style: "pipeDelimited", explode: false)
         #expect(result as? String == "red|green|blue")
     }
 
-    @Test func testSerializeStyledPipeDelimitedArrayExplode() {
+    @Test func testBhvSerializationparam075SerializeStyledPipeDelimitedArrayExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green", "blue"], location: "query", schemaType: "array", collectionFormat: "", style: "pipeDelimited", explode: true)
         #expect(result as? [String] == ["red", "green", "blue"])
     }
 
-    @Test func testSerializeStyledPipeDelimitedScalar() {
+    @Test func testBhvSerializationparam076SerializeStyledPipeDelimitedScalar() {
         let result = ValueSerializer.serializeStyled("color", value: "red", location: "query", schemaType: "string", collectionFormat: "", style: "pipeDelimited", explode: false)
         #expect(result as? String == "red")
     }
@@ -367,7 +367,7 @@ import Testing
         #expect(result["filter[type]"] == "dog")
     }
 
-    @Test func testSerializeDeepObjectNil() {
+    @Test func testBhvSerializationparam061SerializeDeepObjectNil() {
         let result = ValueSerializer.serializeDeepObject("filter", value: nil)
         #expect(result.isEmpty)
     }
@@ -400,14 +400,14 @@ import Testing
         #expect(fields.map { $0.value } == ["true", "lab", "3"])
     }
 
-    @Test func testScalarsAndDatesAreNotObjects() {
+    @Test func testBhvSerializationparam048ScalarsAndDatesAreNotObjects() {
         #expect(ValueSerializer.objectFields("text") == nil)
         #expect(ValueSerializer.objectFields(5) == nil)
         #expect(ValueSerializer.objectFields(Date()) == nil)
         #expect(ValueSerializer.objectFields(Data([1, 2])) == nil)
     }
 
-    @Test func testFormExplodedObjectExpandsIntoOnePairPerField() throws {
+    @Test func testBhvSerializationparam036FormExplodedObjectExpandsIntoOnePairPerField() throws {
         let value = Criteria(breed: "lab", minAge: 3)
         let result = ValueSerializer.serializeStyled(
             "criteria", value: value, location: "query", schemaType: "Criteria", collectionFormat: "",
@@ -418,7 +418,7 @@ import Testing
         #expect(BaseApi.buildQueryString(["criteria": parameter]) == "breed=lab&min_age=3")
     }
 
-    @Test func testFormNotExplodedObjectIsOneCommaSeparatedValue() {
+    @Test func testBhvSerializationparam039FormNotExplodedObjectIsOneCommaSeparatedValue() {
         let value = Criteria(breed: "lab", minAge: 3)
         let result = ValueSerializer.serializeStyled(
             "criteriaCsv", value: value, location: "query", schemaType: "Criteria", collectionFormat: "",
@@ -427,7 +427,7 @@ import Testing
         #expect(BaseApi.buildQueryString(["criteriaCsv": result]) == "criteriaCsv=breed%2Clab%2Cmin_age%2C3")
     }
 
-    @Test func testSimpleObjectInAHeaderIsCommaSeparated() throws {
+    @Test func testBhvSerializationparam082SimpleObjectInAHeaderIsCommaSeparated() throws {
         let value = Criteria(breed: "lab", minAge: 3)
         let plain = ValueSerializer.serializeStyled(
             "X-Criteria", value: value, location: "header", schemaType: "Criteria", collectionFormat: "",
@@ -439,7 +439,7 @@ import Testing
         #expect(try ValueSerializer.headerValue(exploded) == "breed=lab,min_age=3")
     }
 
-    @Test func testDeepObjectModelExpandsToBracketedKeys() throws {
+    @Test func testBhvSerializationparam017DeepObjectModelExpandsToBracketedKeys() throws {
         let pairs = try ValueSerializer.serializeDeepObjectValue(
             "criteriaDeep", value: Criteria(breed: "lab", minAge: 3))
         #expect(pairs.map { $0.key } == ["criteriaDeep[breed]", "criteriaDeep[min_age]"])
@@ -470,25 +470,25 @@ import Testing
         #expect(result as? String == "5")
     }
 
-    @Test func testSerializeStyledEmptyStyle() {
+    @Test func testBhvSerializationparam035SerializeStyledEmptyStyle() {
         let result = ValueSerializer.serializeStyled("id", value: "5", location: "query", schemaType: "string", collectionFormat: "", style: "", explode: false)
         #expect(result as? String == "5")
     }
 
     // MARK: - Regression tests
 
-    @Test func testSerializeStyledFormExplodeScalarReturnsSingleString() {
+    @Test func testBhvSerializationparam041SerializeStyledFormExplodeScalarReturnsSingleString() {
         let result = ValueSerializer.serializeStyled("color", value: "blue", location: "query", schemaType: "string", collectionFormat: "", style: "form", explode: true)
         #expect(result is String, "expected a String, not an Array")
         #expect(result as? String == "blue")
     }
 
-    @Test func testSerializeStyledSimplePathEncodesValue() {
+    @Test func testBhvSerializationparam087SerializeStyledSimplePathEncodesValue() {
         let result = ValueSerializer.serializeStyled("name", value: "hello world", location: "path", schemaType: "string", collectionFormat: "", style: "simple", explode: false)
         #expect(result as? String == "hello%20world")
     }
 
-    @Test func testSerializeStyledFormExplodeSingleElementArray() {
+    @Test func testBhvSerializationparam042SerializeStyledFormExplodeSingleElementArray() {
         let result = ValueSerializer.serializeStyled("color", value: ["red"], location: "query", schemaType: "array", collectionFormat: "", style: "form", explode: true)
         let items = result as? [String]
         #expect(items == ["red"])
@@ -498,42 +498,42 @@ import Testing
     // Cross-language parity tests for path-segment percent-encoding.
     // Every SDK must produce identical encoded strings for these inputs.
 
-    @Test func testPathEncodingParityAsciiSafePassThrough() {
+    @Test func testBhvSerializationparam016PathEncodingParityAsciiSafePassThrough() {
         let result = ValueSerializer.serializeValue("abc123", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "abc123")
     }
 
-    @Test func testPathEncodingParitySpaceEncoded() {
+    @Test func testBhvSerializationparam092PathEncodingParitySpaceEncoded() {
         let result = ValueSerializer.serializeValue("a b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a%20b")
     }
 
-    @Test func testPathEncodingParitySlashEncoded() {
+    @Test func testBhvSerializationparam091PathEncodingParitySlashEncoded() {
         let result = ValueSerializer.serializeValue("a/b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a%2Fb")
     }
 
-    @Test func testPathEncodingParityQuestionMarkEncoded() {
+    @Test func testBhvSerializationparam079PathEncodingParityQuestionMarkEncoded() {
         let result = ValueSerializer.serializeValue("a?b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a%3Fb")
     }
 
-    @Test func testPathEncodingParityHashEncoded() {
+    @Test func testBhvSerializationparam043PathEncodingParityHashEncoded() {
         let result = ValueSerializer.serializeValue("a#b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a%23b")
     }
 
-    @Test func testPathEncodingParityCommaPreserved() {
+    @Test func testBhvSerializationparam026PathEncodingParityCommaPreserved() {
         let result = ValueSerializer.serializeValue("a,b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a,b")
     }
 
-    @Test func testPathEncodingParityColonPreserved() {
+    @Test func testBhvSerializationparam025PathEncodingParityColonPreserved() {
         let result = ValueSerializer.serializeValue("a:b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a:b")
     }
 
-    @Test func testPathEncodingParityPlusPreserved() {
+    @Test func testBhvSerializationparam077PathEncodingParityPlusPreserved() {
         let result = ValueSerializer.serializeValue("a+b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a+b")
     }
@@ -549,33 +549,33 @@ import Testing
         ("]", "%5D"), ("|", "%7C"), ("\\", "%5C"), ("^", "%5E"), ("`", "%60"),
         ("{", "%7B"), ("}", "%7D"), ("/", "%2F"), ("?", "%3F"), ("#", "%23"), (" ", "%20"),
     ])
-    func testPathEncodingParityEverySpecialCharacter(raw: String, encoded: String) {
+    func testBhvSerializationparam080PathEncodingParityEverySpecialCharacter(raw: String, encoded: String) {
         let result = ValueSerializer.serializeValue(
             "a" + raw + "b", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "a" + encoded + "b")
     }
 
-    @Test func testPathEncodingParityUnicodeEncoded() {
+    @Test func testBhvSerializationparam103PathEncodingParityUnicodeEncoded() {
         let result = ValueSerializer.serializeValue("日本", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "%E6%97%A5%E6%9C%AC")
     }
 
-    @Test func testPathEncodingParityEmptyStringPreserved() {
+    @Test func testBhvSerializationparam034PathEncodingParityEmptyStringPreserved() {
         let result = ValueSerializer.serializeValue("", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "")
     }
 
-    @Test func testPathEncodingParityNullReturnsEmpty() {
+    @Test func testBhvSerializationparam070PathEncodingParityNullReturnsEmpty() {
         let result = ValueSerializer.serializeValue(nil, location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "")
     }
 
-    @Test func testPathEncodingParitySimpleStyleEncodesValue() {
+    @Test func testBhvSerializationparam089PathEncodingParitySimpleStyleEncodesValue() {
         let result = ValueSerializer.serializeStyled("color", value: "a b", location: "path", schemaType: "string", collectionFormat: "", style: "simple", explode: false)
         #expect(result as? String == "a%20b")
     }
 
-    @Test func testPathEncodingParitySimpleStyleArrayEncodesEachItem() {
+    @Test func testBhvSerializationparam088PathEncodingParitySimpleStyleArrayEncodesEachItem() {
         let result = ValueSerializer.serializeStyled("color", value: ["a b", "c?d"], location: "path", schemaType: "array", collectionFormat: "", style: "simple", explode: false)
         #expect(result as? String == "a%20b,c%3Fd")
     }
@@ -583,7 +583,7 @@ import Testing
     // Gap W1 regression: every per-item path value in a styled array must be
     // percent-encoded BEFORE being joined with the structural separator.
     // Otherwise '/', '?', '#', space leak into the URL.
-    @Test func test_path_array_item_with_reserved_char_is_percent_encoded() {
+    @Test func testBhvSerializationparam069PathArrayItemWithReservedCharIsPercentEncoded() {
         let items: [String] = ["a/b", "c"]
         let simple = ValueSerializer.serializeStyled("name", value: items, location: "path", schemaType: "array", collectionFormat: "", style: "simple", explode: false)
         #expect(simple as? String == "a%2Fb,c")
@@ -593,17 +593,17 @@ import Testing
         #expect(matrix as? String == ";name=a%2Fb,c")
     }
 
-    @Test func testPathEncodingParityMatrixStyleEncodesValue() {
+    @Test func testBhvSerializationparam059PathEncodingParityMatrixStyleEncodesValue() {
         let result = ValueSerializer.serializeStyled("color", value: "a b", location: "path", schemaType: "string", collectionFormat: "", style: "matrix", explode: false)
         #expect(result as? String == ";color=a%20b")
     }
 
-    @Test func testPathEncodingParityLabelStyleEncodesValue() {
+    @Test func testBhvSerializationparam053PathEncodingParityLabelStyleEncodesValue() {
         let result = ValueSerializer.serializeStyled("color", value: "a b", location: "path", schemaType: "string", collectionFormat: "", style: "label", explode: false)
         #expect(result as? String == ".a%20b")
     }
 
-    @Test func testPathEncodingParityQueryLocationNotPathEncoded() {
+    @Test func testBhvSerializationparam078PathEncodingParityQueryLocationNotPathEncoded() {
         let result = ValueSerializer.serializeStyled("color", value: "a b", location: "query", schemaType: "string", collectionFormat: "", style: "form", explode: false)
         #expect(result as? String == "a b")
     }
@@ -611,7 +611,7 @@ import Testing
     // path-double-encoding: serializeStyled already percent-encodes the path
     // segment, so the api template must NOT wrap it again. A space must become
     // %20 (never %2520) and a slash %2F (never %252F).
-    @Test func testSerializeStyledPathEncodedExactlyOnce() {
+    @Test func testBhvSerializationparam073SerializeStyledPathEncodedExactlyOnce() {
         let space = ValueSerializer.serializeStyled("id", value: "a b", location: "path", schemaType: "string", collectionFormat: "", style: "simple", explode: false)
         #expect(space as? String == "a%20b")
         #expect((space as? String)?.contains("%2520") == false)
@@ -622,7 +622,7 @@ import Testing
 
     // Empty-string path values are rejected before the request is built with
     // ConfigurationError.invalidArgument: a caller mistake, never a trap.
-    @Test func testEmptyStringPathParamThrows() {
+    @Test func testBhvSerializationparam033EmptyStringPathParamThrows() {
         let error = #expect(throws: ConfigurationError.self) {
             try ValueSerializer.requirePathParam("id", "", operation: "Api.operation")
         }
@@ -640,7 +640,7 @@ import Testing
     // maybeAllowReserved wraps a value only when allowReserved is true; a false
     // flag must leave the value untouched so allowReserved: false stays
     // byte-identical to today. A nil value is never wrapped.
-    @Test func testMaybeAllowReservedWrapsOnlyWhenTrue() {
+    @Test func testBhvSerializationparam060MaybeAllowReservedWrapsOnlyWhenTrue() {
         #expect(ValueSerializer.maybeAllowReserved("plain", allowReserved: false) as? String == "plain")
 
         let wrapped = ValueSerializer.maybeAllowReserved("v1/beta", allowReserved: true)
@@ -667,5 +667,26 @@ import Testing
         #expect(
             ValueSerializer.encodeCookieValue("{\"k\":\"a b~*\u{00E9}\"}")
                 == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D")
+    }
+
+    @Test func testBhvSerializationparam066NullInPathIsEmptyString() {
+        let result = ValueSerializer.serializeValue(nil, location: "path", schemaType: "string", collectionFormat: "")
+        #expect(result as? String == "")
+    }
+
+    @Test func testBhvSerializationparam068PathSegmentEncodesCharactersOutsideTheLegalSet() {
+        #expect(ValueSerializer.encodePathSegment("a?b#c") == "a%3Fb%23c")
+    }
+
+    @Test func testBhvSerializationparam071PathSegmentIsEncodedOnce() {
+        #expect(ValueSerializer.encodePathSegment("a b/c") == "a%20b%2Fc")
+    }
+
+    @Test func testBhvSerializationparam004AlreadyPercentEncodedValueIsEncodedAgain() {
+        #expect(ValueSerializer.encodePathSegment("a%20b") == "a%2520b")
+    }
+
+    @Test func testBhvSerializationparam081SemicolonIsPreservedInPathSegment() {
+        #expect(ValueSerializer.encodePathSegment("a;b") == "a;b")
     }
 }

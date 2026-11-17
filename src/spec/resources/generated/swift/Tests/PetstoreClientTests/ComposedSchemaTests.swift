@@ -14,7 +14,7 @@ import Testing
 
   // MARK: - oneOf with discriminator: PetFood
 
-  @Test func testPetFoodDeserializeDryFood() throws {
+  @Test func testBhvUnions012PetFoodDeserializeDryFood() throws {
     let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
 
     let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
@@ -22,7 +22,7 @@ import Testing
     #expect(val is DryFood)
   }
 
-  @Test func testPetFoodDeserializeWetFood() throws {
+  @Test func testBhvUnions013PetFoodDeserializeWetFood() throws {
     let jsonData = Data("{\"foodType\":\"wet\",\"volumeMl\":400}".utf8)
 
     let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
@@ -42,7 +42,7 @@ import Testing
   /// must throw `DecodingError.dataCorrupted` — not fall through to a
   /// catch-all anyOf-style match nor silently return nil. The message
   /// must surface the offending discriminator value for diagnostics.
-  @Test func testPetFoodUnknownDiscriminatorThrowsDecodingError() {
+  @Test func testBhvUnions016PetFoodUnknownDiscriminatorThrowsDecodingError() {
     let jsonData = Data("{\"foodType\":\"unknown\",\"weightKg\":1.0}".utf8)
     do {
       _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
@@ -62,7 +62,7 @@ import Testing
     #expect(food.foodType == "dry")
   }
 
-  @Test func testPetFoodMissingDiscriminatorThrows() {
+  @Test func testBhvUnions015PetFoodMissingDiscriminatorThrows() {
     // Payload missing the foodType key entirely must also fail loudly,
     // since the wrapper cannot route to any listed subtype.
     let jsonData = Data("{\"weightKg\":2.0}".utf8)
@@ -91,7 +91,7 @@ import Testing
     }
   }
 
-  @Test func testPetFoodEmptyDiscriminatorThrows() {
+  @Test func testBhvUnions024PetFoodEmptyDiscriminatorThrows() {
     // An empty discriminator value matches no listed subtype and must
     // fail decoding rather than route to a structurally-fitting variant.
     let jsonData = Data("{\"foodType\":\"\",\"weightKg\":2.5}".utf8)
@@ -118,7 +118,7 @@ import Testing
     #expect(error?.cause != nil)
   }
 
-  @Test func testPetFoodUnknownDiscriminatorNamesTheValueInTheCause() {
+  @Test func testBhvUnions026PetFoodUnknownDiscriminatorNamesTheValueInTheCause() {
     let error = #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("{\"foodType\":\"raw\"}", as: PetFood.self)
     }
@@ -126,7 +126,7 @@ import Testing
     #expect(cause.contains("Unknown discriminator value: raw"))
   }
 
-  @Test func testPetFoodSerializeDryFood() throws {
+  @Test func testBhvUnions020PetFoodSerializeDryFood() throws {
     let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
     let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
 
@@ -149,7 +149,7 @@ import Testing
   }
 
   /* The primitive-union variants are accepted by the same initializer. */
-  @Test func testByteUnionConstructedFromVariantSerializesAsBase64() throws {
+  @Test func testBhvUnions019ByteUnionConstructedFromVariantSerializesAsBase64() throws {
     let scalar = SetPetAvatarThumbnailRequest(Data([0xFF, 0xFE]))
     #expect(scalar.actualInstance(as: Data.self) == Data([0xFF, 0xFE]))
     #expect(try ObjectSerializer.serialize(scalar) == "\"//4=\"")
@@ -160,7 +160,7 @@ import Testing
   }
 
   /* Every variant of a oneOf union has a typed factory and typed accessors. */
-  @Test func testUnionTypedFactoriesAndAccessors() throws {
+  @Test func testBhvUnions001UnionTypedFactoriesAndAccessors() throws {
     let food = PetFood.fromDryFood(DryFood(weightKg: 2.5))
     #expect(food.isDryFood)
     #expect(!food.isWetFood)
@@ -189,7 +189,7 @@ import Testing
 
   // MARK: - anyOf without discriminator: PetTreatment
 
-  @Test func testPetTreatmentDeserializeMedication() throws {
+  @Test func testBhvUnions014PetTreatmentDeserializeMedication() throws {
     // Medication schema has fields: drugName (required), dosage (optional).
     // A medication-only payload must still decode to exactly the Medication
     // variant, with no Surgery variant retained.
@@ -203,7 +203,7 @@ import Testing
     #expect(treatment.matchedInstances().count == 1)
   }
 
-  @Test func testPetTreatmentDeserializeSurgery() throws {
+  @Test func testBhvUnions006PetTreatmentDeserializeSurgery() throws {
     // A surgery-only payload must still decode to exactly the Surgery
     // variant, with no Medication variant retained.
     let jsonData = Data("{\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8)
@@ -215,7 +215,7 @@ import Testing
     #expect(treatment.matchedInstances().count == 1)
   }
 
-  @Test func testPetTreatmentNoMatchThrows() {
+  @Test func testBhvUnions007PetTreatmentNoMatchThrows() {
     // oneof-nondiscriminator-no-match-silent: a payload matching neither
     // Medication nor Surgery must surface as a decoding error rather than
     // a silently-empty union.
@@ -244,7 +244,7 @@ import Testing
     #expect(both.asSurgery?.procedureName == "Spay")
   }
 
-  @Test func testPetTreatmentSerializeRoundTrip() throws {
+  @Test func testBhvUnions008PetTreatmentSerializeRoundTrip() throws {
     // Medication schema has fields: drugName (required), dosage (optional)
     let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
 
@@ -261,7 +261,7 @@ import Testing
   /// retain BOTH — the Medication data and the Surgery data are all accessible
   /// — and re-serialise losslessly so all four fields survive the round trip,
   /// rather than silently dropping the variant that lost the first-match race.
-  @Test func testPetTreatmentRetainsAllMatchingVariantsLosslessly() throws {
+  @Test func testBhvUnions009PetTreatmentRetainsAllMatchingVariantsLosslessly() throws {
     let jsonData = Data(
       "{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\",\"procedureName\":\"Spay\",\"durationMinutes\":45}"
         .utf8
@@ -291,7 +291,7 @@ import Testing
   }
 
   /// Union wrappers compare by value and hash alike, as plain models do.
-  @Test func testUnionWrappersHaveValueEquality() throws {
+  @Test func testBhvUnions011UnionWrappersHaveValueEquality() throws {
     let json = Data("{\"drugName\":\"Amoxicillin\",\"procedureName\":\"Spay\"}".utf8)
     let first = try JSONDecoder().decode(PetTreatment.self, from: json)
     let second = try JSONDecoder().decode(PetTreatment.self, from: json)
@@ -318,7 +318,7 @@ import Testing
   /// Retaining both members with DIFFERENT `notes` values must encode the
   /// LAST-declared member's value (Surgery) and emit `notes` exactly once —
   /// never a duplicate JSON key.
-  @Test func testPetTreatmentSharedPropertyCollisionLastWins() throws {
+  @Test func testBhvUnions010PetTreatmentSharedPropertyCollisionLastWins() throws {
     let medication = Medication(drugName: "Amoxicillin", notes: "from-medication")
     let surgery = Surgery(procedureName: "Spay", notes: "from-surgery")
     let treatment = try #require(PetTreatment([medication, surgery]))
@@ -336,7 +336,7 @@ import Testing
   /// TreatmentRecord declares the same members as PetTreatment in the other
   /// order: variants are retained in declaration order (Surgery, Medication),
   /// and the later-declared member (Medication) wins a shared property.
-  @Test func testTreatmentRecordRetainsVariantsInDeclarationOrderAndLastWins() throws {
+  @Test func testBhvUnions025TreatmentRecordRetainsVariantsInDeclarationOrderAndLastWins() throws {
     let json = Data("{\"drugName\":\"Amoxicillin\",\"procedureName\":\"Spay\"}".utf8)
     let record = try JSONDecoder().decode(TreatmentRecord.self, from: json)
     #expect(record.matchedInstances().count == 2)
@@ -356,7 +356,7 @@ import Testing
 
   // MARK: - allOf: PetWithOwner extends Pet fields
 
-  @Test func testPetWithOwnerDeserialize() throws {
+  @Test func testBhvUnions004PetWithOwnerDeserialize() throws {
     let jsonData = Data(
       """
       {
@@ -371,7 +371,7 @@ import Testing
     _ = petWithOwner
   }
 
-  @Test func testPetWithOwnerSerialize() throws {
+  @Test func testBhvUnions021PetWithOwnerSerialize() throws {
     let pet = PetWithOwner(
       name: "Fido", photoUrls: ["http://example.com/fido.jpg"], ownerName: "John Doe")
 
@@ -383,7 +383,7 @@ import Testing
     #expect(parsed?["ownerName"] as? String == "John Doe")
   }
 
-  @Test func testPetWithOwnerRoundTrip() throws {
+  @Test func testBhvUnions017PetWithOwnerRoundTrip() throws {
     let jsonData = Data(
       """
       {

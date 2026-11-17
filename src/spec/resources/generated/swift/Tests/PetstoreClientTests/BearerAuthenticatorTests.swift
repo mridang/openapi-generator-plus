@@ -17,25 +17,25 @@ import Testing
  * redaction guarantee. */
 @Suite final class BearerAuthenticatorTests {
 
-  @Test func testRawTokenIsPrefixedWithBearer() async throws {
+  @Test func testBhvAuthbearer009RawTokenIsPrefixedWithBearer() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
     let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func testAlreadyPrefixedTokenIsNotDoubled() async throws {
+  @Test func testBhvAuthbearer003AlreadyPrefixedTokenIsNotDoubled() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer xyz")
     let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func testLowercaseBearerPrefixIsStripped() async throws {
+  @Test func testBhvAuthbearer007LowercaseBearerPrefixIsStripped() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearer xyz")
     let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func testMixedCaseBearerPrefixIsStripped() async throws {
+  @Test func testBhvAuthbearer008MixedCaseBearerPrefixIsStripped() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "BeArEr xyz")
     let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
@@ -44,7 +44,7 @@ import Testing
   /* authenticator-secret-in-default-string-repr: the default string
    * representation must never expose the stored token and must show the
    * `***` redaction marker. */
-  @Test func testRedactsSecret() async throws {
+  @Test func testBhvAuthbearer011RedactsSecret() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
     let description = String(describing: auth)
     #expect(!description.contains("token=xyz"))
@@ -70,7 +70,7 @@ import Testing
    * inject or mangle it: each is rejected at construction with
    * ConfigurationError.invalidArgument, never a trap. */
   @Test(arguments: ["", "   ", "tok\r\nInjected: yes", "ñoño"])
-  func testInvalidTokenIsRejectedAtConstruction(token: String) {
+  func testBhvAuthbearer005InvalidTokenIsRejectedAtConstruction(token: String) {
     let error = #expect(throws: ConfigurationError.self) {
       _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
     }
@@ -99,7 +99,7 @@ import Testing
       "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
     ),
   ])
-  func testRejectionMessagesNameTheBranch(token: String, message: String) {
+  func testBhvAuthbearer001RejectionMessagesNameTheBranch(token: String, message: String) {
     #expect(throws: ConfigurationError.invalidArgument(message)) {
       _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
     }
@@ -107,7 +107,7 @@ import Testing
 
   /* The prefix is removed once and only as a whole word: a token that
    * merely starts with the letters is left alone. */
-  @Test func testPrefixIsStrippedOnceAndOnlyAsWholeWord() async throws {
+  @Test func testBhvAuthbearer004PrefixIsStrippedOnceAndOnlyAsWholeWord() async throws {
     let twice = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer Bearer xyz")
     #expect(try await twice.authHeaders()["Authorization"] == "Bearer Bearer xyz")
     let lookalike = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
@@ -119,7 +119,9 @@ import Testing
   /* Each HTTP bearer securityScheme generates a wrapper that sends the same
    * Bearer header, validates eagerly and masks the token in its repr. */
   @Test(arguments: ["PetStoreBearer", "ServiceToken"])
-  func testSchemeWrapperSendsBearerHeaderAndMasksTheToken(scheme: String) async throws {
+  func testBhvAuthbearer006SchemeWrapperSendsBearerHeaderAndMasksTheToken(scheme: String)
+    async throws
+  {
     let auth = try Self.schemeWrapper(scheme, token: "xyz")
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer xyz"])
     #expect(auth.queryParams().isEmpty)
@@ -150,14 +152,14 @@ import Testing
 
   /* The callback runs before every request, so a token refreshed elsewhere is
    * picked up. */
-  @Test func testTokenProviderIsCalledBeforeEveryRequest() async throws {
+  @Test func testBhvAuthbearer014TokenProviderIsCalledBeforeEveryRequest() async throws {
     let box = TokenBox()
     let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { box.next() })
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
   }
 
-  @Test func testTokenProviderResultIsValidatedLikeAStaticToken() async throws {
+  @Test func testBhvAuthbearer002TokenProviderResultIsValidatedLikeAStaticToken() async throws {
     let empty = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "  " })
     await #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
       _ = try await empty.authHeaders()
@@ -181,7 +183,9 @@ import Testing
     #expect(!String(describing: auth).contains("provided-1"))
   }
 
-  @Test func testPetStoreBearerAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
+  @Test
+  func
+    testBhvAuthbearer010PetStoreBearerAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
     async throws
   {
     let fromEnvironment = try PetStoreBearerAuthenticator(
@@ -194,7 +198,9 @@ import Testing
     #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
   }
 
-  @Test func testServiceTokenAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
+  @Test
+  func
+    testBhvAuthbearer010ServiceTokenAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
     async throws
   {
     let fromEnvironment = try ServiceTokenAuthenticator(
@@ -212,6 +218,50 @@ import Testing
     switch scheme {
     case "PetStoreBearer": return try PetStoreBearerAuthenticator(host: host, token: token)
     default: return try ServiceTokenAuthenticator(host: host, token: token)
+    }
+  }
+
+  @Test func testBhvAuthbearer012RejectsCrLfAtConstruction() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    ) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "tok\r\nInjected: yes")
+    }
+  }
+
+  @Test func testBhvAuthbearer013DescriptionShowsHostAndMasksToken() throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "masked-token-value")
+    #expect(auth.description.contains("host: https://api.example.com"))
+    #expect(!auth.description.contains("masked-token-value"))
+  }
+
+  @Test func testBhvAuthbearer015TokenThatOnlyStartsWithBearerIsKeptWhole() async throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer bearerxyz"])
+  }
+
+  @Test func testBhvAuthbearer016UnicodeSpaceOnlyTokenIsRejectedAsNonAscii() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    ) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "\u{2003}")
+    }
+  }
+
+  @Test func testBhvAuthbearer017WhitespaceOnlyTokenIsRejectedAsEmpty() {
+    #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "   ")
+    }
+  }
+
+  @Test func testBhvLifecycle006RejectsNonAsciiTokenAtConstruction() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    ) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "ñoño")
     }
   }
 }

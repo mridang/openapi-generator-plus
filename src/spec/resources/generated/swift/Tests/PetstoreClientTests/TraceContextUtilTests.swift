@@ -15,7 +15,7 @@ import Testing
 
 @Suite(.serialized) final class TraceContextUtilTests {
 
-  @Test func testInjectTraceContextNoOpWithoutTracer() {
+  @Test func testBhvTracing007InjectTraceContextNoOpWithoutTracer() {
     var headers: [String: String] = [
       "X-Existing": "value"
     ]
@@ -27,14 +27,14 @@ import Testing
     #expect(headers["X-Existing"] == "value")
   }
 
-  @Test func testInjectTraceContextEmptyHeadersDoNotCauseException() {
+  @Test func testBhvTracing003InjectTraceContextEmptyHeadersDoNotCauseException() {
     var headers: [String: String] = [:]
 
     // Should not crash with empty headers dictionary
     TraceContextUtil.injectTraceContext(headers: &headers)
   }
 
-  @Test func testInjectTraceContextDoesNotInjectTraceparentWithoutOTel() {
+  @Test func testBhvTracing001InjectTraceContextDoesNotInjectTraceparentWithoutOTel() {
     var headers: [String: String] = [:]
 
     TraceContextUtil.injectTraceContext(headers: &headers)
@@ -42,7 +42,7 @@ import Testing
     #expect(headers["traceparent"] == nil)
   }
 
-  @Test func testInjectTraceContextDoesNotInjectTracestateWithoutOTel() {
+  @Test func testBhvTracing002InjectTraceContextDoesNotInjectTracestateWithoutOTel() {
     var headers: [String: String] = [:]
 
     TraceContextUtil.injectTraceContext(headers: &headers)
@@ -50,7 +50,7 @@ import Testing
     #expect(headers["tracestate"] == nil)
   }
 
-  @Test func testInjectTraceContextPreservesAuthorizationHeader() {
+  @Test func testBhvTracing010InjectTraceContextPreservesAuthorizationHeader() {
     var headers: [String: String] = ["Authorization": "Bearer token123"]
 
     TraceContextUtil.injectTraceContext(headers: &headers)
@@ -58,7 +58,7 @@ import Testing
     #expect(headers["Authorization"] == "Bearer token123")
   }
 
-  @Test func testInjectTraceContextPreservesContentTypeHeader() {
+  @Test func testBhvTracing011InjectTraceContextPreservesContentTypeHeader() {
     var headers: [String: String] = ["Content-Type": "application/json"]
 
     TraceContextUtil.injectTraceContext(headers: &headers)
@@ -66,7 +66,7 @@ import Testing
     #expect(headers["Content-Type"] == "application/json")
   }
 
-  @Test func testInjectTraceContextPreservesXRequestIdHeader() {
+  @Test func testBhvTracing012InjectTraceContextPreservesXRequestIdHeader() {
     var headers: [String: String] = ["X-Request-ID": "req-12345"]
 
     TraceContextUtil.injectTraceContext(headers: &headers)
@@ -74,7 +74,7 @@ import Testing
     #expect(headers["X-Request-ID"] == "req-12345")
   }
 
-  @Test func testInjectTraceContextPreservesAllExistingHeaders() {
+  @Test func testBhvTracing009InjectTraceContextPreservesAllExistingHeaders() {
     var headers: [String: String] = [
       "Authorization": "Bearer token",
       "Content-Type": "application/json",
@@ -167,7 +167,7 @@ import Testing
       traceState: TraceState(entries: entries) ?? TraceState())
   }
 
-  @Test func testInjectsTraceparentWhenSpanActive() {
+  @Test func testBhvTracing006InjectsTraceparentWhenSpanActive() {
     let (span, exporter, provider) = withActiveSpan()
     defer { TraceContextUtil.propagator = nil }
     var headers: [String: String] = [:]
@@ -185,7 +185,7 @@ import Testing
       "the span must reach the exporter once")
   }
 
-  @Test func testIncludesTracestateWhenPresent() {
+  @Test func testBhvTracing005IncludesTracestateWhenPresent() {
     let (span, _, _) = withActiveSpan(parent: remoteParent(state: "vendor=value"))
     defer {
       span.end()
@@ -198,7 +198,7 @@ import Testing
     #expect(headers["tracestate"] == "vendor=value")
   }
 
-  @Test func testOmitsTracestateWhenEmpty() {
+  @Test func testBhvTracing008OmitsTracestateWhenEmpty() {
     let (span, _, _) = withActiveSpan()
     defer {
       span.end()
@@ -213,7 +213,7 @@ import Testing
   }
 
   @Test(arguments: [(true, "01"), (false, "00")])
-  func testFormatsTraceFlagsCorrectly(sampled: Bool, flags: String) {
+  func testBhvTracing004FormatsTraceFlagsCorrectly(sampled: Bool, flags: String) {
     let (span, _, _) = withActiveSpan(sampled: sampled)
     defer {
       span.end()

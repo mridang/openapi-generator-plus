@@ -47,7 +47,7 @@ import Testing
 
     // MARK: - Integration-equivalent tests
 
-    @Test func testMakesHttpsRequestWithVerifySslFalse() async throws {
+    @Test func testBhvTransport018MakesHttpsRequestWithVerifySslFalse() async throws {
       let transport = try TransportOptionsBuilder().verifySsl(false).build()
       let client = makeClient(transport: transport) { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
@@ -58,7 +58,7 @@ import Testing
       #expect(resp.body.contains("userId"))
     }
 
-    @Test func testMakesHttpsRequestWithCustomCaCert() async throws {
+    @Test func testBhvTransport017MakesHttpsRequestWithCustomCaCert() async throws {
       let transport = try TransportOptionsBuilder().caCertPath("/path/to/ca.pem").build()
       let client = makeClient(transport: transport) { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
@@ -68,7 +68,7 @@ import Testing
       #expect(resp.statusCode == 200)
     }
 
-    @Test func testMakesHttpRequestThroughProxy() async throws {
+    @Test func testBhvTransport015MakesHttpRequestThroughProxy() async throws {
       let transport = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
       let client = makeClient(transport: transport) { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
@@ -102,13 +102,13 @@ import Testing
       #expect(client.proxyCredential?.password == password)
     }
 
-    @Test func testProxyWithoutUserinfoHasNoCredential() throws {
+    @Test func testBhvTransport009ProxyWithoutUserinfoHasNoCredential() throws {
       let transport = try TransportOptionsBuilder().proxy("http://127.0.0.1:3128").build()
       let client = makeClient(transport: transport) { _ in (self.jsonBody(), 200, [:]) }
       #expect(client.proxyCredential == nil)
     }
 
-    @Test func testMakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
+    @Test func testBhvTransport016MakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
       let transport = try TransportOptionsBuilder()
         .proxy("http://proxy.example.com:8080")
         .verifySsl(false)
@@ -134,7 +134,7 @@ import Testing
       #expect(resp.statusCode == 200)
     }
 
-    @Test func testInjectsCustomUserAgentHeader() async throws {
+    @Test func testBhvTransport003InjectsCustomUserAgentHeader() async throws {
       var capturedRequest: URLRequest?
       let client = makeClient { req in
         capturedRequest = req
@@ -146,7 +146,7 @@ import Testing
       #expect(capturedRequest?.value(forHTTPHeaderField: "User-Agent") == "custom-agent/1.0")
     }
 
-    @Test func testInjectsRequestIdHeader() async throws {
+    @Test func testBhvTransport013InjectsRequestIdHeader() async throws {
       let transport = try TransportOptionsBuilder().injectRequestID(true).build()
       var capturedRequest: URLRequest?
       let client = makeClient(transport: transport) { req in
@@ -161,7 +161,7 @@ import Testing
       #expect(requestId?.range(of: uuidPattern, options: .regularExpression) != nil)
     }
 
-    @Test func testGeneratesUniqueRequestIds() async throws {
+    @Test func testBhvTransport007GeneratesUniqueRequestIds() async throws {
       let transport = try TransportOptionsBuilder().injectRequestID(true).build()
       var ids: [String] = []
       let client = makeClient(transport: transport) { req in
@@ -176,7 +176,7 @@ import Testing
       #expect(ids[0] != ids[1])
     }
 
-    @Test func testIncludesTransportDefaultHeaders() async throws {
+    @Test func testBhvTransport010IncludesTransportDefaultHeaders() async throws {
       let transport = try TransportOptionsBuilder()
         .defaultHeader(name: "X-Custom", value: "value123")
         .build()
@@ -190,7 +190,7 @@ import Testing
       #expect(capturedRequest?.value(forHTTPHeaderField: "X-Custom") == "value123")
     }
 
-    @Test func testCallerHeadersOverrideTransportDefaults() async throws {
+    @Test func testBhvOptions004CallerHeadersOverrideTransportDefaults() async throws {
       let transport = try TransportOptionsBuilder()
         .defaultHeader(name: "X-Custom", value: "default")
         .build()
@@ -205,19 +205,19 @@ import Testing
       #expect(capturedRequest?.value(forHTTPHeaderField: "X-Custom") == "override")
     }
 
-    @Test func testFollowsRedirectsWhenEnabled() async throws {
+    @Test func testBhvRedirects004FollowsRedirectsWhenEnabled() async throws {
       let transport = try TransportOptionsBuilder().followRedirects(true).build()
       #expect(transport.followRedirects)
       _ = try DefaultApiClient(transportOptions: transport)
     }
 
-    @Test func testReturnsRedirectWhenDisabled() async throws {
+    @Test func testBhvRedirects008ReturnsRedirectWhenDisabled() async throws {
       let transport = try TransportOptionsBuilder().followRedirects(false).build()
       #expect(!(transport.followRedirects))
       _ = try DefaultApiClient(transportOptions: transport)
     }
 
-    @Test func testRespectsMaxRedirectsLimit() async throws {
+    @Test func testBhvRedirects006RespectsMaxRedirectsLimit() async throws {
       let transport = try TransportOptionsBuilder()
         .followRedirects(true)
         .maxRedirects(3)
@@ -229,7 +229,7 @@ import Testing
     // Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.
     // URLSession itself rewrites the method on 303; this test pins that
     // behaviour from the perspective of DefaultApiClient.
-    @Test func testRedirect303SwitchesToGetAndDropsBody() async throws {
+    @Test func testBhvRedirects005Redirect303SwitchesToGetAndDropsBody() async throws {
       let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
       let hopCount = HopCounter()
       var capturedFollowupMethod: String?
@@ -261,7 +261,7 @@ import Testing
     // T-new-3: multipart bodies must be replayed across 307 redirects per
     // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
     // request after a 307 still carries the multipart form parts.
-    @Test func testMultipartBodyReplayedOn307Redirect() async throws {
+    @Test func testBhvRetries012MultipartBodyReplayedOn307Redirect() async throws {
       let transport = try TransportOptionsBuilder()
         .followRedirects(true)
         .maxRedirects(5)
@@ -304,7 +304,7 @@ import Testing
       #expect(echoed.contains("file-content-bytes"))
     }
 
-    @Test func testSendsMultipartFormData() async throws {
+    @Test func testBhvSerializationwire027SendsMultipartFormData() async throws {
       var capturedContentType: String?
       var capturedBody: String?
       let client = makeClient { req in
@@ -349,7 +349,7 @@ import Testing
 
     // Gap T6: close() invokes URLSession.finishTasksAndInvalidate and is
     // idempotent — calling it twice (or after construction) must not crash.
-    @Test func testCloseReleasesUnderlyingClient() async throws {
+    @Test func testBhvLifecycle018CloseReleasesUnderlyingClient() async throws {
       let client = DefaultApiClient()
       client.close()
       client.close()
@@ -373,7 +373,7 @@ import Testing
       #expect(reason == "ApiClient has been closed and can no longer send requests")
     }
 
-    @Test func testDecompressesGzipResponse() async throws {
+    @Test func testBhvTransport005DecompressesGzipResponse() async throws {
       let client = makeClient { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
       }
@@ -402,7 +402,7 @@ import Testing
       }
     }
 
-    @Test func testDecompressesBrotliResponse() async throws {
+    @Test func testBhvTransport004DecompressesBrotliResponse() async throws {
       let client = makeClient { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
       }
@@ -413,7 +413,7 @@ import Testing
       #expect(resp.body.contains("userId"))
     }
 
-    @Test func testDecompressesZstdResponse() async throws {
+    @Test func testBhvTransport006DecompressesZstdResponse() async throws {
       let client = makeClient { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
       }
@@ -429,7 +429,7 @@ import Testing
     // bearing verbs with no Content-Length (411 Length Required). The
     // client attaches an empty Data on body-bearing verbs so
     // URLSession emits the header.
-    @Test func post_with_null_body_sends_content_length_zero() async throws {
+    @Test func testBhvTransport019Post_with_null_body_sends_content_length_zero() async throws {
       var capturedRequest: URLRequest?
       var capturedBody: Data?
       let client = makeClient { req in
@@ -606,7 +606,7 @@ import Testing
     // downgrade-body-replay-silent: an HTTPS->HTTP redirect with a body in
     // flight must throw a typed ApiError (TLS downgrade refusal) rather than
     // silently returning the 3xx.
-    @Test func testHttpsToHttpBodyReplayThrowsApiError() async throws {
+    @Test func testBhvRetries011HttpsToHttpBodyReplayThrowsApiError() async throws {
       let transport = try TransportOptionsBuilder().followRedirects(true).build()
       RedirectStubURLProtocol.configure { _ in
         // 307 preserves method + body, so the POST body would be replayed.
@@ -632,7 +632,7 @@ import Testing
     // is surfaced. (Node wrongly guarded EVERY status and threw here; the
     // canonical guards only 307/308.) The RedirectStubURLProtocol coerces
     // 301/302/303 to a bodyless GET, mirroring URLSession.
-    @Test func testRedirect302HttpsToHttpWithBodyProceeds() async throws {
+    @Test func testBhvRedirects001Redirect302HttpsToHttpWithBodyProceeds() async throws {
       let transport = try TransportOptionsBuilder().followRedirects(true).build()
       RedirectStubURLProtocol.configure { req in
         if req.url!.absoluteString.contains("/downgrade-target") {
@@ -656,7 +656,7 @@ import Testing
     // the body across the TLS downgrade MUST be refused with a typed ApiError —
     // the same as the 307 case. Pins both ends of the canonical: 302 proceeds
     // (above), 307/308 throw.
-    @Test func testRedirect308HttpsToHttpWithBodyThrowsApiError() async throws {
+    @Test func testBhvRetries010Redirect308HttpsToHttpWithBodyThrowsApiError() async throws {
       let transport = try TransportOptionsBuilder().followRedirects(true).build()
       RedirectStubURLProtocol.configure { _ in
         return .redirect(status: 308, location: "http://example.com/downgrade")
@@ -719,7 +719,7 @@ import Testing
     // surface on /one or /none. We assert each request gets its OWN correct,
     // independent outcome. Run many rounds to make any cross-request bleed
     // overwhelmingly likely to manifest rather than slip through by timing luck.
-    @Test func testConcurrentRedirectsAreScopedPerRequest() async throws {
+    @Test func testBhvRedirects003ConcurrentRedirectsAreScopedPerRequest() async throws {
       let transport = try TransportOptionsBuilder()
         .followRedirects(true)
         .maxRedirects(2)
@@ -1105,7 +1105,8 @@ import Testing
      fails as a NetworkError with status 0 before any HTTP response. The mock's
      certificate is signed by the fixture CA, which no system trusts. */
   @Test(arguments: [false, true])
-  func testVerifySslRejectsAnUntrustedServerCertificate(explicit: Bool) async throws {
+  func testBhvTransport023VerifySslRejectsAnUntrustedServerCertificate(explicit: Bool) async throws
+  {
     let client = try DefaultApiClient(
       transportOptions: explicit ? TransportOptionsBuilder().verifySsl(true).build() : nil)
     let error = await #expect(throws: NetworkError.self) {
@@ -1117,7 +1118,7 @@ import Testing
     #expect(error?.responseBody == nil)
   }
 
-  @Test func testTimesOutOnSlowEndpoint() async throws {
+  @Test func testBhvTransport024TimesOutOnSlowEndpoint() async throws {
     let transport = try TransportOptionsBuilder().timeout(1000).build()
     let client = try DefaultApiClient(transportOptions: transport)
     let error = await #expect(throws: NetworkTimeoutError.self) {
@@ -1128,7 +1129,7 @@ import Testing
     #expect(error?.underlyingError != nil)
   }
 
-  @Test func testInjectsCustomUserAgentHeader() async throws {
+  @Test func testBhvTransport012InjectsCustomUserAgentHeader() async throws {
     let transport = try TransportOptionsBuilder().userAgent("MyApp/1.0").build()
     let client = try DefaultApiClient(transportOptions: transport)
     let response = try await client.sendRequest(
@@ -1137,7 +1138,7 @@ import Testing
     #expect(try echoedHeaders(response)["user-agent"] as? String == "MyApp/1.0")
   }
 
-  @Test func testInjectsXRequestIdHeaderWithUuidFormat() async throws {
+  @Test func testBhvTransport014InjectsXRequestIdHeaderWithUuidFormat() async throws {
     let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = try DefaultApiClient(transportOptions: transport)
     let response = try await client.sendRequest(
@@ -1148,7 +1149,7 @@ import Testing
     #expect(requestId.range(of: uuidPattern, options: .regularExpression) != nil)
   }
 
-  @Test func testGeneratesUniqueXRequestIdPerRequest() async throws {
+  @Test func testBhvTransport008GeneratesUniqueXRequestIdPerRequest() async throws {
     let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = try DefaultApiClient(transportOptions: transport)
     var ids: [String] = []
@@ -1160,7 +1161,7 @@ import Testing
     #expect(ids[0] != ids[1])
   }
 
-  @Test func testIncludesTransportLevelDefaultHeaders() async throws {
+  @Test func testBhvTransport011IncludesTransportLevelDefaultHeaders() async throws {
     let transport = try TransportOptionsBuilder()
       .defaultHeader(name: "X-Custom", value: "custom-value")
       .build()
@@ -1191,7 +1192,7 @@ import Testing
     #expect(response.statusCode == 200)
   }
 
-  @Test func testReturnsRedirectResponseWhenDisabled() async throws {
+  @Test func testBhvRedirects007ReturnsRedirectResponseWhenDisabled() async throws {
     let transport = try TransportOptionsBuilder().followRedirects(false).build()
     let client = try DefaultApiClient(transportOptions: transport)
     let response = try await client.sendRequest(
@@ -1244,7 +1245,9 @@ import Testing
     #expect(echoed.contains("file content"))
   }
 
-  @Test func testMultipartFieldNameWithCrlfRejectedOnStringValue() async throws {
+  @Test func testBhvSerializationwire026MultipartFieldNameWithCrlfRejectedOnStringValue()
+    async throws
+  {
     let client = DefaultApiClient()
     let badField: [String: Any] = ["name\r\nInjected: yes": "value"]
     await #expect(throws: (any Error).self) {

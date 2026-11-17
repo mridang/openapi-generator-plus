@@ -90,7 +90,7 @@ import Testing
     #expect(auth.description.contains("tokenExchanged: true"))
   }
 
-  @Test func testBuildsAuthorizationURLWithRequiredParams() throws {
+  @Test func testBhvAuthoauthtwoauthcode006BuildsAuthorizationURLWithRequiredParams() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL()
@@ -102,7 +102,7 @@ import Testing
     #expect(url.hasPrefix("https://auth.example.com/authorize?"))
   }
 
-  @Test func testBuildsAuthorizationURLWithState() throws {
+  @Test func testBhvAuthoauthtwoauthcode007BuildsAuthorizationURLWithState() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL(state: "csrf-state-123")
@@ -110,7 +110,7 @@ import Testing
     #expect(url.contains("state=csrf-state-123"))
   }
 
-  @Test func testExchangesCodeWithCorrectGrantType() async throws {
+  @Test func testBhvAuthoauthtwoauthcode012ExchangesCodeWithCorrectGrantType() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(
@@ -128,7 +128,7 @@ import Testing
     #expect(bodyString.contains("client_secret=my-client-secret"))
   }
 
-  @Test func testIncludesRefreshTokenOnRefresh() async throws {
+  @Test func testBhvAuthoauthtwoauthcode015IncludesRefreshTokenOnRefresh() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -149,7 +149,9 @@ import Testing
 
   /* The code exchange goes to tokenURL and the refresh grant to refreshURL,
    * which is only observable when the two differ. */
-  @Test func testRefreshGrantGoesToRefreshUrlAndCodeExchangeToTokenUrl() async throws {
+  @Test func testBhvAuthoauthtwoauthcode024RefreshGrantGoesToRefreshUrlAndCodeExchangeToTokenUrl()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -189,7 +191,9 @@ import Testing
 
   /* The token body form-encodes the redirect URI and the authorization code
    * so reserved characters in either cannot corrupt the request. */
-  @Test func testCodeExchangeBodyPercentEncodesTheRedirectUriAndCode() async throws {
+  @Test func testBhvAuthoauthtwoauthcode017CodeExchangeBodyPercentEncodesTheRedirectUriAndCode()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -204,7 +208,7 @@ import Testing
     #expect(fields.contains("redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"))
   }
 
-  @Test func testThrowsBeforeExchangeCodeCalled() async {
+  @Test func testBhvAuthoauthtwoauthcode027ThrowsBeforeExchangeCodeCalled() async {
     let auth = createAuthenticator()
 
     // authHeaders() (the protocol method the API client calls) must throw
@@ -215,7 +219,8 @@ import Testing
     }
   }
 
-  @Test func test_auth_headers_before_exchange_returns_recoverable_error() async {
+  @Test func testBhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError() async
+  {
     let auth = createAuthenticator()
 
     // Construct without exchangeCode, then prove the precondition
@@ -240,7 +245,7 @@ import Testing
   // empty or whitespace-only authorization code before posting to the token
   // endpoint, surfacing a typed OAuth2AuthorizationCodeError.emptyCode
   // rather than a confusing server-side invalid_grant.
-  @Test func testExchangeCodeRejectsEmptyCode() async {
+  @Test func testBhvAuthoauthtwoauthcode010ExchangeCodeRejectsEmptyCode() async {
     let client = MockApiClient()
     let auth = createAuthenticator()
     auth.setApiClient(client)
@@ -272,7 +277,7 @@ import Testing
         == "Must call exchangeCode() before making API requests")
   }
 
-  @Test func testExchangeCodeRejectsWhitespaceOnlyCode() async {
+  @Test func testBhvAuthoauthtwoauthcode011ExchangeCodeRejectsWhitespaceOnlyCode() async {
     let client = MockApiClient()
     let auth = createAuthenticator()
     auth.setApiClient(client)
@@ -282,13 +287,15 @@ import Testing
     }
   }
 
-  @Test func testGetHostReturnsConfiguredHost() {
+  @Test func testBhvAuthoauthtwoauthcode014GetHostReturnsConfiguredHost() {
     let auth = createAuthenticator()
 
     #expect(auth.host() == "https://api.example.com")
   }
 
-  @Test func testAuthorizeURLWithExistingQueryStringUsesAmpSeparator() throws {
+  @Test func testBhvAuthoauthtwoauthcode005AuthorizeURLWithExistingQueryStringUsesAmpSeparator()
+    throws
+  {
     let auth = OAuth2AuthorizationCodeAuthenticator(
       host: "https://api.example.com",
       clientID: "my-client-id",
@@ -306,7 +313,7 @@ import Testing
     #expect(url.filter { $0 == "?" }.count == 1)
   }
 
-  @Test func redactsSecret() async {
+  @Test func testBhvAuthoauthtwoauthcode019RedactsSecret() async {
     let auth = createAuthenticator()
     let description = String(describing: auth)
     #expect(!description.contains("my-client-secret"))
@@ -385,7 +392,9 @@ import Testing
 
   /* The authorization URL carries an S256 challenge and the code exchange
      proves it with the matching verifier. */
-  @Test func testAuthorizationUrlChallengeIsProvedByTheCodeExchange() async throws {
+  @Test func testBhvAuthoauthtwoauthcode008AuthorizationUrlChallengeIsProvedByTheCodeExchange()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
     let auth = createAuthenticator()
@@ -406,7 +415,9 @@ import Testing
     #expect(PKCE.challenge(for: verifier) == challenge)
   }
 
-  @Test func testCodeExchangeWithoutAnAuthorizationUrlSendsNoVerifier() async throws {
+  @Test func testBhvAuthoauthtwoauthcode001CodeExchangeWithoutAnAuthorizationUrlSendsNoVerifier()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
     let auth = createAuthenticator()
@@ -420,7 +431,7 @@ import Testing
 
   /* RFC 6749 section 6: the refresh grant authenticates the client the
    * same way the code exchange did. */
-  @Test func testRefreshBodyCarriesClientCredentials() async throws {
+  @Test func testBhvAuthoauthtwoauthcode026RefreshBodyCarriesClientCredentials() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -441,7 +452,9 @@ import Testing
 
   /* A rejected refresh surfaces once as OAuth2ServerError: exactly one
    * refresh POST, no duplicate fallback. */
-  @Test func testRejectedRefreshSurfacesServerErrorAfterOneRefreshPost() async throws {
+  @Test func testBhvAuthoauthtwoauthcode002RejectedRefreshSurfacesServerErrorAfterOneRefreshPost()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -463,7 +476,7 @@ import Testing
 
   /* A second exchangeCode always posts the new code and replaces the
    * session, even while the first token is still valid. */
-  @Test func testSecondExchangeCodeSendsTheNewCode() async throws {
+  @Test func testBhvAuthoauthtwoauthcode021SecondExchangeCodeSendsTheNewCode() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(
@@ -488,7 +501,10 @@ import Testing
 
   /* A second exchange whose response has no refresh_token leaves no
    * refresh token behind. */
-  @Test func testSecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() async throws {
+  @Test
+  func testBhvAuthoauthtwoauthcode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(
@@ -505,7 +521,7 @@ import Testing
   }
 
   /* A failed exchange keeps the previous session. */
-  @Test func testFailedExchangeKeepsThePreviousSession() async throws {
+  @Test func testBhvAuthoauthtwoauthcode013FailedExchangeKeepsThePreviousSession() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(
@@ -530,7 +546,7 @@ import Testing
 
   /* The authorization-code securityScheme's wrapper carries the spec's
    * authorization, token and refresh URLs and scopes. */
-  @Test func schemeWrapperCarriesTheSpecUrlsAndScopes() throws {
+  @Test func testBhvAuthoauthtwoauthcode020SchemeWrapperCarriesTheSpecUrlsAndScopes() throws {
     let auth = try UserAuthAuthorizationCodeAuthenticator(
       host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
       redirectUri: "https://app.example.com/cb")

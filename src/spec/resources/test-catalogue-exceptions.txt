@@ -5,3 +5,6 @@ php | headers015 | isJsonMime takes a typed string, so a nil value cannot reach 
 php | lifecycle019 | PHP runs one request at a time in one process, so a close() cannot race a request that is still in flight; the refusal after close is bhv lifecycle 008
 php | lifecycle021 | PHP runs one request at a time in one process, so a close() cannot race a running request; the refusal after close is bhv lifecycle 008
 node | transport049 | Node fetch (undici) decodes a headerless raw DEFLATE body under Content-Encoding: deflate without error, so the SDK never receives a decode failure to wrap as ApiError
+swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentType String, so a nil Content-Type cannot be passed; the empty-string default is covered by headers001
+swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
+swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
