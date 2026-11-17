@@ -94,7 +94,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     { status: 200, body: { 'access_token' => 'oidc_tok', 'refresh_token' => 'oidc_ref', 'expires_in' => 3600 } }
   end
 
-  it 'builds authorization URL from discovery' do
+  it 'bhv_authoidc_002 builds authorization URL from discovery' do
     client = FakeOidcClient.new([discovery_response])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -114,7 +114,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(url).must_include 'scope=openid%20profile'
   end
 
-  it 'does not send the transport default headers to the discovery endpoint' do
+  it 'bhv_authoidc_008 does not send the transport default headers to the discovery endpoint' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/.well-known/openid-configuration') do |env|
@@ -148,7 +148,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     %w[profile] => 'scope=openid%20profile',
     %w[profile openid email] => 'scope=openid%20profile%20email'
   }.each do |scopes, expected|
-    it "always requests the openid scope for #{scopes.inspect}" do
+    it "bhv_authoidc_022 always requests the openid scope for #{scopes.inspect}" do
       client = FakeOidcClient.new([discovery_response])
       auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
         'https://api.example.com',
@@ -166,7 +166,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     end
   end
 
-  it 'omits an empty state from the authorization URL' do
+  it 'bhv_authoidc_018 omits an empty state from the authorization URL' do
     client = FakeOidcClient.new([discovery_response])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -183,7 +183,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(url.sub(/&code_challenge=.*/, '')).must_equal auth.build_authorization_url.sub(/&code_challenge=.*/, '')
   end
 
-  it 'fetches discovery document' do
+  it 'bhv_authoidc_010 fetches discovery document' do
     client = FakeOidcClient.new([discovery_response])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -200,7 +200,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(client.requests.first[:method]).must_equal :get
   end
 
-  it 'obtains token after code exchange' do
+  it 'bhv_authoidc_017 obtains token after code exchange' do
     client = FakeOidcClient.new([discovery_response, token_response])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -219,7 +219,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(token_request[:body]).must_include 'code=oidc_code_123'
   end
 
-  it 'getAuthHeaders returns Bearer after exchange' do
+  it 'bhv_authoidc_013 getAuthHeaders returns Bearer after exchange' do
     client = FakeOidcClient.new([discovery_response, token_response])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -236,7 +236,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(headers['Authorization']).must_equal 'Bearer oidc_tok'
   end
 
-  it 'throws when no ApiClient injected' do
+  it 'bhv_authoidc_028 throws when no ApiClient injected' do
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
@@ -252,7 +252,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(err).must_be_instance_of RuntimeError
   end
 
-  it 'getHost returns configured host' do
+  it 'bhv_authoidc_014 getHost returns configured host' do
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
@@ -266,7 +266,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
 
   # The discovery document must be cached: a second build must reuse it rather
   # than issue a second GET to the discovery endpoint.
-  it 'fetches discovery document only once' do
+  it 'bhv_authoidc_011 fetches discovery document only once' do
     client = FakeOidcClient.new([discovery_response])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -285,7 +285,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
 
   # oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
   # surface as a typed ApiError, not as a downstream "invalid JSON" error.
-  it 'raises ApiError when discovery returns a non-2xx status' do
+  it 'bhv_authoidc_027 raises ApiError when discovery returns a non-2xx status' do
     client = FakeOidcClient.new([{ status: 500, body: '<html>error</html>' }])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -299,7 +299,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
 
   # oauth-oidc-missing-endpoint-guard: a discovery document missing the
   # required endpoints must raise a typed ApiError up front, not NPE later.
-  it 'raises SerializationError when discovery omits authorization_endpoint' do
+  it 'bhv_authoidc_025 raises SerializationError when discovery omits authorization_endpoint' do
     client = FakeOidcClient.new([{ status: 200, body: { 'token_endpoint' => 'https://auth.example.com/token' } }])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -312,7 +312,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(err.message).must_include "OIDC discovery document is missing 'authorization_endpoint'"
   end
 
-  it 'rejects a discovery document whose issuer is not the discovery URL' do
+  it 'bhv_authoidc_024 rejects a discovery document whose issuer is not the discovery URL' do
     client = FakeOidcClient.new([{ status: 200, body: { 'issuer' => 'https://evil.example.com',
                                                         'authorization_endpoint' => 'https://auth.example.com/authorize',
                                                         'token_endpoint' => 'https://auth.example.com/token' } }])
@@ -327,7 +327,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(err.message).must_equal 'OIDC discovery document issuer does not match the discovery URL'
   end
 
-  it 'accepts an issuer equal to the discovery URL with a trailing slash' do
+  it 'bhv_authoidc_004 accepts an issuer equal to the discovery URL with a trailing slash' do
     client = FakeOidcClient.new([{ status: 200, body: { 'issuer' => 'https://auth.example.com/',
                                                         'authorization_endpoint' => 'https://auth.example.com/authorize',
                                                         'token_endpoint' => 'https://auth.example.com/token' } }])
@@ -355,7 +355,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(err.message).must_equal 'OIDC discovery token_endpoint must use https'
   end
 
-  it 'raises SerializationError when discovery omits token_endpoint' do
+  it 'bhv_authoidc_026 raises SerializationError when discovery omits token_endpoint' do
     client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize' } }])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -367,7 +367,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
   end
 
-  it 'raises SerializationError when the discovery document is not JSON' do
+  it 'bhv_authoidc_016 raises SerializationError when the discovery document is not JSON' do
     client = FakeOidcClient.new([{ status: 200, body: '<html>not json</html>' }])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -398,7 +398,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     end
   end
 
-  it 'masks the client secret in inspect' do
+  it 'bhv_authoidc_019 masks the client secret in inspect' do
     # client-secret-leak-in-default-repr: the default Object#inspect dumps
     # every instance variable, leaking @client_secret. The overridden
     # inspect must mask it.
@@ -447,7 +447,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     client.requests.select { |r| r[:method] == :get }
   end
 
-  it 'a transport failure during discovery reaches the caller unchanged' do
+  it 'bhv_authoidc_006 a transport failure during discovery reaches the caller unchanged' do
     failure = Petstore::Client::Errors::NetworkError.new(message: 'connection refused')
     auth = oidc_authenticator(FailingOidcClient.new(failure))
 
@@ -463,7 +463,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(err).must_be_same_as failure
   end
 
-  it 'caches the discovery document for the Cache-Control max-age' do
+  it 'bhv_authoidc_003 caches the discovery document for the Cache-Control max-age' do
     client = FakeOidcClient.new([discovery_response.merge(headers: { 'cache-control' => 'public, max-age=3600' })])
     auth = oidc_authenticator(client)
 
@@ -472,7 +472,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(discovery_requests(client).length).must_equal 1
   end
 
-  it 'clamps a huge Cache-Control max-age to one year' do
+  it 'bhv_authoidc_001 clamps a huge Cache-Control max-age to one year' do
     huge = discovery_response.merge(headers: { 'cache-control' => "max-age=#{'9' * 400}" })
     client = FakeOidcClient.new([huge])
     auth = oidc_authenticator(client)
@@ -503,7 +503,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(auth.build_authorization_url).must_include 'https://auth.example.com/v2/authorize?'
   end
 
-  it 'keeps the exchanged session across a rediscovery after max-age expiry' do
+  it 'bhv_authoidc_020 keeps the exchanged session across a rediscovery after max-age expiry' do
     moved = { status: 200, headers: { 'cache-control' => 'max-age=3600' },
               body: { 'authorization_endpoint' => 'https://auth.example.com/v2/authorize',
                       'token_endpoint' => 'https://auth.example.com/v2/token' } }
@@ -518,7 +518,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(auth.build_authorization_url).must_include 'https://auth.example.com/v2/authorize?'
   end
 
-  it 'keeps the PKCE verifier across a rediscovery between the URL and the exchange' do
+  it 'bhv_authoidc_021 keeps the PKCE verifier across a rediscovery between the URL and the exchange' do
     client = FakeOidcClient.new([discovery_response.merge(headers: { 'cache-control' => 'max-age=0' }),
                                  discovery_response, token_response])
     auth = oidc_authenticator(client)
@@ -532,7 +532,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(Base64.urlsafe_encode64(Digest::SHA256.digest(verifier), padding: false)).must_equal challenge
   end
 
-  it 'drops the cached access token on invalidate_access_token and refreshes' do
+  it 'bhv_authoidc_015 drops the cached access token on invalidate_access_token and refreshes' do
     refreshed = { status: 200, body: { 'access_token' => 'oidc_tok2', 'expires_in' => 3600 } }
     client = FakeOidcClient.new([discovery_response, token_response, refreshed])
     auth = oidc_authenticator(client)
@@ -549,7 +549,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(client.requests).must_be_empty
   end
 
-  it 'keeps the old delegate when a rediscovery fails and retries on the next call' do
+  it 'bhv_authoidc_009 keeps the old delegate when a rediscovery fails and retries on the next call' do
     failed = { status: 500, body: { 'error' => 'unavailable' } }
     client = FakeOidcClient.new([discovery_response.merge(headers: { 'cache-control' => 'max-age=0' }),
                                  token_response, failed, discovery_response])
@@ -569,7 +569,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(client.discovery_count).must_equal 1
   end
 
-  it 'shows the host, discovery URL and client id but not the secret in inspect' do
+  it 'bhv_authoidc_023 shows the host, discovery URL and client id but not the secret in inspect' do
     auth = oidc_authenticator(FakeOidcClient.new([discovery_response]))
 
     _(auth.inspect).must_equal(

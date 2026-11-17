@@ -7,14 +7,14 @@ describe 'Composed Schema' do
   parallelize_me!
 
   describe 'oneOf with discriminator: PetFood' do
-    it 'deserializes to DryFood via discriminator' do
+    it 'bhv_unions_012 deserializes to DryFood via discriminator' do
       json = '{"foodType":"dry","weightKg":2.5}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood')
 
       _(result).must_be_kind_of({{moduleName}}::Models::DryFood)
     end
 
-    it 'offers a typed accessor, predicate and factory per variant' do
+    it 'bhv_unions_001 offers a typed accessor, predicate and factory per variant' do
       food = {{moduleName}}::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
 
       _({{moduleName}}::Models::PetFood.as_dry_food(food)).must_be_same_as(food)
@@ -31,14 +31,14 @@ describe 'Composed Schema' do
       _(error.message).must_equal("Expected a WetFood for PetFood, got #{dry.class}")
     end
 
-    it 'deserializes to WetFood via discriminator' do
+    it 'bhv_unions_013 deserializes to WetFood via discriminator' do
       json = '{"foodType":"wet","volumeMl":400}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood')
 
       _(result).must_be_kind_of({{moduleName}}::Models::WetFood)
     end
 
-    it 'raises SerializationError for unknown discriminator value' do
+    it 'bhv_unions_016 raises SerializationError for unknown discriminator value' do
       # Gap L / 4.7: union deserialise with an unmapped discriminator
       # raises SerializationError instead of falling through to the
       # base type. Aligns Ruby with Python / Swift / Dart / Go / Rust.
@@ -47,13 +47,13 @@ describe 'Composed Schema' do
         .must_raise {{moduleName}}::Errors::SerializationError
     end
 
-    it 'raises SerializationError for missing discriminator' do
+    it 'bhv_unions_015 raises SerializationError for missing discriminator' do
       json = '{"weightKg":2.5}'
       _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
         .must_raise {{moduleName}}::Errors::SerializationError
     end
 
-    it 'raises SerializationError for empty discriminator value' do
+    it 'bhv_unions_024 raises SerializationError for empty discriminator value' do
       # An empty discriminator value matches no listed mapping and must raise
       # rather than route to a structurally-fitting variant.
       json = '{"foodType":"","weightKg":2.5}'
@@ -61,7 +61,7 @@ describe 'Composed Schema' do
         .must_raise {{moduleName}}::Errors::SerializationError
     end
 
-    it 'unknown discriminator error names the offending value' do
+    it 'bhv_unions_026 unknown discriminator error names the offending value' do
       # CS4: the error message must surface the offending discriminator value
       # so callers can diagnose server/spec drift.
       json = '{"foodType":"raw","calories":300}'
@@ -70,7 +70,7 @@ describe 'Composed Schema' do
       _(err.message).must_include('raw')
     end
 
-    it 'serializes DryFood back to JSON' do
+    it 'bhv_unions_020 serializes DryFood back to JSON' do
       json = '{"foodType":"dry","weightKg":2.5}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood')
       serialized = {{moduleName}}::ObjectSerializer.serialize(result)
@@ -80,7 +80,7 @@ describe 'Composed Schema' do
   end
 
   describe 'anyOf without discriminator: PetTreatment' do
-    it 'deserializes a medication-only payload to the bare Medication variant' do
+    it 'bhv_unions_014 deserializes a medication-only payload to the bare Medication variant' do
       # Single-variant match: exactly one variant decodes, so build returns
       # that bare instance (NOT a composite) — existing single-variant callers
       # are unaffected by the retain-all change.
@@ -91,7 +91,7 @@ describe 'Composed Schema' do
       _(result.drug_name).must_equal('Amoxicillin')
     end
 
-    it 'deserializes a surgery-only payload to the bare Surgery variant' do
+    it 'bhv_unions_006 deserializes a surgery-only payload to the bare Surgery variant' do
       json = '{"procedureName":"Spay","durationMinutes":45}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetTreatment')
 
@@ -100,7 +100,7 @@ describe 'Composed Schema' do
       _(result.duration_minutes).must_equal(45)
     end
 
-    it 'anyOf retains all matching variants (medication and surgery) losslessly' do
+    it 'bhv_unions_009 anyOf retains all matching variants (medication and surgery) losslessly' do
       # PetTreatment is documented as "a medication, a surgery, OR BOTH". A
       # payload satisfying BOTH variants at once must retain BOTH — the old
       # first-match build silently dropped the Surgery fields and lost them on
@@ -125,7 +125,7 @@ describe 'Composed Schema' do
       _(reparsed['durationMinutes']).must_equal(45)
     end
 
-    it 'anyOf collision keeps the last-declared variant, emitted once' do
+    it 'bhv_unions_010 anyOf collision keeps the last-declared variant, emitted once' do
       # anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
       # When a PetTreatment retains both members with DIFFERENT `notes` values,
       # the merged encoding keeps the LAST-declared member's value (Surgery) and
@@ -143,7 +143,7 @@ describe 'Composed Schema' do
       _(serialized.scan('"notes"').length).must_equal(1)
     end
 
-    it 'anyOf composites have value equality and a matching hash' do
+    it 'bhv_unions_011 anyOf composites have value equality and a matching hash' do
       build = lambda do
         medication = {{moduleName}}::Models::Medication.new(drug_name: 'Amoxicillin')
         surgery = {{moduleName}}::Models::Surgery.new(procedure_name: 'Spay')
@@ -159,7 +159,7 @@ describe 'Composed Schema' do
       _(first).wont_equal(other)
     end
 
-    it 'exposes actual_instance and matched_instances for anyOf values' do
+    it 'bhv_unions_003 exposes actual_instance and matched_instances for anyOf values' do
       both = {{moduleName}}::ObjectSerializer.deserialize(
         '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
       )
@@ -174,7 +174,7 @@ describe 'Composed Schema' do
       _({{moduleName}}::Models::PetTreatment.matched_instances(nil)).must_equal([])
     end
 
-    it 'serializes round-trip for a single-variant anyOf payload' do
+    it 'bhv_unions_008 serializes round-trip for a single-variant anyOf payload' do
       json = '{"drugName":"Amoxicillin","dosage":"500mg"}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetTreatment')
       serialized = {{moduleName}}::ObjectSerializer.serialize(result)
@@ -183,7 +183,7 @@ describe 'Composed Schema' do
       _(serialized).must_include('Amoxicillin')
     end
 
-    it 'raises for anyOf payload matching no variant' do
+    it 'bhv_unions_007 raises for anyOf payload matching no variant' do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty
       # union. The anyOf build raises on union no-match, and deserialize wraps
@@ -199,18 +199,18 @@ describe 'Composed Schema' do
   # variants are tried in declaration order, so Surgery comes first and the
   # later declared Medication wins a collision on a shared property.
   describe 'anyOf variants are tried in declaration order: TreatmentRecord' do
-    it 'lists the variants in the order the spec declares them' do
+    it 'bhv_unions_005 lists the variants in the order the spec declares them' do
       _({{moduleName}}::Models::TreatmentRecord.openapi_any_of).must_equal(%i[Surgery Medication])
     end
 
-    it 'retains the first declared variant first' do
+    it 'bhv_unions_025 retains the first declared variant first' do
       both = {{moduleName}}::ObjectSerializer.deserialize('{"drugName":"a","procedureName":"b"}', 'TreatmentRecord')
       _({{moduleName}}::Models::TreatmentRecord.matched_instances(both).map(&:class))
         .must_equal([{{moduleName}}::Models::Surgery, {{moduleName}}::Models::Medication])
       _({{moduleName}}::Models::TreatmentRecord.actual_instance(both)).must_be_kind_of({{moduleName}}::Models::Surgery)
     end
 
-    it 'keeps the later declared variant on a collision, emitted once' do
+    it 'bhv_unions_002 keeps the later declared variant on a collision, emitted once' do
       surgery = {{moduleName}}::Models::Surgery.new(procedure_name: 'Spay', notes: 'from-surgery')
       medication = {{moduleName}}::Models::Medication.new(drug_name: 'Amoxicillin', notes: 'from-medication')
       composite = {{moduleName}}::Models::TreatmentRecord::Composite.new([surgery, medication])
@@ -238,7 +238,7 @@ describe 'Composed Schema' do
     # as raw text). The deserialize side goes through the normal #deserialize
     # entry point, which dispatches to the union's #build.
 
-    it 'serializes the scalar byte variant as a base64 string (not an int-array, not raw)' do
+    it 'bhv_unions_019 serializes the scalar byte variant as a base64 string (not an int-array, not raw)' do
       raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
       encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
       json = {{moduleName}}::ObjectSerializer.serialize(encoded)
@@ -248,7 +248,7 @@ describe 'Composed Schema' do
       _(json).wont_include('[')
     end
 
-    it 'deserializes a base64 string back to the original scalar bytes (round-trip)' do
+    it 'bhv_unions_023 deserializes a base64 string back to the original scalar bytes (round-trip)' do
       raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
       result = {{moduleName}}::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
 
@@ -257,7 +257,7 @@ describe 'Composed Schema' do
       _(result.b).must_equal(raw.b)
     end
 
-    it 'resolves a scalar base64 string to the SCALAR variant, not a list' do
+    it 'bhv_unions_018 resolves a scalar base64 string to the SCALAR variant, not a list' do
       # Ordering guard: the scalar candidate is trialled before the array
       # candidate, so a lone base64 string decodes to one byte String — it is
       # NOT mis-parsed character/element by element into an Array.
@@ -287,7 +287,7 @@ describe 'Composed Schema' do
   end
 
   describe 'allOf: PetWithOwner' do
-    it 'deserializes all properties from allOf composition' do
+    it 'bhv_unions_004 deserializes all properties from allOf composition' do
       json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetWithOwner')
 
@@ -297,7 +297,7 @@ describe 'Composed Schema' do
       _(result.owner_email).must_equal('john@example.com')
     end
 
-    it 'serializes PetWithOwner to JSON' do
+    it 'bhv_unions_021 serializes PetWithOwner to JSON' do
       json = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetWithOwner')
       serialized = {{moduleName}}::ObjectSerializer.serialize(result)
@@ -306,7 +306,7 @@ describe 'Composed Schema' do
       _(serialized).must_include('John Doe')
     end
 
-    it 'round-trip preserves all fields' do
+    it 'bhv_unions_017 round-trip preserves all fields' do
       json = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}'
       original = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetWithOwner')
       serialized = {{moduleName}}::ObjectSerializer.serialize(original)

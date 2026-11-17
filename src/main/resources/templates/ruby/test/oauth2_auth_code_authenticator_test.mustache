@@ -47,7 +47,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     )
   end
 
-  it 'builds authorization URL with required params' do
+  it 'bhv_authoauthtwoauthcode_006 builds authorization URL with required params' do
     url = auth.build_authorization_url
     _(url).must_include 'https://auth.example.com/authorize?'
     _(url).must_include 'response_type=code'
@@ -56,12 +56,12 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(url).must_include 'scope=read%20write'
   end
 
-  it 'builds authorization URL with state' do
+  it 'bhv_authoauthtwoauthcode_007 builds authorization URL with state' do
     url = auth.build_authorization_url('csrf_state_123')
     _(url).must_include 'state=csrf_state_123'
   end
 
-  it 'omits an empty state from the authorization URL' do
+  it 'bhv_authoauthtwoauthcode_018 omits an empty state from the authorization URL' do
     url = auth.build_authorization_url('')
     _(url).wont_include 'state'
     _(url.sub(/&code_challenge=.*/, '')).must_equal auth.build_authorization_url.sub(/&code_challenge=.*/, '')
@@ -72,14 +72,14 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     URI.decode_www_form(URI(url).query.to_s).to_h
   end
 
-  it 'adds an S256 code challenge to the authorization URL and no nonce' do
+  it 'bhv_authoauthtwoauthcode_023 adds an S256 code challenge to the authorization URL and no nonce' do
     params = pkce_challenge_of(auth.build_authorization_url('s'))
     _(params['code_challenge_method']).must_equal 'S256'
     _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
     _(params).wont_include 'nonce'
   end
 
-  it 'proves the challenge with a 43 character verifier on the code exchange' do
+  it 'bhv_authoauthtwoauthcode_008 proves the challenge with a 43 character verifier on the code exchange' do
     client = FakeAuthCodeClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
     auth.api_client = client
 
@@ -90,13 +90,13 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(Base64.urlsafe_encode64(Digest::SHA256.digest(verifier), padding: false)).must_equal challenge
   end
 
-  it 'makes a new verifier for every authorization URL' do
+  it 'bhv_authoauthtwoauthcode_009 makes a new verifier for every authorization URL' do
     first = pkce_challenge_of(auth.build_authorization_url)['code_challenge']
     second = pkce_challenge_of(auth.build_authorization_url)['code_challenge']
     _(first).wont_equal second
   end
 
-  it 'sends no code verifier when no authorization URL was built' do
+  it 'bhv_authoauthtwoauthcode_001 sends no code verifier when no authorization URL was built' do
     client = FakeAuthCodeClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
     auth.api_client = client
 
@@ -114,7 +114,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   end
 
   # F855: a 401 drops the cached access token and keeps the refresh token.
-  it 'invalidates the cached access token and refreshes with the kept refresh token' do
+  it 'bhv_authoauthtwoauthcode_016 invalidates the cached access token and refreshes with the kept refresh token' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } },
       { status: 200, body: { 'access_token' => 'tok_new', 'expires_in' => 3600 } }
@@ -129,7 +129,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).must_include 'refresh_token=ref_xyz'
   end
 
-  it 'exchanges code with correct grant type' do
+  it 'bhv_authoauthtwoauthcode_012 exchanges code with correct grant type' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
     ])
@@ -142,7 +142,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
-  it 'includes refresh token on refresh' do
+  it 'bhv_authoauthtwoauthcode_015 includes refresh token on refresh' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
       { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
@@ -155,7 +155,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).must_include 'refresh_token=ref_xyz'
   end
 
-  it 'authenticates the client on the refresh grant' do
+  it 'bhv_authoauthtwoauthcode_026 authenticates the client on the refresh grant' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
       { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
@@ -169,7 +169,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
-  it 'surfaces a rejected refresh after exactly one refresh POST' do
+  it 'bhv_authoauthtwoauthcode_002 surfaces a rejected refresh after exactly one refresh POST' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
       { status: 400, body: { 'error' => 'invalid_grant' } }
@@ -182,7 +182,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.urls.length).must_equal 2
   end
 
-  it 'second exchange_code sends the new code and replaces the session' do
+  it 'bhv_authoauthtwoauthcode_021 second exchange_code sends the new code and replaces the session' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
       { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
@@ -197,7 +197,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.auth_headers['Authorization']).must_equal 'Bearer tok_two'
   end
 
-  it 'second exchange without a refresh_token drops the old refresh token' do
+  it 'bhv_authoauthtwoauthcode_022 second exchange without a refresh_token drops the old refresh token' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
       { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
@@ -211,7 +211,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(manager.refresh_token).must_be_nil
   end
 
-  it 'a failed exchange keeps the previous session' do
+  it 'bhv_authoauthtwoauthcode_013 a failed exchange keeps the previous session' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
       { status: 400, body: { 'error' => 'invalid_grant' } }
@@ -223,7 +223,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.auth_headers['Authorization']).must_equal 'Bearer tok_one'
   end
 
-  it 'throws before exchange code called' do
+  it 'bhv_authoauthtwoauthcode_027 throws before exchange code called' do
     # Requesting a token before the code exchange is a wrong call order:
     # the invalid-state RuntimeError, not an SDK error.
     error = assert_raises(RuntimeError) do
@@ -233,7 +233,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(error).wont_be_kind_of {{apiErrorParent}}
   end
 
-  it 'getHost returns configured host' do
+  it 'bhv_authoauthtwoauthcode_014 getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
@@ -244,18 +244,18 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   # oauth-exchangecode-no-empty-code-guard: an empty/blank authorization
   # code must be rejected before issuing the token POST.
-  it 'exchange code rejects empty code' do
+  it 'bhv_authoauthtwoauthcode_010 exchange code rejects empty code' do
     auth.api_client = FakeAuthCodeClient.new([{ status: 200, body: {} }])
     err = assert_raises(ArgumentError) { auth.exchange_code('') }
     _(err.message).must_equal 'Authorization code must not be empty'
   end
 
-  it 'exchange code rejects whitespace only code' do
+  it 'bhv_authoauthtwoauthcode_011 exchange code rejects whitespace only code' do
     auth.api_client = FakeAuthCodeClient.new([{ status: 200, body: {} }])
     _(-> { auth.exchange_code('   ') }).must_raise ArgumentError
   end
 
-  it 'auth_headers_before_exchange_returns_recoverable_error' do
+  it 'bhv_authoauthtwoauthcode_003 auth_headers_before_exchange_returns_recoverable_error' do
     # Calling auth_headers before exchange_code is a precondition violation.
     # It must surface as a catchable exception so callers can recover --
     # not as a process crash.
@@ -271,7 +271,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
-  it 'authorize URL with existing query string uses amp separator' do
+  it 'bhv_authoauthtwoauthcode_005 authorize URL with existing query string uses amp separator' do
     auth_with_query = {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -288,7 +288,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(url.count('?')).must_equal 1
   end
 
-  it 'masks the client secret in inspect' do
+  it 'bhv_authoauthtwoauthcode_019 masks the client secret in inspect' do
     # client-secret-leak-in-default-repr: the default Object#inspect dumps
     # every instance variable, leaking @client_secret. The overridden
     # inspect must mask it.
@@ -324,7 +324,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.to_s).must_include '***'
   end
 
-  it 'sends the code exchange to the token URL and the refresh grant to the refresh URL' do
+  it 'bhv_authoauthtwoauthcode_024 sends the code exchange to the token URL and the refresh grant to the refresh URL' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
       { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
@@ -341,12 +341,12 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.urls).must_equal ['https://auth.example.com/token', 'https://auth.example.com/refresh']
   end
 
-  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the authorize URL' do
+  it 'bhv_authoauthtwoauthcode_004 keeps ~ literal and percent-encodes * ! \' ( ) in the authorize URL' do
     url = auth.build_authorization_url("state~*!'()")
     _(url).must_include 'state=state~%2A%21%27%28%29'
   end
 
-  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the code exchange body' do
+  it 'bhv_authoauthtwoauthcode_017 keeps ~ literal and percent-encodes * ! \' ( ) in the code exchange body' do
     client = FakeAuthCodeClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
     ])

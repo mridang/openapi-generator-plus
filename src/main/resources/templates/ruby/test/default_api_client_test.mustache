@@ -9,7 +9,7 @@ describe {{moduleName}}::DefaultApiClient do
   parallelize_me!
 
   describe 'TLS verification disabled' do
-    it 'makes HTTPS request with verify_ssl=false' do
+    it 'bhv_transport_018 makes HTTPS request with verify_ssl=false' do
       chasm_url = ENV.fetch('CHASM_HTTPS_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -26,7 +26,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'custom CA bundle' do
-    it 'makes HTTPS request with custom CA cert' do
+    it 'bhv_transport_017 makes HTTPS request with custom CA cert' do
       chasm_url = ENV.fetch('CHASM_HTTPS_URL')
       ca_cert_path = ENV.fetch('CA_CERT_PATH')
 
@@ -45,7 +45,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'TLS verification enabled' do
-    it 'rejects a server certificate signed by a CA the system does not trust' do
+    it 'bhv_transport_025 rejects a server certificate signed by a CA the system does not trust' do
       client = {{moduleName}}::DefaultApiClient.new
       err = assert_raises({{moduleName}}::Errors::NetworkError) do
         client.send_request(:GET, "#{ENV.fetch('CHASM_HTTPS_URL')}/test/echo", {}, nil)
@@ -83,7 +83,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'HTTP proxy' do
-    it 'makes HTTP request through proxy' do
+    it 'bhv_transport_015 makes HTTP request through proxy' do
       chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
       proxy_url = ENV.fetch('PROXY_URL')
 
@@ -99,7 +99,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(json['method']).must_equal('GET')
     end
 
-    it 'ignores the ambient proxy environment when no proxy is configured' do
+    it 'bhv_transport_009 ignores the ambient proxy environment when no proxy is configured' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       dead = %w[HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy]
       bypass = %w[NO_PROXY no_proxy]
@@ -151,7 +151,7 @@ describe {{moduleName}}::DefaultApiClient do
     # the tunnel — otherwise the proxy 407s. Faraday reads userinfo
     # natively from the URL; we assert TransportOptions preserves the
     # userinfo end-to-end.
-    it 'proxy_with_credentials_injects_basic_authorization' do
+    it 'bhv_transport_021 proxy_with_credentials_injects_basic_authorization' do
       require 'base64'
       require 'uri'
 
@@ -175,7 +175,7 @@ describe {{moduleName}}::DefaultApiClient do
     # the userinfo (java.net.http.HttpClient strips it); ruby preserves it —
     # TransportOptions keeps the userinfo verbatim and Faraday parses
     # user/password from the proxy URL. Canonical = creds carried.
-    it 'carries user:pass userinfo from the canonical proxy URL' do
+    it 'bhv_transport_020 carries user:pass userinfo from the canonical proxy URL' do
       require 'base64'
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -200,7 +200,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'HTTP proxy with TLS' do
-    it 'makes HTTPS request through proxy with verify_ssl=false' do
+    it 'bhv_transport_016 makes HTTPS request through proxy with verify_ssl=false' do
       chasm_url = ENV.fetch('CHASM_INTERNAL_HTTPS_URL')
       proxy_url = ENV.fetch('PROXY_URL')
 
@@ -219,7 +219,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'request timeout' do
-    it 'times out on slow endpoint' do
+    it 'bhv_transport_024 times out on slow endpoint' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -232,7 +232,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(error.cause).wont_be_nil
     end
 
-    it 'spends one budget across every redirect hop' do
+    it 'bhv_redirects_009 spends one budget across every redirect hop' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -245,7 +245,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(error.status_code).must_equal 0
     end
 
-    it 'completes the redirect chain within a sufficient budget' do
+    it 'bhv_redirects_002 completes the redirect chain within a sufficient budget' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -260,7 +260,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'User-Agent header' do
-    it 'injects custom User-Agent header' do
+    it 'bhv_transport_012 injects custom User-Agent header' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -275,7 +275,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(json['headers']['user-agent']).must_equal('MyApp/1.0')
     end
 
-    it 'keeps a lower-case caller User-Agent and X-Request-ID instead of injecting' do
+    it 'bhv_transport_003 keeps a lower-case caller User-Agent and X-Request-ID instead of injecting' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -297,7 +297,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'X-Request-ID injection' do
-    it 'injects X-Request-ID header with UUID format' do
+    it 'bhv_transport_014 injects X-Request-ID header with UUID format' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -314,7 +314,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(request_id).must_match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     end
 
-    it 'generates unique X-Request-ID per request' do
+    it 'bhv_transport_008 generates unique X-Request-ID per request' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -334,7 +334,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'default headers' do
-    it 'includes transport-level default headers' do
+    it 'bhv_transport_011 includes transport-level default headers' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -349,7 +349,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(json['headers']['x-custom']).must_equal('custom-value')
     end
 
-    it 'caller headers override transport default headers' do
+    it 'bhv_options_004 caller headers override transport default headers' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -369,7 +369,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'redirect handling' do
-    it 'follows redirects when enabled' do
+    it 'bhv_redirects_004 follows redirects when enabled' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -382,7 +382,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(response.status_code).must_equal(200)
     end
 
-    it 'returns redirect response when disabled' do
+    it 'bhv_redirects_007 returns redirect response when disabled' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -395,7 +395,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(response.status_code).must_equal(302)
     end
 
-    it 'redirect 303 switches to GET and drops body' do
+    it 'bhv_redirects_005 redirect 303 switches to GET and drops body' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -420,7 +420,7 @@ describe {{moduleName}}::DefaultApiClient do
     # T-new-3: multipart bodies must be replayed across 307 redirects per
     # RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
     # request after a 307 still carries the multipart form parts.
-    it 'replays multipart body across 307 redirects (T-new-3)' do
+    it 'bhv_retries_012 replays multipart body across 307 redirects (T-new-3)' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -459,7 +459,7 @@ describe {{moduleName}}::DefaultApiClient do
     # SDK the redirect loop keeps its hop counter (`hops`) as a local
     # variable inside #send_request, so there is no shared state to corrupt
     # — this test confirms that and guards against a regression.
-    it 'scopes redirect counting per request across concurrent calls' do
+    it 'bhv_redirects_003 scopes redirect counting per request across concurrent calls' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -553,7 +553,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'max redirects' do
-    it 'respects max_redirects limit' do
+    it 'bhv_redirects_006 respects max_redirects limit' do
       transport = {{moduleName}}::TransportOptions.builder
         .follow_redirects(true)
         .max_redirects(5)
@@ -566,7 +566,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'multipart body' do
-    it 'sends multipart form data' do
+    it 'bhv_serializationwire_027 sends multipart form data' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       client = {{moduleName}}::DefaultApiClient.new
@@ -593,7 +593,7 @@ describe {{moduleName}}::DefaultApiClient do
     # W-new-2: multipart field-name validation must run on every branch (not
     # just binary). Confirm that even for a plain String value, a CR/LF in
     # the field name is rejected, preventing Content-Disposition smuggling.
-    it 'multipart_field_name_with_crlf_rejected_on_string_value' do
+    it 'bhv_serializationwire_026 multipart_field_name_with_crlf_rejected_on_string_value' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       client = {{moduleName}}::DefaultApiClient.new
@@ -624,16 +624,16 @@ describe {{moduleName}}::DefaultApiClient do
       _(JSON.parse(response.body)['title']).must_equal('compressed fixture body')
     end
 
-    it 'decompresses gzip response' do
+    it 'bhv_transport_005 decompresses gzip response' do
       assert_decodes('gzip')
     end
 
-    it 'decompresses brotli response' do
+    it 'bhv_transport_004 decompresses brotli response' do
       skip 'brotli gem not installed (optional group)' unless defined?(Brotli)
       assert_decodes('br')
     end
 
-    it 'decompresses zstd response' do
+    it 'bhv_transport_006 decompresses zstd response' do
       skip 'zstd-ruby gem not installed (optional group)' unless defined?(Zstd)
       assert_decodes('zstd')
     end
@@ -644,7 +644,7 @@ describe {{moduleName}}::DefaultApiClient do
     # Content-Length: 0. Some servers / WAFs reject body-bearing verbs
     # with no Content-Length (411 Length Required). The client sends an
     # empty body and Content-Length: 0 explicitly on body-bearing verbs.
-    it 'post_with_null_body_sends_content_length_zero' do
+    it 'bhv_transport_019 post_with_null_body_sends_content_length_zero' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       client = {{moduleName}}::DefaultApiClient.new
       response = client.send_request(:POST, "#{chasm_url}/test/echo", {}, nil)
@@ -656,7 +656,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'response shapes through the mock server' do
-    it 'keeps every value of a repeated response header, in order' do
+    it 'bhv_transport_022 keeps every value of a repeated response header, in order' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       response = {{moduleName}}::DefaultApiClient.new.send_request(:GET, "#{chasm_url}/test/response-headers", {}, nil)
 
@@ -681,7 +681,7 @@ describe {{moduleName}}::DefaultApiClient do
     # A request issued on a closed client must raise the invalid-state
     # RuntimeError (closed-flag guard) rather than silently rebuilding a
     # connection, matching the uniform use-after-close contract across SDKs.
-    it 'close releases underlying client' do
+    it 'bhv_lifecycle_018 close releases underlying client' do
       client = {{moduleName}}::DefaultApiClient.new
       client.close
       client.close
@@ -712,7 +712,7 @@ describe {{moduleName}}::DefaultApiClient do
       Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
     end
 
-    it '302 HTTPS -> HTTP with a body proceeds (body dropped, becomes GET)' do
+    it 'bhv_redirects_001 302 HTTPS -> HTTP with a body proceeds (body dropped, becomes GET)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/r') do
           [302, { 'location' => 'http://localhost/landing' }, '']
@@ -729,7 +729,7 @@ describe {{moduleName}}::DefaultApiClient do
       end
     end
 
-    it '307 HTTPS -> HTTP with a body raises ApiError (TLS downgrade)' do
+    it 'bhv_retries_010 307 HTTPS -> HTTP with a body raises ApiError (TLS downgrade)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/upload') do
           [307, { 'location' => 'http://insecure.example.com/upload' }, '']
@@ -745,7 +745,7 @@ describe {{moduleName}}::DefaultApiClient do
       end
     end
 
-    it '308 HTTPS -> HTTP with a body raises ApiError (TLS downgrade)' do
+    it 'bhv_retries_011 308 HTTPS -> HTTP with a body raises ApiError (TLS downgrade)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/upload') do
           [308, { 'location' => 'http://insecure.example.com/upload' }, '']

@@ -13,7 +13,7 @@ require 'petstore_client'
 describe Petstore::Client::ServerConfiguration do
   parallelize_me!
 
-  it 'returns the template unchanged when there are no variables' do
+  it 'bhv_servers_011 returns the template unchanged when there are no variables' do
     config = Petstore::Client::ServerConfiguration.new(url_template: 'https://api.example.com/v1')
     _(config.url).must_equal 'https://api.example.com/v1'
   end
@@ -29,7 +29,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url).must_equal 'https://prod.api.example.com/v2'
   end
 
-  it 'substitutes overrides in place of default values' do
+  it 'bhv_servers_010 substitutes overrides in place of default values' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/v{version}',
       variables: {
@@ -40,7 +40,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com/v2'
   end
 
-  it 'uses the default for variables absent from the overrides' do
+  it 'bhv_servers_009 uses the default for variables absent from the overrides' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/v{version}',
       variables: {
@@ -59,7 +59,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'host' => 'a\\0b\\&c' })).must_equal 'https://a\\0b\\&c.example.com/a\\0b\\&c'
   end
 
-  it 'does not expand a placeholder that a substituted value introduces' do
+  it 'bhv_servers_005 does not expand a placeholder that a substituted value introduces' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/{version}',
       variables: {
@@ -78,7 +78,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url).must_equal 'https://prod.api.example.com/{unknown}'
   end
 
-  it 'accepts an override value that is in the variable enum' do
+  it 'bhv_servers_003 accepts an override value that is in the variable enum' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
       variables: {
@@ -88,7 +88,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com'
   end
 
-  it 'rejects an override value that is not in the variable enum' do
+  it 'bhv_servers_008 rejects an override value that is not in the variable enum' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
       variables: {
@@ -102,7 +102,7 @@ describe Petstore::Client::ServerConfiguration do
     _(err.message).must_include 'env'
   end
 
-  it 'exposes the raw url_template, description, and variables' do
+  it 'bhv_servers_006 exposes the raw url_template, description, and variables' do
     variables = { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
@@ -123,7 +123,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.variables).must_be :frozen?
   end
 
-  it 'names the value, the variable and the allowed values when an override is rejected' do
+  it 'bhv_servers_012 names the value, the variable and the allowed values when an override is rejected' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
       variables: {
@@ -134,7 +134,7 @@ describe Petstore::Client::ServerConfiguration do
     _(err.message).must_equal "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]"
   end
 
-  it 'rejects a default value that is not in the variable enum' do
+  it 'bhv_servers_004 rejects a default value that is not in the variable enum' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
       variables: {
@@ -145,7 +145,7 @@ describe Petstore::Client::ServerConfiguration do
     _(err.message).must_equal "Invalid value 'qa' for server variable 'env'. Allowed values: [prod, staging]"
   end
 
-  it 'accepts any override for a variable that declares no enum' do
+  it 'bhv_servers_014 accepts any override for a variable that declares no enum' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{region}.api.example.com',
       variables: { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
@@ -153,7 +153,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'region' => 'anything-goes' })).must_equal 'https://anything-goes.api.example.com'
   end
 
-  it 'leaves an unknown override out of the URL' do
+  it 'bhv_servers_007 leaves an unknown override out of the URL' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
       variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }

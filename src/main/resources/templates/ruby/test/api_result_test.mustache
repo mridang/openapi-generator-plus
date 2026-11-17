@@ -8,7 +8,7 @@ require '{{gemName}}'
 describe {{moduleName}}::ApiResult do
   parallelize_me!
 
-  it 'exposes the status code' do
+  it 'bhv_results_003 exposes the status code' do
     result = {{moduleName}}::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: {}
     )
@@ -23,7 +23,7 @@ describe {{moduleName}}::ApiResult do
     _(result.data).must_equal data
   end
 
-  it 'allows nil data for empty responses' do
+  it 'bhv_results_001 allows nil data for empty responses' do
     result = {{moduleName}}::ApiResult.new(
       status_code: 204, data: nil, raw_body: '', headers: {}
     )
@@ -37,7 +37,7 @@ describe {{moduleName}}::ApiResult do
     _(result.raw_body).must_equal '{"id":1}'
   end
 
-  it 'exposes the response headers' do
+  it 'bhv_results_002 exposes the response headers' do
     headers = { 'Content-Type' => 'application/json', 'X-Request-Id' => 'abc123' }
     result = {{moduleName}}::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: headers

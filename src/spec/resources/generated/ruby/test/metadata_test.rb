@@ -6,20 +6,20 @@ require 'json'
 describe 'Metadata' do
   parallelize_me!
 
-  it 'serializes empty metadata' do
+  it 'bhv_models_008 serializes empty metadata' do
     metadata = Petstore::Client::Models::Metadata.new
     json = Petstore::Client::ObjectSerializer.serialize(metadata)
 
     _(json).wont_be_nil
   end
 
-  it 'deserializes empty object' do
+  it 'bhv_models_003 deserializes empty object' do
     metadata = Petstore::Client::ObjectSerializer.deserialize('{}', 'Metadata')
 
     _(metadata).wont_be_nil
   end
 
-  it 'deserializes additional string properties' do
+  it 'bhv_models_004 deserializes additional string properties' do
     json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello"}'
     metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
 
@@ -27,7 +27,7 @@ describe 'Metadata' do
     _(metadata).must_be_kind_of(Petstore::Client::Models::Metadata)
   end
 
-  it 'captures and round-trips additionalProperties' do
+  it 'bhv_models_001 captures and round-trips additionalProperties' do
     json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
     metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
 
@@ -79,7 +79,7 @@ end
 describe 'Metadata', 'round-trip and constants' do
   parallelize_me!
 
-  it 'round-trip preserves known properties' do
+  it 'bhv_models_011 round-trip preserves known properties' do
     metadata = Petstore::Client::Models::Metadata.new(
       created_at: Time.new(2024, 1, 1, 0, 0, 0, '+00:00')
     )
@@ -89,7 +89,7 @@ describe 'Metadata', 'round-trip and constants' do
     _(data['createdAt']).wont_be_nil
   end
 
-  it 'equality includes the additional properties' do
+  it 'bhv_models_005 equality includes the additional properties' do
     first = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
     same = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
     other = Petstore::Client::ObjectSerializer.deserialize('{"customField":"b"}', 'Metadata')
@@ -113,7 +113,7 @@ describe 'gem manifest' do
   # non-empty description (wired from the spec's appDescription, with a
   # generated fallback) so the gem does not publish with an empty
   # description on RubyGems.
-  it 'declares a non-empty description' do
+  it 'bhv_models_002 declares a non-empty description' do
     gemspec_path = File.join(File.expand_path('..', File.dirname(__FILE__)), 'petstore_client.gemspec')
     _(File.exist?(gemspec_path)).must_equal(true)
 

@@ -23,28 +23,28 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     )
   end
 
-  it 'builds authorization URL with response type token' do
+  it 'bhv_authoauthtwoimplicit_003 builds authorization URL with response type token' do
     url = auth.build_authorization_url
     _(url).must_include 'https://auth.example.com/authorize?'
     _(url).must_include 'response_type=token'
   end
 
-  it 'builds authorization URL with client id' do
+  it 'bhv_authoauthtwoimplicit_002 builds authorization URL with client id' do
     url = auth.build_authorization_url
     _(url).must_include 'client_id=my_client_id'
   end
 
-  it 'builds authorization URL with scopes' do
+  it 'bhv_authoauthtwoimplicit_004 builds authorization URL with scopes' do
     url = auth.build_authorization_url
     _(url).must_include 'scope=read%20write'
   end
 
-  it 'builds authorization URL with state' do
+  it 'bhv_authoauthtwoimplicit_005 builds authorization URL with state' do
     url = auth.build_authorization_url('csrf_state_456')
     _(url).must_include 'state=csrf_state_456'
   end
 
-  it 'omits an empty state from the authorization URL' do
+  it 'bhv_authoauthtwoimplicit_009 omits an empty state from the authorization URL' do
     url = auth.build_authorization_url('')
     _(url).wont_include 'state'
     _(url).must_equal auth.build_authorization_url
@@ -56,13 +56,13 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(err.message).must_equal 'Must set the access token before making API requests'
   end
 
-  it 'getAuthHeaders returns Bearer after setAccessToken' do
+  it 'bhv_authoauthtwoimplicit_007 getAuthHeaders returns Bearer after setAccessToken' do
     auth.access_token = 'implicit_tok_abc'
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer implicit_tok_abc'
   end
 
-  it 'throws when access token not set' do
+  it 'bhv_authoauthtwoimplicit_012 throws when access token not set' do
     err = assert_raises(RuntimeError) do
       auth.auth_headers
     end
@@ -70,7 +70,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(err.message).must_include 'Must set the access token before making API requests'
   end
 
-  it 'getHost returns configured host' do
+  it 'bhv_authoauthtwoimplicit_008 getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
@@ -88,13 +88,13 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(auth.to_s).must_include '***'
   end
 
-  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the authorize URL' do
+  it 'bhv_authoauthtwoimplicit_001 keeps ~ literal and percent-encodes * ! \' ( ) in the authorize URL' do
     url = auth.build_authorization_url("state~*!'()")
     _(url).must_include 'state=state~%2A%21%27%28%29'
   end
 
   ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", "t\u00F6ken", "abc\u007Fdef"].each do |token|
-    it "rejects the access token #{token.inspect}" do
+    it "bhv_authoauthtwoimplicit_013 rejects the access token #{token.inspect}" do
       err = assert_raises(ArgumentError) { auth.access_token = token }
       _(err.message).must_equal 'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
       err = assert_raises(RuntimeError) { auth.auth_headers }

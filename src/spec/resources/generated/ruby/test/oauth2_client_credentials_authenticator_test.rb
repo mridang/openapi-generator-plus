@@ -65,37 +65,37 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     a
   end
 
-  it 'sends client credentials grant type' do
+  it 'bhv_authoauthtwoclientcred_010 sends client credentials grant type' do
     auth.auth_headers
     _(client.last_body).must_include 'grant_type=client_credentials'
   end
 
-  it 'sends client id and secret' do
+  it 'bhv_authoauthtwoclientcred_011 sends client id and secret' do
     auth.auth_headers
     _(client.last_body).must_include 'client_id=my_client_id'
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
-  it 'sends scopes' do
+  it 'bhv_authoauthtwoclientcred_013 sends scopes' do
     auth.auth_headers
     _(client.last_body).must_include 'scope=read+write'
   end
 
-  it 'returns authorization bearer header' do
+  it 'bhv_authoauthtwoclientcred_008 returns authorization bearer header' do
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer cc_tok_abc'
   end
 
-  it 'sends request to token URL' do
+  it 'bhv_authoauthtwoclientcred_012 sends request to token URL' do
     auth.auth_headers
     _(client.last_url).must_equal 'https://auth.example.com/token'
   end
 
-  it 'getHost returns configured host' do
+  it 'bhv_authoauthtwoclientcred_004 getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
-  it 'token fetch error is surfaced not swallowed' do
+  it 'bhv_authoauthtwoclientcred_015 token fetch error is surfaced not swallowed' do
     # oauth-cc-authheaders-error-swallow: a failed client-credentials token
     # exchange must surface to the caller as a raised error — NOT be
     # swallowed into an empty header map that would send the API request
@@ -119,7 +119,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(error).wont_be_kind_of Petstore::Client::Errors::ApiError
   end
 
-  it 'caches token across calls' do
+  it 'bhv_authoauthtwoclientcred_003 caches token across calls' do
     # The token manager caches the access token until expiry, so two
     # consecutive header requests reuse the same token and issue only a
     # single token request to the endpoint.
@@ -143,7 +143,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(caching_client.call_count).must_equal 1
   end
 
-  it 'basic auth url-encodes client id and secret' do
+  it 'bhv_authoauthtwoclientcred_002 basic auth url-encodes client id and secret' do
     # Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     # client_id and client_secret MUST be application/x-www-form-
     # urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -199,7 +199,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(auth.to_s).must_include '***'
   end
 
-  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the Basic client credentials' do
+  it 'bhv_authoauthtwoclientcred_001 keeps ~ literal and percent-encodes * ! \' ( ) in the Basic client credentials' do
     basic_client = FakeClientCredentialsClient.new
     basic_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
@@ -216,7 +216,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(decoded).must_equal 'id~%2A%21%27%28%29:secret~%2A%21%27%28%29'
   end
 
-  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the token request body' do
+  it 'bhv_authoauthtwoclientcred_006 keeps ~ literal and percent-encodes * ! \' ( ) in the token request body' do
     body_client = FakeClientCredentialsClient.new
     body_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com', "id~*!'()", "secret~*!'()", 'https://auth.example.com/token', %w[read]

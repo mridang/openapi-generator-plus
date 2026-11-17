@@ -82,7 +82,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#add_pet' do
-    it 'add_pet' do
+    it 'bhv_operations_022 add_pet' do
       pet = Petstore::Client::Models::Pet.new(
         id: 12_345,
         name: 'TestDog',
@@ -98,7 +98,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#find_pets_by_status' do
-    it 'find_pets_by_status' do
+    it 'bhv_operations_039 find_pets_by_status' do
       result = @api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
 
       _(result).must_be_kind_of(Array)
@@ -109,7 +109,7 @@ describe Petstore::Client::Api::PetApi do
     # Case 14 — `format: date` parameters (query `bornAfter`, header
     # `Report-Date`) are date-only: they must go out as YYYY-MM-DD with no
     # time component, never an ISO date-time like 2024-01-01T00:00:00Z.
-    it 'serializes format:date query and header parameters as YYYY-MM-DD' do
+    it 'bhv_operations_069 serializes format:date query and header parameters as YYYY-MM-DD' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         api.find_pets_by_status(
@@ -148,7 +148,7 @@ describe Petstore::Client::Api::PetApi do
 
   # F1158: a deepObject query parameter reaches the wire as bracketed keys.
   describe '#find_pets_by_status deepObject filter' do
-    it 'sends filter[key]=value pairs' do
+    it 'bhv_operations_044 sends filter[key]=value pairs' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         api.find_pets_by_status(
@@ -166,7 +166,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_by_id' do
-    it 'get_pet_by_id' do
+    it 'bhv_operations_047 get_pet_by_id' do
       result = @api.get_pet_by_id(1)
 
       _(result).wont_be_nil
@@ -176,7 +176,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#update_pet' do
-    it 'update_pet' do
+    it 'bhv_operations_087 update_pet' do
       pet = Petstore::Client::Models::Pet.new(
         id: 1,
         name: 'UpdatedDog',
@@ -191,17 +191,17 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#delete_pet' do
-    it 'delete_pet' do
+    it 'bhv_operations_027 delete_pet' do
       @authed_api.delete_pet(1)
     end
   end
 
   describe '#set_pet_avatar' do
-    it 'set_pet_avatar' do
+    it 'bhv_operations_070 set_pet_avatar' do
       @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"))
     end
 
-    it 'rejects an unrecognised request content-type' do
+    it 'bhv_operations_076 rejects an unrecognised request content-type' do
       # An unknown content-type selector must be rejected client-side, not
       # silently dropped in favour of the first declared type.
       error = assert_raises(ArgumentError) do
@@ -256,7 +256,7 @@ describe Petstore::Client::Api::PetApi do
       [api, server, thread, captured_body, captured_content_type]
     end
 
-    it 'set_pet_avatar streams raw bytes with declared content type' do
+    it 'bhv_operations_073 set_pet_avatar streams raw bytes with declared content type' do
       api, server, thread, captured_body, captured_content_type = capture_avatar_request
       begin
         # JPEG SOI marker — a known, non-trivial binary payload. The high bytes
@@ -286,7 +286,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'sends the caller bytes verbatim when the JSON content type is selected' do
+    it 'bhv_operations_072 sends the caller bytes verbatim when the JSON content type is selected' do
       api, server, thread, captured_body, captured_content_type = capture_avatar_request
       begin
         raw = "\xFF\xD8\xFF\xE0".b
@@ -305,7 +305,7 @@ describe Petstore::Client::Api::PetApi do
     # first declared type (image/jpeg) and image/png was unreachable. The
     # selector lets the caller choose among the declared types while staying
     # backward compatible: an unspecified request_content_type still sends the first.
-    it 'honours the selected request content type' do
+    it 'bhv_operations_071 honours the selected request content type' do
       # (1) Backward compatible — no selector sends the FIRST declared type.
       api, server, thread, _captured_body, captured_content_type = capture_avatar_request
       begin
@@ -340,7 +340,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_avatar' do
-    it 'get_pet_avatar' do
+    it 'bhv_operations_045 get_pet_avatar' do
       result = @api.get_pet_avatar(1)
 
       _(result).wont_be_nil
@@ -348,7 +348,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_avatar_thumbnail' do
-    it 'get_pet_avatar_thumbnail' do
+    it 'bhv_operations_046 get_pet_avatar_thumbnail' do
       # The response is a top-level `type: string, format: byte` schema served
       # as application/json, so it arrives as a JSON string literal
       # ("dGVzdC1pbWFnZQ=="). The SDK must JSON-parse then base64-decode it to
@@ -364,7 +364,7 @@ describe Petstore::Client::Api::PetApi do
     # Same regression pinned against a canned wire response so it does not
     # depend on the mock's example: a JSON string literal of the base64 text
     # must be JSON-parsed and then base64-decoded to the raw bytes.
-    it 'decodes a JSON-encoded base64 string response body to raw bytes' do
+    it 'bhv_operations_062 decodes a JSON-encoded base64 string response body to raw bytes' do
       api, server, thread, captured = capture_wire_request('"dGVzdC1pbWFnZQ=="')
       begin
         result = api.get_pet_avatar_thumbnail(1)
@@ -382,7 +382,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#set_pet_avatar_thumbnail' do
-    it 'set_pet_avatar_thumbnail' do
+    it 'bhv_operations_074 set_pet_avatar_thumbnail' do
       # SetPetAvatarThumbnailRequest is a oneOf [scalar format:byte, array of
       # format:byte]. The caller supplies RAW bytes; the SDK base64-encodes
       # the byte variant on the wire (the round-trip is asserted directly on
@@ -394,7 +394,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#upload_pet_certificate' do
-    it 'upload_pet_certificate' do
+    it 'bhv_operations_090 upload_pet_certificate' do
       options = Petstore::Client::Api::Options::UploadPetCertificateOptions.new(
         file: StringIO.new('cert-data')
       )
@@ -405,7 +405,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#upload_pet_document' do
-    it 'upload_pet_document' do
+    it 'bhv_operations_091 upload_pet_document' do
       result = @api.upload_pet_document(
         1,
         Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
@@ -464,7 +464,7 @@ describe Petstore::Client::Api::PetApi do
       [api, server, thread, captured_body, captured_content_type]
     end
 
-    it 'sends raw bytes when application/octet-stream is selected' do
+    it 'bhv_operations_092 sends raw bytes when application/octet-stream is selected' do
       api, server, thread, captured_body, captured_content_type = capture_document_request
       begin
         raw = "\x00\x01\x02PDFBYTES\xFF".b
@@ -497,7 +497,7 @@ describe Petstore::Client::Api::PetApi do
 
     # F1125: non-string scalar form fields go out as plain text parts in their
     # canonical wire form, not as JSON parts and not through to_s.
-    it 'sends boolean, integer, date-time and enum fields as plain text multipart parts' do
+    it 'bhv_operations_095 sends boolean, integer, date-time and enum fields as plain text multipart parts' do
       api, server, thread, captured_body, = capture_document_request
       begin
         api.upload_pet_document(
@@ -534,7 +534,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'still sends a multipart body when multipart/form-data is selected (default)' do
+    it 'bhv_operations_094 still sends a multipart body when multipart/form-data is selected (default)' do
       # Guards against over-correction: the default (and explicit multipart)
       # selection must keep shipping a multipart/form-data envelope.
       [nil, 'multipart/form-data'].each do |selected|
@@ -565,7 +565,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#add_pet_photos' do
-    it 'add_pet_photos' do
+    it 'bhv_operations_023 add_pet_photos' do
       metadata = Petstore::Client::Models::PhotoMetadata.new(caption: 'Test photo', is_primary: true)
 
       result = @api.add_pet_photos(
@@ -582,7 +582,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#download_pet_document' do
-    it 'download_pet_document' do
+    it 'bhv_operations_035 download_pet_document' do
       result = @api.download_pet_document(1, 1)
 
       _(result).wont_be_nil
@@ -590,7 +590,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_photo' do
-    it 'get_pet_photo' do
+    it 'bhv_operations_055 get_pet_photo' do
       result = @api.get_pet_photo(1, 1)
 
       _(result).wont_be_nil
@@ -598,7 +598,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_passport' do
-    it 'get_pet_passport' do
+    it 'bhv_operations_053 get_pet_passport' do
       result = @api.get_pet_passport(1)
 
       _(result).wont_be_nil
@@ -607,7 +607,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_tag' do
-    it 'sends styled path and query parameters' do
+    it 'bhv_operations_058 sends styled path and query parameters' do
       result = @api.get_pet_tag(
         5,
         'cute',
@@ -620,7 +620,7 @@ describe Petstore::Client::Api::PetApi do
     # F1143 / F1158: the styled path segments, the deepObject and the
     # object-valued query and header parameters reach the wire as the OAS
     # style tables say, never as an object's to_s.
-    it 'sends matrix and label path segments' do
+    it 'bhv_operations_060 sends matrix and label path segments' do
       api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
       begin
         api.get_pet_tag(5, 'cute')
@@ -633,7 +633,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'expands object-valued query and header parameters by style' do
+    it 'bhv_operations_067 expands object-valued query and header parameters by style' do
       api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
       begin
         criteria = Petstore::Client::Models::PetCriteria.new(breed: 'lab', min_age: 3)
@@ -667,7 +667,7 @@ describe Petstore::Client::Api::PetApi do
       Petstore::Client::Api::PetApi.new(client, config)
     end
 
-    it 'sends the matrix date segment, the session cookie and the date array, and returns the text' do
+    it 'bhv_operations_057 sends the matrix date segment, the session cookie and the date array, and returns the text' do
       client = RecordingPetClient.new(body: 'hello', content_type: 'text/plain')
       options = Petstore::Client::Api::Options::GetPetSummaryOptions.new(
         session: 'abc', days: [Date.new(2024, 2, 1), Date.new(2024, 2, 2)]
@@ -682,7 +682,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     [nil, ''].each do |session|
-      it "refuses the required session cookie #{session.inspect} before sending" do
+      it "bhv_operations_056 refuses the required session cookie #{session.inspect} before sending" do
         client = RecordingPetClient.new
         # @type var missing: untyped
         missing = session
@@ -697,7 +697,7 @@ describe Petstore::Client::Api::PetApi do
 
   describe '#get_pet_by_name required header' do
     [nil, ''].each do |value|
-      it "refuses the required X-Correlation-Id header #{value.inspect} before sending" do
+      it "bhv_operations_050 refuses the required X-Correlation-Id header #{value.inspect} before sending" do
         client = RecordingPetClient.new
         config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = Petstore::Client::Api::PetApi.new(client, config)
@@ -715,7 +715,7 @@ describe Petstore::Client::Api::PetApi do
   # F1142: a request body that is the anyOf wrapper, with a path parameter and
   # OAuth, is sent as the matched variant's JSON and the answer decoded back.
   describe '#add_pet_treatment' do
-    it 'sends the variant JSON under the client credentials and decodes the answer' do
+    it 'bhv_operations_024 sends the variant JSON under the client credentials and decodes the answer' do
       client = RecordingPetClient.new(body: '{"drugName":"aspirin","dosage":"5mg"}')
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config, @auth)
@@ -784,7 +784,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_external_pet_info' do
-    it 'uses per-operation server URL' do
+    it 'bhv_operations_061 uses per-operation server URL' do
       # The operation's own server wins over the client's base URL: the client
       # points at a closed port, the per-operation server at the mock server.
       mock_url = @base_url
@@ -826,7 +826,7 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
     end
 
-    it 'raises ArgumentError when the required string query param category is empty' do
+    it 'bhv_operations_049 raises ArgumentError when the required string query param category is empty' do
       # required-string-empty parity (go/rust/swift/elixir): an empty
       # string for a required string param means the caller omitted it,
       # so it must be rejected exactly like nil.
@@ -836,7 +836,7 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
-    it 'raises ArgumentError when the required string path param name is empty' do
+    it 'bhv_operations_052 raises ArgumentError when the required string path param name is empty' do
       err = assert_raises(ArgumentError) do
         @api.get_pet_by_name('', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
       end
@@ -844,7 +844,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     ['.', '..'].each do |segment|
-      it "rejects the dot segment #{segment.inspect} as the path param name before dispatch" do
+      it "bhv_operations_051 rejects the dot segment #{segment.inspect} as the path param name before dispatch" do
         client = RecordingPetClient.new
         config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = Petstore::Client::Api::PetApi.new(client, config)
@@ -855,7 +855,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'sends a name that only contains dots inside it' do
+    it 'bhv_operations_064 sends a name that only contains dots inside it' do
       client = RecordingPetClient.new
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
@@ -894,7 +894,7 @@ describe Petstore::Client::Api::PetApi do
       [api, server, thread]
     end
 
-    it 'error_handling_not_found' do
+    it 'bhv_operations_037 error_handling_not_found' do
       api, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
       begin
         _(-> { api.get_pet_by_id(99_999) }).must_raise Petstore::Client::Errors::NotFoundError
@@ -904,7 +904,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'raises error on 500 response' do
+    it 'bhv_operations_038 raises error on 500 response' do
       api, server, thread = new_pet_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
       begin
         _(-> { api.get_pet_by_id(1) }).must_raise Petstore::Client::Errors::InternalServerError
@@ -914,7 +914,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'download_binary_mock' do
+    it 'bhv_operations_034 download_binary_mock' do
       api, server, thread = new_pet_api_for_mock(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
       begin
         result = api.get_pet_avatar(1)
@@ -925,7 +925,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'upload_multipart_mock' do
+    it 'bhv_operations_089 upload_multipart_mock' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"code":200,"type":"","message":"success"}')
       begin
         options = Petstore::Client::Api::Options::UploadPetCertificateOptions.new(
@@ -942,7 +942,7 @@ describe Petstore::Client::Api::PetApi do
     # convenience-empty-body-handling: a body-returning operation that
     # receives an empty 200 body must raise a typed ApiError from the
     # unwrapped convenience method, never return a silent nil.
-    it 'raises ApiError when a body-returning op gets an empty body' do
+    it 'bhv_operations_036 raises ApiError when a body-returning op gets an empty body' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '')
       begin
         err = assert_raises(Petstore::Client::Errors::ApiError) do
@@ -1001,7 +1001,7 @@ describe Petstore::Client::Api::PetApi do
       [api, server, thread, captured]
     end
 
-    it 'sends format:byte query and header params as padded standard base64' do
+    it 'bhv_operations_059 sends format:byte query and header params as padded standard base64' do
       client = RecordingPetClient.new
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1018,7 +1018,7 @@ describe Petstore::Client::Api::PetApi do
       _(client.url).must_include 'fingerprint=%2B%2F8%3D'
     end
 
-    it 'percent-encodes a # in an allowReserved value instead of truncating the query' do
+    it 'bhv_operations_066 percent-encodes a # in an allowReserved value instead of truncating the query' do
       client = RecordingPetClient.new
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1054,7 +1054,7 @@ describe Petstore::Client::Api::PetApi do
     # `colors=%5B%22blue%22%2C+%22black%22%5D` ('["blue", "black"]') on the
     # wire. Here we assert the styled forms reach the wire and that no
     # debug/inspect blob does.
-    it 'serialises optional array query params as styled values, not a debug blob' do
+    it 'bhv_operations_068 serialises optional array query params as styled values, not a debug blob' do
       body = '{"id":1,"name":"x","photoUrls":[],"status":"available"}'
       api, server, thread, captured = capture_request_line(200, 'application/json', body)
       begin
@@ -1089,7 +1089,7 @@ describe Petstore::Client::Api::PetApi do
 
   describe 'with_http_info methods' do
     describe '#get_pet_by_id_with_http_info' do
-      it 'get_pet_by_id_with_http_info' do
+      it 'bhv_operations_048 get_pet_by_id_with_http_info' do
         result = @api.get_pet_by_id_with_http_info(1)
 
         _(result).wont_be_nil
@@ -1100,7 +1100,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     describe '#add_pet_with_http_info' do
-      it 'add_pet_with_http_info' do
+      it 'bhv_operations_025 add_pet_with_http_info' do
         pet = Petstore::Client::Models::Pet.new(
           id: 99,
           name: 'HttpInfoDog',
@@ -1118,7 +1118,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     describe '#update_pet_with_http_info' do
-      it 'update_pet_with_http_info' do
+      it 'bhv_operations_088 update_pet_with_http_info' do
         pet = Petstore::Client::Models::Pet.new(
           id: 1,
           name: 'UpdatedDog',
@@ -1135,7 +1135,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     describe '#delete_pet_with_http_info' do
-      it 'delete_pet_with_http_info' do
+      it 'bhv_operations_031 delete_pet_with_http_info' do
         result = @authed_api.delete_pet_with_http_info(1)
 
         _(result).wont_be_nil
@@ -1145,7 +1145,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     describe '#find_pets_by_status_with_http_info' do
-      it 'find_pets_by_status_with_http_info' do
+      it 'bhv_operations_042 find_pets_by_status_with_http_info' do
         result = @api.find_pets_by_status_with_http_info(
           Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available')
         )
@@ -1156,7 +1156,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     describe '#get_pet_passport_with_http_info' do
-      it 'get_pet_passport_with_http_info' do
+      it 'bhv_operations_054 get_pet_passport_with_http_info' do
         result = @api.get_pet_passport_with_http_info(1)
 
         _(result).wont_be_nil
@@ -1202,7 +1202,7 @@ describe Petstore::Client::Api::PetApi do
     # F857: the credential the client holds for the scheme the operation names
     # is applied to the outgoing request. The default header carries one token;
     # the scheme credential carries a different one and must win on the wire.
-    it 'applies the credential of the scheme the operation names' do
+    it 'bhv_operations_079 applies the credential of the scheme the operation names' do
       server, port, thread, captured = capture_auth_header
 
       begin
@@ -1231,7 +1231,7 @@ describe Petstore::Client::Api::PetApi do
     # no-scheme-credential-uses-config-default: when the client holds no
     # credential for a scheme the operation names, the base client falls back to
     # the credentials configured on the Configuration object.
-    it 'falls back to the configured credentials when the client holds no scheme credential' do
+    it 'bhv_operations_081 falls back to the configured credentials when the client holds no scheme credential' do
       server, port, thread, captured = capture_auth_header
 
       begin
@@ -1274,7 +1274,7 @@ describe Petstore::Client::Api::PetApi do
     # security scheme (F857), so no Options object carries an `auth` member,
     # whether or not its operation is secured. Each still carries the per-call
     # timeout, headers and max_retries.
-    it 'does not expose an auth member on any Options object' do
+    it 'bhv_operations_086 does not expose an auth member on any Options object' do
       %w[AddPetOptions DeletePetOptions GetPetByIdOptions].each do |name|
         options = Petstore::Client::Api::Options.const_get(name).new
         _(options).wont_respond_to :auth
@@ -1359,7 +1359,7 @@ describe Petstore::Client::Api::PetApi do
 
     # Case 14 — a `format: date` form field serializes date-only (YYYY-MM-DD),
     # never as a date-time.
-    it 'serializes a format:date form property as YYYY-MM-DD' do
+    it 'bhv_operations_019 serializes a format:date form property as YYYY-MM-DD' do
       api, server, thread, captured = capture_request_body
       begin
         options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
@@ -1377,7 +1377,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'serializes a format:date-time form property in the canonical form' do
+    it 'bhv_operations_075 serializes a format:date-time form property in the canonical form' do
       api, server, thread, captured = capture_request_body
       begin
         options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
@@ -1423,7 +1423,7 @@ describe Petstore::Client::Api::PetApi do
       lines.first(index.to_i).reverse.take_while { |line| line.strip.start_with?('#') }.reverse.map(&:strip)
     end
 
-    it 'keeps the summary and the options param attached to find_pets_by_status' do
+    it 'bhv_operations_041 keeps the summary and the options param attached to find_pets_by_status' do
       block = doc_block('find_pets_by_status')
       _(block.first).must_equal '# Finds Pets by status'
       _(block).must_include '# @param options [FindPetsByStatusOptions] ' \
@@ -1435,7 +1435,7 @@ describe Petstore::Client::Api::PetApi do
     # F1155: the deprecation marker sits on the data method and on its
     # with_http_info twin, only on the deprecated operations, and on the
     # deprecated parameter and model.
-    it 'marks a deprecated operation on both of its methods' do
+    it 'bhv_operations_033 marks a deprecated operation on both of its methods' do
       %w[find_pets_by_status find_pets_by_status_with_http_info get_pet_by_id get_pet_by_id_with_http_info].each do |name|
         _(doc_block(name)).must_include '# @deprecated This operation is deprecated.'
       end
@@ -1452,12 +1452,12 @@ describe Petstore::Client::Api::PetApi do
       _(File.read(path)).must_include '# @deprecated This parameter is deprecated.'
     end
 
-    it 'marks the deprecated model' do
+    it 'bhv_operations_032 marks the deprecated model' do
       path = String(Object.const_source_location(Petstore::Client::Models::Tag.name)&.first)
       _(File.read(path)).must_include '# @deprecated This schema is deprecated.'
     end
 
-    it 'documents no per-call authenticator on any options' do
+    it 'bhv_operations_082 documents no per-call authenticator on any options' do
       _(doc_block('add_pet')).must_include '# @param options [AddPetOptions] ' \
                                            'per-call options: the optional timeout, headers and max_retries'
       _(doc_block('add_pet')).wont_include 'authenticator'
@@ -1487,7 +1487,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe 'format:date path parameter' do
-    it 'serializes find_pets_born_on as YYYY-MM-DD with no time component' do
+    it 'bhv_operations_043 serializes find_pets_born_on as YYYY-MM-DD with no time component' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         api.find_pets_born_on(Date.new(2024, 1, 1))
@@ -1505,7 +1505,7 @@ describe Petstore::Client::Api::PetApi do
     # (space, double quote, comma, semicolon, backslash, a control character or
     # anything non-ASCII) fails before a request is sent; the caller encodes it.
     ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", 'a b', 'a"b', 'a,b', 'a;b', 'a\\b', "caf\u00e9"].each do |value|
-      it "fails closed for #{value.inspect} without sending a request" do
+      it "bhv_operations_029 fails closed for #{value.inspect} without sending a request" do
         client = RecordingPetClient.new
         config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1518,7 +1518,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'sends a valid value in the Cookie header' do
+    it 'bhv_operations_028 sends a valid value in the Cookie header' do
       client = RecordingPetClient.new
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1530,7 +1530,7 @@ describe Petstore::Client::Api::PetApi do
     # Every character of these is a legal cookie-octet, so the value goes out
     # exactly as given: nothing is percent-encoded or decoded.
     ['a=b==', 'a%20b', 'a/b+c', 'a.b~c_d-e', 'a:b@c!d'].each do |value|
-      it "sends #{value.inspect} raw" do
+      it "bhv_operations_030 sends #{value.inspect} raw" do
         client = RecordingPetClient.new
         config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1550,7 +1550,7 @@ describe Petstore::Client::Api::PetApi do
       client.url
     end
 
-    it 'sends the single-server operation to its fixed URL' do
+    it 'bhv_operations_083 sends the single-server operation to its fixed URL' do
       url = url_sent_to(Petstore::Client::Api::GetExternalPetInfoServerServer0.new) do |api, server|
         api.get_external_pet_info(7, server: server)
       end
@@ -1572,7 +1572,7 @@ describe Petstore::Client::Api::PetApi do
       _(url).must_equal 'https://sandbox.example.com/api/v3/pet/7/staging'
     end
 
-    it 'sends the multi-server operation to whichever server is chosen' do
+    it 'bhv_operations_085 sends the multi-server operation to whichever server is chosen' do
       primary = url_sent_to(Petstore::Client::Api::GetMultiServerPetInfoServerPrimary.new) do |api, server|
         api.get_multi_server_pet_info(7, server: server)
       end
@@ -1592,7 +1592,7 @@ describe Petstore::Client::Api::PetApi do
       'a&b' => 'https://eu.mirror.example.com/a&b/v1/pet/7/multi',
       "it's" => "https://eu.mirror.example.com/it's/v1/pet/7/multi"
     }.each do |channel, expected|
-      it "resolves the Mirror variant for the channel #{channel.inspect}" do
+      it "bhv_operations_084 resolves the Mirror variant for the channel #{channel.inspect}" do
         server = Petstore::Client::Api::GetMultiServerPetInfoServerMirror.new(
           region: Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::EU, channel: channel
         )

@@ -37,49 +37,49 @@ describe {{moduleName}}::TraceContextUtil do
   parallelize_me!
 
   describe '.inject_trace_context' do
-    it 'is a no-op without tracer' do
+    it 'bhv_tracing_007 is a no-op without tracer' do
       headers = {}
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers).must_be_empty
     end
 
-    it 'empty headers do not cause exception' do
+    it 'bhv_tracing_003 empty headers do not cause exception' do
       headers = {}
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers.size).must_equal(0)
     end
 
-    it 'does not inject traceparent without OTel' do
+    it 'bhv_tracing_001 does not inject traceparent without OTel' do
       headers = {}
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers).wont_include('traceparent')
     end
 
-    it 'does not inject tracestate without OTel' do
+    it 'bhv_tracing_002 does not inject tracestate without OTel' do
       headers = {}
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers).wont_include('tracestate')
     end
 
-    it 'preserves Authorization header' do
+    it 'bhv_tracing_010 preserves Authorization header' do
       headers = { 'Authorization' => 'Bearer token123' }
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers['Authorization']).must_equal('Bearer token123')
     end
 
-    it 'preserves Content-Type header' do
+    it 'bhv_tracing_011 preserves Content-Type header' do
       headers = { 'Content-Type' => 'application/json' }
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers['Content-Type']).must_equal('application/json')
     end
 
-    it 'preserves X-Request-ID header' do
+    it 'bhv_tracing_012 preserves X-Request-ID header' do
       headers = { 'X-Request-ID' => 'req-12345' }
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers['X-Request-ID']).must_equal('req-12345')
     end
 
-    it 'preserves all existing headers' do
+    it 'bhv_tracing_009 preserves all existing headers' do
       headers = {
         'Authorization' => 'Bearer token',
         'Content-Type' => 'application/json',
@@ -92,7 +92,7 @@ describe {{moduleName}}::TraceContextUtil do
       _(headers['X-Request-ID']).must_equal('abc-123')
     end
 
-    it 'injects traceparent when a span is active' do
+    it 'bhv_tracing_006 injects traceparent when a span is active' do
       tracer, exporter = sdk_tracer
       headers = {}
       span_context = nil
@@ -107,7 +107,7 @@ describe {{moduleName}}::TraceContextUtil do
       _(exporter.finished_spans.map(&:name)).must_equal(['request'])
     end
 
-    it 'includes tracestate when present on the active span' do
+    it 'bhv_tracing_005 includes tracestate when present on the active span' do
       tracer, = sdk_tracer
       headers = {}
       OpenTelemetry::Context.with_current(remote_parent('vendor' => 'value')) do
@@ -118,7 +118,7 @@ describe {{moduleName}}::TraceContextUtil do
       _(headers['tracestate']).must_equal('vendor=value')
     end
 
-    it 'omits tracestate when empty on the active span' do
+    it 'bhv_tracing_008 omits tracestate when empty on the active span' do
       tracer, = sdk_tracer
       headers = {}
       tracer.in_span('request') do
@@ -128,7 +128,7 @@ describe {{moduleName}}::TraceContextUtil do
       _(headers).wont_include('tracestate')
     end
 
-    it 'formats trace flags correctly on the active span' do
+    it 'bhv_tracing_004 formats trace flags correctly on the active span' do
       sampled, = sdk_tracer
       unsampled, = sdk_tracer(OpenTelemetry::SDK::Trace::Samplers::ALWAYS_OFF)
       sampled_headers = {}
