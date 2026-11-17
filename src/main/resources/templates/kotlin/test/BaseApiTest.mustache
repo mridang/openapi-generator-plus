@@ -513,6 +513,25 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvErrors057 a network failure error carries the request method and path")
+        fun bhvErrors057NetworkFailureCarriesTheRequestMethodAndPath() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean
+                ): ApiHttpResponse = throw NetworkException("refused", java.io.IOException("refused"))
+            }
+            val ex = assertThrows(NetworkException::class.java) {
+                runBlocking { PerCallApi(client).call(method = "GET", path = "/items") }
+            }
+            assertEquals("GET", ex.requestMethod)
+            assertEquals("/items", ex.requestPath)
+        }
+
+        @Test
         @DisplayName("bhvOperations001 F827: per-call headers replace a header of the same name, whatever its case")
         fun callHeadersReplaceAnyLayer() {
             val client = CapturingApiClient()
@@ -573,8 +592,8 @@ class BaseApiTest {
     inner class ExceptionDispatch {
 
         @Test
-        @DisplayName("400 throws BadRequestException")
-        fun throws400() {
+        @DisplayName("bhvErrors058 a 400 response maps to the bad request error")
+        fun bhvErrors058A400ResponseMapsToBadRequest() {
             val ex = assertThrows(BadRequestException::class.java) {
                 runBlocking { api().call("GET", "/test/status/400") }
             }
@@ -592,40 +611,40 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("403 throws ForbiddenException")
-        fun throws403() {
+        @DisplayName("bhvErrors059 a 403 response maps to the forbidden error")
+        fun bhvErrors059A403ResponseMapsToForbidden() {
             assertThrows(ForbiddenException::class.java) {
                 runBlocking { api().call("GET", "/test/status/403") }
             }
         }
 
         @Test
-        @DisplayName("404 throws NotFoundException")
-        fun throws404() {
+        @DisplayName("bhvErrors060 a 404 response maps to the not found error")
+        fun bhvErrors060A404ResponseMapsToNotFound() {
             assertThrows(NotFoundException::class.java) {
                 runBlocking { api().call("GET", "/test/status/404") }
             }
         }
 
         @Test
-        @DisplayName("409 throws ConflictException")
-        fun throws409() {
+        @DisplayName("bhvErrors067 a 409 response becomes a conflict error")
+        fun bhvErrors067A409ResponseBecomesConflict() {
             assertThrows(ConflictException::class.java) {
                 runBlocking { api().call("GET", "/test/status/409") }
             }
         }
 
         @Test
-        @DisplayName("429 throws TooManyRequestsException")
-        fun throws429() {
+        @DisplayName("bhvErrors066 a 429 response becomes a too-many-requests error")
+        fun bhvErrors066A429ResponseBecomesTooManyRequests() {
             assertThrows(TooManyRequestsException::class.java) {
                 runBlocking { api().call("GET", "/test/status/429") }
             }
         }
 
         @Test
-        @DisplayName("422 throws UnprocessableEntityException")
-        fun throws422() {
+        @DisplayName("bhvErrors068 a 422 response becomes an unprocessable entity error")
+        fun bhvErrors068A422ResponseBecomesUnprocessableEntity() {
             assertThrows(UnprocessableEntityException::class.java) {
                 runBlocking { api().call("GET", "/test/status/422") }
             }
@@ -640,16 +659,16 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("500 throws InternalServerErrorException")
-        fun throws500() {
+        @DisplayName("bhvErrors069 a 500 response becomes an internal server error")
+        fun bhvErrors069A500ResponseBecomesInternalServerError() {
             assertThrows(InternalServerErrorException::class.java) {
                 runBlocking { api().call("GET", "/test/status/500") }
             }
         }
 
         @Test
-        @DisplayName("502 throws ServerException")
-        fun throws502() {
+        @DisplayName("bhvErrors070 a 502 response becomes a server error")
+        fun bhvErrors070A502ResponseBecomesServerError() {
             assertThrows(ServerException::class.java) {
                 runBlocking { api().call("GET", "/test/status/502") }
             }

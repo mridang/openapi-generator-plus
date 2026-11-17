@@ -255,6 +255,77 @@ class ClientTest {
         assertEquals(200, runBlocking { transport.sendRequest("GET", "http://localhost/", emptyMap(), null).statusCode })
     }
 
+    @Test
+    @DisplayName("bhvLifecycle028 an explicit host and token win over the environment")
+    fun bhvLifecycle028AnExplicitHostAndTokenWinOverTheEnvironment() {
+        var authorization: String? = null
+        var host = ""
+        val engine =
+            MockEngine { request ->
+                host = request.url.host
+                authorization = request.headers[HttpHeaders.Authorization]
+                respond("", HttpStatusCode.BadRequest)
+            }
+        val client =
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "env-token")) {
+                Client.withToken(
+                    "https://arg.example.com",
+                    "arg-token",
+                    TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                )
+            }
+
+        assertThrows(ApiException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+        assertEquals("arg.example.com", host)
+        assertEquals("Bearer arg-token", authorization)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle032 a token passed to the client is preferred to the one in the environment")
+    fun bhvLifecycle032ATokenPassedToTheClientIsPreferredToTheEnvironment() {
+        var authorization: String? = null
+        val engine =
+            MockEngine { request ->
+                authorization = request.headers[HttpHeaders.Authorization]
+                respond("", HttpStatusCode.BadRequest)
+            }
+        val client =
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "env-token")) {
+                Client.withToken(
+                    "https://api.example.com",
+                    "arg-token",
+                    TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                )
+            }
+
+        assertThrows(ApiException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+        assertEquals("Bearer arg-token", authorization)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle035 a request issued after close fails with the one closed-client error and never reaches the transport")
+    fun bhvLifecycle035ARequestAfterCloseFailsAndNeverReachesTheTransport() {
+        var reached = 0
+        val engine =
+            MockEngine { _ ->
+                reached += 1
+                respond("{}")
+            }
+        val client = Client(authenticator, TransportOptions.builder().httpClient(HttpClient(engine)).build())
+        client.close()
+
+        val ex =
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking { client.pet.getPetById(1L) }
+            }
+        assertEquals("ApiClient has been closed and can no longer send requests", ex.message)
+        assertEquals(0, reached)
+    }
+
     private fun <T> withEnvironment(
         values: Map<String, String>,
         body: () -> T,
