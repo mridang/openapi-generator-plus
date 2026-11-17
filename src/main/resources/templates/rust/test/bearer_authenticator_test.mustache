@@ -180,3 +180,27 @@ async fn test_token_provider_returning_an_unusable_token_fails_the_request() {
     assert!(err.to_string().contains("Bearer token must not be empty"), "{}", err);
     assert!(auth.auth_headers().await.is_empty());
 }
+
+#[test]
+fn test_bhv_lifecycle_005_bearer_rejects_an_empty_token() {
+    for token in ["", " \t "] {
+        match BearerAuthenticator::new("https://api.example.com", token) {
+            Err(ConfigurationError::InvalidArgument(reason)) => {
+                assert!(reason.contains("must not be empty"), "{}", reason)
+            }
+            other => panic!("expected ConfigurationError::InvalidArgument for {:?}, got {:?}", token, other),
+        }
+    }
+}
+
+#[test]
+fn test_bhv_lifecycle_006_bearer_rejects_crlf_and_non_ascii() {
+    for token in ["tok\r\n", "tokén"] {
+        match BearerAuthenticator::new("https://api.example.com", token) {
+            Err(ConfigurationError::InvalidArgument(reason)) => {
+                assert!(reason.contains("printable ASCII"), "{}", reason)
+            }
+            other => panic!("expected ConfigurationError::InvalidArgument for {:?}, got {:?}", token, other),
+        }
+    }
+}

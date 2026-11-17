@@ -2420,3 +2420,36 @@ async fn test_bhv_transport_028_a_per_call_timeout_replaces_the_transport_timeou
     assert!(deadline >= started + std::time::Duration::from_secs(30), "deadline {:?}", deadline);
     assert!(deadline < started + std::time::Duration::from_secs(600), "deadline {:?}", deadline);
 }
+
+/// A `security: []` operation sends neither the query nor the header position of a configured
+/// api-key client authenticator.
+#[tokio::test]
+async fn test_bhv_authintegration_015_security_none_suppresses_a_configured_api_key_client_authenticator() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let client_auth: Arc<dyn {{packageName}}::auth::Authenticator> = Arc::new(EverywhereAuthenticator);
+    let api = StoreApi::new(client.clone(), config, Some(client_auth));
+
+    let _ = api.get_inventory(None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    let url = client.captured_url.lock().unwrap();
+    assert!(!headers.contains_key("X-API-Key"), "got: {:?}", headers.get("X-API-Key"));
+    assert!(!url.contains("api_key="), "got: {}", url);
+}
+
+/// A `security: []` operation sends no scheme credential, so neither the bearer header nor the
+/// auth cookie of a configured client authenticator reaches the wire.
+#[tokio::test]
+async fn test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_credential() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let client_auth: Arc<dyn {{packageName}}::auth::Authenticator> = Arc::new(EverywhereAuthenticator);
+    let api = StoreApi::new(client.clone(), config, Some(client_auth));
+
+    let _ = api.get_inventory(None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    assert!(!headers.contains_key("Authorization"), "got: {:?}", headers.get("Authorization"));
+    assert!(!headers.contains_key("Cookie"), "got: {:?}", headers.get("Cookie"));
+}
