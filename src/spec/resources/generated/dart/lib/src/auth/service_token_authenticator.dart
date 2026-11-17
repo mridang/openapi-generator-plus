@@ -15,5 +15,8 @@ class ServiceTokenAuthenticator extends BearerAuthenticator {
     super.token,
     super.tokenProvider,
     super.environment,
-  }) : super(environmentVariable: 'PETSTORE_CLIENT_SERVICE_TOKEN');
+  }) : super(
+         environmentVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN',
+       );
 }

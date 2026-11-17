@@ -296,7 +296,7 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
         fail('Expected error for status 400');
       } on BadRequestException catch (e) {
         expect(
@@ -439,7 +439,7 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         try {
-          await api.getPetById(1, null);
+          await api.getPetById(1, null, null);
           fail('expected BadRequestException');
         } on BadRequestException catch (e) {
           final typed = e.getTypedErrorBody<ApiResponse>(ApiResponse.fromJson);
@@ -468,7 +468,7 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         try {
-          await api.getPetById(1, null);
+          await api.getPetById(1, null, null);
           fail('expected BadRequestException');
         } on BadRequestException catch (e) {
           final typed = e.getTypedErrorBody<ApiResponse>(ApiResponse.fromJson);
@@ -502,7 +502,7 @@ void main() {
               .build();
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-          final result = await api.getPetByIdWithHttpInfo(1, null);
+          final result = await api.getPetByIdWithHttpInfo(1, null, null);
           expect(result, isA<ApiResult<dynamic>>());
           expect(result.statusCode, equals(200));
           expect(result.data, isNotNull);
@@ -690,7 +690,7 @@ void main() {
             ),
           );
 
-          await api.getPetById(1, null);
+          await api.getPetById(1, null, null);
 
           expect(
             receivedAuth,
@@ -755,7 +755,7 @@ void main() {
           );
 
           // getInventory is declared `security: []` → fully unauthenticated.
-          await api.getInventory();
+          await api.getInventory(null);
 
           expect(
             receivedAuth,
@@ -826,7 +826,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
         expect(
           receivedHeaders.containsKey('accept'),
           isTrue,
@@ -875,7 +875,7 @@ void main() {
 
           // getPetById negotiates Accept: application/json via the selector;
           // the config default Accept: application/xml must win on the wire.
-          await api.getPetById(1, null);
+          await api.getPetById(1, null, null);
           expect(
             receivedAccept,
             equals('application/xml'),
@@ -940,7 +940,7 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         await expectLater(
-          api.getPetByIdWithHttpInfo(1, null),
+          api.getPetByIdWithHttpInfo(1, null, null),
           throwsA(
             isA<SerializationException>().having(
               (e) => e.toString(),
@@ -979,7 +979,7 @@ void main() {
               .build();
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-          final result = await api.getPetByIdWithHttpInfo(1, null);
+          final result = await api.getPetByIdWithHttpInfo(1, null, null);
           expect(result.statusCode, equals(200));
           expect(
             result.data,
@@ -1018,7 +1018,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetByIdWithHttpInfo(1, null);
+        final result = await api.getPetByIdWithHttpInfo(1, null, null);
         expect(result.statusCode, equals(200));
         expect(
           result.data,
@@ -1217,7 +1217,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
         expect(capturedUrl, isNot(contains('?')));
       } finally {
         await server.close();
@@ -1242,7 +1242,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.getPetById(10, null);
+        await api.getPetById(10, null, null);
         expect(
           capturedUrl,
           isNot(contains('10.0')),
@@ -1261,7 +1261,7 @@ void main() {
       final config = ConfigurationBuilder().baseUrl('http://host/').build();
       final api = PetApi(apiClient: client, config: config);
       try {
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
       } catch (_) {}
       expect(
         client.capturedUrl,
@@ -2010,7 +2010,7 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
         fail('Expected error for status 404');
       } on NotFoundException catch (e) {
         expect(e, isA<ClientException>());
@@ -2031,7 +2031,7 @@ void main() {
       );
 
       try {
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
         fail('Expected error for status 500');
       } on InternalServerErrorException catch (e) {
         expect(e, isA<ServerException>());
@@ -2047,7 +2047,7 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
         fail('Expected error for status 418');
       } on ClientException catch (e) {
         expect(e.statusCode, equals(418));
@@ -2266,7 +2266,7 @@ void main() {
               .build();
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-          final bytes = await api.getPetAvatarThumbnail(1);
+          final bytes = await api.getPetAvatarThumbnail(1, null);
           expect(bytes, equals(utf8.encode('test-image')));
         } finally {
           await server.close();
@@ -2549,7 +2549,7 @@ void main() {
               .build();
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-          await api.findPetsBornOn(DateTime.utc(2024, 1, 1));
+          await api.findPetsBornOn(DateTime.utc(2024, 1, 1), null);
 
           expect(capturedPath, equals('/pet/born-on/2024-01-01'));
         } finally {
@@ -3082,6 +3082,43 @@ void main() {
       expect(client.sentTimeouts, equals([750]));
       expect(client.sentHeaders.single['X-Call'], equals('yes'));
     });
+
+    test(
+      'an operation with no parameters of its own takes the Options object',
+      () async {
+        final client = _ScriptedApiClient([
+          ApiHttpResponse(
+            statusCode: 200,
+            body: '{"a":1}',
+            headers: {'content-type': 'application/json'},
+          ),
+          ApiHttpResponse(
+            statusCode: 200,
+            body: '{"a":1}',
+            headers: {'content-type': 'application/json'},
+          ),
+        ]);
+        final api = StoreApi(
+          apiClient: client,
+          config: ConfigurationBuilder()
+              .baseUrl('https://api.example.com')
+              .build(),
+        );
+
+        await api.getInventory(
+          const GetInventoryOptions(
+            timeout: 500,
+            headers: {'X-Call': 'yes'},
+            maxRetries: 0,
+          ),
+        );
+        await api.getInventory(null);
+
+        expect(client.sentTimeouts, equals([500, null]));
+        expect(client.sentHeaders.first['X-Call'], equals('yes'));
+        expect(client.sentHeaders.last.containsKey('X-Call'), isFalse);
+      },
+    );
   });
 
   group('Multiple 2xx responses', () {
@@ -3101,7 +3138,7 @@ void main() {
         jsonReply(200, '{"reservationId":1,"quantity":2}'),
       ]);
 
-      final result = await storeApi(client).reserveStock();
+      final result = await storeApi(client).reserveStock(null);
 
       expect(result.actualInstance, isA<Reservation>());
     });
@@ -3114,7 +3151,7 @@ void main() {
         ),
       ]);
 
-      final result = await storeApi(client).reserveStock();
+      final result = await storeApi(client).reserveStock(null);
 
       expect(result.actualInstance, isA<ReservationReceipt>());
     });
@@ -3125,7 +3162,7 @@ void main() {
       ]);
 
       await expectLater(
-        storeApi(client).reserveStock(),
+        storeApi(client).reserveStock(null),
         throwsA(isA<SerializationException>()),
       );
     });
@@ -3147,7 +3184,7 @@ void main() {
       final client = _ScriptedApiClient([jsonReply('{"a":1,"b":-2147483648}')]);
 
       expect(
-        await storeApi(client).getInventory(),
+        await storeApi(client).getInventory(null),
         equals({'a': 1, 'b': -2147483648}),
       );
     });
@@ -3165,7 +3202,7 @@ void main() {
           final client = _ScriptedApiClient([jsonReply('{"a":$leaf}')]);
 
           await expectLater(
-            storeApi(client).getInventory(),
+            storeApi(client).getInventory(null),
             throwsA(isA<SerializationException>()),
             reason: leaf,
           );
@@ -3176,7 +3213,7 @@ void main() {
     test('a nested array of int32 leaves is checked leaf by leaf', () async {
       final ok = _ScriptedApiClient([jsonReply('[[1,2],[3]]')]);
       expect(
-        await storeApi(ok).getMatrix(),
+        await storeApi(ok).getMatrix(null),
         equals([
           [1, 2],
           [3],
@@ -3187,7 +3224,7 @@ void main() {
         final client = _ScriptedApiClient([jsonReply('[[1,$leaf]]')]);
 
         await expectLater(
-          storeApi(client).getMatrix(),
+          storeApi(client).getMatrix(null),
           throwsA(isA<SerializationException>()),
           reason: leaf,
         );

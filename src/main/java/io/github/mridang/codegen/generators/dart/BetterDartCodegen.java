@@ -7,7 +7,9 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -16,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -763,10 +766,32 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
             for (final CodegenProperty prop : model.vars) {
                 setDefaultEnumVarName(prop);
+                applySiblingEnumDefault(prop);
                 resolveEnumRefDefault(prop);
             }
         }
         return result;
+    }
+
+    /**
+     * Gives a property whose {@code $ref} to an enum carries a sibling {@code default} (an OAS
+     * 3.1 keyword next to the reference, F866) the same default a component default gets: the
+     * shared generator records it as {@code siblingDefault}, and the property has no default of
+     * its own because the base class resolves the reference first. It is handed to
+     * {@link #resolveEnumRefDefault} as the quoted wire value, which turns it into the typed
+     * member, so the constructor, the decode of an absent key and the encode all see it. A
+     * component default already on the property wins.
+     */
+    static void applySiblingEnumDefault(final CodegenProperty property) {
+        if (!property.isEnumRef
+                || property.defaultValue != null
+                || !Boolean.TRUE.equals(property.vendorExtensions.get("siblingDefaultIsEnum"))) {
+            return;
+        }
+        final Object wire = property.vendorExtensions.get("siblingDefault");
+        if (wire != null) {
+            property.defaultValue = "'" + wire + "'";
+        }
     }
 
     /**
@@ -943,9 +968,98 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return false;
     }
 
+    /**
+     * Publishes {@code credentialEnvVars}, the environment variables the generated
+     * authenticators really read (F862), for the README and SKILLS templates. The shared
+     * {@code securitySchemeEnvVars} also names variables for the OAuth schemes, which read none,
+     * so documenting that list would promise variables that do nothing.
+     */
+    @Override
+    public void processOpenAPI(final OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final List<Map<String, Object>> read = new ArrayList<>();
+        final Object shared = additionalProperties.get("securitySchemeEnvVars");
+        if (shared instanceof List && openAPI.getComponents() != null
+                && openAPI.getComponents().getSecuritySchemes() != null) {
+            for (final Object item : (List<?>) shared) {
+                @SuppressWarnings("unchecked")
+                final Map<String, Object> entry = (Map<String, Object>) item;
+                final SecurityScheme scheme =
+                        openAPI.getComponents().getSecuritySchemes().get(entry.get("schemeId"));
+                if (scheme != null && readsEnvironment(scheme, String.valueOf(entry.get("field")))) {
+                    read.add(entry);
+                }
+            }
+        }
+        additionalProperties.put("credentialEnvVars", read);
+        additionalProperties.put("hasCredentialEnvVars", !read.isEmpty());
+        additionalProperties.put("credentialSchemes", credentialSchemes(read));
+    }
+
+    /**
+     * Groups the variables the authenticators read by security scheme, for the generated test
+     * of the per-scheme authenticators: the class name, a Dart map literal that sets every
+     * variable of the scheme, and the first variable name.
+     *
+     * @param read the entries of {@code credentialEnvVars}, in scheme order
+     * @return one entry per scheme with {@code className}, {@code environment} and
+     *     {@code firstVariable}
+     */
+    static List<Map<String, Object>> credentialSchemes(final List<Map<String, Object>> read) {
+        final Map<String, List<String>> bySchemeId = new LinkedHashMap<>();
+        for (final Map<String, Object> entry : read) {
+            bySchemeId
+                    .computeIfAbsent(String.valueOf(entry.get("schemeId")), k -> new ArrayList<>())
+                    .add(String.valueOf(entry.get("envName")));
+        }
+        final List<Map<String, Object>> out = new ArrayList<>();
+        for (final Map.Entry<String, List<String>> scheme : bySchemeId.entrySet()) {
+            final StringBuilder literal = new StringBuilder("{");
+            for (final String name : scheme.getValue()) {
+                literal.append(literal.length() > 1 ? ", " : "")
+                        .append('\'').append(name).append("': 'value'");
+            }
+            literal.append('}');
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put(
+                    "className",
+                    NamingConvention.PASCAL_CASE.apply(scheme.getKey()) + "Authenticator");
+            entry.put("environment", literal.toString());
+            entry.put("firstVariable", scheme.getValue().get(0));
+            out.add(entry);
+        }
+        return out;
+    }
+
+    /** Reports whether the authenticator of {@code scheme} reads {@code field} from the environment. */
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only HTTP scheme constants (basic/bearer)")
+    private static boolean readsEnvironment(final SecurityScheme scheme, final String field) {
+        if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            return "apiKey".equals(field);
+        }
+        if (scheme.getType() != SecurityScheme.Type.HTTP || scheme.getScheme() == null) {
+            return false;
+        }
+        final String kind = scheme.getScheme().toLowerCase(Locale.ROOT);
+        return ("basic".equals(kind) && ("username".equals(field) || "password".equals(field)))
+                || ("bearer".equals(kind) && "token".equals(field));
+    }
+
     /** {@inheritDoc} */
     @Override
     protected boolean filtersOperationImports() {
+        return true;
+    }
+
+    /**
+     * Every operation takes an Options object (F827), so the per-call timeout, headers and
+     * retry budget have a slot on an operation that has no parameters of its own, and adding a
+     * parameter later never changes the signature.
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
         return true;
     }
 
@@ -1094,11 +1208,6 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         final String constructorSig;
         final String superCall;
 
-        final String envPrefix = packageName.toUpperCase(Locale.ROOT);
-        final String envScheme =
-                NamingConvention.SNAKE_CASE
-                        .apply(java.util.Objects.toString(spec.schemeName(), ""))
-                        .toUpperCase(Locale.ROOT);
         if ("BasicAuthenticator".equals(spec.baseClass())) {
             imports = List.of("basic_authenticator.dart");
             constructorSig =
@@ -1107,9 +1216,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             + "Map<String, String>? environment";
             superCall =
                     "host: host, username: username, password: password, "
-                            + "credentialsProvider: credentialsProvider, usernameVariable: '"
-                            + envPrefix + "_" + envScheme + "_USERNAME', passwordVariable: '"
-                            + envPrefix + "_" + envScheme + "_PASSWORD', environment: environment";
+                            + "credentialsProvider: credentialsProvider, environment: environment";
         } else if ("BearerAuthenticator".equals(spec.baseClass())) {
             imports = List.of("dart:async", "bearer_authenticator.dart");
             constructorSig =
@@ -1118,8 +1225,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             + "Map<String, String>? environment";
             superCall =
                     "host: host, token: token, tokenProvider: tokenProvider, "
-                            + "environmentVariable: '" + envPrefix + "_" + envScheme
-                            + "', environment: environment";
+                            + "environment: environment";
         } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String loc = NamingConvention.CAMEL_CASE.apply(
                     spec.keyIn() != null
@@ -1134,8 +1240,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             + escapeDartString(java.util.Objects.toString(spec.keyParamName(), ""))
                             + "', apiKey: apiKey, apiKeyProvider: apiKeyProvider, location: ApiKeyLocation."
                             + loc
-                            + ", environmentVariable: '" + envPrefix + "_" + envScheme
-                            + "', environment: environment";
+                            + ", environment: environment";
         } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             imports = List.of("oauth2_client_credentials_authenticator.dart");
             constructorSig =
@@ -1201,10 +1306,49 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         }
 
         final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("envVars", environmentArguments(spec.baseClass(), ctx.get("envVars")));
         ctx.put("imports", imports);
         ctx.put("constructorSignature", constructorSig);
         ctx.put("superCall", superCall);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Names, for each environment variable a scheme's credential field reads (F862), the
+     * constructor argument of the base authenticator that takes the variable name, so the
+     * per-scheme template can pass {@code usernameVariable: 'NAME'}. Only the basic, bearer and
+     * API key authenticators read the environment; the OAuth schemes get no entries.
+     *
+     * @param baseClass the base authenticator class of the scheme
+     * @param shared the scheme's entries from the shared generator ({@code field}, {@code envName})
+     * @return one {@code argName} and {@code envName} entry per variable the scheme reads
+     */
+    @SuppressWarnings("unchecked")
+    static List<Map<String, Object>> environmentArguments(
+            final String baseClass, @Nullable final Object shared) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        if (!(shared instanceof List)) {
+            return out;
+        }
+        for (final Object item : (List<Object>) shared) {
+            final Map<String, Object> entry = (Map<String, Object>) item;
+            final String field = String.valueOf(entry.get("field"));
+            final String arg;
+            if ("BasicAuthenticator".equals(baseClass) && "username".equals(field)) {
+                arg = "usernameVariable";
+            } else if ("BasicAuthenticator".equals(baseClass) && "password".equals(field)) {
+                arg = "passwordVariable";
+            } else if (("BearerAuthenticator".equals(baseClass) && "token".equals(field))
+                    || ("ApiKeyAuthenticator".equals(baseClass) && "apiKey".equals(field))) {
+                arg = "environmentVariable";
+            } else {
+                continue;
+            }
+            final Map<String, Object> mapped = new HashMap<>(entry);
+            mapped.put("argName", arg);
+            out.add(mapped);
+        }
+        return out;
     }
 
     private static String formatDartScopes(@Nullable Map<String, String> scopes) {

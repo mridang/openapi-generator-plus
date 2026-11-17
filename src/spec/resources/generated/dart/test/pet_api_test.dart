@@ -96,14 +96,14 @@ void main() {
     test('getPetById', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetById(1, null);
+      final result = await api.getPetById(1, null, null);
       expect(result, isNotNull);
     });
 
     test('getPetByIdWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetByIdWithHttpInfo(1, null);
+      final result = await api.getPetByIdWithHttpInfo(1, null, null);
       expect(result.statusCode, equals(200));
       expect(result.rawBody, isNotEmpty);
       expect(result.headers, isNotNull);
@@ -136,6 +136,7 @@ void main() {
           name: 'UpdatedFido',
           photoUrls: <String>{'http://example.com/fido-updated.jpg'},
         ),
+        null,
       );
       expect(result, isNotNull);
     });
@@ -149,6 +150,7 @@ void main() {
           name: 'UpdatedFido',
           photoUrls: <String>{'http://example.com/fido-updated.jpg'},
         ),
+        null,
       );
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
@@ -176,21 +178,25 @@ void main() {
     test('getPetPassport', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetPassport(1);
+      final result = await api.getPetPassport(1, null);
       expect(result, isNotNull);
     });
 
     test('getPetPassportWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetPassportWithHttpInfo(1);
+      final result = await api.getPetPassportWithHttpInfo(1, null);
       expect(result.statusCode, equals(200));
     });
 
     test('setPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
-      await api.setPetAvatar(1, Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]));
+      await api.setPetAvatar(
+        1,
+        Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
+        null,
+      );
     });
 
     test('setPetAvatar rejects an unrecognised request content-type', () async {
@@ -201,6 +207,7 @@ void main() {
         api.setPetAvatar(
           1,
           Uint8List.fromList([0xFF, 0xD8, 0xFF]),
+          null,
           'application/unknown-type',
         ),
         throwsA(
@@ -248,7 +255,7 @@ void main() {
 
         // A non-trivial JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
         final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
-        await api.setPetAvatar(1, payload);
+        await api.setPetAvatar(1, payload, null);
 
         // (1) The body bytes are EXACTLY the raw payload — not a JSON
         // int-array, not "{}", not base64, not JSON-marshaled.
@@ -291,9 +298,9 @@ void main() {
         final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
 
         // (1) No selector — defaults to the first declared type (image/jpeg).
-        await api.setPetAvatar(1, payload);
+        await api.setPetAvatar(1, payload, null);
         // (2) Selector set to image/png — overrides the Content-Type header.
-        await api.setPetAvatar(1, payload, 'image/png');
+        await api.setPetAvatar(1, payload, null, 'image/png');
 
         expect(captured.length, equals(2));
         expect(captured[0], equals('image/jpeg'));
@@ -332,11 +339,13 @@ void main() {
           await api.setPetAvatar(
             1,
             Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
+            null,
             'application/json',
           );
           await api.setPetAvatarThumbnail(
             1,
             SetPetAvatarThumbnailRequest(Uint8List.fromList(<int>[1, 2, 3])),
+            null,
           );
 
           expect(bodies[0], equals([0xFF, 0xD8, 0xFF, 0xE0]));
@@ -351,14 +360,14 @@ void main() {
     test('getPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetAvatar(1);
+      final result = await api.getPetAvatar(1, null);
       expect(result, isNotNull);
     });
 
     test('getPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetAvatarThumbnail(1);
+      final result = await api.getPetAvatarThumbnail(1, null);
       expect(result, isNotNull);
     });
 
@@ -368,6 +377,7 @@ void main() {
       await api.setPetAvatarThumbnail(
         1,
         SetPetAvatarThumbnailRequest(Uint8List.fromList(<int>[1, 2, 3])),
+        null,
       );
     });
 
@@ -588,13 +598,13 @@ void main() {
     test('downloadPetDocument', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.downloadPetDocument(1, 1);
+      final result = await api.downloadPetDocument(1, 1, null);
       expect(result, isNotNull);
     });
 
     test('getPetPhoto', () async {
       final api = _newPetApiForIntegration();
-      final result = await api.getPetPhoto(1, 1);
+      final result = await api.getPetPhoto(1, 1, null);
       expect(result, isNotNull);
     });
 
@@ -620,6 +630,7 @@ void main() {
       final result = await api.getExternalPetInfo(
         1,
         _MockGetExternalPetInfoServer(),
+        null,
       );
       expect(result, isNotNull);
     });
@@ -640,7 +651,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetAvatarWithHttpInfo(1);
+        final result = await api.getPetAvatarWithHttpInfo(1, null);
         expect(result.statusCode, equals(200));
       } finally {
         await server.close();
@@ -693,7 +704,7 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         await expectLater(
-          api.getPetById(1, null),
+          api.getPetById(1, null, null),
           throwsA(
             isA<ApiException>().having(
               (e) => e.message,
@@ -731,7 +742,7 @@ void main() {
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
           await expectLater(
-            api.getPetById(1, null),
+            api.getPetById(1, null, null),
             throwsA(
               isA<ApiException>().having(
                 (e) => e.message,
@@ -839,7 +850,7 @@ void main() {
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
           await expectLater(
-            api.getPetAvatarThumbnail(1),
+            api.getPetAvatarThumbnail(1, null),
             throwsA(isA<SerializationException>()),
           );
         } finally {
@@ -865,7 +876,7 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         await expectLater(
-          api.getPetById(1, null),
+          api.getPetById(1, null, null),
           throwsA(isA<SerializationException>()),
         );
       } finally {
@@ -999,7 +1010,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetById(7, null);
+        final result = await api.getPetById(7, null, null);
         expect(result, isNotNull);
         expect(result.id, equals(7));
       } finally {
@@ -1442,7 +1453,7 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.getPetById(99999, null);
+        await api.getPetById(99999, null, null);
         fail('Expected error for non-existent pet');
       } on NotFoundException {
         // Expected
@@ -1461,7 +1472,7 @@ void main() {
       );
 
       try {
-        await api.getPetById(1, null);
+        await api.getPetById(1, null, null);
         fail('Expected error for server error response');
       } on InternalServerErrorException {
         // Expected

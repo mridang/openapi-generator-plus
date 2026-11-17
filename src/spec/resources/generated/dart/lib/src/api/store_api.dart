@@ -22,8 +22,23 @@ import '../models/swatch.dart';
 import '../models/tree_node.dart';
 import '../models/reservation.dart';
 import '../models/reservation_receipt.dart';
+import 'options/create_account_options.dart';
+import 'options/delete_order_options.dart';
 import 'options/get_by_swatch_options.dart';
+import 'options/get_defaults_options.dart';
+import 'options/get_department_options.dart';
+import 'options/get_grouped_categories_options.dart';
+import 'options/get_inventory_options.dart';
+import 'options/get_matrix_options.dart';
+import 'options/get_order_by_id_options.dart';
+import 'options/get_order_by_tracking_id_options.dart';
 import 'options/get_stock_item_options.dart';
+import 'options/get_swatch_options.dart';
+import 'options/get_swatch_groups_options.dart';
+import 'options/get_timestamp_groups_options.dart';
+import 'options/get_tree_options.dart';
+import 'options/place_order_options.dart';
+import 'options/reserve_stock_options.dart';
 import 'options/search_store_options.dart';
 
 /// StoreApi provides methods for the Store API group.
@@ -32,8 +47,12 @@ class StoreApi extends BaseApi {
   StoreApi({super.apiClient, super.config, super.authenticator});
 
   /// Create an account
-  Future<Account> createAccount(Account account) async {
-    final result = await createAccountWithHttpInfo(account);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Account> createAccount(
+    Account account,
+    CreateAccountOptions? options,
+  ) async {
+    final result = await createAccountWithHttpInfo(account, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -52,7 +71,10 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the createAccount operation and returns the full API result.
-  Future<ApiResult<Account>> createAccountWithHttpInfo(Account account) async {
+  Future<ApiResult<Account>> createAccountWithHttpInfo(
+    Account account,
+    CreateAccountOptions? options,
+  ) async {
     var path = '/store/account';
 
     final queryParams = <String, Object?>{};
@@ -72,6 +94,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Account',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Account.fromJson) as Account,
     );
@@ -79,12 +104,16 @@ class StoreApi extends BaseApi {
 
   /// Delete purchase order by ID
   /// `orderId` ID of the order to delete
-  Future<void> deleteOrder(int orderId) async {
-    await deleteOrderWithHttpInfo(orderId);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<void> deleteOrder(int orderId, DeleteOrderOptions? options) async {
+    await deleteOrderWithHttpInfo(orderId, options);
   }
 
   /// Performs the deleteOrder operation and returns the full API result.
-  Future<ApiResult<void>> deleteOrderWithHttpInfo(int orderId) async {
+  Future<ApiResult<void>> deleteOrderWithHttpInfo(
+    int orderId,
+    DeleteOrderOptions? options,
+  ) async {
     var path = '/store/order/{orderId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -125,6 +154,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
     );
   }
 
@@ -224,8 +256,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a model exercising schema defaults on deserialize.
-  Future<Defaults> getDefaults() async {
-    final result = await getDefaultsWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Defaults> getDefaults(GetDefaultsOptions? options) async {
+    final result = await getDefaultsWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -244,7 +277,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getDefaults operation and returns the full API result.
-  Future<ApiResult<Defaults>> getDefaultsWithHttpInfo() async {
+  Future<ApiResult<Defaults>> getDefaultsWithHttpInfo(
+    GetDefaultsOptions? options,
+  ) async {
     var path = '/store/defaults';
 
     final queryParams = <String, Object?>{};
@@ -264,14 +299,18 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Defaults',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Defaults.fromJson) as Defaults,
     );
   }
 
   /// Returns a department (mutual-recursion codegen fixture).
-  Future<Department> getDepartment() async {
-    final result = await getDepartmentWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Department> getDepartment(GetDepartmentOptions? options) async {
+    final result = await getDepartmentWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -290,7 +329,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getDepartment operation and returns the full API result.
-  Future<ApiResult<Department>> getDepartmentWithHttpInfo() async {
+  Future<ApiResult<Department>> getDepartmentWithHttpInfo(
+    GetDepartmentOptions? options,
+  ) async {
     var path = '/store/department';
 
     final queryParams = <String, Object?>{};
@@ -310,6 +351,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Department',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserialize(body, Department.fromJson) as Department,
@@ -317,8 +361,11 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns categories grouped into an array of string-keyed maps.
-  Future<List<Map<String, Category>>> getGroupedCategories() async {
-    final result = await getGroupedCategoriesWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<List<Map<String, Category>>> getGroupedCategories(
+    GetGroupedCategoriesOptions? options,
+  ) async {
+    final result = await getGroupedCategoriesWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -339,7 +386,7 @@ class StoreApi extends BaseApi {
 
   /// Performs the getGroupedCategories operation and returns the full API result.
   Future<ApiResult<List<Map<String, Category>>>>
-  getGroupedCategoriesWithHttpInfo() async {
+  getGroupedCategoriesWithHttpInfo(GetGroupedCategoriesOptions? options) async {
     var path = '/store/grouped-categories';
 
     final queryParams = <String, Object?>{};
@@ -359,6 +406,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Map<String, Category>>',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserializeArrayFromJson(
@@ -373,8 +423,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns pet inventories by status
-  Future<Map<String, int>> getInventory() async {
-    final result = await getInventoryWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Map<String, int>> getInventory(GetInventoryOptions? options) async {
+    final result = await getInventoryWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -393,7 +444,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getInventory operation and returns the full API result.
-  Future<ApiResult<Map<String, int>>> getInventoryWithHttpInfo() async {
+  Future<ApiResult<Map<String, int>>> getInventoryWithHttpInfo(
+    GetInventoryOptions? options,
+  ) async {
     var path = '/store/inventory';
 
     final queryParams = <String, Object?>{};
@@ -413,6 +466,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Map<String, int>',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserializeMapFromJson(body, (e) => readInt32(e)) as Map<String, int>,
@@ -420,8 +476,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a matrix as an array of integer arrays.
-  Future<List<List<int>>> getMatrix() async {
-    final result = await getMatrixWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<List<List<int>>> getMatrix(GetMatrixOptions? options) async {
+    final result = await getMatrixWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -440,7 +497,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getMatrix operation and returns the full API result.
-  Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo() async {
+  Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(
+    GetMatrixOptions? options,
+  ) async {
     var path = '/store/matrix';
 
     final queryParams = <String, Object?>{};
@@ -460,6 +519,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<List<int>>',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserializeArrayFromJson(
@@ -472,8 +534,9 @@ class StoreApi extends BaseApi {
 
   /// Find purchase order by ID
   /// `orderId` ID of order to return
-  Future<Order> getOrderById(int orderId) async {
-    final result = await getOrderByIdWithHttpInfo(orderId);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Order> getOrderById(int orderId, GetOrderByIdOptions? options) async {
+    final result = await getOrderByIdWithHttpInfo(orderId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -492,7 +555,10 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getOrderById operation and returns the full API result.
-  Future<ApiResult<Order>> getOrderByIdWithHttpInfo(int orderId) async {
+  Future<ApiResult<Order>> getOrderByIdWithHttpInfo(
+    int orderId,
+    GetOrderByIdOptions? options,
+  ) async {
     var path = '/store/order/{orderId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -533,14 +599,21 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Order',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
   }
 
   /// Find purchase order by tracking id
-  Future<Order> getOrderByTrackingId(UuidValue trackingId) async {
-    final result = await getOrderByTrackingIdWithHttpInfo(trackingId);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Order> getOrderByTrackingId(
+    UuidValue trackingId,
+    GetOrderByTrackingIdOptions? options,
+  ) async {
+    final result = await getOrderByTrackingIdWithHttpInfo(trackingId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -562,6 +635,7 @@ class StoreApi extends BaseApi {
   /// Performs the getOrderByTrackingId operation and returns the full API result.
   Future<ApiResult<Order>> getOrderByTrackingIdWithHttpInfo(
     UuidValue trackingId,
+    GetOrderByTrackingIdOptions? options,
   ) async {
     var path = '/store/order/by-tracking/{trackingId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
@@ -603,6 +677,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Order',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
@@ -676,8 +753,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a bare enum (value-type response codegen fixture).
-  Future<Swatch> getSwatch() async {
-    final result = await getSwatchWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Swatch> getSwatch(GetSwatchOptions? options) async {
+    final result = await getSwatchWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -696,7 +774,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getSwatch operation and returns the full API result.
-  Future<ApiResult<Swatch>> getSwatchWithHttpInfo() async {
+  Future<ApiResult<Swatch>> getSwatchWithHttpInfo(
+    GetSwatchOptions? options,
+  ) async {
     var path = '/store/swatch';
 
     final queryParams = <String, Object?>{};
@@ -716,14 +796,20 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Swatch',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => Swatch.fromJson(deserializeRaw(body) as String),
     );
   }
 
   /// Returns swatches grouped as an array of string-keyed enum maps.
-  Future<List<Map<String, Swatch>>> getSwatchGroups() async {
-    final result = await getSwatchGroupsWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<List<Map<String, Swatch>>> getSwatchGroups(
+    GetSwatchGroupsOptions? options,
+  ) async {
+    final result = await getSwatchGroupsWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -743,8 +829,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getSwatchGroups operation and returns the full API result.
-  Future<ApiResult<List<Map<String, Swatch>>>>
-  getSwatchGroupsWithHttpInfo() async {
+  Future<ApiResult<List<Map<String, Swatch>>>> getSwatchGroupsWithHttpInfo(
+    GetSwatchGroupsOptions? options,
+  ) async {
     var path = '/store/swatch-groups';
 
     final queryParams = <String, Object?>{};
@@ -764,6 +851,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Map<String, Swatch>>',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserializeArrayFromJson(
@@ -775,8 +865,11 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns timestamps grouped as an array of string-keyed maps.
-  Future<List<Map<String, DateTime>>> getTimestampGroups() async {
-    final result = await getTimestampGroupsWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<List<Map<String, DateTime>>> getTimestampGroups(
+    GetTimestampGroupsOptions? options,
+  ) async {
+    final result = await getTimestampGroupsWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -796,8 +889,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getTimestampGroups operation and returns the full API result.
-  Future<ApiResult<List<Map<String, DateTime>>>>
-  getTimestampGroupsWithHttpInfo() async {
+  Future<ApiResult<List<Map<String, DateTime>>>> getTimestampGroupsWithHttpInfo(
+    GetTimestampGroupsOptions? options,
+  ) async {
     var path = '/store/timestamp-groups';
 
     final queryParams = <String, Object?>{};
@@ -817,6 +911,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Map<String, DateTime>>',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) =>
           deserializeArrayFromJson(
@@ -828,8 +925,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a self-referential tree (recursive-type codegen fixture)
-  Future<TreeNode> getTree() async {
-    final result = await getTreeWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<TreeNode> getTree(GetTreeOptions? options) async {
+    final result = await getTreeWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -848,7 +946,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getTree operation and returns the full API result.
-  Future<ApiResult<TreeNode>> getTreeWithHttpInfo() async {
+  Future<ApiResult<TreeNode>> getTreeWithHttpInfo(
+    GetTreeOptions? options,
+  ) async {
     var path = '/store/tree';
 
     final queryParams = <String, Object?>{};
@@ -868,14 +968,18 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'TreeNode',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, TreeNode.fromJson) as TreeNode,
     );
   }
 
   /// Place an order for a pet
-  Future<Order> placeOrder(Order? order) async {
-    final result = await placeOrderWithHttpInfo(order);
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<Order> placeOrder(Order? order, PlaceOrderOptions? options) async {
+    final result = await placeOrderWithHttpInfo(order, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -894,7 +998,10 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the placeOrder operation and returns the full API result.
-  Future<ApiResult<Order>> placeOrderWithHttpInfo(Order? order) async {
+  Future<ApiResult<Order>> placeOrderWithHttpInfo(
+    Order? order,
+    PlaceOrderOptions? options,
+  ) async {
     var path = '/store/order';
 
     final queryParams = <String, Object?>{};
@@ -914,6 +1021,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Order',
       auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
@@ -921,8 +1031,11 @@ class StoreApi extends BaseApi {
 
   /// Reserve stock, answering with the existing or a new reservation
   /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
-  Future<ReserveStockResponse> reserveStock() async {
-    final result = await reserveStockWithHttpInfo();
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  Future<ReserveStockResponse> reserveStock(
+    ReserveStockOptions? options,
+  ) async {
+    final result = await reserveStockWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -941,7 +1054,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the reserveStock operation and returns the full API result.
-  Future<ApiResult<ReserveStockResponse>> reserveStockWithHttpInfo() async {
+  Future<ApiResult<ReserveStockResponse>> reserveStockWithHttpInfo(
+    ReserveStockOptions? options,
+  ) async {
     var path = '/store/reservation';
 
     final queryParams = <String, Object?>{};
@@ -961,6 +1076,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'ReserveStockResponse',
       auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
       deserializeByStatus: (body, statusCode) {
         if (statusCode == 200) {
           return ReserveStockResponse(

@@ -201,6 +201,37 @@ void main() {
       expect(withNull.retries, equals(7));
     });
 
+    // A `default` written next to a `$ref` (an OAS 3.1 sibling keyword, D60,
+    // F866): StockItem.availability references the Availability enum with the
+    // sibling default `on-hold`. Construction, decode of an absent key and
+    // encode all see it; an explicit JSON null is still a provided value.
+    test(
+      'a sibling default next to a reference initialises, decodes and encodes',
+      () {
+        const built = StockItem(priority: Priority.number1);
+        expect(built.availability, equals(Availability.onHold));
+        expect(built.toJson()['availability'], equals('on-hold'));
+
+        final absent = deserialize<StockItem>(
+          '{"priority":1}',
+          StockItem.fromJson,
+        );
+        expect(absent!.availability, equals(Availability.onHold));
+
+        final given = deserialize<StockItem>(
+          '{"priority":1,"availability":"Sold"}',
+          StockItem.fromJson,
+        );
+        expect(given!.availability, equals(Availability.sold));
+
+        final explicitNull = deserialize<StockItem>(
+          '{"priority":1,"availability":null}',
+          StockItem.fromJson,
+        );
+        expect(explicitNull!.availability, isNull);
+      },
+    );
+
     test('deserialize reports a JSON nesting depth over the limit', () {
       final deep = '[' * 1001 + ']' * 1001;
       expect(

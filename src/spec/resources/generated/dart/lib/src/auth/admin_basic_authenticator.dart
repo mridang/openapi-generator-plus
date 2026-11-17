@@ -17,7 +17,7 @@ class AdminBasicAuthenticator extends BasicAuthenticator {
     super.credentialsProvider,
     super.environment,
   }) : super(
-         usernameVariable: 'PETSTORE_CLIENT_ADMIN_BASIC_USERNAME',
-         passwordVariable: 'PETSTORE_CLIENT_ADMIN_BASIC_PASSWORD',
+         usernameVariable: 'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME',
+         passwordVariable: 'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD',
        );
 }

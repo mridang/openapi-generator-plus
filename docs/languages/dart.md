@@ -51,11 +51,15 @@ Pass options with `--additional-properties` or a config file. Options that apply
 | `packageVersion` | The version written to the pubspec. Defaults to `1.0.0`. |
 | `repositoryUrl`, `homepageUrl`, `documentationUrl`, `issueTrackerUrl` | Written to the pubspec fields `repository`, `homepage`, `documentation` and `issue_tracker`, and to the README. |
 | `authors` | Written to the README only, because a pubspec has no authors field. |
+| `envVarPrefix` | The prefix of the environment variables the authenticators read when no credential is passed. Defaults to the API title in upper snake case without a trailing `SDK`, the same in every language. |
 
 ## Idiom notes
 
 - Models are plain classes with a `fromJson` factory, `toJson`, `==` and `hashCode` through `DeepCollectionEquality`, and a `toString` that lists the fields.
-- Every operation takes an explicit positional `options` argument with no default, so a call with nothing to set is written `findPetsByStatus(null)`.
+- Every operation takes an explicit positional `options` argument with no default, so a call with nothing to set is written `findPetsByStatus(null)`. This holds for an operation with no parameters of its own too, such as `getInventory(null)`: its options class holds only the per-call fields below, and adding a parameter to the operation later does not change the signature.
+- Every options class carries `timeout` (milliseconds, end to end), `headers` (a header already set is replaced, in any case) and `maxRetries` (`0` turns retries off) for that call only. An operation with security adds an optional per-call `auth`.
+- The basic, bearer and API key authenticators read a credential you do not pass from an environment variable, once, when they are built. An argument wins, then the variable (an empty value counts as unset), then a callback (`tokenProvider`, `apiKeyProvider` or `credentialsProvider`) where there is one; a credential found nowhere fails with `ArgumentError` when the authenticator is built. The names are `{PREFIX}_{FIELD}` in upper snake case, for example `PETSTORE_TOKEN`; when two schemes have a field of the same name each is qualified with its scheme id, for example `PETSTORE_SERVICE_TOKEN_TOKEN`. The generated README lists the exact names of the API. The OAuth 2 and OpenID Connect authenticators take their client id and secret as required arguments and read no environment variable. The browser has no environment: pass `environment:` a map.
+- A property that is a `$ref` to an enum with a `default` written next to the reference (OpenAPI 3.1) starts at that member, decodes to it when the key is absent and encodes it. An explicit `null` stays `null`.
 - Authenticators have a synchronous `authHeaders()` and a `authHeadersAsync()` that returns a `Future`.
 - Error classes end in `Exception`. Their `cause` is a plain field, for example `NetworkException(cause:)`, because Dart has no built-in exception chaining. The root exception class is sealed.
 - `Client`, `DefaultApiClient` and `AbstractApiClient` take an extra trailing `http.Client`, which lets you supply your own.

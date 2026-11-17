@@ -10,5 +10,8 @@ class {{className}} extends {{baseClass}} {
     {{{constructorSignature}}},
   }) : super(
          {{{superCall}}},
+{{#envVars}}
+         {{argName}}: '{{envName}}',
+{{/envVars}}
        );
 }

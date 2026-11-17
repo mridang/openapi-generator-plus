@@ -15,5 +15,8 @@ class PetStoreBearerAuthenticator extends BearerAuthenticator {
     super.token,
     super.tokenProvider,
     super.environment,
-  }) : super(environmentVariable: 'PETSTORE_CLIENT_PET_STORE_BEARER');
+  }) : super(
+         environmentVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN',
+       );
 }

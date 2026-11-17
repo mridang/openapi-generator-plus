@@ -121,11 +121,12 @@ proxy and TLS settings, combining it with `proxy`, `caCertPath` or
 
 ### Per-call options
 
-Every operation that takes an options object accepts three more fields on it,
-for that call only: `timeout` (end-to-end, in milliseconds, replacing the
-transport's), `headers` (a header already set, in any case, is replaced) and
-`maxRetries` (replacing the transport's; `0` turns retries off). A negative
-`timeout` or `maxRetries` is refused with an `ArgumentError`.
+Every operation takes an options object as its trailing argument (`null` when
+you set nothing), also an operation with no parameters of its own. It carries
+three fields for that call only: `timeout` (end-to-end, in milliseconds,
+replacing the transport's), `headers` (a header already set, in any case, is
+replaced) and `maxRetries` (replacing the transport's; `0` turns retries off).
+A negative `timeout` or `maxRetries` is refused with an `ArgumentError`.
 
 ```dart
 // SomeOperationOptions stands for the options class of any operation.
@@ -150,11 +151,26 @@ environment variable read once when the authenticator is built (an empty value
 counts as unset). A bearer token or API key can also come from a callback that
 is called on every request, which suits a rotating or short-lived credential;
 passing both an argument and a callback is refused. A credential found nowhere
-fails when the authenticator (and so the client) is built. The variables are
-`PETSTORE_CLIENT_TOKEN`, `PETSTORE_CLIENT_API_KEY`, `PETSTORE_CLIENT_USERNAME` and
-`PETSTORE_CLIENT_PASSWORD`; an authenticator made for one security scheme reads
-`PETSTORE_CLIENT_<SCHEME>` (`..._<SCHEME>_USERNAME` and `..._<SCHEME>_PASSWORD`
-for basic). The browser has no environment: pass `environment:` a map.
+fails when the authenticator (and so the client) is built.
+The authenticator of each security scheme reads its own variables:
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `petStoreBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+
+`SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`, `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` and
+`SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` are the variables of the base authenticators, which
+`Client.withToken` uses. Set the `envVarPrefix` option to change the prefix.
+The browser has no environment: pass `environment:` a map.
 
 ```dart
 final client = Client.withToken(

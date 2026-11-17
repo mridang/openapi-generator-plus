@@ -89,7 +89,7 @@ class {{classname}} extends BaseApi {
 {{/allParams}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
-  /// `options` {{#vendorExtensions.op.hasOptionsParam}}options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}options carrying an optional per-call authenticator{{/vendorExtensions.op.hasOptionsParam}}
+  /// `options` {{#vendorExtensions.op.hasOptionsParam}}options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}}options carrying an optional per-call authenticator{{/hasAuthMethods}}{{^hasAuthMethods}}options carrying the per-call timeout, headers and retry budget{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
 {{#allParams}}

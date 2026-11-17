@@ -198,5 +198,39 @@ void main() {
       });
     });
   });
+
+{{#hasCredentialEnvVars}}
+  group('per-scheme authenticators', () {
+{{#credentialSchemes}}
+    group('{{className}}', () {
+      test('reads its own variables from the environment', () {
+        expect(
+          () => {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}),
+          returnsNormally,
+        );
+      });
+
+      test('fails to build naming the variable when none is set', () {
+        expect(
+          () => {{className}}(host: '{{{basePath}}}', environment: const {}),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+        );
+      });
+
+      test('an empty value counts as unset', () {
+        expect(
+          () => {{className}}(
+            host: '{{{basePath}}}',
+            environment: {'{{firstVariable}}': ''},
+          ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+        );
+      });
+    });
+{{/credentialSchemes}}
+  });
+{{/hasCredentialEnvVars}}
 }
 {{/generateTests}}

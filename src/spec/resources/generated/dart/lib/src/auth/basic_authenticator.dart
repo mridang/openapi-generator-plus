@@ -23,11 +23,13 @@ typedef _Credentials = (String username, String password);
 class BasicAuthenticator extends BaseAuthenticator {
   /// The environment variable read for the user name when no credential is
   /// given and no [usernameVariable] names another one.
-  static const String defaultUsernameVariable = 'PETSTORE_CLIENT_USERNAME';
+  static const String defaultUsernameVariable =
+      'SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME';
 
   /// The environment variable read for the password when no credential is
   /// given and no [passwordVariable] names another one.
-  static const String defaultPasswordVariable = 'PETSTORE_CLIENT_PASSWORD';
+  static const String defaultPasswordVariable =
+      'SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD';
 
   final String _host;
   final String? _username;
