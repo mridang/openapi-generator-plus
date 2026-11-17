@@ -16,9 +16,9 @@ namespace Test;
 
 public class ChasmFixture : IAsyncLifetime
 {
-    private INetwork _network = null!;
-    private IContainer _chasm = null!;
-    private IContainer _squid = null!;
+    private INetwork? _network;
+    private IContainer? _chasm;
+    private IContainer? _squid;
 
     public string BaseUrl { get; private set; } = string.Empty;
     public string HttpsBaseUrl { get; private set; } = string.Empty;
@@ -34,6 +34,19 @@ public class ChasmFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        /* CHASM_HTTP_URL and PROXY_URL point at instances that are already running. */
+        var sharedChasm = Environment.GetEnvironmentVariable("CHASM_HTTP_URL");
+        var sharedProxy = Environment.GetEnvironmentVariable("PROXY_URL");
+        if (sharedChasm != null && sharedProxy != null)
+        {
+            BaseUrl = sharedChasm;
+            HttpsBaseUrl = Environment.GetEnvironmentVariable("CHASM_HTTPS_URL")!;
+            ProxyUrl = sharedProxy;
+            AuthProxyUrl = $"http://{Environment.GetEnvironmentVariable("PROXY_AUTH_HOST_PORT")}";
+            Environment.SetEnvironmentVariable("API_BASE_URL", BaseUrl);
+            return;
+        }
+
         var hostAppPath =
             Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
         var specPath = Path.Combine(hostAppPath, "Test", "Resources", "openapi.yaml");
@@ -99,9 +112,12 @@ public class ChasmFixture : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
-        await _squid.DisposeAsync();
-        await _chasm.DisposeAsync();
-        await _network.DisposeAsync();
+        if (_squid != null)
+            await _squid.DisposeAsync();
+        if (_chasm != null)
+            await _chasm.DisposeAsync();
+        if (_network != null)
+            await _network.DisposeAsync();
         GC.SuppressFinalize(this);
     }
 }

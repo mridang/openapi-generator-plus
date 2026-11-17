@@ -207,6 +207,28 @@ fn check_dev_dependencies() {
 
 fn init_containers_inner() -> TestContainers {
     check_dev_dependencies();
+    // CHASM_HTTP_URL and PROXY_URL point at instances that are already running.
+    if let (Ok(chasm_http_url), Ok(proxy_url)) =
+        (std::env::var("CHASM_HTTP_URL"), std::env::var("PROXY_URL"))
+    {
+        return TestContainers {
+            proxy_url,
+            auth_proxy_url: std::env::var("PROXY_AUTH_URL").expect("PROXY_AUTH_URL is not set"),
+            chasm_url: chasm_http_url.clone(),
+            chasm_http_url,
+            chasm_https_url: std::env::var("CHASM_HTTPS_URL").expect("CHASM_HTTPS_URL is not set"),
+            chasm_internal_http_url: std::env::var("CHASM_INTERNAL_HTTP_URL")
+                .expect("CHASM_INTERNAL_HTTP_URL is not set"),
+            chasm_internal_https_url: std::env::var("CHASM_INTERNAL_HTTPS_URL")
+                .expect("CHASM_INTERNAL_HTTPS_URL is not set"),
+            ca_cert_path: fixtures_dir()
+                .join("certs")
+                .join("ca.pem")
+                .to_str()
+                .unwrap()
+                .to_string(),
+        };
+    }
     with_creation_lock(|| {
         let fixtures = fixtures_dir();
         let squid_conf_path = fixtures.join("proxy").join("squid.conf");

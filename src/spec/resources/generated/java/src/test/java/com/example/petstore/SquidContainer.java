@@ -14,48 +14,56 @@ import java.util.Map;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.MountableFile;
 
-/** Singleton Squid proxy container shared across all test classes. */
+/**
+ * Singleton Squid proxy container shared across all test classes.
+ *
+ * <p>When PROXY_URL is set, an already-running proxy is used and no container is started.
+ */
 public final class SquidContainer {
 
-  private static final GenericContainer<?> INSTANCE;
-
-  static {
-    // Force ChasmContainer class initialization so the shared network is created first.
-    String ignored = ChasmContainer.getBaseUrl();
-
-    INSTANCE =
-        new GenericContainer<>("ubuntu/squid:6.10-24.10_beta")
-            .withExposedPorts(3128, 3129)
-            .withCopyFileToContainer(
-                MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
-                "/etc/squid/squid.conf")
-            .withNetwork(ChasmContainer.PROXY_NETWORK)
-            // The image declares VOLUME for both paths, so every container would
-            // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory;
-            // mode=1777 because squid runs as the unprivileged `proxy` user.
-            .withTmpFs(
-                Map.of(
-                    "/var/log/squid", "rw,mode=1777",
-                    "/var/spool/squid", "rw,mode=1777"))
-            .withStartupTimeout(Duration.ofMinutes(2))
-            .withLabel("com.mridang.openapi.testcontainer", "true");
-    INSTANCE.start();
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread(
-                () -> {
-                  if (INSTANCE != null && INSTANCE.isRunning()) {
-                    INSTANCE.stop();
-                  }
-                }));
-    try {
-      Thread.sleep(3000);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-  }
+  private static final boolean EXTERNAL = System.getenv("PROXY_URL") != null;
 
   private SquidContainer() {}
+
+  /** The container, started on first use and only when no running proxy was supplied. */
+  private static final class Started {
+
+    static final GenericContainer<?> INSTANCE = start();
+
+    private static GenericContainer<?> start() {
+      GenericContainer<?> instance =
+          new GenericContainer<>("ubuntu/squid:6.10-24.10_beta")
+              .withExposedPorts(3128, 3129)
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
+                  "/etc/squid/squid.conf")
+              .withNetwork(ChasmContainer.proxyNetwork())
+              // The image declares VOLUME for both paths, so every container would
+              // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory;
+              // mode=1777 because squid runs as the unprivileged `proxy` user.
+              .withTmpFs(
+                  Map.of(
+                      "/var/log/squid", "rw,mode=1777",
+                      "/var/spool/squid", "rw,mode=1777"))
+              .withStartupTimeout(Duration.ofMinutes(2))
+              .withLabel("com.mridang.openapi.testcontainer", "true");
+      instance.start();
+      Runtime.getRuntime()
+          .addShutdownHook(
+              new Thread(
+                  () -> {
+                    if (instance.isRunning()) {
+                      instance.stop();
+                    }
+                  }));
+      try {
+        Thread.sleep(3000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      return instance;
+    }
+  }
 
   /**
    * Returns the URL of the open proxy port, which needs no credentials.
@@ -63,7 +71,10 @@ public final class SquidContainer {
    * @return the proxy URL
    */
   public static String getProxyUrl() {
-    return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(3128);
+    if (EXTERNAL) {
+      return System.getenv("PROXY_URL");
+    }
+    return "http://" + Started.INSTANCE.getHost() + ":" + Started.INSTANCE.getMappedPort(3128);
   }
 
   /**
@@ -73,6 +84,9 @@ public final class SquidContainer {
    * @return the proxy URL, without credentials
    */
   public static String getAuthProxyUrl() {
-    return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(3129);
+    if (EXTERNAL) {
+      return System.getenv("PROXY_AUTH_URL");
+    }
+    return "http://" + Started.INSTANCE.getHost() + ":" + Started.INSTANCE.getMappedPort(3129);
   }
 }

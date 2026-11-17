@@ -71,6 +71,30 @@ async function startWithRetry<T extends StartedTestContainer>(
 
 export default async function globalSetup() {
   await assertTestDependenciesInstalled();
+
+  // CHASM_HTTP_URL and PROXY_URL point at instances that are already running.
+  if (process.env.CHASM_HTTP_URL && process.env.PROXY_URL) {
+    fs.writeFileSync(
+      "/tmp/chasm-config.json",
+      JSON.stringify({
+        baseUrl: process.env.CHASM_HTTP_URL,
+        chasmHttpUrl: process.env.CHASM_HTTP_URL,
+        chasmHttpsUrl: process.env.CHASM_HTTPS_URL,
+        chasmInternalHttpUrl: process.env.CHASM_INTERNAL_HTTP_URL,
+        chasmInternalHttpsUrl: process.env.CHASM_INTERNAL_HTTPS_URL,
+        proxyUrl: process.env.PROXY_URL,
+        proxyAuthHostPort: process.env.PROXY_AUTH_HOST_PORT,
+        caCertPath: path.join(
+          process.cwd(),
+          "test",
+          "fixtures",
+          "certs",
+          "ca.pem",
+        ),
+      }),
+    );
+    return;
+  }
   const { GenericContainer, Network, Wait } = await import("testcontainers");
 
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();

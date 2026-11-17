@@ -51,9 +51,17 @@ def _assert_test_dependencies_installed():
 
 _assert_test_dependencies_installed()
 
+# CHASM_HTTP_URL and PROXY_URL point at instances that are already running;
+# the fixtures below then start nothing and read the addresses from the
+# environment.
+_EXTERNAL = bool(os.environ.get("CHASM_HTTP_URL") and os.environ.get("PROXY_URL"))
+
 
 @pytest.fixture(scope="session")
 def chasm_container(proxy_network):
+    if _EXTERNAL:
+        yield None
+        return
     from testcontainers.core.container import DockerContainer
     from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
@@ -82,6 +90,8 @@ def chasm_container(proxy_network):
 
 @pytest.fixture(scope="session")
 def api_base_url(chasm_container):
+    if _EXTERNAL:
+        return os.environ["CHASM_HTTP_URL"]
     host = chasm_container.get_container_host_ip()
     port = chasm_container.get_exposed_port(4010)
     return f"http://{host}:{port}"
@@ -89,6 +99,8 @@ def api_base_url(chasm_container):
 
 @pytest.fixture(scope="session")
 def chasm_http_url(chasm_container):
+    if _EXTERNAL:
+        return os.environ["CHASM_HTTP_URL"]
     host = chasm_container.get_container_host_ip()
     port = chasm_container.get_exposed_port(4010)
     return f"http://{host}:{port}"
@@ -96,6 +108,8 @@ def chasm_http_url(chasm_container):
 
 @pytest.fixture(scope="session")
 def chasm_https_url(chasm_container):
+    if _EXTERNAL:
+        return os.environ["CHASM_HTTPS_URL"]
     host = chasm_container.get_container_host_ip()
     port = chasm_container.get_exposed_port(8443)
     return f"https://{host}:{port}"
@@ -113,6 +127,9 @@ def chasm_internal_https_url():
 
 @pytest.fixture(scope="session")
 def proxy_network():
+    if _EXTERNAL:
+        yield None
+        return
     import docker
 
     client = docker.from_env()
@@ -123,6 +140,9 @@ def proxy_network():
 
 @pytest.fixture(scope="session")
 def squid_container(proxy_network):
+    if _EXTERNAL:
+        yield None
+        return
     from testcontainers.core.container import DockerContainer
 
     host_app_path = os.environ.get("HOST_APP_PATH", os.getcwd())
@@ -149,6 +169,8 @@ def squid_container(proxy_network):
 
 @pytest.fixture(scope="session")
 def proxy_url(squid_container):
+    if _EXTERNAL:
+        return os.environ["PROXY_URL"]
     host = squid_container.get_container_host_ip()
     port = squid_container.get_exposed_port(3128)
     return f"http://{host}:{port}"
@@ -157,6 +179,8 @@ def proxy_url(squid_container):
 @pytest.fixture(scope="session")
 def proxy_auth_host_port(squid_container):
     """host:port of the fixture proxy port that requires Basic credentials."""
+    if _EXTERNAL:
+        return os.environ["PROXY_AUTH_HOST_PORT"]
     host = squid_container.get_container_host_ip()
     port = squid_container.get_exposed_port(3129)
     return f"{host}:{port}"

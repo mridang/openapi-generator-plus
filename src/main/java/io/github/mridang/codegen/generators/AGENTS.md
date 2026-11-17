@@ -42,6 +42,10 @@ Ordered by how much they cost in past sessions. Each rule: what to do, an exampl
 - Test every template shape against a fixture that triggers it: add the shape to `src/spec/resources/specs/probe/openapi.yaml` and regenerate the twelve goldens. YAML `off`/`on`/`yes`/`no` are booleans; use `type: [string, "null"]` for nullable in OAS 3.1.
 - Wording and rule-bearing comments are spec-enforced: before deleting "cruft" comments, grep the specs (FormattingSpec).
 
+### Shared helper containers (Chasm and Squid)
+- `SharedHelperContainers` (src/spec/java) starts one Chasm and one Squid per Maven run on the shared runtime network and tears them down in the same shutdown hook that closes it. `SharedRuntimeContainer` passes their addresses to every runtime container as environment variables: `CHASM_HTTP_URL`, `CHASM_HTTPS_URL` (host-mapped through `host.docker.internal`), `CHASM_INTERNAL_HTTP_URL`, `CHASM_INTERNAL_HTTPS_URL` (alias `chasm`, reachable from Squid and from the runtime container), `CHASM_INTERNAL_HTTPS_ADDRESS_URL` (by IP, which the certificate does not list), `PROXY_URL`, `PROXY_AUTH_HOST_PORT`, `PROXY_AUTH_URL` and `API_BASE_URL`.
+- Every language's Chasm/Squid fixture checks `CHASM_HTTP_URL` and `PROXY_URL`: when both are set it uses those instances and starts nothing; otherwise it starts its own containers exactly as before, so a generated SDK still runs standalone. A new fixture must keep both paths, and a test must not assume exclusive access (both servers are stateless; no test reads the proxy access log or resets either).
+
 ### Process
 - Verify every audit or agent finding against the current code on the working branch before editing: 7 of 18 findings were false positives, "already correct" and "done" reports were wrong repeatedly. Put `git rev-parse --abbrev-ref HEAD` and a one-line repro in each brief, and run the gate yourself after an agent reports done.
 - Agents must triage EVERY finding in their list and report a verdict for each; do not stop early or report only the easy ones, and ask for per-unit coverage in the report.

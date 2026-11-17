@@ -102,6 +102,13 @@ $specPath = $hostAppPath . '/tests/fixtures/openapi.yaml';
 $chasmCertPath = $hostAppPath . '/tests/fixtures/certs/server.pem';
 $chasmKeyPath = $hostAppPath . '/tests/fixtures/certs/server-key.pem';
 
+/* CHASM_HTTP_URL and PROXY_URL point at instances that are already running, with the other
+ * variables the tests read already set beside them; nothing is started. */
+if (getenv('CHASM_HTTP_URL') !== false && getenv('PROXY_URL') !== false) {
+    putenv('CA_CERT_PATH=' . getcwd() . '/tests/fixtures/certs/ca.pem');
+    return;
+}
+
 /*
  * Paratest runs each worker as its own process, and every one of them runs
  * this bootstrap, so without a lock they all start their Chasm and Squid at

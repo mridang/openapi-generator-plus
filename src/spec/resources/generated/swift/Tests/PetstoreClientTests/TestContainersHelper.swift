@@ -78,6 +78,20 @@ private func _setUpContainers() async throws {
   let fixturesPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     .appendingPathComponent("Tests/Fixtures")
 
+  /* CHASM_HTTP_URL and PROXY_URL point at instances that are already running. */
+  let environment = ProcessInfo.processInfo.environment
+  if let sharedChasm = environment["CHASM_HTTP_URL"], let sharedProxy = environment["PROXY_URL"] {
+    caCertPath = fixturesPath.appendingPathComponent("certs/ca.pem").path
+    proxyUrl = sharedProxy
+    chasmUrl = sharedChasm
+    chasmHttpUrl = sharedChasm
+    chasmHttpsUrl = environment["CHASM_HTTPS_URL"] ?? ""
+    chasmInternalHttpUrl = environment["CHASM_INTERNAL_HTTP_URL"] ?? ""
+    chasmInternalHttpsUrl = environment["CHASM_INTERNAL_HTTPS_URL"] ?? ""
+    setenv("CA_CERT_PATH", caCertPath, 1)
+    return
+  }
+
   let network = Network()
   try await network.create()
   sharedNetwork = network
