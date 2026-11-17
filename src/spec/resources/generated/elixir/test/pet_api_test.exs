@@ -16,6 +16,47 @@ defmodule PetstoreClient.Api.PetApiTest do
     %{api: api, base_url: base_url}
   end
 
+  # A module-style api_client that answers every request with a canned
+  # response (taken from the test process dictionary) and records the URL,
+  # headers and body it was handed, so the tests below can assert both what
+  # went on the wire and how a given response body is decoded.
+  defmodule StubResponseApiClient do
+    use Agent
+
+    def start(status_code, body, content_type) do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+
+      {:ok, _pid} =
+        Agent.start_link(
+          fn ->
+            %{
+              request: nil,
+              response: %PetstoreClient.ApiHttpResponse{
+                status_code: status_code,
+                body: body,
+                headers: %{"Content-Type" => content_type}
+              }
+            }
+          end,
+          name: name
+        )
+
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured(name), do: Agent.get(name, & &1.request)
+
+    def send_request(method, url, headers, body) do
+      name = Process.get(__MODULE__)
+
+      Agent.get_and_update(name, fn state ->
+        {state.response,
+         %{state | request: %{method: method, url: url, headers: headers, body: body}}}
+      end)
+    end
+  end
+
   test "bhv operations 022 add_pet", %{api: api} do
     pet = %PetstoreClient.Models.Pet{
       id: :rand.uniform(1_000_000_000),
@@ -1154,47 +1195,6 @@ defmodule PetstoreClient.Api.PetApiTest do
         body: "",
         headers: %{"Content-Type" => "application/json"}
       }
-    end
-  end
-
-  # A module-style api_client that answers every request with a canned
-  # response (taken from the test process dictionary) and records the URL,
-  # headers and body it was handed, so the tests below can assert both what
-  # went on the wire and how a given response body is decoded.
-  defmodule StubResponseApiClient do
-    use Agent
-
-    def start(status_code, body, content_type) do
-      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
-
-      {:ok, _pid} =
-        Agent.start_link(
-          fn ->
-            %{
-              request: nil,
-              response: %PetstoreClient.ApiHttpResponse{
-                status_code: status_code,
-                body: body,
-                headers: %{"Content-Type" => content_type}
-              }
-            }
-          end,
-          name: name
-        )
-
-      Process.put(__MODULE__, name)
-      {:ok, name}
-    end
-
-    def captured(name), do: Agent.get(name, & &1.request)
-
-    def send_request(method, url, headers, body) do
-      name = Process.get(__MODULE__)
-
-      Agent.get_and_update(name, fn state ->
-        {state.response,
-         %{state | request: %{method: method, url: url, headers: headers, body: body}}}
-      end)
     end
   end
 
