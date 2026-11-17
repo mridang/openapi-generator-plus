@@ -50,6 +50,18 @@ defmodule {{moduleName}}.DefaultApiClientTest do
     assert err.status_code == 0
   end
 
+  test "bhv transport 023 the default transport rejects a certificate from an untrusted CA" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new())
+
+    err =
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+      end
+
+    assert err.status_code == 0
+  end
+
   test "bhv transport 015 makes HTTP request through proxy" do
     chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")

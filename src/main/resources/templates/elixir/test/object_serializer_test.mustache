@@ -453,6 +453,14 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.ObjectSerializer.to_query_value(false) == "false"
     end
 
+    test "bhv serializationobject 168 keeps an empty slot for a nil element in csv" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", nil, "c"], :csv) == "a,,c"
+    end
+
+    test "bhv serializationobject 169 keeps an empty slot for a nil element in ssv" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", nil, "c"], :ssv) == "a  c"
+    end
+
     test "bhv serializationobject 097 joins array with comma by default" do
       assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b", "c"]) == "a,b,c"
     end
@@ -737,6 +745,12 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.ObjectSerializer.convert_to_type(uuid, "UUID") == String.downcase(uuid)
     end
 
+    test "bhv serializationobject 176 UUID round-trip preserves identity" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      decoded = {{moduleName}}.ObjectSerializer.convert_to_type(uuid, "UUID")
+      assert {{moduleName}}.ObjectSerializer.encode_uuid_param(decoded) == uuid
+    end
+
     test "bhv serializationobject 148 encode_uuid_param writes lowercase and rejects malformed values" do
       assert {{moduleName}}.ObjectSerializer.encode_uuid_param("550E8400-E29B-41D4-A716-446655440000") ==
                "550e8400-e29b-41d4-a716-446655440000"
@@ -775,6 +789,11 @@ defmodule {{moduleName}}.ObjectSerializerTest do
   end
 
   describe "format: uri (URI)" do
+    test "bhv serializationobject 173 uri-reference field still accepts a relative reference" do
+      ref = "../docs/intro.html?lang=en"
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(ref, "String") == ref
+    end
+
     test "bhv serializationobject 021 accepts absolute URIs of any scheme and returns the original string" do
       for uri <- ["https://example.com/a?b=c", "ftp://x.org/f", "mailto:a@b.com", "urn:isbn:0451450523"] do
         assert {{moduleName}}.ObjectSerializer.convert_to_type(uri, "URI") == uri
@@ -1110,6 +1129,10 @@ defmodule {{moduleName}}.ObjectSerializerTest do
   end
 
   describe "format: duration round-tripping" do
+    test "bhv serializationobject 181 zero Duration stringifies as 0s" do
+      assert {{moduleName}}.ObjectSerializer.stringify(Duration.new!(second: 0)) == "0s"
+    end
+
     test "bhv serializationobject 158 stringify emits canonical protobuf duration for a Duration" do
       d = Duration.new!(hour: 1, minute: 30)
       assert {{moduleName}}.ObjectSerializer.stringify(d) == "5400s"

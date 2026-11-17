@@ -431,6 +431,121 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert headers["accept"] == "application/json"
   end
 
+  test "bhv transport 008 generates unique X-Request-ID per request" do
+    {base_url1, _} = start_header_capture_server()
+    {base_url2, _} = start_header_capture_server()
+    transport = {{moduleName}}.TransportOptions.new(inject_request_id: true)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url1}/test", %{}, nil)
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url2}/test", %{}, nil)
+    assert_receive {:captured_headers, headers1}, 5000
+    assert_receive {:captured_headers, headers2}, 5000
+    assert headers1["x-request-id"] != headers2["x-request-id"]
+  end
+
+  test "bhv transport 011 includes transport-level default headers" do
+    {base_url, _port} = start_header_capture_server()
+    transport = {{moduleName}}.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["x-custom"] == "custom-value"
+  end
+
+  test "bhv transport 014 injects X-Request-ID header with UUID format" do
+    {base_url, _port} = start_header_capture_server()
+    transport = {{moduleName}}.TransportOptions.new(inject_request_id: true)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["x-request-id"] =~ ~r/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}\z/
+  end
+
+  test "bhv transport 022 repeated response headers are joined in order" do
+    base_url =
+      start_server(200, "text/plain", "ok", [{"X-Custom-Value", "val1"}, {"X-Custom-Value", "val2"}])
+
+    client = {{moduleName}}.DefaultApiClient.new()
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/multi", %{}, nil)
+    assert response.headers["x-custom-value"] == "val1, val2"
+  end
+
+  test "bhv transport 027 a decoded body drops the Content-Encoding and Content-Length headers" do
+    base_url = start_server(200, "text/plain", :zlib.gzip("decoded"), [{"Content-Encoding", "gzip"}])
+    client = {{moduleName}}.DefaultApiClient.new()
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/gzip", %{}, nil)
+    assert response.body == "decoded"
+    refute Map.has_key?(response.headers, "content-encoding")
+    refute Map.has_key?(response.headers, "content-length")
+  end
+
+  test "bhv transport 034 decompresses a valid gzip-encoded response body" do
+    base_url = start_server(200, "text/plain", :zlib.gzip("gzipped body"), [{"Content-Encoding", "gzip"}])
+    client = {{moduleName}}.DefaultApiClient.new()
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/gzip", %{}, nil)
+    assert response.body == "gzipped body"
+  end
+
+  test "bhv transport 002 the timeout reaches the transport for this call only" do
+    adapter = fn request ->
+      Process.sleep(500)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter], timeout: 60_000)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    deadline = System.monotonic_time(:millisecond) + 100
+
+    assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://custom.invalid/echo", %{}, nil, deadline: deadline)
+    end
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://custom.invalid/echo", %{}, nil)
+    assert response.status_code == 200
+  end
+
+  test "bhv transport 046 leaves the proxy auth header null when no proxy is configured" do
+    opts = {{moduleName}}.DefaultApiClient.request_options({{moduleName}}.TransportOptions.new())
+    connect_options = Keyword.get(opts, :connect_options, [])
+    assert Keyword.get(connect_options, :proxy_headers) == nil
+  end
+
+  test "bhv transport 048 a nonexistent ca cert path fails even when verify ssl is false" do
+    path = "/nonexistent/ca-#{System.unique_integer([:positive])}.pem"
+    transport = {{moduleName}}.TransportOptions.new(ca_cert_path: path, verify_ssl: false)
+    assert_raise ArgumentError, fn -> {{moduleName}}.DefaultApiClient.new(transport) end
+  end
+
+  test "bhv transport 052 sends an empty User-Agent header when the option is the empty string" do
+    {base_url, _port} = start_header_capture_server()
+    transport = {{moduleName}}.TransportOptions.new(user_agent: "")
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["user-agent"] == ""
+  end
+
+  test "bhv transport 056 sensitive header names include api key header names" do
+    redacted = {{moduleName}}.TransportOptions.redact_headers(%{"X-Api-Key" => "secret-value"})
+    assert redacted == %{"X-Api-Key" => "***"}
+  end
+
+  test "bhv transport 057 sensitive header names include the static triple" do
+    headers = %{
+      "Authorization" => "a",
+      "Proxy-Authorization" => "b",
+      "Cookie" => "c",
+      "Accept" => "d"
+    }
+
+    assert {{moduleName}}.TransportOptions.redact_headers(headers) == %{
+             "Authorization" => "***",
+             "Proxy-Authorization" => "***",
+             "Cookie" => "***",
+             "Accept" => "d"
+           }
+  end
+
   # ── Redirect guard tests (3.1 / 3.2 / 3.3) ─────────────────────────────────
 
   # Issues a single 3xx with a Location: header then closes. Designed for one
@@ -983,7 +1098,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   # arrive as `%Req.TransportError{reason: :timeout}`; the pool checkout is a
   # `%Finch.Error{reason: :pool_timeout}`, which used to miss the transport
   # clause entirely and surface the same expired deadline as a NetworkError.
-  test "every configured deadline classifies as NetworkTimeoutError" do
+  test "bhv transport 031 connect deadline raises network timeout exception" do
     for cause <- [
           %Req.TransportError{reason: :timeout},
           %Finch.Error{reason: :pool_timeout}
@@ -1119,7 +1234,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert err.status_code == 302
   end
 
-  test "an identity-encoded body keeps its Content-Encoding and Content-Length headers" do
+  test "bhv transport 033 Content-Encoding: identity passes the body through undecoded" do
     base_url = start_server(200, "text/plain", "plain", [{"Content-Encoding", "identity"}])
     client = {{moduleName}}.DefaultApiClient.new()
 
