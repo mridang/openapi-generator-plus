@@ -91,7 +91,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void anEmptyVariableCountsAsUnset() {
+    void bhvAuthBasic012AnEmptyVariableCountsAsUnset() {
       AdminBasicAuthenticator fromEnvironment =
           new AdminBasicAuthenticator(
               "https://api.example.com",
@@ -307,7 +307,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void wrappersRedactTheKeyAndKeepTheirOwnName() {
+    void bhvAuthApiKey020WrappersRedactTheKeyAndKeepTheirOwnName() {
       String host = "https://api.example.com";
       assertEquals(
           "ApiKeyHeaderAuthenticator(host="
@@ -332,7 +332,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void wrappersRejectAnEmptyKeyAtConstruction() {
+    void bhvAuthApiKey019WrappersRejectAnEmptyKeyAtConstruction() {
       String host = "https://api.example.com";
       /* An empty key counts as not passed, so with no variable either the credential is missing. */
       for (String message :

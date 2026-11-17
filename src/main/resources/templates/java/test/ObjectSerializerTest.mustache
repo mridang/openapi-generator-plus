@@ -2254,6 +2254,13 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationObject182 unknown enum value on deserialize throws")
+        void bhvSerializationObject182UnknownEnumValueOnDeserializeThrows() {
+            assertThrowsExactly(SerializationException.class, () -> serializer.deserialize(
+                "\"unknown\"", {{modelPackage}}.Availability.class));
+        }
+
+        @Test
         @DisplayName("bhvSerializationObject061 deserialize succeeds when all required fields are present")
         void bhvSerializationObject061CompleteRequiredFieldsDeserialize() {
             {{modelPackage}}.Pet pet = java.util.Objects.requireNonNull(serializer.deserialize(

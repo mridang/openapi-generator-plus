@@ -504,7 +504,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testPlaceOrderWithoutAnArgumentSendsNoBody() throws Exception {
+  void bhvOperations126PlaceOrderWithoutAnArgumentSendsNoBody() throws Exception {
     Object[] capturedBody = new Object[] {"unset"};
     ApiClient recording =
         (method, url, headers, body) -> {

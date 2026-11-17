@@ -175,7 +175,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void sendsTheRefreshGrantToTokenUrlWhenNoRefreshUrlIsConfigured() {
+  void bhvAuthOauthTwoPassword020SendsTheRefreshGrantToTokenUrlWhenNoRefreshUrlIsConfigured() {
     List<String> urls = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {

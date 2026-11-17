@@ -73,7 +73,7 @@ class OAuth2ImplicitAuthenticatorTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"abc\r\nInjected: yes", "abc\u0000def", "abc\u007Fdef", "tökén"})
-    void setAccessTokenRejectsAControlOrNonAsciiCharacter(String token) {
+    void bhvAuthOauthTwoImplicit014SetAccessTokenRejectsAControlOrNonAsciiCharacter(String token) {
         OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
         IllegalArgumentException ex = assertThrowsExactly(

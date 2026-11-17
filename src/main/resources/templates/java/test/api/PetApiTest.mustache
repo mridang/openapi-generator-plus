@@ -743,7 +743,7 @@ class PetApiTest {
     }
 
     @Test
-    void getPetByNameMissingRequiredQueryParamThrows() throws Exception {
+    void bhvOperations125GetPetByNameMissingRequiredQueryParamThrows() throws Exception {
         // A required query param that is null at runtime must fail client-side
         // with a clear error before any request is made — parity with path/body
         // required-param validation. The options field is typed non-null, so to

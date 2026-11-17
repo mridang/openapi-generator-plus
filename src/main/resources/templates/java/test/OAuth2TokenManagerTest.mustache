@@ -526,7 +526,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    void nonJsonTokenBodyIsNotEchoedIntoTheError() {
+    void bhvAuthOauthTwoTokenMgr041NonJsonTokenBodyIsNotEchoedIntoTheError() {
         // A form-encoded 2xx answer carries the token itself; Jackson's parse
         // message quotes the text, so the error must not repeat it.
         OAuth2TokenManager manager = new OAuth2TokenManager();
