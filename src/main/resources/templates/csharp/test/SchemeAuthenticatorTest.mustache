@@ -94,6 +94,21 @@ public sealed class SchemeAuthenticatorTest
                 new Dictionary<string, string>()));
         }
     }
+    [Fact]
+    public void BhvAuthbasic012AnEmptyVariableCountsAsUnset()
+    {
+{{#schemeAuthTests}}
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+{{/schemeAuthTests}}
+    }
+
 {{#schemeAuthTests}}
 
     private static readonly string[] {{className}}Variables = [{{#envVars}}"{{envName}}"{{^-last}}, {{/-last}}{{/envVars}}];

@@ -200,7 +200,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ReadmeSocksNoteNamesTheBuilderSetter()
+    public void BhvOptions044ReadmeSocksNoteNamesTheBuilderSetter()
     {
         var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
 
@@ -352,7 +352,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ToStringRendersAdditionalPropertiesEntries()
+    public void BhvModels012ToStringRendersAdditionalPropertiesEntries()
     {
         var metadata = new Metadata
         {

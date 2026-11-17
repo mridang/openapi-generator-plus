@@ -423,7 +423,7 @@ public class ApiExceptionTest
     [InlineData(typeof(SerializationException))]
     [InlineData(typeof(OAuth2ServerException))]
     [InlineData(typeof(OAuth2TokenException))]
-    public void EveryErrorTypeLivesInTheErrorsNamespaceUnderTheRoot(Type error)
+    public void BhvErrors044EveryErrorTypeLivesInTheErrorsNamespaceUnderTheRoot(Type error)
     {
         Assert.Equal("PetstoreClient.Errors", error.Namespace);
         Assert.False(error.IsNested);

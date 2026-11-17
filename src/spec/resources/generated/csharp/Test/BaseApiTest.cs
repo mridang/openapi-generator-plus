@@ -1385,6 +1385,31 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvSerializationwire053ArrayFormFieldEmitsRepeatedKeys()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>
+            {
+                { "nickname", "rex" },
+                {
+                    "tags",
+                    new List<string> { "a", "b" }
+                },
+            },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("nickname=rex&tags=a&tags=b", client.CapturedBody.ToString());
+    }
+
+    [Fact]
     public async Task BhvOperations014PassesBinaryBodyAsIs()
     {
         var client = new CapturingApiClient();
@@ -1998,7 +2023,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void ContentCookieKeepsOnlyTheUnreservedSetLiteral()
+    public void BhvSerializationparam104ContentCookieKeepsOnlyTheUnreservedSetLiteral()
     {
         var api = new TestableApi("http://localhost");
 

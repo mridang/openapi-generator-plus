@@ -625,6 +625,27 @@ public class OAuth2TokenManagerTest
         Assert.IsAssignableFrom<OpenAPIException>(ex);
     }
 
+    [Fact]
+    public async Task BhvAuthoauthtwotokenmgr041NonJsonTokenBodyIsNotEchoedIntoTheError()
+    {
+        // A form-encoded 2xx answer carries the token itself; the error must not repeat it.
+        string secret = "gho_" + "SECRET123";
+        var client = new FakeApiClient();
+        client.Enqueue("access_token=" + secret + "&token_type=bearer");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            )
+        );
+        Assert.Equal("Token response is not valid JSON", ex.Message);
+        Assert.Null(ex.InnerException);
+    }
+
     [Theory]
     [InlineData("<html>not json</html>", "Token response is not valid JSON")]
     [InlineData("[\"tok\"]", "Token response is not a JSON object")]

@@ -664,7 +664,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DecodingAnUnknownEnumStringFailsLoudly()
+        public void BhvSerializationobject182DecodingAnUnknownEnumStringFailsLoudly()
         {
             var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Pet>(

@@ -547,7 +547,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
+    public async Task BhvAuthoauthtwopassword020RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");

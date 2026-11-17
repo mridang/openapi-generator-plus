@@ -197,7 +197,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void CrlfInHeaderKeyThrowsAtConstruction()
+    public void BhvAuthapikey018CrlfInHeaderKeyThrowsAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator(

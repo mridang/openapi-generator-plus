@@ -423,7 +423,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiKeyWrappersRejectAnEmptyKeyAtConstruction()
+    public void BhvAuthapikey019ApiKeyWrappersRejectAnEmptyKeyAtConstruction()
     {
         Assert.Throws<ArgumentException>(() => new ApiKeyHeaderAuthenticator(Host, ""));
         Assert.Throws<ArgumentException>(() => new InternalApiKeyAuthenticator(Host, ""));
@@ -432,7 +432,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiKeyWrappersMaskTheKeyInTheirRepr()
+    public void BhvAuthapikey020ApiKeyWrappersMaskTheKeyInTheirRepr()
     {
         Assert.DoesNotContain(
             "secret-key",

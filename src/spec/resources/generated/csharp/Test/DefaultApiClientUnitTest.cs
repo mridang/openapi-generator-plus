@@ -1081,7 +1081,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task DecodesBareUtf16BodyWithLittleEndianBomAsLittleEndian()
+    public async Task BhvSerializationwire054DecodesBareUtf16BodyWithLittleEndianBomAsLittleEndian()
     {
         // A BOM wins over the big-endian default for a bare "utf-16" label,
         // and the mark itself is not part of the text.
@@ -3551,6 +3551,26 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvRetries026RetryAfterInSecondsSetsTheWait()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(429, "1") : Respond(200, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.True(
+            watch.Elapsed >= TimeSpan.FromMilliseconds(900),
+            "the wait must follow Retry-After"
+        );
+    }
+
+    [Fact]
     public async Task BhvRetries025ARetryAfterBeyondTheTimeoutBudgetReturnsTheResponseWithoutWaiting()
     {
         var handler = new SequenceHandler(_ => Respond(503, "5"));
@@ -3571,7 +3591,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CancellingDuringTheBackoffStopsTheRetries()
+    public async Task BhvRetries028CancellingDuringTheBackoffStopsTheRetries()
     {
         var handler = new SequenceHandler(_ => Respond(503, "30"));
         var client = new DefaultApiClient(
@@ -3587,7 +3607,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void BackoffStartsAtHalfASecondDoublesAndIsCappedAtEight()
+    public void BhvRetries027BackoffStartsAtHalfASecondDoublesAndIsCappedAtEight()
     {
         var none = new Dictionary<string, string>();
         var now = DateTimeOffset.UtcNow;

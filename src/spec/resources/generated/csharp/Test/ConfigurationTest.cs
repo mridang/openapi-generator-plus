@@ -255,7 +255,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void ConfigurationIsImmutable()
+    public void BhvConfig017ConfigurationIsImmutable()
     {
         var config = Configuration.Builder().DefaultHeader("X-Key", "value").Build();
 

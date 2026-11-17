@@ -23,6 +23,21 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task BhvSerializationobject183HandlesNullBody()
+    {
+        var client = new DefaultApiClient();
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvTransport018MakesHttpsRequestWithVerifySslFalse()
     {
         var transport = TransportOptions.Builder()

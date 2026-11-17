@@ -61,7 +61,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestPlaceOrderWithoutBodyCanBeCalledWithNoArguments()
+    public async Task BhvOperations126PlaceOrderWithoutBodyCanBeCalledWithNoArguments()
     {
         var client = new CapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
