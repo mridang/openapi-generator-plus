@@ -115,7 +115,7 @@ import Testing
 
     /* The rendered message lists the status, the headers and the body, each
      * only when it carries something. */
-    @Test func testErrorDescriptionRendersEachPartOnlyWhenPresent() {
+    @Test func testBhvErrors022ErrorDescriptionRendersEachPartOnlyWhenPresent() {
         let full = ApiError(
             statusCode: 404, message: "not found", responseBody: "{}",
             responseHeaders: ["a": "b"])
@@ -445,6 +445,25 @@ import Testing
         #expect(err.requestMethod == "POST")
         #expect(err.requestPath == "/orders")
         #expect(err.message == "API returned status code \(status) for POST /orders")
+    }
+
+    /* Every status-specific error takes an optional underlying error and keeps it. */
+    @Test func testBhvErrors003StatusSpecificErrorsAcceptAnOptionalCause() {
+        let cause = URLError(.timedOut)
+        let errors: [ApiError] = [
+            BadRequestError(underlyingError: cause),
+            UnauthorizedError(underlyingError: cause),
+            ForbiddenError(underlyingError: cause),
+            NotFoundError(underlyingError: cause),
+            ConflictError(underlyingError: cause),
+            UnprocessableEntityError(underlyingError: cause),
+            TooManyRequestsError(underlyingError: cause),
+            InternalServerError(underlyingError: cause),
+        ]
+        for error in errors {
+            #expect((error.underlyingError as? URLError)?.code == .timedOut)
+        }
+        #expect(BadRequestError().underlyingError == nil)
     }
 
     @Test func testBhvErrors019SubclassConstructorsAcceptTheRequest() {

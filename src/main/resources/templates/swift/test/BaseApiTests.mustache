@@ -53,6 +53,20 @@ import Testing
         }
     }
 
+    /// An authenticator whose token cannot be renewed: once invalidated it hands
+    /// out no Authorization header.
+    private final class FailingReauthAuth: BaseAuthenticator, AccessTokenInvalidating, @unchecked Sendable {
+        var renewalFailed = false
+
+        func invalidateAccessToken() {
+            renewalFailed = true
+        }
+        override func host() -> String { return "" }
+        override func authHeaders() async -> [String: String] {
+            return renewalFailed ? [:] : ["Authorization": "Bearer t1"]
+        }
+    }
+
     /// Answers each request with the next status, recording every request.
     private final class ScriptedApiClient: ApiClient, @unchecked Sendable {
         var statuses: [Int]
@@ -532,6 +546,21 @@ import Testing
         #expect(client.seenAuthorization == ["Bearer t1", "Bearer t2"])
     }
 
+    /* When the token cannot be renewed after a 401, the second 401 is the
+     * answer and the request is not replayed a third time. */
+    @Test func testBhvAuthintegration001AFailedReauthenticationLeavesThe401() async throws {
+        let client = ScriptedApiClient(statuses: [401, 401, 200])
+        let auth = FailingReauthAuth()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+        await #expect(throws: UnauthorizedError.self) {
+            _ = try await api.getPetById(petId: 1)
+        }
+        #expect(auth.renewalFailed)
+        #expect(client.seenAuthorization == ["Bearer t1", ""])
+    }
+
     @Test func testASecond401IsSurfacedWithoutAThirdAttempt() async throws {
         let client = ScriptedApiClient(statuses: [401, 401, 200])
         let auth = RotatingAuth()
@@ -822,6 +851,22 @@ import Testing
         #expect(config.baseURL == "https://api.example.com/api/v3")
     }
 
+    /* An operation whose path is already an absolute URL (a per-operation
+       server) is sent to that URL, and the client base URL is not prepended. */
+    @Test func testBhvErrors027AbsoluteUrlInPathBypassesTheClientBaseURL() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let params = BaseApi.InvokeAPIParams(
+            method: "GET", path: "https://other.example.org/v2/items", queryParams: [:],
+            headerParams: [:], body: nil, accepts: ["application/json"],
+            contentType: "application/json", returnType: "String", auth: BaseApi.noAuthSentinel)
+
+        _ = try await api.invokeAPI(params)
+
+        #expect(mockClient.lastURL == "https://other.example.org/v2/items")
+    }
+
     @Test func testBhvOperations005ApiRequestUsesResolvedServerUrl() throws {
         let config = try ConfigurationBuilder()
             .server(Servers.server1, variables: ["environment": "staging"])
@@ -839,7 +884,7 @@ import Testing
 
     /* The third global server carries quotes, an ampersand, a dollar sign and
        an interpolation opener in its text; all of it round-trips unchanged. */
-    @Test func testHostileGlobalServerTextRoundTripsUnchanged() throws {
+    @Test func testBhvServers013HostileGlobalServerTextRoundTripsUnchanged() throws {
         let server = Servers.server2
         #expect(server.urlTemplate == "https://{tenant}.example.com/api")
         #expect(server.description == "Bob's \"sandbox\" & co: $5 #{x} a*/b")
@@ -902,7 +947,7 @@ import Testing
     // A value wrapped in AllowReservedValue (OAS allowReserved: true) keeps RFC
     // 3986 reserved characters literal, but a space is illegal in a URL and is
     // still percent-encoded to %20.
-    @Test func testAllowReservedKeepsReservedButEncodesSpace() {
+    @Test func testBhvSerializationparam002AllowReservedKeepsReservedButEncodesSpace() {
         let reserved = BaseApi.buildQueryString(
             ["revision": ValueSerializer.AllowReservedValue(value: "v1.0/beta:rc1")])
         #expect(reserved == "revision=v1.0/beta:rc1",
@@ -920,6 +965,14 @@ import Testing
         let encoded = BaseApi.buildQueryString(
             ["revision": ValueSerializer.AllowReservedValue(value: "a'b[c]#d")])
         #expect(encoded == "revision=a'b%5Bc%5D%23d", "got: \(encoded)")
+    }
+
+    // Non-ASCII characters are percent-encoded even when the parameter allows
+    // reserved characters; only the reserved set stays literal.
+    @Test func testBhvSerializationparam003AllowReservedStillPercentEncodesNonAscii() {
+        let encoded = BaseApi.buildQueryString(
+            ["q": ValueSerializer.AllowReservedValue(value: "café/ü")])
+        #expect(encoded == "q=caf%C3%A9/%C3%BC", "got: \(encoded)")
     }
 
     // Without the marker (allowReserved: false / absent) reserved characters
@@ -1135,6 +1188,25 @@ import Testing
             "petStoreBearer": MockAuth(headers: ["Authorization": "Bearer scheme-level"])
         ])
         #expect(headers["Authorization"] == "Bearer scheme-level")
+    }
+
+    /* An authenticator passed for one call overrides the client-level one. */
+    @Test func testBhvAuthintegration013PerCallAuthOverridesClientLevelAuthenticator() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(
+            apiClient: mockClient, config: config,
+            authenticator: MockAuth(headers: ["Authorization": "Bearer client-level"]))
+        let params = BaseApi.InvokeAPIParams(
+            method: "GET", path: "/items", queryParams: [:],
+            headerParams: [:], body: nil,
+            accepts: ["application/json"], contentType: "application/json",
+            returnType: "String",
+            auth: MockAuth(headers: ["Authorization": "Bearer per-call"]))
+
+        _ = try await api.invokeAPI(params)
+
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer per-call")
     }
 
     @Test func testBhvAuthintegration014TheFirstListedSchemeTheClientHoldsWins() async throws {

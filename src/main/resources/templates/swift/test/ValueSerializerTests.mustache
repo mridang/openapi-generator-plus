@@ -96,6 +96,25 @@ import Testing
         #expect(result as? String == "a,b,c")
     }
 
+    @Test func testBhvSerializationparam006ArrayJoinsWithCommaByDefault() {
+        let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "")
+        #expect(result as? String == "a,b,c")
+    }
+
+    /* A date is its date part only: no time and no offset appear at the day or
+       year boundary. */
+    @Test func testBhvSerializationparam027DateAtDayAndYearBoundaryStaysDateOnly() {
+        let newYear = ValueSerializer.serializeValue("2025-01-01", location: "path", schemaType: "string", collectionFormat: "")
+        #expect(newYear as? String == "2025-01-01")
+        let lastDay = ValueSerializer.serializeValue("2024-12-31", location: "path", schemaType: "string", collectionFormat: "")
+        #expect(lastDay as? String == "2024-12-31")
+    }
+
+    @Test func testBhvSerializationparam028DateInPathReturnsYyyyMmDd() {
+        let result = ValueSerializer.serializeValue("2024-02-29", location: "path", schemaType: "string", collectionFormat: "")
+        #expect(result as? String == "2024-02-29")
+    }
+
     @Test func testBhvSerializationparam083SerializeValueQuerySetExpandsLikeArray() {
         let result = ValueSerializer.serializeValue(Set(["red"]), location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == "red")
@@ -481,6 +500,11 @@ import Testing
         let result = ValueSerializer.serializeStyled("color", value: "blue", location: "query", schemaType: "string", collectionFormat: "", style: "form", explode: true)
         #expect(result is String, "expected a String, not an Array")
         #expect(result as? String == "blue")
+    }
+
+    @Test func testBhvSerializationparam054SerializeStyledSimpleDateReturnsYyyyMmDd() {
+        let result = ValueSerializer.serializeStyled("day", value: "2024-06-01", location: "path", schemaType: "string", collectionFormat: "", style: "simple", explode: false)
+        #expect(result as? String == "2024-06-01")
     }
 
     @Test func testBhvSerializationparam087SerializeStyledSimplePathEncodesValue() {

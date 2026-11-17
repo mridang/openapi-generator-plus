@@ -722,6 +722,21 @@ import FoundationNetworking
         #expect((error?.underlyingError as? URLError)?.code == .networkConnectionLost)
     }
 
+    // A body read that fails after the headers arrived is a NetworkError with
+    // status 0 and the URLError kept as the cause, never an ApiError for the 200.
+    @Test func testBhvErrors043BodyReadFailureIsWrappedInNetworkError() async throws {
+        let client = makeClient(transport: try TransportOptionsBuilder().maxRetries(0).build()) { _ in
+            (Data("partial body".utf8), 200,
+             ["Content-Type": "application/json", UnitStubURLProtocol.failWithHeader: "timedOut"])
+        }
+        let error = await #expect(throws: NetworkError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "http://localhost/body-read", headers: [:], body: nil)
+        }
+        #expect(error?.statusCode == 0)
+        #expect((error?.underlyingError as? URLError)?.code == .timedOut)
+    }
+
     @Test func testBhvTransport029BodyStalledPastTheDeadlineAfterHeadersIsNetworkTimeoutError() async throws {
         let client = makeClient { _ in
             (Data("partial body".utf8), 200,
