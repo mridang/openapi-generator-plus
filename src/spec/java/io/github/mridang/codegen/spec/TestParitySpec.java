@@ -5,11 +5,15 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.mridang.codegen.spec.parity.ParityAllowList;
 import io.github.mridang.codegen.spec.parity.ParityComparison;
+import io.github.mridang.codegen.spec.parity.ParityIdComparison;
+import io.github.mridang.codegen.spec.parity.TestCatalogue;
+import io.github.mridang.codegen.spec.parity.TestCatalogueExceptions;
 import io.github.mridang.codegen.spec.parity.ParitySummary;
 import io.github.mridang.codegen.spec.parity.ParityStore;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
@@ -29,6 +33,9 @@ public class TestParitySpec {
 
   private static final Logger logger = LoggerFactory.getLogger(TestParitySpec.class);
   private static final Path ALLOW_FILE = Path.of("src/spec/resources/test-parity-allow.json");
+  private static final Path CATALOGUE_FILE = Path.of("src/spec/resources/test-catalogue.txt");
+  private static final Path EXCEPTIONS_FILE =
+      Path.of("src/spec/resources/test-catalogue-exceptions.txt");
   private static final long WAIT_MILLIS = 30L * 60 * 1000;
 
   @Test
@@ -43,6 +50,20 @@ public class TestParitySpec {
             + present.keySet()
             + "; run the client specs of two or more languages to compare them");
     logger.info("Comparing the test suites of {}", present.keySet());
+
+    TestCatalogue catalogue = TestCatalogue.load(CATALOGUE_FILE.toAbsolutePath());
+    if (!catalogue.isEmpty()) {
+      TestCatalogueExceptions exceptions =
+          TestCatalogueExceptions.load(EXCEPTIONS_FILE.toAbsolutePath());
+      List<String> problems = ParityIdComparison.compare(present, catalogue, exceptions);
+      assertThat(problems)
+          .withFailMessage(
+              "The test suites of %s disagree with %s. Name every test from a catalogue id"
+                  + " (bhv<area><nnn>), or list the gap with a reason in %s:%n%s",
+              present.keySet(), CATALOGUE_FILE, EXCEPTIONS_FILE, String.join("\n", problems))
+          .isEmpty();
+      return;
+    }
 
     ParityAllowList allow = ParityAllowList.load(ALLOW_FILE.toAbsolutePath());
     ParityComparison.Result result = ParityComparison.compare(present, allow);

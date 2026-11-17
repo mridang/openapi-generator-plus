@@ -34,6 +34,7 @@ class ParityReportParserTest {
     assertThat(summary.keys())
         .containsExactly("configuration::builderisfluent", "configuration::invalidenumvaluethrows");
     assertThat(summary.errors()).isEmpty();
+    assertThat(summary.names()).containsExactly("builderIsFluent", "invalidEnumValueThrows");
   }
 
   @Test

@@ -24,14 +24,31 @@ public final class ParitySummary {
   private final int total;
   private final SortedSet<String> keys;
   private final List<String> errors;
+  private final List<String> names;
 
   public ParitySummary(
       String language, long writtenAt, int total, SortedSet<String> keys, List<String> errors) {
+    this(language, writtenAt, total, keys, errors, List.of());
+  }
+
+  public ParitySummary(
+      String language,
+      long writtenAt,
+      int total,
+      SortedSet<String> keys,
+      List<String> errors,
+      List<String> names) {
     this.language = language;
     this.writtenAt = writtenAt;
     this.total = total;
     this.keys = Collections.unmodifiableSortedSet(new TreeSet<>(keys));
     this.errors = Collections.unmodifiableList(new ArrayList<>(errors));
+    this.names = Collections.unmodifiableList(new ArrayList<>(names));
+  }
+
+  /** The raw reported name of every test case, sorted, duplicates kept. */
+  public List<String> names() {
+    return names;
   }
 
   public String language() {
@@ -74,6 +91,8 @@ public final class ParitySummary {
     root.put("total", total);
     ArrayNode errorNodes = root.putArray("errors");
     errors.forEach(errorNodes::add);
+    ArrayNode nameNodes = root.putArray("names");
+    names.forEach(nameNodes::add);
     ArrayNode keyNodes = root.putArray("keys");
     keys.forEach(keyNodes::add);
     try {
@@ -89,11 +108,14 @@ public final class ParitySummary {
     root.path("keys").forEach(node -> keys.add(node.asText()));
     List<String> errors = new ArrayList<>();
     root.path("errors").forEach(node -> errors.add(node.asText()));
+    List<String> names = new ArrayList<>();
+    root.path("names").forEach(node -> names.add(node.asText()));
     return new ParitySummary(
         root.path("language").asText(),
         root.path("writtenAt").asLong(),
         root.path("total").asInt(),
         keys,
-        errors);
+        errors,
+        names);
   }
 }
