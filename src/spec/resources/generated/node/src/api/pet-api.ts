@@ -22,9 +22,7 @@ import {
   Photo,
   SetPetAvatarThumbnailRequest,
 } from "../models/index.js";
-import type { AddPetOptions } from "./options/add-pet-options.js";
 import type { AddPetPhotosOptions } from "./options/add-pet-photos-options.js";
-import type { AddPetTreatmentOptions } from "./options/add-pet-treatment-options.js";
 import type { DeletePetOptions } from "./options/delete-pet-options.js";
 import type { FindPetsByStatusOptions } from "./options/find-pets-by-status-options.js";
 import type { GetPetByNameOptions } from "./options/get-pet-by-name-options.js";
@@ -226,29 +224,23 @@ export class PetApi extends BaseApi {
     apiClient?: ApiClient,
     config?: Configuration,
     authenticator?: Authenticator | null,
+    schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null,
   ) {
-    super(apiClient, config, authenticator);
+    super(apiClient, config, authenticator, schemeAuthenticators);
   }
 
   /**
    * Add a new pet to the store
    * @param pet Create a new pet in the store (required)
-   * @param options options carrying an optional per-call authenticator
-   * @param options.auth optional authenticator for this operation
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
   async addPet(
     pet: DeepInput<Pet>,
-    options?: AddPetOptions,
     requestOptions?: RequestOptions,
   ): Promise<Pet> {
-    const addPetResult = await this.addPetWithHttpInfo(
-      pet,
-      options,
-      requestOptions,
-    );
+    const addPetResult = await this.addPetWithHttpInfo(pet, requestOptions);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -271,7 +263,6 @@ export class PetApi extends BaseApi {
    */
   async addPetWithHttpInfo(
     pet: DeepInput<Pet>,
-    options?: AddPetOptions,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Pet>> {
     if (pet == null) {
@@ -291,7 +282,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      options?.auth,
+      this.resolveSchemeAuth(["apiKeyHeader", "petStoreBearer"]),
       false,
       "model",
       "addPet",
@@ -393,7 +384,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Photo),
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "addPetPhotos",
@@ -405,8 +396,6 @@ export class PetApi extends BaseApi {
    * Record a treatment for a pet
    * @param petId  (required)
    * @param petTreatment  (required)
-   * @param options options carrying an optional per-call authenticator
-   * @param options.auth optional authenticator for this operation
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return PetTreatment
    * @throws {ApiError} if fails to make API call
@@ -414,13 +403,11 @@ export class PetApi extends BaseApi {
   async addPetTreatment(
     petId: number,
     petTreatment: DeepInput<PetTreatment>,
-    options?: AddPetTreatmentOptions,
     requestOptions?: RequestOptions,
   ): Promise<PetTreatment> {
     const addPetTreatmentResult = await this.addPetTreatmentWithHttpInfo(
       petId,
       petTreatment,
-      options,
       requestOptions,
     );
     /* convenience-empty-body-handling: a body-returning operation that
@@ -446,7 +433,6 @@ export class PetApi extends BaseApi {
   async addPetTreatmentWithHttpInfo(
     petId: number,
     petTreatment: DeepInput<PetTreatment>,
-    options?: AddPetTreatmentOptions,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<PetTreatment>> {
     if (petId == null) {
@@ -484,7 +470,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, PetTreatment)!,
-      options?.auth,
+      undefined,
       false,
       "model",
       "addPetTreatment",
@@ -495,8 +481,7 @@ export class PetApi extends BaseApi {
   /**
    * Deletes a pet
    * @param petId Pet id to delete (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
-   * @param options.auth optional authenticator for this operation
+   * @param options options for query, header, form, and cookie parameters
    * @param options.apiKey Session cookie used for authentication (optional)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
@@ -543,16 +528,17 @@ export class PetApi extends BaseApi {
     const cookieParts: string[] = [];
     if (options?.apiKey != null) {
       const apiKeyCookieValue = `${ValueSerializer.serializeStyled("api_key", options.apiKey, "cookie", "string", null, "form", true)}`;
-      /* RFC 6265 — reject CR/LF and other control characters in the
-       * serialized cookie value before it is joined into the Cookie
-       * header. This mirrors the validation the auth-cookie path applies
-       * in the base client, so a forbidden value fails closed with the
-       * same error instead of being injected raw into the header. */
+      /* F840: a cookie value is sent exactly as given when every character is
+       * an RFC 6265 cookie-octet (a value the caller percent-encoded stays as
+       * written). Any other character, a space, comma, semicolon, quote,
+       * backslash, control or non-ASCII one, fails here, before anything is
+       * sent: the caller pre-encodes. This is also what keeps CR/LF out of the
+       * Cookie header. */
       if (
         !/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(apiKeyCookieValue)
       ) {
         throw new TypeError(
-          `Cookie value for 'api_key' contains characters forbidden by RFC 6265`,
+          `Cookie value for 'api_key' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it`,
         );
       }
       cookieParts.push(`api_key=${apiKeyCookieValue}`);
@@ -569,7 +555,7 @@ export class PetApi extends BaseApi {
       [],
       "application/json",
       null,
-      options?.auth,
+      this.resolveSchemeAuth(["adminBasic", "machineAuth"]),
       false,
       undefined,
       "deletePet",
@@ -670,7 +656,7 @@ export class PetApi extends BaseApi {
       ["application/octet-stream"],
       "application/json",
       (json: unknown) => json as Buffer,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "binary",
       "downloadPetDocument",
@@ -747,7 +733,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Pet),
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "findPetsBornOn",
@@ -876,7 +862,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Pet),
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "findPetsByStatus",
@@ -960,7 +946,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getExternalPetInfo",
@@ -1045,7 +1031,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getMultiServerPetInfo",
@@ -1123,7 +1109,7 @@ export class PetApi extends BaseApi {
       ["image/jpeg", "image/png"],
       "application/json",
       (json: unknown) => json as Buffer,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "binary",
       "getPetAvatar",
@@ -1199,7 +1185,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.decodeBase64(json as string),
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getPetAvatarThumbnail",
@@ -1288,7 +1274,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getPetById",
@@ -1406,7 +1392,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getPetByName",
@@ -1484,7 +1470,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, PetPassport)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getPetPassport",
@@ -1584,7 +1570,7 @@ export class PetApi extends BaseApi {
       ["image/jpeg", "image/png", "application/json"],
       "application/json",
       (json: unknown) => json as Buffer,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "binary",
       "getPetPhoto",
@@ -1703,16 +1689,17 @@ export class PetApi extends BaseApi {
     const cookieParts: string[] = [];
     if (options?.session != null) {
       const sessionCookieValue = `${ValueSerializer.serializeStyled("session", options.session, "cookie", "string", null, "form", true)}`;
-      /* RFC 6265 — reject CR/LF and other control characters in the
-       * serialized cookie value before it is joined into the Cookie
-       * header. This mirrors the validation the auth-cookie path applies
-       * in the base client, so a forbidden value fails closed with the
-       * same error instead of being injected raw into the header. */
+      /* F840: a cookie value is sent exactly as given when every character is
+       * an RFC 6265 cookie-octet (a value the caller percent-encoded stays as
+       * written). Any other character, a space, comma, semicolon, quote,
+       * backslash, control or non-ASCII one, fails here, before anything is
+       * sent: the caller pre-encodes. This is also what keeps CR/LF out of the
+       * Cookie header. */
       if (
         !/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(sessionCookieValue)
       ) {
         throw new TypeError(
-          `Cookie value for 'session' contains characters forbidden by RFC 6265`,
+          `Cookie value for 'session' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it`,
         );
       }
       cookieParts.push(`session=${sessionCookieValue}`);
@@ -1729,7 +1716,7 @@ export class PetApi extends BaseApi {
       ["text/plain"],
       "application/json",
       (json: unknown) => json as string,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "string",
       "getPetSummary",
@@ -1969,7 +1956,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getPetTag",
@@ -2053,7 +2040,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "getStagingPetInfo",
@@ -2150,7 +2137,7 @@ export class PetApi extends BaseApi {
       [],
       requestContentType ?? "image/jpeg",
       null,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       true,
       undefined,
       "setPetAvatar",
@@ -2223,7 +2210,7 @@ export class PetApi extends BaseApi {
       [],
       "application/json",
       null,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       undefined,
       "setPetAvatarThumbnail",
@@ -2334,7 +2321,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/x-www-form-urlencoded",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "setPetPreferences",
@@ -2420,7 +2407,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "updatePet",
@@ -2514,7 +2501,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "uploadPetCertificate",
@@ -2668,7 +2655,7 @@ export class PetApi extends BaseApi {
       ["application/json"],
       requestContentType ?? "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
-      undefined,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
       "model",
       "uploadPetDocument",

@@ -166,11 +166,30 @@ const client = Client.withToken(
 );
 ```
 
+### Credentials per security scheme
+
+`Client` takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Pass them as an object in place of the authenticator:
+
+```typescript
+const client = new Client({ petStoreBasic: schemeAuthenticator });
+```
+
+Each operation uses the credential of the first scheme in its own security requirement that you gave, so a credential is only sent to an operation whose spec names its scheme, and there is no per-call override. An optional `authenticator` in the same object serves any operation none of your scheme credentials matches. An operation the spec marks as needing no authentication never sends a credential. The client takes its base URL from the first credential given (`authenticator` first), and is refused with a `TypeError` when it gets none.
+
+### Cookie parameters
+
+A cookie parameter is sent exactly as you give it when every character is an RFC 6265 cookie-octet: printable ASCII except space, double quote, comma, semicolon and backslash. The SDK does not encode it for you, so percent-encode a value that holds any other character before you pass it. A value that holds one is refused with a `TypeError` before anything is sent.
+
+### Closing the client
+
+`await client.close()` (or `await using client = ...`) closes the client gracefully. It marks the client closed at once; a call started afterwards fails with the error `ApiClient has been closed and can no longer send requests`. A call already running finishes, and the connection pool the SDK created for itself is released when the last of them completes, or straight away when none is running. Closing never waits for a running call, so a call with no timeout cannot make it hang; cancel one call with its own `signal`. A `fetch` you supplied is never closed, and closing a second time does nothing.
+
 ### Models
 
 Models are immutable: every field is `readonly`, so a changed model is a new one. `with` returns a
-copy with the given fields replaced and leaves the original alone; the copy goes through the
-constructor, so it is validated like any other instance.
+copy with the given fields replaced and leaves the original alone. Building a model validates
+nothing: the constructor accepts any value and never throws, so the types you wrote are the only
+check until the model is decoded (see "Unknown enum values and discriminators").
 
 ```typescript
 const renamed = original.with({ name: "new name" });
@@ -276,8 +295,9 @@ a `null` on the wire is kept as `null` and a missing key stays `undefined`.
 
 ### Unknown enum values and discriminators
 
-An enum value the spec does not list, and a discriminator value that maps to no model, fail
-loudly with a `SerializationError`. They are never coerced to a default or kept as a raw string,
+Validation happens when a response is decoded, never when a model is built. An enum value the
+spec does not list, a missing required field, a value of the wrong type and a discriminator value
+that maps to no model fail loudly with a `SerializationError`. They are never coerced to a default or kept as a raw string,
 so a server that adds a value is noticed instead of silently mishandled.
 
 ### Repeated response headers

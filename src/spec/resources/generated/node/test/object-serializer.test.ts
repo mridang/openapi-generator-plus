@@ -7,6 +7,7 @@
 
 import * as util from "node:util";
 import { Expose, Transform, Type } from "class-transformer";
+import type { ClassConstructor } from "class-transformer";
 import {
   ObjectSerializer,
   durationToProtoJson,
@@ -1001,10 +1002,8 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("rejects a fractional number handed to a model constructor", () => {
-      expect(() => new Order({ quantity: 1.5 })).toThrow(
-        "quantity must be an integer, got 1.5",
-      );
+    test("a model constructor keeps a fractional number; decoding rejects it", () => {
+      expect(new Order({ quantity: 1.5 }).quantity).toBe(1.5);
     });
 
     test("accepts an integral JSON number for an integer field", () => {
@@ -1039,10 +1038,11 @@ describe("ObjectSerializer", () => {
       ).toBe(2 ** 63);
     });
 
-    test("rejects an int32 outside the range handed to a model constructor", () => {
-      expect(() => new Order({ quantity: 3000000000 })).toThrow(
-        "quantity is outside the 32-bit integer range, got 3000000000",
-      );
+    test("a model constructor keeps an int32 outside the range; decoding rejects it", () => {
+      expect(new Order({ quantity: 3000000000 }).quantity).toBe(3000000000);
+      expect(() =>
+        ObjectSerializer.deserialize({ quantity: 3000000000 }, Order),
+      ).toThrow("quantity is outside the 32-bit integer range, got 3000000000");
     });
 
     const int32Leaf = (x: unknown) =>
@@ -1255,13 +1255,16 @@ describe("ObjectSerializer", () => {
       ).toBe(0);
     });
 
-    test("constructor: a non-Buffer/non-string thumbnail is rejected with TypeError", () => {
+    test("a non-Buffer, non-string thumbnail is built without complaint and rejected when decoded", () => {
       expect(
         () =>
           new PetPassport({
             thumbnail: 42 as unknown as PetPassport["thumbnail"],
           }),
-      ).toThrow(TypeError);
+      ).not.toThrow();
+      expect(() =>
+        ObjectSerializer.deserialize({ thumbnail: 42 }, PetPassport),
+      ).toThrow(SerializationError);
     });
   });
 
@@ -1357,10 +1360,10 @@ describe("ObjectSerializer", () => {
     // Validation must reject a string payload that happens to match a member
     // name; only the numeric wire values are valid.
 
-    test("rejects a reverse-mapped member name string as priority", () => {
+    test("builds a model with a reverse-mapped member name string as priority", () => {
       expect(
         () => new StockItem({ priority: "NUMBER_1" as unknown as Priority }),
-      ).toThrow();
+      ).not.toThrow();
     });
 
     test("rejects deserializing a member-name string into the int enum field", () => {
@@ -1375,17 +1378,21 @@ describe("ObjectSerializer", () => {
       expect(item.priority).toBe(2);
     });
 
-    test("rejects an out-of-range integer", () => {
+    test("builds a model with an out-of-range integer and rejects it when decoded", () => {
       expect(
         () => new StockItem({ priority: 99 as unknown as Priority }),
-      ).toThrow();
+      ).not.toThrow();
+      expect(() =>
+        ObjectSerializer.deserialize({ priority: 99 }, StockItem),
+      ).toThrow(SerializationError);
     });
   });
 
   describe("UniqueItemsSetCoercion", () => {
-    // A `uniqueItems` array field is typed Set<T>; deserialization and
-    // hand-construction deliver a plain Array, so the constructor must coerce
-    // it to a real Set or callers calling .has()/.add() get a TypeError.
+    // A `uniqueItems` array field is typed Set<T>; deserialization delivers a
+    // plain Array, so decoding coerces it to a real Set or callers calling
+    // .has()/.add() get a TypeError. A hand-built model is typed by the caller
+    // and keeps the Set it was given.
 
     test("deserialize coerces a uniqueItems array into a runtime Set", () => {
       const json = { name: "Fido", photoUrls: ["a", "b", "a"] };
@@ -1396,20 +1403,14 @@ describe("ObjectSerializer", () => {
       expect((pet!.photoUrls as Set<string>).has("a")).toBe(true);
     });
 
-    test("hand-constructed model also yields a Set for photoUrls", () => {
-      const pet = new Pet({
-        name: "Fido",
-        photoUrls: ["x"] as unknown as Pet["photoUrls"],
-      });
-      expect(pet.photoUrls).toBeInstanceOf(Set);
-      expect((pet.photoUrls as Set<string>).has("x")).toBe(true);
+    test("a hand-constructed model keeps the Set it was given for photoUrls", () => {
+      const urls = new Set(["x"]);
+      const pet = new Pet({ name: "Fido", photoUrls: urls });
+      expect(pet.photoUrls).toBe(urls);
     });
 
     test("serializes a Set-valued uniqueItems field back to a JSON array", () => {
-      const pet = new Pet({
-        name: "Fido",
-        photoUrls: ["x", "y"] as unknown as Pet["photoUrls"],
-      });
+      const pet = new Pet({ name: "Fido", photoUrls: new Set(["x", "y"]) });
       const parsed = JSON.parse(ObjectSerializer.serialize(pet));
       expect(Array.isArray(parsed.photoUrls)).toBe(true);
       expect(parsed.photoUrls.sort()).toEqual(["x", "y"]);
@@ -2259,10 +2260,10 @@ describe("ObjectSerializer", () => {
     });
 
     test.each([Infinity, -Infinity, Number.NaN])(
-      "a hand-built model refuses %p",
+      "a hand-built model keeps %p",
       (value) => {
-        expect(() => new PhotoMetadataLocation({ lat: value, lng: 0 })).toThrow(
-          TypeError,
+        expect(new PhotoMetadataLocation({ lat: value, lng: 0 }).lat).toBe(
+          value,
         );
       },
     );
@@ -2397,6 +2398,82 @@ describe("a wire key named __proto__ is data, never a prototype", () => {
   });
 });
 
+describe("validation happens at decode, never at construction (F316)", () => {
+  test("a model built from wrong-typed values raises nothing", () => {
+    expect(
+      () => new Order({ quantity: "many" as unknown as number }),
+    ).not.toThrow();
+    expect(
+      () =>
+        new Pet({
+          name: 42 as unknown as string,
+          photoUrls: "u" as unknown as Set<string>,
+        }),
+    ).not.toThrow();
+    expect(
+      () =>
+        new Category({
+          id: "1" as unknown as number,
+          name: ["Dogs"] as unknown as string,
+        }),
+    ).not.toThrow();
+  });
+
+  test("a model built without its required fields raises nothing", () => {
+    expect(() => new Pet({})).not.toThrow();
+    expect(() => new Pet()).not.toThrow();
+  });
+
+  test("a model built with an unknown enum string raises nothing and keeps the string", () => {
+    const order = new Order({
+      status: "teleported" as unknown as Order["status"],
+    });
+
+    expect(order.status).toBe("teleported");
+    expect(
+      () => new StockItem({ priority: "urgent" as unknown as Priority }),
+    ).not.toThrow();
+  });
+
+  test.each([
+    ["a wrong-typed integer", Order, { quantity: "many" }],
+    ["a missing required field", Pet, { photoUrls: [] }],
+    ["a wrong-typed required field", Pet, { name: 42, photoUrls: [] }],
+    ["an unknown inline enum string", Order, { status: "teleported" }],
+    ["an unknown referenced enum string", StockItem, { priority: "urgent" }],
+  ])("decoding %s fails with a SerializationError", (_label, model, json) => {
+    expect(() =>
+      ObjectSerializer.deserialize(json, model as ClassConstructor<unknown>),
+    ).toThrow(SerializationError);
+  });
+
+  test("an unknown enum string fails loudly at decode and names the value and the allowed ones", () => {
+    expect(() =>
+      ObjectSerializer.deserialize({ status: "teleported" }, Order),
+    ).toThrow(
+      /Unknown enum value for status: "teleported"\. Expected one of \[/,
+    );
+  });
+
+  test("a nested model is validated at decode too", () => {
+    expect(() =>
+      ObjectSerializer.deserialize(
+        { name: "Fido", photoUrls: [], category: { id: "one", name: "Dogs" } },
+        Pet,
+      ),
+    ).toThrow(SerializationError);
+  });
+
+  test("a model decoded from a valid payload still carries the coerced values", () => {
+    const pet = ObjectSerializer.deserialize(
+      { name: "Fido", photoUrls: ["a", "a"] },
+      Pet,
+    )!;
+
+    expect(pet.photoUrls).toEqual(new Set(["a"]));
+  });
+});
+
 describe("model with (copy)", () => {
   test("returns a copy with the given fields replaced and leaves the original alone", () => {
     const original = new Category({ id: 1, name: "Dogs" });
@@ -2423,19 +2500,17 @@ describe("model with (copy)", () => {
     ).toBeUndefined();
   });
 
-  test("the copy is validated like any other instance", () => {
+  test("the copy validates nothing, like any other instance built by hand", () => {
     const original = new Category({ id: 1, name: "Dogs" });
 
-    expect(() => original.with({ id: "one" as unknown as number })).toThrow(
-      TypeError,
-    );
+    expect(original.with({ id: "one" as unknown as number }).id).toBe("one");
     expect(original.id).toBe(1);
   });
 
-  test("a required field of the copy is still checked", () => {
+  test("a required field of the copy is checked when the copy is decoded, not when it is built", () => {
     const pet = new Pet({ name: "Fido", photoUrls: new Set(["u"]) });
 
-    expect(() => pet.with({ name: undefined })).toThrow(TypeError);
+    expect(pet.with({ name: undefined }).name).toBeUndefined();
     expect(pet.with({ name: "Rex" }).name).toBe("Rex");
   });
 

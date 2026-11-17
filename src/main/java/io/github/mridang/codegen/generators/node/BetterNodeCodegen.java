@@ -1112,11 +1112,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         final boolean hasForm = op.formParams != null && !op.formParams.isEmpty();
         final boolean hasCookie = op.cookieParams != null && !op.cookieParams.isEmpty();
         /* Order: required parameters, then the server, then the optional
-         * parameters object, then the per-call request options. Adding
-         * security only appends the options object, so it never moves an
-         * existing argument. */
+         * parameters object, then the per-call request options. Security adds
+         * no argument: an operation uses the credential of the scheme its spec
+         * names, so there is no per-call authenticator to pass (F857). */
         final boolean optionsParamRequired = Boolean.TRUE.equals(d.get("optionsParamRequired"));
-        final boolean hasOptions = hasQuery || hasHeader || hasForm || hasCookie || op.hasAuthMethods;
+        final boolean hasOptions = hasQuery || hasHeader || hasForm || hasCookie;
         if (op.servers != null && !op.servers.isEmpty()) {
             /* TypeScript forbids a required parameter after an optional one, so
              * when the options object that follows is required the server is
@@ -1585,10 +1585,28 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return List.of();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * F857: there is no per-call authenticator, so an Options object carries no
+     * {@code auth} field.
+     */
     @Override
+    protected void injectAuthFieldContext(
+            final CodegenOperation op, final Map<String, Object> context) {
+        context.put("hasAuthField", false);
+    }
+
+    /**
+     * An operation with no query, header, form or cookie parameter has no Options object:
+     * its per-call timeout, headers, retries and signal travel on the trailing
+     * {@code RequestOptions} argument that every operation takes.
+     */
+    @Override
+    @Nullable
     protected String generateOptionsFileContent(
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        if (optionsParams.isEmpty()) {
+            return null;
+        }
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
@@ -1666,13 +1684,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty() || usesTemporal);
         context.put("hasTemporalImport", usesTemporal);
-        // Phase: per-operation auth folded into Options. Authed operations get
-        // an optional `auth?: Authenticator` field on their Options interface;
-        // the relative import path mirrors the other Options-file imports
-        // (Options files live under src/api/options, so Authenticator is two
-        // directories up under src/auth).
+        // F857: no per-call authenticator. An operation uses the credential of the
+        // scheme its spec names, so an Options object never carries an `auth` field.
         injectAuthFieldContext(op, context);
-        context.put("authImport", "../../auth/authenticator" + ".js");
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

@@ -103,7 +103,7 @@ export class PetPassport {
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
    * into an epoch-millisecond instant, so hand the raw wire value on and let the
-   * constructor reject anything that is not a string. A string must be an RFC
+   * decode-time validation reject anything that is not a string. A string must be an RFC
    * 3339 date-time with an explicit offset; anything else (no offset, a bare
    * date, free text) is handed on raw too, so it never resolves against the
    * host time zone or the current date. */
@@ -147,6 +147,21 @@ export class PetPassport {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
+  }
+
+  /**
+   * Decode-time validation, run by {@link ObjectSerializer.deserialize} on the
+   * instance it built from the wire. The constructor itself checks nothing, so
+   * a model can be built from any value and a wrong type or an unknown enum
+   * string never raises there. This is the wire boundary: a missing required
+   * field, a value of the wrong type, an unknown enum string, a malformed
+   * date, UUID, URI or base64 value all fail here, loudly, and the checked
+   * values are stored back in their final form (a Set for a `uniqueItems`
+   * array, a Buffer for a base64 string, a lower-case UUID).
+   *
+   * @throws TypeError when the decoded value breaks the schema
+   */
+  __validate(): void {
     if (
       this.pet != null &&
       (typeof this.pet !== "object" || Array.isArray(this.pet))
@@ -161,9 +176,9 @@ export class PetPassport {
      * (ByteArray to Buffer) flips isString to false at codegen time.
      */
     if (this.thumbnail != null && typeof this.thumbnail === "string") {
-      this.thumbnail = decodeBase64(
-        this.thumbnail as unknown as string,
-      ) as unknown as Buffer;
+      Object.assign(this, {
+        thumbnail: decodeBase64(this.thumbnail as unknown as string),
+      });
     } else if (this.thumbnail != null && !Buffer.isBuffer(this.thumbnail)) {
       throw new TypeError(
         `thumbnail must be a Buffer or base64 string, got ${typeof this.thumbnail}`,
@@ -184,7 +199,7 @@ export class PetPassport {
      * non-string elements.
      */
     if (this.scans != null && Array.isArray(this.scans)) {
-      this.scans = (this.scans as unknown as unknown[]).map((__e) => {
+      const decoded = (this.scans as unknown as unknown[]).map((__e) => {
         if (typeof __e === "string") {
           return decodeBase64(__e);
         }
@@ -194,7 +209,8 @@ export class PetPassport {
           );
         }
         return __e;
-      }) as unknown as Buffer[];
+      });
+      Object.assign(this, { scans: decoded });
     }
     /**
      * 2.1 — format: byte. The wire form is base64; the model field is a
@@ -202,9 +218,9 @@ export class PetPassport {
      * (ByteArray to Buffer) flips isString to false at codegen time.
      */
     if (this.biometricChip != null && typeof this.biometricChip === "string") {
-      this.biometricChip = decodeBase64(
-        this.biometricChip as unknown as string,
-      ) as unknown as Buffer;
+      Object.assign(this, {
+        biometricChip: decodeBase64(this.biometricChip as unknown as string),
+      });
     } else if (
       this.biometricChip != null &&
       !Buffer.isBuffer(this.biometricChip)
@@ -229,8 +245,8 @@ export class PetPassport {
   /**
    * A copy of this PetPassport with the given fields replaced. The fields are
    * read-only, so a changed model is a new one: this instance is never changed.
-   * The copy is built through the constructor, so it is validated like any
-   * other instance.
+   * The copy is built through the constructor, which validates nothing, like
+   * any other instance built by hand.
    *
    * @param patch the fields to replace; the others keep their value
    * @returns the new PetPassport

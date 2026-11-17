@@ -139,7 +139,22 @@ export class Pet {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
-    if (data !== undefined) {
+  }
+
+  /**
+   * Decode-time validation, run by {@link ObjectSerializer.deserialize} on the
+   * instance it built from the wire. The constructor itself checks nothing, so
+   * a model can be built from any value and a wrong type or an unknown enum
+   * string never raises there. This is the wire boundary: a missing required
+   * field, a value of the wrong type, an unknown enum string, a malformed
+   * date, UUID, URI or base64 value all fail here, loudly, and the checked
+   * values are stored back in their final form (a Set for a `uniqueItems`
+   * array, a Buffer for a base64 string, a lower-case UUID).
+   *
+   * @throws TypeError when the decoded value breaks the schema
+   */
+  __validate(): void {
+    {
       if (this.name == null) {
         throw new TypeError("name is required");
       }
@@ -187,9 +202,9 @@ export class Pet {
      * already-Set value (re-construction) is left untouched.
      */
     if (this.photoUrls != null && Array.isArray(this.photoUrls)) {
-      this.photoUrls = new Set(
-        this.photoUrls as unknown as unknown[],
-      ) as unknown as Set<string>;
+      Object.assign(this, {
+        photoUrls: new Set(this.photoUrls as unknown as unknown[]),
+      });
     }
     if (
       this.location != null &&
@@ -242,7 +257,7 @@ export class Pet {
      * here so downstream typed-string ops are safe.
      */
     if (this.weightKg != null && typeof this.weightKg === "number") {
-      this.weightKg = String(this.weightKg) as unknown as Decimal;
+      Object.assign(this, { weightKg: String(this.weightKg) });
     } else if (this.weightKg != null && typeof this.weightKg !== "string") {
       throw new TypeError(
         `weightKg must be a Decimal string or number, got ${typeof this.weightKg}`,
@@ -292,8 +307,8 @@ export class Pet {
   /**
    * A copy of this Pet with the given fields replaced. The fields are
    * read-only, so a changed model is a new one: this instance is never changed.
-   * The copy is built through the constructor, so it is validated like any
-   * other instance.
+   * The copy is built through the constructor, which validates nothing, like
+   * any other instance built by hand.
    *
    * @param patch the fields to replace; the others keep their value
    * @returns the new Pet

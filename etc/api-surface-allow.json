@@ -1610,6 +1610,78 @@
   },
   {
    "element": [
+    "petapi.*",
+    "storeapi.*"
+   ],
+   "aspect": "optional",
+   "languages": [
+    "node"
+   ],
+   "value": "*requestoptions?)",
+   "reason": "S7 and F827: every operation ends with the optional per-call `requestOptions` object (`signal`, `timeout`, `maxRetries`, `headers`), so the optional-parameter list ends with it where the other SDKs end with the per-operation `options`; an operation with query, header, form or cookie parameters takes its own `options` object before it, which stays a separate argument so the signal never moves"
+  },
+  {
+   "element": "*options",
+   "aspect": "type",
+   "languages": [
+    "node"
+   ],
+   "value": "missing",
+   "reason": "an operation with no query, header, form or cookie parameter has no Options interface in node: its per-call timeout, headers, maxRetries and signal travel on the trailing RequestOptions object every operation takes, so an empty interface would carry nothing; the other SDKs mint an <Operation>Options type for each operation (F827)"
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so node's Options interfaces carry no per-call authenticator; the other languages drop the field in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": "client.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "node"
+   ],
+   "reason": "F857 owner decision: node's client also takes one optional credential per distinct security scheme, named after the scheme, as an object in place of the authenticator (new Client({ petStoreBasic: ... }, transportOptions, clientOptions)); the (authenticator, transportOptions) call shape is kept, so a call site written against the canonical shape still compiles"
+  },
+  {
+   "element": [
+    "petapi.<ctor>",
+    "storeapi.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "node"
+   ],
+   "reason": "F857 owner decision: an API class also takes the per-scheme credentials the client holds (an optional fourth schemeAuthenticators argument keyed by scheme name), which an operation resolves for the scheme its spec requires; the (apiClient, config, authenticator) call site is unchanged"
+  },
+  {
+   "element": "clientcredentials",
+   "aspect": "type",
+   "languages": [
+    "node"
+   ],
+   "reason": "F857 owner decision: ClientCredentials is the object node's client takes for its per-scheme credentials; TypeScript names the optional arguments by an object type where csharp, dart and php use named or defaulted parameters and go and rust use a Credentials struct"
+  },
+  {
+   "element": [
+    "credentials.readenvcredential",
+    "credentials.resolvecredential"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "extra*",
+   "reason": "F862: the helpers every authenticator calls to take its credential from the argument or from <PREFIX>_<FIELD>; JS has no package-private visibility, so they are exported from the credentials module the authenticators share"
+  },
+  {
+   "element": [
     "apiclient.closed",
     "client.closed"
    ],
@@ -3332,8 +3404,7 @@
    "element": "apierror.fromresponse",
    "aspect": "params",
    "languages": [
-    "kotlin",
-    "node"
+    "kotlin"
    ],
    "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
   },
@@ -3341,8 +3412,7 @@
    "element": "apierror.fromresponse",
    "aspect": "optional",
    "languages": [
-    "kotlin",
-    "node"
+    "kotlin"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
   },
@@ -3373,8 +3443,7 @@
    "element": "apierror.fromresponse",
    "aspect": "params",
    "languages": [
-    "php",
-    "node"
+    "php"
    ],
    "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
   },
@@ -3382,8 +3451,7 @@
    "element": "apierror.fromresponse",
    "aspect": "optional",
    "languages": [
-    "php",
-    "node"
+    "php"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
   },

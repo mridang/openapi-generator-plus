@@ -1,6 +1,4 @@
-export * from "./add-pet-options.js";
 export * from "./add-pet-photos-options.js";
-export * from "./add-pet-treatment-options.js";
 export * from "./delete-pet-options.js";
 export * from "./find-pets-by-status-options.js";
 export * from "./get-pet-by-name-options.js";

@@ -76,8 +76,13 @@ class TestableApi extends BaseApi {
     apiClient?: ApiClient,
     config?: Configuration,
     authenticator?: Authenticator | null,
+    schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null,
   ) {
-    super(apiClient, config, authenticator);
+    super(apiClient, config, authenticator, schemeAuthenticators);
+  }
+
+  resolve(schemes: readonly string[]): Authenticator | undefined {
+    return this.resolveSchemeAuth(schemes);
   }
 
   async call<T>(
@@ -1783,8 +1788,65 @@ describe("BaseApi WithHTTPInfo variant", () => {
   });
 });
 
-describe("BaseApi per-call auth optional", () => {
-  test("falls back to client-level authenticator when no per-call auth supplied", async () => {
+describe("BaseApi scheme credentials", () => {
+  const bearer = new TestAuthenticator({ Authorization: "Bearer b" });
+  const apiKey = new TestAuthenticator({ "X-Api-Key": "k" });
+
+  test("resolves the credential of the first listed scheme the client holds", () => {
+    const testApi = new TestableApi(undefined, undefined, null, {
+      bearer,
+      apiKey,
+    });
+
+    expect(testApi.resolve(["basic", "apiKey", "bearer"])).toBe(apiKey);
+    expect(testApi.resolve(["bearer", "apiKey"])).toBe(bearer);
+  });
+
+  test("resolves nothing when the client holds none of the listed schemes", () => {
+    const testApi = new TestableApi(undefined, undefined, null, { bearer });
+
+    expect(testApi.resolve(["basic", "apiKey"])).toBeUndefined();
+    expect(testApi.resolve([])).toBeUndefined();
+  });
+
+  test("resolves nothing for a client built with no scheme credentials", () => {
+    expect(new TestableApi().resolve(["bearer"])).toBeUndefined();
+  });
+
+  test.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
+    "a scheme named %s never resolves to a member of Object.prototype",
+    (name) => {
+      expect(
+        new TestableApi(undefined, undefined, null, { bearer }).resolve([name]),
+      ).toBeUndefined();
+    },
+  );
+
+  test("a resolved scheme credential is the one the request carries, not the client-level authenticator", async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+      new TestAuthenticator({ Authorization: "Bearer client-level" }),
+      { bearer },
+    );
+
+    await testApi.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+      testApi.resolve(["bearer"]),
+    );
+
+    expect(client.capturedHeaders["Authorization"]).toBe("Bearer b");
+  });
+
+  test("falls back to client-level authenticator when no scheme credential resolved", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const clientAuth = new TestAuthenticator({
@@ -1805,7 +1867,7 @@ describe("BaseApi per-call auth optional", () => {
     expect(client.capturedHeaders["X-Client-Auth"]).toBe("client-level-token");
   });
 
-  test("per-call auth overrides client-level authenticator", async () => {
+  test("a resolved authenticator replaces the client-level authenticator", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const clientAuth = new TestAuthenticator({

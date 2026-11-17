@@ -128,15 +128,30 @@ export class BinaryVault {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
+  }
+
+  /**
+   * Decode-time validation, run by {@link ObjectSerializer.deserialize} on the
+   * instance it built from the wire. The constructor itself checks nothing, so
+   * a model can be built from any value and a wrong type or an unknown enum
+   * string never raises there. This is the wire boundary: a missing required
+   * field, a value of the wrong type, an unknown enum string, a malformed
+   * date, UUID, URI or base64 value all fail here, loudly, and the checked
+   * values are stored back in their final form (a Set for a `uniqueItems`
+   * array, a Buffer for a base64 string, a lower-case UUID).
+   *
+   * @throws TypeError when the decoded value breaks the schema
+   */
+  __validate(): void {
     /**
      * 2.1 — format: byte. The wire form is base64; the model field is a
      * Buffer. Lives outside the isString block because typeMapping
      * (ByteArray to Buffer) flips isString to false at codegen time.
      */
     if (this.seal != null && typeof this.seal === "string") {
-      this.seal = decodeBase64(
-        this.seal as unknown as string,
-      ) as unknown as Buffer;
+      Object.assign(this, {
+        seal: decodeBase64(this.seal as unknown as string),
+      });
     } else if (this.seal != null && !Buffer.isBuffer(this.seal)) {
       throw new TypeError(
         `seal must be a Buffer or base64 string, got ${typeof this.seal}`,
@@ -157,7 +172,7 @@ export class BinaryVault {
      * non-string elements.
      */
     if (this.shards != null && Array.isArray(this.shards)) {
-      this.shards = (this.shards as unknown as unknown[]).map((__e) => {
+      const decoded = (this.shards as unknown as unknown[]).map((__e) => {
         if (typeof __e === "string") {
           return decodeBase64(__e);
         }
@@ -167,15 +182,16 @@ export class BinaryVault {
           );
         }
         return __e;
-      }) as unknown as Buffer[];
+      });
+      Object.assign(this, { shards: decoded });
     }
   }
 
   /**
    * A copy of this BinaryVault with the given fields replaced. The fields are
    * read-only, so a changed model is a new one: this instance is never changed.
-   * The copy is built through the constructor, so it is validated like any
-   * other instance.
+   * The copy is built through the constructor, which validates nothing, like
+   * any other instance built by hand.
    *
    * @param patch the fields to replace; the others keep their value
    * @returns the new BinaryVault

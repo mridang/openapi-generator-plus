@@ -62,6 +62,38 @@ export class PetTreatment {
     return this.matchedInstances;
   }
 
+  /** Whether one of the matched variants is a {@link Medication}. */
+  isMedication(): boolean {
+    return this.matchedInstances.some(
+      (instance) => instance instanceof Medication,
+    );
+  }
+
+  /** The first matched {@link Medication}, or null when no matched variant is one. */
+  asMedication(): Medication | null {
+    return (
+      this.matchedInstances.find(
+        (instance): instance is Medication => instance instanceof Medication,
+      ) ?? null
+    );
+  }
+
+  /** Whether one of the matched variants is a {@link Surgery}. */
+  isSurgery(): boolean {
+    return this.matchedInstances.some(
+      (instance) => instance instanceof Surgery,
+    );
+  }
+
+  /** The first matched {@link Surgery}, or null when no matched variant is one. */
+  asSurgery(): Surgery | null {
+    return (
+      this.matchedInstances.find(
+        (instance): instance is Surgery => instance instanceof Surgery,
+      ) ?? null
+    );
+  }
+
   /**
    * Value equality: two composites are equal when they retain equal variants
    * in the same order. Each variant's own equals() decides, so a variant

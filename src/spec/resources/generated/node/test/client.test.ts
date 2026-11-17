@@ -30,6 +30,7 @@ import type { ApiHttpResponse } from "../src/api-http-response.js";
 import * as entryPoint from "../src/index.js";
 import { Client } from "../src/client.js";
 import { TransportOptions } from "../src/transport-options.js";
+import { Pet } from "../src/models/index.js";
 
 describe("Client", () => {
   const authenticator = new BearerAuthenticator("/api/v3", "test-token");
@@ -114,6 +115,259 @@ describe("Client", () => {
       .build();
 
     expect(new Client(authenticator, transport)).toBeDefined();
+  });
+
+  describe("credentials per security scheme", () => {
+    const host = "https://api.example.com";
+    const newPet = () =>
+      new Pet({ id: 1, name: "x", photoUrls: new Set<string>() });
+
+    function recordingTransport(): {
+      transport: TransportOptions;
+      seen: Array<{ url: string; headers: Record<string, string> }>;
+    } {
+      const seen: Array<{ url: string; headers: Record<string, string> }> = [];
+      const stub = (async (
+        input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        const url = String(input);
+        seen.push({
+          url,
+          headers: { ...(init?.headers as Record<string, string>) },
+        });
+        let body = '{"id":1,"name":"x","photoUrls":[]}';
+        if (url.endsWith("/oauth/token")) {
+          body = '{"access_token":"at","expires_in":3600}';
+        } else if (url.includes("/store/inventory")) {
+          body = '{"available":1}';
+        }
+        return new Response(body, {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch;
+      return {
+        transport: TransportOptions.builder().fetch(stub).build(),
+        seen,
+      };
+    }
+
+    test("an operation uses the credential of the scheme its spec names", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        {
+          petStoreBearer: new PetStoreBearerAuthenticator(host, "bearer-token"),
+        },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
+    });
+
+    test("an operation uses the first scheme of its own list that the client holds", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        {
+          petStoreBearer: new PetStoreBearerAuthenticator(host, "bearer-token"),
+          apiKeyHeader: new ApiKeyHeaderAuthenticator(host, "key-token"),
+        },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!.headers["X-API-Key"]).toBe("key-token");
+      expect(seen[0]!.headers["Authorization"]).toBeUndefined();
+    });
+
+    test("an operation no scheme credential matches uses the default authenticator", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        {
+          authenticator: new BearerAuthenticator(host, "default-token"),
+          adminBasic: new AdminBasicAuthenticator(host, "a", "b"),
+        },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!.headers["Authorization"]).toBe("Bearer default-token");
+    });
+
+    test("an operation no scheme credential matches is sent without a credential when there is no default", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        { adminBasic: new AdminBasicAuthenticator(host, "a", "b") },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!.headers["Authorization"]).toBeUndefined();
+      expect(seen[0]!.headers["X-API-Key"]).toBeUndefined();
+    });
+
+    test("the default authenticator is never sent to an unauthenticated operation", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        { authenticator: new BearerAuthenticator(host, "default-token") },
+        transport,
+      );
+
+      await client.store.getInventory();
+
+      expect(seen[0]!.headers["Authorization"]).toBeUndefined();
+    });
+
+    test("the base URL comes from the default authenticator, else from the first credential given", async () => {
+      const first = recordingTransport();
+      await new Client(
+        {
+          petStoreBearer: new PetStoreBearerAuthenticator(
+            "https://scheme.example.com",
+            "t",
+          ),
+          authenticator: new BearerAuthenticator(
+            "https://default.example.com",
+            "t",
+          ),
+        },
+        first.transport,
+      ).pet.addPet(newPet());
+      const second = recordingTransport();
+      await new Client(
+        {
+          apiKeyHeader: new ApiKeyHeaderAuthenticator(
+            "https://one.example.com",
+            "k",
+          ),
+          petStoreBearer: new PetStoreBearerAuthenticator(
+            "https://two.example.com",
+            "t",
+          ),
+        },
+        second.transport,
+      ).pet.addPet(newPet());
+
+      expect(
+        first.seen[0]!.url.startsWith("https://default.example.com/"),
+      ).toBe(true);
+      expect(second.seen[0]!.url.startsWith("https://two.example.com/")).toBe(
+        true,
+      );
+    });
+
+    test("a client with no credential at all is refused", () => {
+      expect(() => new Client({})).toThrow(
+        new TypeError("At least one credential is required"),
+      );
+    });
+
+    test("an OAuth2 scheme credential shares the transport of the client", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        {
+          machineAuth: new MachineAuthClientCredentialsAuthenticator(
+            host,
+            "cid",
+            "csecret",
+          ),
+        },
+        transport,
+      );
+
+      await client.pet.deletePet(1);
+
+      expect(seen.map((call) => call.url.split("?")[0])).toEqual([
+        "https://auth.example.com/oauth/token",
+        "https://api.example.com/pet/1",
+      ]);
+      expect(seen[1]!.headers["Authorization"]).toBe("Bearer at");
+    });
+  });
+
+  describe("closing (F1078)", () => {
+    const host = "https://api.example.com";
+    const closable = new BearerAuthenticator(host, "test-token");
+    function gatedFetch(): {
+      transport: TransportOptions;
+      started: Promise<void>;
+      release: () => void;
+      calls: () => number;
+    } {
+      let release!: () => void;
+      let started!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const startedPromise = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      let calls = 0;
+      const stub = (async (): Promise<Response> => {
+        calls++;
+        started();
+        await gate;
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch;
+      return {
+        transport: TransportOptions.builder().fetch(stub).build(),
+        started: startedPromise,
+        release,
+        calls: () => calls,
+      };
+    }
+
+    test("a request already running finishes after close()", async () => {
+      const { transport, started, release } = gatedFetch();
+      const client = new Client(closable, transport);
+
+      const pending = client.pet.getPetById(1);
+      await started;
+      await client.close();
+      release();
+
+      expect((await pending).name).toBe("x");
+    });
+
+    test("a request issued after close() fails with the one closed-client error and never reaches the transport", async () => {
+      const { transport, calls } = gatedFetch();
+      const client = new Client(closable, transport);
+
+      await client.close();
+
+      await expect(client.pet.getPetById(1)).rejects.toThrow(
+        new Error("ApiClient has been closed and can no longer send requests"),
+      );
+      expect(calls()).toBe(0);
+    });
+
+    test("a second close() is a no-op", async () => {
+      const client = new Client(closable);
+
+      await client.close();
+
+      await expect(client.close()).resolves.toBeUndefined();
+    });
+
+    test("close() does not wait for a request that is still running", async () => {
+      const { transport, started, release } = gatedFetch();
+      const client = new Client(closable, transport);
+      const pending = client.pet.getPetById(1);
+      await started;
+
+      await expect(client.close()).resolves.toBeUndefined();
+
+      release();
+      await pending;
+    });
   });
 
   test("close() makes the owned transport reject further requests", async () => {

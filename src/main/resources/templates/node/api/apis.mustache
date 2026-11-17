@@ -91,8 +91,13 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{/tagExternalDocs}}
  */
 export class {{classname}} extends BaseApi {
-  constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null) {
-    super(apiClient, config, authenticator);
+  constructor(
+    apiClient?: ApiClient,
+    config?: Configuration,
+    authenticator?: Authenticator | null,
+    schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null
+  ) {
+    super(apiClient, config, authenticator, schemeAuthenticators);
   }
   {{#operation}}
 
@@ -116,16 +121,8 @@ export class {{classname}} extends BaseApi {
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.hasOptionsParam}}
-   * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
+   * @param options options for query, header, form, and cookie parameters
 {{/vendorExtensions.op.hasOptionsParam}}
-{{^vendorExtensions.op.hasOptionsParam}}
-{{#hasAuthMethods}}
-   * @param options options carrying an optional per-call authenticator
-{{/hasAuthMethods}}
-{{/vendorExtensions.op.hasOptionsParam}}
-{{#hasAuthMethods}}
-   * @param options.auth optional authenticator for this operation
-{{/hasAuthMethods}}
 {{#queryParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
@@ -293,14 +290,15 @@ export class {{classname}} extends BaseApi {
 {{#cookieParams}}
     if (options?.{{paramName}} != null) {
       const {{paramName}}CookieValue = {{#vendorExtensions.param.queryContent}}ValueSerializer.encodeQueryComponent(ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}`${ ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) }`{{/vendorExtensions.param.queryContent}};
-      /* RFC 6265 — reject CR/LF and other control characters in the
-       * serialized cookie value before it is joined into the Cookie
-       * header. This mirrors the validation the auth-cookie path applies
-       * in the base client, so a forbidden value fails closed with the
-       * same error instead of being injected raw into the header. */
+      /* F840: a cookie value is sent exactly as given when every character is
+       * an RFC 6265 cookie-octet (a value the caller percent-encoded stays as
+       * written). Any other character, a space, comma, semicolon, quote,
+       * backslash, control or non-ASCII one, fails here, before anything is
+       * sent: the caller pre-encodes. This is also what keeps CR/LF out of the
+       * Cookie header. */
       if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test({{paramName}}CookieValue)) {
         throw new TypeError(
-          `Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265`
+          `Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it`
         );
       }
       cookieParts.push(`{{baseName}}=${ {{paramName}}CookieValue }`);
@@ -374,7 +372,7 @@ export class {{classname}} extends BaseApi {
       },
 {{/vendorExtensions.op.hasMultiple2xx}}
       {{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => ObjectSerializer.decodeBase64(json as string){{/isBinary}}{{#isBinary}}(json: unknown) => ObjectSerializer.toBinary(json){{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => json as {{{returnType}}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},{{/vendorExtensions.op.hasMultiple2xx}}
-      {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}undefined{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+      {{#vendorExtensions.op.hasSecuritySchemes}}this.resolveSchemeAuth([{{#vendorExtensions.op.securitySchemeOrder}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}]){{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}undefined{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}},
       {{#bodyParam}}{{#isBinary}}true{{/isBinary}}{{^isBinary}}false{{/isBinary}}{{/bodyParam}}{{^bodyParam}}false{{/bodyParam}},
       {{#returnType}}'{{#returnProperty}}{{#isBinary}}binary{{/isBinary}}{{^isBinary}}{{#isFile}}binary{{/isFile}}{{^isFile}}{{#isByteArray}}model{{/isByteArray}}{{^isByteArray}}{{#isString}}{{^isEnumRef}}string{{/isEnumRef}}{{#isEnumRef}}model{{/isEnumRef}}{{/isString}}{{^isString}}model{{/isString}}{{/isByteArray}}{{/isFile}}{{/isBinary}}{{/returnProperty}}{{^returnProperty}}model{{/returnProperty}}'{{/returnType}}{{^returnType}}undefined{{/returnType}},
       '{{nickname}}',

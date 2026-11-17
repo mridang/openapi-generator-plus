@@ -28,19 +28,60 @@ export interface {{clientClassName}}Options {
 }
 
 /**
+ * The credentials of a {{clientClassName}}: one optional credential for each
+ * security scheme of the API, named after the scheme, and an optional default
+ * `authenticator`.
+ *
+ * An operation uses the credential of the first scheme in its own security
+ * requirement that the client holds, so it always uses the scheme its spec
+ * names and a call cannot pick another one. When the client holds a credential
+ * for none of an operation's schemes, the operation uses `authenticator` if
+ * one is given and is otherwise sent without a credential. At least one
+ * credential is required, and the base URL comes from the first one given,
+ * `authenticator` first.
+ */
+export interface {{clientClassName}}Credentials {
+  /** Default credential, used by an operation that no scheme credential matches. */
+  readonly authenticator?: Authenticator;
+{{#clientSchemes}}
+  /** Credential for the `{{{schemeId}}}` security scheme, for example a `{{className}}`. */
+  readonly {{paramName}}?: Authenticator;
+{{/clientSchemes}}
+}
+
+/**
+ * The security schemes of the API in the order the spec declares them: the
+ * credential's name on {@link {{clientClassName}}Credentials}, then the scheme's name in the spec.
+ */
+const SCHEMES: ReadonlyArray<readonly [Exclude<keyof {{clientClassName}}Credentials, 'authenticator'>, string]> = [
+{{#clientSchemes}}
+  ['{{{paramName}}}', '{{{schemeId}}}'],
+{{/clientSchemes}}
+];
+
+/** Whether the first constructor argument is a single authenticator. */
+function isAuthenticator(value: Authenticator | {{clientClassName}}Credentials): value is Authenticator {
+  return typeof (value as Partial<Authenticator>).getHost === 'function';
+}
+
+/**
  * Unified entry point for all API services.
  *
- * Takes an {@link Authenticator} and optionally {@link TransportOptions},
- * then exposes each API group as a typed property. If the authenticator
- * implements `HttpAwareAuthenticator`, the shared `ApiClient`
+ * Takes an {@link Authenticator} (or one optional credential per security
+ * scheme, see {@link {{clientClassName}}Credentials}) and optionally
+ * {@link TransportOptions}, then exposes each API group as a typed property.
+ * If a credential implements `HttpAwareAuthenticator`, the shared `ApiClient`
  * is injected so that authentication HTTP calls (token exchange, discovery)
  * use the same transport configuration as regular API calls.
  *
  * Usage:
  *
  * ```typescript
- * // Default transport
+ * // One authenticator for every operation
  * const client = new {{clientClassName}}(authenticator);
+ *
+ * // One credential per security scheme, named after the scheme
+ * const bySchemes = new {{clientClassName}}({ {{#clientSchemes}}{{#-first}}{{{paramName}}}: schemeAuthenticator{{/-first}}{{/clientSchemes}}{{^hasClientSchemes}}authenticator{{/hasClientSchemes}} });
  *
  * // Custom transport (proxy, timeouts, etc.)
  * const transport = TransportOptions.builder()
@@ -77,6 +118,13 @@ export class {{clientClassName}} {
   constructor(authenticator: Authenticator);
 
   /**
+   * Creates a new client with the given credentials and default transport settings.
+   *
+   * @param credentials one optional credential per security scheme, and an optional default authenticator
+   */
+  constructor(credentials: {{clientClassName}}Credentials);
+
+  /**
    * Creates a new client with the given authenticator and transport options.
    *
    * If the authenticator implements `HttpAwareAuthenticator`, the
@@ -89,50 +137,90 @@ export class {{clientClassName}} {
   constructor(authenticator: Authenticator, transportOptions: TransportOptions);
 
   /**
-   * Creates a new client with the given authenticator, transport options and
+   * Creates a new client from its credentials and transport options.
+   *
+   * Each security scheme of the API has one optional credential, named after
+   * the scheme. An operation uses the credential of the first scheme in its
+   * own security requirement that is given here, and there is no per-call
+   * override. When none of an operation's schemes has a credential, it uses
+   * `authenticator` if one is given and is otherwise sent without one. At
+   * least one credential is required, and the base URL comes from the first
+   * one given, `authenticator` first.
+   *
+   * If a credential implements `HttpAwareAuthenticator`, the shared
+   * `ApiClient` is injected so that token exchange and discovery requests use
+   * the same proxy, TLS, and timeout settings.
+   *
+   * @param credentials one optional credential per security scheme, and an optional default authenticator
+   * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   */
+  constructor(credentials: {{clientClassName}}Credentials, transportOptions: TransportOptions);
+
+  /**
+   * Creates a new client with the given credentials, transport options and
    * client-level options such as a cancellation signal.
    *
-   * @param authenticator provides host URL and auth headers
+   * @param credentials an authenticator, or one optional credential per security scheme
    * @param transportOptions HTTP transport configuration, or `undefined` for the defaults
    * @param clientOptions client-level options (e.g. a `signal` that cancels every call)
    */
   constructor(
-    authenticator: Authenticator,
+    credentials: Authenticator | {{clientClassName}}Credentials,
     transportOptions: TransportOptions | undefined,
     clientOptions: {{clientClassName}}Options
   );
 
   constructor(
-    authenticator: Authenticator,
+    credentials: Authenticator | {{clientClassName}}Credentials,
     transportOptions?: TransportOptions,
     clientOptions?: {{clientClassName}}Options
   ) {
+    const authenticator = isAuthenticator(credentials) ? credentials : credentials.authenticator;
+    const schemes: Record<string, Authenticator> = {};
+    if (!isAuthenticator(credentials)) {
+      for (const [name, scheme] of SCHEMES) {
+        const credential = credentials[name];
+        if (credential != null) {
+          schemes[scheme] = credential;
+        }
+      }
+    }
+    const held = [...(authenticator != null ? [authenticator] : []), ...Object.values(schemes)];
+    const host = held[0];
+    if (host === undefined) {
+      throw new TypeError('At least one credential is required');
+    }
+
     const transport = transportOptions ?? TransportOptions.builder().build();
     const apiClient: DefaultApiClient = new DefaultApiClient(transport);
     this.ownedClient = apiClient;
 
-    if (isHttpAwareAuthenticator(authenticator)) {
-      authenticator.setApiClient(apiClient);
+    for (const credential of held) {
+      if (isHttpAwareAuthenticator(credential)) {
+        credential.setApiClient(apiClient);
+      }
     }
 
     const config = Configuration.builder()
-      .baseUrl(authenticator.getHost())
+      .baseUrl(host.getHost())
       .signal(clientOptions?.signal)
       .build();
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-    this.{{clientPropertyName}} = new {{classname}}(apiClient, config, authenticator);
+    this.{{clientPropertyName}} = new {{classname}}(apiClient, config, authenticator, schemes);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
   }
 
   /**
-   * Releases the HTTP stack the SDK built itself (the connection pool of the
-   * default transport). Requests made after this call are rejected with the
-   * closed-client error. A caller-supplied `fetch` is never touched. Calling
-   * it again is harmless.
+   * Closes the client, gracefully and idempotently. The client is marked
+   * closed at once: a request issued after this call is rejected with the
+   * closed-client error. A request already running finishes, and the HTTP
+   * stack the SDK built itself (the connection pool of the default transport)
+   * is released when the last of them completes, or here when none is running.
+   * A caller-supplied `fetch` is never touched. Calling it again is a no-op.
    */
   async close(): Promise<void> {
     await this.ownedClient.close();

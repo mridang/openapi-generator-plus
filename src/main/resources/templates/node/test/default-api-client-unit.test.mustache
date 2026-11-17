@@ -431,29 +431,6 @@ describe('DefaultApiClient transport-failure responseHeaders', () => {
     expect((caught as NetworkTimeoutError).statusCode).toBe(0);
   });
 
-  it('closing the client aborts a request that is still running instead of waiting for it', async () => {
-    const hanging = http.createServer(() => {
-      /* never respond */
-    });
-    await new Promise<void>(resolve => hanging.listen(0, '127.0.0.1', resolve));
-    const port = (hanging.address() as { port: number }).port;
-    /* verifySsl(false) makes the client build its own dispatcher. */
-    const client = new DefaultApiClient(
-      TransportOptions.builder().verifySsl(false).timeout(null).maxRetries(0).build()
-    );
-    const pending = client
-      .sendRequest('GET', `http://127.0.0.1:${port}/hang`, {}, null)
-      .catch((e: unknown) => e);
-    try {
-      await new Promise<void>(resolve => setTimeout(resolve, 100));
-      await client.close();
-      expect(await pending).toBeInstanceOf(NetworkError);
-    } finally {
-      hanging.closeAllConnections();
-      await new Promise<void>(resolve => hanging.close(() => resolve()));
-    }
-  });
-
   it('using a closed client throws the invalid-state Error', async () => {
     // A wrong call order is a programming error, not an SDK error.
     const client = new DefaultApiClient();
@@ -1449,6 +1426,145 @@ describe('use-after-close', () => {
     expect((error as Error).message).toBe(
       'ApiClient has been closed and can no longer send requests'
     );
+  });
+});
+
+/*
+ * F1078: close() is graceful and idempotent. A request already running
+ * finishes, a request issued afterwards fails with the one closed-client
+ * error, and the transport the SDK created is released when the last running
+ * request completes. A transport the caller supplied is never touched.
+ */
+describe('graceful close', () => {
+  const closedMessage = 'ApiClient has been closed and can no longer send requests';
+
+  function slowServer(): Promise<{ url: string; arrived: Promise<void>; answer: () => void; stop: () => Promise<void> }> {
+    return new Promise((resolve) => {
+      let arrived!: () => void;
+      const arrivedPromise = new Promise<void>((done) => {
+        arrived = done;
+      });
+      let pending: http.ServerResponse | undefined;
+      const slow = http.createServer((_req, res) => {
+        pending = res;
+        arrived();
+      });
+      slow.listen(0, '127.0.0.1', () => {
+        resolve({
+          url: `http://127.0.0.1:${(slow.address() as { port: number }).port}/slow`,
+          arrived: arrivedPromise,
+          answer: () => {
+            pending?.writeHead(200, { 'Content-Type': 'text/plain' });
+            pending?.end('late');
+          },
+          stop: async () => {
+            slow.closeAllConnections();
+            await new Promise<void>((done) => slow.close(() => done()));
+          },
+        });
+      });
+    });
+  }
+
+  it('lets a request that is already running finish', async () => {
+    const slow = await slowServer();
+    const client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+    try {
+      const pending = client.sendRequest('GET', slow.url, {}, null);
+      await slow.arrived;
+      await client.close();
+      slow.answer();
+
+      const response = await pending;
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toBe('late');
+    } finally {
+      await slow.stop();
+    }
+  });
+
+  it('releases the transport the SDK created only when the last running request completes', async () => {
+    const slow = await slowServer();
+    const client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).maxRedirects(2).build());
+    const dispatcher = (client as unknown as { dispatcher: { closed: boolean } }).dispatcher;
+    try {
+      const pending = client.sendRequest('GET', slow.url, {}, null);
+      await slow.arrived;
+      await client.close();
+
+      expect(dispatcher.closed).toBe(false);
+
+      slow.answer();
+      await pending;
+
+      expect(dispatcher.closed).toBe(true);
+    } finally {
+      await slow.stop();
+    }
+  });
+
+  it('releases the transport at once when no request is running, and a second close() is a no-op', async () => {
+    const client = new DefaultApiClient(TransportOptions.builder().maxRedirects(2).build());
+    const dispatcher = (client as unknown as { dispatcher: { closed: boolean } }).dispatcher;
+
+    await client.close();
+
+    expect(dispatcher.closed).toBe(true);
+    await expect(client.close()).resolves.toBeUndefined();
+  });
+
+  it('a request issued while the last one is finishing fails with the closed-client error', async () => {
+    const slow = await slowServer();
+    const client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+    try {
+      const pending = client.sendRequest('GET', slow.url, {}, null);
+      await slow.arrived;
+      await client.close();
+
+      await expect(client.sendRequest('GET', slow.url, {}, null)).rejects.toThrow(new Error(closedMessage));
+
+      slow.answer();
+      await pending;
+    } finally {
+      await slow.stop();
+    }
+  });
+
+  it('cancels a running request through its own signal, never through close()', async () => {
+    const slow = await slowServer();
+    const client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+    const controller = new AbortController();
+    try {
+      const pending = client
+        .sendRequest('GET', slow.url, {}, null, { signal: controller.signal })
+        .catch((e: unknown) => e);
+      await slow.arrived;
+      await client.close();
+      controller.abort();
+
+      const error = await pending;
+
+      expect((error as Error).name).toBe('AbortError');
+    } finally {
+      await slow.stop();
+    }
+  });
+
+  it('never closes a fetch the caller supplied, however many times it closes', async () => {
+    let called = 0;
+    const customFetch = (async (): Promise<Response> => {
+      called++;
+      return new Response('{}');
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().fetch(customFetch).build());
+
+    await client.sendRequest('GET', 'http://example.invalid/', {}, null);
+    await client.close();
+    await client.close();
+
+    expect(called).toBe(1);
+    expect(await customFetch('http://example.invalid/')).toBeInstanceOf(Response);
   });
 });
 

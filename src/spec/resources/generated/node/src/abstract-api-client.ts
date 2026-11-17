@@ -61,10 +61,15 @@ export abstract class AbstractApiClient implements ApiClient {
   /* The dispatcher (if any) is resolved once per client and cached. A `null`
    * resolution means "no special dispatcher; use plain fetch". */
   private dispatcherPromise?: Promise<unknown>;
-  /* T-D4: once close() has run the client must refuse further use with the
-   * SDK's own error type rather than leaking a foreign exception or silently
-   * succeeding against a cleared pool. */
+  /* T-D4: once close() has run the client must refuse further use rather than
+   * leaking a foreign exception or silently succeeding against a cleared pool. */
   protected closed = false;
+  /* F1078: requests that have started and not yet finished. Closing the client
+   * lets them finish; the transport is released when the last one does. */
+  private inFlight = 0;
+  /* Set once the transport the SDK built has been released, so it is released
+   * exactly once. */
+  private transportReleased = false;
 
   /**
    * Create a client configured from the given {@link TransportOptions}.
@@ -249,12 +254,35 @@ export abstract class AbstractApiClient implements ApiClient {
     options?: SendRequestOptions,
   ): Promise<ApiHttpResponse> {
     /* Using a client after close() is a wrong call order: the invalid-state
-     * built-in Error, not an SDK error. */
+     * built-in Error, not an SDK error. A request is counted in before it
+     * starts, so closing the client lets it finish. */
     if (this.closed) {
       throw new Error(
         "ApiClient has been closed and can no longer send requests",
       );
     }
+    this.inFlight++;
+    try {
+      return await this.sendCounted(method, url, headers, body, options);
+    } finally {
+      this.inFlight--;
+      if (this.closed && this.inFlight === 0) {
+        await this.releaseTransportOnce();
+      }
+    }
+  }
+
+  /**
+   * The request loop of {@link sendRequest}, run while the request is counted
+   * as in flight.
+   */
+  private async sendCounted(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | null,
+    options?: SendRequestOptions,
+  ): Promise<ApiHttpResponse> {
     /* One end-to-end deadline covers every attempt: a retry never extends it. */
     const timeout =
       options?.timeout !== undefined
@@ -1286,13 +1314,39 @@ export abstract class AbstractApiClient implements ApiClient {
   }
 
   /**
-   * Closes the client. After calling this method the client must not be
-   * reused; a subsequent {@link sendRequest} raises an {@link ApiError}.
-   * Subclasses override to release transport resources (e.g. an undici
-   * dispatcher pool).
+   * Closes the client, gracefully and idempotently: it is marked closed at
+   * once, so a request issued afterwards fails with the closed-client error;
+   * a request already running finishes; and the transport the SDK built
+   * itself is released when the last running request completes, or here when
+   * none is running. Never waits for a running request, so a call with no
+   * timeout cannot make closing hang. A second call does nothing.
    */
   async close(): Promise<void> {
     this.closed = true;
+    if (this.inFlight === 0) {
+      await this.releaseTransportOnce();
+    }
+  }
+
+  /**
+   * Releases the transport the SDK built, once. Subclasses override
+   * {@link releaseTransport}; this guard makes sure it runs a single time,
+   * after the last in-flight request.
+   */
+  private async releaseTransportOnce(): Promise<void> {
+    if (this.transportReleased) {
+      return;
+    }
+    this.transportReleased = true;
+    await this.releaseTransport();
+  }
+
+  /**
+   * Releases the resources the SDK created for this client (e.g. an undici
+   * dispatcher pool). Never touches anything the caller supplied. The default
+   * has nothing to release.
+   */
+  protected releaseTransport(): Promise<void> {
     return Promise.resolve();
   }
 }
