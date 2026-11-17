@@ -593,6 +593,10 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "serialize/1" do
+    test "bhv serializationobject 188 an empty object serializes to an empty JSON object" do
+      assert PetstoreClient.ObjectSerializer.serialize(%{}) == "{}"
+    end
+
     test "bhv serializationobject 152 serializes a model to valid JSON" do
       category = %PetstoreClient.Models.Category{id: 1, name: "Dogs"}
       json = PetstoreClient.ObjectSerializer.serialize(category)
@@ -892,6 +896,18 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "deserialize/2" do
+    test "bhv serializationobject 189 decodes mutually recursive Department and Employee models from nested JSON" do
+      body = ~s({"name":"eng","lead":{"name":"ann","department":{"name":"eng"}}})
+
+      assert %PetstoreClient.Models.Department{
+               name: "eng",
+               lead: %PetstoreClient.Models.Employee{
+                 name: "ann",
+                 department: %PetstoreClient.Models.Department{name: "eng"}
+               }
+             } = PetstoreClient.ObjectSerializer.deserialize(body, "Department")
+    end
+
     test "bhv serializationobject 057 deserialize raises on a double literal that overflows to Infinity" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(

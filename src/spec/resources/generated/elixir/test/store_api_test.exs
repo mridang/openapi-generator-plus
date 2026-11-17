@@ -149,6 +149,31 @@ defmodule PetstoreClient.Api.StoreApiTest do
              PetstoreClient.Api.StoreApi.reserve_stock(created)
   end
 
+  test "bhv operations 129 a 200 response from reserve_stock decodes as the existing reservation" do
+    existing =
+      new_store_api_for_mock(200, "application/json", ~s({"reservationId":9,"quantity":3}))
+
+    assert {:ok, %PetstoreClient.Models.Reservation{reservation_id: 9, quantity: 3}} =
+             PetstoreClient.Api.StoreApi.reserve_stock(existing)
+  end
+
+  test "bhv operations 130 a malformed 2xx JSON body propagates the deserialization error" do
+    api = new_store_api_for_mock(200, "application/json", ~s({"id":))
+
+    assert_raise PetstoreClient.Errors.SerializationError, ~r/Failed to deserialize JSON/, fn ->
+      PetstoreClient.Api.StoreApi.get_order_by_id(api, 1)
+    end
+  end
+
+  test "bhv operations 136 a bare JSON null body from a model operation throws an API error naming the operation" do
+    api = new_store_api_for_mock(200, "application/json", "null")
+
+    assert {:error, %PetstoreClient.Errors.ApiError{message: message}} =
+             PetstoreClient.Api.StoreApi.get_order_by_id(api, 1)
+
+    assert message =~ "get_order_by_id"
+  end
+
   test "an error response names the request" do
     api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
 
@@ -178,6 +203,33 @@ defmodule PetstoreClient.Api.StoreApiTest do
       {418, PetstoreClient.Errors.ClientError},
       {422, PetstoreClient.Errors.UnprocessableEntityError},
       {502, PetstoreClient.Errors.ServerError}
+    ]
+
+    for {status, module} <- cases do
+      config =
+        PetstoreClient.Configuration.new(
+          base_url: "#{chasm_url}/test/status/#{status}",
+          default_headers: %{}
+        )
+
+      api = PetstoreClient.Api.StoreApi.new(client, config)
+
+      assert {:error, error} = PetstoreClient.Api.StoreApi.get_order_by_id(api, 1)
+      assert error.__struct__ == module
+      assert error.status_code == status
+    end
+  end
+
+  test "bhv operations 138 an error response is thrown as the exception class for its status through the typed routes" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(max_retries: 0))
+
+    cases = [
+      {404, PetstoreClient.Errors.NotFoundError},
+      {429, PetstoreClient.Errors.TooManyRequestsError},
+      {500, PetstoreClient.Errors.InternalServerError}
     ]
 
     for {status, module} <- cases do
@@ -242,6 +294,18 @@ defmodule PetstoreClient.Api.StoreApiTest do
         {response, %{state | request: %{method: method, url: url, headers: headers, body: body}}}
       end)
     end
+  end
+
+  test "bhv operations 132 a missing required path argument names the first required parameter" do
+    {:ok, name} = StubApiClient.start("{}")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert_raise ArgumentError,
+                 "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id",
+                 fn -> PetstoreClient.Api.StoreApi.get_order_by_id(api, nil) end
+
+    Agent.stop(name)
   end
 
   test "bhv operations 126 place_order without an order sends no body and no content type" do
@@ -404,7 +468,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "an operation that inherits the root security uses the first scheme of that requirement the client holds" do
+  test "bhv operations 148 an operation that inherits the root security uses the first scheme of that requirement the client holds" do
     {:ok, name} = StubApiClient.start(~s({"id":1}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     bearer = %{auth_headers: %{"Authorization" => "bearer"}}
@@ -474,7 +538,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "search_store keeps the fractional seconds of a time parameter when non-zero" do
+  test "bhv operations 139 search_store keeps the fractional seconds of a time parameter when non-zero" do
     {:ok, name} = StubApiClient.start("")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -483,6 +547,22 @@ defmodule PetstoreClient.Api.StoreApiTest do
     _result = PetstoreClient.Api.StoreApi.search_store(api, options)
 
     assert StubApiClient.captured(name).url =~ "at=10%3A30%3A00.123"
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 128 a content query parameter that cannot be serialized raises a serialization error and sends no request" do
+    {:ok, name} = StubApiClient.start("")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    options = %PetstoreClient.Api.Options.SearchStoreOptions{q: {:no, :json_form}}
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Api.StoreApi.search_store(api, options)
+    end
+
+    assert StubApiClient.captured(name) == nil
 
     Agent.stop(name)
   end

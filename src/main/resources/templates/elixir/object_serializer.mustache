@@ -561,7 +561,16 @@ defmodule {{moduleName}}.ObjectSerializer do
   end
 
   def sanitize_for_serialization(value) when is_atom(value), do: to_string(value)
-  def sanitize_for_serialization(value), do: to_string(value)
+
+  # A term with no string form (a tuple, a pid, a function) has no JSON form:
+  # raise the serialization error the callers already handle, before any request.
+  def sanitize_for_serialization(value) do
+    to_string(value)
+  rescue
+    Protocol.UndefinedError ->
+      raise {{moduleName}}.Errors.SerializationError,
+            message: "Failed to serialize object to JSON: #{inspect(value)} has no JSON form"
+  end
 
   # format: byte - encode the native `binary()` bytes back to a
   # base64 string before they hit the JSON encoder. The struct's

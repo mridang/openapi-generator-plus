@@ -133,6 +133,30 @@ defmodule {{moduleName}}.TransportOptionsTest do
     end
   end
 
+  test "bhv options 045 a negative max_redirects is rejected at configuration" do
+    assert_raise ArgumentError,
+                 "Invalid max_redirects: must be a non-negative integer (got -1)",
+                 fn -> {{moduleName}}.TransportOptions.new(max_redirects: -1) end
+  end
+
+  test "bhv options 046 constructing transport options directly with a non-http proxy scheme is rejected" do
+    assert_raise ArgumentError, ~r/must use http or https scheme/, fn ->
+      {{moduleName}}.TransportOptions.new(proxy: "socks5://proxy.example.com:1080")
+    end
+  end
+
+  test "bhv options 047 a negative timeout is rejected at configuration" do
+    assert_raise ArgumentError,
+                 "Invalid timeout: must be a positive number of milliseconds (got -5)",
+                 fn -> {{moduleName}}.TransportOptions.new(timeout: -5) end
+  end
+
+  test "bhv options 051 a proxy URL with a scheme other than http or https is rejected" do
+    assert_raise ArgumentError,
+                 "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+                 fn -> {{moduleName}}.TransportOptions.new(proxy: "ftp://proxy.example.com:21") end
+  end
+
   test "bhv options 033 a zero or negative timeout is rejected with the canonical message" do
     for bad <- [-1, 0] do
       err =

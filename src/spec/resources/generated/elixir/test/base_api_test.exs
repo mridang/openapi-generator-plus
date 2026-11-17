@@ -1559,6 +1559,32 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv operations 131 a request with no body sends no Content-Type header" do
+    {:ok, name} = CapturingHeadersApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingHeadersApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :delete,
+        "/test/echo",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    headers = CapturingHeadersApiClient.captured_headers(name)
+
+    refute Map.has_key?(headers, "Content-Type"),
+           "Content-Type must NOT be sent when there is no body"
+
+    Agent.stop(name)
+  end
+
   test "bhv operations 011 empty string body includes Content-Type" do
     {:ok, name} = CapturingHeadersApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
@@ -2274,6 +2300,25 @@ defmodule PetstoreClient.Api.BaseApiTest do
     state = %{config: config, api_client: MalformedSuccessApiClient}
 
     assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        "Category"
+      )
+    end
+  end
+
+  test "bhv operations 127 a malformed 2xx body fails loud with a serialization error instead of returning the raw string" do
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: MalformedSuccessApiClient}
+
+    assert_raise PetstoreClient.Errors.SerializationError, ~r/Failed to deserialize JSON/, fn ->
       PetstoreClient.Api.BaseApi.invoke_api(
         state,
         :get,
