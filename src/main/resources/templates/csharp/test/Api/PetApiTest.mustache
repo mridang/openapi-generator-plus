@@ -601,6 +601,19 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOperations060TestGetPetTagUsesTheMatrixAndLabelPathStyles()
+    {
+        /* petId is a matrix segment (";petId=7") and tagName a label segment
+           (".cute"), so the path reads /pet/;petId=7/tag/.cute. */
+        var client = new UrlCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetTagAsync(7L, "cute", new GetPetTagOptions());
+
+        Assert.Contains("/pet/;petId=7/tag/.cute", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BhvOperations061TestGetExternalPetInfoUsesPerOperationServer()
     {
         {{! The operation declares its own server. The client below sends every }}
@@ -685,6 +698,22 @@ public class PetApiTest
             new GetMultiServerPetInfoServerMirror(
                 GetMultiServerPetInfoServerMirrorRegion.US, GetMultiServerPetInfoServerChannel.IT_S).Url
         );
+    }
+
+    [Fact]
+    public async Task BhvOperations084TestTheMirrorOperationServerResolvesReservedCharactersRaw()
+    {
+        /* The mirror variant writes its channel into the server URL as it is,
+           so the ampersand reaches the wire without percent-encoding. */
+        var client = new UrlCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetMultiServerPetInfoAsync(
+            1L,
+            new GetMultiServerPetInfoServerMirror(
+                GetMultiServerPetInfoServerMirrorRegion.EU, GetMultiServerPetInfoServerChannel.A_B));
+
+        Assert.Equal("https://eu.mirror.example.com/a&b/v1/pet/1/multi", client.CapturedUrl!.AbsoluteUri);
     }
 
     private sealed class RedirectingApiClient(string from, string to) : IApiClient
@@ -845,6 +874,26 @@ public class PetApiTest
         await api.AddPetAsync(pet);
 
         Assert.False(client.CapturedHeaders.ContainsKey("Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvOperations026TestAddPetUsesTheClientLevelAuthenticatorWhenNoSchemeCredentialMatches()
+    {
+        /* addPet accepts apiKeyHeader or petStoreBearer. Only a credential for an
+           unrelated scheme is held, so no scheme matches and the client-level
+           authenticator is the one that reaches the wire. */
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["serviceToken"] = new BearerAuthenticator("http://localhost", "unrelated-token"),
+        };
+        var api = new PetApi(client, config, new BearerAuthenticator("http://localhost", "client-token"), schemes);
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" }) { Id = 1L };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("Bearer client-token", client.CapturedHeaders["Authorization"]);
     }
 
     [Fact]
@@ -1028,6 +1077,13 @@ public class PetApiTest
         // its spec requires, so a secured operation's options carry no Auth.
         Assert.Null(typeof(AddPetOptions).GetProperty("Auth"));
         Assert.Null(typeof(DeletePetOptions).GetProperty("Auth"));
+    }
+
+    [Fact]
+    public void BhvOperations086TestUnsecuredOperationOptionsHasNoAuthField()
+    {
+        /* getPetById is unsecured, so its options object has no Auth member. */
+        Assert.Null(typeof(GetPetByIdOptions).GetProperty("Auth"));
     }
 
     [Fact]

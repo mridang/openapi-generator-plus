@@ -192,6 +192,19 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvTransport002TheTimeoutReachesTheTransportForThisCallOnly()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        _ = await api.CallWithCallOptionsAsync<object>("/x", [], 1500, null, null);
+        Assert.Equal(1500, client.Timeout);
+
+        _ = await api.CallWithCallOptionsAsync<object>("/x", [], null, null, null);
+        Assert.Null(client.Timeout);
+    }
+
+    [Fact]
     public async Task BhvOperations001PerCallHeadersReplaceAHeaderOfTheSameNameWhateverItsCasing()
     {
         var client = new CallOptionsApiClient(200, "{}");
