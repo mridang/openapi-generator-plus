@@ -1780,12 +1780,12 @@ class DefaultApiClientUnitTest {
         @DisplayName("F1078: close is idempotent and lets a request already in flight finish")
         fun closeIsGracefulAndIdempotent() {
             val engine =
-                io.ktor.client.engine.mock.MockEngine { _ ->
+                MockEngine { _ ->
                     kotlinx.coroutines.delay(300)
-                    io.ktor.client.engine.mock.respond(
+                    respond(
                         content = "{}",
-                        status = io.ktor.http.HttpStatusCode.OK,
-                        headers = io.ktor.http.headersOf("Content-Type", "application/json"),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
                     )
                 }
             val apiClient = DefaultApiClient(io.ktor.client.HttpClient(engine))
