@@ -60,8 +60,9 @@ describe('BasicAuthenticator', () => {
     });
   });
 
-  it("redacts the secret in inspect and JSON output", () => {
+  it('bhv authbasic 005 the password is not leaked in the default string, inspect or JSON output', () => {
     const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(String(auth)).not.toContain('s3cret');
     expect(util.inspect(auth)).not.toContain('s3cret');
     expect(JSON.stringify(auth)).not.toContain('s3cret');
     expect(util.inspect(auth)).toContain('***');
