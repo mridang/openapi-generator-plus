@@ -454,6 +454,21 @@ async fn test_empty_user_agent_is_sent_as_an_empty_header() {
 }
 
 #[tokio::test]
+async fn test_injects_default_user_agent_when_not_explicitly_set() {
+    let (base_url, head) = start_head_capture_server();
+    let client = DefaultApiClient::new(None);
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    let user_agent = head_header(&head, "user-agent").expect(&head);
+    assert!(!user_agent.is_empty(), "{}", head);
+}
+
+#[tokio::test]
 async fn test_no_user_agent_is_omitted_when_cleared() {
     let (base_url, head) = start_head_capture_server();
     let transport = TransportOptionsBuilder::new()
@@ -1230,7 +1245,7 @@ fn start_multi_header_server() -> String {
 }
 
 #[tokio::test]
-async fn test_default_api_client_sends_get_request_and_returns_response() {
+async fn test_sends_get_request_and_returns_response() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1247,7 +1262,7 @@ async fn test_default_api_client_sends_get_request_and_returns_response() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_sends_post_with_json_body() {
+async fn test_sends_post_with_json_body() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
@@ -1271,7 +1286,7 @@ async fn test_default_api_client_sends_post_with_json_body() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_returns_response_headers() {
+async fn test_returns_response_headers() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1292,7 +1307,7 @@ async fn test_default_api_client_returns_response_headers() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_returns_non_2xx_status_code() {
+async fn test_returns_non_2xx_status_code() {
     let base_url = start_404_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1305,7 +1320,7 @@ async fn test_default_api_client_returns_non_2xx_status_code() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_sends_put_request() {
+async fn test_sends_put_request() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1323,7 +1338,7 @@ async fn test_default_api_client_sends_put_request() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_sends_delete_request() {
+async fn test_sends_delete_request() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1340,7 +1355,7 @@ async fn test_default_api_client_sends_delete_request() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_returns_json_body_for_vendor_json_content_type() {
+async fn test_returns_json_body_for_vendor_json_content_type() {
     let base_url = start_vendor_json_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1357,7 +1372,7 @@ async fn test_default_api_client_returns_json_body_for_vendor_json_content_type(
 }
 
 #[tokio::test]
-async fn test_default_api_client_joins_multi_value_response_headers() {
+async fn test_joins_multi_value_response_headers() {
     let base_url = start_multi_header_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();

@@ -1430,7 +1430,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_body_form_urlencoded() {
+    fn test_serializes_form_urlencoded_body() {
         let json_bytes = encode_form_pairs(&[("name", serde_json::json!("alice"))]);
         let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap();
         assert!(result.is_some());
@@ -1525,7 +1525,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_body_text_plain() {
+    fn test_serializes_text_plain_body() {
         let body = b"hello world".to_vec();
         let result = serialize_body(Some(body), "text/plain").unwrap();
         assert!(result.is_some());

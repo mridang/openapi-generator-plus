@@ -266,7 +266,7 @@ async fn test_base_api_returns_unit_when_return_type_is_void() {
 // -- Gap Z: URL trailing-slash collapse --
 
 #[tokio::test]
-async fn test_base_api_collapses_double_slash_when_baseurl_has_trailing() {
+async fn test_base_api_collapses_double_slash_when_baseurl_has_trailing_slash() {
     // baseUrl='http://x/' + path='/y' must produce 'http://x/y', not
     // 'http://x//y' which most servers route to 404.
     let client = Arc::new(CapturingApiClient::new());
@@ -704,7 +704,7 @@ async fn test_base_api_serializes_json_body() {
 //   2. an optional null/absent field is omitted entirely (no `note=`);
 //   3. a space encodes as `+`, never `%20`.
 #[tokio::test]
-async fn test_set_pet_preferences_form_body_wire_format() {
+async fn test_base_api_serializes_form_urlencoded_body() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1210,6 +1210,24 @@ async fn test_base_api_query_param_serialization() {
     assert!(
         url.contains("status=available"),
         "expected URL to contain status=available, got: {}",
+        url
+    );
+}
+
+#[tokio::test]
+async fn test_base_api_expands_array_query_params() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = petstore::api::options::SearchStoreOptions::new()
+        .labels(vec!["a".to_string(), "b".to_string()]);
+    let _ = api.search_store(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        url.contains("labels=a&labels=b"),
+        "expected expanded array params, got: {}",
         url
     );
 }

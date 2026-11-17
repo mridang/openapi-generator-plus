@@ -551,7 +551,7 @@
     "rust": {
       "extraGroups": [
         {
-          "reason": "tracked in #118",
+          "reason": "in-crate tests of crate-private Rust items the other languages have no counterpart for: the ApiClient trait's default methods and header helpers, the DateTime newtype around chrono, and the Base64Serde serde adapter",
           "keys": [
             "apiclient",
             "base64serde",
@@ -562,37 +562,6 @@
           "reason": "a Rust-only test helper module that the other languages keep inside their test fixtures",
           "keys": [
             "testcontainershelper"
-          ]
-        }
-      ],
-      "missingTests": [
-        {
-          "reason": "tracked in #118",
-          "keys": [
-            "baseapi::collapsesdoubleslashwhenbaseurlhastrailingslash",
-            "baseapi::expandsarrayqueryparams",
-            "baseapi::serializesformurlencodedbody",
-            "baseapi::serializestextplainbody",
-            "basicauthenticator::rejectspasswordwithnulatconstruction",
-            "basicauthenticator::rejectsusernamewithcolonatconstruction",
-            "basicauthenticator::rejectsusernamewithcrlfatconstruction",
-            "client::constructwithauthenticatorandtransportoptions",
-            "defaultapiclientunit::injectsdefaultuseragentwhennotexplicitlyset",
-            "defaultapiclientunit::joinsmultivalueresponseheaders",
-            "defaultapiclientunit::returnsjsonbodyforvendorjsoncontenttype",
-            "defaultapiclientunit::returnsnon2xxstatuscode",
-            "defaultapiclientunit::returnsresponseheaders",
-            "defaultapiclientunit::sendsdeleterequest",
-            "defaultapiclientunit::sendsgetrequestandreturnsresponse",
-            "defaultapiclientunit::sendspostwithjsonbody",
-            "defaultapiclientunit::sendsputrequest",
-            "oauth2clientcredentialsauthenticator::tokenfetcherrorissurfacednotswallowed",
-            "oauth2implicitauthenticator::throwswhenaccesstokennotset",
-            "objectserializer::deserializeappliesschemadefaultforabsentfield",
-            "transportoptions::cacertpathdefaultstonull",
-            "transportoptions::maxredirectsdefaultstonull",
-            "transportoptions::proxydefaultstonull",
-            "transportoptions::useragentdefaultstononemptystring"
           ]
         }
       ]

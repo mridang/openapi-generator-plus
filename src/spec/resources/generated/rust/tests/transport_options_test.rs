@@ -23,7 +23,7 @@ fn test_transport_options_verify_ssl_defaults_to_true() {
 }
 
 #[test]
-fn test_transport_options_ca_cert_path_defaults_to_none() {
+fn test_transport_options_ca_cert_path_defaults_to_null() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -34,7 +34,7 @@ fn test_transport_options_ca_cert_path_defaults_to_none() {
 }
 
 #[test]
-fn test_transport_options_proxy_defaults_to_none() {
+fn test_transport_options_proxy_defaults_to_null() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -63,7 +63,7 @@ fn test_transport_options_follow_redirects_defaults_to_true() {
 }
 
 #[test]
-fn test_transport_options_max_redirects_defaults_to_none() {
+fn test_transport_options_max_redirects_defaults_to_null() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -79,6 +79,14 @@ fn test_transport_options_user_agent_defaults_to_branded_value() {
         .build()
         .expect("valid transport options");
     assert_eq!(opts.user_agent(), Some("petstore/1.0.0 (rust)"));
+}
+
+#[test]
+fn test_transport_options_user_agent_defaults_to_non_empty_string() {
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
+    assert!(!opts.user_agent().expect("a default user agent").is_empty());
 }
 
 #[test]

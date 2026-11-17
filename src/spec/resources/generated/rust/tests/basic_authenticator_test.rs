@@ -25,38 +25,46 @@ async fn test_valid_credentials_produce_basic_header() {
 /// field, or a colon in the username, per RFC 7617 §2) fail closed at
 /// construction with `ConfigurationError::InvalidArgument` — never a panic and
 /// never an empty header map that would send the request unauthenticated.
-#[test]
-fn test_malformed_credentials_are_invalid_arguments() {
-    for (username, password, expected) in [
-        (
-            "alice\r\n",
-            "s3cret",
-            "Basic auth username must not contain CR, LF, or NUL characters",
+fn assert_rejected_at_construction(username: &str, password: &str, expected: &str) {
+    match BasicAuthenticator::new("https://api.example.com", username, password) {
+        Err(ConfigurationError::InvalidArgument(reason)) => assert_eq!(expected, reason),
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument for ({:?}, {:?}), got {:?}",
+            username, password, other
         ),
-        (
-            "al\nice",
-            "s3cret",
-            "Basic auth username must not contain CR, LF, or NUL characters",
-        ),
-        (
-            "alice",
-            "s3c\0ret",
-            "Basic auth password must not contain CR, LF, or NUL characters",
-        ),
-        (
-            "ali:ce",
-            "s3cret",
-            "Basic auth username must not contain ':' (RFC 7617 §2)",
-        ),
-    ] {
-        match BasicAuthenticator::new("https://api.example.com", username, password) {
-            Err(ConfigurationError::InvalidArgument(reason)) => assert_eq!(expected, reason),
-            other => panic!(
-                "expected ConfigurationError::InvalidArgument for ({:?}, {:?}), got {:?}",
-                username, password, other
-            ),
-        }
     }
+}
+
+#[test]
+fn test_rejects_username_with_crlf_at_construction() {
+    assert_rejected_at_construction(
+        "alice\r\n",
+        "s3cret",
+        "Basic auth username must not contain CR, LF, or NUL characters",
+    );
+    assert_rejected_at_construction(
+        "al\nice",
+        "s3cret",
+        "Basic auth username must not contain CR, LF, or NUL characters",
+    );
+}
+
+#[test]
+fn test_rejects_password_with_nul_at_construction() {
+    assert_rejected_at_construction(
+        "alice",
+        "s3c\0ret",
+        "Basic auth password must not contain CR, LF, or NUL characters",
+    );
+}
+
+#[test]
+fn test_rejects_username_with_colon_at_construction() {
+    assert_rejected_at_construction(
+        "ali:ce",
+        "s3cret",
+        "Basic auth username must not contain ':' (RFC 7617 §2)",
+    );
 }
 
 #[test]
