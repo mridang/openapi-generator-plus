@@ -653,7 +653,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void bhvErrors044AnErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+  void bhvErrors201AnErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
     for (int status : new int[] {408, 409, 429, 500, 502, 503, 504, 599}) {
       assertTrue(
           ApiException.fromResponse(status, Map.of(), null).isRetryable(), "status " + status);
@@ -665,7 +665,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void bhvErrors045AnErrorExposesTheRequestIdHeaderAsItsRequestId() {
+  void bhvErrors202AnErrorExposesTheRequestIdHeaderAsItsRequestId() {
     assertEquals(
         "abc", ApiException.fromResponse(500, Map.of("X-Request-ID", "abc"), null).getRequestId());
     assertEquals(
@@ -675,7 +675,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void bhvErrors046TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+  void bhvErrors203TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
     Map<String, com.example.petstore.errors.ErrorFactory> factories =
         Map.of(
             "404", (m, p, s, h, b) -> new ApiException(s, "exact", h, b),
@@ -701,7 +701,7 @@ class ApiExceptionTest {
 
   @Test
   void
-      bhvErrors047ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+      bhvErrors204ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
     ApiException ex =
         com.example.petstore.errors.UnexpectedFailureException.fromErrorResponse(
             "GET", "/x", 400, Map.of(), "[1, 2");
