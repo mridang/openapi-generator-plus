@@ -443,6 +443,15 @@ describe("ObjectSerializer", () => {
     test("bhv serializationobject 078 float returns string representation", () => {
       expect(ObjectSerializer.stringify(3.14)).toBe("3.14");
     });
+
+    test("bhv serializationobject 190 a long is stringified to its exact decimal digits", () => {
+      expect(ObjectSerializer.stringify(Number.MAX_SAFE_INTEGER)).toBe(
+        "9007199254740991",
+      );
+      expect(ObjectSerializer.stringify(-Number.MAX_SAFE_INTEGER)).toBe(
+        "-9007199254740991",
+      );
+    });
   });
 
   describe("serialize", () => {
@@ -2571,7 +2580,7 @@ describe("validation happens at decode, never at construction (F316)", () => {
     ).toThrow(SerializationError);
   });
 
-  test("an unknown enum string fails loudly at decode and names the value and the allowed ones", () => {
+  test("bhv serializationobject 192 an unknown enum string fails loudly at decode and names the value and the allowed ones", () => {
     expect(() =>
       ObjectSerializer.deserialize({ status: "teleported" }, Order),
     ).toThrow(

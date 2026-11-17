@@ -1070,6 +1070,44 @@ describe('cross-origin redirect strips API-key headers', () => {
  * so an explicit default port is the same origin as an implicit one and
  * credentials are not wrongly dropped.
  */
+describe('redirect targets and credentials', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('bhv redirects 031 a 3xx without a Location header is returned unchanged instead of failing', async () => {
+    const seen: number[] = [];
+    global.fetch = (async (): Promise<Response> => {
+      seen.push(1);
+      return new Response(null, { status: 302 });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+
+    const response = await client.sendRequest('GET', 'https://secure.example/start', {}, null);
+
+    expect(response.statusCode).toBe(302);
+    expect(seen).toHaveLength(1);
+  });
+
+  it('bhv redirects 033 a redirect to a different port drops the Authorization header', async () => {
+    const seen: Headers[] = [];
+    global.fetch = (async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      seen.push(new Headers(init?.headers));
+      if (seen.length === 1) {
+        return new Response(null, { status: 302, headers: { Location: 'https://secure.example:8443/next' } });
+      }
+      return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+
+    await client.sendRequest('GET', 'https://secure.example/start', { Authorization: 'Bearer secret' }, null);
+
+    expect(seen[0]!.get('authorization')).toBe('Bearer secret');
+    expect(seen[1]!.get('authorization')).toBeNull();
+  });
+});
+
 describe('redirect origin comparison', () => {
   const sameOrigin = (a: string, b: string): boolean =>
     (DefaultApiClient as unknown as { sameOrigin(a: string, b: string): boolean }).sameOrigin(a, b);
@@ -1090,6 +1128,17 @@ describe('redirect origin comparison', () => {
     ['https://api.example.com/a', 'https://other.example.com/b']
   ])('%s and %s are different origins', (a, b) => {
     expect(sameOrigin(a, b)).toBe(false);
+  });
+
+  it('bhv redirects 030 an explicit default port is the same origin as the implicit one', () => {
+    expect(sameOrigin('https://api.example.com/a', 'https://api.example.com:443/b')).toBe(true);
+    expect(sameOrigin('http://api.example.com:80/a', 'http://api.example.com/b')).toBe(true);
+  });
+
+  it('bhv redirects 034 origin comparison separates a different scheme, host or port', () => {
+    expect(sameOrigin('https://api.example.com/a', 'http://api.example.com/b')).toBe(false);
+    expect(sameOrigin('https://api.example.com/a', 'https://other.example.com/b')).toBe(false);
+    expect(sameOrigin('https://api.example.com/a', 'https://api.example.com:8443/b')).toBe(false);
   });
 });
 
@@ -1339,6 +1388,22 @@ describe('HTTPS -> HTTP body replay guard', () => {
 
 describe('redirect method rewriting (RFC 9110 section 15.4)', () => {
   const originalFetch = global.fetch;
+
+  /* The method the second hop is sent with, after a first hop answered with the given status. */
+  const followedMethod = async (status: number, method: string): Promise<unknown> => {
+    const seen: unknown[] = [];
+    global.fetch = (async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      seen.push(init?.method);
+      if (seen.length === 1) {
+        return new Response(null, { status, headers: { Location: 'https://secure.example/next' } });
+      }
+      return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+    await client.sendRequest(method, 'https://secure.example/start', {}, '{"x":1}');
+    return seen[1];
+  };
+
   afterEach(() => {
     global.fetch = originalFetch;
   });
@@ -1380,6 +1445,18 @@ describe('redirect method rewriting (RFC 9110 section 15.4)', () => {
     } else {
       expect(calls[1].body ?? null).toBeNull();
     }
+  });
+
+  it('bhv redirects 029 rewrites a PUT to GET only on a 303 and keeps it on a 307', async () => {
+    expect(await followedMethod(307, 'PUT')).toBe('PUT');
+    expect(await followedMethod(303, 'PUT')).toBe('GET');
+  });
+
+  it('bhv redirects 036 a 303 turns every method except HEAD into GET', async () => {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      expect(await followedMethod(303, method)).toBe('GET');
+    }
+    expect(await followedMethod(303, 'HEAD')).toBe('HEAD');
   });
 
   it('bhv retries 017 refuses to replay a PUT body across an https to http 302 downgrade', async () => {
@@ -2186,7 +2263,7 @@ describe('caller-supplied upload handles are left untouched', () => {
 describe('automatic retries (TransportOptions.maxRetries)', () => {
   type Step = Response | Error;
   let delays: number[];
-  let calls: Array<{ headers: Record<string, string> }>;
+  let calls: Array<{ headers: Record<string, string>; body?: unknown }>;
 
   /* Every backoff wait is recorded and skipped, so the schedule is checked without sleeping. */
   beforeEach(() => {
@@ -2204,8 +2281,8 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
 
   /* A client whose fetch plays the steps in order and repeats the last one. */
   function clientPlaying(steps: Step[], configure: (builder: ReturnType<typeof TransportOptions.builder>) => void = () => undefined): DefaultApiClient {
-    const scripted = (async (_url: unknown, init?: { headers?: Record<string, string> }) => {
-      calls.push({ headers: { ...(init?.headers ?? {}) } });
+    const scripted = (async (_url: unknown, init?: { headers?: Record<string, string>; body?: unknown }) => {
+      calls.push({ headers: { ...(init?.headers ?? {}) }, body: init?.body });
       const step = steps[Math.min(calls.length, steps.length) - 1]!;
       if (step instanceof Error) {
         throw step;
@@ -2308,6 +2385,51 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     expect(Math.max(...delays)).toBeLessThanOrEqual(8000);
   });
 
+  it('bhv retries 041 starts the backoff at 0.5 s, doubles it up to 8 s and takes up to 25% off', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    await send(clientPlaying([reply(500)], (builder) => builder.maxRetries(6).timeout(null)));
+    expect(delays).toEqual([500, 1000, 2000, 4000, 8000, 8000]);
+
+    delays = [];
+    jest.spyOn(Math, 'random').mockReturnValue(1);
+    await send(clientPlaying([reply(500)], (builder) => builder.maxRetries(6).timeout(null)));
+    expect(delays).toEqual([375, 750, 1500, 3000, 6000, 6000]);
+  });
+
+  it('bhv retries 030 the jitter takes at most a quarter off the first delay', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(1);
+    await send(clientPlaying([reply(503), reply(200)]));
+    expect(delays).toEqual([375]);
+  });
+
+  it('bhv retries 038 a 503 is sent again until it succeeds', async () => {
+    const response = await send(clientPlaying([reply(503), reply(503), reply(200)]));
+
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(3);
+  });
+
+  it('bhv retries 032 a stream body is never retried', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+        controller.close();
+      }
+    });
+    const response = await clientPlaying([reply(503), reply(200)]).sendRequest(
+      'POST', 'http://api.example/items', {}, stream as unknown as Buffer);
+
+    expect(response.statusCode).toBe(503);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('bhv retries 034 a string body is sent again unchanged on every retry', async () => {
+    await clientPlaying([reply(503), reply(503), reply(200)]).sendRequest(
+      'POST', 'http://api.example/items', {}, '{"x":1}');
+
+    expect(calls.map((call) => call.body)).toEqual(['{"x":1}', '{"x":1}', '{"x":1}']);
+  });
+
   it('bhv retries 026 waits for a Retry-After given in seconds', async () => {
     await send(clientPlaying([reply(429, { 'Retry-After': '3' }), reply(200)]));
 
@@ -2353,7 +2475,7 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('reports the last network error once the retries are spent', async () => {
+  it('bhv retries 033 reports the last network error once the retries are spent', async () => {
     const error = await send(clientPlaying([new TypeError('fetch failed')])).catch((e: unknown) => e);
 
     expect((error as Error).constructor).toBe(NetworkError);
@@ -2380,7 +2502,7 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('builds every retry as a fresh request with the authentication headers asked for again', async () => {
+  it('bhv retries 039 builds every retry as a fresh request with the authentication headers asked for again', async () => {
     let issued = 0;
     const client = clientPlaying([reply(503), reply(200)], (builder) => builder.injectRequestId(true));
 
