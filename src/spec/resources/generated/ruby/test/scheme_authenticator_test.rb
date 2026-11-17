@@ -116,7 +116,7 @@ describe 'scheme authenticators' do
     environment_schemes.each { |name, _base, _credentials| _(scheme_class(name)).wont_be_nil }
   end
 
-  it 'gives every credential of every scheme a variable of its own' do
+  it 'bhv_authscheme_001 gives every credential of every scheme a variable of its own' do
     _(every_variable.uniq).must_equal every_variable
   end
 

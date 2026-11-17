@@ -39,7 +39,7 @@ end
 describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
   parallelize_me!
 
-  it 'sends password grant type' do
+  it 'bhv_authoauthtwopassword_014 sends password grant type' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
                                     ])
@@ -58,7 +58,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.last_body).must_include 'grant_type=password'
   end
 
-  it 'sends username and password' do
+  it 'bhv_authoauthtwopassword_016 sends username and password' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
                                     ])
@@ -78,7 +78,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.last_body).must_include 'password=secret_password'
   end
 
-  it 'sends client id and secret' do
+  it 'bhv_authoauthtwopassword_013 sends client id and secret' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
                                     ])
@@ -98,7 +98,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
-  it 'returns authorization bearer header' do
+  it 'bhv_authoauthtwopassword_011 returns authorization bearer header' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
                                     ])
@@ -117,7 +117,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(headers['Authorization']).must_equal 'Bearer pw_tok'
   end
 
-  it 'uses refresh token on subsequent calls' do
+  it 'bhv_authoauthtwopassword_019 uses refresh token on subsequent calls' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => -1 } },
                                       { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
@@ -140,7 +140,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.last_body).must_include 'refresh_token=ref_tok'
   end
 
-  it 'getHost returns configured host' do
+  it 'bhv_authoauthtwopassword_003 getHost returns configured host' do
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -153,7 +153,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
-  it 'basic auth url-encodes client id and secret' do
+  it 'bhv_authoauthtwopassword_002 basic auth url-encodes client id and secret' do
     # Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     # client_id and client_secret MUST be application/x-www-form-
     # urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -181,7 +181,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(decoded).must_equal 'id%2Bwith%2Fspecial:secret%26with%3Dstuff'
   end
 
-  it 'masks the client secret and password in inspect' do
+  it 'bhv_authoauthtwopassword_007 masks the client secret and password in inspect' do
     # client-secret-leak-in-default-repr: the default Object#inspect dumps
     # every instance variable, leaking @client_secret and @password into
     # logs / error messages. The overridden inspect must mask both.
@@ -220,7 +220,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(auth.to_s).must_include '***'
   end
 
-  it 'sends the first grant to the token URL and the refresh grant to the refresh URL' do
+  it 'bhv_authoauthtwopassword_017 sends the first grant to the token URL and the refresh grant to the refresh URL' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => -1 } },
                                       { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
@@ -242,7 +242,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.urls).must_equal ['https://auth.example.com/token', 'https://auth.example.com/refresh']
   end
 
-  it 'authenticates the client in the body of the refresh grant' do
+  it 'bhv_authoauthtwopassword_009 authenticates the client in the body of the refresh grant' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 0 } },
                                       { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
@@ -261,7 +261,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
-  it 'sends the Basic header and no body credentials on the refresh grant in BASIC mode' do
+  it 'bhv_authoauthtwopassword_008 sends the Basic header and no body credentials on the refresh grant in BASIC mode' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 0 } },
                                       { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
@@ -280,7 +280,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.last_headers['Authorization']).must_match(/\ABasic /)
   end
 
-  it 're-runs the password grant when the refresh is rejected' do
+  it 'bhv_authoauthtwopassword_010 re-runs the password grant when the refresh is rejected' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 0 } },
                                       { status: 400, body: { 'error' => 'invalid_grant' } },
@@ -299,7 +299,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.last_body).must_include 'grant_type=password'
   end
 
-  it 'sends the refresh grant to the token URL when no refresh URL is declared' do
+  it 'bhv_authoauthtwopassword_006 sends the refresh grant to the token URL when no refresh URL is declared' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => -1 } },
                                       { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
@@ -315,7 +315,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.urls).must_equal ['https://auth.example.com/token', 'https://auth.example.com/token']
   end
 
-  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the Basic client credentials' do
+  it 'bhv_authoauthtwopassword_001 keeps ~ literal and percent-encodes * ! \' ( ) in the Basic client credentials' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
                                     ])
@@ -336,7 +336,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(decoded).must_equal 'id~%2A%21%27%28%29:secret~%2A%21%27%28%29'
   end
 
-  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the token request body' do
+  it 'bhv_authoauthtwopassword_005 keeps ~ literal and percent-encodes * ! \' ( ) in the token request body' do
     client = FakePasswordClient.new([
                                       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
                                     ])
@@ -356,7 +356,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(client.last_body).must_include 'password=pass~%2A%21%27%28%29'
   end
 
-  it 'shows the host, client id and username but not the secrets in inspect' do
+  it 'bhv_authoauthtwopassword_018 shows the host, client id and username but not the secrets in inspect' do
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com', 'my_client_id', 'leaky_client_secret', 'https://auth.example.com/token',
       'user@example.com', 'leaky_user_password', %w[read]

@@ -63,7 +63,7 @@ describe Petstore::Client::ObjectSerializer do
   parallelize_me!
 
   describe 'DateTimeOffsetPreservation' do
-    it 'UTC datetime serializes containing date-time and offset' do
+    it 'bhv_serializationobject_174 UTC datetime serializes containing date-time and offset' do
       t = Time.new(2024, 1, 1, 12, 30, 45, '+00:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
       _(result).must_include('2024-01-01')
@@ -72,13 +72,13 @@ describe Petstore::Client::ObjectSerializer do
              "should contain UTC offset: #{result}")
     end
 
-    it 'positive offset is preserved in serialized string' do
+    it 'bhv_serializationobject_116 positive offset is preserved in serialized string' do
       t = Time.new(2024, 1, 1, 12, 30, 45, '+05:30')
       result = Petstore::Client::ObjectSerializer.stringify(t)
       _(result).must_include('+05:30')
     end
 
-    it 'negative offset is preserved in serialized string' do
+    it 'bhv_serializationobject_107 negative offset is preserved in serialized string' do
       t = Time.new(2024, 1, 1, 12, 30, 45, '-08:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
       _(result).must_include('-08:00')
@@ -90,19 +90,19 @@ describe Petstore::Client::ObjectSerializer do
       _(result).must_include('.123')
     end
 
-    it 'date-only serializes as ISO 8601 date without time component' do
+    it 'bhv_serializationobject_044 date-only serializes as ISO 8601 date without time component' do
       d = Date.new(2024, 1, 1)
       result = Petstore::Client::ObjectSerializer.stringify(d)
       _(result).must_equal('2024-01-01')
     end
 
-    it 'serialized datetime string contains an offset' do
+    it 'bhv_serializationobject_149 serialized datetime string contains an offset' do
       t = Time.new(2024, 1, 1, 12, 30, 45, '+00:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
       assert_match(/[+-]\d{2}:\d{2}$|Z$/, result, "should end with offset: #{result}")
     end
 
-    it 'round-trip datetime yields equivalent instant' do
+    it 'bhv_serializationobject_144 round-trip datetime yields equivalent instant' do
       original = Time.new(2024, 1, 1, 12, 30, 45, '+05:30')
       serialized = Petstore::Client::ObjectSerializer.stringify(original)
       parsed = Time.parse(serialized)
@@ -117,7 +117,7 @@ describe Petstore::Client::ObjectSerializer do
     # already accepts it), so the round-trip is lossless to the millisecond.
     # Milliseconds (3 digits) are the cross-SDK common denominator. This
     # guards against a whole-second-truncating encoder format.
-    it 'date-time serialization preserves sub-second precision' do
+    it 'bhv_serializationobject_046 date-time serialization preserves sub-second precision' do
       original = Time.parse('2020-01-02T03:04:05.123Z')
       model = Petstore::Client::Models::PhotoMetadata.new(taken_at: original)
 
@@ -131,7 +131,7 @@ describe Petstore::Client::ObjectSerializer do
     end
 
     ['2024-01-01T10:00:00', '01/02/2024 10:00', 'tomorrow', '10:00', '1700000000', '2024-01-01'].each do |text|
-      it "rejects the non-RFC 3339 date-time #{text.inspect}" do
+      it "bhv_serializationobject_011 rejects the non-RFC 3339 date-time #{text.inspect}" do
         _ { Petstore::Client::ObjectSerializer.deserialize(JSON.generate(text), 'Time') }
           .must_raise(Petstore::Client::Errors::SerializationError)
       end
@@ -152,7 +152,7 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe '.encode_base64_param' do
-    it 'encodes format: byte parameter bytes as padded standard base64' do
+    it 'bhv_serializationobject_156 encodes format: byte parameter bytes as padded standard base64' do
       _(Petstore::Client::ObjectSerializer.encode_base64_param('hi')).must_equal('aGk=')
       _(Petstore::Client::ObjectSerializer.encode_base64_param("\xFB\xFF".b)).must_equal('+/8=')
       _(Petstore::Client::ObjectSerializer.encode_base64_param(nil)).must_be_nil
@@ -160,12 +160,12 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe 'null model elements in containers' do
-    it 'rejects a null element in an array of models' do
+    it 'bhv_serializationobject_121 rejects a null element in an array of models' do
       _ { Petstore::Client::ObjectSerializer.deserialize('[null,{"name":"a","photoUrls":[]}]', 'Array<Pet>') }
         .must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'rejects a null value in a map of models' do
+    it 'bhv_serializationobject_123 rejects a null value in a map of models' do
       _ { Petstore::Client::ObjectSerializer.deserialize('{"a":null,"b":{"name":"a","photoUrls":[]}}', 'Hash<String, Pet>') }
         .must_raise(Petstore::Client::Errors::SerializationError)
     end
@@ -182,7 +182,7 @@ describe Petstore::Client::ObjectSerializer do
     end
 
     ['urn:isbn:0451450523', 'mailto:a@b.com', 'ftp://x.org/f', 'https://example.com/items/1'].each do |text|
-      it "accepts and re-emits the absolute URI #{text.inspect}" do
+      it "bhv_serializationobject_021 accepts and re-emits the absolute URI #{text.inspect}" do
         decoded = decode_uri(text)
         _(decoded.homepage_url).must_equal(text)
         _(decoded.thumbnail_ref).must_equal('/assets/thumb.png')
@@ -198,17 +198,17 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe 'NonAsciiSerialization' do
-    it 'accented character serializes without unicode escape' do
+    it 'bhv_serializationobject_019 accented character serializes without unicode escape' do
       result = Petstore::Client::ObjectSerializer.serialize('café')
       _(result).must_include('é')
     end
 
-    it 'CJK characters serialize without unicode escape' do
+    it 'bhv_serializationobject_031 CJK characters serialize without unicode escape' do
       result = Petstore::Client::ObjectSerializer.serialize('日本')
       _(result).must_include('日本')
     end
 
-    it 'tab character is properly escaped in JSON' do
+    it 'bhv_serializationobject_160 tab character is properly escaped in JSON' do
       result = Petstore::Client::ObjectSerializer.serialize("a\tb")
       _(result).must_include('\t')
     end
@@ -226,7 +226,7 @@ describe Petstore::Client::ObjectSerializer do
       'malformed duration' => ['{"retryAfter":"soon"}', 'EdgeCases'],
       'malformed date-time' => ['{"expiresAt":"not-a-date"}', 'EdgeCases']
     }.each do |failure, args|
-      it "raises exactly SerializationError, a root error, for #{failure}" do
+      it "bhv_serializationobject_077 raises exactly SerializationError, a root error, for #{failure}" do
         json = args.fetch(0)
         type = args.fetch(1)
         err = _(proc {
@@ -237,19 +237,19 @@ describe Petstore::Client::ObjectSerializer do
       end
     end
 
-    it 'truncated JSON raises SerializationError not a raw parse error' do
+    it 'bhv_serializationobject_170 truncated JSON raises SerializationError not a raw parse error' do
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize('{', 'Category')
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'incomplete JSON object raises SerializationError' do
+    it 'bhv_serializationobject_089 incomplete JSON object raises SerializationError' do
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize('{"name":', 'Category')
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'thrown SerializationError has a cause referencing original error' do
+    it 'bhv_serializationobject_162 thrown SerializationError has a cause referencing original error' do
       Petstore::Client::ObjectSerializer.deserialize('{', 'Category')
       flunk 'Expected SerializationError to be raised'
     rescue Petstore::Client::Errors::SerializationError => e
@@ -258,166 +258,166 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe '.stringify' do
-    it 'returns empty string for nil' do
+    it 'bhv_serializationobject_110 returns empty string for nil' do
       _(Petstore::Client::ObjectSerializer.stringify(nil)).must_equal('')
     end
 
-    it 'returns "true" for boolean true' do
+    it 'bhv_serializationobject_028 returns "true" for boolean true' do
       _(Petstore::Client::ObjectSerializer.stringify(true)).must_equal('true')
     end
 
-    it 'returns "false" for boolean false' do
+    it 'bhv_serializationobject_027 returns "false" for boolean false' do
       _(Petstore::Client::ObjectSerializer.stringify(false)).must_equal('false')
     end
 
-    it 'returns string representation of integer' do
+    it 'bhv_serializationobject_091 returns string representation of integer' do
       _(Petstore::Client::ObjectSerializer.stringify(42)).must_equal('42')
     end
 
-    it 'returns ISO 8601 string for Time' do
+    it 'bhv_serializationobject_157 returns ISO 8601 string for Time' do
       t = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
       _(result).must_include('2024-01-15')
       _(result).must_include('10:30:00')
     end
 
-    it 'passes through plain string unchanged' do
+    it 'bhv_serializationobject_114 passes through plain string unchanged' do
       _(Petstore::Client::ObjectSerializer.stringify('hello')).must_equal('hello')
     end
 
-    it 'returns string representation of float' do
+    it 'bhv_serializationobject_078 returns string representation of float' do
       _(Petstore::Client::ObjectSerializer.stringify(3.14)).must_equal('3.14')
     end
 
-    it 'returns ISO 8601 date string for Date' do
+    it 'bhv_serializationobject_134 returns ISO 8601 date string for Date' do
       _(Petstore::Client::ObjectSerializer.stringify(Date.new(2024, 1, 15))).must_equal('2024-01-15')
     end
   end
 
   describe '.to_path_value' do
-    it 'returns empty string for nil' do
+    it 'bhv_serializationobject_130 returns empty string for nil' do
       _(Petstore::Client::ObjectSerializer.to_path_value(nil)).must_equal('')
     end
 
-    it 'returns the string for a string value' do
+    it 'bhv_serializationobject_141 returns the string for a string value' do
       _(Petstore::Client::ObjectSerializer.to_path_value('hello')).must_equal('hello')
     end
 
-    it 'converts integer to string' do
+    it 'bhv_serializationobject_036 converts integer to string' do
       _(Petstore::Client::ObjectSerializer.to_path_value(42)).must_equal('42')
     end
 
-    it 'converts true to "true"' do
+    it 'bhv_serializationobject_043 converts true to "true"' do
       _(Petstore::Client::ObjectSerializer.to_path_value(true)).must_equal('true')
     end
 
-    it 'converts false to "false"' do
+    it 'bhv_serializationobject_033 converts false to "false"' do
       _(Petstore::Client::ObjectSerializer.to_path_value(false)).must_equal('false')
     end
   end
 
   describe '.to_query_value' do
-    it 'returns nil for nil' do
+    it 'bhv_serializationobject_137 returns nil for nil' do
       _(Petstore::Client::ObjectSerializer.to_query_value(nil)).must_be_nil
     end
 
-    it 'returns the string for a string value' do
+    it 'bhv_serializationobject_139 returns the string for a string value' do
       _(Petstore::Client::ObjectSerializer.to_query_value('hello')).must_equal('hello')
     end
 
-    it 'converts integer to string' do
+    it 'bhv_serializationobject_037 converts integer to string' do
       _(Petstore::Client::ObjectSerializer.to_query_value(42)).must_equal('42')
     end
 
-    it 'converts true to "true"' do
+    it 'bhv_serializationobject_041 converts true to "true"' do
       _(Petstore::Client::ObjectSerializer.to_query_value(true)).must_equal('true')
     end
 
-    it 'converts false to "false"' do
+    it 'bhv_serializationobject_034 converts false to "false"' do
       _(Petstore::Client::ObjectSerializer.to_query_value(false)).must_equal('false')
     end
 
-    it 'joins array with comma by default' do
+    it 'bhv_serializationobject_097 joins array with comma by default' do
       _(Petstore::Client::ObjectSerializer.to_query_value(%w[a b c])).must_equal('a,b,c')
     end
 
-    it 'joins array with comma for csv' do
+    it 'bhv_serializationobject_098 joins array with comma for csv' do
       _(Petstore::Client::ObjectSerializer.to_query_value(%w[a b c], :csv)).must_equal('a,b,c')
     end
 
-    it 'joins array with space for ssv' do
+    it 'bhv_serializationobject_100 joins array with space for ssv' do
       _(Petstore::Client::ObjectSerializer.to_query_value(%w[a b c], :ssv)).must_equal('a b c')
     end
 
-    it 'joins array with tab for tsv' do
+    it 'bhv_serializationobject_101 joins array with tab for tsv' do
       _(Petstore::Client::ObjectSerializer.to_query_value(%w[a b c], :tsv)).must_equal("a\tb\tc")
     end
 
-    it 'joins array with pipe for pipes' do
+    it 'bhv_serializationobject_099 joins array with pipe for pipes' do
       _(Petstore::Client::ObjectSerializer.to_query_value(%w[a b c], :pipes)).must_equal('a|b|c')
     end
 
-    it 'returns array as-is for multi' do
+    it 'bhv_serializationobject_135 returns array as-is for multi' do
       _(Petstore::Client::ObjectSerializer.to_query_value(%w[a b c], :multi)).must_equal(%w[a b c])
     end
   end
 
   describe '.to_header_value' do
-    it 'returns empty string for nil' do
+    it 'bhv_serializationobject_131 returns empty string for nil' do
       _(Petstore::Client::ObjectSerializer.to_header_value(nil)).must_equal('')
     end
 
-    it 'returns the string for a string value' do
+    it 'bhv_serializationobject_142 returns the string for a string value' do
       _(Petstore::Client::ObjectSerializer.to_header_value('hello')).must_equal('hello')
     end
 
-    it 'converts integer to string' do
+    it 'bhv_serializationobject_038 converts integer to string' do
       _(Petstore::Client::ObjectSerializer.to_header_value(42)).must_equal('42')
     end
 
-    it 'joins array with comma' do
+    it 'bhv_serializationobject_096 joins array with comma' do
       _(Petstore::Client::ObjectSerializer.to_header_value(%w[a b c])).must_equal('a,b,c')
     end
   end
 
   describe '.to_form_value' do
-    it 'returns empty string for nil' do
+    it 'bhv_serializationobject_132 returns empty string for nil' do
       _(Petstore::Client::ObjectSerializer.to_form_value(nil)).must_equal('')
     end
 
-    it 'returns the string for a string value' do
+    it 'bhv_serializationobject_140 returns the string for a string value' do
       _(Petstore::Client::ObjectSerializer.to_form_value('hello')).must_equal('hello')
     end
 
-    it 'converts integer to string' do
+    it 'bhv_serializationobject_039 converts integer to string' do
       _(Petstore::Client::ObjectSerializer.to_form_value(42)).must_equal('42')
     end
 
-    it 'converts true to "true"' do
+    it 'bhv_serializationobject_042 converts true to "true"' do
       _(Petstore::Client::ObjectSerializer.to_form_value(true)).must_equal('true')
     end
 
-    it 'converts false to "false"' do
+    it 'bhv_serializationobject_035 converts false to "false"' do
       _(Petstore::Client::ObjectSerializer.to_form_value(false)).must_equal('false')
     end
   end
 
   describe '.to_cookie_value' do
-    it 'returns empty string for nil' do
+    it 'bhv_serializationobject_133 returns empty string for nil' do
       _(Petstore::Client::ObjectSerializer.to_cookie_value(nil)).must_equal('')
     end
 
-    it 'returns the string for a string value' do
+    it 'bhv_serializationobject_143 returns the string for a string value' do
       _(Petstore::Client::ObjectSerializer.to_cookie_value('hello')).must_equal('hello')
     end
 
-    it 'converts integer to string' do
+    it 'bhv_serializationobject_040 converts integer to string' do
       _(Petstore::Client::ObjectSerializer.to_cookie_value(42)).must_equal('42')
     end
   end
 
   describe '.serialize' do
-    it 'serializes a model to valid JSON' do
+    it 'bhv_serializationobject_152 serializes a model to valid JSON' do
       category = Petstore::Client::Models::Category.new(id: 1, name: 'Dogs')
       json = Petstore::Client::ObjectSerializer.serialize(category)
       data = JSON.parse(json)
@@ -425,12 +425,12 @@ describe Petstore::Client::ObjectSerializer do
       _(data['name']).must_equal('Dogs')
     end
 
-    it 'handles nil' do
+    it 'bhv_serializationobject_087 handles nil' do
       json = Petstore::Client::ObjectSerializer.serialize(nil)
       _(json).must_equal('null')
     end
 
-    it 'includes fields explicitly set to default values' do
+    it 'bhv_serializationobject_088 includes fields explicitly set to default values' do
       category = Petstore::Client::Models::Category.new(id: 0, name: '')
       json = Petstore::Client::ObjectSerializer.serialize(category)
       data = JSON.parse(json)
@@ -440,24 +440,24 @@ describe Petstore::Client::ObjectSerializer do
       _(data['name']).must_equal('')
     end
 
-    it 'serializes a DateTime in the canonical date-time form' do
+    it 'bhv_serializationobject_151 serializes a DateTime in the canonical date-time form' do
       json = Petstore::Client::ObjectSerializer.serialize(DateTime.new(2024, 1, 1, 12, 30, 45))
       _(JSON.parse(json)).must_equal('2024-01-01T12:30:45.000+00:00')
     end
 
-    it 'serializes a Time in the canonical date-time form' do
+    it 'bhv_serializationobject_045 serializes a Time in the canonical date-time form' do
       json = Petstore::Client::ObjectSerializer.serialize(Time.new(2024, 1, 1, 12, 30, 45, '+00:00'))
       _(JSON.parse(json)).must_equal('2024-01-01T12:30:45.000+00:00')
     end
 
-    it 'serializes a Date in calendar form' do
+    it 'bhv_serializationobject_165 serializes a Date in calendar form' do
       json = Petstore::Client::ObjectSerializer.serialize(Date.new(2024, 1, 1))
       _(JSON.parse(json)).must_equal('2024-01-01')
     end
   end
 
   describe '.deserialize' do
-    it 'deserializes JSON to typed model' do
+    it 'bhv_serializationobject_070 deserializes JSON to typed model' do
       json_str = '{"id":1,"name":"Dogs"}'
       category = Petstore::Client::ObjectSerializer.deserialize(json_str, 'Category')
       _(category).must_be_kind_of(Petstore::Client::Models::Category)
@@ -468,7 +468,7 @@ describe Petstore::Client::ObjectSerializer do
     # P2: a leading UTF-8 byte-order mark (BOM) must not break
     # deserialization. JSON.parse tolerates the BOM, so a Category prefixed
     # with U+FEFF round-trips to the same model. GREEN everywhere.
-    it 'deserializes BOM-prefixed JSON to typed model' do
+    it 'bhv_serializationobject_060 deserializes BOM-prefixed JSON to typed model' do
       json_str = '﻿{"id":1,"name":"Dogs"}'
       category = Petstore::Client::ObjectSerializer.deserialize(json_str, 'Category')
       _(category).must_be_kind_of(Petstore::Client::Models::Category)
@@ -490,7 +490,7 @@ describe Petstore::Client::ObjectSerializer do
       _(err.message).must_include('Expected a JSON object for Petstore::Client::Models::Pet, got Array')
     end
 
-    it 'raises SerializationError for a scalar where a nested model is expected' do
+    it 'bhv_serializationobject_118 raises SerializationError for a scalar where a nested model is expected' do
       err = _(proc {
         Petstore::Client::ObjectSerializer.deserialize('{"name":"x","photoUrls":[],"category":5}', 'Pet')
       }).must_raise(Petstore::Client::Errors::SerializationError)
@@ -504,11 +504,11 @@ describe Petstore::Client::ObjectSerializer do
       _(err.message).must_include('Expected a JSON object for Petstore::Client::Models::Category, got Array')
     end
 
-    it 'returns nil for empty input' do
+    it 'bhv_serializationobject_136 returns nil for empty input' do
       _(Petstore::Client::ObjectSerializer.deserialize('', 'Category')).must_be_nil
     end
 
-    it 'returns nil for nil input' do
+    it 'bhv_serializationobject_138 returns nil for nil input' do
       _(Petstore::Client::ObjectSerializer.deserialize(nil, 'Category')).must_be_nil
     end
 
@@ -516,7 +516,7 @@ describe Petstore::Client::ObjectSerializer do
     # JSON omits `status` entirely, deserialization must populate it with the
     # schema default ('placed') rather than leaving it nil. dry-struct's
     # `.default('placed')` on the attribute supplies this on the absent key.
-    it 'deserialize applies schema default for absent field' do
+    it 'bhv_serializationobject_053 deserialize applies schema default for absent field' do
       order = Petstore::Client::ObjectSerializer.deserialize('{"id":10,"petId":198772}', 'Order')
       _(order).must_be_kind_of(Petstore::Client::Models::Order)
       _(order.status).must_equal('placed')
@@ -528,7 +528,7 @@ describe Petstore::Client::ObjectSerializer do
     # This matches the JSON-Schema-correct behaviour of go/rust/python.
     # deserialize_model skips absent keys (so dry-struct's `.default(...)`
     # fires) but passes an explicit null through, which `.optional` keeps.
-    it 'applies defaults only for absent fields, preserving explicit null' do
+    it 'bhv_serializationobject_025 applies defaults only for absent fields, preserving explicit null' do
       from_empty = Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults')
       _(from_empty).must_be_kind_of(Petstore::Client::Models::Defaults)
       _(from_empty.retries).must_equal(3)
@@ -544,7 +544,7 @@ describe Petstore::Client::ObjectSerializer do
 
     # Numeric defaults keep their exact typed value, and the component
     # default of a $ref'd enum applies on absence.
-    it 'applies exact numeric and referenced-enum defaults for absent fields' do
+    it 'bhv_serializationobject_111 applies exact numeric and referenced-enum defaults for absent fields' do
       defaults = Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults')
       _(defaults.ratio).must_equal(1.5)
       _(defaults.scale).must_equal(0.25)
@@ -590,7 +590,7 @@ describe Petstore::Client::ObjectSerializer do
     # A keyword that Ruby accepts as a method name stays plain (`and`,
     # `return`); only `class`, which would shadow Object#class, and the
     # literals keep the underscore. The wire keys are unchanged either way.
-    it 'keeps plain keyword property names and the wire keys of EdgeCases' do
+    it 'bhv_serializationobject_117 keeps plain keyword property names and the wire keys of EdgeCases' do
       json = '{"and":true,"or":false,"not":true,"class":"c","return":"r","null":"n","true":true}'
       edge = Petstore::Client::ObjectSerializer.deserialize(json, 'EdgeCases')
       _(edge.and).must_equal(true)
@@ -612,26 +612,26 @@ describe Petstore::Client::ObjectSerializer do
 
     # readOnly and writeOnly have no wire effect: a readOnly property is still
     # decoded and a writeOnly one is still written and decoded.
-    it 'decodes a readOnly property' do
+    it 'bhv_serializationobject_014 decodes a readOnly property' do
       account = Petstore::Client::ObjectSerializer.deserialize('{"id":7,"username":"ann"}', 'Account')
       _(account.id).must_equal(7)
     end
 
-    it 'serializes a writeOnly property' do
+    it 'bhv_serializationobject_018 serializes a writeOnly property' do
       account = Petstore::Client::Models::Account.new(username: 'ann', password: 'hunter2')
       _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(account))).must_equal(
         'username' => 'ann', 'password' => 'hunter2'
       )
     end
 
-    it 'decodes a writeOnly property' do
+    it 'bhv_serializationobject_017 decodes a writeOnly property' do
       account = Petstore::Client::ObjectSerializer.deserialize('{"username":"ann","password":"hunter2"}', 'Account')
       _(account.password).must_equal('hunter2')
     end
 
     # format: password stays a plain String but never prints in a model's
     # string form.
-    it 'masks a format: password property in inspect' do
+    it 'bhv_serializationobject_007 masks a format: password property in inspect' do
       account = Petstore::Client::Models::Account.new(username: 'ann', password: 'hunter2')
       _(account.inspect).must_include('password=***')
       _(account.inspect).must_include('username="ann"')
@@ -642,7 +642,7 @@ describe Petstore::Client::ObjectSerializer do
     # Self-referential model (TreeNode has a `child` of its own type). A
     # nested payload must decode every level into a typed TreeNode, with the
     # absent innermost `child` left nil rather than wrapped in an empty model.
-    it 'deserializes a self-referential TreeNode preserving nesting' do
+    it 'bhv_serializationobject_068 deserializes a self-referential TreeNode preserving nesting' do
       json = '{"value":"root","child":{"value":"leaf"}}'
       top = Petstore::Client::ObjectSerializer.deserialize(json, 'TreeNode')
       _(top).must_be_kind_of(Petstore::Client::Models::TreeNode)
@@ -662,7 +662,7 @@ describe Petstore::Client::ObjectSerializer do
   # `name` and `photoUrls` as required.
 
   describe 'required field hard-fail on deserialize' do
-    it 'raises when a required field is absent from the JSON' do
+    it 'bhv_serializationobject_083 raises when a required field is absent from the JSON' do
       # photoUrls present, name missing.
       json = '{"id":1,"photoUrls":["http://example.com/p.jpg"]}'
       _(proc {
@@ -670,7 +670,7 @@ describe Petstore::Client::ObjectSerializer do
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'raises when a second required field is absent from the JSON' do
+    it 'bhv_serializationobject_063 raises when a second required field is absent from the JSON' do
       # name present, photoUrls missing.
       json = '{"id":1,"name":"doggie"}'
       _(proc {
@@ -678,14 +678,14 @@ describe Petstore::Client::ObjectSerializer do
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'raises when a required field is explicitly null in the JSON' do
+    it 'bhv_serializationobject_084 raises when a required field is explicitly null in the JSON' do
       json = '{"id":1,"name":null,"photoUrls":["http://example.com/p.jpg"]}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'deserializes successfully when all required fields are present' do
+    it 'bhv_serializationobject_061 deserializes successfully when all required fields are present' do
       json = '{"id":1,"name":"doggie","photoUrls":["http://example.com/p.jpg"]}'
       pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
       _(pet).must_be_kind_of(Petstore::Client::Models::Pet)
@@ -706,7 +706,7 @@ describe Petstore::Client::ObjectSerializer do
   # ── nil discard on serialize (#13) ──
 
   describe 'nil discard on serialize' do
-    it 'omits hash entries with nil values from serialized JSON' do
+    it 'bhv_serializationobject_147 omits hash entries with nil values from serialized JSON' do
       input = { 'present' => 'value', 'absent' => nil }
       json = Petstore::Client::ObjectSerializer.serialize(input)
       data = JSON.parse(json)
@@ -715,7 +715,7 @@ describe Petstore::Client::ObjectSerializer do
       _(data).wont_include 'absent'
     end
 
-    it 'omits nested nil hash values from serialized JSON' do
+    it 'bhv_serializationobject_023 omits nested nil hash values from serialized JSON' do
       input = { 'outer' => { 'a' => 1, 'b' => nil, 'c' => 3 } }
       json = Petstore::Client::ObjectSerializer.serialize(input)
       data = JSON.parse(json)
@@ -733,7 +733,7 @@ describe Petstore::Client::ObjectSerializer do
   # ── enum unknown value throws on deserialize (#12) ──
 
   describe 'enum unknown value detection' do
-    it 'raises SerializationError when deserializing unknown enum value' do
+    it 'bhv_serializationobject_172 raises SerializationError when deserializing unknown enum value' do
       # An unknown standalone-enum value is a schema-validation failure, the
       # same class as a missing required field or a strict type mismatch.
       # deserialize wraps all of them uniformly as SerializationError so a
@@ -761,7 +761,7 @@ describe Petstore::Client::ObjectSerializer do
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'names the enum and the unknown value when an inline model enum fails to decode' do
+    it 'bhv_serializationobject_024 names the enum and the unknown value when an inline model enum fails to decode' do
       json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
       error = _(proc { Petstore::Client::ObjectSerializer.deserialize(json, 'Pet') }).must_raise(
         Petstore::Client::Errors::SerializationError
@@ -777,7 +777,7 @@ describe Petstore::Client::ObjectSerializer do
       _(pet.status).must_equal 'banana'
     end
 
-    it 'builds a model holding values of the wrong type without raising' do
+    it 'bhv_serializationobject_030 builds a model holding values of the wrong type without raising' do
       pet = Petstore::Client::Models::Pet.new(name: 42, photo_urls: 'not-a-set', id: 'abc', status: 7)
 
       _(pet.name).must_equal 42
@@ -791,7 +791,7 @@ describe Petstore::Client::ObjectSerializer do
       _(pet.status).must_equal 'banana'
     end
 
-    it 'deserializes an inline model enum with a known value' do
+    it 'bhv_serializationobject_069 deserializes an inline model enum with a known value' do
       json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"available"}'
       pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
       _(pet.status).must_equal 'available'
@@ -814,7 +814,7 @@ describe Petstore::Client::ObjectSerializer do
       _(values).must_include 'delivered'
     end
 
-    it 'validate! returns value when in VALUES' do
+    it 'bhv_serializationobject_029 validate! returns value when in VALUES' do
       _(Petstore::Client::Models::TestStatusEnumValidate.validate!('approved')).must_equal 'approved'
     end
 
@@ -828,7 +828,7 @@ describe Petstore::Client::ObjectSerializer do
   # ── discard extras on deserialize (#14) ──
 
   describe 'extras discarded on deserialize' do
-    it 'silently ignores unknown JSON keys not in OPENAPI_TYPES' do
+    it 'bhv_serializationobject_082 silently ignores unknown JSON keys not in OPENAPI_TYPES' do
       json_str = '{"id":1,"name":"Dogs","unexpected":"extra","another":42}'
       category = Petstore::Client::ObjectSerializer.deserialize(json_str, 'Category')
       _(category).must_be_kind_of Petstore::Client::Models::Category
@@ -841,7 +841,7 @@ describe Petstore::Client::ObjectSerializer do
   # ── Gap V — NaN/Infinity rejection (RFC 8259 §6) ──
 
   describe 'NaN/Infinity rejection' do
-    it 'serialize raises on NaN' do
+    it 'bhv_serializationobject_153 serialize raises on NaN' do
       # ObjectSerializer wraps JSON::GeneratorError as SerializationError.
       assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.serialize({ 'val' => Float::NAN })
@@ -866,7 +866,7 @@ describe Petstore::Client::ObjectSerializer do
       end
     end
 
-    it 'deserialize raises on a double literal that overflows to Infinity' do
+    it 'bhv_serializationobject_057 deserialize raises on a double literal that overflows to Infinity' do
       error = _ { Petstore::Client::ObjectSerializer.deserialize('{"lat":1e400}', 'PhotoMetadataLocation') }
               .must_raise Petstore::Client::Errors::SerializationError
 
@@ -908,7 +908,7 @@ describe Petstore::Client::ObjectSerializer do
       _(data['note']).must_equal('y')
     end
 
-    it 'round-trip preserves bytes exactly' do
+    it 'bhv_serializationobject_026 round-trip preserves bytes exactly' do
       raw = (0..255).map(&:chr).join.dup.force_encoding(Encoding::BINARY)
       model = Petstore::Client::Models::TestFormatModel.new(blob: raw)
       json = Petstore::Client::ObjectSerializer.serialize(model)
@@ -916,7 +916,7 @@ describe Petstore::Client::ObjectSerializer do
       _(restored.blob).must_equal(raw)
     end
 
-    it 'raises SerializationError on invalid base64 input' do
+    it 'bhv_serializationobject_094 raises SerializationError on invalid base64 input' do
       json = '{"blob":"not valid base64!!!"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'TestFormatModel')
@@ -938,14 +938,14 @@ describe Petstore::Client::ObjectSerializer do
   # ── unevaluatedProperties:false (StrictTag, 2.20) ──
 
   describe 'unevaluatedProperties:false enforcement' do
-    it 'rejects an undeclared key in the raw payload' do
+    it 'bhv_serializationobject_154 rejects an undeclared key in the raw payload' do
       json = '{"id":1,"name":"Dogs","rogue":"x"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'StrictTag')
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'accepts a payload with only declared keys' do
+    it 'bhv_serializationobject_047 accepts a payload with only declared keys' do
       result = Petstore::Client::ObjectSerializer.deserialize('{"id":1,"name":"Dogs"}', 'StrictTag')
       _(result).wont_be_nil
       _(result.id).must_equal(1)
@@ -956,27 +956,27 @@ describe Petstore::Client::ObjectSerializer do
   # ── format: uuid (typed UUID surface, 2.2) ──
 
   describe 'format: uuid validation' do
-    it 'accepts canonical RFC 4122 UUID on deserialize' do
+    it 'bhv_serializationobject_175 accepts canonical RFC 4122 UUID on deserialize' do
       json = '{"identifier":"550e8400-e29b-41d4-a716-446655440000"}'
       result = Petstore::Client::ObjectSerializer.deserialize(json, 'TestFormatModel')
       _(result.identifier).must_equal('550e8400-e29b-41d4-a716-446655440000')
     end
 
-    it 'raises SerializationError on malformed UUID' do
+    it 'bhv_serializationobject_103 raises SerializationError on malformed UUID' do
       json = '{"identifier":"not-a-uuid"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'TestFormatModel')
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'raises SerializationError on serialize with malformed UUID' do
+    it 'bhv_serializationobject_080 raises SerializationError on serialize with malformed UUID' do
       model = Petstore::Client::Models::TestFormatModel.new(identifier: 'bogus')
       _(proc {
         Petstore::Client::ObjectSerializer.serialize(model)
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'serializes a valid UUID unchanged' do
+    it 'bhv_serializationobject_065 serializes a valid UUID unchanged' do
       uuid = '00112233-4455-6677-8899-aabbccddeeff'
       model = Petstore::Client::Models::TestFormatModel.new(identifier: uuid)
       json = Petstore::Client::ObjectSerializer.serialize(model)
@@ -985,19 +985,19 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe 'format: uuid canonical form' do
-    it 'writes an uppercase uuid in lowercase hyphenated form' do
+    it 'bhv_serializationobject_148 writes an uppercase uuid in lowercase hyphenated form' do
       order = Petstore::Client::Models::Order.new(tracking_id: 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F')
       _(Petstore::Client::ObjectSerializer.serialize(order)).must_include('"trackingId":"e621e1f8-c36c-495a-93fc-0c247a3e6e5f"')
     end
 
-    it 'decodes an uppercase uuid to its lowercase form' do
+    it 'bhv_serializationobject_016 decodes an uppercase uuid to its lowercase form' do
       order = Petstore::Client::ObjectSerializer.deserialize(
         '{"trackingId":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F"}', 'Petstore::Client::Models::Order'
       )
       _(order.tracking_id).must_equal('e621e1f8-c36c-495a-93fc-0c247a3e6e5f')
     end
 
-    it 'rejects a malformed uuid on decode' do
+    it 'bhv_serializationobject_048 rejects a malformed uuid on decode' do
       err = assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{"trackingId":"not-a-uuid"}', 'Petstore::Client::Models::Order')
       end
@@ -1006,7 +1006,7 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe 'uniqueItems arrays of scalars' do
-    it 'writes the elements in ascending order whatever the insertion order' do
+    it 'bhv_serializationobject_015 writes the elements in ascending order whatever the insertion order' do
       2.times do
         item = Petstore::Client::Models::Pet.new(name: 'n', photo_urls: Set['c', 'a', 'b'])
         _(Petstore::Client::ObjectSerializer.serialize(item)).must_include('"photoUrls":["a","b","c"]')
@@ -1015,18 +1015,18 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe 'required and nullable property' do
-    it 'decodes an explicit null to nil' do
+    it 'bhv_serializationobject_049 decodes an explicit null to nil' do
       model = Petstore::Client::ObjectSerializer.deserialize('{"note":null}', 'Petstore::Client::Models::RequiredNullable')
       _(model.note).must_be_nil
     end
 
-    it 'rejects a payload without the key' do
+    it 'bhv_serializationobject_050 rejects a payload without the key' do
       assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{}', 'Petstore::Client::Models::RequiredNullable')
       end
     end
 
-    it 'writes a nil value as an explicit null' do
+    it 'bhv_serializationobject_125 writes a nil value as an explicit null' do
       model = Petstore::Client::Models::RequiredNullable.new(note: nil)
       _(Petstore::Client::ObjectSerializer.serialize(model)).must_equal('{"note":null}')
     end
@@ -1048,14 +1048,14 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.serialize(edge)).must_equal('{"cutoff":"10:30:00.123"}')
     end
 
-    it 'writes a format: time property without a fraction when it has none or it is zero' do
+    it 'bhv_serializationobject_163 writes a format: time property without a fraction when it has none or it is zero' do
       whole = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00"}', 'EdgeCases')
       zero = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00.000"}', 'EdgeCases')
       _(Petstore::Client::ObjectSerializer.serialize(whole)).must_equal('{"cutoff":"10:30:00"}')
       _(Petstore::Client::ObjectSerializer.serialize(zero)).must_equal('{"cutoff":"10:30:00"}')
     end
 
-    it 'decodes and writes a protobuf-JSON duration property' do
+    it 'bhv_serializationobject_013 decodes and writes a protobuf-JSON duration property' do
       edge = Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"3600s"}', 'EdgeCases')
       _(edge.retry_after).must_be_kind_of(ISO8601::Duration)
       _(edge.retry_after.to_seconds).must_equal(3600)
@@ -1075,7 +1075,7 @@ describe Petstore::Client::ObjectSerializer do
 
     # The models named Error and Result keep their names inside Models and
     # round trip as the nested lastError and outcome properties.
-    it 'round trips the Error and Result models as nested properties' do
+    it 'bhv_serializationobject_104 round trips the Error and Result models as nested properties' do
       json = '{"lastError":{"code":7,"message":"boom"},"outcome":{"ok":true}}'
       edge = Petstore::Client::ObjectSerializer.deserialize(json, 'EdgeCases')
       _(edge.last_error).must_be_kind_of(Petstore::Client::Models::Error)
@@ -1105,7 +1105,7 @@ describe Petstore::Client::ObjectSerializer do
       _(order.quantity).must_equal(500)
     end
 
-    it 'decodes a nickname and a slug that violate their patterns' do
+    it 'bhv_serializationobject_032 decodes a nickname and a slug that violate their patterns' do
       pet = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"nickname":"X!"}', 'Pet')
       _(pet.nickname).must_equal('X!')
       edge = Petstore::Client::ObjectSerializer.deserialize('{"slug":"not-a-slug"}', 'EdgeCases')
@@ -1114,13 +1114,13 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe 'values outside a pattern or a bound round trip' do
-    it 'decodes and writes a nickname longer than its maximum length' do
+    it 'bhv_serializationobject_010 decodes and writes a nickname longer than its maximum length' do
       pet = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', 'Pet')
       _(pet.nickname).must_equal('ZZZZZZZZZZ')
       _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(pet))['nickname']).must_equal('ZZZZZZZZZZ')
     end
 
-    it 'decodes and writes a slug that matches its pattern' do
+    it 'bhv_serializationobject_074 decodes and writes a slug that matches its pattern' do
       edge = Petstore::Client::ObjectSerializer.deserialize('{"slug":"12/ab"}', 'EdgeCases')
       _(edge.slug).must_equal('12/ab')
       _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(edge))['slug']).must_equal('12/ab')
@@ -1133,7 +1133,7 @@ describe Petstore::Client::ObjectSerializer do
       Petstore::Client::ObjectSerializer.deserialize(json, 'BinaryVault')
     end
 
-    it 'treats two vaults decoded from the same bytes as equal' do
+    it 'bhv_serializationobject_090 treats two vaults decoded from the same bytes as equal' do
       json = '{"seal":"AQID","shards":["AQID","BAUG"],"labels":{"a":"AQID"}}'
       _(decode.call(json)).must_equal(decode.call(json))
       _(decode.call(json).hash).must_equal(decode.call(json).hash)
@@ -1146,7 +1146,7 @@ describe Petstore::Client::ObjectSerializer do
       _(base).wont_equal(decode.call('{"seal":"AQID","shards":["AQID"],"labels":{"a":"BAUG"}}'))
     end
 
-    it 'does not confuse a list of byte arrays with a map of them' do
+    it 'bhv_serializationobject_009 does not confuse a list of byte arrays with a map of them' do
       as_list = decode.call('{"shards":["AQID"]}')
       as_map = decode.call('{"labels":{"0":"AQID"}}')
       _(as_list).wont_equal(as_map)
@@ -1170,7 +1170,7 @@ describe Petstore::Client::ObjectSerializer do
   # their exact wire value through decode and encode.
   describe 'Availability members with literal-special characters' do
     ["o'clock", 'a\\b', '$eq', '#{x}'].each do |value|
-      it "round trips #{value.inspect}" do
+      it "bhv_serializationobject_073 round trips #{value.inspect}" do
         _(Petstore::Client::Models::Availability::VALUES).must_include(value)
         json = JSON.generate({ 'priority' => 1, 'availability' => value })
         item = Petstore::Client::ObjectSerializer.deserialize(json, 'StockItem')
@@ -1182,7 +1182,7 @@ describe Petstore::Client::ObjectSerializer do
 
   # A JSON body that repeats an object key resolves to the last value.
   describe 'duplicate object keys' do
-    it 'resolves a repeated key to the last value' do
+    it 'bhv_serializationobject_006 resolves a repeated key to the last value' do
       json = '{"name":"first","name":"second","photoUrls":[]}'
       pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
       _(pet.name).must_equal('second')
@@ -1192,7 +1192,7 @@ describe Petstore::Client::ObjectSerializer do
   # D84: request JSON writes everything but quote, backslash and the controls
   # below U+0020 literally.
   describe 'request JSON string escaping' do
-    it 'writes U+2028, U+2029 and DEL literally' do
+    it 'bhv_serializationobject_124 writes U+2028, U+2029 and DEL literally' do
       json = Petstore::Client::ObjectSerializer.serialize({ 'note' => "a\u2028b\u2029c\u007Fd" })
       _(json).must_equal("{\"note\":\"a\u2028b\u2029c\u007Fd\"}")
     end
@@ -1211,7 +1211,7 @@ describe Petstore::Client::ObjectSerializer do
   # OAS 3.1 prefixItems: a heterogeneous tuple (number, number, string) is
   # carried as a plain array and returns unchanged.
   describe 'prefixItems tuple property' do
-    it 'decodes and writes Pet.location as a heterogeneous array' do
+    it 'bhv_serializationobject_012 decodes and writes Pet.location as a heterogeneous array' do
       json = '{"name":"Rex","photoUrls":["u"],"location":[1.5,2.5,"depot"]}'
       pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
       _(pet.location).must_equal([1.5, 2.5, 'depot'])
@@ -1227,7 +1227,7 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.stringify(t)).must_equal('13:45:30')
     end
 
-    it 'serialize emits HH:MM:SS for a Tod::TimeOfDay inside a hash' do
+    it 'bhv_serializationobject_005 serialize emits HH:MM:SS for a Tod::TimeOfDay inside a hash' do
       t = Tod::TimeOfDay.new(9, 0, 0)
       json = Petstore::Client::ObjectSerializer.serialize({ 'opens_at' => t })
       _(JSON.parse(json)['opens_at']).must_equal('09:00:00')
@@ -1241,7 +1241,7 @@ describe Petstore::Client::ObjectSerializer do
       _(result.second).must_equal(30)
     end
 
-    it 'accepts a fractional time and keeps the milliseconds' do
+    it 'bhv_serializationobject_164 accepts a fractional time and keeps the milliseconds' do
       result = Petstore::Client::ObjectSerializer.convert_to_type('10:30:00.123', 'Tod::TimeOfDay')
       _(Petstore::Client::ObjectSerializer.stringify(result)).must_equal('10:30:00.123')
     end
@@ -1272,13 +1272,13 @@ describe Petstore::Client::ObjectSerializer do
     # The native surface stays ISO8601::Duration, but the wire form is
     # protobuf-JSON duration ("3600s") -- the form protobuf-derived APIs
     # require. The ISO-8601 form ("PT1H") is rejected.
-    it 'stringify emits protobuf-JSON seconds for an ISO8601::Duration' do
+    it 'bhv_serializationobject_158 stringify emits protobuf-JSON seconds for an ISO8601::Duration' do
       d = ISO8601::Duration.new('PT1H30M')
       out = Petstore::Client::ObjectSerializer.stringify(d)
       _(out).must_equal('5400s')
     end
 
-    it 'serialize emits the protobuf-JSON duration string inside a hash' do
+    it 'bhv_serializationobject_146 serialize emits the protobuf-JSON duration string inside a hash' do
       d = ISO8601::Duration.new('PT5M')
       json = Petstore::Client::ObjectSerializer.serialize({ 'ttl' => d })
       _(JSON.parse(json)['ttl']).must_equal('300s')
@@ -1290,7 +1290,7 @@ describe Petstore::Client::ObjectSerializer do
       _(JSON.parse(json)['window']).must_equal('183600s')
     end
 
-    it 'serialize emits protobuf-JSON seconds for a duration field on a model body' do
+    it 'bhv_serializationobject_081 serialize emits protobuf-JSON seconds for a duration field on a model body' do
       # Request-body path: a dry-struct model carrying an ISO8601::Duration
       # field must serialize that field as protobuf-JSON ("3600s"), not the
       # native ISO-8601 form ("PT1H") which protobuf-derived APIs reject. `duration` is
@@ -1307,17 +1307,17 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.stringify(d)).must_equal('3600.000000001s')
     end
 
-    it 'stringify trims trailing zeros to three fractional digits' do
+    it 'bhv_serializationobject_179 stringify trims trailing zeros to three fractional digits' do
       d = ISO8601::Duration.new('PT1.5S')
       _(Petstore::Client::ObjectSerializer.stringify(d)).must_equal('1.500s')
     end
 
-    it 'stringify preserves the sign for a negative duration' do
+    it 'bhv_serializationobject_105 stringify preserves the sign for a negative duration' do
       d = ISO8601::Duration.new('-PT1H')
       _(Petstore::Client::ObjectSerializer.stringify(d)).must_equal('-3600s')
     end
 
-    it 'convert_to_type parses a negative protobuf-JSON duration' do
+    it 'bhv_serializationobject_113 convert_to_type parses a negative protobuf-JSON duration' do
       # The sign must be reconstructed before the 'P' ("-PT3600S"); the gem
       # rejects the "PT-3600S" form, so a negative wire value would otherwise
       # fail to deserialize — breaking the round-trip the serialize side emits.
@@ -1326,18 +1326,18 @@ describe Petstore::Client::ObjectSerializer do
       _(result.to_seconds).must_equal(-3600)
     end
 
-    it 'convert_to_type parses a negative fractional protobuf-JSON duration' do
+    it 'bhv_serializationobject_106 convert_to_type parses a negative fractional protobuf-JSON duration' do
       result = Petstore::Client::ObjectSerializer.convert_to_type('-1.5s', 'ISO8601::Duration')
       _(result.to_seconds).must_be_close_to(-1.5, 1e-9)
     end
 
-    it 'convert_to_type parses protobuf-JSON seconds into an ISO8601::Duration' do
+    it 'bhv_serializationobject_112 convert_to_type parses protobuf-JSON seconds into an ISO8601::Duration' do
       result = Petstore::Client::ObjectSerializer.convert_to_type('5400s', 'ISO8601::Duration')
       _(result).must_be_kind_of(ISO8601::Duration)
       _(result.to_seconds).must_equal(5400)
     end
 
-    it 'convert_to_type parses fractional protobuf-JSON seconds' do
+    it 'bhv_serializationobject_054 convert_to_type parses fractional protobuf-JSON seconds' do
       result = Petstore::Client::ObjectSerializer.convert_to_type('3600.000000001s', 'ISO8601::Duration')
       _(result.to_seconds).must_be_close_to(3600.000000001, 1e-9)
     end
@@ -1364,7 +1364,7 @@ describe Petstore::Client::ObjectSerializer do
       _(result).must_equal(original)
     end
 
-    it 'round-trip duration yields equivalent value' do
+    it 'bhv_serializationobject_145 round-trip duration yields equivalent value' do
       original = ISO8601::Duration.new('P1DT2H3M4S')
       serialized = Petstore::Client::ObjectSerializer.stringify(original)
       _(serialized).must_equal('93784s')
@@ -1382,7 +1382,7 @@ describe Petstore::Client::ObjectSerializer do
   # ── Gap K — discriminator auto-injection on subtype serialize ──
 
   describe 'discriminator auto-injection' do
-    it 'dry subtype serialize auto-emits the discriminator' do
+    it 'bhv_serializationobject_072 dry subtype serialize auto-emits the discriminator' do
       # DryFood defaults food_type to 'dry', so a caller that omits it
       # still gets the discriminator on the wire.
       dry = Petstore::Client::Models::DryFood.new(weight_kg: 2.5)
@@ -1391,13 +1391,13 @@ describe Petstore::Client::ObjectSerializer do
       _(data['weightKg']).must_equal(2.5)
     end
 
-    it 'wet subtype serialize auto-emits the discriminator' do
+    it 'bhv_serializationobject_178 wet subtype serialize auto-emits the discriminator' do
       wet = Petstore::Client::Models::WetFood.new(volume_ml: 350)
       data = JSON.parse(Petstore::Client::ObjectSerializer.serialize(wet))
       _(data['foodType']).must_equal('wet')
     end
 
-    it 'deserializing the oneOf parent routes to the subtype by discriminator' do
+    it 'bhv_serializationobject_055 deserializing the oneOf parent routes to the subtype by discriminator' do
       # A discriminator-tagged payload deserialized against the parent
       # PetFood oneOf must come back as the concrete DryFood subtype, not
       # the raw data — PetFood.build resolves foodType="dry" to DryFood.
@@ -1418,7 +1418,7 @@ describe Petstore::Client::ObjectSerializer do
   # Decimal regressed to emitting a quoted string; ruby is already correct
   # because the property is a plain Float, which JSON renders unquoted.
   describe 'Decimal-as-number — type:number serializes unquoted' do
-    it 'emits weightKg as an unquoted JSON number, not a string' do
+    it 'bhv_serializationobject_171 emits weightKg as an unquoted JSON number, not a string' do
       pet = Petstore::Client::Models::Pet.new(name: 'Rex', photo_urls: ['u'], weight_kg: 1.5)
       json = Petstore::Client::ObjectSerializer.serialize(pet)
       # Unquoted number on the wire: weightKg:1.5 (not "weightKg":"1.5").
@@ -1429,7 +1429,7 @@ describe Petstore::Client::ObjectSerializer do
       _(data['weightKg']).must_be_kind_of(Numeric)
     end
 
-    it 'round-trips weightKg as a number through serialize -> deserialize' do
+    it 'bhv_serializationobject_177 round-trips weightKg as a number through serialize -> deserialize' do
       pet = Petstore::Client::Models::Pet.new(name: 'Rex', photo_urls: ['u'], weight_kg: 1.5)
       json = Petstore::Client::ObjectSerializer.serialize(pet)
       result = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
@@ -1448,7 +1448,7 @@ describe Petstore::Client::ObjectSerializer do
   # in go/python/kotlin; ruby is already strict via dry-struct's
   # non-omittable, non-nullable attribute. Canonical = throw.
   describe 'Gap AJ — null on required non-nullable field' do
-    it 'raises when required name is JSON null' do
+    it 'bhv_serializationobject_086 raises when required name is JSON null' do
       json = '{"name":null,"photoUrls":["u"]}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
@@ -1466,7 +1466,7 @@ describe Petstore::Client::ObjectSerializer do
   # PetFood.build raises SerializationError on a nil discriminator value.
   # Canonical = throw.
   describe 'Gap AU-residual — missing discriminator property' do
-    it 'raises when the foodType discriminator is absent' do
+    it 'bhv_serializationobject_085 raises when the foodType discriminator is absent' do
       json = '{"weightKg":5.0}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood')
@@ -1482,7 +1482,7 @@ describe Petstore::Client::ObjectSerializer do
   # yields the Integer member 2 — not "2". This guards the int-enum template
   # path that several SDKs latently hard-coded as String-backed.
   describe 'integer-backed enum round-trips as a JSON number' do
-    it 'serializes an integer enum value as a JSON number, not a string' do
+    it 'bhv_serializationobject_093 serializes an integer enum value as a JSON number, not a string' do
       json = Petstore::Client::ObjectSerializer.serialize(Petstore::Client::Models::Priority::NUMBER_2)
       # The bare JSON token must be the number 2, never the quoted "2".
       _(json).must_equal('2')
@@ -1490,7 +1490,7 @@ describe Petstore::Client::ObjectSerializer do
       _(JSON.parse(json)).must_be_kind_of(Integer)
     end
 
-    it 'deserializes a JSON number into the integer enum member' do
+    it 'bhv_serializationobject_092 deserializes a JSON number into the integer enum member' do
       result = Petstore::Client::ObjectSerializer.deserialize('2', 'Priority')
       _(result).must_equal(Petstore::Client::Models::Priority::NUMBER_2)
       _(result).must_be_kind_of(Integer)
@@ -1502,7 +1502,7 @@ describe Petstore::Client::ObjectSerializer do
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
-    it 'round-trips an integer-enum-typed model field as a number' do
+    it 'bhv_serializationobject_176 round-trips an integer-enum-typed model field as a number' do
       # StockItem.priority references the Priority int enum. The field must
       # survive the model round-trip as a JSON number on the wire and an
       # Integer member in memory.
@@ -1522,7 +1522,7 @@ describe Petstore::Client::ObjectSerializer do
   # preserved verbatim on both (de)serialize, a valid value round-trips to
   # the right member, and an unknown value is rejected.
   describe 'non-lowercase string enum preserves wire casing' do
-    it 'deserializes each declared value to its member, casing preserved' do
+    it 'bhv_serializationobject_109 deserializes each declared value to its member, casing preserved' do
       _(Petstore::Client::ObjectSerializer.deserialize('"Available"', 'Availability'))
         .must_equal(Petstore::Client::Models::Availability::AVAILABLE)
       _(Petstore::Client::ObjectSerializer.deserialize('"Sold"', 'Availability'))
@@ -1536,7 +1536,7 @@ describe Petstore::Client::ObjectSerializer do
       _(JSON.parse(json)).must_equal('Available')
     end
 
-    it 'rejects an unknown string enum value on deserialize' do
+    it 'bhv_serializationobject_059 rejects an unknown string enum value on deserialize' do
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize('"available"', 'Availability')
       }).must_raise(Petstore::Client::Errors::SerializationError)
@@ -1550,7 +1550,7 @@ describe Petstore::Client::ObjectSerializer do
   # field must surface the SDK serialization error rather than coercing to a
   # default or sentinel — the referenced-enum-as-model-field path.
   describe 'referenced enum model field rejects unknown value' do
-    it 'raises when a referenced-enum field carries an unknown value' do
+    it 'bhv_serializationobject_119 raises when a referenced-enum field carries an unknown value' do
       json = '{"priority":1,"availability":"liquidated"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'StockItem')
@@ -1593,7 +1593,7 @@ describe Petstore::Client::ObjectSerializer do
   # trailing .0 for whole numbers, so the deserializer must accept any
   # Numeric, not strictly a Ruby Float.
   describe 'double field accepts an integral JSON value' do
-    it 'coerces an integral JSON number into a Float' do
+    it 'bhv_serializationobject_071 coerces an integral JSON number into a Float' do
       loc = Petstore::Client::ObjectSerializer.deserialize('{"lat":5,"lng":-3}', 'PhotoMetadataLocation')
       _(loc).must_be_kind_of(Petstore::Client::Models::PhotoMetadataLocation)
       _(loc.lat).must_equal(5.0)
@@ -1609,7 +1609,7 @@ describe Petstore::Client::ObjectSerializer do
   # recurse per-element so every leaf is a typed Integer, and re-serialize
   # the nested structure faithfully.
   describe 'nested container deep round-trip' do
-    it 'deserializes array-of-array<int> to typed Integer leaves' do
+    it 'bhv_serializationobject_108 deserializes array-of-array<int> to typed Integer leaves' do
       json = '{"priority":1,"matrix":[[1,2],[3,4,5]]}'
       item = Petstore::Client::ObjectSerializer.deserialize(json, 'StockItem')
       _(item.matrix).must_equal([[1, 2], [3, 4, 5]])
@@ -1650,7 +1650,7 @@ describe Petstore::Client::ObjectSerializer do
       _(data['scans']).must_equal([Base64.strict_encode64(raw_a), Base64.strict_encode64(raw_b)])
     end
 
-    it 'round-trips the scans array preserving bytes exactly' do
+    it 'bhv_serializationobject_079 round-trips the scans array preserving bytes exactly' do
       raw = (0..255).map(&:chr).join.dup.force_encoding(Encoding::BINARY)
       model = Petstore::Client::Models::PetPassport.new(scans: [raw])
       json = Petstore::Client::ObjectSerializer.serialize(model)
@@ -1662,7 +1662,7 @@ describe Petstore::Client::ObjectSerializer do
   # OAS 3.1 contentEncoding: base64 is normalised to a byte field, so the
   # biometric chip is base64 on the wire and raw bytes in the model.
   describe 'contentEncoding base64 property' do
-    it 'decodes and writes PetPassport.biometricChip as base64' do
+    it 'bhv_serializationobject_115 decodes and writes PetPassport.biometricChip as base64' do
       raw = "chip\x00\xFF".dup.force_encoding(Encoding::BINARY)
       json = %({"biometricChip":"#{Base64.strict_encode64(raw)}"})
       passport = Petstore::Client::ObjectSerializer.deserialize(json, 'PetPassport')
@@ -1678,11 +1678,11 @@ describe Petstore::Client::ObjectSerializer do
   # rejects an over-deep payload. NaN/Infinity rejection on encode and invalid
   # base64 on a format:byte field are covered above.
   describe 'canonical serde behaviours' do
-    it 'deserializes a literal null body to nil' do
+    it 'bhv_serializationobject_067 deserializes a literal null body to nil' do
       _(Petstore::Client::ObjectSerializer.deserialize('null', 'Category')).must_be_nil
     end
 
-    it 'decodes a payload within the depth cap but rejects one past it' do
+    it 'bhv_serializationobject_051 decodes a payload within the depth cap but rejects one past it' do
       within = ('[' * 600) + (']' * 600)
       _(Petstore::Client::ObjectSerializer.deserialize(within, 'Object')).wont_be_nil
 
@@ -1693,7 +1693,7 @@ describe Petstore::Client::ObjectSerializer do
       _(err.message).must_equal('JSON nesting depth 1500 exceeds limit 1000')
     end
 
-    it 'prefixes the parser detail of a malformed payload with the canonical deserialize wording' do
+    it 'bhv_serializationobject_004 prefixes the parser detail of a malformed payload with the canonical deserialize wording' do
       err = assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{"id":', 'Object')
       end
@@ -1712,7 +1712,7 @@ describe Petstore::Client::ObjectSerializer do
   # An integer property holds a Ruby Integer: a fractional number is refused,
   # and an int64 above 2**53 (where a double stops being exact) survives intact.
   describe 'integer properties' do
-    it 'refuses a fractional number for an int32 property' do
+    it 'bhv_serializationobject_120 refuses a fractional number for an int32 property' do
       err = assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{"quantity":1.5}', 'Petstore::Client::Models::Order')
       end

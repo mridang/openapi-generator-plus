@@ -13,7 +13,7 @@ require 'petstore_client'
 describe Petstore::Client::ApiResult do
   parallelize_me!
 
-  it 'exposes the status code' do
+  it 'bhv_results_003 exposes the status code' do
     result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: {}
     )
@@ -28,7 +28,7 @@ describe Petstore::Client::ApiResult do
     _(result.data).must_equal data
   end
 
-  it 'allows nil data for empty responses' do
+  it 'bhv_results_001 allows nil data for empty responses' do
     result = Petstore::Client::ApiResult.new(
       status_code: 204, data: nil, raw_body: '', headers: {}
     )
@@ -42,7 +42,7 @@ describe Petstore::Client::ApiResult do
     _(result.raw_body).must_equal '{"id":1}'
   end
 
-  it 'exposes the response headers' do
+  it 'bhv_results_002 exposes the response headers' do
     headers = { 'Content-Type' => 'application/json', 'X-Request-Id' => 'abc123' }
     result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: headers

@@ -6,68 +6,68 @@ require 'petstore_client'
 describe Petstore::Client::TransportOptions do
   parallelize_me!
 
-  it 'verify_ssl defaults to true' do
+  it 'bhv_options_043 verify_ssl defaults to true' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.verify_ssl).must_equal true
   end
 
-  it 'ca_cert_path defaults to null' do
+  it 'bhv_options_018 ca_cert_path defaults to null' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.ca_cert_path).must_be_nil
   end
 
-  it 'proxy defaults to null' do
+  it 'bhv_options_032 proxy defaults to null' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.proxy).must_be_nil
   end
 
-  it 'timeout defaults to 10000ms' do
+  it 'bhv_options_038 timeout defaults to 10000ms' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.timeout).must_equal 10_000
   end
 
-  it 'follow_redirects defaults to true' do
+  it 'bhv_options_020 follow_redirects defaults to true' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.follow_redirects).must_equal true
   end
 
-  it 'max_redirects defaults to null' do
+  it 'bhv_options_025 max_redirects defaults to null' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.max_redirects).must_be_nil
   end
 
-  it 'user_agent defaults to non-empty string' do
+  it 'bhv_options_041 user_agent defaults to non-empty string' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.user_agent).wont_be_nil
     _(opts.user_agent).wont_be_empty
   end
 
-  it 'user_agent defaults to the published gem name, the version and the language' do
+  it 'bhv_options_042 user_agent defaults to the published gem name, the version and the language' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.user_agent).must_equal 'petstore_client/1.0.0 (ruby)'
     _(opts.user_agent).must_match(%r{\A[A-Za-z0-9_.-]+/\d+\.\d+\.\d+\S* \(ruby\)\z})
   end
 
-  it 'default_headers defaults to empty map' do
+  it 'bhv_options_019 default_headers defaults to empty map' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.default_headers).must_be_empty
   end
 
-  it 'inject_request_id defaults to false' do
+  it 'bhv_options_022 inject_request_id defaults to false' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.inject_request_id).must_equal false
   end
 
-  it 'max_retries defaults to 2' do
+  it 'bhv_options_026 max_retries defaults to 2' do
     _(Petstore::Client::TransportOptions.builder.build.max_retries).must_equal 2
   end
 
-  it 'max_retries accepts zero to turn retries off' do
+  it 'bhv_options_007 max_retries accepts zero to turn retries off' do
     _(Petstore::Client::TransportOptions.builder.max_retries(0).build.max_retries).must_equal 0
   end
 
   [-1, 1.5, '2', nil].each do |bad|
-    it "rejects max_retries #{bad.inspect} through the builder" do
+    it "bhv_options_027 rejects max_retries #{bad.inspect} through the builder" do
       err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_retries(bad) } # steep:ignore ArgumentTypeMismatch
       _(err.message).must_include 'Invalid max_retries'
     end
@@ -77,7 +77,7 @@ describe Petstore::Client::TransportOptions do
     _(Petstore::Client::TransportOptions.builder.max_retries(4).build.inspect).must_include 'max_retries=4'
   end
 
-  it 'builder sets all fields' do
+  it 'bhv_options_017 builder sets all fields' do
     opts = Petstore::Client::TransportOptions.builder
       .verify_ssl(false)
       .ca_cert_path('/path/to/ca.pem')
@@ -103,7 +103,7 @@ describe Petstore::Client::TransportOptions do
     _(opts.inject_request_id).must_equal true
   end
 
-  it 'follow_redirects defaults to true with null max_redirects' do
+  it 'bhv_options_021 follow_redirects defaults to true with null max_redirects' do
     opts = Petstore::Client::TransportOptions.builder
       .follow_redirects(true)
       .build
@@ -121,7 +121,7 @@ describe Petstore::Client::TransportOptions do
   end
 
   # An invalid proxy URL is the caller's mistake, so it raises ArgumentError, never an SDK error.
-  it 'invalid proxy URL throws error' do
+  it 'bhv_options_024 invalid proxy URL throws error' do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('not-a-url').build
     end
@@ -129,19 +129,19 @@ describe Petstore::Client::TransportOptions do
     _(error).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
   end
 
-  it 'unparseable proxy URL raises ArgumentError, not URI::InvalidURIError' do
+  it 'bhv_options_013 unparseable proxy URL raises ArgumentError, not URI::InvalidURIError' do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[bad').build
     end
     _(error).must_be_instance_of ArgumentError
   end
 
-  it 'a proxy URL with an IPv6 literal host is accepted and kept verbatim' do
+  it 'bhv_options_009 a proxy URL with an IPv6 literal host is accepted and kept verbatim' do
     opts = Petstore::Client::TransportOptions.builder.proxy('http://[::1]:3128').build
     _(opts.proxy).must_equal 'http://[::1]:3128'
   end
 
-  it 'a proxy URL with an unterminated IPv6 literal is refused' do
+  it 'bhv_options_010 a proxy URL with an unterminated IPv6 literal is refused' do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[::1:3128').build
     end
@@ -158,7 +158,7 @@ describe Petstore::Client::TransportOptions do
     _(error.message).must_equal 'Invalid proxy URL (must use http or https scheme): ftp://x'
   end
 
-  it 'constructing directly with a proxy that has no host raises ArgumentError' do
+  it 'bhv_options_011 constructing directly with a proxy that has no host raises ArgumentError' do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.new(
         verify_ssl: true, ca_cert_path: nil, proxy: 'http:///path', timeout: nil, follow_redirects: true,
@@ -168,12 +168,12 @@ describe Petstore::Client::TransportOptions do
     _(error.message).must_equal 'Invalid proxy URL (missing host): http:///path'
   end
 
-  it 'null proxy URL is accepted' do
+  it 'bhv_options_030 null proxy URL is accepted' do
     opts = Petstore::Client::TransportOptions.builder.proxy(nil).build
     _(opts.proxy).must_be_nil
   end
 
-  it 'builder methods return the same builder instance' do
+  it 'bhv_options_015 builder methods return the same builder instance' do
     builder = Petstore::Client::TransportOptions.builder
 
     _(builder.verify_ssl(true)).must_be_same_as builder
@@ -188,7 +188,7 @@ describe Petstore::Client::TransportOptions do
     _(builder.inject_request_id(false)).must_be_same_as builder
   end
 
-  it 'accumulates headers from default_header calls' do
+  it 'bhv_options_012 accumulates headers from default_header calls' do
     opts = Petstore::Client::TransportOptions.builder
       .default_header('X-First', 'one')
       .default_header('X-Second', 'two')
@@ -199,7 +199,7 @@ describe Petstore::Client::TransportOptions do
     _(opts.default_headers['X-Second']).must_equal 'two'
   end
 
-  it 'merges headers from default_headers call' do
+  it 'bhv_options_028 merges headers from default_headers call' do
     opts = Petstore::Client::TransportOptions.builder
       .default_header('X-First', 'one')
       .default_headers({ 'X-Second' => 'two', 'X-Third' => 'three' })
@@ -211,7 +211,7 @@ describe Petstore::Client::TransportOptions do
     _(opts.default_headers['X-Third']).must_equal 'three'
   end
 
-  it 'modifying source map does not affect built options' do
+  it 'bhv_options_029 modifying source map does not affect built options' do
     headers = { 'X-Original' => 'original' }
 
     opts = Petstore::Client::TransportOptions.builder
@@ -226,7 +226,7 @@ describe Petstore::Client::TransportOptions do
     _(opts.default_headers).must_be :frozen?
   end
 
-  it 'builder produces independent instances' do
+  it 'bhv_options_016 builder produces independent instances' do
     builder = Petstore::Client::TransportOptions.builder.verify_ssl(false)
     first = builder.build
     second = builder.build
@@ -237,23 +237,23 @@ describe Petstore::Client::TransportOptions do
 
   # TimeoutConfigTests
 
-  it 'timeout defaults to 10000ms' do
+  it 'bhv_options_039 timeout defaults to 10000ms' do
     # Default TransportOptions applies a 10-second timeout.
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.timeout).must_equal 10_000
   end
 
-  it 'timeout can be explicitly set to nil for no timeout' do
+  it 'bhv_options_037 timeout can be explicitly set to nil for no timeout' do
     opts = Petstore::Client::TransportOptions.builder.timeout(nil).build
     _(opts.timeout).must_be_nil
   end
 
-  it 'setting timeout to 5000 is accessible' do
+  it 'bhv_options_036 setting timeout to 5000 is accessible' do
     opts = Petstore::Client::TransportOptions.builder.timeout(5000).build
     _(opts.timeout).must_equal 5000
   end
 
-  it 'timeout field is named exactly timeout' do
+  it 'bhv_options_040 timeout field is named exactly timeout' do
     # Verify via the reader that the field is named :timeout (not :open_timeout or :connection_timeout).
     opts = Petstore::Client::TransportOptions.builder.timeout(1000).build
     _(opts.timeout).wont_be_nil
@@ -262,14 +262,14 @@ describe Petstore::Client::TransportOptions do
 
   # ProxyConfigTests
 
-  it 'setting proxy URL is preserved on read-back' do
+  it 'bhv_options_035 setting proxy URL is preserved on read-back' do
     opts = Petstore::Client::TransportOptions.builder
       .proxy('http://proxy.example.com:8080')
       .build
     _(opts.proxy).must_equal 'http://proxy.example.com:8080'
   end
 
-  it 'setting proxy is supported on all platforms' do
+  it 'bhv_options_034 setting proxy is supported on all platforms' do
     # Proxy configuration must not raise on any platform.
     opts = Petstore::Client::TransportOptions.builder
       .proxy('http://proxy.example.com:8080')
@@ -301,7 +301,7 @@ describe Petstore::Client::TransportOptions do
     end
   end
 
-  it 'accepts an upper-case proxy scheme and keeps it as given' do
+  it 'bhv_options_014 accepts an upper-case proxy scheme and keeps it as given' do
     opts = Petstore::Client::TransportOptions.builder.proxy('HTTPS://proxy.example.com:8443').build
     _(opts.proxy).must_equal 'HTTPS://proxy.example.com:8443'
   end
@@ -311,7 +311,7 @@ describe Petstore::Client::TransportOptions do
     _(opts.proxy).must_equal 'http://user:pass@proxy.example.com:8080'
   end
 
-  it 'inspect and to_s hide the proxy password and sensitive header values' do
+  it 'bhv_options_023 inspect and to_s hide the proxy password and sensitive header values' do
     opts = Petstore::Client::TransportOptions.builder
                                            .proxy('http://user:hunter2@proxy.example.com:8080')
                                            .default_header('Authorization', 'Bearer abc')

@@ -8,18 +8,18 @@ require '{{gemName}}'
 describe {{moduleName}}::ServerVariable do
   parallelize_me!
 
-  it 'exposes the default value' do
+  it 'bhv_servers_017 exposes the default value' do
     var = {{moduleName}}::ServerVariable.new(default_value: 'prod')
     _(var.default_value).must_equal 'prod'
   end
 
-  it 'defaults description to nil and enum_values to an empty array' do
+  it 'bhv_servers_016 defaults description to nil and enum_values to an empty array' do
     var = {{moduleName}}::ServerVariable.new(default_value: 'prod')
     _(var.description).must_be_nil
     _(var.enum_values).must_equal []
   end
 
-  it 'exposes the description when provided' do
+  it 'bhv_servers_015 exposes the description when provided' do
     var = {{moduleName}}::ServerVariable.new(default_value: 'prod', description: 'deployment environment')
     _(var.description).must_equal 'deployment environment'
   end

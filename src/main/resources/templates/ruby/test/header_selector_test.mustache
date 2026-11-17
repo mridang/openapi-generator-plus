@@ -11,47 +11,47 @@ describe {{moduleName}}::HeaderSelector do
   end
 
   describe '#json_mime?' do
-    it 'returns true for application/json' do
+    it 'bhv_headers_019 returns true for application/json' do
       _(@header_selector.json_mime?('application/json')).must_equal(true)
     end
 
-    it 'returns true for application/json with charset' do
+    it 'bhv_headers_020 returns true for application/json with charset' do
       _(@header_selector.json_mime?('application/json; charset=UTF-8')).must_equal(true)
     end
 
-    it 'returns true for uppercase APPLICATION/JSON (case insensitive)' do
+    it 'bhv_headers_021 returns true for uppercase APPLICATION/JSON (case insensitive)' do
       _(@header_selector.json_mime?('APPLICATION/JSON')).must_equal(true)
     end
 
-    it 'returns true for vendor JSON types' do
+    it 'bhv_headers_022 returns true for vendor JSON types' do
       _(@header_selector.json_mime?('application/vnd.api+json')).must_equal(true)
       _(@header_selector.json_mime?('application/vnd.company+json')).must_equal(true)
       _(@header_selector.json_mime?('application/hal+json')).must_equal(true)
     end
 
-    it 'returns false for text/html' do
+    it 'bhv_headers_016 returns false for text/html' do
       _(@header_selector.json_mime?('text/html')).must_equal(false)
     end
 
-    it 'returns false for application/xml' do
+    it 'bhv_headers_013 returns false for application/xml' do
       _(@header_selector.json_mime?('application/xml')).must_equal(false)
     end
 
-    it 'returns false for application/octet-stream' do
+    it 'bhv_headers_012 returns false for application/octet-stream' do
       _(@header_selector.json_mime?('application/octet-stream')).must_equal(false)
     end
 
-    it 'returns false for nil' do
+    it 'bhv_headers_015 returns false for nil' do
       _(@header_selector.json_mime?(nil)).must_equal(false)
     end
 
-    it 'returns false for empty string' do
+    it 'bhv_headers_014 returns false for empty string' do
       _(@header_selector.json_mime?('')).must_equal(false)
     end
   end
 
   describe '#select_headers' do
-    it 'sets Accept header when accepts provided' do
+    it 'bhv_headers_024 sets Accept header when accepts provided' do
       headers = @header_selector.select_headers(
         ['application/json'],
         'application/json',
@@ -60,7 +60,25 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_equal('application/json')
     end
 
-    it 'does not set Accept header when accepts empty' do
+    it 'bhv_headers_006 does not set Accept header when all entries are blank' do
+      headers = @header_selector.select_headers(
+        ['', '   ', nil],
+        'application/json',
+        false
+      )
+      _(headers['Accept']).must_be_nil
+    end
+
+    it 'bhv_headers_009 filters out empty and blank entries' do
+      headers = @header_selector.select_headers(
+        ['', '   ', 'application/json'],
+        'application/json',
+        false
+      )
+      _(headers['Accept']).must_equal('application/json')
+    end
+
+    it 'bhv_headers_004 does not set Accept header when accepts empty' do
       headers = @header_selector.select_headers(
         [],
         'application/json',
@@ -69,7 +87,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_be_nil
     end
 
-    it 'sets Content-Type header when not multipart' do
+    it 'bhv_headers_025 sets Content-Type header when not multipart' do
       headers = @header_selector.select_headers(
         ['application/json'],
         'application/json',
@@ -78,7 +96,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Content-Type']).must_equal('application/json')
     end
 
-    it 'does not set Content-Type header when multipart' do
+    it 'bhv_headers_007 does not set Content-Type header when multipart' do
       headers = @header_selector.select_headers(
         ['application/json'],
         'application/json',
@@ -87,7 +105,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Content-Type']).must_be_nil
     end
 
-    it 'defaults Content-Type to application/json when empty' do
+    it 'bhv_headers_001 defaults Content-Type to application/json when empty' do
       headers = @header_selector.select_headers(
         ['application/json'],
         '',
@@ -96,7 +114,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Content-Type']).must_equal('application/json')
     end
 
-    it 'defaults Content-Type to application/json when nil' do
+    it 'bhv_headers_002 defaults Content-Type to application/json when nil' do
       headers = @header_selector.select_headers(
         ['application/json'],
         nil,
@@ -105,7 +123,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Content-Type']).must_equal('application/json')
     end
 
-    it 'returns single accept as-is' do
+    it 'bhv_headers_017 returns single accept as-is' do
       headers = @header_selector.select_headers(
         ['application/json'],
         'application/json',
@@ -114,7 +132,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_equal('application/json')
     end
 
-    it 'returns single non-JSON accept as-is' do
+    it 'bhv_headers_018 returns single non-JSON accept as-is' do
       headers = @header_selector.select_headers(
         ['text/html'],
         'application/json',
@@ -123,7 +141,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_equal('text/html')
     end
 
-    it 'joins media types in declaration order' do
+    it 'bhv_headers_026 joins media types in declaration order' do
       headers = @header_selector.select_headers(
         %w[image/jpeg image/png application/json],
         'application/json',
@@ -132,7 +150,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_equal('image/jpeg, image/png, application/json')
     end
 
-    it 'does not reorder or prioritize JSON types' do
+    it 'bhv_headers_003 does not reorder or prioritize JSON types' do
       headers = @header_selector.select_headers(
         %w[text/html application/vnd.api+json application/json],
         'application/json',
@@ -141,7 +159,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_equal('text/html, application/vnd.api+json, application/json')
     end
 
-    it 'filters out empty entries' do
+    it 'bhv_headers_010 filters out empty entries' do
       headers = @header_selector.select_headers(
         ['', 'application/json', nil],
         'application/json',
@@ -150,7 +168,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_equal('application/json')
     end
 
-    it 'drops whitespace-only entries' do
+    it 'bhv_headers_008 drops whitespace-only entries' do
       headers = @header_selector.select_headers(
         ['   ', 'application/json'],
         'application/json',
@@ -161,7 +179,7 @@ describe {{moduleName}}::HeaderSelector do
   end
 
   describe '#select_accept_header (private)' do
-    it 'returns nil for nil input' do
+    it 'bhv_headers_005 returns nil for nil input' do
       _(@header_selector.send(:select_accept_header, nil)).must_be_nil
     end
 
@@ -173,7 +191,7 @@ describe {{moduleName}}::HeaderSelector do
       _(@header_selector.send(:select_accept_header, [])).must_equal('')
     end
 
-    it 'returns single accept as-is' do
+    it 'bhv_headers_023 returns single accept as-is' do
       _(@header_selector.send(:select_accept_header, ['application/json'])).must_equal('application/json')
     end
 
@@ -181,7 +199,7 @@ describe {{moduleName}}::HeaderSelector do
       _(@header_selector.send(:select_accept_header, ['text/html'])).must_equal('text/html')
     end
 
-    it 'joins media types in declaration order with ", "' do
+    it 'bhv_headers_011 joins media types in declaration order with ", "' do
       result = @header_selector.send(:select_accept_header, %w[image/jpeg image/png application/json])
       _(result).must_equal('image/jpeg, image/png, application/json')
     end

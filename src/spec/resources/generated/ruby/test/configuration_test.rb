@@ -3,20 +3,20 @@
 require 'test_helper'
 
 describe Petstore::Client::Configuration do
-  it 'builder produces correct defaults' do
+  it 'bhv_config_005 builder produces correct defaults' do
     config = Petstore::Client::Configuration.builder.build
 
     _(config.base_url).must_equal('/api/v3')
     _(config.default_headers).must_equal({})
   end
 
-  it 'builder returns Builder instance' do
+  it 'bhv_config_007 builder returns Builder instance' do
     builder = Petstore::Client::Configuration.builder
 
     _(builder).must_be_instance_of(Petstore::Client::Configuration::Builder)
   end
 
-  it 'builder sets base_url' do
+  it 'bhv_config_011 builder sets base_url' do
     config = Petstore::Client::Configuration.builder
       .base_url('https://custom.example.com')
       .build
@@ -24,7 +24,7 @@ describe Petstore::Client::Configuration do
     _(config.base_url).must_equal('https://custom.example.com')
   end
 
-  it 'builder sets single default header' do
+  it 'bhv_config_013 builder sets single default header' do
     config = Petstore::Client::Configuration.builder
       .default_header('Authorization', 'Bearer token123')
       .build
@@ -32,7 +32,7 @@ describe Petstore::Client::Configuration do
     _(config.default_headers).must_equal({ 'Authorization' => 'Bearer token123' })
   end
 
-  it 'builder sets multiple default headers' do
+  it 'bhv_config_012 builder sets multiple default headers' do
     config = Petstore::Client::Configuration.builder
       .default_headers({
                          'Authorization' => 'Bearer token123',
@@ -46,7 +46,7 @@ describe Petstore::Client::Configuration do
                                          })
   end
 
-  it 'builder accumulates headers' do
+  it 'bhv_config_002 builder accumulates headers' do
     config = Petstore::Client::Configuration.builder
       .default_header('X-First', 'one')
       .default_header('X-Second', 'two')
@@ -59,7 +59,7 @@ describe Petstore::Client::Configuration do
     _(config.default_headers['X-Third']).must_equal('three')
   end
 
-  it 'builder sets all fields' do
+  it 'bhv_config_010 builder sets all fields' do
     config = Petstore::Client::Configuration.builder
       .base_url('https://api.example.com')
       .default_header('Authorization', 'Bearer token')
@@ -73,7 +73,7 @@ describe Petstore::Client::Configuration do
                                          })
   end
 
-  it 'server resolves URL with default variables' do
+  it 'bhv_config_008 server resolves URL with default variables' do
     server = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.example.com/api/{version}',
       description: 'Test server',
@@ -96,7 +96,7 @@ describe Petstore::Client::Configuration do
     _(config.base_url).must_equal('https://api.example.com/api/v3')
   end
 
-  it 'server resolves URL with variable overrides' do
+  it 'bhv_config_009 server resolves URL with variable overrides' do
     server = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.example.com/api/{version}',
       variables: {
@@ -118,7 +118,7 @@ describe Petstore::Client::Configuration do
     _(config.base_url).must_equal('https://staging.example.com/api/v2')
   end
 
-  it 'invalid enum value raises' do
+  it 'bhv_config_016 invalid enum value raises' do
     server = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.example.com',
       variables: {
@@ -136,7 +136,7 @@ describe Petstore::Client::Configuration do
     }).must_raise(ArgumentError)
   end
 
-  it 'base_url overrides server' do
+  it 'bhv_config_001 base_url overrides server' do
     server = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://api.example.com'
     )
@@ -149,7 +149,7 @@ describe Petstore::Client::Configuration do
     _(config.base_url).must_equal('https://override.example.com')
   end
 
-  it 'default_configuration returns an instance' do
+  it 'bhv_config_014 default_configuration returns an instance' do
     config = Petstore::Client::Configuration.default_configuration
 
     _(config).must_be_instance_of(Petstore::Client::Configuration)
@@ -171,7 +171,7 @@ describe Petstore::Client::Configuration do
     _(Petstore::Client::Configuration).wont_respond_to(:default=)
   end
 
-  it 'builder produces independent instances' do
+  it 'bhv_config_006 builder produces independent instances' do
     builder = Petstore::Client::Configuration.builder
       .base_url('https://example.com')
     first = builder.build
@@ -190,7 +190,7 @@ describe Petstore::Client::Configuration do
     _(config.default_headers).must_be(:frozen?)
   end
 
-  it 'builder is fluent' do
+  it 'bhv_config_003 builder is fluent' do
     builder = Petstore::Client::Configuration.builder
 
     _(builder.base_url('https://example.com')).must_be_same_as(builder)
@@ -201,7 +201,7 @@ describe Petstore::Client::Configuration do
     _(builder.server(server)).must_be_same_as(builder)
   end
 
-  it 'inspect and to_s hide sensitive default header values' do
+  it 'bhv_config_015 inspect and to_s hide sensitive default header values' do
     config = Petstore::Client::Configuration.builder
                                           .default_header('Authorization', 'Bearer abc')
                                           .default_header('Cookie', 'sid=1')

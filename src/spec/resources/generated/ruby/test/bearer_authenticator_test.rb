@@ -13,36 +13,36 @@ require 'petstore_client'
 describe Petstore::Client::Auth::BearerAuthenticator do
   parallelize_me!
 
-  it 'raw token is prefixed with Bearer' do
+  it 'bhv_authbearer_009 raw token is prefixed with Bearer' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'xyz')
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
 
-  it 'already-prefixed token is not doubled' do
+  it 'bhv_authbearer_003 already-prefixed token is not doubled' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'Bearer xyz')
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
 
-  it 'lowercase bearer prefix is stripped' do
+  it 'bhv_authbearer_007 lowercase bearer prefix is stripped' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'bearer xyz')
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
 
-  it 'mixed-case bearer prefix is stripped' do
+  it 'bhv_authbearer_008 mixed-case bearer prefix is stripped' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'BeArEr xyz')
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
 
-  it 'a token that merely begins with the letters bearer is kept whole' do
+  it 'bhv_authbearer_015 a token that merely begins with the letters bearer is kept whole' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'bearerxyz')
     _(auth.auth_headers['Authorization']).must_equal 'Bearer bearerxyz'
   end
 
-  it 'a doubled prefix is stripped only once' do
+  it 'bhv_authbearer_004 a doubled prefix is stripped only once' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'Bearer Bearer xyz')
     _(auth.auth_headers['Authorization']).must_equal 'Bearer Bearer xyz'
   end
@@ -50,18 +50,18 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # bearer-no-empty-token-guard: an empty/whitespace token would emit a bare
   # "Authorization: Bearer " header, sending the request unauthenticated, so
   # the constructor must reject it.
-  it 'rejects an empty token' do
+  it 'bhv_authbearer_005 rejects an empty token' do
     error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', '') }).must_raise ArgumentError
     _(error.message).must_include 'Bearer token must not be empty'
   end
 
-  it 'rejects a whitespace-only token' do
+  it 'bhv_authbearer_017 rejects a whitespace-only token' do
     _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', '   ') }).must_raise ArgumentError
   end
 
   # A Unicode space is not ASCII blank, so the printable-ASCII rule rejects it
   # rather than the empty-token rule.
-  it 'a Unicode space is not blank, it fails the printable ASCII check instead' do
+  it 'bhv_authbearer_016 a Unicode space is not blank, it fails the printable ASCII check instead' do
     error = _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "\u00A0")
     }).must_raise ArgumentError
@@ -71,7 +71,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing newlines
   # from .env / file reads, which would CRLF-inject the Authorization header.
   # Also reject non-ASCII.
-  it 'rejects CR/LF in the token' do
+  it 'bhv_authbearer_012 rejects CR/LF in the token' do
     _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
     }).must_raise ArgumentError
@@ -86,7 +86,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # authenticator-secret-in-default-string-repr: the default object
   # representation must mask the stored token — the secret value must be absent
   # and a *** redaction marker present.
-  it 'redacts the token from inspect and to_s' do
+  it 'bhv_authbearer_011 redacts the token from inspect and to_s' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
     _(auth.inspect).wont_include 'super-secret-token'
     _(auth.to_s).wont_include 'super-secret-token'
@@ -95,7 +95,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     _(auth.inspect).must_include 'host='
   end
 
-  it 'names the reason in each rejection' do
+  it 'bhv_authbearer_001 names the reason in each rejection' do
     cases = {
       '' => 'Bearer token must not be empty',
       "tok\r\nInjected: yes" => 'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)',
@@ -107,7 +107,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     end
   end
 
-  it 'shows the host but not the token in inspect' do
+  it 'bhv_authbearer_013 shows the host but not the token in inspect' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
     _(auth.inspect).must_equal "#<#{auth.class.name} host=\"https://api.example.com\" token=\"***\">"
   end
@@ -115,7 +115,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   describe 'credential sources' do
     let(:prefix) { Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX }
 
-    it 'reads the token from the environment variable when none is given' do
+    it 'bhv_authbearer_010 reads the token from the environment variable when none is given' do
       auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => 'from-env' })
 
       _(auth.auth_headers['Authorization']).must_equal 'Bearer from-env'
@@ -136,7 +136,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(error.message).must_equal 'Bearer token must not be empty'
     end
 
-    it 'fails at construction when there is no token at all' do
+    it 'bhv_lifecycle_013 fails at construction when there is no token at all' do
       error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: {}) }).must_raise ArgumentError
 
       _(error.message).must_equal 'Bearer token must not be empty'
@@ -180,7 +180,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(error.message).must_equal 'Bearer token must not be empty'
     end
 
-    it 'rejects an empty token from the provider when the request is made' do
+    it 'bhv_authbearer_014 rejects an empty token from the provider when the request is made' do
       auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', token_provider: -> { '' })
 
       _(-> { auth.auth_headers }).must_raise ArgumentError

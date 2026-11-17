@@ -51,7 +51,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#search_store content-encoded query' do
-    it 'encodes the q value through the SDK serializer as compact JSON' do
+    it 'bhv_operations_097 encodes the q value through the SDK serializer as compact JSON' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         query = Petstore::Client::Models::PhotoMetadata.new(caption: 'a/b<é')
@@ -79,7 +79,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#search_store content-encoded header' do
-    it 'encodes the X-Filter value through the SDK serializer as compact JSON' do
+    it 'bhv_operations_121 encodes the X-Filter value through the SDK serializer as compact JSON' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(x_filter: { 'k' => 'v' }))
@@ -107,7 +107,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_order_by_tracking_id' do
-    it 'puts the lowercase hyphenated uuid in the path' do
+    it 'bhv_operations_124 puts the lowercase hyphenated uuid in the path' do
       api, server, thread, captured = capture_wire_request('{"id":1}')
       begin
         api.get_order_by_tracking_id('E621E1F8-C36C-495A-93FC-0C247A3E6E5F')
@@ -119,7 +119,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'rejects a malformed uuid before sending anything' do
+    it 'bhv_operations_111 rejects a malformed uuid before sending anything' do
       api, server, thread, captured = capture_wire_request('{"id":1}')
       begin
         err = _ { api.get_order_by_tracking_id('not-a-uuid') }.must_raise(Petstore::Client::Errors::SerializationError)
@@ -133,7 +133,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_inventory' do
-    it 'get_inventory' do
+    it 'bhv_operations_102 get_inventory' do
       result = @api.get_inventory
 
       _(result).must_be_kind_of(Hash)
@@ -150,7 +150,7 @@ describe Petstore::Client::Api::StoreApi do
       _(options).wont_respond_to :auth
     end
 
-    it 'sends the headers of the call' do
+    it 'bhv_operations_096 sends the headers of the call' do
       api, server, thread, captured = capture_wire_request('{}')
       begin
         api.get_inventory(Petstore::Client::Api::Options::GetInventoryOptions.new(headers: { 'X-Tenant' => 'a' }))
@@ -177,7 +177,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#place_order' do
-    it 'place_order' do
+    it 'bhv_operations_117 place_order' do
       order = Petstore::Client::Models::Order.new(
         id: 1,
         pet_id: 12_345,
@@ -195,7 +195,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_inventory_with_http_info' do
-    it 'get_inventory_with_http_info' do
+    it 'bhv_operations_103 get_inventory_with_http_info' do
       result = @api.get_inventory_with_http_info
 
       _(result).wont_be_nil
@@ -206,7 +206,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#place_order_with_http_info' do
-    it 'place_order_with_http_info' do
+    it 'bhv_operations_119 place_order_with_http_info' do
       order = Petstore::Client::Models::Order.new(
         id: 1,
         pet_id: 12_345,
@@ -226,7 +226,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_order_by_id' do
-    it 'get_order_by_id' do
+    it 'bhv_operations_104 get_order_by_id' do
       result = @api.get_order_by_id(1)
 
       _(result).wont_be_nil
@@ -235,7 +235,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#get_order_by_id_with_http_info' do
-    it 'get_order_by_id_with_http_info' do
+    it 'bhv_operations_105 get_order_by_id_with_http_info' do
       result = @api.get_order_by_id_with_http_info(1)
 
       _(result).wont_be_nil
@@ -246,7 +246,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#delete_order' do
-    it 'delete_order' do
+    it 'bhv_operations_099 delete_order' do
       @api.delete_order(1)
     end
   end
@@ -280,7 +280,7 @@ describe Petstore::Client::Api::StoreApi do
 
     # Nested generic container: Array<Hash<String, Category>>. Every leaf must
     # deserialize into a typed Category instance, not be left as a raw Hash.
-    it 'decodes nested container leaves into typed Category instances' do
+    it 'bhv_operations_101 decodes nested container leaves into typed Category instances' do
       body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]'
       api, server, thread = new_store_api_for_mock(200, 'application/json', body)
       begin
@@ -327,7 +327,7 @@ describe Petstore::Client::Api::StoreApi do
       [api, server, thread]
     end
 
-    it 'get_order_not_found' do
+    it 'bhv_operations_106 get_order_not_found' do
       api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
       begin
         _(-> { api.get_order_by_id(99_999) }).must_raise Petstore::Client::Errors::NotFoundError
@@ -337,7 +337,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'place_order_server_error' do
+    it 'bhv_operations_118 place_order_server_error' do
       api, server, thread = new_store_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
       begin
         order = Petstore::Client::Models::Order.new(
@@ -354,7 +354,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'delete_order_not_found' do
+    it 'bhv_operations_100 delete_order_not_found' do
       api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
       begin
         _(-> { api.delete_order(99_999) }).must_raise Petstore::Client::Errors::NotFoundError
@@ -375,7 +375,7 @@ describe Petstore::Client::Api::StoreApi do
       lines.first(index.to_i).reverse.take_while { |line| line.strip.start_with?('#') }.reverse.map(&:strip)
     end
 
-    it 'keeps the summary and the options param attached to get_stock_item' do
+    it 'bhv_operations_112 keeps the summary and the options param attached to get_stock_item' do
       block = doc_block('get_stock_item')
       _(block.first).must_equal '# Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.'
       _(block.grep(/\A# @param options \[GetStockItemOptions\]/).size).must_equal 1
@@ -386,7 +386,7 @@ describe Petstore::Client::Api::StoreApi do
   # A named-enum ($ref) parameter goes on the wire as its value, never as the
   # language's representation of the constant.
   describe '#get_by_swatch' do
-    it 'sends the enum value in the path, the query and the header' do
+    it 'bhv_operations_122 sends the enum value in the path, the query and the header' do
       api, server, thread, captured = capture_wire_request('{"id":1,"name":"x"}')
       begin
         swatch = Petstore::Client::Models::Swatch
@@ -406,7 +406,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'omits the optional query and header when they are not given' do
+    it 'bhv_operations_107 omits the optional query and header when they are not given' do
       api, server, thread, captured = capture_wire_request('{"id":1,"name":"x"}')
       begin
         api.get_by_swatch(Petstore::Client::Models::Swatch::BLUE)
@@ -422,7 +422,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#create_account' do
-    it 'sends the writeOnly password and decodes the readOnly id' do
+    it 'bhv_operations_098 sends the writeOnly password and decodes the readOnly id' do
       api, server, thread, captured = capture_wire_request('{"id":9,"username":"ann"}')
       begin
         account = Petstore::Client::Models::Account.new(username: 'ann', password: 'hunter2')
@@ -454,7 +454,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe 'model responses' do
-    it 'decodes the self-referential tree from get_tree' do
+    it 'bhv_operations_116 decodes the self-referential tree from get_tree' do
       api, server, thread, = capture_wire_request('{"value":"root","child":{"value":"leaf"}}')
       begin
         tree = api.get_tree
@@ -467,7 +467,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'decodes the mutually recursive models from get_department' do
+    it 'bhv_operations_108 decodes the mutually recursive models from get_department' do
       api, server, thread, = capture_wire_request('{"name":"Eng","lead":{"name":"Ann","department":{"name":"Eng"}}}')
       begin
         department = api.get_department
@@ -493,7 +493,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'decodes a 201 reserve_stock body as the new receipt' do
+    it 'bhv_operations_120 decodes a 201 reserve_stock body as the new receipt' do
       api, server, thread, = capture_wire_request(
         '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}', status_line: '201 Created'
       )
@@ -508,7 +508,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'applies the schema defaults to the model get_defaults returns' do
+    it 'bhv_operations_123 applies the schema defaults to the model get_defaults returns' do
       api, server, thread, = capture_wire_request('{}')
       begin
         defaults = api.get_defaults
@@ -524,7 +524,7 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe 'nested container responses' do
-    it 'decodes Array<Array<Integer>> from get_matrix' do
+    it 'bhv_operations_109 decodes Array<Array<Integer>> from get_matrix' do
       api, server, thread, = capture_wire_request('[[1,2],[3]]')
       begin
         _(api.get_matrix).must_equal [[1, 2], [3]]
@@ -534,7 +534,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'decodes Array<Hash<String, Swatch>> from get_swatch_groups' do
+    it 'bhv_operations_114 decodes Array<Hash<String, Swatch>> from get_swatch_groups' do
       api, server, thread, = capture_wire_request('[{"a":"red"},{"b":"blue"}]')
       begin
         _(api.get_swatch_groups).must_equal [{ 'a' => 'red' }, { 'b' => 'blue' }]
@@ -544,7 +544,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'decodes Array<Hash<String, Time>> from get_timestamp_groups into Time values' do
+    it 'bhv_operations_115 decodes Array<Hash<String, Time>> from get_timestamp_groups into Time values' do
       api, server, thread, = capture_wire_request('[{"t":"2024-01-01T00:00:00Z"}]')
       begin
         result = api.get_timestamp_groups
@@ -557,7 +557,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'decodes a top-level enum from get_swatch' do
+    it 'bhv_operations_113 decodes a top-level enum from get_swatch' do
       api, server, thread, = capture_wire_request('"red"')
       begin
         _(api.get_swatch).must_equal 'red'

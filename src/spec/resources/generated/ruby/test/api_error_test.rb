@@ -5,7 +5,7 @@ require 'test_helper'
 describe Petstore::Client::Errors::ApiError do
   parallelize_me!
 
-  it 'exposes status_code, response_body, response_headers and error_body' do
+  it 'bhv_errors_004 exposes status_code, response_body, response_headers and error_body' do
     err = Petstore::Client::Errors::ApiError.new(
       status_code: 404,
       message: 'not found',
@@ -20,7 +20,7 @@ describe Petstore::Client::Errors::ApiError do
     assert_nil(err.error_body)
   end
 
-  it 'nil headers and body mark transport-no-response' do
+  it 'bhv_errors_021 nil headers and body mark transport-no-response' do
     # apierror-responsebody-headers-nullable-split: nil is distinct from an
     # empty header map / empty body so a pre-response transport failure can
     # be encoded.
@@ -35,14 +35,14 @@ describe Petstore::Client::Errors::ApiError do
     assert_nil(err.response_body)
   end
 
-  it 'is a StandardError subclass with a message' do
+  it 'bhv_errors_019 is a StandardError subclass with a message' do
     err = Petstore::Client::Errors::ApiError.new(status_code: 500, message: 'boom')
 
     _(err).must_be_kind_of(StandardError)
     _(err.message).wont_be_empty
   end
 
-  it 'omits the headers and body sections when they are empty' do
+  it 'bhv_errors_022 omits the headers and body sections when they are empty' do
     err = Petstore::Client::Errors::ApiError.new(
       status_code: 404, message: 'missing', response_headers: {}, response_body: ''
     )
@@ -58,7 +58,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).must_equal('connection reset')
   end
 
-  it 'renders the headers and body sections when they carry content' do
+  it 'bhv_errors_024 renders the headers and body sections when they carry content' do
     headers = { 'x-id' => '1' }
     err = Petstore::Client::Errors::ApiError.new(
       status_code: 500, message: 'boom', response_headers: headers, response_body: 'oops'
@@ -76,7 +76,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.response_body.bytesize).must_equal 3000
   end
 
-  it 'escapes control characters in the rendered response body' do
+  it 'bhv_errors_001 escapes control characters in the rendered response body' do
     err = Petstore::Client::Errors::ApiError.new(
       status_code: 500, message: 'boom', response_headers: nil, response_body: "a\r\nb\tc\u0001"
     )
@@ -84,7 +84,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).must_equal("boom\nHTTP status code: 500\nResponse body: a\\r\\nb\\tc\\x01")
   end
 
-  it 'redacts credential headers and Set-Cookie in the rendered headers only' do
+  it 'bhv_errors_023 redacts credential headers and Set-Cookie in the rendered headers only' do
     headers = { 'set-cookie' => 'sid=abc', 'x-api-key' => 'k', 'x-id' => '1' }
     err = Petstore::Client::Errors::ApiError.new(
       status_code: 500, message: 'boom', response_headers: headers, response_body: nil
@@ -110,7 +110,7 @@ describe Petstore::Client::Errors::ApiError do
     _(Petstore::Client::Errors::ApiError.new.message).must_equal('Error message: the server returns an error')
   end
 
-  it 'detail_message returns the bare detail without the rendered context' do
+  it 'bhv_errors_012 detail_message returns the bare detail without the rendered context' do
     err = Petstore::Client::Errors::ApiError.from_response(404, { 'x-id' => '1' }, 'gone')
 
     _(err.detail_message).must_equal('API returned status code 404')
@@ -125,7 +125,7 @@ describe Petstore::Client::Errors::ApiError do
 
   # Unified exception hierarchy: every SDK-thrown error must reach the
   # branded root (::Petstore::Client::Errors::OpenAPIError) so a single rescue catches them all.
-  it 'roots ApiError at the branded base' do
+  it 'bhv_errors_018 roots ApiError at the branded base' do
     err = Petstore::Client::Errors::ApiError.new(status_code: 500, message: 'boom')
 
     _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
@@ -139,7 +139,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
   end
 
-  it 'chains NetworkTimeoutError up through NetworkError and ApiError with status 0' do
+  it 'bhv_errors_020 chains NetworkTimeoutError up through NetworkError and ApiError with status 0' do
     err = Petstore::Client::Errors::NetworkTimeoutError.new(message: 'timed out')
 
     _(err).must_be_kind_of(Petstore::Client::Errors::NetworkError)
@@ -153,7 +153,7 @@ describe Petstore::Client::Errors::ApiError do
     _(Petstore::Client::Errors::ApiError.new('connection reset').status_code).must_equal(0)
   end
 
-  it 'roots SerializationError at the branded base' do
+  it 'bhv_errors_025 roots SerializationError at the branded base' do
     err = Petstore::Client::Errors::SerializationError.new('boom')
 
     _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
@@ -171,7 +171,7 @@ describe Petstore::Client::Errors::ApiError do
 
   # Requiring the gem loads the whole error tree, every class in Errors,
   # whatever security schemes the spec declares.
-  it 'loads every error class into the Errors namespace' do
+  it 'bhv_errors_002 loads every error class into the Errors namespace' do
     %w[
       OpenAPIError ApiError ClientError ServerError BadRequestError UnauthorizedError
       ForbiddenError NotFoundError ConflictError UnprocessableEntityError TooManyRequestsError
@@ -197,7 +197,7 @@ describe Petstore::Client::Errors::ApiError do
     503 => Petstore::Client::Errors::ServerError,
     302 => Petstore::Client::Errors::ApiError
   }.each do |status, expected|
-    it "from_response maps #{status} to #{expected.name.split('::').last}" do
+    it "bhv_errors_006 from_response maps #{status} to #{expected.name.split('::').last}" do
       err = Petstore::Client::Errors::ApiError.from_response(status, { 'x-request-id' => 'abc' }, '{"code":7}')
 
       _(err).must_be_instance_of(expected)
@@ -219,7 +219,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.status_code).must_equal(600)
   end
 
-  it 'from_response refuses a deeply nested error body' do
+  it 'bhv_errors_009 from_response refuses a deeply nested error body' do
     # The error body is attacker-controlled, so parsing is depth-capped: an
     # over-deep payload leaves error_body nil instead of exhausting the stack.
     body = ('[' * 2000) + (']' * 2000)
@@ -231,13 +231,13 @@ describe Petstore::Client::Errors::ApiError do
     _(err.error_body).must_be_nil
   end
 
-  it 'from_response parses a BOM-prefixed error body' do
+  it 'bhv_errors_008 from_response parses a BOM-prefixed error body' do
     err = Petstore::Client::Errors::ApiError.from_response(400, {}, "\uFEFF{\"code\":7}")
 
     _(err.error_body).must_equal('code' => 7)
   end
 
-  it 'from_response keeps a non-JSON body raw without an error body' do
+  it 'bhv_errors_005 from_response keeps a non-JSON body raw without an error body' do
     err = Petstore::Client::Errors::ApiError.from_response(500, {}, '<html>oops</html>')
 
     _(err).must_be_instance_of(Petstore::Client::Errors::InternalServerError)
@@ -246,7 +246,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.error_body).must_be_nil
   end
 
-  it 'typed_error_body deserializes the body into the typed model' do
+  it 'bhv_errors_013 typed_error_body deserializes the body into the typed model' do
     # Built through from_response, the way a real response reaches a caller:
     # the typed body must come out of the raw body, not out of whatever the
     # generic parse happened to leave behind.
@@ -258,19 +258,19 @@ describe Petstore::Client::Errors::ApiError do
     _(body.name).must_equal('Dogs')
   end
 
-  it 'typed_error_body returns nil when there is no response body' do
+  it 'bhv_errors_015 typed_error_body returns nil when there is no response body' do
     err = Petstore::Client::Errors::ApiError.from_response(500, {}, '')
 
     assert_nil(err.typed_error_body('Category'))
   end
 
-  it 'typed_error_body returns nil when the response body is absent' do
+  it 'bhv_errors_016 typed_error_body returns nil when the response body is absent' do
     err = Petstore::Client::Errors::ApiError.from_response(0, nil, nil)
 
     assert_nil(err.typed_error_body('Category'))
   end
 
-  it 'typed_error_body ignores extraneous fields not on the model' do
+  it 'bhv_errors_014 typed_error_body ignores extraneous fields not on the model' do
     err = Petstore::Client::Errors::ApiError.from_response(422, {}, '{"id":1,"name":"Cat","extra":"drop-me"}')
 
     body = err.typed_error_body('Category')
@@ -297,14 +297,14 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).must_equal('Token request failed with status 400: invalid_grant -- refresh token expired')
   end
 
-  it 'from_response leaves a scalar JSON error body as the parsed scalar' do
+  it 'bhv_errors_010 from_response leaves a scalar JSON error body as the parsed scalar' do
     err = Petstore::Client::Errors::ApiError.from_response(500, {}, '"upstream unavailable"')
 
     _(err.response_body).must_equal('"upstream unavailable"')
     _(err.error_body).must_equal('upstream unavailable')
   end
 
-  it 'typed_error_body raises SerializationError for a body that is not the model' do
+  it 'bhv_errors_017 typed_error_body raises SerializationError for a body that is not the model' do
     err = Petstore::Client::Errors::ApiError.from_response(400, {}, '<html>oops</html>')
 
     raised = assert_raises(Petstore::Client::Errors::SerializationError) { err.typed_error_body('Category') }

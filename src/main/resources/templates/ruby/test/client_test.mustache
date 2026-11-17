@@ -28,7 +28,7 @@ end
 describe 'Client' do
   parallelize_me!
 
-  it 'construct with authenticator only' do
+  it 'bhv_lifecycle_012 construct with authenticator only' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
 
     client = {{moduleName}}::{{clientClassName}}.new(authenticator)
@@ -36,7 +36,7 @@ describe 'Client' do
     _(client).wont_be_nil
   end
 
-  it 'construct with authenticator and nil transport options' do
+  it 'bhv_lifecycle_010 construct with authenticator and nil transport options' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
 
     client = {{moduleName}}::{{clientClassName}}.new(authenticator, nil)
@@ -44,7 +44,7 @@ describe 'Client' do
     _(client).wont_be_nil
   end
 
-  it 'construct with authenticator and transport options' do
+  it 'bhv_lifecycle_011 construct with authenticator and transport options' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
     transport = {{moduleName}}::TransportOptions.builder.build
 
@@ -53,13 +53,13 @@ describe 'Client' do
     _(client).wont_be_nil
   end
 
-  it 'with_token takes the token provider as the credential' do
+  it 'bhv_lifecycle_017 with_token takes the token provider as the credential' do
     client = {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', token_provider: -> { 'fresh-token' })
 
     _(client).wont_be_nil
   end
 
-  it 'with_token fails when no token, provider or environment variable gives one' do
+  it 'bhv_lifecycle_016 with_token fails when no token, provider or environment variable gives one' do
     prefix = {{moduleName}}::Auth::BaseAuthenticator::ENV_PREFIX
     skip "#{prefix}_TOKEN is set in this environment" unless ENV.fetch("#{prefix}_TOKEN", '').empty?
 
@@ -68,7 +68,7 @@ describe 'Client' do
     _(error.message).must_equal 'Bearer token must not be empty'
   end
 
-  it 'BearerAuthenticator rejects CR/LF and non-ASCII' do
+  it 'bhv_lifecycle_006 BearerAuthenticator rejects CR/LF and non-ASCII' do
     # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
     # newlines from .env / file reads, which would CRLF-inject the
     # Authorization header. Also reject non-ASCII.
@@ -81,7 +81,7 @@ describe 'Client' do
     }).must_raise ArgumentError
   end
 
-  it 'BearerAuthenticator rejects an empty or whitespace token' do
+  it 'bhv_lifecycle_005 BearerAuthenticator rejects an empty or whitespace token' do
     # bearer-no-empty-token-guard: an empty/whitespace token would emit a
     # bare "Authorization: Bearer " header, sending the request
     # unauthenticated, so the constructor must reject it.
@@ -94,7 +94,7 @@ describe 'Client' do
     }).must_raise ArgumentError
   end
 
-  it 'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
+  it 'bhv_lifecycle_004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
     # RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     # The HEADER location must reject anything outside printable ASCII
     # + TAB to prevent header injection (CR/LF) and silent UTF-8
@@ -116,7 +116,7 @@ describe 'Client' do
     _(query_auth.query_params).must_equal({ 'api_key' => 'kéy' })
   end
 
-  it 'API groups are accessible' do
+  it 'bhv_lifecycle_001 API groups are accessible' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
 
     client = {{moduleName}}::{{clientClassName}}.new(authenticator)
@@ -219,7 +219,7 @@ describe 'Client' do
     client.instance_variables.map { |name| client.instance_variable_get(name) }.grep({{moduleName}}::Api::BaseApi)
   end
 
-  it 'takes one optional keyword credential per security scheme, named after it' do
+  it 'bhv_lifecycle_015 takes one optional keyword credential per security scheme, named after it' do
     keywords = {{moduleName}}::{{clientClassName}}.instance_method(:initialize).parameters
                                                   .filter_map { |kind, name| name if kind == :key }
 
@@ -261,7 +261,7 @@ describe 'Client' do
   end
 
 {{/hasClientSchemes}}
-  it 'close makes the client reject further requests' do
+  it 'bhv_lifecycle_008 close makes the client reject further requests' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
     client = {{moduleName}}::{{clientClassName}}.new(authenticator)
     api_client = client.instance_variable_get(:@api_client)
@@ -273,7 +273,7 @@ describe 'Client' do
     _(error.message).must_include('closed')
   end
 
-  it 'close leaves a supplied connection open' do
+  it 'bhv_lifecycle_007 close leaves a supplied connection open' do
     conn = Faraday.new
     closed = [] # : Array[bool]
     conn.define_singleton_method(:close) { closed << true }
