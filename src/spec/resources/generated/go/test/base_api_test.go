@@ -305,6 +305,33 @@ func TestBhvAuthintegration017_BaseApi_SetsCookieFromAuth(t *testing.T) {
 	}
 }
 
+type traceContextKey struct{}
+
+// The call context of an operation reaches the registered trace propagator, so
+// a span carried by it reaches the traceparent header of the request. The
+// propagator is package state, so this test does not run in parallel.
+func TestBaseApi_CallContextReachesTheTracePropagator(t *testing.T) {
+	const traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	petstore.SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
+		if value, ok := ctx.Value(traceContextKey{}).(string); ok {
+			headers["traceparent"] = value
+		}
+	})
+	t.Cleanup(func() { petstore.SetTraceContextPropagator(nil) })
+	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	auth := &baseApiAuth{headers: map[string]string{}, query: map[string]string{}}
+	api := petstore.NewPetApi(client, config, auth, petstore.Credentials{})
+
+	ctx := context.WithValue(context.Background(), traceContextKey{}, traceparent)
+	if _, err := api.AddPet(ctx, *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := client.capturedHeaders["traceparent"]; got != traceparent {
+		t.Errorf("traceparent header = %q, want %q", got, traceparent)
+	}
+}
+
 // Several cookies from one authenticator go out in one fixed order, sorted by
 // name, whatever the map's iteration order.
 func TestBhvAuthintegration004_BaseApi_SeveralAuthCookiesAreWrittenSortedByName(t *testing.T) {

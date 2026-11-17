@@ -292,7 +292,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		mergeHeaders(headers, callHeaders)
 
 		/* Inject trace context */
-		InjectTraceContext(headers)
+		InjectTraceContext(ctx, headers)
 
 		/* Serialize body -- multipart/form-data is handled here so that
 		 * the boundary can be injected into the Content-Type header. */
