@@ -58,12 +58,12 @@ var ErrInvalidCookie = errors.New("invalid cookie")
 // so that invokeApiForResult can distinguish three states that a plain nil
 // could not:
 //
-//   - auth == noAuth: the operation is unauthenticated; the client-level
-//     authenticator must NOT be applied (no credential leak);
-//   - auth == nil: a secured operation with no per-call override; fall back to
-//     the client-level authenticator (unchanged behaviour);
-//   - auth is any other instance: a per-call override; use it (unchanged
-//     behaviour).
+//   - auth == noAuth: the operation is unauthenticated; no credential of the
+//     client may be applied (no credential leak);
+//   - auth == nil: a secured operation; the credential of the scheme the spec
+//     requires is applied, chosen from the client's credentials by schemes.
+//
+// There is no per-call override of the scheme: the spec decides it.
 //
 // This is an internal, identity-comparable singleton (a pointer to an empty
 // struct); it returns empty header/query/cookie maps so that even if it were
@@ -86,10 +86,11 @@ var noAuth Authenticator = &noAuthSentinel{}
 // handles URL construction, header selection, body serialization, and request
 // dispatch.
 type baseApi struct {
-	config         *Configuration  // API-level configuration (base URL and default headers)
-	apiClient      ApiClient       // the HTTP transport client used for sending requests
-	headerSelector *headerSelector // content negotiation logic for Accept and Content-Type headers
-	authenticator  Authenticator   // default authenticator used when no per-operation auth is provided
+	config         *Configuration           // API-level configuration (base URL and default headers)
+	apiClient      ApiClient                // the HTTP transport client used for sending requests
+	headerSelector *headerSelector          // content negotiation logic for Accept and Content-Type headers
+	authenticator  Authenticator            // the one authenticator of a client built with New<Client>: used when no scheme credential matches
+	credentials    map[string]Authenticator // the client's credential of each security scheme, by scheme id; nil when none were given
 }
 
 // newBaseApi creates an API instance with a custom API client, configuration,
@@ -125,7 +126,8 @@ type invokeApiParams struct {
 	accepts      []string          // acceptable response content types
 	contentType  string            // request content type
 	returnType   string            // return type for deserialization (empty for void)
-	auth         Authenticator     // optional authenticator for operation-specific auth
+	auth         Authenticator     // noAuth for an operation declared with `security: []`, otherwise nil
+	schemes      []string          // ids of the security schemes the operation accepts, in spec order
 	rawBody      bool              // body is a format:binary value sent verbatim under any contentType
 	ctx          context.Context   // per-call context; cancelling it aborts the request (nil means Background)
 	order        []string          // spec declaration order of the query and form parameter names
@@ -150,28 +152,24 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		requestURL = base + params.path
 	}
 
-	/* Determine effective authenticator under the three-state contract:
-	 *   - params.auth == noAuth  -> the operation is declared `security: []`
+	/* Determine the effective authenticator:
+	 *   - params.auth == noAuth -> the operation is declared `security: []`
 	 *     (explicitly unauthenticated). Apply NO auth and do NOT fall back to
-	 *     the client authenticator — this is what prevents leaking the client
-	 *     credential on unauthenticated operations (e.g. testEcho*).
-	 *   - params.auth == nil     -> a secured operation with no per-call
-	 *     override. Fall back to the client-level authenticator (unchanged).
-	 *   - params.auth is real    -> a per-call override. Use it (unchanged). */
+	 *     any client credential: this is what prevents leaking it on
+	 *     unauthenticated operations (e.g. testEcho*).
+	 *   - otherwise the first scheme the operation accepts (spec order) for
+	 *     which the client holds a credential wins, so an operation never gets
+	 *     the credential of a scheme it does not accept. A client built with a
+	 *     single authenticator applies it when no scheme credential matches. */
 	var effectiveAuth Authenticator
-	if params.auth == noAuth {
-		effectiveAuth = nil
-	} else if params.auth != nil {
-		effectiveAuth = params.auth
-		/* Only the client-level authenticator is injected by the Client
-		 * constructor, so a per-call OAuth2 or OpenID Connect authenticator
-		 * gets this API's transport here, or its token request would fail with
-		 * ErrApiClientNotInjected. */
-		if httpAware, ok := params.auth.(auth.HttpAwareAuthenticator); ok {
-			httpAware.SetApiClient(&authApiClientAdapter{inner: b.apiClient})
-		}
-	} else {
+	if params.auth != noAuth {
 		effectiveAuth = b.authenticator
+		for _, scheme := range params.schemes {
+			if credential := b.credentials[scheme]; credential != nil {
+				effectiveAuth = credential
+				break
+			}
+		}
 	}
 
 	/* The call context, then the per-call settings on top of the client's: a

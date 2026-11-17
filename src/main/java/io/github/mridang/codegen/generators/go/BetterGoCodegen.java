@@ -62,15 +62,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected String packageName = "openapiclient";
     protected String packageVersion = "1.0.0";
 
-    /**
-     * Guards one-time emission of the {@code pkg/options/authenticator.go} mirror
-     * interface. The options package declares its own {@code Authenticator}
-     * interface (structurally identical to the root package's) so authed Options
-     * structs can carry a per-operation auth field without importing the root
-     * package, which would form a cycle. The interface must be declared exactly
-     * once across all authed options files.
-     */
-    private boolean optionsAuthenticatorWritten = false;
+    /** One entry per security scheme, the fields of the generated {@code Credentials} struct. */
+    private final List<Map<String, Object>> credentialSchemes = new ArrayList<>();
+
+    /** One entry per per-scheme authenticator, read by {@code scheme_authenticator_test}. */
+    private final List<Map<String, Object>> schemeAuthTests = new ArrayList<>();
 
     /**
      * Initializes type mappings, template paths, and reserved
@@ -353,15 +349,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         additionalProperties.put("packageName", packageName);
         additionalProperties.put("userAgentDefault", packageName + "/" + packageVersion + " (go)");
 
-        /* The environment-variable prefix of the credentials the client reads once at
-         * construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL): the last element of the
-         * module path in upper snake case. */
-        final String moduleLeaf = packageName.substring(packageName.lastIndexOf('/') + 1);
-        additionalProperties.put(
-                "envPrefix",
-                NamingConvention.SNAKE_CASE
-                        .apply(moduleLeaf.replaceAll("[^A-Za-z0-9]+", "_"))
-                        .toUpperCase(Locale.ROOT));
+        additionalProperties.put("schemeAuthTests", schemeAuthTests);
 
         /* Package metadata options: the README shows only the ones that were given. */
         final List<Map<String, String>> authorsList = new ArrayList<>();
@@ -463,6 +451,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", "pkg", clientClassFile + ".go"));
+        additionalProperties.put("credentialSchemes", credentialSchemes);
+        supportingFiles.add(new SupportingFile("credentials.mustache", "pkg", "credentials.go"));
 
         if (generateTests) {
             supportingFiles.add(
@@ -732,6 +722,16 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      */
     @Override
     protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        /* F866: a default written next to a $ref to a string enum is not carried by the base
+         * class; the shared generator surfaces it as the sibling default, which becomes the
+         * property's default here so the constructor and the decoder both apply it. */
+        if ((prop.defaultValue == null || prop.defaultValue.isEmpty())
+                && Boolean.TRUE.equals(prop.vendorExtensions.get("siblingDefaultIsEnum"))) {
+            prop.defaultValue =
+                    String.valueOf(prop.vendorExtensions.get("siblingDefaultEnumType"))
+                            + prop.vendorExtensions.get("siblingDefaultEnumVar");
+            return;
+        }
         if (prop.defaultValue != null
                 && !prop.isEnum
                 && prop.defaultValue.matches("[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*")) {
@@ -985,13 +985,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         context.put("params", params);
         context.put("hasIntEnum", hasIntEnum);
         context.put("moduleName", packageName);
-        // Per-operation auth folded into the Options object. The optional `Auth`
-        // field carries the generic Authenticator. Go uses structural typing, so
-        // the options package declares its own mirror Authenticator interface
-        // (authImport stays empty) to avoid an import cycle with the root
-        // package, which dot-imports pkg/options.
-        injectAuthFieldContext(op, context);
-        context.put("authImport", "");
         if (hasModelImport) {
             context.put("hasModelImport", true);
         }
@@ -1000,18 +993,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasUuidImport) {
             context.put("hasUuidImport", true);
-        }
-        if (op.hasAuthMethods && !optionsAuthenticatorWritten) {
-            // Emit the shared mirror Authenticator interface exactly once, in its
-            // own file, so the per-op Options structs can reference it without a
-            // duplicate-declaration error.
-            final String authPath =
-                    Path.of(getOutputDir(), "pkg", "options", "authenticator.go").toString();
-            writeFile(
-                    authPath,
-                    renderOptionsTemplate("api/options_authenticator.mustache", new HashMap<>()));
-            postProcessFile(Path.of(authPath).toFile(), "source");
-            optionsAuthenticatorWritten = true;
         }
         return renderOptionsTemplate("api/options.mustache", context);
     }
@@ -1074,6 +1055,17 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test",
                             "api_key_authenticator_test.go"));
         }
+        if (Boolean.TRUE.equals(additionalProperties.get("hasSecuritySchemeEnvVars"))) {
+            additionalProperties.put("hasSchemeBasic", hasBasicAuth);
+            additionalProperties.put("hasSchemeBearer", hasBearerAuth);
+            additionalProperties.put("hasSchemeApiKey", hasApiKeyAuth);
+            additionalProperties.put("hasSchemeOAuth", hasAnyOAuth2 || hasOpenIdConnect);
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/scheme_authenticator_test.mustache",
+                            "test",
+                            "scheme_authenticator_test.go"));
+        }
     }
 
     /**
@@ -1116,26 +1108,142 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         OAuthTestCondition.OIDC));
     }
 
-    /** {@inheritDoc} */
+    /**
+     * Renders the per-scheme authenticator. Every constructor takes the credentials as strings:
+     * an empty one is read once, in the constructor, from the scheme's environment variable
+     * (F862), and a credential that is neither passed nor set returns an error wrapping
+     * {@code ErrMissingCredential}, so every constructor returns {@code (T, error)}. The
+     * variable names come from the shared {@code envVars} entries of {@link #baseSchemeContext},
+     * so all twelve languages read the same names. A Bearer scheme also gets a
+     * {@code ...WithProvider} constructor that asks a token callback for every request.
+     */
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
         final Map<String, Object> ctx = baseSchemeContext(spec);
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> envVars =
+                (List<Map<String, Object>>) Objects.requireNonNull(ctx.get("envVars"));
+        final Map<String, String> envNames = new HashMap<>();
+        for (final Map<String, Object> envVar : envVars) {
+            envNames.put(String.valueOf(envVar.get("field")), String.valueOf(envVar.get("envName")));
+        }
+        final boolean isBearer = "BearerAuthenticator".equals(spec.baseClass());
+        final String resolver = spec.isOAuth() ? "auth.ResolveCredential" : "ResolveCredential";
         ctx.put("package", spec.isOAuth() ? "oauth" : "auth");
-        ctx.put("imports", List.of());
-        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        final List<String> imports = new ArrayList<>();
+        if (spec.isOAuth()) {
+            imports.add("\"" + packageName + "/pkg/auth\"");
+        } else if (isBearer) {
+            imports.add("\"fmt\"");
+        }
+        ctx.put("imports", imports);
+        ctx.put("credentialResolver", resolver);
+        ctx.put("isBearer", isBearer);
+        final List<Map<String, Object>> constructorParams = new ArrayList<>();
         for (final String name : spec.paramNames()) {
-            final Map<String, String> param = new HashMap<>();
+            final Map<String, Object> param = new HashMap<>();
             param.put("name", name);
             param.put("type", "string");
+            param.put("envName", envNames.get(name));
             constructorParams.add(param);
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildGoSuperArgs(spec));
-        // Basic, Bearer and API-key constructors validate their credentials and
+        // Basic, Bearer and API-key base constructors validate their credentials and
         // return (T, error); the scheme wrapper forwards that error.
         ctx.put("fallible", Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
                 .contains(spec.baseClass()));
+        recordSchemeAuthTest(spec, envVars, isBearer);
+        final Map<String, Object> credentialScheme = new HashMap<>();
+        credentialScheme.put("schemeId", spec.schemeName());
+        credentialScheme.put("fieldName", goIdentifier(NamingConvention.PASCAL_CASE.apply(spec.schemeName())));
+        credentialSchemes.add(credentialScheme);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Records what {@code scheme_authenticator_test} needs to exercise one per-scheme
+     * authenticator: its class and package, its base kind and its environment variables.
+     */
+    private void recordSchemeAuthTest(
+            final SchemeAuthSpec spec,
+            final List<Map<String, Object>> envVars,
+            final boolean isBearer) {
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        entry.put("package", spec.isOAuth() ? "oauth" : "auth");
+        entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
+        entry.put("isBearer", isBearer);
+        entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+        entry.put("isOAuth", spec.isOAuth());
+        final List<Map<String, Object>> vars = new ArrayList<>();
+        for (final Map<String, Object> envVar : envVars) {
+            final Map<String, Object> var = new HashMap<>();
+            var.put("field", envVar.get("field"));
+            var.put("envName", envVar.get("envName"));
+            vars.add(var);
+        }
+        entry.put("envVars", vars);
+        schemeAuthTests.add(entry);
+    }
+
+    /**
+     * F857: the generic parser lists an operation's security schemes in the order the
+     * components declare them, not the order the operation requires them. The client
+     * uses the first accepted scheme in spec order that has a credential, so the schemes
+     * are put back in the order of the operation's own security requirements (the global
+     * ones when it declares none).
+     */
+    @Override
+    public CodegenOperation fromOperation(
+            final String path,
+            final String httpMethod,
+            final io.swagger.v3.oas.models.Operation operation,
+            final List<io.swagger.v3.oas.models.servers.Server> servers) {
+        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        final List<io.swagger.v3.oas.models.security.SecurityRequirement> requirements =
+                operation.getSecurity() != null ? operation.getSecurity() : openAPI.getSecurity();
+        if (requirements == null) {
+            return op;
+        }
+        final List<String> order = new ArrayList<>();
+        for (final io.swagger.v3.oas.models.security.SecurityRequirement requirement : requirements) {
+            for (final String name : requirement.keySet()) {
+                if (!order.contains(name)) {
+                    order.add(name);
+                }
+            }
+        }
+        op.vendorExtensions.put("x-security-order", order);
+        return op;
+    }
+
+    /** Puts the operation's auth methods in the order recorded by {@link #fromOperation}. */
+    @SuppressWarnings("unchecked")
+    private static void sortAuthMethods(final CodegenOperation op) {
+        final Object recorded = op.vendorExtensions.get("x-security-order");
+        if (op.authMethods == null || !(recorded instanceof List)) {
+            return;
+        }
+        final List<String> order = (List<String>) recorded;
+        final List<org.openapitools.codegen.CodegenSecurity> sorted = new ArrayList<>(op.authMethods);
+        sorted.sort(java.util.Comparator.comparingInt(m -> {
+            final int index = order.indexOf(m.name);
+            return index < 0 ? Integer.MAX_VALUE : index;
+        }));
+        op.authMethods = sorted;
+    }
+
+    /**
+     * F827: Go does not mint an Options struct for an operation that has no parameter and no
+     * security. Every operation, such an operation included, already ends in a variadic
+     * {@code ...RequestOption} (WithTimeout, WithHeaders, WithMaxRetries), which is where Go
+     * carries the optional per-call settings; an empty struct in front of it would add a
+     * parameter and no capability.
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return false;
     }
 
     /**
@@ -1319,6 +1427,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     /* A slice, map, string or byte slice is returned by value (F877):
                      * its zero value already means "nothing", so a pointer to it adds
                      * nothing but a second nil to check. */
+                    sortAuthMethods(op);
                     op.vendorExtensions.put("returnByValue", returnsByValue(op.returnType));
                     stampOptionsFieldNames(op);
                     final boolean hasRequiredOptionsParam =

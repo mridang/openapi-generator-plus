@@ -4,6 +4,4 @@ package options
 
 // AddPetOptions carries the parameters for the AddPet operation.
 type AddPetOptions struct {
-	/* Auth overrides the client's configured credentials for this call only. */
-	Auth Authenticator
 }

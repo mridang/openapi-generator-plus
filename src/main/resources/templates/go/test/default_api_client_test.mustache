@@ -1089,17 +1089,72 @@ func TestDefaultApiClient_CancellingTheCallContextAbortsTheRequest(t *testing.T)
 	}
 }
 
-func TestDefaultApiClient_CloseCancelsTheRequestsInFlight(t *testing.T) {
+// F1078: Close is graceful. A request already in flight finishes with its
+// response, a request sent afterwards fails with ErrClientClosed, and closing
+// twice is harmless.
+func TestDefaultApiClient_CloseLetsTheRequestsInFlightFinish(t *testing.T) {
 	t.Parallel()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-release
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("done"))
+	}))
+	defer server.Close()
 	client := NewDefaultApiClient(nil)
-	time.AfterFunc(200*time.Millisecond, func() { _ = client.Close() })
-	_, err := client.SendRequest("GET", chasmHTTPURL+"/test/slow", map[string]string{}, nil)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("expected an error satisfying errors.Is(err, context.Canceled), got %T: %v", err, err)
+	type outcome struct {
+		resp *ApiHttpResponse
+		err  error
 	}
-	if !errors.Is(err, ErrClientClosed) {
-		t.Errorf("expected the cancellation to name the closed client, got %v", err)
+	done := make(chan outcome, 1)
+	go func() {
+		resp, err := client.SendRequest("GET", server.URL, map[string]string{}, nil)
+		done <- outcome{resp, err}
+	}()
+	<-started
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
 	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from the second Close: %v", err)
+	}
+	if _, err := client.SendRequest("GET", server.URL, map[string]string{}, nil); !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed for a request sent after Close, got %v", err)
+	}
+	close(release)
+
+	got := <-done
+	if got.err != nil {
+		t.Fatalf("expected the request in flight to finish, got %v", got.err)
+	}
+	if got.resp.StatusCode != 200 || got.resp.Body != "done" {
+		t.Errorf("expected the full response, got %d %q", got.resp.StatusCode, got.resp.Body)
+	}
+}
+
+// Close releases only a transport the SDK created: one the caller supplied is
+// still usable through the caller's own handle afterwards.
+func TestDefaultApiClient_CloseNeverClosesACallerSuppliedClient(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
+	defer server.Close()
+	own := &http.Client{}
+	transport, err := NewTransportOptionsBuilder().HttpClient(own).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	_ = client.Close()
+
+	resp, err := own.Get(server.URL)
+	if err != nil {
+		t.Fatalf("expected the caller's client to keep working, got %v", err)
+	}
+	_ = resp.Body.Close()
 }
 
 func TestDefaultApiClient_AnAlreadyCancelledContextSendsNothing(t *testing.T) {

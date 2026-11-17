@@ -90,8 +90,11 @@ func TestOAuth2AuthCode_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
 // The per-scheme wrapper requests the scopes its security scheme declares.
 func TestUserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
 	t.Parallel()
-	auth := oauth.NewUserAuthAuthorizationCodeAuthenticator(
+	auth, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(
 		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	url := auth.BuildAuthorizationURL("")
 
@@ -459,8 +462,11 @@ func TestUserAuthWrapper_RoutesToTheDeclaredUrls(t *testing.T) {
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	}}
-	authObj := oauth.NewUserAuthAuthorizationCodeAuthenticator(
+	authObj, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(
 		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	authObj.SetApiClient(client)
 
 	if got := authObj.BuildAuthorizationURL(""); !strings.HasPrefix(got, "https://auth.example.com/authorize?") {

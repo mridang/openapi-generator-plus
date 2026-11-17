@@ -296,11 +296,19 @@ Each operation has a `...WithHTTPInfo` variant returning `*ApiResult[T]` (`Statu
 
 ### Credentials
 
-`New{{clientClassName}}WithToken(host, accessToken, transportOptions)` resolves each credential once, when the client is built: the argument wins, then `{{envPrefix}}_BASE_URL` for the host and `{{envPrefix}}_ACCESS_TOKEN` for the token; an empty value counts as unset, and a credential that cannot be resolved returns `ErrMissingCredential`. `New{{clientClassName}}WithTokenProvider(host, provider, transportOptions)` takes a `func(ctx context.Context) (string, error)` that runs for every request.
+`New{{clientClassName}}WithToken(host, accessToken, transportOptions)` resolves each credential once, when the client is built: the argument wins, then `{{envVarPrefix}}_BASE_URL` for the host and `{{envVarPrefix}}_TOKEN` for the token; an empty value counts as unset, and a credential that cannot be resolved returns `ErrMissingCredential`. `New{{clientClassName}}WithTokenProvider(host, provider, transportOptions)` takes a `func(ctx context.Context) (string, error)` that runs for every request.
+
+`New{{clientClassName}}WithCredentials(host, {{packageName}}.Credentials{...}, transportOptions)` takes one optional authenticator per security scheme, named after the scheme; each operation uses the credential of the scheme its spec requires and there is no per-call override. Each security scheme has its own authenticator constructor, which resolves a credential the same way: a value you pass wins, an empty string is read once from the scheme's variable (an empty variable counts as unset), and a credential found in neither place returns an error matching `auth.ErrMissingCredential` that names the variable. A Bearer scheme also has `New<Scheme>AuthenticatorWithProvider(host, provider)`, which reads no variable.
+{{#hasSecuritySchemeEnvVars}}
+
+{{#securitySchemeEnvVars}}
+- `{{envName}}`: the `{{field}}` of the `{{schemeId}}` scheme
+{{/securitySchemeEnvVars}}
+{{/hasSecuritySchemeEnvVars}}
 
 ### Per-call options
 
-Every operation takes `RequestOption` values as its last arguments: `WithTimeout(time.Duration)`, `WithHeaders(map[string]string)`, `WithMaxRetries(int)` and, for an operation with several request content types, `WithRequestContentType(string)`. An option left out keeps the client's setting.
+Every operation, also one with no parameters and no security, takes `RequestOption` values as its last arguments: `WithTimeout(time.Duration)`, `WithHeaders(map[string]string)`, `WithMaxRetries(int)` and, for an operation with several request content types, `WithRequestContentType(string)`. An option left out keeps the client's setting.
 
 ### Response compression, logging and versioning
 
@@ -308,7 +316,7 @@ Responses in `gzip`, `deflate`, `br` and `zstd` are decoded for you. The SDK wri
 
 ## API Methods
 
-Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` cancels every request in flight. Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{baseName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` is graceful and idempotent: requests in flight finish and new ones return `ErrClientClosed`. Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{baseName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 

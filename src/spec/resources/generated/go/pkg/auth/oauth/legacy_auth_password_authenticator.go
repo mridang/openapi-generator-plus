@@ -2,6 +2,8 @@
 
 package oauth
 
+import "petstore/pkg/auth"
+
 type LegacyAuthPasswordAuthenticator struct {
 	*OAuth2PasswordAuthenticator
 }
@@ -18,9 +20,33 @@ func (a LegacyAuthPasswordAuthenticator) GoString() string {
 	return a.String()
 }
 
-func NewLegacyAuthPasswordAuthenticator(host string, clientId string, clientSecret string, username string, password string) *LegacyAuthPasswordAuthenticator {
+// NewLegacyAuthPasswordAuthenticator creates the authenticator for the legacyAuth security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID for clientId
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET for clientSecret
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME for username
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD for password
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential, naming the variable.
+func NewLegacyAuthPasswordAuthenticator(host string, clientId string, clientSecret string, username string, password string) (*LegacyAuthPasswordAuthenticator, error) {
+	var err error
+	if clientId, err = auth.ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID", "clientId"); err != nil {
+		return nil, err
+	}
+	if clientSecret, err = auth.ResolveCredential(clientSecret, "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET", "clientSecret"); err != nil {
+		return nil, err
+	}
+	if username, err = auth.ResolveCredential(username, "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME", "username"); err != nil {
+		return nil, err
+	}
+	if password, err = auth.ResolveCredential(password, "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD", "password"); err != nil {
+		return nil, err
+	}
 	inner := NewOAuth2PasswordAuthenticator(host, clientId, clientSecret, "https://auth.example.com/oauth/token", username, password, []string{"read"}, "https://auth.example.com/oauth/refresh")
 	return &LegacyAuthPasswordAuthenticator{
 		OAuth2PasswordAuthenticator: inner,
-	}
+	}, nil
 }

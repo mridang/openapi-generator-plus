@@ -2,6 +2,8 @@
 
 package auth
 
+import "fmt"
+
 type PetStoreBearerAuthenticator struct {
 	*BearerAuthenticator
 }
@@ -18,10 +20,35 @@ func (a PetStoreBearerAuthenticator) GoString() string {
 	return a.String()
 }
 
-// NewPetStoreBearerAuthenticator returns the BearerAuthenticator constructor's error when the
-// credentials are invalid. Match it with errors.Is.
+// NewPetStoreBearerAuthenticator creates the authenticator for the petStoreBearer security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN for token
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential and ErrInvalidBearerToken, naming the variable.
+// Any other error comes from the BearerAuthenticator constructor, when a credential is
+// invalid. Match it with errors.Is.
 func NewPetStoreBearerAuthenticator(host string, token string) (*PetStoreBearerAuthenticator, error) {
+	var err error
+	if token, err = ResolveCredential(token, "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN", "token"); err != nil {
+		return nil, fmt.Errorf("%w: %w", err, ErrInvalidBearerToken)
+	}
 	inner, err := NewBearerAuthenticator(host, token)
+	if err != nil {
+		return nil, err
+	}
+	return &PetStoreBearerAuthenticator{
+		BearerAuthenticator: inner,
+	}, nil
+}
+
+// NewPetStoreBearerAuthenticatorWithProvider creates the authenticator with a token that
+// provider returns for every request, so a token that rotates is always
+// current. The environment is not read. The provider must not be nil.
+func NewPetStoreBearerAuthenticatorWithProvider(host string, provider TokenProvider) (*PetStoreBearerAuthenticator, error) {
+	inner, err := NewBearerAuthenticatorWithProvider(host, provider)
 	if err != nil {
 		return nil, err
 	}

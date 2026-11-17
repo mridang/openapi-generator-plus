@@ -18,9 +18,21 @@ func (a ApiKeyHeaderAuthenticator) GoString() string {
 	return a.String()
 }
 
-// NewApiKeyHeaderAuthenticator returns the ApiKeyAuthenticator constructor's error when the
-// credentials are invalid. Match it with errors.Is.
+// NewApiKeyHeaderAuthenticator creates the authenticator for the apiKeyHeader security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY for apiKey
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential, naming the variable.
+// Any other error comes from the ApiKeyAuthenticator constructor, when a credential is
+// invalid. Match it with errors.Is.
 func NewApiKeyHeaderAuthenticator(host string, apiKey string) (*ApiKeyHeaderAuthenticator, error) {
+	var err error
+	if apiKey, err = ResolveCredential(apiKey, "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY", "apiKey"); err != nil {
+		return nil, err
+	}
 	inner, err := NewApiKeyAuthenticator(host, "X-API-Key", apiKey, ApiKeyLocationHeader)
 	if err != nil {
 		return nil, err

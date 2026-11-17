@@ -69,8 +69,10 @@ func (o StockItem) WithoutMatrix() StockItem {
 
 // NewStockItem creates a new StockItem instance.
 func NewStockItem(priority Priority) *StockItem {
+	var defaultAvailability Availability = AvailabilityOnHold
 	return &StockItem{
-		Priority: priority,
+		Priority:     priority,
+		Availability: &defaultAvailability,
 	}
 }
 
@@ -103,6 +105,10 @@ func (o *StockItem) UnmarshalJSON(data []byte) error {
 	/* An absent field carrying a schema default is populated with that default
 	 * so the deserialized model matches the spec, consistent with the other
 	 * SDKs. */
+	if _, ok := raw["availability"]; !ok {
+		var defaultAvailability Availability = AvailabilityOnHold
+		aux.Availability = &defaultAvailability
+	}
 	*o = StockItem(*aux)
 	return nil
 }

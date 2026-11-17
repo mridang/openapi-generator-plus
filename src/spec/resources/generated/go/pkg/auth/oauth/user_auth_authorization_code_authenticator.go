@@ -2,6 +2,8 @@
 
 package oauth
 
+import "petstore/pkg/auth"
+
 type UserAuthAuthorizationCodeAuthenticator struct {
 	*OAuth2AuthorizationCodeAuthenticator
 }
@@ -18,9 +20,29 @@ func (a UserAuthAuthorizationCodeAuthenticator) GoString() string {
 	return a.String()
 }
 
-func NewUserAuthAuthorizationCodeAuthenticator(host string, clientId string, clientSecret string, redirectUri string) *UserAuthAuthorizationCodeAuthenticator {
+// NewUserAuthAuthorizationCodeAuthenticator creates the authenticator for the userAuth security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID for clientId
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET for clientSecret
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI for redirectUri
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential, naming the variable.
+func NewUserAuthAuthorizationCodeAuthenticator(host string, clientId string, clientSecret string, redirectUri string) (*UserAuthAuthorizationCodeAuthenticator, error) {
+	var err error
+	if clientId, err = auth.ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID", "clientId"); err != nil {
+		return nil, err
+	}
+	if clientSecret, err = auth.ResolveCredential(clientSecret, "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET", "clientSecret"); err != nil {
+		return nil, err
+	}
+	if redirectUri, err = auth.ResolveCredential(redirectUri, "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI", "redirectUri"); err != nil {
+		return nil, err
+	}
 	inner := NewOAuth2AuthorizationCodeAuthenticator(host, clientId, clientSecret, "https://auth.example.com/authorize", "https://auth.example.com/oauth/token", redirectUri, []string{"pets:read", "pets:write"}, "https://auth.example.com/oauth/refresh")
 	return &UserAuthAuthorizationCodeAuthenticator{
 		OAuth2AuthorizationCodeAuthenticator: inner,
-	}
+	}, nil
 }

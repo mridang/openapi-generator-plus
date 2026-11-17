@@ -241,8 +241,8 @@ func TestApiKeyWrappers_EmitTheKeyWhereTheirSchemeDeclaresIt(t *testing.T) {
 		if got := fmt.Sprint(a); got != tc.repr {
 			t.Errorf("%s: expected %q, got %q", tc.name, tc.repr, got)
 		}
-		if _, err := tc.build(""); !errors.Is(err, auth.ErrInvalidApiKey) {
-			t.Errorf("%s: expected ErrInvalidApiKey for an empty key, got %v", tc.name, err)
+		if _, err := tc.build(""); !errors.Is(err, auth.ErrMissingCredential) {
+			t.Errorf("%s: expected ErrMissingCredential for an empty key, got %v", tc.name, err)
 		}
 	}
 }

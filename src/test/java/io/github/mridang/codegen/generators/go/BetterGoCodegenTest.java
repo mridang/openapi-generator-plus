@@ -6,7 +6,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
 
 class BetterGoCodegenTest {
 
@@ -98,5 +101,43 @@ class BetterGoCodegenTest {
     assertThat(codegen.toParamName("path")).isEqualTo("pathParam");
     assertThat(codegen.toParamName("callOptions")).isEqualTo("callOptionsParam");
     assertThat(codegen.toParamName("name")).isEqualTo("name");
+  }
+
+  /* F827: per-call settings are the variadic RequestOption of every operation, so no Options
+  struct is minted for an operation without parameters. */
+  @Test
+  void callSettingsRideTheVariadicTailNotAMintedOptionsStruct() {
+    assertThat(new BetterGoCodegen().mintsOptionsForEveryOperation()).isFalse();
+  }
+
+  private static CodegenProperty refProperty(@Nullable String defaultValue, Object isEnum) {
+    final CodegenProperty prop = new CodegenProperty();
+    prop.defaultValue = defaultValue;
+    prop.vendorExtensions.put("siblingDefaultIsEnum", isEnum);
+    prop.vendorExtensions.put("siblingDefaultEnumType", "Availability");
+    prop.vendorExtensions.put("siblingDefaultEnumVar", "OnHold");
+    return prop;
+  }
+
+  /* F866: a default next to a $ref to an enum becomes the property's default, as the constant. */
+  @Test
+  void aSiblingEnumDefaultBecomesThePropertyDefault() {
+    final CodegenProperty prop = refProperty(null, true);
+    new BetterGoCodegen().fixEnumDefaultValue(prop, new CodegenModel());
+    assertThat(prop.defaultValue).isEqualTo("AvailabilityOnHold");
+  }
+
+  @Test
+  void aSiblingDefaultNeverReplacesTheSchemasOwnDefault() {
+    final CodegenProperty prop = refProperty("\"x\"", true);
+    new BetterGoCodegen().fixEnumDefaultValue(prop, new CodegenModel());
+    assertThat(prop.defaultValue).isEqualTo("\"x\"");
+  }
+
+  @Test
+  void aSiblingDefaultOnANonEnumReferenceLeavesTheDefaultUnset() {
+    final CodegenProperty prop = refProperty(null, false);
+    new BetterGoCodegen().fixEnumDefaultValue(prop, new CodegenModel());
+    assertThat(prop.defaultValue).isNull();
   }
 }

@@ -11,29 +11,16 @@ package petstore
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"os"
 
 	"petstore/pkg/auth"
 )
 
-// ErrMissingCredential is returned when a credential is neither passed to the
-// constructor nor set in the environment. Match it with errors.Is.
-var ErrMissingCredential = errors.New("missing credential")
-
-/* resolveCredential applies the order every credential follows: the value the
- * caller passed wins, then the environment variable, read once, here; an empty
- * value is the same as none. */
-func resolveCredential(passed, envName, what string) (string, error) {
-	if passed != "" {
-		return passed, nil
-	}
-	if fromEnv := os.Getenv(envName); fromEnv != "" {
-		return fromEnv, nil
-	}
-	return "", fmt.Errorf("%w: no %s was passed and %s is not set", ErrMissingCredential, what, envName)
-}
+// ErrMissingCredential is returned when a credential is neither passed to a
+// constructor nor set in the environment. Match it with errors.Is. It is the
+// same value as auth.ErrMissingCredential, which the authenticator constructors
+// return.
+var ErrMissingCredential = auth.ErrMissingCredential
 
 // Client is the unified entry point for all API services.
 //
@@ -75,9 +62,10 @@ type Client struct {
 	apiClient ApiClient
 }
 
-// Close releases the client's transport and cancels its base context, which
-// aborts every request still in flight (they fail with an error satisfying
-// errors.Is(err, context.Canceled)). A transport the caller supplied through
+// Close marks the client closed and releases the idle connections of the
+// transport the SDK created. It is graceful and idempotent: a request already
+// in flight finishes, and a request sent afterwards fails with ErrClientClosed.
+// Cancel a single request through its context. A transport the caller supplied through
 // TransportOptionsBuilder.HttpClient or RoundTripper is never closed: the
 // caller owns its lifecycle.
 func (c *Client) Close() error {
@@ -86,7 +74,9 @@ func (c *Client) Close() error {
 
 // NewClient creates a new client with the given authenticator and transport options.
 //
-// The authenticator provides the host URL and auth headers. The transport
+// The authenticator provides the host URL and auth headers, and is applied to
+// every operation that is not declared without security. To give each security
+// scheme its own credential use NewClientWithCredentials. The transport
 // options carry the HTTP transport configuration (proxy, TLS, timeouts, etc.);
 // nil selects the default transport settings.
 //
@@ -94,31 +84,60 @@ func (c *Client) Close() error {
 // is injected so that token exchange and discovery requests use the same proxy,
 // TLS, and timeout settings.
 func NewClient(authenticator Authenticator, transportOptions *TransportOptions) *Client {
+	return newClient(authenticator.Host(), authenticator, nil, transportOptions)
+}
+
+// NewClientWithCredentials creates a client with one optional
+// credential per security scheme (see Credentials). Each operation uses the
+// credential of the scheme its spec requires, so a credential is never sent to
+// an operation that does not accept its scheme. The host is the API base URL: the
+// value you pass wins, then the environment variable SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL, and an
+// empty value counts as unset. It returns ErrMissingCredential when the host
+// cannot be resolved. Credentials that need the transport (OAuth2, OpenID
+// Connect) get the client's own, like the authenticator of NewClient.
+func NewClientWithCredentials(host string, credentials Credentials, transportOptions *TransportOptions) (*Client, error) {
+	resolvedHost, err := auth.ResolveCredential(host, "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "host")
+	if err != nil {
+		return nil, err
+	}
+	return newClient(resolvedHost, nil, credentials.bySchemeId(), transportOptions), nil
+}
+
+func newClient(host string, authenticator Authenticator, credentials map[string]Authenticator, transportOptions *TransportOptions) *Client {
 	if transportOptions == nil {
 		transportOptions = defaultTransportOptions()
 	}
 	apiClient := NewDefaultApiClient(transportOptions)
 
+	adapter := &authApiClientAdapter{inner: apiClient}
 	if httpAware, ok := authenticator.(auth.HttpAwareAuthenticator); ok {
-		httpAware.SetApiClient(&authApiClientAdapter{inner: apiClient})
+		httpAware.SetApiClient(adapter)
+	}
+	for _, credential := range credentials {
+		if httpAware, ok := credential.(auth.HttpAwareAuthenticator); ok {
+			httpAware.SetApiClient(adapter)
+		}
 	}
 
 	config := NewConfigurationBuilder().
-		BaseURL(authenticator.Host()).
+		BaseURL(host).
 		Build()
 
-	return &Client{
+	client := &Client{
 		apiClient: apiClient,
 		Pet:       NewPetApi(apiClient, config, authenticator),
 		Store:     NewStoreApi(apiClient, config, authenticator),
 	}
+	client.Pet.credentials = credentials
+	client.Store.credentials = credentials
+	return client
 }
 
 // NewClientWithToken creates a client authenticated with a static Bearer token.
 //
 // The host is the API base URL and the accessToken is the Bearer token. Each is
 // resolved once, here: the value you pass wins, then the environment variable
-// PETSTORE_BASE_URL for the host and PETSTORE_ACCESS_TOKEN for the token; an
+// SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL for the host and SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN for the token; an
 // empty value counts as unset. The optional transport options carry the HTTP
 // transport configuration (proxy, TLS, timeouts, etc.).
 //
@@ -127,11 +146,11 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 // auth.ErrInvalidBearerToken when the token contains a character that cannot
 // be sent in a header.
 func NewClientWithToken(host, accessToken string, transportOptions *TransportOptions) (*Client, error) {
-	resolvedHost, err := resolveCredential(host, "PETSTORE_BASE_URL", "host")
+	resolvedHost, err := auth.ResolveCredential(host, "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "host")
 	if err != nil {
 		return nil, err
 	}
-	resolvedToken, err := resolveCredential(accessToken, "PETSTORE_ACCESS_TOKEN", "access token")
+	resolvedToken, err := auth.ResolveCredential(accessToken, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "access token")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", err, auth.ErrInvalidBearerToken)
 	}
@@ -151,7 +170,7 @@ func NewClientWithToken(host, accessToken string, transportOptions *TransportOpt
 // ErrMissingCredential when it cannot be resolved, and
 // auth.ErrInvalidBearerToken when the provider is nil.
 func NewClientWithTokenProvider(host string, provider auth.TokenProvider, transportOptions *TransportOptions) (*Client, error) {
-	resolvedHost, err := resolveCredential(host, "PETSTORE_BASE_URL", "host")
+	resolvedHost, err := auth.ResolveCredential(host, "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "host")
 	if err != nil {
 		return nil, err
 	}

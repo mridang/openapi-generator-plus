@@ -2,6 +2,7 @@
 package {{packageName}}_test
 
 import (
+	"encoding/json"
 	"{{packageName}}/pkg/models"
 	"go/ast"
 	"go/parser"
@@ -123,5 +124,59 @@ func TestModel_IntegerEnumMembersFollowTheEnumCasing(t *testing.T) {
 	t.Parallel()
 	if models.PriorityNumber1 != 1 || models.PriorityNumber2 != 2 || models.PriorityNumber3 != 3 {
 		t.Errorf("expected Number1 to Number3 to carry 1 to 3, got %d %d %d", models.PriorityNumber1, models.PriorityNumber2, models.PriorityNumber3)
+	}
+}
+
+// F866: a default written next to a $ref initialises the property, both when the
+// model is built and when a payload leaves the key out.
+func TestModel_ASiblingDefaultNextToARefInitialisesTheProperty(t *testing.T) {
+	t.Parallel()
+	item := models.NewStockItem(models.PriorityNumber1)
+	if item.Availability == nil || *item.Availability != models.AvailabilityOnHold {
+		t.Errorf("expected the constructed model to start at on-hold, got %v", item.Availability)
+	}
+}
+
+func TestModel_ASiblingDefaultNextToARefFillsAnAbsentKeyOnDecode(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	if err := json.Unmarshal([]byte(`{"priority":1}`), &item); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item.Availability == nil || *item.Availability != models.AvailabilityOnHold {
+		t.Errorf("expected the absent availability to take on-hold, got %v", item.Availability)
+	}
+}
+
+func TestModel_AValueSentNextToASiblingDefaultWinsOnDecode(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"Sold"}`), &item); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item.Availability == nil || *item.Availability != models.AvailabilitySold {
+		t.Errorf("expected the sent availability to win, got %v", item.Availability)
+	}
+}
+
+// F316: building a model never validates; an unknown enum value is accepted at
+// construction and rejected loudly only when a payload is decoded.
+func TestModel_ConstructionNeverValidatesAnEnumValue(t *testing.T) {
+	t.Parallel()
+	unknown := models.Availability("not-a-member")
+	item := models.NewStockItem(models.Priority(99)).WithAvailability(unknown)
+	if item.Priority != models.Priority(99) || *item.Availability != unknown {
+		t.Errorf("expected the values to be stored as given, got %v %v", item.Priority, *item.Availability)
+	}
+}
+
+func TestModel_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"not-a-member"}`), &item); err == nil {
+		t.Error("expected the unknown availability to be rejected on decode")
+	}
+	if err := json.Unmarshal([]byte(`{"priority":99}`), &item); err == nil {
+		t.Error("expected the unknown priority to be rejected on decode")
 	}
 }

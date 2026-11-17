@@ -18,9 +18,21 @@ func (a ApiKeyQueryAuthenticator) GoString() string {
 	return a.String()
 }
 
-// NewApiKeyQueryAuthenticator returns the ApiKeyAuthenticator constructor's error when the
-// credentials are invalid. Match it with errors.Is.
+// NewApiKeyQueryAuthenticator creates the authenticator for the apiKeyQuery security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY for apiKey
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential, naming the variable.
+// Any other error comes from the ApiKeyAuthenticator constructor, when a credential is
+// invalid. Match it with errors.Is.
 func NewApiKeyQueryAuthenticator(host string, apiKey string) (*ApiKeyQueryAuthenticator, error) {
+	var err error
+	if apiKey, err = ResolveCredential(apiKey, "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY", "apiKey"); err != nil {
+		return nil, err
+	}
 	inner, err := NewApiKeyAuthenticator(host, "api_key", apiKey, ApiKeyLocationQuery)
 	if err != nil {
 		return nil, err

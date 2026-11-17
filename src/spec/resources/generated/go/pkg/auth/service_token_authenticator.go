@@ -2,6 +2,8 @@
 
 package auth
 
+import "fmt"
+
 type ServiceTokenAuthenticator struct {
 	*BearerAuthenticator
 }
@@ -18,10 +20,35 @@ func (a ServiceTokenAuthenticator) GoString() string {
 	return a.String()
 }
 
-// NewServiceTokenAuthenticator returns the BearerAuthenticator constructor's error when the
-// credentials are invalid. Match it with errors.Is.
+// NewServiceTokenAuthenticator creates the authenticator for the serviceToken security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN for token
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential and ErrInvalidBearerToken, naming the variable.
+// Any other error comes from the BearerAuthenticator constructor, when a credential is
+// invalid. Match it with errors.Is.
 func NewServiceTokenAuthenticator(host string, token string) (*ServiceTokenAuthenticator, error) {
+	var err error
+	if token, err = ResolveCredential(token, "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN", "token"); err != nil {
+		return nil, fmt.Errorf("%w: %w", err, ErrInvalidBearerToken)
+	}
 	inner, err := NewBearerAuthenticator(host, token)
+	if err != nil {
+		return nil, err
+	}
+	return &ServiceTokenAuthenticator{
+		BearerAuthenticator: inner,
+	}, nil
+}
+
+// NewServiceTokenAuthenticatorWithProvider creates the authenticator with a token that
+// provider returns for every request, so a token that rotates is always
+// current. The environment is not read. The provider must not be nil.
+func NewServiceTokenAuthenticatorWithProvider(host string, provider TokenProvider) (*ServiceTokenAuthenticator, error) {
+	inner, err := NewBearerAuthenticatorWithProvider(host, provider)
 	if err != nil {
 		return nil, err
 	}

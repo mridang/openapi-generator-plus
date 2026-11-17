@@ -40,7 +40,7 @@ if err != nil {
 defer client.Close()
 ```
 
-Close the client to release its connections and abort requests still in flight; a closed client returns `ErrClientClosed`. Errors satisfy the `OpenAPIError` interface; `NetworkError` and `NetworkTimeoutError` mean no HTTP response arrived, and `TooManyRequestsError` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+Close the client to release its connections: requests already in flight finish, a request sent afterwards returns `ErrClientClosed`, and a second `Close` does nothing. Cancel a single request through its context. Errors satisfy the `OpenAPIError` interface; `NetworkError` and `NetworkTimeoutError` mean no HTTP response arrived, and `TooManyRequestsError` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
 
 ## Configuration
 
@@ -75,9 +75,8 @@ The SDK adds a unique `X-Request-ID` header to every request unless you set your
 Every operation takes a `ctx context.Context` as its first parameter.
 Cancelling it aborts the request, and the error satisfies
 `errors.Is(err, context.Canceled)`; it is distinct from the
-`NetworkTimeoutError` raised when the transport timeout elapses. The client
-also holds a base context that `Close()` cancels, which aborts every request
-still in flight; either context cancels a request.
+`NetworkTimeoutError` raised when the transport timeout elapses. `Close()` does
+not cancel anything: it is graceful, so a request in flight finishes.
 
 ### Custom HTTP client
 
@@ -92,7 +91,35 @@ transport with `Proxy`, `CACertPath` or `VerifySsl(false)` is rejected by
 
 ### Credentials
 
-`NewClientWithToken(host, accessToken, transportOptions)` builds a client with a Bearer token. Each credential is resolved once, when the client is built: the argument you pass wins, then the environment variable (`PETSTORE_BASE_URL` for the host, `PETSTORE_ACCESS_TOKEN` for the token); an empty value counts as unset. A host or token that cannot be resolved returns `ErrMissingCredential` there and then, not on the first request. `NewClientWithTokenProvider(host, provider, transportOptions)` takes a function returning the current token instead of a static one; the function runs for every request and receives the context of the call. The other authenticators take their credentials as constructor arguments.
+`NewClientWithToken(host, accessToken, transportOptions)` builds a client with a Bearer token. Each credential is resolved once, when the client is built: the argument you pass wins, then the environment variable (`SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL` for the host, `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` for the token); an empty value counts as unset. A host or token that cannot be resolved returns `ErrMissingCredential` there and then, not on the first request. `NewClientWithTokenProvider(host, provider, transportOptions)` takes a function returning the current token instead of a static one; the function runs for every request and receives the context of the call.
+
+Each security scheme has an authenticator of its own in `pkg/auth` (`pkg/auth/oauth` for OAuth2 and OpenID Connect), and its constructor resolves credentials the same way. A credential you pass wins. An empty string is read once, when the authenticator is built, from the variable of that scheme, and an empty variable counts as unset. A credential found in neither place returns an error that matches `auth.ErrMissingCredential` (and, for a Bearer scheme, `auth.ErrInvalidBearerToken`) and names the variable, so the client fails when it is built and not on the first request. To hold a credential for several security schemes in one client, build it with `NewClientWithCredentials(host, petstore.Credentials{...}, transportOptions)`: `Credentials` has one optional `Authenticator` field per scheme, named after the scheme. Each operation uses the credential of the scheme its spec requires (the first scheme it accepts, in spec order, that you set), never one of a scheme it does not accept, and an operation declared without security sends none. A call cannot override the scheme. A Bearer scheme also has a `New<Scheme>AuthenticatorWithProvider(host, provider)` constructor, which asks the provider for the token on every request and reads no variable.
+
+| Variable | Security scheme | Credential |
+|---|---|---|
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` | `adminBasic` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` | `adminBasic` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` | `apiKeyHeader` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` | `apiKeyQuery` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` | `browserAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` | `internalApiKey` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` | `legacyAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` | `legacyAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` | `legacyAuth` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` | `legacyAuth` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` | `machineAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` | `machineAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` | `petStoreBasic` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` | `petStoreBasic` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` | `petStoreBearer` | `token` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` | `serviceToken` | `token` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` | `sessionCookie` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` | `ssoAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` | `ssoAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` | `ssoAuth` | `redirectUri` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` | `userAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` | `userAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` | `userAuth` | `redirectUri` |
 
 ```go
 client, err := petstore.NewClientWithTokenProvider("https://api.example.com", func(ctx context.Context) (string, error) {
@@ -102,7 +129,7 @@ client, err := petstore.NewClientWithTokenProvider("https://api.example.com", fu
 
 ### Per-call options
 
-Every operation takes any number of `RequestOption` values as its last arguments: `WithTimeout` (one end-to-end budget of at least one millisecond, retries included), `WithHeaders` (they replace a default header of the same name) and `WithMaxRetries` (at least 0; `0` turns retrying off for the call). An operation that declares several request content types also takes `WithRequestContentType`. An option you leave out keeps the client's setting.
+Every operation takes any number of `RequestOption` values as its last arguments, including an operation with no parameters and no security, which has no options struct of its own: `WithTimeout` (one end-to-end budget of at least one millisecond, retries included), `WithHeaders` (they replace a default header of the same name) and `WithMaxRetries` (at least 0; `0` turns retrying off for the call). An operation that declares several request content types also takes `WithRequestContentType`. An option you leave out keeps the client's setting.
 
 ```go
 callOptions := []petstore.RequestOption{

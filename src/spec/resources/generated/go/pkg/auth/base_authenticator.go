@@ -9,6 +9,30 @@
 
 package auth
 
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+// ErrMissingCredential is returned when a credential is neither passed to a
+// constructor nor set in the environment. Match it with errors.Is.
+var ErrMissingCredential = errors.New("missing credential")
+
+// ResolveCredential applies the order every credential follows: the value the
+// caller passed wins, then the environment variable named envName, read once,
+// here; an empty value is the same as none. what names the credential in the
+// error, which wraps ErrMissingCredential and names the variable.
+func ResolveCredential(passed, envName, what string) (string, error) {
+	if passed != "" {
+		return passed, nil
+	}
+	if fromEnv := os.Getenv(envName); fromEnv != "" {
+		return fromEnv, nil
+	}
+	return "", fmt.Errorf("%w: no %s was passed and %s is not set", ErrMissingCredential, what, envName)
+}
+
 // BaseAuthenticator provides default implementations for optional
 // Authenticator methods. Concrete authenticators should embed this struct.
 type BaseAuthenticator struct{}

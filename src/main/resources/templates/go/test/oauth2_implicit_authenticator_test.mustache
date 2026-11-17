@@ -88,7 +88,10 @@ func TestOAuth2Implicit_SetAccessTokenIsSafeAgainstConcurrentRequests(t *testing
 // The per-scheme wrapper requests the scopes its security scheme declares.
 func TestBrowserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
 	t.Parallel()
-	auth := oauth.NewBrowserAuthImplicitAuthenticator("https://api.example.com", "my-client-id")
+	auth, err := oauth.NewBrowserAuthImplicitAuthenticator("https://api.example.com", "my-client-id")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	url := auth.BuildAuthorizationURL("")
 

@@ -123,6 +123,7 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 		contentType:  "application/json",
 		returnType:   "Account",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -242,6 +243,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, c
 		contentType:  "application/json",
 		returnType:   "",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -318,6 +320,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 		contentType:  "application/json",
 		returnType:   "Category",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -433,6 +436,7 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...R
 		contentType:  "application/json",
 		returnType:   "Defaults",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -548,6 +552,7 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ..
 		contentType:  "application/json",
 		returnType:   "Department",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -664,6 +669,7 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOpt
 		contentType:  "application/json",
 		returnType:   "[]map[string]Category",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -780,6 +786,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...
 		contentType:  "application/json",
 		returnType:   "map[string]int32",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -896,6 +903,7 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 		contentType:  "application/json",
 		returnType:   "[][]int32",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1020,6 +1028,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1143,6 +1152,7 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1262,6 +1272,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 		contentType:  "application/json",
 		returnType:   "StockItem",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1377,6 +1388,7 @@ func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...Req
 		contentType:  "application/json",
 		returnType:   "Swatch",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1493,6 +1505,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions 
 		contentType:  "application/json",
 		returnType:   "[]map[string]Swatch",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1609,6 +1622,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptio
 		contentType:  "application/json",
 		returnType:   "[]map[string]DateTime",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1724,6 +1738,7 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 		contentType:  "application/json",
 		returnType:   "TreeNode",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1839,6 +1854,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1955,6 +1971,7 @@ func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...
 		contentType:  "application/json",
 		returnType:   "ReserveStockResponse",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2118,6 +2135,7 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 		contentType:  "application/json",
 		returnType:   "[]Order",
 		auth:         noAuth,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
