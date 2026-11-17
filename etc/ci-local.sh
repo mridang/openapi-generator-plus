@@ -10,8 +10,6 @@
 #   etc/ci-local.sh check --quick     the same without the integration specs (each language
 #                                     agent already ran its own); used per change set
 #   etc/ci-local.sh green [sha]       exit 0 if the commit (default HEAD) passed a full check
-#   etc/ci-local.sh approve           record the parity-guard's approval of the staged tree
-#                                     (the commit guard lets only that agent run it)
 #
 # Output of each step is saved under ${TMPDIR:-/tmp}/ci-local-<sha>/ and only a summary is
 # printed, so callers never pipe or tail maven output.
@@ -63,12 +61,6 @@ case "$cmd" in
   green)
     sha="$(git rev-parse "${1:-HEAD}")"
     [ -f "$marks/$sha" ]
-    ;;
-  approve)
-    mkdir -p "$marks"
-    tree="$(git write-tree)"
-    touch "$marks/approved-$tree"
-    echo "approved ${tree:0:9}"
     ;;
   check)
     resolve_maven
@@ -146,7 +138,7 @@ case "$cmd" in
     fi
     ;;
   *)
-    echo "usage: etc/ci-local.sh mvn <args> | check [Lang ...] | green [sha] | approve" >&2
+    echo "usage: etc/ci-local.sh mvn <args> | check [Lang ...] | green [sha]" >&2
     exit 2
     ;;
 esac
