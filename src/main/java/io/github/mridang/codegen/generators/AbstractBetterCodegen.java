@@ -682,6 +682,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // MultipleSuccessResponsesRule); single-schema operations are untouched.
         new MultipleSuccessResponsesRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         detectSecuritySchemes(openAPI);
+        final List<Map<String, Object>> sharedClientSchemes = schemeCredentials(openAPI);
+        additionalProperties.put("clientSchemes", sharedClientSchemes);
+        additionalProperties.put("hasClientSchemes", !sharedClientSchemes.isEmpty());
         additionalProperties.put("hasBasicAuth", hasBasicAuth);
         additionalProperties.put("hasBearerAuth", hasBearerAuth);
         additionalProperties.put("hasApiKeyAuth", hasApiKeyAuth);
@@ -5280,7 +5283,96 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         decoratorMap(op.vendorExtensions, OP_DECORATOR_NS)
                 .put("securityNone", isSecurityNone(operation, openAPI));
+        final List<Map<String, Object>> schemeOrder = securitySchemeOrder(operation, openAPI);
+        final Map<String, Object> opDecorator = decoratorMap(op.vendorExtensions, OP_DECORATOR_NS);
+        opDecorator.put("securitySchemeOrder", schemeOrder);
+        opDecorator.put("hasSecuritySchemes", !schemeOrder.isEmpty());
         return op;
+    }
+
+    /**
+     * The security schemes an operation accepts, in the order its own security block lists
+     * them (F857). Core reassigns {@code authMethods} after {@code fromOperation} and lists them
+     * in the order the components declare them, so the order the spec asks for is lost there; a
+     * client that holds a credential per scheme needs it to pick the first accepted scheme it
+     * holds a credential for.
+     *
+     * <p>The operation's own {@code security} wins; an operation that declares none inherits the
+     * global one; {@code security: []} (on the operation, or inherited as an empty global
+     * requirement) yields an empty list, meaning no credential is sent. Each requirement object
+     * contributes its schemes in the order it names them, requirements are read in order, and a
+     * scheme named twice (across alternatives, or in an AND group) is listed once, at its first
+     * position. A scheme the client holds no credential for (not in the components, or of a type
+     * the generator builds no authenticator for) is left out.
+     *
+     * @param operation the operation being converted
+     * @param spec the parsed document
+     * @return one {@code schemeId} and {@code paramName} entry per accepted scheme, in order
+     */
+    final List<Map<String, Object>> securitySchemeOrder(
+            final Operation operation, final OpenAPI spec) {
+        final List<io.swagger.v3.oas.models.security.SecurityRequirement> requirements =
+                operation != null && operation.getSecurity() != null
+                        ? operation.getSecurity()
+                        : (spec != null ? spec.getSecurity() : null);
+        final List<Map<String, Object>> order = new ArrayList<>();
+        if (requirements == null) {
+            return order;
+        }
+        final Set<String> held = new HashSet<>();
+        for (final Map<String, Object> scheme : schemeCredentials(spec)) {
+            held.add((String) scheme.get("schemeId"));
+        }
+        final Set<String> seen = new HashSet<>();
+        for (final io.swagger.v3.oas.models.security.SecurityRequirement requirement :
+                requirements) {
+            if (requirement == null) {
+                continue;
+            }
+            for (final String schemeId : requirement.keySet()) {
+                if (held.contains(schemeId) && seen.add(schemeId)) {
+                    final Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("schemeId", schemeId);
+                    entry.put("paramName", NamingConvention.CAMEL_CASE.apply(schemeId));
+                    order.add(entry);
+                }
+            }
+        }
+        return order;
+    }
+
+    /**
+     * One entry per distinct security scheme the client takes a credential for (F857), in the
+     * order the components declare them: {@code schemeId}, the camel-case {@code paramName} the
+     * client names the credential by, and the {@code className} of the authenticator that
+     * serves it. Schemes the generator builds no authenticator for are left out.
+     *
+     * @param spec the parsed document
+     * @return the client-level schemes; empty when the document declares none
+     */
+    final List<Map<String, Object>> schemeCredentials(final OpenAPI spec) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        if (spec == null
+                || spec.getComponents() == null
+                || spec.getComponents().getSecuritySchemes() == null) {
+            return out;
+        }
+        for (final Map.Entry<String, SecurityScheme> entry :
+                spec.getComponents().getSecuritySchemes().entrySet()) {
+            final SchemeAuthSpec authSpec =
+                    buildSchemeAuthSpec(entry.getKey(), entry.getValue(), false);
+            if (authSpec == null) {
+                continue;
+            }
+            final Map<String, Object> scheme = new LinkedHashMap<>();
+            scheme.put("schemeId", entry.getKey());
+            scheme.put("paramName", NamingConvention.CAMEL_CASE.apply(entry.getKey()));
+            scheme.put(
+                    "className",
+                    authSpec.schemeClass() + authSpec.oauthSuffix() + "Authenticator");
+            out.add(scheme);
+        }
+        return out;
     }
 
     /**

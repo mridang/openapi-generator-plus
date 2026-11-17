@@ -530,4 +530,139 @@ class AbstractBetterCodegenTest {
       assertEquals("apiKey", vars.get(0).get("field"), language);
     }
   }
+
+    private static io.swagger.v3.oas.models.OpenAPI securedSpec(
+            @javax.annotation.Nullable final List<io.swagger.v3.oas.models.security.SecurityRequirement> global) {
+        final io.swagger.v3.oas.models.Components components = new Components();
+        components.addSecuritySchemes("zKey", new io.swagger.v3.oas.models.security.SecurityScheme()
+                .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.APIKEY)
+                .in(io.swagger.v3.oas.models.security.SecurityScheme.In.HEADER)
+                .name("X-Key"));
+        components.addSecuritySchemes("aBearer", new io.swagger.v3.oas.models.security.SecurityScheme()
+                .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.HTTP)
+                .scheme("bearer"));
+        components.addSecuritySchemes("mTls", new io.swagger.v3.oas.models.security.SecurityScheme()
+                .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.MUTUALTLS));
+        final io.swagger.v3.oas.models.OpenAPI spec = new OpenAPI().components(components);
+        spec.setSecurity(global);
+        return spec;
+    }
+
+    private static io.swagger.v3.oas.models.security.SecurityRequirement requirement(
+            final String... schemes) {
+        final io.swagger.v3.oas.models.security.SecurityRequirement requirement =
+                new io.swagger.v3.oas.models.security.SecurityRequirement();
+        for (final String scheme : schemes) {
+            requirement.addList(scheme);
+        }
+        return requirement;
+    }
+
+    private static List<String> schemeIds(final List<Map<String, Object>> order) {
+        final List<String> ids = new ArrayList<>();
+        for (final Map<String, Object> entry : order) {
+            ids.add((String) entry.get("schemeId"));
+        }
+        return ids;
+    }
+
+    @Test
+    @DisplayName("an operation's accepted schemes follow its own security order, not the components'")
+    void securitySchemeOrderFollowsTheOperation() {
+        final io.swagger.v3.oas.models.OpenAPI spec = securedSpec(null);
+        final io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setSecurity(List.of(requirement("zKey"), requirement("aBearer")));
+        final List<Map<String, Object>> order = codegen("java").securitySchemeOrder(operation, spec);
+        assertAll(
+                () -> assertEquals(List.of("zKey", "aBearer"), schemeIds(order)),
+                () -> assertEquals("zKey", order.get(0).get("paramName")),
+                () -> assertEquals("aBearer", order.get(1).get("paramName")));
+    }
+
+    @Test
+    @DisplayName("an operation that declares no security inherits the global order")
+    void securitySchemeOrderFallsBackToGlobal() {
+        final io.swagger.v3.oas.models.OpenAPI spec =
+                securedSpec(List.of(requirement("zKey"), requirement("aBearer")));
+        assertEquals(
+                List.of("zKey", "aBearer"),
+                schemeIds(codegen("go").securitySchemeOrder(new io.swagger.v3.oas.models.Operation(), spec)));
+    }
+
+    @Test
+    @DisplayName("security: [] on the operation yields no scheme, even under a global requirement")
+    void securitySchemeOrderIsEmptyForNoSecurity() {
+        final io.swagger.v3.oas.models.OpenAPI spec = securedSpec(List.of(requirement("zKey")));
+        final io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setSecurity(new ArrayList<>());
+        final io.swagger.v3.oas.models.Operation inheriting = new io.swagger.v3.oas.models.Operation();
+        assertAll(
+                () -> assertTrue(codegen("java").securitySchemeOrder(operation, spec).isEmpty()),
+                () -> assertTrue(codegen("java")
+                        .securitySchemeOrder(inheriting, securedSpec(new ArrayList<>())).isEmpty()),
+                () -> assertTrue(codegen("java").securitySchemeOrder(inheriting, securedSpec(null)).isEmpty()));
+    }
+
+    @Test
+    @DisplayName("a scheme named in several alternatives or an AND group is listed once, at its first position")
+    void securitySchemeOrderListsEachSchemeOnce() {
+        final io.swagger.v3.oas.models.OpenAPI spec = securedSpec(null);
+        final io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setSecurity(List.of(
+                requirement("zKey", "aBearer"), requirement("aBearer"), requirement("zKey")));
+        assertEquals(
+                List.of("zKey", "aBearer"),
+                schemeIds(codegen("python").securitySchemeOrder(operation, spec)));
+    }
+
+    @Test
+    @DisplayName("a scheme the client holds no credential for is left out of the order")
+    void securitySchemeOrderSkipsUnheldSchemes() {
+        final io.swagger.v3.oas.models.OpenAPI spec = securedSpec(null);
+        final io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setSecurity(List.of(
+                requirement("mTls"), requirement("missing"), requirement("aBearer")));
+        assertEquals(
+                List.of("aBearer"),
+                schemeIds(codegen("ruby").securitySchemeOrder(operation, spec)));
+    }
+
+    @Test
+    @DisplayName("the client takes one credential per supported scheme, in component order")
+    void clientSchemesListsEachSupportedScheme() {
+        final List<Map<String, Object>> schemes = codegen("kotlin").schemeCredentials(securedSpec(null));
+        assertAll(
+                () -> assertEquals(List.of("zKey", "aBearer"), schemeIds(schemes)),
+                () -> assertEquals("zKey", schemes.get(0).get("paramName")),
+                () -> assertEquals("ZKeyAuthenticator", schemes.get(0).get("className")),
+                () -> assertEquals("ABearerAuthenticator", schemes.get(1).get("className")));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("fromOperation exposes the order and the has-flag on the op decorator")
+    void fromOperationExposesSecuritySchemeOrder() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        final io.swagger.v3.oas.models.OpenAPI spec = securedSpec(null);
+        codegen.setOpenAPI(spec);
+        final io.swagger.v3.oas.models.Operation secured = new io.swagger.v3.oas.models.Operation();
+        secured.setOperationId("listItems");
+        secured.setSecurity(List.of(requirement("zKey"), requirement("aBearer")));
+        secured.setResponses(new io.swagger.v3.oas.models.responses.ApiResponses());
+        final io.swagger.v3.oas.models.Operation open = new io.swagger.v3.oas.models.Operation();
+        open.setOperationId("health");
+        open.setSecurity(new ArrayList<>());
+        open.setResponses(new io.swagger.v3.oas.models.responses.ApiResponses());
+        final Map<String, Object> securedOp = Objects.requireNonNull((Map<String, Object>) codegen
+                .fromOperation("/items", "get", secured, new ArrayList<>()).vendorExtensions.get("op"));
+        final Map<String, Object> openOp = Objects.requireNonNull((Map<String, Object>) codegen
+                .fromOperation("/health", "get", open, new ArrayList<>()).vendorExtensions.get("op"));
+        assertAll(
+                () -> assertTrue(Objects.requireNonNull((Boolean) securedOp.get("hasSecuritySchemes"))),
+                () -> assertEquals(
+                        List.of("zKey", "aBearer"),
+                        schemeIds(Objects.requireNonNull((List<Map<String, Object>>) securedOp.get("securitySchemeOrder")))),
+                () -> assertFalse(Objects.requireNonNull((Boolean) openOp.get("hasSecuritySchemes"))),
+                () -> assertTrue(Objects.requireNonNull((List<?>) openOp.get("securitySchemeOrder")).isEmpty()));
+    }
 }
