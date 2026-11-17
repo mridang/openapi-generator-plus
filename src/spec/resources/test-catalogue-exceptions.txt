@@ -81,3 +81,7 @@ swift | serializationobject107 | A Swift Date is an absolute instant with no zon
 swift | serializationobject116 | A Swift Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; formatDateTime always writes +00:00 (the UTC pin on dateFormatter)
 swift | serializationobject146 | TimeInterval is a Double, so a duration inside an untyped [String: Any] hash cannot be told from a number and JSONSerialization writes 300, not 300s; the protobuf string is produced for a typed model property (serializationobject081)
 swift | transport035 | URLSession decodes Content-Encoding: deflate before the SDK sees the body (Apple, and libcurl on Linux), and the SDK inflates only gzip magic; a stubbed URLProtocol never runs that decoder and the petstore fixture serves no deflate endpoint, so no unit test reaches the zlib body
+elixir | config002 | Elixir has no builder: Configuration.new/1 takes the headers once as a keyword list, so there is no accumulating setter to call repeatedly
+elixir | config003 | Elixir has no builder and no chained setters: Configuration is an immutable struct built once by Configuration.new/1, so there is no fluent call chain to test
+elixir | config004 | Elixir has no builder and no separate single-header and bulk-header setters: headers are one keyword list given to Configuration.new/1, so there is no merge step
+elixir | config007 | Elixir has no builder: Configuration.new/1 returns the configuration struct directly, so there is no builder instance to return

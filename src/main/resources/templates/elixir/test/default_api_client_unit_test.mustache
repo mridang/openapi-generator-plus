@@ -603,7 +603,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   # Proxy-Authorization) is ALWAYS stripped on a cross-origin hop,
   # regardless of whether the spec declared any apiKey-in-header schemes.
   # Non-sensitive headers must survive the hop.
-  test "bhv redirects 012 3.1: strips Authorization / Cookie / Proxy-Authorization on cross-origin redirect" do
+  test "bhv redirects 012 strips Authorization / Cookie / Proxy-Authorization on cross-origin redirect (OpenAPI 3.1)" do
     # Target server records every header that arrived.
     {target_url, _} = start_header_capture_server()
     # Source server replies with a 302 pointing at the target (different port
@@ -721,7 +721,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   # 3.1: spec-declared apiKey-in-header names are merged into the
   # cross-origin sensitive-header allowlist at codegen time, so an API key
   # sent in a custom header (e.g. X-API-Key) is stripped on the hop too.
-  test "bhv redirects 011 3.1: strips spec-declared apiKey header on cross-origin redirect" do
+  test "bhv redirects 011 strips spec-declared apiKey header on cross-origin redirect (OpenAPI 3.1)" do
     api_key_header_names = [{{#apiKeyHeaderNames}}"{{name}}"{{^-last}}, {{/-last}}{{/apiKeyHeaderNames}}]
     api_key_header = List.first(api_key_header_names)
 
