@@ -62,7 +62,7 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         with pytest.raises(ValueError, match="^Authorization code must not be empty$"):
             auth.exchange_code("")
 
-    def test_exchange_code_rejects_whitespace_code(self) -> None:
+    def test_exchange_code_rejects_whitespace_only_code(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         auth.set_api_client(mock_client)
