@@ -16,7 +16,7 @@ This repository generates one SDK in twelve languages (java, kotlin, csharp, php
 Ordered by how much they cost in past sessions. Each rule: what to do, an example, the cheapest command that catches it.
 
 ### Before you push
-- Never push before the full gate passes for all 12 languages and the quick gate (`etc/ci-local.sh check --quick`). CI takes about 25 minutes and a red push costs a round; push in large batches, never fix-by-fix, but commit locally often. Check the CI per job (`gh run view <id> --json jobs`), not the run-level colour, and never claim "green" for a language you could not run locally (rust and kotlin are CI-first).
+- Push as soon as a piece is merged and let CI give the feedback; do not hold work back for local full gates. Keep working on the next set while CI runs, and fix what CI reports in the next push. Generated-code changes still need the golden regenerated and committed with the template (the generation test, about a minute, no Docker). Check CI per job (`gh run view <id> --json jobs`), not the run-level colour, and never claim "green" for something CI has not run.
 - Every agent runs its own language's gate in its own worktree: `etc/ci-local.sh check <Lang>` (about 2 minutes). It is parallel-safe (own output folder per run, sweeps containers only when alone). Cap about 4 at once on this 10 CPU / 16 GB machine; 8 at once triggers the Testcontainers flake and Docker address-pool exhaustion. Never run two gates in one worktree: the goldens race.
 - Run the language's full spec set (Client, Build, Linting, Formatting, StaticAnalysis, TypeCheck), not only `<Lang>ClientSpec`: Swatch import bugs and `//` comments hid behind a green ClientSpec. Example: Dart and Ruby lint failed on CI because the quick check skipped lint.
 - The `regenerate` step of the gate fails whenever goldens changed and are uncommitted. That is expected: commit the regenerated goldens, all twelve current, in the same commit as the template change (a stale but self-consistent golden passes locally and fails CI). Check: `git status --short` after the gate.
@@ -67,7 +67,7 @@ These came out of the long parity session and each one cost at least a CI round.
 
 ### Gate and push
 - A gate result counts only when all four steps print `ok` on a clean committed tree. The PHP gate once passed on uncommitted edits from another instance and CI then failed. Run `git status --short` before and after the gate, and quote the sha it ran on.
-- Never push when the quick gate fails, and never push a failure without saying so. Run `etc/ci-local.sh check --quick` on the merged head before every push, because a clean branch and a clean integration branch can still fail together.
+- Never push a failure you know about without saying so. A quick check (`etc/ci-local.sh check --quick`) is optional before a push and is worth running after a large merge of many branches; otherwise rely on CI.
 - A full gate takes about 5 minutes now that Chasm and Squid are shared; plan batches around that and not around the old 2 minutes per language.
 - A timing test waits for an observable condition (the server's hit count, a callback), never a fixed sleep. Example: a retry test that slept 200 ms flaked on a loaded runner; waiting for the second request did not.
 - A test that pins a default must not depend on which language class is used once every language overrides the hook. Example: the default options hook is pinned with a subclass, not with a particular language's generator.
