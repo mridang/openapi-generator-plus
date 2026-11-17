@@ -58,9 +58,13 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     let client = try Client(authenticator: authenticator)
     client.close()
     client.close()
-    await #expect(throws: ConfigurationError.self) {
+    let error = await #expect(throws: ConfigurationError.self) {
       _ = try await client.pet.getPetById(petId: 1)
     }
+    #expect(
+      error
+        == ConfigurationError.invalidState(
+          "ApiClient has been closed and can no longer send requests"))
   }
 
   @Test func testCloseLeavesASuppliedSessionOpen() async throws {
@@ -779,10 +783,154 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  // MARK: - One credential per security scheme (F857)
+
+  /* Each test names its own host, because the stub files requests by host and
+     the tests of a suite run in parallel. */
+  private func schemeClient(
+    host: String, petStoreBearer: Authenticator? = nil, apiKeyHeader: Authenticator? = nil
+  ) throws -> Client {
+    let transport = try TransportOptionsBuilder().session(ClientStubProtocol.session()).build()
+    return try Client(
+      host: host, petStoreBearer: petStoreBearer, apiKeyHeader: apiKeyHeader,
+      transportOptions: transport)
+  }
+
+  @Test func testASchemeCredentialIsSentToTheOperationThatNamesItsScheme() async throws {
+    let host = "https://named-scheme.example.com"
+    let client = try schemeClient(
+      host: host, petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"))
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "named-scheme.example.com"))
+    #expect(request.url?.absoluteString == "\(host)/pet/1")
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer scheme-token")
+  }
+
+  /* addPet accepts apiKeyHeader first and petStoreBearer second, so a client
+     holding both sends the api key and not the bearer token. */
+  @Test func testAnOperationUsesTheFirstSchemeItListsThatTheClientHolds() async throws {
+    let host = "https://first-scheme.example.com"
+    let client = try schemeClient(
+      host: host,
+      petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"),
+      apiKeyHeader: try ApiKeyAuthenticator(
+        host: host, keyParamName: "X-API-Key", apiKey: "key-1", location: .header))
+    defer { client.close() }
+
+    _ = try await client.pet.addPet(pet: Pet(name: "Fido", photoUrls: []))
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "first-scheme.example.com"))
+    #expect(request.value(forHTTPHeaderField: "X-API-Key") == "key-1")
+    #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+  }
+
+  @Test func testAClientWithoutCredentialsSendsNone() async throws {
+    let client = try schemeClient(host: "https://no-credential.example.com")
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "no-credential.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
+  }
+
+  /* An operation declared without security never carries a credential, even
+     when the client holds one for every scheme. */
+  @Test func testAnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
+    let host = "https://unauthenticated.example.com"
+    let client = try schemeClient(
+      host: host,
+      petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"),
+      apiKeyHeader: try ApiKeyAuthenticator(
+        host: host, keyParamName: "X-API-Key", apiKey: "key-1", location: .header))
+    defer { client.close() }
+
+    _ = try? await client.store.getInventory()
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "unauthenticated.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
+  }
+
+  /* A credential that needs the transport gets the client's own. */
+  @Test func testASchemeCredentialThatNeedsTheTransportGetsTheClientsOwn() throws {
+    let aware = SchemeTransportProbe()
+    let client = try schemeClient(host: "https://transport.example.com", petStoreBearer: aware)
+    defer { client.close() }
+    #expect(aware.received)
+  }
+
   @Test func testApiGroupsAreAccessible() throws {
     let client = try Client(authenticator: authenticator)
 
     _ = client.pet
     _ = client.store
   }
+}
+
+/* A credential that records whether the client handed it a transport. */
+private final class SchemeTransportProbe: BaseAuthenticator, HttpAwareAuthenticator,
+  @unchecked Sendable
+{
+  private let lock = NSLock()
+  private var flag = false
+
+  var received: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return flag
+  }
+
+  func setApiClient(_ client: ApiClient) {
+    lock.lock()
+    flag = true
+    lock.unlock()
+  }
+
+  override func host() -> String { return "https://api.example.com" }
+  override func authHeaders() async -> [String: String] { return [:] }
+}
+
+/* Answers every request with an empty JSON object and remembers the last one,
+ * so a test can read the headers a call actually sent. */
+private final class ClientStubProtocol: URLProtocol, @unchecked Sendable {
+  private static let lock = NSLock()
+  nonisolated(unsafe) private static var lastByHost: [String: URLRequest] = [:]
+
+  static func session() -> URLSession {
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [ClientStubProtocol.self]
+    return URLSession(configuration: config)
+  }
+
+  static func lastRequest(host: String) -> URLRequest? {
+    lock.lock()
+    defer { lock.unlock() }
+    return lastByHost[host]
+  }
+
+  override class func canInit(with request: URLRequest) -> Bool { return true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+
+  override func startLoading() {
+    ClientStubProtocol.lock.lock()
+    ClientStubProtocol.lastByHost[request.url?.host ?? ""] = request
+    ClientStubProtocol.lock.unlock()
+    let body = Data("{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".utf8)
+    if let url = request.url,
+      let response = HTTPURLResponse(
+        url: url, statusCode: 200, httpVersion: "HTTP/1.1",
+        headerFields: ["Content-Type": "application/json"])
+    {
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: body)
+    }
+    client?.urlProtocolDidFinishLoading(self)
+  }
+
+  override func stopLoading() {}
 }

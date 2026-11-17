@@ -4,6 +4,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -139,6 +140,38 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Adds {@code argName} to every shared {@code clientSchemes} entry (F857): the scheme's
+     * camel-case parameter name, wrapped in backticks when it is a Swift reserved word, so the
+     * client can take a credential named after any scheme.
+     *
+     * @param openAPI the parsed document
+     */
+    @Override
+    public void processOpenAPI(final OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final Object schemes = additionalProperties.get("clientSchemes");
+        if (!(schemes instanceof List)) {
+            return;
+        }
+        for (final Object entry : (List<?>) schemes) {
+            @SuppressWarnings("unchecked")
+            final Map<String, Object> scheme = (Map<String, Object>) entry;
+            scheme.put("argName", clientArgumentName(String.valueOf(scheme.get("paramName"))));
+        }
+    }
+
+    /**
+     * The identifier a client argument is declared and used by: the name itself, or the name in
+     * backticks when it is a Swift reserved word.
+     *
+     * @param name the camel-case scheme name
+     * @return the declarable identifier
+     */
+    String clientArgumentName(final String name) {
+        return reservedWords.contains(name) ? "`" + name + "`" : name;
+    }
+
+    /**
      * Gives an integer-enum member the same lowerCamel naming as the
      * identifiers Swift uses elsewhere: {@code NUMBER_1} becomes
      * {@code number1} and {@code NUMBER_MINUS_1} becomes {@code numberMinus1}
@@ -163,7 +196,6 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return Set.of(
                 "options",
                 "server",
-                "auth",
                 "requestContentType",
                 "timeout",
                 "headers",
@@ -1013,7 +1045,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Gives every oneOf variant a camelCase-ready name for the typed
+     * Gives every oneOf and anyOf variant a camelCase-ready name for the typed
      * {@code from<Variant>}, {@code is<Variant>} and {@code as<Variant>}
      * members of the union wrapper: the variant type with every non-letter and
      * non-digit dropped and each word capitalised, so {@code Reservation}
@@ -1021,14 +1053,19 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
      * and {@code [Data]} {@code Data}.
      */
     static void nameUnionVariants(@Nullable CodegenModel model) {
-        if (model == null
-                || model.getComposedSchemas() == null
-                || model.getComposedSchemas().getOneOf() == null) {
+        if (model == null || model.getComposedSchemas() == null) {
+            return;
+        }
+        nameVariants(model.getComposedSchemas().getOneOf());
+        nameVariants(model.getComposedSchemas().getAnyOf());
+    }
+
+    private static void nameVariants(@Nullable List<org.openapitools.codegen.CodegenProperty> variants) {
+        if (variants == null) {
             return;
         }
         final Set<String> seen = new HashSet<>();
-        for (final org.openapitools.codegen.CodegenProperty variant :
-                model.getComposedSchemas().getOneOf()) {
+        for (final org.openapitools.codegen.CodegenProperty variant : variants) {
             final StringBuilder name = new StringBuilder();
             boolean startOfWord = true;
             final String type = String.valueOf(variant.dataType);
@@ -1187,10 +1224,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
         context.put("params", params);
-        // Folds the optional per-operation `auth` field into the Options object
-        // for authed operations. Swift's Authenticator protocol lives in the
-        // same module as the generated Options struct, so no import is needed.
-        injectAuthFieldContext(op, context);
+        /* F857: no per-operation authenticator. An operation uses the credential the client
+         * holds for the scheme its spec names, so the Options object has no `auth` field. */
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

@@ -25,22 +25,13 @@ public struct {{className}}: Sendable {
     /// Per-call retry limit. Replaces the transport's `maxRetries` for this
     /// call; 0 turns retries off and nil keeps the transport's value.
     public let maxRetries: Int?
-{{#hasAuthField}}
-    /// Per-operation authenticator. When set, it overrides the client's
-    /// configured credentials for this call only; when nil, the configured
-    /// credentials are used.
-    public let auth: {{authFieldType}}?
-{{/hasAuthField}}
 
-    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}, {{/params}}timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil{{#hasAuthField}}, auth: {{authFieldType}}? = nil{{/hasAuthField}}) {
+    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}, {{/params}}timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil) {
 {{#params}}
         self.{{name}} = {{name}}
 {{/params}}
         self.timeout = timeout
         self.headers = headers
         self.maxRetries = maxRetries
-{{#hasAuthField}}
-        self.auth = auth
-{{/hasAuthField}}
     }
 }

@@ -156,16 +156,19 @@ public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
 public final class PetApi: BaseApi, @unchecked Sendable {
   /// Creates a new `PetApi`.
   public override init(
-    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
+    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,
+    schemeAuthenticators: [String: Authenticator] = [:]
   ) {
-    super.init(apiClient: apiClient, config: config, authenticator: authenticator)
+    super.init(
+      apiClient: apiClient, config: config, authenticator: authenticator,
+      schemeAuthenticators: schemeAuthenticators)
   }
 
   /// Add a new pet to the store
   ///
   /// - Parameters:
   ///   - pet: Create a new pet in the store
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func addPet(pet: Pet, options: AddPetOptions? = nil) async throws -> Pet {
     let result = try await addPetWithHTTPInfo(pet: pet, options: options)
     guard let data = result.data else {
@@ -200,7 +203,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: options?.auth,
+      auth: schemeAuthenticator(["apiKeyHeader", "petStoreBearer"]),
       operation: "PetApi.addPet",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -214,7 +217,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
     let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options)
     guard let data = result.data else {
@@ -263,7 +266,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "multipart/form-data",
       returnType: "[Photo]",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.addPetPhotos",
       timeout: options.timeout,
       requestHeaders: options.headers,
@@ -276,7 +279,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Record a treatment for a pet
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func addPetTreatment(
     petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions? = nil
   ) async throws -> PetTreatment {
@@ -319,7 +322,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "PetTreatment",
-      auth: options?.auth,
+      auth: nil,
       operation: "PetApi.addPetTreatment",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -334,7 +337,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: Pet id to delete
   ///   - apiKey: Session cookie used for authentication
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func deletePet(petId: Int64, options: DeletePetOptions? = nil) async throws {
     let result = try await deletePetWithHTTPInfo(petId: petId, options: options)
     _ = result
@@ -357,19 +360,19 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     var headerParams: [String: String] = [:]
     var cookieParts: [String] = []
     /* Operation-level cookie params are interpolated straight into the
-     * Cookie request header, so the serialized value MUST pass the same
-     * RFC 6265 cookie-octet check that auth-provided cookies receive in
-     * BaseApi. Without it a value containing CR, LF, or other control
-     * characters would smuggle extra header lines into the request
-     * (header injection). Fail closed with the identical RFC 6265
-     * ConfigurationError the auth-cookie path raises so behaviour is
-     * consistent. */
+     * Cookie request header. A value made only of RFC 6265 cookie-octets
+     * goes out as it is, never encoded by the SDK; any other value fails
+     * with ConfigurationError.invalidArgument before a request is sent, and
+     * the caller pre-encodes it. This also stops a value holding CR, LF or
+     * another control character from smuggling extra header lines into the
+     * request (header injection). A `content:` cookie is a typed value the
+     * caller cannot pre-encode, so its JSON text is percent-encoded here. */
     if let options = options, let val = options.apiKey {
       let apiKeyCookieValue =
         "\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
       if !BaseApi.isValidCookieValue(apiKeyCookieValue) {
         throw ConfigurationError.invalidArgument(
-          "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+          "Cookie value for 'api_key' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
         )
       }
       cookieParts.append("api_key=\(apiKeyCookieValue)")
@@ -388,7 +391,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: [],
       contentType: "application/json",
       returnType: "",
-      auth: options?.auth,
+      auth: schemeAuthenticator(["adminBasic", "machineAuth"]),
       operation: "PetApi.deletePet",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -402,7 +405,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func downloadPetDocument(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions? = nil
   ) async throws -> Data {
@@ -450,7 +453,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/octet-stream"],
       contentType: "application/json",
       returnType: "Data",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.downloadPetDocument",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -464,7 +467,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - bornOn: Date of birth to match
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func findPetsBornOn(bornOn: String, options: FindPetsBornOnOptions? = nil) async throws
     -> [Pet]
   {
@@ -507,7 +510,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[Pet]",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.findPetsBornOn",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -525,7 +528,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - filter: Filter criteria as key-value pairs
   ///   - bornAfter: Only return pets born on or after this date
   ///   - reportDate: Reference date for the report
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   ///
   /// ### `status` — Available only
   /// Show only pets currently in stock
@@ -603,7 +606,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[Pet]",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.findPetsByStatus",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -617,7 +620,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - server: Optional per-operation server override.
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getExternalPetInfo(
     petId: Int64, server: (any GetExternalPetInfoServer)? = nil,
     options: GetExternalPetInfoOptions? = nil
@@ -668,7 +671,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getExternalPetInfo",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -682,7 +685,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - server: Optional per-operation server override.
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getMultiServerPetInfo(
     petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil,
     options: GetMultiServerPetInfoOptions? = nil
@@ -733,7 +736,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getMultiServerPetInfo",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -747,7 +750,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns the raw image bytes of the pet's current avatar.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions? = nil) async throws -> Data {
     let result = try await getPetAvatarWithHTTPInfo(petId: petId, options: options)
     guard let data = result.data else {
@@ -787,7 +790,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["image/jpeg", "image/png"],
       contentType: "application/json",
       returnType: "Data",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetAvatar",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -801,7 +804,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getPetAvatarThumbnail(petId: Int64, options: GetPetAvatarThumbnailOptions? = nil)
     async throws -> Data
   {
@@ -843,7 +846,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Data",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetAvatarThumbnail",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -859,7 +862,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: ID of pet to return
   ///   - server: Optional per-operation server override.
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   ///
   /// ### `petId` — Small breed ID
   /// A common small-breed pet identifier
@@ -921,7 +924,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetById",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -934,7 +937,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Look up a pet by name (simple string path param + required query)
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
     let result = try await getPetByNameWithHTTPInfo(name: name, options: options)
     guard let data = result.data else {
@@ -995,7 +998,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetByName",
       timeout: options.timeout,
       requestHeaders: options.headers,
@@ -1009,7 +1012,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getPetPassport(petId: Int64, options: GetPetPassportOptions? = nil) async throws
     -> PetPassport
   {
@@ -1051,7 +1054,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "PetPassport",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetPassport",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -1065,7 +1068,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions? = nil)
     async throws -> Data
   {
@@ -1112,7 +1115,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["image/jpeg", "image/png", "application/json"],
       contentType: "application/json",
       returnType: "Data",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetPhoto",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -1129,7 +1132,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - asOf: Summary date, sent as a matrix-style path segment
   ///   - session: Session token: "a<b>" & it's required
   ///   - days: Extra dates to summarise
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
     -> String
   {
@@ -1178,18 +1181,18 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     var headerParams: [String: String] = [:]
     var cookieParts: [String] = []
     /* Operation-level cookie params are interpolated straight into the
-     * Cookie request header, so the serialized value MUST pass the same
-     * RFC 6265 cookie-octet check that auth-provided cookies receive in
-     * BaseApi. Without it a value containing CR, LF, or other control
-     * characters would smuggle extra header lines into the request
-     * (header injection). Fail closed with the identical RFC 6265
-     * ConfigurationError the auth-cookie path raises so behaviour is
-     * consistent. */
+     * Cookie request header. A value made only of RFC 6265 cookie-octets
+     * goes out as it is, never encoded by the SDK; any other value fails
+     * with ConfigurationError.invalidArgument before a request is sent, and
+     * the caller pre-encodes it. This also stops a value holding CR, LF or
+     * another control character from smuggling extra header lines into the
+     * request (header injection). A `content:` cookie is a typed value the
+     * caller cannot pre-encode, so its JSON text is percent-encoded here. */
     let sessionCookieValue =
       "\(ValueSerializer.serializeStyled("session", value: options.session, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
     if !BaseApi.isValidCookieValue(sessionCookieValue) {
       throw ConfigurationError.invalidArgument(
-        "Cookie value for 'session' contains characters forbidden by RFC 6265"
+        "Cookie value for 'session' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
       )
     }
     cookieParts.append("session=\(sessionCookieValue)")
@@ -1207,7 +1210,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["text/plain"],
       contentType: "application/json",
       returnType: "String",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetSummary",
       timeout: options.timeout,
       requestHeaders: options.headers,
@@ -1223,7 +1226,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - revision: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
   ///   - criteria: Object-valued query parameter, form style exploded (the OAS default for query)
   ///   - fingerprint: Opaque bytes, base64 on the wire (OAS format byte)
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil)
     async throws -> Pet
   {
@@ -1331,7 +1334,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetTag",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -1345,7 +1348,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - server: Optional per-operation server override.
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getStagingPetInfo(
     petId: Int64, server: (any GetStagingPetInfoServer)? = nil,
     options: GetStagingPetInfoOptions? = nil
@@ -1396,7 +1399,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getStagingPetInfo",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -1410,7 +1413,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   ///   - requestContentType: Optional request Content-Type, chosen from the declared types (image/jpeg, image/png, application/json). Defaults to the first declared type (image/jpeg) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
   public func setPetAvatar(
     petId: Int64, body: Data, options: SetPetAvatarOptions? = nil, requestContentType: String? = nil
@@ -1465,7 +1468,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: [],
       contentType: effectiveRequestContentType,
       returnType: "",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.setPetAvatar",
       rawBody: true,
       timeout: options?.timeout,
@@ -1480,7 +1483,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func setPetAvatarThumbnail(
     petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
     options: SetPetAvatarThumbnailOptions? = nil
@@ -1517,7 +1520,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: [],
       contentType: "application/json",
       returnType: "",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.setPetAvatarThumbnail",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -1531,7 +1534,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws
     -> ApiResponse
   {
@@ -1597,7 +1600,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/x-www-form-urlencoded",
       returnType: "ApiResponse",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.setPetPreferences",
       timeout: options.timeout,
       requestHeaders: options.headers,
@@ -1612,7 +1615,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: ID of pet to update
   ///   - pet: Pet object that needs to be updated
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func updatePet(petId: Int64, pet: Pet, options: UpdatePetOptions? = nil) async throws
     -> Pet
   {
@@ -1654,7 +1657,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.updatePet",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -1668,7 +1671,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws
     -> ApiResponse
   {
@@ -1718,7 +1721,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "multipart/form-data",
       returnType: "ApiResponse",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.uploadPetCertificate",
       timeout: options.timeout,
       requestHeaders: options.headers,
@@ -1732,7 +1735,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   ///   - requestContentType: Optional request Content-Type, chosen from the declared types (multipart/form-data, application/octet-stream). Defaults to the first declared type (multipart/form-data) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
   public func uploadPetDocument(
     petId: Int64, options: UploadPetDocumentOptions, requestContentType: String? = nil
@@ -1831,7 +1834,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: effectiveRequestContentType,
       returnType: "ApiResponse",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.uploadPetDocument",
       timeout: options.timeout,
       requestHeaders: options.headers,

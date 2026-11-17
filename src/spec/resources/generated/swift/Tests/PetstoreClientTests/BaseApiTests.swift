@@ -529,16 +529,17 @@ import Testing
     }
   }
 
-  /* A per-call authenticator that makes HTTP calls of its own (OAuth2, OIDC)
+  /* A scheme credential that makes HTTP calls of its own (OAuth2, OIDC)
    * receives the API's client, as the client-level one does. */
-  @Test func testPerCallHttpAwareAuthenticatorReceivesTheApiClient() async throws {
+  @Test func testSchemeHttpAwareAuthenticatorReceivesTheApiClient() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
     let auth = TransportAwareAuth()
+    let api = PetApi(
+      apiClient: mockClient, config: config, schemeAuthenticators: ["petStoreBearer": auth])
 
     let pet = Pet(name: "test", photoUrls: [])
-    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
+    _ = try? await api.addPet(pet: pet)
 
     #expect(mockClient.lastHeaders["Authorization"] == "transport injected")
   }
@@ -592,7 +593,7 @@ import Testing
     let api = PetApi(apiClient: mockClient, config: config)
 
     let pet = Pet(name: "test", photoUrls: [])
-    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
+    _ = try? await api.addPet(pet: pet)
     #expect(mockClient.lastHeaders["Accept"] != nil, "Expected Accept header from selector")
     #expect(
       mockClient.lastHeaders["Content-Type"] != nil, "Expected Content-Type header from selector")
@@ -607,7 +608,7 @@ import Testing
 
     // POST requests with a body should always send Content-Type: application/json
     let pet = Pet(name: "test", photoUrls: [])
-    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
+    _ = try? await api.addPet(pet: pet)
     // The header selector should default empty content-type to application/json
     let ct = mockClient.lastHeaders["Content-Type"]
     #expect(ct != nil, "Expected Content-Type to be set")
@@ -624,7 +625,7 @@ import Testing
     let api = PetApi(apiClient: mockClient, config: config)
 
     let pet = Pet(name: "TestPet", photoUrls: [])
-    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
+    _ = try? await api.addPet(pet: pet)
     #expect(mockClient.lastBody != nil, "Expected body to be captured")
     if let body = mockClient.lastBody {
       let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -738,11 +739,11 @@ import Testing
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
     let auth = MockAuth(cookies: ["session": "abc123"])
+    let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+
     let pet = Pet(name: "TestPet", photoUrls: [])
-    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
+    _ = try? await api.addPet(pet: pet)
     if let cookie = mockClient.lastHeaders["Cookie"] {
       #expect(cookie.contains("session=abc123"))
     }
@@ -753,12 +754,12 @@ import Testing
   @Test func testInvalidAuthCookieThrowsInvalidArgument() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
     let auth = MockAuth(cookies: ["session": "a;b"])
+    let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+
     let pet = Pet(name: "TestPet", photoUrls: [])
     let error = await #expect(throws: ConfigurationError.self) {
-      _ = try await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
+      _ = try await api.addPet(pet: pet)
     }
     guard case .invalidArgument? = error else {
       Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
@@ -1024,9 +1025,8 @@ import Testing
     let api = PetApi(apiClient: mockClient, config: config)
 
     // deletePet is a void operation
-    let auth = MockAuth()
     do {
-      try await api.deletePet(petId: 1, options: DeletePetOptions(auth: auth))
+      try await api.deletePet(petId: 1)
       // Success - void operation returns no value
     } catch {
       // OK - chasm may not have matching mapping
@@ -1119,7 +1119,7 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
     let pet = Pet(name: "TestPet", photoUrls: [])
-    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
+    _ = try? await api.addPet(pet: pet)
     // addPet sends a JSON body -- Content-Type should be present
     #expect(
       mockClient.lastHeaders["Content-Type"] != nil,
@@ -1165,18 +1165,98 @@ import Testing
       "transport must NOT be called when the authenticator cannot produce credentials")
   }
 
-  @Test func testOpLevelAuthOverridesClientLevel() async throws {
+  /* F857: the client holds one credential per security scheme, and an
+   * operation uses the first scheme in its own order that the client holds.
+   * addPet accepts apiKeyHeader, then petStoreBearer. */
+  private func addPetHeaders(
+    schemes: [String: Authenticator], client: Authenticator? = nil
+  ) async throws -> [String: String] {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let clientAuth = MockAuth(headers: ["Authorization": "Bearer client-level"])
-    let opAuth = MockAuth(headers: ["Authorization": "Bearer op-level"])
-    let api = PetApi(apiClient: mockClient, config: config, authenticator: clientAuth)
-    let pet = Pet(name: "TestPet", photoUrls: [])
-    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: opAuth))
-    #expect(
-      mockClient.lastHeaders["Authorization"] == "Bearer op-level",
-      "Op-level auth must override the client-level authenticator")
+    let api = PetApi(
+      apiClient: mockClient, config: config, authenticator: client, schemeAuthenticators: schemes)
+    _ = try await api.addPet(pet: Pet(name: "TestPet", photoUrls: []))
+    return mockClient.lastHeaders
+  }
+
+  @Test func testSchemeCredentialIsUsedForTheSchemeTheOperationNames() async throws {
+    let headers = try await addPetHeaders(schemes: [
+      "petStoreBearer": MockAuth(headers: ["Authorization": "Bearer scheme-level"])
+    ])
+    #expect(headers["Authorization"] == "Bearer scheme-level")
+  }
+
+  @Test func testTheFirstListedSchemeTheClientHoldsWins() async throws {
+    let headers = try await addPetHeaders(schemes: [
+      "petStoreBearer": MockAuth(headers: ["Authorization": "Bearer second"]),
+      "apiKeyHeader": MockAuth(headers: ["X-API-Key": "first"]),
+    ])
+    #expect(headers["X-API-Key"] == "first")
+    #expect(headers["Authorization"] == nil)
+  }
+
+  @Test func testACredentialHeldForAnotherSchemeIsNeverSent() async throws {
+    let headers = try await addPetHeaders(schemes: [
+      "adminBasic": MockAuth(headers: ["Authorization": "Basic other"])
+    ])
+    #expect(headers["Authorization"] == nil)
+  }
+
+  @Test func testSchemeCredentialBeatsTheClientLevelAuthenticator() async throws {
+    let headers = try await addPetHeaders(
+      schemes: ["petStoreBearer": MockAuth(headers: ["Authorization": "Bearer scheme-level"])],
+      client: MockAuth(headers: ["Authorization": "Bearer client-level"]))
+    #expect(headers["Authorization"] == "Bearer scheme-level")
+  }
+
+  @Test func testNoMatchingSchemeFallsBackToTheClientLevelAuthenticator() async throws {
+    let headers = try await addPetHeaders(
+      schemes: ["adminBasic": MockAuth(headers: ["Authorization": "Basic other"])],
+      client: MockAuth(headers: ["Authorization": "Bearer client-level"]))
+    #expect(headers["Authorization"] == "Bearer client-level")
+  }
+
+  /* An inherited-security operation takes its schemes from the global
+   * requirement, so the credential of a global scheme reaches it. */
+  @Test func testInheritedSecurityOperationUsesTheGlobalSchemeCredential() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(
+      apiClient: mockClient, config: config,
+      schemeAuthenticators: [
+        "petStoreBearer": MockAuth(headers: ["Authorization": "Bearer global"])
+      ])
+
+    _ = try await api.getPetById(petId: 1)
+
+    #expect(mockClient.lastHeaders["Authorization"] == "Bearer global")
+  }
+
+  /* An operation declared `security: []` sends no credential, whatever the
+   * client holds. */
+  @Test func testSecurityNoneOperationIgnoresEverySchemeCredential() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let held = MockAuth(headers: ["Authorization": "Bearer held"])
+    let api = StoreApi(
+      apiClient: mockClient, config: config,
+      schemeAuthenticators: ["petStoreBearer": held, "apiKeyHeader": held, "petStoreBasic": held])
+
+    _ = try? await api.getInventory()
+
+    #expect(mockClient.lastHeaders["Authorization"] == nil)
+  }
+
+  /* There is no per-call scheme override: an Options object carries the
+   * timeout, headers, retry limit and the operation's parameters only. */
+  @Test func testOptionsCarryNoAuthenticator() {
+    let labels = Mirror(reflecting: AddPetOptions()).children.compactMap { $0.label }
+    #expect(labels.sorted() == ["headers", "maxRetries", "timeout"])
+    let deleteLabels = Mirror(reflecting: DeletePetOptions()).children.compactMap { $0.label }
+    #expect(!deleteLabels.contains("auth"))
   }
 
   // MARK: - Auth applied (regression guard for silently-dropped authenticator)
@@ -1381,7 +1461,7 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
     let pet = Pet(name: "EmptyPet", photoUrls: [])
-    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
+    _ = try? await api.addPet(pet: pet)
     #expect(
       mockClient.lastHeaders["Content-Type"] == "application/json",
       "Content-Type must be application/json when body is a JSON object")

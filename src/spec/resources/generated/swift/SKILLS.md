@@ -240,6 +240,18 @@ Cancel the Swift `Task` that made the call and the call throws `CancellationErro
 
 An operation's options struct also takes `timeout` (milliseconds, greater than zero), `maxRetries` (`0` turns retries off) and `headers` for that call alone; a `nil` keeps the transport's setting. Every operation takes an options struct as its last argument, even one with no parameters and no security requirement, so each call can carry them.
 
+### One credential per security scheme
+
+`Client(host:...)` takes one optional ``Authenticator`` per security scheme, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Each operation uses the credential of the first scheme its own spec lists that you gave the client; there is no per-call authenticator, an operation declared with `security: []` carries none, and an operation none of whose schemes has a credential uses the authenticator of `Client(authenticator:)` if the client was built from one and sends none otherwise.
+
+### Closing the client
+
+`close()` is graceful and idempotent: a request in flight finishes (retries included), the `URLSession` the SDK built is released when the last one ends, a request made afterwards throws `ConfigurationError.invalidState` (`ApiClient has been closed and can no longer send requests`), a second call does nothing and a `URLSession` you supplied is never invalidated.
+
+### Cookie parameters
+
+A cookie parameter goes out exactly as passed when every character is an RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash; `%` is allowed). Any other character throws `ConfigurationError.invalidArgument` before the request is sent: percent-encode it yourself first.
+
 ### Credentials from the environment
 
 `Client.fromEnvironment()` reads `SWAGGER_PETSTORE_OPEN_API_3_0_HOST` and `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` once, when the client is built (an empty value is unset); the `host`, `token` and `tokenProvider` arguments win, and a missing host or credential throws `ConfigurationError.invalidArgument`.
@@ -288,7 +300,7 @@ Models are generated as Swift structs in the `Models` directory.
 let model = Account(username: "example")
 ```
 
-A model is immutable: its properties are `let`. `model.copy(name: "x")` returns a copy with the given properties replaced (pass `.some(nil)` to clear an optional one). A `oneOf` union is built with `Union.fromVariant(value)` and read with `isVariant` and `asVariant`; an operation with several 2xx schemas returns such a union, decoded by the status that arrived.
+Building a model never validates or throws (an unknown enum string builds no enum); a payload is checked when it is decoded, and an unknown enum string, a missing required property or a `format: uri` that is not an absolute URI throws `SerializationError`. A model is immutable: its properties are `let`. `model.copy(name: "x")` returns a copy with the given properties replaced (pass `.some(nil)` to clear an optional one). A `oneOf` union is built with `Union.fromVariant(value)` and read with `isVariant` and `asVariant`; an operation with several 2xx schemas returns such a union, decoded by the status that arrived.
 
 ## Binary / File Uploads
 

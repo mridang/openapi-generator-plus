@@ -59,8 +59,13 @@ public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
 {{/tagExternalDocs}}
 public final class {{classname}}: BaseApi, @unchecked Sendable {
     /// Creates a new `{{classname}}`.
-    public override init(apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil) {
-        super.init(apiClient: apiClient, config: config, authenticator: authenticator)
+    public override init(
+        apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,
+        schemeAuthenticators: [String: Authenticator] = [:]
+    ) {
+        super.init(
+            apiClient: apiClient, config: config, authenticator: authenticator,
+            schemeAuthenticators: schemeAuthenticators)
     }
 {{#operation}}
 
@@ -83,7 +88,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/allParams}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
-    ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+    ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
 {{/isOptions}}
 {{#isServer}}
     ///   - server: Optional per-operation server override.
@@ -346,20 +351,20 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#hasCookieParams}}
         var cookieParts: [String] = []
         /* Operation-level cookie params are interpolated straight into the
-         * Cookie request header, so the serialized value MUST pass the same
-         * RFC 6265 cookie-octet check that auth-provided cookies receive in
-         * BaseApi. Without it a value containing CR, LF, or other control
-         * characters would smuggle extra header lines into the request
-         * (header injection). Fail closed with the identical RFC 6265
-         * ConfigurationError the auth-cookie path raises so behaviour is
-         * consistent. */
+         * Cookie request header. A value made only of RFC 6265 cookie-octets
+         * goes out as it is, never encoded by the SDK; any other value fails
+         * with ConfigurationError.invalidArgument before a request is sent, and
+         * the caller pre-encodes it. This also stops a value holding CR, LF or
+         * another control character from smuggling extra header lines into the
+         * request (header injection). A `content:` cookie is a typed value the
+         * caller cannot pre-encode, so its JSON text is percent-encoded here. */
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
         let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
         if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
             throw ConfigurationError.invalidArgument(
-                "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
             )
         }
         cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
@@ -369,7 +374,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
                 throw ConfigurationError.invalidArgument(
-                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                    "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
                 )
             }
             cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
@@ -381,7 +386,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
                 throw ConfigurationError.invalidArgument(
-                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                    "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
                 )
             }
             cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
@@ -480,7 +485,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             accepts: [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             contentType: {{#consumes}}{{#-last}}{{^-first}}effectiveRequestContentType{{/-first}}{{#-first}}"{{vendorExtensions.op.effectiveConsumes}}"{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes}},
             returnType: "{{#returnType}}{{{.}}}{{/returnType}}",
-            auth: {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}BaseApi.noAuthSentinel{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+            auth: {{#vendorExtensions.op.hasSecuritySchemes}}schemeAuthenticator([{{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}]){{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}BaseApi.noAuthSentinel{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}},
             operation: "{{classname}}.{{operationId}}"{{#bodyParam}}{{#isBinary}},
             rawBody: true{{/isBinary}}{{/bodyParam}}{{#vendorExtensions.op.hasOptionsObject}},
             timeout: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}timeout,

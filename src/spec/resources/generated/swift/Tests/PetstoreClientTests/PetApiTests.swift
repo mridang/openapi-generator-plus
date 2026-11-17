@@ -21,13 +21,13 @@ final class PetApiTests {
 
   // MARK: - Helpers
 
-  private func petApiForIntegration() -> PetApi {
+  private func petApiForIntegration(schemes: [String: Authenticator] = [:]) -> PetApi {
     let config = ConfigurationBuilder()
       .baseURL(chasmUrl)
       .defaultHeader(name: "Authorization", value: "Bearer test-token")
       .build()
     let client = DefaultApiClient()
-    return PetApi(apiClient: client, config: config)
+    return PetApi(apiClient: client, config: config, schemeAuthenticators: schemes)
   }
 
   // MARK: - Generated documentation
@@ -95,7 +95,7 @@ final class PetApiTests {
     let block = try leadingDocBlock(before: "public func \(operation)(", in: "PetApi.swift")
     #expect(
       block.contains(
-        "///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator."
+        "///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters."
       ))
   }
 
@@ -136,22 +136,20 @@ final class PetApiTests {
   // MARK: - Integration Tests
 
   @Test func testAddPet() async throws {
-    let api = petApiForIntegration()
-    let auth = TestAuthenticator()
+    let api = petApiForIntegration(schemes: ["petStoreBearer": TestAuthenticator()])
 
     let pet = Pet(name: "Fido", photoUrls: ["http://example.com/fido.jpg"])
 
-    let result = try await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
+    let result = try await api.addPet(pet: pet)
     _ = result
   }
 
   @Test func testAddPetWithHTTPInfo() async throws {
-    let api = petApiForIntegration()
-    let auth = TestAuthenticator()
+    let api = petApiForIntegration(schemes: ["petStoreBearer": TestAuthenticator()])
 
     let pet = Pet(name: "Buddy", photoUrls: ["http://example.com/buddy.jpg"])
 
-    let result = try await api.addPetWithHTTPInfo(pet: pet, options: AddPetOptions(auth: auth))
+    let result = try await api.addPetWithHTTPInfo(pet: pet)
     #expect(result.statusCode >= 200)
     #expect(result.statusCode < 300)
     #expect(!result.rawBody.isEmpty)
@@ -192,18 +190,15 @@ final class PetApiTests {
   }
 
   @Test func testDeletePet() async throws {
-    let api = petApiForIntegration()
-    let auth = TestAuthenticator()
+    let api = petApiForIntegration(schemes: ["adminBasic": TestAuthenticator()])
 
-    try await api.deletePet(petId: 1, options: DeletePetOptions(auth: auth))
+    try await api.deletePet(petId: 1)
   }
 
   @Test func testDeletePetWithHTTPInfo() async throws {
-    let api = petApiForIntegration()
-    let auth = TestAuthenticator()
+    let api = petApiForIntegration(schemes: ["adminBasic": TestAuthenticator()])
 
-    let result = try await api.deletePetWithHTTPInfo(
-      petId: 1, options: DeletePetOptions(auth: auth))
+    let result = try await api.deletePetWithHTTPInfo(petId: 1)
     #expect(result.statusCode >= 200)
     #expect(result.statusCode < 300)
   }
@@ -701,11 +696,11 @@ final class PetApiTests {
     #expect(error?.statusCode == 500)
   }
 
-  // per-call-auth-override: an Authenticator passed to the BASE operation
-  // method (not just WithHTTPInfo) must be applied to the outgoing request.
-  // The default header carries one token; the per-call authenticator carries
-  // a different one and must win on the wire.
-  @Test func testAddPetPerCallAuthOverride() async throws {
+  /* F857: the credential the client holds for the scheme an operation names
+     is applied to the outgoing request, on the base operation method as on
+     WithHTTPInfo. The default header carries one token; the scheme credential
+     carries a different one and must win on the wire. */
+  @Test func testAddPetUsesTheCredentialOfItsScheme() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
@@ -714,13 +709,14 @@ final class PetApiTests {
       .baseURL("https://example.com")
       .defaultHeader(name: "Authorization", value: "Bearer default-token")
       .build()
-    let api = PetApi(apiClient: mockClient, config: config)
-    let perCallAuth = PerCallAuthenticator()
+    let api = PetApi(
+      apiClient: mockClient, config: config,
+      schemeAuthenticators: ["petStoreBearer": SchemeCredentialAuthenticator()])
 
     let pet = Pet(name: "OverrideDog", photoUrls: ["http://example.com/p.jpg"])
-    _ = try await api.addPet(pet: pet, options: AddPetOptions(auth: perCallAuth))
+    _ = try await api.addPet(pet: pet)
 
-    #expect(mockClient.lastHeaders["Authorization"] == "Bearer per-call-token")
+    #expect(mockClient.lastHeaders["Authorization"] == "Bearer scheme-token")
   }
 
   // go-swift-path-styles-ignored: path params now route through
@@ -760,30 +756,38 @@ final class PetApiTests {
       caught?.message.contains("Expected a response body for getPetById but received none") == true)
   }
 
-  // auth-folded-into-options: the per-call authenticator carried inside the
-  // Options object must be applied to the outgoing request, overriding the
-  // Configuration default-header credentials on the wire.
-  @Test func testAuthInOptionsOverridesConfiguredCredentials() async throws {
+  /* F857: addPet accepts apiKeyHeader first and petStoreBearer second, so
+     when the client holds both, the api key is the credential and the bearer
+     one is not sent; a credential held only for a scheme the operation does
+     not name never reaches it. */
+  @Test func testAddPetTakesTheFirstSchemeItListsThatTheClientHolds() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
     mockClient.responseHeaders = ["Content-Type": "application/json"]
-    let config = ConfigurationBuilder()
-      .baseURL("https://example.com")
-      .defaultHeader(name: "Authorization", value: "Bearer default-token")
-      .build()
-    let api = PetApi(apiClient: mockClient, config: config)
-    let perCallAuth = PerCallAuthenticator()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let both = PetApi(
+      apiClient: mockClient, config: config,
+      schemeAuthenticators: [
+        "petStoreBearer": SchemeCredentialAuthenticator(),
+        "apiKeyHeader": SchemeCredentialAuthenticator(header: "X-API-Key", value: "key-1"),
+      ])
+    let pet = Pet(name: "OrderDog", photoUrls: ["http://example.com/p.jpg"])
+    _ = try await both.addPet(pet: pet)
+    #expect(mockClient.lastHeaders["X-API-Key"] == "key-1")
+    #expect(mockClient.lastHeaders["Authorization"] == nil)
 
-    let pet = Pet(name: "OptionsAuthDog", photoUrls: ["http://example.com/p.jpg"])
-    _ = try await api.addPet(pet: pet, options: AddPetOptions(auth: perCallAuth))
-
-    #expect(mockClient.lastHeaders["Authorization"] == "Bearer per-call-token")
+    let other = PetApi(
+      apiClient: mockClient, config: config,
+      schemeAuthenticators: ["adminBasic": SchemeCredentialAuthenticator()])
+    _ = try await other.addPet(pet: pet)
+    #expect(mockClient.lastHeaders["Authorization"] == nil)
+    #expect(mockClient.lastHeaders["X-API-Key"] == nil)
   }
 
-  // auth-omitted-falls-back: when no per-call auth is supplied (Options
-  // omitted entirely), the client falls back to the credentials configured on
-  // the Configuration (the default Authorization header).
+  // auth-omitted-falls-back: when the client holds no scheme credential, the
+  // call falls back to the credentials configured on the Configuration (the
+  // default Authorization header).
   @Test func testAuthOmittedUsesConfiguredCredentials() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
@@ -1110,6 +1114,44 @@ final class PetApiTests {
     #expect(mockClient.lastURL.isEmpty)
   }
 
+  /* F840: a cookie parameter made only of RFC 6265 cookie-octets goes out as
+     it is, never encoded by the SDK (a percent sign is one such octet). */
+  @Test func testCookieParameterOfLegalOctetsIsSentRaw() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "all quiet"
+    mockClient.responseHeaders = ["Content-Type": "text/plain"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetSummary(
+      petId: 5, asOf: "2024-01-15", options: GetPetSummaryOptions(session: "a=b/c%20d"))
+
+    #expect(mockClient.lastHeaders["Cookie"] == "session=a=b/c%20d")
+  }
+
+  /* Any other character fails on the client, before a request is sent: the
+     caller pre-encodes the value. */
+  @Test(arguments: ["a b", "a;b", "a,b", "a\"b", "a\\b", "caf\u{00E9}", "a\tb"])
+  func testCookieParameterOfIllegalOctetsFailsBeforeSending(value: String) async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetSummary(
+        petId: 5, asOf: "2024-01-15", options: GetPetSummaryOptions(session: value))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(
+      message
+        == "Cookie value for 'session' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+    )
+    #expect(mockClient.lastURL.isEmpty, "transport must NOT be called for \(value)")
+  }
+
   /* A request body that is an anyOf wrapper goes out as the variant the
      caller chose, on the operation's own path. */
   @Test func testAddPetTreatmentSendsTheChosenVariantAsTheBody() async throws {
@@ -1318,8 +1360,7 @@ final class PetApiTests {
   // options-immutable-readback: an Options value is built once via its init
   // (named args + defaults) and its stored properties are immutable lets that
   // remain readable after construction. A param-bearing Options round-trips
-  // its parameters, and an auth-bearing Options round-trips its per-call
-  // authenticator. This pins the immutable shape: the properties are readable
+  // its parameters. This pins the immutable shape: the properties are readable
   // but cannot be reassigned after construction.
   @Test func testOptionsConstructedAndReadBack() async throws {
     let paramOpts = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S"])
@@ -1327,9 +1368,10 @@ final class PetApiTests {
     #expect(paramOpts.sizes == ["S"])
     #expect(paramOpts.filter == nil)
 
-    let perCallAuth = PerCallAuthenticator()
-    let authOpts = AddPetOptions(auth: perCallAuth)
-    #expect(authOpts.auth != nil)
+    let timed = AddPetOptions(timeout: 1500, headers: ["X-Trace": "1"], maxRetries: 0)
+    #expect(timed.timeout == 1500)
+    #expect(timed.headers == ["X-Trace": "1"])
+    #expect(timed.maxRetries == 0)
   }
 
   // optional-array-param: an OPTIONAL array query parameter set to multiple
@@ -1385,11 +1427,20 @@ private final class TestAuthenticator: BaseAuthenticator, @unchecked Sendable {
   }
 }
 
-/// Authenticator carrying a distinct token for the per-call auth override test.
-private final class PerCallAuthenticator: BaseAuthenticator, @unchecked Sendable {
+/// Authenticator carrying a distinct credential for the per-scheme tests.
+private final class SchemeCredentialAuthenticator: BaseAuthenticator, @unchecked Sendable {
+  private let header: String
+  private let value: String
+
+  init(header: String = "Authorization", value: String = "Bearer scheme-token") {
+    self.header = header
+    self.value = value
+    super.init()
+  }
+
   override func host() -> String { return "" }
   override func authHeaders() async -> [String: String] {
-    return ["Authorization": "Bearer per-call-token"]
+    return [header: value]
   }
 }
 
