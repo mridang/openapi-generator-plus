@@ -74,7 +74,7 @@ class DefaultApiClientTest {
     @DisplayName("response headers")
     inner class ResponseHeaders {
         @Test
-        @DisplayName("a repeated response header is joined and its name is lowercased")
+        @DisplayName("bhvTransport022 a repeated response header is joined and its name is lowercased")
         fun repeatedResponseHeadersAreJoined() {
             val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
             val response =
@@ -93,7 +93,7 @@ class DefaultApiClientTest {
     @DisplayName("TLS verification disabled")
     inner class TlsVerificationDisabled {
         @Test
-        @DisplayName("makes HTTPS request with verifySsl=false")
+        @DisplayName("bhvTransport018 makes HTTPS request with verifySsl=false")
         fun makesHttpsRequestWithVerifySslFalse() {
             val chasmUrl = ChasmContainer.getHttpsBaseUrl()
             val transport =
@@ -128,7 +128,7 @@ class DefaultApiClientTest {
         private fun causes(ex: Throwable): List<Throwable> = generateSequence(ex) { it.cause }.toList()
 
         @Test
-        @DisplayName("the default transport rejects a certificate from an untrusted CA")
+        @DisplayName("bhvTransport023 the default transport rejects a certificate from an untrusted CA")
         fun defaultTransportRejectsUntrustedCa() {
             val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
             val ex =
@@ -145,7 +145,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("verifySsl=true rejects an address the certificate does not name")
+        @DisplayName("bhvTransport025 verifySsl=true rejects an address the certificate does not name")
         fun verifySslTrueRejectsHostnameMismatch() {
             val transport =
                 TransportOptions
@@ -208,7 +208,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("makes HTTPS request with custom CA cert")
+        @DisplayName("bhvTransport017 makes HTTPS request with custom CA cert")
         fun makesHttpsRequestWithCustomCaCert() {
             val chasmUrl = ChasmContainer.getHttpsBaseUrl()
             val transport =
@@ -232,7 +232,7 @@ class DefaultApiClientTest {
     @DisplayName("HTTP proxy")
     inner class HttpProxy {
         @Test
-        @DisplayName("makes HTTP request through proxy")
+        @DisplayName("bhvTransport015 makes HTTP request through proxy")
         fun makesHttpRequestThroughProxy() {
             val chasmUrl = ChasmContainer.getInternalHttpUrl()
             val proxyUrl = SquidContainer.getProxyUrl()
@@ -261,7 +261,7 @@ class DefaultApiClientTest {
          * Basic Proxy-Authorization header value.
          */
         @Test
-        @DisplayName("proxy_with_credentials_injects_basic_authorization")
+        @DisplayName("bhvTransport021 proxy_with_credentials_injects_basic_authorization")
         fun proxyWithCredentialsInjectsBasicAuthorization() {
             val transport =
                 TransportOptions
@@ -280,7 +280,7 @@ class DefaultApiClientTest {
          * buggy here -- this asserts the credentials are honoured, not dropped.
          */
         @Test
-        @DisplayName("proxy_userinfo_user_pass_carried_as_basic_authorization")
+        @DisplayName("bhvTransport020 proxy_userinfo_user_pass_carried_as_basic_authorization")
         fun proxyUserinfoUserPassCarriedAsBasicAuthorization() {
             val transport =
                 TransportOptions
@@ -297,7 +297,7 @@ class DefaultApiClientTest {
     @DisplayName("HTTP proxy with TLS")
     inner class HttpProxyWithTls {
         @Test
-        @DisplayName("makes HTTPS request through proxy with verifySsl=false")
+        @DisplayName("bhvTransport016 makes HTTPS request through proxy with verifySsl=false")
         fun makesHttpsRequestThroughProxyWithVerifySslFalse() {
             val chasmUrl = ChasmContainer.getInternalHttpsUrl()
             val proxyUrl = SquidContainer.getProxyUrl()
@@ -321,7 +321,7 @@ class DefaultApiClientTest {
     @DisplayName("request timeout")
     inner class RequestTimeout {
         @Test
-        @DisplayName("times out on slow endpoint")
+        @DisplayName("bhvTransport024 times out on slow endpoint")
         fun timesOutOnSlowEndpoint() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -342,7 +342,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("the timeout is one budget for every redirect hop")
+        @DisplayName("bhvRedirects009 the timeout is one budget for every redirect hop")
         fun timeoutCoversTheWholeRedirectChain() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client =
@@ -363,7 +363,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("a redirect chain inside the budget completes")
+        @DisplayName("bhvRedirects002 a redirect chain inside the budget completes")
         fun redirectChainInsideTheBudgetCompletes() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client =
@@ -386,7 +386,7 @@ class DefaultApiClientTest {
     @DisplayName("User-Agent header")
     inner class UserAgentHeader {
         @Test
-        @DisplayName("injects custom User-Agent header")
+        @DisplayName("bhvTransport012 injects custom User-Agent header")
         fun injectsCustomUserAgentHeader() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -405,7 +405,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("a caller header in any letter case suppresses the injected User-Agent and X-Request-ID")
+        @DisplayName("bhvTransport003 a caller header in any letter case suppresses the injected User-Agent and X-Request-ID")
         fun callerHeaderInAnyCaseWins() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -431,7 +431,7 @@ class DefaultApiClientTest {
     @DisplayName("X-Request-ID injection")
     inner class RequestIdInjection {
         @Test
-        @DisplayName("injects X-Request-ID header with UUID format")
+        @DisplayName("bhvTransport014 injects X-Request-ID header with UUID format")
         fun injectsRequestIdHeader() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -457,7 +457,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("generates unique X-Request-ID per request")
+        @DisplayName("bhvTransport008 generates unique X-Request-ID per request")
         fun generatesUniqueRequestIds() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -498,7 +498,7 @@ class DefaultApiClientTest {
     @DisplayName("default headers")
     inner class DefaultHeaders {
         @Test
-        @DisplayName("includes transport-level default headers")
+        @DisplayName("bhvTransport011 includes transport-level default headers")
         fun includesTransportDefaultHeaders() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -517,7 +517,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("caller headers override transport default headers")
+        @DisplayName("bhvOptions004 caller headers override transport default headers")
         fun callerHeadersOverrideTransportDefaults() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -541,7 +541,7 @@ class DefaultApiClientTest {
     @DisplayName("redirect handling")
     inner class RedirectHandling {
         @Test
-        @DisplayName("follows redirects when enabled")
+        @DisplayName("bhvRedirects004 follows redirects when enabled")
         fun followsRedirectsWhenEnabled() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -558,7 +558,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("returns redirect response when disabled")
+        @DisplayName("bhvRedirects007 returns redirect response when disabled")
         fun returnsRedirectWhenDisabled() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport =
@@ -680,7 +680,7 @@ class DefaultApiClientTest {
          * rebuilds the multipart body for every hop.
          */
         @Test
-        @DisplayName("307 replays multipart body to redirected location (T-new-3)")
+        @DisplayName("bhvRetries012 307 replays multipart body to redirected location (T-new-3)")
         fun multipartBodyReplayedOn307Redirect() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
@@ -712,7 +712,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("redirect 303 switches to GET and drops body")
+        @DisplayName("bhvRedirects005 redirect 303 switches to GET and drops body")
         fun redirect303SwitchesToGetAndDropsBody() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
@@ -744,7 +744,7 @@ class DefaultApiClientTest {
          * easily downgrade HTTPS->HTTP); only the guard logic is under test.
          */
         @Test
-        @DisplayName("N1: 302 HTTPS->HTTP with a body proceeds (body dropped, becomes GET)")
+        @DisplayName("bhvRedirects001 N1: 302 HTTPS->HTTP with a body proceeds (body dropped, becomes GET)")
         fun redirect302HttpsToHttpWithBodyProceeds() {
             var hopCount = 0
             var secondHopMethod: String? = null
@@ -822,7 +822,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("N1: 307 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
+        @DisplayName("bhvRetries010 N1: 307 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
         fun redirect307HttpsToHttpWithBodyThrows() {
             val engine =
                 MockEngine { _ ->
@@ -852,7 +852,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("N1: 308 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
+        @DisplayName("bhvRetries011 N1: 308 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
         fun redirect308HttpsToHttpWithBodyThrows() {
             val engine =
                 MockEngine { _ ->
@@ -886,7 +886,7 @@ class DefaultApiClientTest {
     @DisplayName("max redirects")
     inner class MaxRedirects {
         @Test
-        @DisplayName("respects maxRedirects limit")
+        @DisplayName("bhvRedirects006 respects maxRedirects limit")
         fun respectsMaxRedirectsLimit() {
             val transport =
                 TransportOptions
@@ -930,7 +930,7 @@ class DefaultApiClientTest {
          * counter (if one existed) would be observably corrupted here.
          */
         @Test
-        @DisplayName("each concurrent request keeps its own redirect count and refusal state")
+        @DisplayName("bhvRedirects003 each concurrent request keeps its own redirect count and refusal state")
         fun concurrentRequestsDoNotShareRedirectState() {
             val engine =
                 MockEngine { req ->
@@ -1038,7 +1038,7 @@ class DefaultApiClientTest {
     @DisplayName("multipart body")
     inner class MultipartBody {
         @Test
-        @DisplayName("sends multipart form data")
+        @DisplayName("bhvSerializationwire027 sends multipart form data")
         fun sendsMultipartFormData() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val formFields =
@@ -1060,7 +1060,7 @@ class DefaultApiClientTest {
         // opening a header-smuggling hole. This test uses a String value so
         // it exercises the non-binary branch.
         @Test
-        @DisplayName("multipart_field_name_with_crlf_rejected_on_string_value")
+        @DisplayName("bhvSerializationwire026 multipart_field_name_with_crlf_rejected_on_string_value")
         fun multipartFieldNameWithCrlfRejectedOnStringValue() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
@@ -1083,7 +1083,7 @@ class DefaultApiClientTest {
         private fun compressionUrl(encoding: String) = "${ChasmContainer.getBaseUrl()}/test/compressed/$encoding"
 
         @Test
-        @DisplayName("decompresses gzip response")
+        @DisplayName("bhvTransport005 decompresses gzip response")
         fun decompressesGzipResponse() {
             val client = DefaultApiClient()
             val response =
@@ -1095,7 +1095,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("decompresses brotli response")
+        @DisplayName("bhvTransport004 decompresses brotli response")
         fun decompressesBrotliResponse() {
             val client = DefaultApiClient()
             val response =
@@ -1107,7 +1107,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("decompresses zstd response")
+        @DisplayName("bhvTransport006 decompresses zstd response")
         fun decompressesZstdResponse() {
             val client = DefaultApiClient()
             val response =
@@ -1212,7 +1212,7 @@ class DefaultApiClientTest {
          * engine emits the header.
          */
         @Test
-        @DisplayName("post_with_null_body_sends_content_length_zero")
+        @DisplayName("bhvTransport019 post_with_null_body_sends_content_length_zero")
         fun postWithNullBodySendsContentLengthZero() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
@@ -1234,7 +1234,7 @@ class DefaultApiClientTest {
     @DisplayName("client lifecycle (Gap T6)")
     inner class ClientLifecycle {
         @Test
-        @DisplayName("close releases underlying client")
+        @DisplayName("bhvLifecycle018 close releases underlying client")
         fun closeReleasesUnderlyingClient() {
             val client = DefaultApiClient()
             client.close()

@@ -21,7 +21,7 @@ class OAuth2ImplicitAuthenticatorTest {
         )
 
     @Test
-    fun buildsAuthorizationUrlWithResponseTypeToken() {
+    fun bhvAuthoauthtwoimplicit003BuildsAuthorizationUrlWithResponseTypeToken() {
         val auth = createAuthenticator()
 
         val url = auth.buildAuthorizationUrl()
@@ -31,7 +31,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun buildsAuthorizationUrlWithClientId() {
+    fun bhvAuthoauthtwoimplicit002BuildsAuthorizationUrlWithClientId() {
         val auth = createAuthenticator()
 
         val url = auth.buildAuthorizationUrl()
@@ -40,7 +40,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun buildsAuthorizationUrlWithScopes() {
+    fun bhvAuthoauthtwoimplicit004BuildsAuthorizationUrlWithScopes() {
         val auth = createAuthenticator()
 
         val url = auth.buildAuthorizationUrl()
@@ -50,7 +50,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun buildsAuthorizationUrlWithState() {
+    fun bhvAuthoauthtwoimplicit005BuildsAuthorizationUrlWithState() {
         val auth = createAuthenticator()
 
         val url = auth.buildAuthorizationUrl("my-state")
@@ -59,7 +59,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun emptyStateIsOmittedFromTheAuthorizationUrl() {
+    fun bhvAuthoauthtwoimplicit009EmptyStateIsOmittedFromTheAuthorizationUrl() {
         val auth = createAuthenticator()
 
         val url = auth.buildAuthorizationUrl("")
@@ -81,7 +81,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun getAuthHeadersReturnsBearerAfterSetAccessToken() {
+    fun bhvAuthoauthtwoimplicit007GetAuthHeadersReturnsBearerAfterSetAccessToken() {
         val auth = createAuthenticator()
         auth.setAccessToken("implicit-tok")
 
@@ -91,7 +91,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun throwsWhenAccessTokenNotSet() {
+    fun bhvAuthoauthtwoimplicit012ThrowsWhenAccessTokenNotSet() {
         val auth = createAuthenticator()
 
         val ex =
@@ -102,14 +102,14 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun getHostReturnsConfiguredHost() {
+    fun bhvAuthoauthtwoimplicit008GetHostReturnsConfiguredHost() {
         val auth = createAuthenticator()
 
         assertEquals("https://api.example.com", auth.getHost())
     }
 
     @Test
-    fun redactsSecret() {
+    fun bhvAuthoauthtwoimplicit010RedactsSecret() {
         val auth = createAuthenticator()
         auth.setAccessToken("implicit-tok")
         val rendered = auth.toString()
@@ -118,7 +118,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun redactedReprShowsExactlyTheNonSecretFields() {
+    fun bhvAuthoauthtwoimplicit011RedactedReprShowsExactlyTheNonSecretFields() {
         val auth = createAuthenticator()
         assertEquals(
             "OAuth2ImplicitAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
@@ -152,7 +152,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun authorizationUrlKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+    fun bhvAuthoauthtwoimplicit001AuthorizationUrlKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
         val auth =
             OAuth2ImplicitAuthenticator(
                 host = "https://api.example.com",
@@ -168,7 +168,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperUsesItsSpecUrlAndScopes() {
+    fun bhvAuthoauthtwoimplicit006GeneratedSchemeWrapperUsesItsSpecUrlAndScopes() {
         val auth = BrowserAuthImplicitAuthenticator("https://api.example.com", "cid")
 
         assertEquals(

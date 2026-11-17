@@ -29,7 +29,7 @@ class ApiKeyAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("valid query key is exposed via getQueryParams")
+    @DisplayName("bhvAuthapikey015 valid query key is exposed via getQueryParams")
     fun validQueryKeyPasses() {
         val auth =
             ApiKeyAuthenticator(
@@ -43,7 +43,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("valid cookie key is exposed via getCookieParams")
+    @DisplayName("bhvAuthapikey013 valid cookie key is exposed via getCookieParams")
     fun validCookieKeyPasses() {
         val auth =
             ApiKeyAuthenticator(
@@ -57,7 +57,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("empty header key throws at construction")
+    @DisplayName("bhvAuthapikey005 empty header key throws at construction")
     fun emptyKeyHeaderThrowsAtConstruction() {
         val ex =
             assertThrows(IllegalArgumentException::class.java) {
@@ -72,7 +72,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("empty query key throws at construction")
+    @DisplayName("bhvAuthapikey006 empty query key throws at construction")
     fun emptyKeyQueryThrowsAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             ApiKeyAuthenticator(
@@ -85,7 +85,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("empty cookie key throws at construction")
+    @DisplayName("bhvAuthapikey004 empty cookie key throws at construction")
     fun emptyKeyCookieThrowsAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             ApiKeyAuthenticator(
@@ -98,7 +98,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("whitespace-only key throws at construction")
+    @DisplayName("bhvAuthapikey017 whitespace-only key throws at construction")
     fun whitespaceOnlyKeyThrowsAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             ApiKeyAuthenticator(
@@ -111,7 +111,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("only ASCII whitespace counts as blank")
+    @DisplayName("bhvAuthapikey011 only ASCII whitespace counts as blank")
     fun onlyAsciiWhitespaceCountsAsBlank() {
         for (blank in listOf("\u000C", "\u000B", " \t\r\n")) {
             assertThrows(IllegalArgumentException::class.java) {
@@ -137,7 +137,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("CR/LF in query key throws at construction")
+    @DisplayName("bhvAuthapikey003 CR/LF in query key throws at construction")
     fun crlfInQueryKeyThrowsAtConstruction() {
         val ex =
             assertThrows(IllegalArgumentException::class.java) {
@@ -152,7 +152,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("CR/LF in cookie key throws at construction")
+    @DisplayName("bhvAuthapikey002 CR/LF in cookie key throws at construction")
     fun crlfInCookieKeyThrowsAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             ApiKeyAuthenticator(
@@ -193,7 +193,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("ApiKey query location accepts non-ASCII characters")
+    @DisplayName("bhvAuthapikey009 ApiKey query location accepts non-ASCII characters")
     fun apiKeyQueryAcceptsNonAscii() {
         // The QUERY location is URL-encoded downstream, so it must accept a
         // non-ASCII key value verbatim and surface it through getQueryParams.
@@ -213,7 +213,7 @@ class ApiKeyAuthenticatorTest {
      * must be absent and a *** redaction marker present.
      */
     @Test
-    @DisplayName("toString() redacts the API key and shows ***")
+    @DisplayName("bhvAuthapikey010 toString() redacts the API key and shows ***")
     fun redactsSecret() {
         val auth =
             ApiKeyAuthenticator(
@@ -228,7 +228,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    fun redactedReprShowsExactlyTheNonSecretFields() {
+    fun bhvAuthapikey012RedactedReprShowsExactlyTheNonSecretFields() {
         val auth =
             ApiKeyAuthenticator(
                 "https://api.example.com",
@@ -243,7 +243,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrappersEmitTheirKeyAtTheirSpecLocation() =
+    fun bhvAuthapikey007GeneratedSchemeWrappersEmitTheirKeyAtTheirSpecLocation() =
         runBlocking {
             val header = ApiKeyHeaderAuthenticator("https://api.example.com", "k1")
             assertEquals(mapOf("X-API-Key" to "k1"), header.getAuthHeaders())

@@ -69,7 +69,7 @@ class OpenIdConnectAuthenticatorTest {
         )
 
     @Test
-    fun buildsAuthorizationUrlFromDiscovery() {
+    fun bhvAuthoidc002BuildsAuthorizationUrlFromDiscovery() {
         val client = FakeApiClient()
         client.enqueue(
             """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
@@ -87,7 +87,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun emptyStateIsOmittedFromTheAuthorizationUrl() {
+    fun bhvAuthoidc018EmptyStateIsOmittedFromTheAuthorizationUrl() {
         val client = FakeApiClient()
         client.enqueue(
             """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
@@ -105,7 +105,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun fetchesDiscoveryDocument() {
+    fun bhvAuthoidc010FetchesDiscoveryDocument() {
         val client = FakeApiClient()
         client.enqueue(
             """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
@@ -121,7 +121,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun discoveryIsAnIdentityProviderRequestThatCarriesNoDefaultHeaders() {
+    fun bhvAuthoidc008DiscoveryIsAnIdentityProviderRequestThatCarriesNoDefaultHeaders() {
         val client = FakeApiClient()
         client.enqueue(
             """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
@@ -148,7 +148,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun obtainsTokenAfterCodeExchange() {
+    fun bhvAuthoidc017ObtainsTokenAfterCodeExchange() {
         val client = FakeApiClient()
         // Discovery document
         client.enqueue(
@@ -167,7 +167,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun getAuthHeadersReturnsBearerAfterExchange() {
+    fun bhvAuthoidc013GetAuthHeadersReturnsBearerAfterExchange() {
         val client = FakeApiClient()
         // Discovery document
         client.enqueue(
@@ -188,7 +188,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun throwsWhenDiscoveryReturnsNon2xxStatus() {
+    fun bhvAuthoidc027ThrowsWhenDiscoveryReturnsNon2xxStatus() {
         val client = FakeApiClient()
         // A non-2xx discovery response (e.g. a 500 HTML error page) must
         // surface as a clear error, not as an "invalid JSON" parse failure.
@@ -208,7 +208,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun discovery404RaisesNotFoundException() {
+    fun bhvAuthoidc007Discovery404RaisesNotFoundException() {
         val client = FakeApiClient()
         client.enqueue("not found", statusCode = 404)
 
@@ -223,7 +223,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun discoveryTransportFailurePropagatesNetworkException() {
+    fun bhvAuthoidc006DiscoveryTransportFailurePropagatesNetworkException() {
         // Discovery is an HTTP call like any other: a transport failure from
         // the ApiClient must reach the caller unchanged, not rewrapped.
         val failure =
@@ -250,7 +250,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun malformedDiscoveryDocumentRaisesSerializationException() {
+    fun bhvAuthoidc016MalformedDiscoveryDocumentRaisesSerializationException() {
         val client = FakeApiClient()
         client.enqueue("{not json")
 
@@ -283,7 +283,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun throwsWhenDiscoveryMissingAuthorizationEndpoint() {
+    fun bhvAuthoidc025ThrowsWhenDiscoveryMissingAuthorizationEndpoint() {
         val client = FakeApiClient()
         client.enqueue("""{"token_endpoint":"https://auth.example.com/token"}""")
 
@@ -300,7 +300,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun throwsWhenDiscoveryMissingTokenEndpoint() {
+    fun bhvAuthoidc026ThrowsWhenDiscoveryMissingTokenEndpoint() {
         val client = FakeApiClient()
         client.enqueue("""{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize"}""")
 
@@ -313,7 +313,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun throwsWhenNoApiClientInjected() {
+    fun bhvAuthoidc028ThrowsWhenNoApiClientInjected() {
         val auth = createAuthenticator()
 
         assertThrowsExactly(IllegalStateException::class.java) {
@@ -322,14 +322,14 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun getHostReturnsConfiguredHost() {
+    fun bhvAuthoidc014GetHostReturnsConfiguredHost() {
         val auth = createAuthenticator()
 
         assertEquals("https://api.example.com", auth.getHost())
     }
 
     @Test
-    fun fetchesDiscoveryDocumentOnlyOnce() {
+    fun bhvAuthoidc011FetchesDiscoveryDocumentOnlyOnce() {
         val client = FakeApiClient()
         client.enqueue(
             """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
@@ -348,7 +348,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun throwsWhenDiscoveryIssuerDoesNotMatchTheDiscoveryUrl() {
+    fun bhvAuthoidc024ThrowsWhenDiscoveryIssuerDoesNotMatchTheDiscoveryUrl() {
         // F859: a document served under one issuer must not name another.
         for (doc in listOf(
             """{"issuer":"https://evil.example.net","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
@@ -385,7 +385,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun redactsSecret() {
+    fun bhvAuthoidc019RedactsSecret() {
         val auth = createAuthenticator()
         val rendered = auth.toString()
         assertFalse(rendered.contains("my-client-secret"))
@@ -413,7 +413,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun rediscoveryKeepsThePkceVerifierOfTheAuthorizationUrl() {
+    fun bhvAuthoidc021RediscoveryKeepsThePkceVerifierOfTheAuthorizationUrl() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("cache-control" to "max-age=0"))
         client.enqueue(discovery("https://auth.example.com/authorize"))
@@ -434,7 +434,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun invalidateAccessTokenKeepsTheSessionAndTheRefreshToken() {
+    fun bhvAuthoidc015InvalidateAccessTokenKeepsTheSessionAndTheRefreshToken() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"))
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
@@ -468,7 +468,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun hugeMaxAgeIsClampedAndTheDocumentStaysCached() {
+    fun bhvAuthoidc001HugeMaxAgeIsClampedAndTheDocumentStaysCached() {
         for (maxAge in listOf("9223372036854775807", "18446744073709551615")) {
             val client = FakeApiClient()
             client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=$maxAge"))
@@ -500,7 +500,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun redactedReprShowsExactlyTheNonSecretFields() {
+    fun bhvAuthoidc023RedactedReprShowsExactlyTheNonSecretFields() {
         assertEquals(
             "OpenIdConnectAuthenticator(host=https://api.example.com, " +
                 "openIdConnectUrl=https://auth.example.com/.well-known/openid-configuration, " +
@@ -511,7 +511,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperDiscoversFromItsSpecUrlAndSendsTheOpenIdScope() {
+    fun bhvAuthoidc012GeneratedSchemeWrapperDiscoversFromItsSpecUrlAndSendsTheOpenIdScope() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"))
 
@@ -535,7 +535,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun exchangedSessionSurvivesRediscovery() {
+    fun bhvAuthoidc020ExchangedSessionSurvivesRediscovery() {
         // The discovery document expires immediately, so the next call fetches it
         // again and rebuilds the delegate; the exchanged token must carry over.
         val client = FakeApiClient()
@@ -574,7 +574,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun failedRediscoveryKeepsTheOldDelegate() {
+    fun bhvAuthoidc009FailedRediscoveryKeepsTheOldDelegate() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=0"))
         client.enqueue("""{"access_token":"t1","refresh_token":"r1","expires_in":3600}""")

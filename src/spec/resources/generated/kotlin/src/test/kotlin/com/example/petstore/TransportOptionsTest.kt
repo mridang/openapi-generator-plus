@@ -21,55 +21,55 @@ class TransportOptionsTest {
     @DisplayName("defaults")
     inner class Defaults {
         @Test
-        @DisplayName("verifySsl defaults to true")
+        @DisplayName("bhvOptions043 verifySsl defaults to true")
         fun verifySslDefaultsToTrue() {
             val opts = TransportOptions.builder().build()
             assertTrue(opts.verifySsl)
         }
 
         @Test
-        @DisplayName("caCertPath defaults to null")
+        @DisplayName("bhvOptions018 caCertPath defaults to null")
         fun caCertPathDefaultsToNull() {
             val opts = TransportOptions.builder().build()
             assertNull(opts.caCertPath)
         }
 
         @Test
-        @DisplayName("proxy defaults to null")
+        @DisplayName("bhvOptions032 proxy defaults to null")
         fun proxyDefaultsToNull() {
             val opts = TransportOptions.builder().build()
             assertNull(opts.proxy)
         }
 
         @Test
-        @DisplayName("timeout defaults to 10000L (10 seconds)")
+        @DisplayName("bhvOptions038 timeout defaults to 10000L (10 seconds)")
         fun timeoutDefaultsToTenSeconds() {
             val opts = TransportOptions.builder().build()
             assertEquals(10000L, opts.timeout)
         }
 
         @Test
-        @DisplayName("maxRetries defaults to 2")
+        @DisplayName("bhvOptions026 maxRetries defaults to 2")
         fun maxRetriesDefaultsToTwo() {
             assertEquals(2, TransportOptions.builder().build().maxRetries)
         }
 
         @Test
-        @DisplayName("followRedirects defaults to true")
+        @DisplayName("bhvOptions020 followRedirects defaults to true")
         fun followRedirectsDefaultsToTrue() {
             val opts = TransportOptions.builder().build()
             assertTrue(opts.followRedirects)
         }
 
         @Test
-        @DisplayName("maxRedirects defaults to null")
+        @DisplayName("bhvOptions025 maxRedirects defaults to null")
         fun maxRedirectsDefaultsToNull() {
             val opts = TransportOptions.builder().build()
             assertNull(opts.maxRedirects)
         }
 
         @Test
-        @DisplayName("userAgent defaults to non-empty string")
+        @DisplayName("bhvOptions041 userAgent defaults to non-empty string")
         fun userAgentDefaultsToNonEmpty() {
             val opts = TransportOptions.builder().build()
             assertNotNull(opts.userAgent)
@@ -77,21 +77,21 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("userAgent defaults to the published artifact name, version and language")
+        @DisplayName("bhvOptions042 userAgent defaults to the published artifact name, version and language")
         fun userAgentDefaultsToTheArtifactName() {
             val opts = TransportOptions.builder().build()
             assertEquals("petstore-client/1.0.0 (kotlin)", opts.userAgent)
         }
 
         @Test
-        @DisplayName("defaultHeaders defaults to empty map")
+        @DisplayName("bhvOptions019 defaultHeaders defaults to empty map")
         fun defaultHeadersDefaultsToEmpty() {
             val opts = TransportOptions.builder().build()
             assertTrue(opts.defaultHeaders.isEmpty())
         }
 
         @Test
-        @DisplayName("injectRequestId defaults to false")
+        @DisplayName("bhvOptions022 injectRequestId defaults to false")
         fun injectRequestIdDefaultsToFalse() {
             val opts = TransportOptions.builder().build()
             assertFalse(opts.injectRequestId)
@@ -102,7 +102,7 @@ class TransportOptionsTest {
     @DisplayName("redirect defaults")
     inner class RedirectDefaults {
         @Test
-        @DisplayName("followRedirects defaults to true with null maxRedirects")
+        @DisplayName("bhvOptions021 followRedirects defaults to true with null maxRedirects")
         fun followRedirectsDefaultsToTrueWithNullMaxRedirects() {
             val opts =
                 TransportOptions
@@ -119,7 +119,7 @@ class TransportOptionsTest {
     @DisplayName("setting all fields")
     inner class SettingAllFields {
         @Test
-        @DisplayName("builder sets all fields")
+        @DisplayName("bhvOptions017 builder sets all fields")
         fun builderSetsAllFields() {
             val opts =
                 TransportOptions
@@ -151,7 +151,7 @@ class TransportOptionsTest {
     @DisplayName("proxy validation")
     inner class ProxyValidation {
         @Test
-        @DisplayName("invalid proxy URL throws exception")
+        @DisplayName("bhvOptions024 invalid proxy URL throws exception")
         fun invalidProxyUrlThrowsException() {
             val ex =
                 assertThrowsExactly(IllegalArgumentException::class.java) {
@@ -162,7 +162,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("an invalid proxy URL is accepted by the setter and rejected by build")
+        @DisplayName("bhvOptions013 an invalid proxy URL is accepted by the setter and rejected by build")
         fun invalidProxyUrlIsRejectedAtBuildNotInSetter() {
             val builder = TransportOptions.builder().proxy("proxy:3128")
             assertThrowsExactly(IllegalArgumentException::class.java) { builder.build() }
@@ -190,7 +190,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("an upper-case non-http proxy scheme is still rejected")
+        @DisplayName("bhvOptions014 an upper-case non-http proxy scheme is still rejected")
         fun upperCaseNonHttpProxySchemeIsRejected() {
             val ex =
                 assertThrowsExactly(IllegalArgumentException::class.java) {
@@ -200,7 +200,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a proxy URL with no host is rejected")
+        @DisplayName("bhvOptions011 a proxy URL with no host is rejected")
         fun proxyUrlWithoutHostIsRejected() {
             for (proxy in listOf("http://@:3128", "http://user:pw@:3128", "http://:3128", "http://[]:3128", "http://")) {
                 val ex =
@@ -212,7 +212,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a proxy URL error never carries the user-info")
+        @DisplayName("bhvOptions008 a proxy URL error never carries the user-info")
         fun proxyUrlErrorMasksTheUserInfo() {
             val cases =
                 mapOf(
@@ -232,7 +232,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a non-positive timeout is rejected with the canonical message")
+        @DisplayName("bhvOptions033 a non-positive timeout is rejected with the canonical message")
         fun nonPositiveTimeoutIsRejected() {
             for (invalid in listOf(-1L, 0L)) {
                 val ex =
@@ -269,7 +269,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a negative maxRetries is rejected and zero turns retries off")
+        @DisplayName("bhvOptions007 a negative maxRetries is rejected and zero turns retries off")
         fun negativeMaxRetriesIsRejected() {
             val ex =
                 assertThrowsExactly(IllegalArgumentException::class.java) {
@@ -295,7 +295,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a proxy URL with an unterminated IPv6 literal is rejected")
+        @DisplayName("bhvOptions010 a proxy URL with an unterminated IPv6 literal is rejected")
         fun proxyUrlWithAnUnterminatedIpv6LiteralIsRejected() {
             for (proxy in listOf("http://[::1:3128", "http://user@[::1:3128")) {
                 val ex =
@@ -307,7 +307,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a proxy URL with user-info, an IPv6 literal or a path is accepted")
+        @DisplayName("bhvOptions009 a proxy URL with user-info, an IPv6 literal or a path is accepted")
         fun proxyUrlWithHostIsAccepted() {
             for (proxy in listOf("http://user:pw@proxy:3128", "http://user@proxy", "http://[::1]:3128", "http://proxy:3128/path?q=1")) {
                 assertEquals(
@@ -322,7 +322,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("null proxy URL is accepted")
+        @DisplayName("bhvOptions030 null proxy URL is accepted")
         fun nullProxyUrlIsAccepted() {
             val opts = TransportOptions.builder().proxy(null).build()
             assertNull(opts.proxy)
@@ -351,7 +351,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("an empty or scheme-less proxy URL is rejected with its message")
+        @DisplayName("bhvOptions031 an empty or scheme-less proxy URL is rejected with its message")
         fun schemelessProxyUrlIsRejected() {
             for (proxy in listOf("", "proxy:3128", "not a valid url ^%$")) {
                 val ex =
@@ -367,7 +367,7 @@ class TransportOptionsTest {
     @DisplayName("builder chaining")
     inner class BuilderChaining {
         @Test
-        @DisplayName("builder methods return the same builder instance")
+        @DisplayName("bhvOptions015 builder methods return the same builder instance")
         fun builderMethodsReturnSameInstance() {
             val builder = TransportOptions.builder()
 
@@ -389,7 +389,7 @@ class TransportOptionsTest {
     @DisplayName("multiple default headers")
     inner class MultipleDefaultHeaders {
         @Test
-        @DisplayName("accumulates headers from defaultHeader calls")
+        @DisplayName("bhvOptions012 accumulates headers from defaultHeader calls")
         fun accumulatesHeadersFromDefaultHeaderCalls() {
             val opts =
                 TransportOptions
@@ -403,7 +403,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("merges headers from defaultHeaders call")
+        @DisplayName("bhvOptions028 merges headers from defaultHeaders call")
         fun mergesHeadersFromDefaultHeadersCall() {
             val opts =
                 TransportOptions
@@ -422,7 +422,7 @@ class TransportOptionsTest {
     @DisplayName("copy isolation")
     inner class CopyIsolation {
         @Test
-        @DisplayName("modifying source map does not affect built options")
+        @DisplayName("bhvOptions029 modifying source map does not affect built options")
         fun modifyingSourceMapDoesNotAffectBuiltOptions() {
             val headers = mutableMapOf("X-Original" to "original")
             val opts =
@@ -439,7 +439,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("builder produces independent instances")
+        @DisplayName("bhvOptions016 builder produces independent instances")
         fun builderProducesIndependentInstances() {
             val builder = TransportOptions.builder().verifySsl(false)
             val first = builder.build()
@@ -454,7 +454,7 @@ class TransportOptionsTest {
     @DisplayName("TimeoutConfigTests")
     inner class TimeoutConfigTests {
         @Test
-        @DisplayName("timeout defaults to 10000L (10 seconds)")
+        @DisplayName("bhvOptions039 timeout defaults to 10000L (10 seconds)")
         fun timeoutDefaultsToTenSeconds() {
             // Default timeout is 10 seconds (10000ms) for parity across SDKs.
             val opts = TransportOptions.builder().build()
@@ -462,14 +462,14 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("setting timeout to 5000 is accessible")
+        @DisplayName("bhvOptions036 setting timeout to 5000 is accessible")
         fun settingTimeoutIsAccessible() {
             val opts = TransportOptions.builder().timeout(5000L).build()
             assertEquals(5000L, opts.timeout)
         }
 
         @Test
-        @DisplayName("timeout field is named exactly 'timeout'")
+        @DisplayName("bhvOptions040 timeout field is named exactly 'timeout'")
         fun timeoutFieldIsNamedTimeout() {
             // Verify via the property that the field is named 'timeout'.
             val opts = TransportOptions.builder().timeout(1000L).build()
@@ -478,7 +478,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("explicitly setting timeout to null disables timeout")
+        @DisplayName("bhvOptions037 explicitly setting timeout to null disables timeout")
         fun timeoutCanBeNulledOut() {
             val opts = TransportOptions.builder().timeout(null).build()
             assertNull(opts.timeout)
@@ -489,7 +489,7 @@ class TransportOptionsTest {
     @DisplayName("ProxyConfigTests")
     inner class ProxyConfigTests {
         @Test
-        @DisplayName("setting proxy URL is preserved on read-back")
+        @DisplayName("bhvOptions035 setting proxy URL is preserved on read-back")
         fun proxyUrlIsPreservedOnReadBack() {
             val opts =
                 TransportOptions
@@ -500,7 +500,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("setting proxy is supported on all platforms")
+        @DisplayName("bhvOptions034 setting proxy is supported on all platforms")
         fun settingProxyIsSupportedOnAllPlatforms() {
             // Proxy configuration must not throw on any JVM platform.
             assertDoesNotThrow {

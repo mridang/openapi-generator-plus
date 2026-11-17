@@ -24,7 +24,7 @@ class MetadataTest {
         }
 
     @Test
-    @DisplayName("serialize Metadata without contextual fields")
+    @DisplayName("bhvModels008 serialize Metadata without contextual fields")
     fun testSerialize() {
         val metadata = Metadata()
 
@@ -34,7 +34,7 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("deserialize empty object")
+    @DisplayName("bhvModels003 deserialize empty object")
     fun testDeserializeEmptyObject() {
         val jsonString = "{}"
 
@@ -67,7 +67,7 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("equals and hashCode include the additionalProperties bucket")
+    @DisplayName("bhvModels005 equals and hashCode include the additionalProperties bucket")
     fun testEqualsIncludesAdditionalProperties() {
         // The overflow bucket is a @Transient property in the class body, which
         // Kotlin's synthesized data-class equals/hashCode would exclude. Two
@@ -104,7 +104,7 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("round-trip without contextual fields")
+    @DisplayName("bhvModels011 round-trip without contextual fields")
     fun testRoundTrip() {
         val original = Metadata()
 
@@ -140,7 +140,7 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("manifest-description-missing: build.gradle.kts publishes a non-empty POM description")
+    @DisplayName("bhvModels002 manifest-description-missing: build.gradle.kts publishes a non-empty POM description")
     fun testBuildManifestHasDescription() {
         // The Maven POM produced for the published artifact must carry a
         // non-empty <description>, wired from the OpenAPI document's
@@ -174,7 +174,7 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("file header prints the info description without backslash-escaped quotes")
+    @DisplayName("bhvModels006 file header prints the info description without backslash-escaped quotes")
     fun testFileHeaderDescriptionIsUnescaped() {
         // F1156: the header comment of every generated source file renders the
         // info description; a quote must not reach it as a backslash-quote.
@@ -244,7 +244,7 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("example-doc-null-pollution: generated models never emit a literal `Example: null` doc line")
+    @DisplayName("bhvModels007 example-doc-null-pollution: generated models never emit a literal `Example: null` doc line")
     fun testNoNullExampleDocPollution() {
         // L1 regression: OpenAPI Generator supplies the literal string "null" as
         // a property's example when the spec declares none, and that string is

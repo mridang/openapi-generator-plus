@@ -31,7 +31,7 @@ import org.junit.jupiter.api.parallel.Isolated
 @Isolated
 class TraceContextUtilTest {
     @Test
-    @DisplayName("injectTraceContext is a no-op when no tracer is configured")
+    @DisplayName("bhvTracing007 injectTraceContext is a no-op when no tracer is configured")
     fun noOpWithoutTracer() {
         val headers = mutableMapOf<String, String>()
         assertDoesNotThrow { TraceContextUtil.injectTraceContext(headers) }
@@ -39,14 +39,14 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("empty headers map does not cause an exception")
+    @DisplayName("bhvTracing003 empty headers map does not cause an exception")
     fun emptyHeadersDoNotCauseException() {
         val headers = mutableMapOf<String, String>()
         assertDoesNotThrow { TraceContextUtil.injectTraceContext(headers) }
     }
 
     @Test
-    @DisplayName("does not inject traceparent without OpenTelemetry")
+    @DisplayName("bhvTracing001 does not inject traceparent without OpenTelemetry")
     fun doesNotInjectTraceparentWithoutOTel() {
         val headers = mutableMapOf<String, String>()
         TraceContextUtil.injectTraceContext(headers)
@@ -54,7 +54,7 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("does not inject tracestate without OpenTelemetry")
+    @DisplayName("bhvTracing002 does not inject tracestate without OpenTelemetry")
     fun doesNotInjectTracestateWithoutOTel() {
         val headers = mutableMapOf<String, String>()
         TraceContextUtil.injectTraceContext(headers)
@@ -62,7 +62,7 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("preserves existing Authorization header")
+    @DisplayName("bhvTracing010 preserves existing Authorization header")
     fun preservesAuthorizationHeader() {
         val headers = mutableMapOf("Authorization" to "Bearer token123")
         TraceContextUtil.injectTraceContext(headers)
@@ -70,7 +70,7 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("preserves existing Content-Type header")
+    @DisplayName("bhvTracing011 preserves existing Content-Type header")
     fun preservesContentTypeHeader() {
         val headers = mutableMapOf("Content-Type" to "application/json")
         TraceContextUtil.injectTraceContext(headers)
@@ -78,7 +78,7 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("preserves existing X-Request-ID header")
+    @DisplayName("bhvTracing012 preserves existing X-Request-ID header")
     fun preservesXRequestIdHeader() {
         val headers = mutableMapOf("X-Request-ID" to "req-12345")
         TraceContextUtil.injectTraceContext(headers)
@@ -86,7 +86,7 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("preserves all existing headers together")
+    @DisplayName("bhvTracing009 preserves all existing headers together")
     fun preservesAllExistingHeaders() {
         val headers =
             mutableMapOf(
@@ -165,7 +165,7 @@ class TraceContextUtilTest {
         )
 
     @Test
-    @DisplayName("injects traceparent when a span is active")
+    @DisplayName("bhvTracing006 injects traceparent when a span is active")
     fun injectsTraceparentWhenSpanActive() {
         withTracing { exporter ->
             val headers = injectUnder(Context.root())
@@ -178,7 +178,7 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("includes tracestate when present on the active span")
+    @DisplayName("bhvTracing005 includes tracestate when present on the active span")
     fun includesTracestateWhenPresent() {
         withTracing {
             val headers =
@@ -191,7 +191,7 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("omits tracestate when empty on the active span")
+    @DisplayName("bhvTracing008 omits tracestate when empty on the active span")
     fun omitsTracestateWhenEmpty() {
         withTracing {
             val headers = injectUnder(remoteParent(TraceFlags.getSampled(), TraceState.getDefault()))
@@ -201,7 +201,7 @@ class TraceContextUtilTest {
     }
 
     @Test
-    @DisplayName("formats trace flags correctly on the active span")
+    @DisplayName("bhvTracing004 formats trace flags correctly on the active span")
     fun formatsTraceFlagsCorrectly() {
         withTracing {
             val sampled = injectUnder(remoteParent(TraceFlags.getSampled(), TraceState.getDefault()))

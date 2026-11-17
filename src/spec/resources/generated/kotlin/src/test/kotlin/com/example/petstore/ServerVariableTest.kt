@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 
 class ServerVariableTest {
     @Test
-    @DisplayName("exposes the default value, description and enum values")
+    @DisplayName("bhvServers017 exposes the default value, description and enum values")
     fun exposesFields() {
         val variable = ServerVariable("v3", "API version", listOf("v2", "v3"))
         assertEquals("v3", variable.defaultValue)
@@ -22,7 +22,7 @@ class ServerVariableTest {
     }
 
     @Test
-    @DisplayName("allows a null description")
+    @DisplayName("bhvServers015 allows a null description")
     fun allowsNullDescription() {
         val variable = ServerVariable("api", null, emptyList())
         assertNull(variable.description)

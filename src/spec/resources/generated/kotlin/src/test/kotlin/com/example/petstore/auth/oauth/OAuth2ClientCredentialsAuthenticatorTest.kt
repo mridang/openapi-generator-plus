@@ -56,7 +56,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         )
 
     @Test
-    fun invalidateAccessTokenMakesTheNextCallFetchANewToken() {
+    fun bhvAuthoauthtwoclientcred005InvalidateAccessTokenMakesTheNextCallFetchANewToken() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -74,7 +74,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun sendsClientCredentialsGrantType() {
+    fun bhvAuthoauthtwoclientcred010SendsClientCredentialsGrantType() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -88,7 +88,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun sendsClientIdAndSecret() {
+    fun bhvAuthoauthtwoclientcred011SendsClientIdAndSecret() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -102,7 +102,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun sendsScopes() {
+    fun bhvAuthoauthtwoclientcred013SendsScopes() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -116,7 +116,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun returnsAuthorizationBearerHeader() {
+    fun bhvAuthoauthtwoclientcred008ReturnsAuthorizationBearerHeader() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok-abc","expires_in":3600}""")
 
@@ -129,7 +129,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun sendsRequestToTokenUrl() {
+    fun bhvAuthoauthtwoclientcred012SendsRequestToTokenUrl() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -142,14 +142,14 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun getHostReturnsConfiguredHost() {
+    fun bhvAuthoauthtwoclientcred004GetHostReturnsConfiguredHost() {
         val auth = createAuthenticator()
 
         assertEquals("https://api.example.com", auth.getHost())
     }
 
     @Test
-    fun tokenFetchErrorIsSurfacedNotSwallowed() {
+    fun bhvAuthoauthtwoclientcred015TokenFetchErrorIsSurfacedNotSwallowed() {
         // oauth-cc-authheaders-error-swallow: a failed client-credentials token
         // exchange must surface to the caller as a thrown error — NOT be
         // swallowed into an empty header map that would send the API request
@@ -166,7 +166,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun cachesTokenAcrossCalls() {
+    fun bhvAuthoauthtwoclientcred003CachesTokenAcrossCalls() {
         // The token manager caches the access token until expiry, so two
         // consecutive header requests reuse the same token and issue only a
         // single token request. Only one response is enqueued; a second token
@@ -185,7 +185,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun basicAuthUrlEncodesClientIdAndSecret() {
+    fun bhvAuthoauthtwoclientcred002BasicAuthUrlEncodesClientIdAndSecret() {
         // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
         // client_id and client_secret MUST be application/x-www-form-
         // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -222,7 +222,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun redactsSecret() {
+    fun bhvAuthoauthtwoclientcred007RedactsSecret() {
         val auth = createAuthenticator()
         val rendered = auth.toString()
         assertFalse(rendered.contains("my-client-secret"))
@@ -230,7 +230,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun redactedReprShowsExactlyTheNonSecretFields() {
+    fun bhvAuthoauthtwoclientcred014RedactedReprShowsExactlyTheNonSecretFields() {
         assertEquals(
             "OAuth2ClientCredentialsAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
                 "clientSecret=***, tokenUrl=https://auth.example.com/token, scopes=[read, write], " +
@@ -240,7 +240,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun basicAuthKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+    fun bhvAuthoauthtwoclientcred001BasicAuthKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
         // RFC 6749 section 2.3.1 plus the shared unreserved set: '-._~' stay
         // literal and '*' '!' ''' '(' ')' are percent-encoded in both parts.
         val client = FakeApiClient()
@@ -271,7 +271,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperSendsItsSpecScopesToItsTokenUrl() {
+    fun bhvAuthoauthtwoclientcred009GeneratedSchemeWrapperSendsItsSpecScopesToItsTokenUrl() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"wrapped","expires_in":3600}""")
 

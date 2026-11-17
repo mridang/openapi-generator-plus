@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 
 class BasicAuthenticatorTest {
     @Test
-    fun validCredentialsProduceBasicHeader() =
+    fun bhvAuthbasic011ValidCredentialsProduceBasicHeader() =
         runBlocking {
             val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
             val headers = auth.getAuthHeaders()
@@ -22,21 +22,21 @@ class BasicAuthenticatorTest {
         }
 
     @Test
-    fun rejectsUsernameWithCrlfAtConstruction() {
+    fun bhvAuthbasic009RejectsUsernameWithCrlfAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
         }
     }
 
     @Test
-    fun rejectsPasswordWithNulAtConstruction() {
+    fun bhvAuthbasic007RejectsPasswordWithNulAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             BasicAuthenticator("https://api.example.com", "alice", "s3c\u0000ret")
         }
     }
 
     @Test
-    fun rejectsUsernameWithColonAtConstruction() {
+    fun bhvAuthbasic008RejectsUsernameWithColonAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
         }
@@ -45,13 +45,13 @@ class BasicAuthenticatorTest {
     // authenticator-secret-in-default-string-repr: the default toString()
     // must never expose the stored password.
     @Test
-    fun passwordIsNotLeakedInDefaultToString() {
+    fun bhvAuthbasic005PasswordIsNotLeakedInDefaultToString() {
         val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
         assertFalse(auth.toString().contains("s3cret"))
     }
 
     @Test
-    fun redactsSecret() {
+    fun bhvAuthbasic006RedactsSecret() {
         val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
         val rendered = auth.toString()
         assertFalse(rendered.contains("s3cret"))
@@ -59,7 +59,7 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    fun nonAsciiCredentialsAreEncodedAsUtf8() =
+    fun bhvAuthbasic004NonAsciiCredentialsAreEncodedAsUtf8() =
         runBlocking {
             val auth = BasicAuthenticator("https://api.example.com", "ünïcødé", "pässwörd")
             val headers = auth.getAuthHeaders()
@@ -67,13 +67,13 @@ class BasicAuthenticatorTest {
         }
 
     @Test
-    fun redactedReprShowsExactlyTheNonSecretFields() {
+    fun bhvAuthbasic010RedactedReprShowsExactlyTheNonSecretFields() {
         val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
         assertEquals("BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
     }
 
     @Test
-    fun generatedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() =
+    fun bhvAuthbasic002GeneratedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() =
         runBlocking {
             val auth = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
             assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
@@ -97,7 +97,7 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: credentials not passed come from the environment")
+    @DisplayName("bhvAuthbasic001 F862: credentials not passed come from the environment")
     fun credentialsComeFromTheEnvironment() =
         runBlocking {
             val env =
@@ -113,7 +113,7 @@ class BasicAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: a missing credential fails at construction and names its environment variable")
+    @DisplayName("bhvAuthbasic003 F862: a missing credential fails at construction and names its environment variable")
     fun missingCredentialFailsAtConstruction() {
         val ex =
             withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "alice", "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "")) {

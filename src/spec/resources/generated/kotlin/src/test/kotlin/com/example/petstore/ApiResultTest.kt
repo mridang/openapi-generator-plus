@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 
 class ApiResultTest {
     @Test
-    @DisplayName("exposes statusCode, data, rawBody and headers")
+    @DisplayName("bhvResults003 exposes statusCode, data, rawBody and headers")
     fun exposesAllFields() {
         val result =
             ApiResult(
@@ -29,7 +29,7 @@ class ApiResultTest {
     }
 
     @Test
-    @DisplayName("allows null data for an empty-body response")
+    @DisplayName("bhvResults001 allows null data for an empty-body response")
     fun allowsNullData() {
         val result =
             ApiResult<String>(

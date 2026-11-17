@@ -35,7 +35,7 @@ class ConfigurationTest {
     @DisplayName("builder factory")
     inner class BuilderFactory {
         @Test
-        @DisplayName("builder() returns a Builder instance")
+        @DisplayName("bhvConfig007 builder() returns a Builder instance")
         fun builderReturnsBuilderInstance() {
             val builder = Configuration.builder()
             assertNotNull(builder)
@@ -47,7 +47,7 @@ class ConfigurationTest {
     @DisplayName("baseUrl")
     inner class BaseUrl {
         @Test
-        @DisplayName("builder sets base URL")
+        @DisplayName("bhvConfig011 builder sets base URL")
         fun builderSetsCustomBaseUrl() {
             val config =
                 Configuration
@@ -77,7 +77,7 @@ class ConfigurationTest {
     @DisplayName("defaultHeader")
     inner class DefaultHeader {
         @Test
-        @DisplayName("builder sets single default header")
+        @DisplayName("bhvConfig013 builder sets single default header")
         fun builderSetsSingleDefaultHeader() {
             val config =
                 Configuration
@@ -91,7 +91,7 @@ class ConfigurationTest {
         }
 
         @Test
-        @DisplayName("builder accumulates multiple headers")
+        @DisplayName("bhvConfig002 builder accumulates multiple headers")
         fun builderAccumulatesMultipleHeaders() {
             val config =
                 Configuration
@@ -109,7 +109,7 @@ class ConfigurationTest {
     @DisplayName("defaultHeaders")
     inner class DefaultHeaders {
         @Test
-        @DisplayName("builder sets multiple default headers")
+        @DisplayName("bhvConfig012 builder sets multiple default headers")
         fun builderSetsMultipleHeadersFromMap() {
             val config =
                 Configuration
@@ -125,7 +125,7 @@ class ConfigurationTest {
         }
 
         @Test
-        @DisplayName("builder merges single and bulk headers")
+        @DisplayName("bhvConfig004 builder merges single and bulk headers")
         fun builderMergesSingleAndBulkHeaders() {
             val config =
                 Configuration
@@ -145,7 +145,7 @@ class ConfigurationTest {
     @DisplayName("server URL resolution")
     inner class ServerUrlResolution {
         @Test
-        @DisplayName("server configuration resolves URL with defaults")
+        @DisplayName("bhvConfig008 server configuration resolves URL with defaults")
         fun serverConfigResolvesWithDefaults() {
             val server =
                 ServerConfiguration(
@@ -165,7 +165,7 @@ class ConfigurationTest {
         }
 
         @Test
-        @DisplayName("server configuration resolves URL with overrides")
+        @DisplayName("bhvConfig009 server configuration resolves URL with overrides")
         fun serverConfigResolvesWithOverrides() {
             val server =
                 ServerConfiguration(
@@ -185,7 +185,7 @@ class ConfigurationTest {
         }
 
         @Test
-        @DisplayName("invalid enum value throws IllegalArgumentException")
+        @DisplayName("bhvConfig016 invalid enum value throws IllegalArgumentException")
         fun invalidEnumValueThrows() {
             val server =
                 ServerConfiguration(
@@ -202,7 +202,7 @@ class ConfigurationTest {
         }
 
         @Test
-        @DisplayName("baseUrl overrides server URL")
+        @DisplayName("bhvConfig001 baseUrl overrides server URL")
         fun baseUrlOverridesServerUrl() {
             val server =
                 ServerConfiguration(
@@ -233,7 +233,7 @@ class ConfigurationTest {
         }
 
         @Test
-        @DisplayName("defaultConfiguration is stateless")
+        @DisplayName("bhvConfig014 defaultConfiguration is stateless")
         fun defaultConfigurationIsStateless() {
             // There is no settable process-wide default: every call hands back
             // a fresh instance, so one caller cannot change what another gets.
@@ -248,7 +248,7 @@ class ConfigurationTest {
     @DisplayName("copy isolation")
     inner class CopyIsolation {
         @Test
-        @DisplayName("builder produces independent instances")
+        @DisplayName("bhvConfig006 builder produces independent instances")
         fun builderReturnsNewConfiguration() {
             val builder = Configuration.builder().baseUrl("https://example.com")
             val first = builder.build()
@@ -262,7 +262,7 @@ class ConfigurationTest {
     @DisplayName("builder chaining")
     inner class BuilderChaining {
         @Test
-        @DisplayName("builder methods are fluent")
+        @DisplayName("bhvConfig003 builder methods are fluent")
         fun builderMethodsAreFluent() {
             val builder = Configuration.builder()
             val server = ServerConfiguration("https://example.com", null, emptyMap())
