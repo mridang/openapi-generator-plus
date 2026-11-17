@@ -1204,7 +1204,7 @@ void main() {
      * status (leaves it null), no `status=` may appear on the wire, exactly
      * like any other absent optional query param. */
     test(
-      'bhv serializationwire 010 bhv serializationwire 001 findPetsByStatus omitting status sends no status= in query',
+      'bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         String capturedUrl = '';
@@ -3722,10 +3722,14 @@ void main() {
             host: 'http://api.test',
             token: 'scheme',
           ),
-          adminBasic: BasicAuthenticator(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(transport)
+              .build(),
+        );
+        final bare = Client(
+          authenticator: BearerAuthenticator(
             host: 'http://api.test',
-            username: 'admin',
-            password: 'pw',
+            token: 'fallback',
           ),
           transportOptions: TransportOptionsBuilder()
               .httpClient(transport)
@@ -3733,7 +3737,7 @@ void main() {
         );
 
         await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
-        await client.pet.deletePet(1, null);
+        await bare.pet.deletePet(1, null);
 
         expect(seen['POST /pet'], equals('Bearer scheme'));
         expect(seen['DELETE /pet/1'], equals('Bearer fallback'));

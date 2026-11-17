@@ -359,7 +359,7 @@ void main() {
     // key). This exercises the real Metadata.fromJson / toJson, not raw
     // jsonDecode.
     test(
-      'bhv models 001 bhv serializationobject 020 Metadata captures unknown keys and re-serializes them at top level',
+      'bhv models 001 Metadata captures unknown keys and re-serializes them at top level',
       () {
         final source = <String, dynamic>{
           'createdAt': '2024-01-15T10:30:00+00:00',

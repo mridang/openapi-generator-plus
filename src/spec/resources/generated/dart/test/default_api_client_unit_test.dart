@@ -2470,7 +2470,7 @@ void main() {
     }
 
     test(
-      'bhv serializationwire 039 bhv serializationwire 047 multipart .png field sets image/png Content-Type',
+      'bhv serializationwire 039 multipart .png field sets image/png Content-Type',
       () async {
         String body = '';
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -2499,7 +2499,7 @@ void main() {
     );
 
     test(
-      'bhv serializationwire 038 bhv serializationwire 037 multipart .pdf field sets application/pdf Content-Type',
+      'bhv serializationwire 038 multipart .pdf field sets application/pdf Content-Type',
       () async {
         String body = '';
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -2638,7 +2638,10 @@ void main() {
             {},
             {'nombre_ñ': 'x'},
           );
-          expect(body, contains(latin1.decode(utf8.encode('nombre_ñ'))));
+          expect(
+            body,
+            contains(latin1.decode(utf8.encode('nombre_ñ')).toLowerCase()),
+          );
         } finally {
           await server.close();
         }

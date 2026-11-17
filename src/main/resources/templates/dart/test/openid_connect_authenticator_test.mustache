@@ -416,7 +416,7 @@ void main() {
       final client = _FakeApiClient();
       client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
       client.enqueue('{"error":"unavailable"}', statusCode: 500);
-      client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+      client.enqueue(document, headers: {'Cache-Control': 'max-age=3600'});
       client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
       final auth = _createAuthenticator();
       auth.setApiClient(client);

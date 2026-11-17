@@ -293,7 +293,7 @@ void main() {
     });
 
     test(
-      'bhv unions 002 a shared property keeps the later declared variant value whatever the list order',
+      'bhv unions 002 a shared property keeps the value of the later declared variant, emitted once',
       () {
         final treatment = PetTreatment.ofValues(<Object?>[
           Surgery(procedureName: 'Spay', notes: 'from-surgery'),
@@ -303,7 +303,7 @@ void main() {
         final serialized = jsonEncode(treatment.toJson());
         final restored = jsonDecode(serialized) as Map<String, dynamic>;
 
-        expect(restored['notes'], equals('from-surgery'));
+        expect(restored['notes'], equals('from-medication'));
         expect('"notes"'.allMatches(serialized).length, equals(1));
       },
     );

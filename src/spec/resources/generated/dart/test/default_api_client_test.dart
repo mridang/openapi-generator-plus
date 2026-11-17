@@ -582,7 +582,7 @@ Future<void> main(List<String> args) async {
     );
 
     test(
-      'bhv retries 010 bhv retries 020 307 https->http with a body throws (no body replay)',
+      'bhv retries 010 307 https->http with a body throws (no body replay)',
       () async {
         final certDir = 'test/fixtures/certs';
         final tlsContext = SecurityContext()

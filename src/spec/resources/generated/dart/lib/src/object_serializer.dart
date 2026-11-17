@@ -130,10 +130,19 @@ class UuidValue {
 /// Throws [SerializationException] if serialization fails.
 String serialize(Object? object) {
   try {
-    return jsonEncode(object);
+    return jsonEncode(object, toEncodable: _encodeNonJsonValue);
   } catch (e) {
     throw SerializationException('Failed to serialize object to JSON: $e', e);
   }
+}
+
+/// Converts the Dart values `jsonEncode` cannot write on its own: a [DateTime]
+/// takes the canonical date-time wire form and binary data is base64. Any
+/// other value is refused, so the caller sees a [SerializationException].
+Object _encodeNonJsonValue(Object? value) {
+  if (value is DateTime) return formatDateTimeOffset(value);
+  if (value is Uint8List) return base64Encode(value);
+  throw JsonUnsupportedObjectError(value);
 }
 
 /// Strips a leading UTF-8 BOM (U+FEFF) from a JSON string.
