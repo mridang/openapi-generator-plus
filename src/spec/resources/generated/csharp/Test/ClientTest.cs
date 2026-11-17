@@ -84,6 +84,77 @@ public sealed class ClientTest : IDisposable
         Assert.False(handler.Disposed);
     }
 
+    [Fact]
+    public void TheSchemeConstructorTakesOneOptionalCredentialPerSchemeNamedAfterIt()
+    {
+        var constructor = typeof(Client)
+            .GetConstructors()
+            .Single(c =>
+                c.GetParameters().Length > 0 && c.GetParameters()[0].ParameterType == typeof(string)
+            );
+        var parameters = constructor.GetParameters().ToDictionary(p => p.Name!);
+
+        Assert.True(parameters["petStoreBasic"].IsOptional);
+        Assert.Null(parameters["petStoreBasic"].DefaultValue);
+        Assert.True(parameters["adminBasic"].IsOptional);
+        Assert.Null(parameters["adminBasic"].DefaultValue);
+        Assert.True(parameters["petStoreBearer"].IsOptional);
+        Assert.Null(parameters["petStoreBearer"].DefaultValue);
+        Assert.True(parameters["serviceToken"].IsOptional);
+        Assert.Null(parameters["serviceToken"].DefaultValue);
+        Assert.True(parameters["apiKeyHeader"].IsOptional);
+        Assert.Null(parameters["apiKeyHeader"].DefaultValue);
+        Assert.True(parameters["internalApiKey"].IsOptional);
+        Assert.Null(parameters["internalApiKey"].DefaultValue);
+        Assert.True(parameters["apiKeyQuery"].IsOptional);
+        Assert.Null(parameters["apiKeyQuery"].DefaultValue);
+        Assert.True(parameters["sessionCookie"].IsOptional);
+        Assert.Null(parameters["sessionCookie"].DefaultValue);
+        Assert.True(parameters["machineAuth"].IsOptional);
+        Assert.Null(parameters["machineAuth"].DefaultValue);
+        Assert.True(parameters["legacyAuth"].IsOptional);
+        Assert.Null(parameters["legacyAuth"].DefaultValue);
+        Assert.True(parameters["userAuth"].IsOptional);
+        Assert.Null(parameters["userAuth"].DefaultValue);
+        Assert.True(parameters["browserAuth"].IsOptional);
+        Assert.Null(parameters["browserAuth"].DefaultValue);
+        Assert.True(parameters["ssoAuth"].IsOptional);
+        Assert.Null(parameters["ssoAuth"].DefaultValue);
+        var expected = new List<string>
+        {
+            "petStoreBasic",
+            "adminBasic",
+            "petStoreBearer",
+            "serviceToken",
+            "apiKeyHeader",
+            "internalApiKey",
+            "apiKeyQuery",
+            "sessionCookie",
+            "machineAuth",
+            "legacyAuth",
+            "userAuth",
+            "browserAuth",
+            "ssoAuth",
+            "transportOptions",
+        };
+        Assert.Equal(
+            expected.OrderBy(n => n, StringComparer.Ordinal),
+            parameters.Keys.Where(n => n != "host").OrderBy(n => n, StringComparer.Ordinal)
+        );
+    }
+
+    [Fact]
+    public async Task AClientWithNoCredentialSendsNoAuthenticationHeader()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        using var client = new Client("http://localhost", transportOptions: transport);
+
+        _ = await client.Store.GetOrderByIdAsync(1);
+
+        Assert.Null(handler.Authorization);
+    }
+
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public int Requests { get; private set; }

@@ -21,8 +21,11 @@ public abstract class BaseApi
     /// <summary>Serializer for request/response body conversion.</summary>
     private protected ObjectSerializer Serializer { get; }
 
-    /// <summary>Optional authenticator used as fallback when no per-call auth is provided.</summary>
+    /// <summary>Optional authenticator used as fallback when the client holds no credential for an operation's scheme.</summary>
     protected IAuthenticator? Authenticator { get; }
+
+    /// <summary>The credential the client holds for each security scheme, keyed by the scheme name.</summary>
+    private readonly IReadOnlyDictionary<string, IAuthenticator> _schemeAuthenticators;
 
     /// <summary>
     /// Create an API instance with the default configuration and default transport.
@@ -52,6 +55,22 @@ public abstract class BaseApi
     /// <param name="config">API-level configuration (base URL and default headers).</param>
     /// <param name="authenticator">Default authenticator for operations without explicit auth.</param>
     protected BaseApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
+        : this(apiClient, config, authenticator, null) { }
+
+    /// <summary>
+    /// Create an API instance with a custom API client, configuration, default authenticator and
+    /// one credential per security scheme.
+    /// </summary>
+    /// <param name="apiClient">The HTTP transport client.</param>
+    /// <param name="config">API-level configuration (base URL and default headers).</param>
+    /// <param name="authenticator">Default authenticator for operations whose scheme has no credential.</param>
+    /// <param name="schemeAuthenticators">The credential for each security scheme, keyed by the scheme name.</param>
+    protected BaseApi(
+        IApiClient apiClient,
+        Configuration config,
+        IAuthenticator? authenticator,
+        IReadOnlyDictionary<string, IAuthenticator>? schemeAuthenticators
+    )
     {
         ArgumentNullException.ThrowIfNull(apiClient);
         ArgumentNullException.ThrowIfNull(config);
@@ -59,6 +78,26 @@ public abstract class BaseApi
         Config = config;
         Serializer = new ObjectSerializer();
         Authenticator = authenticator;
+        _schemeAuthenticators = schemeAuthenticators ?? new Dictionary<string, IAuthenticator>();
+    }
+
+    /// <summary>
+    /// Returns the credential the client holds for the first of the given scheme names that has
+    /// one, or null when it holds none. An operation passes the schemes its spec requires, so it
+    /// always uses the scheme the spec names and a caller cannot pick another per call.
+    /// </summary>
+    /// <param name="schemes">The names of the security schemes the operation accepts.</param>
+    /// <returns>The authenticator for the first scheme the client holds a credential for, or null.</returns>
+    protected IAuthenticator? ResolveSchemeAuth(params string[] schemes)
+    {
+        foreach (string scheme in schemes)
+        {
+            if (_schemeAuthenticators.TryGetValue(scheme, out IAuthenticator? found))
+            {
+                return found;
+            }
+        }
+        return null;
     }
 
     /// <summary>
@@ -221,7 +260,7 @@ public abstract class BaseApi
                         if (!IsValidCookieValue(c.Value))
                         {
                             throw new ArgumentException(
-                                $"Cookie value for '{c.Key}' contains characters forbidden by RFC 6265");
+                                $"Cookie value for '{c.Key}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it");
                         }
                         return c.Key + "=" + c.Value;
                     }));

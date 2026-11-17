@@ -307,15 +307,21 @@ public class PetApi : BaseApi
     /// <summary>Initializes a new instance of <see cref="PetApi"/> with the given client, configuration, and default authenticator.</summary>
     /// <param name="apiClient">The HTTP client used to make API calls.</param>
     /// <param name="config">The configuration for the API client.</param>
-    /// <param name="authenticator">Optional default authenticator applied when none is passed per-operation.</param>
-    public PetApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
-        : base(apiClient, config, authenticator) { }
+    /// <param name="authenticator">Optional default authenticator, used for an operation whose scheme has no credential in <paramref name="schemeAuthenticators"/>.</param>
+    /// <param name="schemeAuthenticators">Optional credential per security scheme, keyed by the scheme name; each operation uses the scheme its spec requires.</param>
+    public PetApi(
+        IApiClient apiClient,
+        Configuration config,
+        IAuthenticator? authenticator,
+        IReadOnlyDictionary<string, IAuthenticator>? schemeAuthenticators = null
+    )
+        : base(apiClient, config, authenticator, schemeAuthenticators) { }
 
     /// <summary>
     /// Add a new pet to the store
     /// </summary>
     /// <param name="pet">Create a new pet in the store</param>
-    /// <param name="options">Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry budget.</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -355,7 +361,7 @@ public class PetApi : BaseApi
     /// Add a new pet to the store (with HTTP info)
     /// </summary>
     /// <param name="pet">Create a new pet in the store</param>
-    /// <param name="options">Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry budget.</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -379,7 +385,7 @@ public class PetApi : BaseApi
                 AddPetAccepts,
                 "application/json",
                 typeof(Pet),
-                options?.Auth,
+                ResolveSchemeAuth("petStoreBearer", "apiKeyHeader"),
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.AddPet",
                 timeout: options?.Timeout,
@@ -522,7 +528,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="petTreatment"></param>
-    /// <param name="options">Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry budget.</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[PetTreatment]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -569,7 +575,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="petTreatment"></param>
-    /// <param name="options">Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry budget.</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -609,7 +615,7 @@ public class PetApi : BaseApi
                 AddPetTreatmentAccepts,
                 "application/json",
                 typeof(PetTreatment),
-                options?.Auth,
+                ResolveSchemeAuth("petStoreBasic", "petStoreBearer"),
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.AddPetTreatment",
                 timeout: options?.Timeout,
@@ -623,7 +629,7 @@ public class PetApi : BaseApi
     /// Deletes a pet
     /// </summary>
     /// <param name="petId">Pet id to delete</param>
-    /// <param name="options">Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task DeletePetAsync(
@@ -644,7 +650,7 @@ public class PetApi : BaseApi
     /// Deletes a pet (with HTTP info)
     /// </summary>
     /// <param name="petId">Pet id to delete</param>
-    /// <param name="options">Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -703,7 +709,7 @@ public class PetApi : BaseApi
             if (!IsValidCookieValue(cookieValue))
             {
                 throw new ArgumentException(
-                    $"Cookie value for '{cookieName}' contains characters forbidden by RFC 6265"
+                    $"Cookie value for '{cookieName}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
                 );
             }
             cookieParts.Add(cookieName + "=" + cookieValue);
@@ -722,7 +728,7 @@ public class PetApi : BaseApi
                 [],
                 "application/json",
                 null,
-                options?.Auth,
+                ResolveSchemeAuth("machineAuth", "adminBasic"),
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.DeletePet",
                 timeout: options?.Timeout,
@@ -2194,7 +2200,7 @@ public class PetApi : BaseApi
             if (!IsValidCookieValue(cookieValue))
             {
                 throw new ArgumentException(
-                    $"Cookie value for '{cookieName}' contains characters forbidden by RFC 6265"
+                    $"Cookie value for '{cookieName}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
                 );
             }
             cookieParts.Add(cookieName + "=" + cookieValue);

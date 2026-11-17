@@ -11,7 +11,7 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 /// <seealso href="https://example.com/docs/account"><![CDATA[Account <docs> & "notes" it's here]]></seealso>
-public record Account
+public record Account : global::System.Text.Json.Serialization.IJsonOnDeserialized
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -47,12 +47,7 @@ public record Account
     public required string Username
     {
         get => _username;
-        init =>
-            _username =
-                value
-                ?? throw new System.Text.Json.JsonException(
-                    "Required property 'username' on Account was null"
-                );
+        init => _username = value;
     }
 
     private readonly string _username = null!;
@@ -60,6 +55,22 @@ public record Account
     /// <remarks>This property is write-only.</remarks>
     [JsonPropertyName("password")]
     public string? Password { get; init; }
+
+    /// <summary>
+    /// Runs after a payload is decoded into this model. A required property
+    /// that arrived as an explicit null is refused here, with a
+    /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
+    /// model is constructed in code: the check belongs to decoding only.
+    /// </summary>
+    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
+    {
+        if (_username is null)
+        {
+            throw new System.Text.Json.JsonException(
+                "Required property 'username' on Account was null"
+            );
+        }
+    }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

@@ -3,7 +3,7 @@
     public required {{{dataType}}} {{name}}
     {
         get => _{{nameInCamelCase}};
-        init => _{{nameInCamelCase}} = value ?? throw new System.Text.Json.JsonException("Required property '{{baseName}}' on {{classname}} was null");
+        init => _{{nameInCamelCase}} = value;
     }
 
     private readonly {{{dataType}}} _{{nameInCamelCase}} = null!;

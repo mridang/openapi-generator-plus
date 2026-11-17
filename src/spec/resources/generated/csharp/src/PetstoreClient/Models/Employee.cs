@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public record Employee
+public record Employee : global::System.Text.Json.Serialization.IJsonOnDeserialized
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -42,18 +42,29 @@ public record Employee
     public required string Name
     {
         get => _name;
-        init =>
-            _name =
-                value
-                ?? throw new System.Text.Json.JsonException(
-                    "Required property 'name' on Employee was null"
-                );
+        init => _name = value;
     }
 
     private readonly string _name = null!;
 
     [JsonPropertyName("department")]
     public Department? Department { get; init; }
+
+    /// <summary>
+    /// Runs after a payload is decoded into this model. A required property
+    /// that arrived as an explicit null is refused here, with a
+    /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
+    /// model is constructed in code: the check belongs to decoding only.
+    /// </summary>
+    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
+    {
+        if (_name is null)
+        {
+            throw new System.Text.Json.JsonException(
+                "Required property 'name' on Employee was null"
+            );
+        }
+    }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

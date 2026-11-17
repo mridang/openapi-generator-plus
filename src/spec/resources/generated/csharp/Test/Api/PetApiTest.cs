@@ -50,7 +50,7 @@ public class PetApiTest
             Status = Pet.StatusEnum.Available,
         };
 
-        var result = await _api.AddPetAsync(pet, new AddPetOptions { Auth = _auth });
+        var result = await _api.AddPetAsync(pet, new AddPetOptions());
 
         Assert.NotNull(result);
         Assert.NotNull(result.Name);
@@ -59,10 +59,9 @@ public class PetApiTest
     [Fact]
     public async Task TestAddPetUsingConfiguredCredentials()
     {
-        // The Options arg (and its Auth) is optional: omitting it falls back to
-        // the credentials configured on the client (the default Authorization
-        // header set in the constructor), which must satisfy the secured
-        // endpoint.
+        // The Options arg is optional: omitting it uses the credentials
+        // configured on the client (the default Authorization header set in
+        // the constructor), which must satisfy the secured endpoint.
         var pet = new Pet("DefaultCredsDog", new HashSet<string> { "http://example.com/photo.jpg" })
         {
             Id = 54321L,
@@ -274,7 +273,7 @@ public class PetApiTest
     [Fact]
     public async Task TestDeletePet()
     {
-        await _api.DeletePetAsync(1L, new DeletePetOptions { Auth = _auth });
+        await _api.DeletePetAsync(1L, new DeletePetOptions());
         Assert.True(true);
     }
 
@@ -288,10 +287,7 @@ public class PetApiTest
         // raises — before any HTTP request is made — rather than splitting the
         // header. Mirrors the ApiKeyAuthenticator cookie-CRLF assertions.
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            _api.DeletePetAsync(
-                1L,
-                new DeletePetOptions { Auth = _auth, ApiKey = "abc\r\nInjected: yes" }
-            )
+            _api.DeletePetAsync(1L, new DeletePetOptions { ApiKey = "abc\r\nInjected: yes" })
         );
         Assert.Contains("RFC 6265", ex.Message, StringComparison.Ordinal);
     }
@@ -302,8 +298,43 @@ public class PetApiTest
         // A bare control character (not only CR/LF) in the operation cookie
         // value is equally forbidden by RFC 6265 and must fail closed.
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            _api.DeletePetAsync(1L, new DeletePetOptions { Auth = _auth, ApiKey = "abc\x07def" })
+            _api.DeletePetAsync(1L, new DeletePetOptions { ApiKey = "abc\x07def" })
         );
+    }
+
+    [Theory]
+    [InlineData("a b")]
+    [InlineData("a,b")]
+    [InlineData("a;b")]
+    [InlineData("a\"b")]
+    [InlineData("a\\b")]
+    [InlineData("caf\u00e9")]
+    public async Task TestDeletePetRefusesACookieValueWithAnIllegalCookieOctet(string value)
+    {
+        // Only RFC 6265 cookie-octets are sent, and they are sent raw. Anything
+        // else is refused before a request: the caller percent-encodes it.
+        var client = new HeaderCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            api.DeletePetAsync(1L, new DeletePetOptions { ApiKey = value })
+        );
+
+        Assert.Contains("percent-encode", ex.Message, StringComparison.Ordinal);
+        Assert.Empty(client.CapturedHeaders);
+    }
+
+    [Fact]
+    public async Task TestDeletePetSendsALegalCookieValueRaw()
+    {
+        // '%' and '=' are legal cookie-octets, so a value the caller already
+        // percent-encoded goes out unchanged, not encoded a second time.
+        var client = new HeaderCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.DeletePetAsync(1L, new DeletePetOptions { ApiKey = "a%20b=c" });
+
+        Assert.Equal("api_key=a%20b=c", client.CapturedHeaders["Cookie"]);
     }
 
     [Fact]
@@ -521,7 +552,7 @@ public class PetApiTest
             Status = Pet.StatusEnum.Available,
         };
 
-        var result = await _api.AddPetWithHttpInfoAsync(pet, new AddPetOptions { Auth = _auth });
+        var result = await _api.AddPetWithHttpInfoAsync(pet, new AddPetOptions());
 
         Assert.NotNull(result);
         Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
@@ -546,10 +577,7 @@ public class PetApiTest
     [Fact]
     public async Task TestDeletePetWithHttpInfo()
     {
-        var result = await _api.DeletePetWithHttpInfoAsync(
-            1L,
-            new DeletePetOptions { Auth = _auth }
-        );
+        var result = await _api.DeletePetWithHttpInfoAsync(1L, new DeletePetOptions());
 
         Assert.NotNull(result);
         Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
@@ -830,29 +858,69 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetPerCallAuthOverride()
+    public async Task TestAddPetUsesTheCredentialOfTheSchemeTheSpecRequires()
     {
-        // Verify the auth carried inside the Options object on the BASE
-        // operation method (not just the WithHttpInfo variant) is applied to
-        // the outgoing request. The default header carries one token; the
-        // per-call authenticator carries a different one and must win on the
-        // wire.
+        // addPet accepts apiKeyHeader or petStoreBearer. The client holds a
+        // credential per scheme, keyed by the scheme name, and the operation
+        // uses the scheme its spec names: only the bearer scheme is held
+        // here, so the bearer credential reaches the wire.
         var client = new HeaderCapturingApiClient();
-        var config = Configuration
-            .Builder()
-            .BaseUrl("http://localhost")
-            .DefaultHeader("Authorization", "Bearer default-token")
-            .Build();
-        var api = new PetApi(client, config);
-        var perCallAuth = new BearerAuthenticator("http://localhost", "per-call-token");
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["petStoreBearer"] = new BearerAuthenticator("http://localhost", "scheme-token"),
+        };
+        var api = new PetApi(client, config, null, schemes);
 
-        var pet = new Pet("OverrideDog", new HashSet<string> { "http://example.com/p.jpg" })
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
         {
             Id = 1L,
         };
-        await api.AddPetAsync(pet, new AddPetOptions { Auth = perCallAuth });
+        await api.AddPetAsync(pet);
 
-        Assert.Equal("Bearer per-call-token", client.CapturedHeaders["Authorization"]);
+        Assert.Equal("Bearer scheme-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task TestAddPetUsesTheFirstDeclaredSchemeTheClientHoldsACredentialFor()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["petStoreBearer"] = new BearerAuthenticator("http://localhost", "scheme-token"),
+            ["apiKeyHeader"] = new ApiKeyHeaderAuthenticator("http://localhost", "key-1"),
+        };
+        var api = new PetApi(client, config, null, schemes);
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("Bearer scheme-token", client.CapturedHeaders["Authorization"]);
+        Assert.False(client.CapturedHeaders.ContainsKey("X-API-Key"));
+    }
+
+    [Fact]
+    public async Task TestAddPetIgnoresACredentialHeldForAnotherScheme()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["serviceToken"] = new BearerAuthenticator("http://localhost", "wrong-scheme"),
+        };
+        var api = new PetApi(client, config, null, schemes);
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(pet);
+
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"));
     }
 
     [Fact]
@@ -867,14 +935,14 @@ public class PetApiTest
         // the Authorization credential.
         var client = new HeaderCapturingApiClient();
         var config = Configuration.Builder().BaseUrl("http://localhost").Build();
-        var api = new PetApi(client, config);
         var authenticator = new BearerAuthenticator("http://localhost", "applied-token");
+        var api = new PetApi(client, config, authenticator);
 
         var pet = new Pet("AppliedDog", new HashSet<string> { "http://example.com/p.jpg" })
         {
             Id = 1L,
         };
-        await api.AddPetAsync(pet, new AddPetOptions { Auth = authenticator });
+        await api.AddPetAsync(pet);
 
         Assert.True(client.CapturedHeaders.ContainsKey("Authorization"));
         Assert.Equal("Bearer applied-token", client.CapturedHeaders["Authorization"]);
@@ -905,19 +973,58 @@ public class PetApiTest
     }
 
     [Fact]
-    public void TestUnsecuredOperationOptionsExposesNoAuth()
+    public async Task TestTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt()
     {
-        // Compile-level guard: an unsecured operation (getPetById) takes no
-        // Options arg and its absence of an Auth field is enforced by the fact
-        // that GetPetById has no Options class at all. The authed operations'
-        // Options classes DO expose an Auth field. This is a no-op at runtime;
-        // it fails to compile if a regression reintroduces or removes the
-        // Auth field on the wrong operation.
-        var authedOptions = new AddPetOptions { Auth = _auth };
-        Assert.NotNull(authedOptions.Auth);
+        // The client holds one credential per scheme, named after the scheme.
+        // addPet accepts apiKeyHeader or petStoreBearer, so the credential
+        // held for the bearer scheme is the one that reaches the wire.
+        using var handler = new CapturingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        using var client = new Client(
+            "http://localhost",
+            petStoreBearer: new PetStoreBearerAuthenticator("http://localhost", "scheme-token"),
+            transportOptions: transport
+        );
 
-        var unsecuredOptions = new FindPetsByStatusOptions { Status = "available" };
-        Assert.NotNull(unsecuredOptions);
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await client.Pet.AddPetAsync(pet);
+
+        Assert.Equal("Bearer scheme-token", handler.Authorization);
+    }
+
+    private sealed class CapturingHandler : HttpMessageHandler
+    {
+        public string? Authorization { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Authorization = request.Headers.Authorization?.ToString();
+            return Task.FromResult(
+                new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+                        System.Text.Encoding.UTF8,
+                        "application/json"
+                    ),
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void TestNoOperationOptionsOffersAPerCallAuthenticator()
+    {
+        // There is no per-call scheme override: an operation uses the scheme
+        // its spec requires, so a secured operation's options carry no Auth.
+        Assert.Null(typeof(AddPetOptions).GetProperty("Auth"));
+        Assert.Null(typeof(DeletePetOptions).GetProperty("Auth"));
     }
 
     [Fact]

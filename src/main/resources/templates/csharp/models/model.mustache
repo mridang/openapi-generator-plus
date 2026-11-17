@@ -150,7 +150,6 @@ public class {{classname}}(object value) : IEquatable<{{classname}}>
     /// <returns>A union holding <paramref name="value"/>.</returns>
     public static {{classname}} From{{vendorExtensions.variantName}}({{{dataType}}} value)
     {
-        ArgumentNullException.ThrowIfNull(value);
         return new {{classname}}(value);
     }
 
@@ -393,7 +392,7 @@ namespace {{packageName}}.Models;
 {{#isUnevaluatedPropertiesFalse}}
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 {{/isUnevaluatedPropertiesFalse}}
-public record {{classname}}{{#parent}} : {{{.}}}{{/parent}}
+public record {{classname}}{{#parent}} : {{{.}}}{{#vendorExtensions.hasGuardedRequired}}, global::System.Text.Json.Serialization.IJsonOnDeserialized{{/vendorExtensions.hasGuardedRequired}}{{/parent}}{{^parent}}{{#vendorExtensions.hasGuardedRequired}} : global::System.Text.Json.Serialization.IJsonOnDeserialized{{/vendorExtensions.hasGuardedRequired}}{{/parent}}
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -586,6 +585,26 @@ public record {{classname}}{{#parent}} : {{{.}}}{{/parent}}
     public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; init; } = new();
 {{/isAdditionalPropertiesTrue}}
 
+{{#vendorExtensions.hasGuardedRequired}}
+    /// <summary>
+    /// Runs after a payload is decoded into this model. A required property
+    /// that arrived as an explicit null is refused here, with a
+    /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
+    /// model is constructed in code: the check belongs to decoding only.
+    /// </summary>
+    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
+    {
+{{#vars}}
+{{#vendorExtensions.guardedRequired}}
+        if (_{{nameInCamelCase}} is null)
+        {
+            throw new System.Text.Json.JsonException("Required property '{{baseName}}' on {{classname}} was null");
+        }
+{{/vendorExtensions.guardedRequired}}
+{{/vars}}
+    }
+
+{{/vendorExtensions.hasGuardedRequired}}
     /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

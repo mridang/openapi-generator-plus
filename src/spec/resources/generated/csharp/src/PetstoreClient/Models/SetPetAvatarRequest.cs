@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public record SetPetAvatarRequest
+public record SetPetAvatarRequest : global::System.Text.Json.Serialization.IJsonOnDeserialized
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -46,12 +46,7 @@ public record SetPetAvatarRequest
     public required byte[] Data
     {
         get => _data;
-        init =>
-            _data =
-                value
-                ?? throw new System.Text.Json.JsonException(
-                    "Required property 'data' on SetPetAvatarRequest was null"
-                );
+        init => _data = value;
     }
 
     private readonly byte[] _data = null!;
@@ -62,15 +57,32 @@ public record SetPetAvatarRequest
     public required string MimeType
     {
         get => _mimeType;
-        init =>
-            _mimeType =
-                value
-                ?? throw new System.Text.Json.JsonException(
-                    "Required property 'mimeType' on SetPetAvatarRequest was null"
-                );
+        init => _mimeType = value;
     }
 
     private readonly string _mimeType = null!;
+
+    /// <summary>
+    /// Runs after a payload is decoded into this model. A required property
+    /// that arrived as an explicit null is refused here, with a
+    /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
+    /// model is constructed in code: the check belongs to decoding only.
+    /// </summary>
+    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
+    {
+        if (_data is null)
+        {
+            throw new System.Text.Json.JsonException(
+                "Required property 'data' on SetPetAvatarRequest was null"
+            );
+        }
+        if (_mimeType is null)
+        {
+            throw new System.Text.Json.JsonException(
+                "Required property 'mimeType' on SetPetAvatarRequest was null"
+            );
+        }
+    }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

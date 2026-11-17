@@ -22,7 +22,6 @@ public class SetPetAvatarThumbnailRequest(object value) : IEquatable<SetPetAvata
     /// <returns>A union holding <paramref name="value"/>.</returns>
     public static SetPetAvatarThumbnailRequest FromByte(byte[] value)
     {
-        ArgumentNullException.ThrowIfNull(value);
         return new SetPetAvatarThumbnailRequest(value);
     }
 
@@ -45,7 +44,6 @@ public class SetPetAvatarThumbnailRequest(object value) : IEquatable<SetPetAvata
     /// <returns>A union holding <paramref name="value"/>.</returns>
     public static SetPetAvatarThumbnailRequest FromListByte(List<byte[]> value)
     {
-        ArgumentNullException.ThrowIfNull(value);
         return new SetPetAvatarThumbnailRequest(value);
     }
 

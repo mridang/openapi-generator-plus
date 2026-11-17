@@ -66,9 +66,15 @@ public class StoreApi : BaseApi
     /// <summary>Initializes a new instance of <see cref="StoreApi"/> with the given client, configuration, and default authenticator.</summary>
     /// <param name="apiClient">The HTTP client used to make API calls.</param>
     /// <param name="config">The configuration for the API client.</param>
-    /// <param name="authenticator">Optional default authenticator applied when none is passed per-operation.</param>
-    public StoreApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
-        : base(apiClient, config, authenticator) { }
+    /// <param name="authenticator">Optional default authenticator, used for an operation whose scheme has no credential in <paramref name="schemeAuthenticators"/>.</param>
+    /// <param name="schemeAuthenticators">Optional credential per security scheme, keyed by the scheme name; each operation uses the scheme its spec requires.</param>
+    public StoreApi(
+        IApiClient apiClient,
+        Configuration config,
+        IAuthenticator? authenticator,
+        IReadOnlyDictionary<string, IAuthenticator>? schemeAuthenticators = null
+    )
+        : base(apiClient, config, authenticator, schemeAuthenticators) { }
 
     /// <summary>
     /// Create an account

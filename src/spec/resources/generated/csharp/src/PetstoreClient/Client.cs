@@ -14,7 +14,8 @@ namespace PetstoreClient;
 /// <summary>
 /// Unified entry point for all API services.
 ///
-/// Takes an <see cref="IAuthenticator"/> and optionally <see cref="TransportOptions"/>,
+/// Takes an <see cref="IAuthenticator"/> (or one optional credential per security scheme,
+/// named after the scheme) and optionally <see cref="TransportOptions"/>,
 /// then exposes each API group as a typed property. If the authenticator
 /// implements <see cref="IHttpAwareAuthenticator"/>, the shared <see cref="IApiClient"/>
 /// is injected so that authentication HTTP calls (token exchange, discovery)
@@ -53,15 +54,83 @@ public sealed class Client : IDisposable
     /// <summary>
     /// Creates a new client with the given authenticator and transport options.
     ///
-    /// If the authenticator implements <see cref="IHttpAwareAuthenticator"/>, the
-    /// shared <see cref="IApiClient"/> is injected so that token exchange and
-    /// discovery requests use the same proxy, TLS, and timeout settings.
+    /// The authenticator is the credential for every operation. If it implements
+    /// <see cref="IHttpAwareAuthenticator"/>, the shared <see cref="IApiClient"/>
+    /// is injected so that token exchange and discovery requests use the same
+    /// proxy, TLS, and timeout settings.
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     /// <param name="transportOptions">HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
     public Client(IAuthenticator authenticator, TransportOptions? transportOptions)
+        : this(HostOf(authenticator), authenticator, NoSchemeAuthenticators, transportOptions) { }
+
+    /// <summary>
+    /// Creates a new client that holds one optional credential per security scheme the spec
+    /// declares, each named after its scheme. An operation uses the credential of the scheme its
+    /// spec requires; a call cannot pick another scheme. An operation whose scheme has no
+    /// credential here is sent without one.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="petStoreBasic">Credential for the <c>petStoreBasic</c> security scheme, or null for none.</param>
+    /// <param name="adminBasic">Credential for the <c>adminBasic</c> security scheme, or null for none.</param>
+    /// <param name="petStoreBearer">Credential for the <c>petStoreBearer</c> security scheme, or null for none.</param>
+    /// <param name="serviceToken">Credential for the <c>serviceToken</c> security scheme, or null for none.</param>
+    /// <param name="apiKeyHeader">Credential for the <c>apiKeyHeader</c> security scheme, or null for none.</param>
+    /// <param name="internalApiKey">Credential for the <c>internalApiKey</c> security scheme, or null for none.</param>
+    /// <param name="apiKeyQuery">Credential for the <c>apiKeyQuery</c> security scheme, or null for none.</param>
+    /// <param name="sessionCookie">Credential for the <c>sessionCookie</c> security scheme, or null for none.</param>
+    /// <param name="machineAuth">Credential for the <c>machineAuth</c> security scheme, or null for none.</param>
+    /// <param name="legacyAuth">Credential for the <c>legacyAuth</c> security scheme, or null for none.</param>
+    /// <param name="userAuth">Credential for the <c>userAuth</c> security scheme, or null for none.</param>
+    /// <param name="browserAuth">Credential for the <c>browserAuth</c> security scheme, or null for none.</param>
+    /// <param name="ssoAuth">Credential for the <c>ssoAuth</c> security scheme, or null for none.</param>
+    /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    public Client(
+        string host,
+        PetstoreClient.Auth.PetStoreBasicAuthenticator? petStoreBasic = null,
+        PetstoreClient.Auth.AdminBasicAuthenticator? adminBasic = null,
+        PetstoreClient.Auth.PetStoreBearerAuthenticator? petStoreBearer = null,
+        PetstoreClient.Auth.ServiceTokenAuthenticator? serviceToken = null,
+        PetstoreClient.Auth.ApiKeyHeaderAuthenticator? apiKeyHeader = null,
+        PetstoreClient.Auth.InternalApiKeyAuthenticator? internalApiKey = null,
+        PetstoreClient.Auth.ApiKeyQueryAuthenticator? apiKeyQuery = null,
+        PetstoreClient.Auth.SessionCookieAuthenticator? sessionCookie = null,
+        PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator? machineAuth = null,
+        PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator? legacyAuth = null,
+        PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator? userAuth = null,
+        PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator? browserAuth = null,
+        PetstoreClient.Auth.OAuth.SsoAuthAuthenticator? ssoAuth = null,
+        TransportOptions? transportOptions = null
+    )
+        : this(
+            host,
+            null,
+            SchemeAuthenticatorMap(
+                ("petStoreBasic", petStoreBasic),
+                ("adminBasic", adminBasic),
+                ("petStoreBearer", petStoreBearer),
+                ("serviceToken", serviceToken),
+                ("apiKeyHeader", apiKeyHeader),
+                ("internalApiKey", internalApiKey),
+                ("apiKeyQuery", apiKeyQuery),
+                ("sessionCookie", sessionCookie),
+                ("machineAuth", machineAuth),
+                ("legacyAuth", legacyAuth),
+                ("userAuth", userAuth),
+                ("browserAuth", browserAuth),
+                ("ssoAuth", ssoAuth)
+            ),
+            transportOptions
+        ) { }
+
+    private Client(
+        string host,
+        IAuthenticator? authenticator,
+        IReadOnlyDictionary<string, IAuthenticator> schemeAuthenticators,
+        TransportOptions? transportOptions
+    )
     {
-        ArgumentNullException.ThrowIfNull(authenticator);
+        ArgumentNullException.ThrowIfNull(host);
         transportOptions ??= TransportOptions.Builder().Build();
 
         _apiClient = new DefaultApiClient(transportOptions);
@@ -70,10 +139,41 @@ public sealed class Client : IDisposable
         {
             httpAware.SetApiClient(_apiClient);
         }
+        foreach (IAuthenticator scheme in schemeAuthenticators.Values)
+        {
+            if (scheme is IHttpAwareAuthenticator schemeHttpAware)
+            {
+                schemeHttpAware.SetApiClient(_apiClient);
+            }
+        }
 
-        Configuration config = Configuration.Builder().BaseUrl(authenticator.GetHost()).Build();
-        Pet = new PetApi(_apiClient, config, authenticator);
-        Store = new StoreApi(_apiClient, config, authenticator);
+        Configuration config = Configuration.Builder().BaseUrl(host).Build();
+        Pet = new PetApi(_apiClient, config, authenticator, schemeAuthenticators);
+        Store = new StoreApi(_apiClient, config, authenticator, schemeAuthenticators);
+    }
+
+    private static readonly IReadOnlyDictionary<string, IAuthenticator> NoSchemeAuthenticators =
+        new Dictionary<string, IAuthenticator>();
+
+    private static string HostOf(IAuthenticator authenticator)
+    {
+        ArgumentNullException.ThrowIfNull(authenticator);
+        return authenticator.GetHost();
+    }
+
+    private static Dictionary<string, IAuthenticator> SchemeAuthenticatorMap(
+        params (string Scheme, IAuthenticator? Authenticator)[] entries
+    )
+    {
+        var map = new Dictionary<string, IAuthenticator>();
+        foreach ((string scheme, IAuthenticator? authenticator) in entries)
+        {
+            if (authenticator is not null)
+            {
+                map[scheme] = authenticator;
+            }
+        }
+        return map;
     }
 
     /// <summary>

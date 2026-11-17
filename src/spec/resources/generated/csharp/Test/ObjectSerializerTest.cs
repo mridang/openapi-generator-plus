@@ -575,6 +575,57 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void ConstructingAModelWithANullRequiredValueDoesNotThrow()
+        {
+            // F316: a model checks nothing when it is built in code.
+            var viaConstructor = new Account(null!);
+            var viaInitializer = new Account { Username = null! };
+
+            Assert.Null(viaConstructor.Username);
+            Assert.Null(viaInitializer.Username);
+        }
+
+        [Fact]
+        public void DecodingANullRequiredValueFailsLoudly()
+        {
+            // F316: the null is refused at decode, with the property named.
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Account>("{\"username\":null}")
+            );
+
+            Assert.Contains("username", ex.Message, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void ConstructingAModelWithAnUnknownEnumValueDoesNotThrow()
+        {
+            // F316: an enum value outside the declared set is only refused when decoded.
+            var pet = new Pet("Rex", new HashSet<string>()) { Status = (Pet.StatusEnum)999 };
+
+            Assert.Equal((Pet.StatusEnum)999, pet.Status);
+        }
+
+        [Fact]
+        public void DecodingAnUnknownEnumStringFailsLoudly()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Pet>(
+                    "{\"name\":\"Rex\",\"photoUrls\":[],\"status\":\"nonsense\"}"
+                )
+            );
+
+            Assert.Contains("nonsense", ex.Message, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BuildingAUnionFromANullVariantDoesNotThrow()
+        {
+            var union = ReserveStockResponse.FromReservation(null!);
+
+            Assert.Null(union.ActualInstance);
+        }
+
+        [Fact]
         public void ThrownSerializationExceptionHasMessage()
         {
             var ex = Assert.Throws<SerializationException>(() =>

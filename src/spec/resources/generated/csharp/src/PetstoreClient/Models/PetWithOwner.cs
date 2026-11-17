@@ -13,7 +13,7 @@ namespace PetstoreClient.Models;
 /// <summary>
 /// A pet record extended with owner information
 /// </summary>
-public record PetWithOwner
+public record PetWithOwner : global::System.Text.Json.Serialization.IJsonOnDeserialized
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -114,12 +114,7 @@ public record PetWithOwner
     public required string Name
     {
         get => _name;
-        init =>
-            _name =
-                value
-                ?? throw new System.Text.Json.JsonException(
-                    "Required property 'name' on PetWithOwner was null"
-                );
+        init => _name = value;
     }
 
     private readonly string _name = null!;
@@ -132,12 +127,7 @@ public record PetWithOwner
     public required HashSet<string> PhotoUrls
     {
         get => _photoUrls;
-        init =>
-            _photoUrls =
-                value
-                ?? throw new System.Text.Json.JsonException(
-                    "Required property 'photoUrls' on PetWithOwner was null"
-                );
+        init => _photoUrls = value;
     }
 
     private readonly HashSet<string> _photoUrls = null!;
@@ -196,15 +186,38 @@ public record PetWithOwner
     public required string OwnerName
     {
         get => _ownerName;
-        init =>
-            _ownerName =
-                value
-                ?? throw new System.Text.Json.JsonException(
-                    "Required property 'ownerName' on PetWithOwner was null"
-                );
+        init => _ownerName = value;
     }
 
     private readonly string _ownerName = null!;
+
+    /// <summary>
+    /// Runs after a payload is decoded into this model. A required property
+    /// that arrived as an explicit null is refused here, with a
+    /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
+    /// model is constructed in code: the check belongs to decoding only.
+    /// </summary>
+    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
+    {
+        if (_name is null)
+        {
+            throw new System.Text.Json.JsonException(
+                "Required property 'name' on PetWithOwner was null"
+            );
+        }
+        if (_photoUrls is null)
+        {
+            throw new System.Text.Json.JsonException(
+                "Required property 'photoUrls' on PetWithOwner was null"
+            );
+        }
+        if (_ownerName is null)
+        {
+            throw new System.Text.Json.JsonException(
+                "Required property 'ownerName' on PetWithOwner was null"
+            );
+        }
+    }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

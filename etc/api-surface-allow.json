@@ -3467,6 +3467,36 @@
    ],
    "value": "*options, requestcontenttype)",
    "reason": "owner decision F827 (2026-11-17): the trailing nullable Options argument that carries the per-call settings, ahead of the content-type selector, which java keeps last. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "client.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F857 owner decision: the csharp client also takes one optional credential per distinct security scheme, named after the scheme (new Client(host, petStoreBasic: ..., transportOptions)); the (authenticator, transportOptions) constructor is kept beside it, so a call site written against the canonical shape still compiles"
+  },
+  {
+   "element": [
+    "*api.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F857 owner decision: an API class also takes the per-scheme credentials the client holds (an optional fourth schemeAuthenticators argument keyed by scheme name), which an operation resolves for the scheme its spec requires; the (apiClient, config, authenticator) call site is unchanged"
+  },
+  {
+   "element": [
+    "*options.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F857 owner decision: no per-call scheme override. An operation uses the credential of the scheme its spec requires, so the csharp Options record carries no Auth member; the other languages drop it when they adopt F857"
   }
  ]
 }
