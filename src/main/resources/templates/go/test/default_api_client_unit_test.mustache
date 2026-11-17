@@ -2239,6 +2239,36 @@ func TestBhvErrors038_DefaultApiClientUnit_BodyTruncatedAfterHeadersReturnsNetwo
 	}
 }
 
+// A body that fails to read after the headers arrived is wrapped in a
+// *NetworkError whose message names the read and keeps the read error as cause.
+func TestBhvErrors043_DefaultApiClientUnit_BodyReadFailureIsWrappedInNetworkError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "1024")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("partial"))
+		w.(http.Flusher).Flush()
+		panic(http.ErrAbortHandler)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/cut-short", map[string]string{}, nil)
+	if resp != nil {
+		t.Fatalf("expected no response for a failed body read, got status %d", resp.StatusCode)
+	}
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	if !strings.HasPrefix(netErr.Error(), "failed to read response body: ") {
+		t.Errorf("expected the read to be named in the message, got %q", netErr.Error())
+	}
+	if netErr.Cause() == nil {
+		t.Error("expected the read error to be kept as the cause")
+	}
+}
+
 // F823: the retry rules of base_api. Only these statuses are transient.
 func TestBhvRetries024_DefaultApiClientUnit_IsRetryableStatus_IsTheTransientSet(t *testing.T) {
 	t.Parallel()
