@@ -46,7 +46,7 @@ interface Authenticator {
  *
  * An operation declared `security: []` is explicitly unauthenticated. The
  * generated operation method passes [NoAuth] (rather than `null`) as the
- * per-call auth argument so [BaseApi.invokeApi] can distinguish three states:
+ * per-call auth argument so [com.example.petstore.api.BaseApi.invokeApi] can distinguish three states:
  *
  *  - [NoAuth]                  -> apply NO authentication; the client-level
  *                                 authenticator is deliberately suppressed so an

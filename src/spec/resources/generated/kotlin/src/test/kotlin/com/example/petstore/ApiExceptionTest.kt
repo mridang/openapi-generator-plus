@@ -15,6 +15,7 @@ import com.example.petstore.errors.OpenAPIException
 import com.example.petstore.errors.SerializationException
 import com.example.petstore.errors.ServerException
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class ApiExceptionTest {

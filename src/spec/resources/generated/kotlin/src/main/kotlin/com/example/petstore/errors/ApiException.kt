@@ -179,6 +179,10 @@ open class ApiException : OpenAPIException {
             requestPath: String? = null,
         ): ApiException {
             val message = "API returned status code $statusCode"
+            // kotlinx reads a bare token such as <html> as a non-string primitive
+            // even with isLenient off, so only a real JSON number, true, false or
+            // null counts as a JSON body here.
+            val jsonLiteral = Regex("true|false|null|-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?")
             val errorBody: Any? =
                 if (responseBody.isNullOrEmpty()) {
                     null
@@ -187,7 +191,9 @@ open class ApiException : OpenAPIException {
                         // Route through ObjectSerializer so the nesting-depth
                         // cap refuses a deeply-nested error payload before it
                         // can recurse through the call stack.
-                        ObjectSerializer().parseToJsonElement(responseBody)
+                        ObjectSerializer()
+                            .parseToJsonElement(responseBody)
+                            .takeIf { it !is JsonPrimitive || it.isString || jsonLiteral.matches(it.content) }
                     } catch (_: SerializationException) {
                         null
                     }
