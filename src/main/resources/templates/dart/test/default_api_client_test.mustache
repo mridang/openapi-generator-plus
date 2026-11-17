@@ -459,7 +459,55 @@ Future<void> main(List<String> args) async {
       }
     });
 
-    test('bhv retries 010 307 https->http with a body throws (no body replay)', () async {
+    test('bhv retries 016 HTTPS->HTTPS body replay is allowed (no downgrade)', () async {
+      final certDir = 'test/fixtures/certs';
+      final tlsContext = SecurityContext()
+        ..useCertificateChain('$certDir/server.pem')
+        ..usePrivateKey('$certDir/server-key.pem');
+
+      String landedBody = '';
+      final target = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      target.listen((request) async {
+        landedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+      final source = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      source.listen((request) async {
+        await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 307
+          ..headers.set('Location', 'https://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder().verifySsl(false).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final response = await client.sendRequest(
+          'POST',
+          'https://127.0.0.1:${source.port}/start',
+          {'Content-Type': 'application/x-www-form-urlencoded'},
+          Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+        );
+        expect(response.statusCode, equals(200));
+        expect(landedBody, equals('client_secret=hunter2'));
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    test('bhv retries 010 bhv retries 020 307 https->http with a body throws (no body replay)', () async {
       final certDir = 'test/fixtures/certs';
       final tlsContext = SecurityContext()
         ..useCertificateChain('$certDir/server.pem')

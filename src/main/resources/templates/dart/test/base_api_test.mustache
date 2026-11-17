@@ -994,7 +994,7 @@ void main() {
      * does NOT mean the SDK must always send the key. When the caller omits
      * status (leaves it null), no `status=` may appear on the wire, exactly
      * like any other absent optional query param. */
-    test('bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query', () async {
+    test('bhv serializationwire 010 bhv serializationwire 001 findPetsByStatus omitting status sends no status= in query', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -1206,6 +1206,35 @@ void main() {
           utf8.encode('hello world'),
         );
         expect(receivedBody, contains('hello world'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv serializationwire 013 form-urlencoded body keeps a well-formed surrogate pair', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String receivedBody = '';
+      server.listen((request) async {
+        receivedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final api = BaseApi(
+          apiClient: DefaultApiClient(),
+          config: ConfigurationBuilder().baseUrl('http://localhost:${server.port}').build(),
+        );
+        await api.invokeApi(
+          method: 'POST',
+          path: '/api/test',
+          body: <String, Object?>{'name': '\u{1F600}'},
+          contentType: 'application/x-www-form-urlencoded',
+        );
+        expect(receivedBody, equals('name=%F0%9F%98%80'));
       } finally {
         await server.close();
       }
@@ -1594,7 +1623,7 @@ void main() {
      * contract already honoured by go/node/java; exercised here on the live
      * BaseApi._buildMultipartBody output via the real uploadPetDocument
      * operation (field name `file`). */
-    test('multipart raw-bytes part reuses field name as filename and falls back to octet-stream', () async {
+    test('bhv serializationwire 049 multipart raw-bytes part reuses field name as filename and falls back to octet-stream', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -2114,7 +2143,7 @@ void main() {
 
     // -- CharsetDecodingTests --
 
-    test('decodes ISO-8859-1 charset body to correct string', () async {
+    test('bhv serializationwire 032 decodes ISO-8859-1 charset body to correct string', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -2139,7 +2168,7 @@ void main() {
       }
     });
 
-    test('defaults to UTF-8 when no charset is specified', () async {
+    test('bhv serializationwire 034 defaults to UTF-8 when no charset is specified', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -2533,6 +2562,19 @@ void main() {
       expect(auth.invalidations, equals(0));
     });
 
+    test('bhv retries 007 a 403 is not replayed and keeps the token', () async {
+      final auth = _RotatingAuth();
+      final client = _ScriptedApiClient([_reply(403), _reply(200)]);
+      final api = _RecordingApi(client, authenticator: auth);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<ForbiddenException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+      expect(auth.invalidations, equals(0));
+    });
+
     test('a 401 is replayed even when retries are disabled', () async {
       final auth = _RotatingAuth();
       final client = _ScriptedApiClient([_reply(401), _reply(200)], maxRetries: 0);
@@ -2557,7 +2599,7 @@ void main() {
       expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
     });
 
-    test('the wait doubles and the failure is reported after maxRetries retries', () async {
+    test('bhv retries 024 the wait doubles and the failure is reported after maxRetries retries', () async {
       final client = _ScriptedApiClient([_reply(500), _reply(500), _reply(500)]);
       final api = _RecordingApi(client);
 
@@ -2568,6 +2610,17 @@ void main() {
       expect(client.sentHeaders, hasLength(3));
       expect(api.waits.map((w) => w.inMilliseconds).toList(), hasLength(2));
       expect(api.waits[1].inMilliseconds, inInclusiveRange(750, 1000));
+    });
+
+    test('bhv retries 021 retries exactly the retryable statuses', () async {
+      for (final status in [408, 409, 429, 500, 502, 503, 504]) {
+        final client = _ScriptedApiClient([_reply(status), _reply(200)]);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(client.sentHeaders, hasLength(2), reason: 'status $status');
+      }
     });
 
     test('408, 409, 429 and 502 are retried', () async {
@@ -2594,7 +2647,7 @@ void main() {
       }
     });
 
-    test('maxRetries 0 sends once', () async {
+    test('bhv retries 018 maxRetries 0 sends the request once', () async {
       final client = _ScriptedApiClient([_reply(503), _reply(200)], maxRetries: 0);
       final api = _RecordingApi(client);
 
@@ -2617,7 +2670,7 @@ void main() {
       expect(api.waits, equals([const Duration(seconds: 3)]));
     });
 
-    test('Retry-After as an HTTP date sets the wait', () async {
+    test('bhv retries 022 Retry-After as an HTTP date sets the wait', () async {
       final date = HttpDate.format(DateTime.now().toUtc().add(const Duration(seconds: 30)));
       final client = _ScriptedApiClient([
         _reply(503, headers: {'retry-after': date}),
@@ -2630,7 +2683,7 @@ void main() {
       expect(api.waits.single.inSeconds, inInclusiveRange(28, 30));
     });
 
-    test('Retry-After is capped at 60 seconds', () async {
+    test('bhv retries 023 Retry-After is capped at 60 seconds', () async {
       final client = _ScriptedApiClient([
         _reply(503, headers: {'retry-after': '3600'}),
         _reply(200),
@@ -2642,7 +2695,23 @@ void main() {
       expect(api.waits, equals([const Duration(seconds: 60)]));
     });
 
-    test('a wait that would outlast the timeout is not taken', () async {
+    test('bhv retries 019 each call starts its own timeout budget', () async {
+      final client = _ScriptedApiClient([
+        _reply(503),
+        _reply(200),
+        _reply(503),
+        _reply(200),
+      ]);
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(method: 'GET', path: '/x', timeout: 1000);
+      await api.invokeApi(method: 'GET', path: '/x', timeout: 1000);
+
+      expect(client.sentTimeouts, equals([1000, 1000, 1000, 1000]));
+      expect(api.waits, hasLength(2));
+    });
+
+    test('bhv retries 025 a wait that would outlast the timeout is not taken', () async {
       final client = _ScriptedApiClient(
         [_reply(503, headers: {'retry-after': '5'}), _reply(200)],
         timeoutMillis: 1000,
@@ -2657,7 +2726,7 @@ void main() {
       expect(api.waits, isEmpty);
     });
 
-    test('a network error before a response is retried', () async {
+    test('bhv retries 013 a network error before a response is retried', () async {
       final client = _ScriptedApiClient([
         const NetworkException(message: 'connection reset'),
         _reply(200),
@@ -2809,7 +2878,7 @@ void main() {
       expect(client.sentTimeouts, equals([1500, null]));
     });
 
-    test('maxRetries 0 turns retries off for this call', () async {
+    test('bhv retries 014 maxRetries 0 turns retries off for this call', () async {
       final client = _ScriptedApiClient([_reply(503), _reply(200)]);
       final api = _RecordingApi(client);
 
