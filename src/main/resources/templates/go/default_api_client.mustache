@@ -333,7 +333,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 			return nil, errors_pkg.NewApiError(
 				resp.StatusCode,
 				redirectRefusalMessage(err),
-				"", lowerCaseHeaders(resp.Header), nil, err,
+				"", refusedResponseHeaders(resp.Header), nil, err,
 			)
 		}
 		if errors.Is(ctx.Err(), context.Canceled) {
@@ -410,6 +410,32 @@ func lowerCaseHeaders(header http.Header) map[string]string {
 		respHeaders[strings.ToLower(k)] = strings.Join(vs, ", ")
 	}
 	return respHeaders
+}
+
+// refusedResponseHeaders is lowerCaseHeaders for a refused redirect. The
+// Location of that response is the URL the SDK refused to follow, and it can
+// carry a query-parameter credential, so its query is replaced by "***" as it
+// is in the refusal message. Without it the error text would repeat the secret.
+func refusedResponseHeaders(header http.Header) map[string]string {
+	respHeaders := lowerCaseHeaders(header)
+	if location, ok := respHeaders["location"]; ok {
+		respHeaders["location"] = redactLocation(location)
+	}
+	return respHeaders
+}
+
+// redactLocation renders a Location value with its query replaced by "***". A
+// value that does not parse as a URL has everything after its first "?"
+// replaced, so no query text survives.
+func redactLocation(location string) string {
+	parsed, err := url.Parse(location)
+	if err != nil {
+		if i := strings.IndexByte(location, '?'); i >= 0 {
+			return location[:i] + "?***"
+		}
+		return location
+	}
+	return redactURL(parsed)
 }
 
 // newTransportError classifies a net/http transport failure. An error that
