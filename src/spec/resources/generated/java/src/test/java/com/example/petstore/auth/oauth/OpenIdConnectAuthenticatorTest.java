@@ -138,7 +138,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void failedDiscoveryNamesTheRequestInTheError() {
+  void bhvAuthOidc033FailedDiscoveryNamesTheRequestInTheError() {
     ApiClient client = (method, url, headers, body) -> new ApiHttpResponse(500, "oops", Map.of());
     OpenIdConnectAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
@@ -306,7 +306,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void discoveryRejectsAPlainHttpTokenEndpoint() {
+  void bhvAuthOidc032DiscoveryRejectsAPlainHttpTokenEndpoint() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -404,6 +404,50 @@ class OpenIdConnectAuthenticatorTest {
 
     // The cached discovery document must be reused on the second call.
     assertEquals(1, getCalls.get());
+  }
+
+  @Test
+  void bhvAuthOidc030DiscoveryWithMaxAgeZeroIsFetchedAgainOnEveryUse() {
+    var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          getCalls.incrementAndGet();
+          return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of("Cache-Control", "max-age=0"));
+        };
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.buildAuthorizationUrl(null);
+    auth.buildAuthorizationUrl(null);
+
+    assertEquals(2, getCalls.get());
+  }
+
+  @Test
+  void bhvAuthOidc031DiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed()
+      throws ReflectiveOperationException {
+    var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          getCalls.incrementAndGet();
+          return new ApiHttpResponse(
+              200, DISCOVERY_RESPONSE, Map.of("Cache-Control", "max-age=3600"));
+        };
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    auth.buildAuthorizationUrl(null);
+    assertEquals(1, getCalls.get());
+
+    // Move the cached expiry into the past instead of waiting out the max-age.
+    java.lang.reflect.Field expiryField =
+        OpenIdConnectAuthenticator.class.getDeclaredField("discoveryExpiry");
+    expiryField.setAccessible(true);
+    expiryField.set(auth, java.time.Instant.now().minusSeconds(1));
+
+    auth.buildAuthorizationUrl(null);
+    assertEquals(2, getCalls.get());
   }
 
   @Test

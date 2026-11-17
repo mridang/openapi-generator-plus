@@ -733,8 +733,10 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("query key and value keep only the RFC 3986 unreserved set literal")
-    void queryEncodingKeepsOnlyUnreservedLiteral() throws ApiException {
+    @DisplayName(
+        "bhvSerializationParam107 query key and value keep only the RFC 3986 unreserved set"
+            + " literal")
+    void bhvSerializationParam107QueryEncodingKeepsOnlyUnreservedLiteral() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       Map<String, Object> queryParams = new HashMap<>();
@@ -1173,6 +1175,27 @@ class BaseApiTest {
     }
 
     @Test
+    void bhvAuthIntegration019InvalidAuthCookieIsRefusedBeforeAnyRequest() throws Exception {
+      var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "a;b"));
+      IllegalArgumentException error =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () ->
+                  api()
+                      .call(
+                          "GET",
+                          "/test/echo",
+                          new HashMap<>(),
+                          new HashMap<>(),
+                          null,
+                          new String[] {"application/json"},
+                          "application/json",
+                          JSON_NODE_TYPE,
+                          auth));
+      assertTrue(error.getMessage().contains("RFC 6265"), error.getMessage());
+    }
+
+    @Test
     @DisplayName(
         "bhvAuthIntegration009 falls back to client-level authenticator when no per-call auth is"
             + " supplied")
@@ -1274,8 +1297,9 @@ class BaseApiTest {
 
     @Test
     @DisplayName(
-        "a client-configured apiKey-header authenticator is applied to the outbound request")
-    void appliesConfiguredApiKeyAuthenticator() throws Exception {
+        "bhvAuthIntegration018 a client-configured apiKey-header authenticator is applied to the"
+            + " outbound request")
+    void bhvAuthIntegration018AppliesConfiguredApiKeyAuthenticator() throws Exception {
       ApiKeyAuthenticator auth =
           new ApiKeyAuthenticator(
               ChasmContainer.getBaseUrl(), "X-API-Key", "secret-key", ApiKeyLocation.HEADER);

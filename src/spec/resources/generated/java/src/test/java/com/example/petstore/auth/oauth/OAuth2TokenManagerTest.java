@@ -525,6 +525,31 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
+  void bhvAuthOauthTwoTokenMgr046StringExpiresInOutsideTheDecimalGrammarIsStale() {
+    // Only plain decimal digits with an optional fraction are a lifetime; an exponent is not.
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          int n = callCount.incrementAndGet();
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"exp" + n + "\",\"expires_in\":\"1e3\"}", Map.of());
+        };
+
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    assertEquals("exp1", manager.getAccessToken("https://auth.example.com/token", params));
+    assertEquals("exp2", manager.getAccessToken("https://auth.example.com/token", params));
+    assertEquals(
+        2,
+        callCount.get(),
+        "an expires_in outside the decimal grammar must not produce a cached expiry");
+  }
+
+  @Test
   void expiresInWithTypeSuffixIsTreatedAsStale() {
     // Double.parseDouble accepts "3600d"; the grammar is decimal digits with
     // an optional fraction, so this is unusable and the token is not cached.
@@ -549,7 +574,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void expiresInQuotedWithTrailingNewlineIsAccepted() {
+  void bhvAuthOauthTwoTokenMgr045ExpiresInQuotedWithTrailingNewlineIsAccepted() {
     AtomicInteger callCount = new AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {
@@ -803,6 +828,49 @@ class OAuth2TokenManagerTest {
     assertEquals("invalid_grant", serverError.getCode());
     assertEquals("refresh token expired", serverError.getDescription());
     assertEquals("https://docs.example.com/errors/invalid_grant", serverError.getUri());
+  }
+
+  @Test
+  void bhvAuthOauthTwoTokenMgr042ServerErrorMessageNamesTheStatusCodeAndDescription() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(
+        fakeClient(
+            400, "{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\"}"));
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    OAuth2ServerException serverError =
+        assertThrowsExactly(
+            OAuth2ServerException.class,
+            () -> manager.getAccessToken("https://auth.example.com/token", params));
+    assertEquals(
+        "Token request failed with status 400: invalid_grant -- refresh token expired",
+        serverError.getMessage());
+  }
+
+  @Test
+  void bhvAuthOauthTwoTokenMgr043TokenRequestBodyUsesTheFixedKeyOrder() {
+    java.util.List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(String.valueOf(body));
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new java.util.LinkedHashMap<>();
+    params.put("scope", "read write");
+    params.put("client_secret", "my-secret");
+    params.put("client_id", "my-client");
+    params.put("grant_type", "client_credentials");
+    manager.getAccessToken("https://auth.example.com/token", params);
+
+    assertEquals(
+        "grant_type=client_credentials&client_id=my-client&client_secret=my-secret&scope=read+write",
+        bodies.get(0));
   }
 
   private static Map<String, String> formFields(String body) {
