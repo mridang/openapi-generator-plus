@@ -8,6 +8,7 @@ import (
 	"fmt"
 	neturl "net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -538,6 +539,66 @@ func TestBhvAuthoidc011_OpenIdConnectAuthenticator_FetchesDiscoveryDocumentOnlyO
 	// The cached discovery document must be reused on the second call.
 	if got := atomic.LoadInt32(&client.getCount); got != 1 {
 		t.Errorf("expected discovery to be fetched once, got %d GET requests", got)
+	}
+}
+
+// gatedOIDCClient holds every discovery request until its gate is opened and counts
+// the GET requests; entered is closed when the first one arrives.
+type gatedOIDCClient struct {
+	entered  chan struct{}
+	gate     chan struct{}
+	getCount int32
+}
+
+func (c *gatedOIDCClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *gatedOIDCClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	_ = opts
+	if method == "GET" && atomic.AddInt32(&c.getCount, 1) == 1 {
+		close(c.entered)
+	}
+	<-c.gate
+	return &auth.ApiHttpResponse{
+		StatusCode: 200,
+		Body:       `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`,
+		Headers:    map[string]string{},
+	}, nil
+}
+
+// Callers that arrive while a cold authenticator is still fetching its discovery
+// document wait for that one fetch, so the document is requested once.
+func TestBhvAuthoidc029_OpenIdConnectAuthenticator_ConcurrentCallersOnAColdAuthenticatorShareOneDiscovery(t *testing.T) {
+	t.Parallel()
+	client := &gatedOIDCClient{entered: make(chan struct{}), gate: make(chan struct{})}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	errs := make(chan error, 5)
+	var wg sync.WaitGroup
+	call := func() {
+		defer wg.Done()
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			errs <- err
+		}
+	}
+	wg.Add(1)
+	go call()
+	<-client.entered
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go call()
+	}
+	close(client.gate)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if got := atomic.LoadInt32(&client.getCount); got != 1 {
+		t.Errorf("expected one discovery request for concurrent callers, got %d", got)
 	}
 }
 

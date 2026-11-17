@@ -407,6 +407,28 @@ func TestBhvSerializationobject074_ObjectSerializer_EdgeCases_SlugRoundTripsWith
 	}
 }
 
+func TestBhvSerializationobject185_ObjectSerializer_Deserialize_CanonicalPaddedBase64IsAccepted(t *testing.T) {
+	t.Parallel()
+	var passport models.PetPassport
+	if err := deserialize([]byte(`{"thumbnail":"dGVzdA=="}`), &passport); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if passport.Thumbnail == nil || string(*passport.Thumbnail) != "test" {
+		t.Errorf("expected the bytes of \"test\", got %v", passport.Thumbnail)
+	}
+}
+
+func TestBhvSerializationobject186_ObjectSerializer_Serialize_OnlyQuoteBackslashAndControlsAreEscaped(t *testing.T) {
+	t.Parallel()
+	data, err := serialize("q\"b\\\t\t\n\x01")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := `"q\"b\\\t\t\n\u0001"`; string(data) != want {
+		t.Errorf("expected %s on the wire, got %s", want, data)
+	}
+}
+
 // F1116: the OAS 3.1 contentEncoding property is a byte field, base64 on the
 // wire and raw bytes in the model.
 func TestBhvSerializationobject115_ObjectSerializer_PetPassport_BiometricChipRoundTripsThroughBase64(t *testing.T) {

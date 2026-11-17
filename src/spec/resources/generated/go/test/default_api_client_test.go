@@ -832,6 +832,26 @@ func TestBhvTransport020_DefaultApiClient_MakesRequestThroughProxyWithBasicAuth(
 	}
 }
 
+// Without credentials the authenticating proxy answers 407, and the client returns
+// that answer as a response rather than as a transport error.
+func TestBhvTransport059_DefaultApiClient_AuthenticatingProxyRefusesARequestWithoutCredentials(t *testing.T) {
+	t.Parallel()
+	transport, buildErr := NewTransportOptionsBuilder().
+		Proxy(authProxyURL).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", chasmInternalHTTPURL+"/test/echo", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("expected the proxy's 407 answer, not an error, got %v", err)
+	}
+	if resp.StatusCode != 407 {
+		t.Errorf("expected status 407 without proxy credentials, got %d", resp.StatusCode)
+	}
+}
+
 // Regression: POST/PUT/PATCH with body == nil must emit an explicit
 // Content-Length: 0. Some servers / WAFs reject body-bearing verbs with
 // no Content-Length (411 Length Required). The client attaches an empty
@@ -1459,7 +1479,7 @@ func TestDefaultApiClient_CustomHttpDoerReceivesTheRequest(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_TransportOptionsBuilder_SuppliedTransportConflictsWithSdkProxyAndTlsSettings(t *testing.T) {
+func TestBhvLifecycle024_DefaultApiClient_TransportOptionsBuilder_SuppliedTransportConflictsWithSdkProxyAndTlsSettings(t *testing.T) {
 	t.Parallel()
 	cases := map[string]*TransportOptionsBuilder{
 		"proxy":         NewTransportOptionsBuilder().HttpClient(&recordingDoer{}).Proxy("http://proxy:3128"),

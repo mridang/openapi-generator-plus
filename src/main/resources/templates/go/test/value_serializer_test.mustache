@@ -613,9 +613,17 @@ func TestValueSerializer_SerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
 	}
 }
 
+func TestBhvSerializationparam106_ValueSerializer_SerializeStyled_PathWithNullStyleBehavesLikeSimple(t *testing.T) {
+	t.Parallel()
+	result := serializeStyled("id", "5", "path", "string", "", "", false)
+	if result != "5" {
+		t.Errorf("expected a path with no style to serialize like simple, got %v", result)
+	}
+}
+
 // ── SerializeStyled: form ──
 
-func TestValueSerializer_SerializeStyled_FormScalar(t *testing.T) {
+func TestBhvSerializationparam105_ValueSerializer_SerializeStyled_FormScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "blue", "query", "string", "", "form", true)
 	if result != "blue" {

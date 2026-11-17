@@ -1184,8 +1184,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         entry.put(
                 "firstEnvScheme",
                 !firstBasic && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("firstEnvScheme"))));
+        /* The explicit-credential and reads-once behaviours carry one id each, so only the
+         * first Bearer and the first API-key scheme name their tests with those ids. */
+        final boolean firstBearer = isBearer && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("firstBearer")));
+        entry.put("firstBearer", firstBearer);
+        final boolean isApiKey = "ApiKeyAuthenticator".equals(spec.baseClass());
+        final boolean firstApiKey = isApiKey && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("firstApiKey")));
+        entry.put("firstApiKey", firstApiKey);
         entry.put("isBearer", isBearer);
-        entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+        entry.put("isApiKey", isApiKey);
         entry.put("isOAuth", spec.isOAuth());
         final List<Map<String, Object>> vars = new ArrayList<>();
         for (final Map<String, Object> envVar : envVars) {

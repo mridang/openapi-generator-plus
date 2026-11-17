@@ -141,7 +141,7 @@ func Test{{#firstBasic}}BhvAuthbasic001_{{/firstBasic}}{{#firstEnvScheme}}BhvAut
 	requireScheme{{className}}Credentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_{{className}}_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func Test{{#firstBasic}}BhvAuthbasic013_{{/firstBasic}}{{#firstBearer}}BhvAuthbearer018_{{/firstBearer}}{{#firstApiKey}}BhvSerializationobject187_{{/firstApiKey}}SchemeAuthenticator_{{className}}_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
@@ -186,6 +186,19 @@ func TestBhvAuthscheme002_SchemeAuthenticator_{{className}}_WithProviderAsksTheP
 	if got, want := a.AuthHeaders()["Authorization"], "Bearer provider-token"; got != want {
 		t.Errorf("expected %q, got %q", want, got)
 	}
+}
+
+func Test{{#firstBearer}}BhvLifecycle025_{{/firstBearer}}SchemeAuthenticator_{{className}}_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Setenv(scheme{{className}}Variables[0], "changed-after-build")
+
+	requireScheme{{className}}Credentials(t, a, schemeEnvValue)
 }
 
 func TestSchemeAuthenticator_{{className}}_WithProviderRejectsANilProvider(t *testing.T) {
