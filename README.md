@@ -76,7 +76,7 @@ Each language has a page with its supported versions, type mapping, dependencies
 
 * [docs/how-it-works.md](docs/how-it-works.md): the pipeline, the normalizer, the generated SDK format and the checks a change must pass.
 * [docs/types.md](docs/types.md): how every OpenAPI type and format maps to a type in each language.
-* [docs/decisions.md](docs/decisions.md): the behaviour all twelve SDKs share, and the work that is still open.
+* [docs/decisions.md](docs/decisions.md): the behaviour all twelve SDKs share, what is not supported and why, and the work that is still open.
 
 ## Contributing
 
@@ -84,4 +84,4 @@ Contributions are welcome. If you find a bug or have a suggestion, open an issue
 
 ## License
 
-Apache License 2.0, copyright 2024 Mridang Agarwalla.
+Apache License 2.0, copyright 2024 Mridang Agarwalla. See [LICENSE](LICENSE).
