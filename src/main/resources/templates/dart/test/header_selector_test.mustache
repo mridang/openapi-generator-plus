@@ -150,6 +150,96 @@ void main() {
 
       expect(headers['Accept'], equals('text/html, text/plain'));
     });
+
+    test('bhv headers 009 selectHeaders filters out empty and blank entries', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['', '  ', 'application/json', '\t', ''],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('application/json'));
+    });
+
+    test('bhv headers 017 selectHeaders returns a single accept as-is', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['application/xml'],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('application/xml'));
+    });
+
+    test('bhv headers 024 selectHeaders sets the Accept header when accepts are provided', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['application/json'],
+        'application/json',
+        false,
+      );
+
+      expect(headers.containsKey('Accept'), isTrue);
+    });
+
+    test('bhv headers 025 selectHeaders sets Content-Type when not multipart', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['application/json'],
+        'application/xml',
+        false,
+      );
+
+      expect(headers['Content-Type'], equals('application/xml'));
+    });
+
+    test('bhv headers 012 isJsonMime returns false for application/octet-stream', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('application/octet-stream'), isFalse);
+    });
+
+    test('bhv headers 013 isJsonMime returns false for application/xml', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('application/xml'), isFalse);
+    });
+
+    test('bhv headers 014 isJsonMime returns false for an empty string', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime(''), isFalse);
+    });
+
+    test('bhv headers 016 isJsonMime returns false for text/html', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('text/html'), isFalse);
+    });
+
+    test('bhv headers 019 isJsonMime returns true for application/json', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('application/json'), isTrue);
+    });
+
+    test('bhv headers 020 isJsonMime returns true for application/json with a charset', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('application/json; charset=utf-8'), isTrue);
+    });
+
+    test('bhv headers 022 isJsonMime returns true for vendor JSON types', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('application/vnd.api+json'), isTrue);
+    });
   });
 }
 {{/generateTests}}
