@@ -304,9 +304,10 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-value", {{/envVars}}environment: [:])
     }
 
-    /* The credential keyword is optional: leaving it out reads the environment. */
-    @Test func testBhvLifecycle015{{className}}CredentialKeywordCanBeOmitted() throws {
-        _ = try {{className}}(host: "https://api.example.com", environment: [{{#envVars}}"{{envName}}": "env-value", {{/envVars}}])
+    /* The credential keyword is optional: the public initializer takes the host alone. */
+    @Test func testBhvLifecycle015{{className}}CredentialKeywordCanBeOmitted() {
+        let hostAlone: (String) throws -> {{className}} = { try {{className}}(host: $0) }
+        _ = hostAlone
     }
 
     @Test func testBhvLifecycle004{{className}}FailsWhenACredentialIsMissing() {
