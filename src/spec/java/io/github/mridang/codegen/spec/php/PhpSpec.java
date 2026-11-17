@@ -53,6 +53,19 @@ interface PhpSpec extends LanguageSpec, DockerImageSpec {
             + " echo \"pecl setup attempt $i failed; retrying\" >&2; sleep 3; done;"
             + " for ext in pcov brotli zstd; do php -m | grep -qi \"^$ext$\""
             + " || { echo \"$ext missing after retries\" >&2; exit 1; }; done",
+        /* The docs spec runs phpDocumentor, pinned to v3.10.0 and checked against the SHA-256
+         * digest GitHub publishes for that release asset. It is fetched once into the cache
+         * volume (/root/.cache/php survives runs), so the docs target never downloads at test
+         * time. A per-process temporary name keeps parallel specs from racing on one file. A
+         * failed fetch only warns: the docs spec then fails at its copy step, and the other php
+         * specs keep running. */
+        "mkdir -p /root/.cache/php/phpdoc && { test -f /root/.cache/php/phpdoc/phpDocumentor.phar"
+            + " || { f=/root/.cache/php/phpdoc/phpDocumentor.phar.$$.part"
+            + " && curl -fsSL --retry 3 -o $f"
+            + " https://github.com/phpDocumentor/phpDocumentor/releases/download/v3.10.0/phpDocumentor.phar"
+            + " && echo \"fe1e7c23ba3329aa6f19ac3c807446159a431a195ec5d9163b0c281a15105207  $f\" | sha256sum -c - >/dev/null"
+            + " && mv $f /root/.cache/php/phpdoc/phpDocumentor.phar || { rm -f $f; false; }; }; }"
+            + " || echo 'phpDocumentor 3.10.0 could not be fetched; the docs spec will fail' >&2",
         "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist");
   }
 
