@@ -27,7 +27,7 @@ public record EdgeCases
 
     /// <summary>
     /// Serializes <see cref="PhaseEnum"/> to and from its OpenAPI wire string
-    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// values -- an explicit replacement for the
     /// <c>[JsonStringEnumMemberName]</c> attribute.
     /// </summary>
     private sealed class PhaseEnumConverter : JsonConverter<PhaseEnum>

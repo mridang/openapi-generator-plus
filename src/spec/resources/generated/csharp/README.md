@@ -4,9 +4,9 @@ Auto-generated C# SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- **.NET 8.0** (Long Term Support) runtime / SDK or newer
-- **C# 12** language version (`LangVersion=12`)
-- **dotnet CLI 8.x** or newer — install from <https://dotnet.microsoft.com/download/dotnet/8.0>
+- **.NET 10** (Long Term Support, supported until November 2028) runtime / SDK or newer
+- **C# 14** language version (`LangVersion=14`)
+- **dotnet CLI 10.x** or newer — install from <https://dotnet.microsoft.com/download/dotnet/10.0>
 
 Tooling baked into the project:
 
@@ -263,7 +263,7 @@ Fails when a direct or transitive NuGet package has a known vulnerability (`dotn
 
 The package follows semantic versioning: a patch release only fixes bugs, a minor
 release only adds members, and a major release may change the public API. The
-package targets .NET 8 or newer, and a runtime that reaches its end of support is
+package targets .NET 10 or newer, and a runtime that reaches its end of support is
 dropped from the supported set in a major release. The XML documentation file and
 symbol package (`.snupkg`) ship with it, so IntelliSense and the debugger show the
 summaries and the sources.

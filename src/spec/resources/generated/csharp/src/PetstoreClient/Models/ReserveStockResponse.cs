@@ -15,7 +15,9 @@ namespace PetstoreClient.Models;
 /// One of the success responses of reserveStock.
 /// </summary>
 [JsonConverter(typeof(ReserveStockResponseConverter))]
-public class ReserveStockResponse(object value) : IEquatable<ReserveStockResponse>
+public class ReserveStockResponse(object value)
+    : IEquatable<ReserveStockResponse>,
+        global::PetstoreClient.IOneOfWrapper
 {
     /// <summary>The wrapped variant. The wrapper is immutable: to change it, build another one.</summary>
     public object? ActualInstance { get; } = value;

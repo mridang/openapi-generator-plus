@@ -51,7 +51,7 @@ public record Pet : global::System.Text.Json.Serialization.IJsonOnDeserialized
 
     /// <summary>
     /// Serializes <see cref="StatusEnum"/> to and from its OpenAPI wire string
-    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// values -- an explicit replacement for the
     /// <c>[JsonStringEnumMemberName]</c> attribute.
     /// </summary>
     private sealed class StatusEnumConverter : JsonConverter<StatusEnum>

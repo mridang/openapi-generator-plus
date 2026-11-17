@@ -15,6 +15,16 @@ using PetstoreClient.Errors;
 namespace PetstoreClient;
 
 /// <summary>
+/// Implemented by every generated oneOf wrapper so the serializer can unwrap
+/// it without reflection, which keeps the SDK trim-safe.
+/// </summary>
+internal interface IOneOfWrapper
+{
+    /// <summary>The wrapped variant.</summary>
+    object? ActualInstance { get; }
+}
+
+/// <summary>
 /// Handles JSON serialization and deserialization for API requests and responses.
 /// All serde operations in the generated client route through this class.
 /// The parameter encoding methods provide consistent value conversion for
@@ -53,24 +63,13 @@ internal partial class ObjectSerializer
     /// </exception>
     public string Serialize(object? value)
     {
-        if (value != null)
+        /* An anyOf wrapper carries a MatchedInstances list and is serialized
+         * through its own JsonConverter so the union of every retained
+         * variant's fields is emitted; only a oneOf wrapper is unwrapped to its
+         * single ActualInstance. */
+        if (value is IOneOfWrapper wrapper)
         {
-            System.Type valueType = value.GetType();
-            /* An anyOf wrapper carries a MatchedInstances list and must be
-             * serialized through its own JsonConverter so the union of every
-             * retained variant's fields is emitted. Unwrapping it to a single
-             * ActualInstance here would drop the co-matched variants' data. */
-            bool isAnyOfWrapper = valueType.GetProperty("MatchedInstances") != null;
-            if (!isAnyOfWrapper)
-            {
-                System.Reflection.PropertyInfo? actualProp = valueType.GetProperty(
-                    "ActualInstance"
-                );
-                if (actualProp != null)
-                {
-                    value = actualProp.GetValue(value);
-                }
-            }
+            value = wrapper.ActualInstance;
         }
         try
         {
@@ -927,22 +926,15 @@ internal partial class ObjectSerializer
     }
 
     /// <summary>
-    /// True when <paramref name="value"/>'s runtime type implements
-    /// <see cref="ISet{T}"/> (e.g. <c>HashSet{T}</c>). Sets have no
+    /// True when <paramref name="value"/>'s runtime type is a
+    /// <c>HashSet{T}</c>, the only set type the generator emits. Sets have no
     /// defined enumeration order, so equality and hashing must be
     /// order-independent.
     /// </summary>
     private static bool IsSet(object value)
     {
-        foreach (Type iface in value.GetType().GetInterfaces())
-        {
-            if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(ISet<>))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        Type type = value.GetType();
+        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>);
     }
 
     /// <summary>
