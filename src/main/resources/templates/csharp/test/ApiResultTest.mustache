@@ -58,6 +58,22 @@ public class ApiResultTest
     }
 
     [Fact]
+    public void BhvResults004ExposesTheDeserializedData()
+    {
+        var result = new ApiResult<string>(200, "payload", "\"payload\"", new Dictionary<string, string>());
+
+        Assert.Equal("payload", result.Data);
+    }
+
+    [Fact]
+    public void BhvResults005ExposesTheRawResponseBody()
+    {
+        var result = new ApiResult<string>(200, null, "{\"id\":1}", new Dictionary<string, string>());
+
+        Assert.Equal("{\"id\":1}", result.RawBody);
+    }
+
+    [Fact]
     public void CarriesTypedValueData()
     {
         var result = new ApiResult<int>(200, 42, "42", new Dictionary<string, string>());

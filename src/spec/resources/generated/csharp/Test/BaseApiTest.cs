@@ -449,6 +449,25 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvErrors071A401ResponseSurfacesAsAnUnauthorizedError()
+    {
+        var ex = await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    "/test/status/401",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
+        );
+
+        Assert.Equal(401, ex.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvErrors048Status418ThrowsClientException()
     {
         var ex = await Assert.ThrowsAsync<ClientException>(() =>

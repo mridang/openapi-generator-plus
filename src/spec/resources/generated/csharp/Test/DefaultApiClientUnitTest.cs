@@ -1276,7 +1276,7 @@ public class DefaultApiClientUnitTest
     [InlineData("http://origin.example.com/start", "http://origin.example.com:80/landed")]
     [InlineData("https://origin.example.com/start", "https://origin.example.com:443/landed")]
     [InlineData("http://origin.example.com:80/start", "http://origin.example.com/landed")]
-    public async Task RedirectToExplicitDefaultPortPreservesAuthorization(
+    public async Task BhvRedirects030RedirectToExplicitDefaultPortPreservesAuthorization(
         string start,
         string landed
     )
@@ -1300,7 +1300,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task RedirectToDifferentPortStripsAuthorization()
+    public async Task BhvRedirects033RedirectToDifferentPortStripsAuthorization()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1316,6 +1316,112 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(2, handler.Requests.Count);
         Assert.False(handler.Requests[1].Headers.Contains("Authorization"));
+    }
+
+    [Theory]
+    [InlineData(301, "POST", "GET")]
+    [InlineData(301, "PUT", "PUT")]
+    [InlineData(301, "DELETE", "DELETE")]
+    [InlineData(302, "POST", "GET")]
+    [InlineData(302, "PATCH", "PATCH")]
+    [InlineData(303, "PUT", "GET")]
+    [InlineData(303, "HEAD", "HEAD")]
+    [InlineData(307, "POST", "POST")]
+    [InlineData(308, "DELETE", "DELETE")]
+    public async Task BhvRedirects029ARedirectRewritesTheMethodOnlyAsRfc9110Allows(
+        int status,
+        string method,
+        string expected
+    )
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: (HttpStatusCode)status,
+            location: new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            method,
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(expected, handler.Requests[1].Method.Method);
+    }
+
+    [Fact]
+    public async Task BhvRedirects031AThreeXxWithoutLocationIsReturnedUnchangedWhenTheBudgetIsZero()
+    {
+        var handler = new ScriptedRedirectHandler([(HttpStatusCode.TemporaryRedirect, null)]);
+        var transport = TransportOptions.Builder().MaxRedirects(0).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(307, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Theory]
+    [InlineData("https://origin.example.com/start", "http://origin.example.com/landed")]
+    [InlineData("http://origin.example.com/start", "https://origin.example.com/landed")]
+    [InlineData("http://origin.example.com/start", "http://other.example.com/landed")]
+    [InlineData("http://origin.example.com/start", "http://origin.example.com:8080/landed")]
+    public async Task BhvRedirects034OriginComparisonSeparatesADifferentSchemeHostOrPort(
+        string start,
+        string landed
+    )
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri(landed)
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri(start),
+            new Dictionary<string, string> { { "Authorization", "Bearer secret" } },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("Authorization"));
+    }
+
+    [Theory]
+    [InlineData("POST", "GET")]
+    [InlineData("PUT", "GET")]
+    [InlineData("PATCH", "GET")]
+    [InlineData("DELETE", "GET")]
+    [InlineData("HEAD", "HEAD")]
+    public async Task BhvRedirects036A303TurnsEveryMethodExceptHeadIntoGet(
+        string method,
+        string expected
+    )
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.SeeOther,
+            location: new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            method,
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(expected, handler.Requests[1].Method.Method);
     }
 
     // ---- 3.1: spec-declared apiKey-in-header names are sensitive too ----
@@ -3491,7 +3597,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ANetworkErrorSurfacesWhenTheRetriesAreSpent()
+    public async Task BhvRetries033ANetworkErrorSurfacesWhenTheRetriesAreSpent()
     {
         var handler = new SequenceHandler(_ => throw new HttpRequestException("refused"));
         var client = new DefaultApiClient(
@@ -3504,7 +3610,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task AStreamBodyIsNeverRetried()
+    public async Task BhvRetries032AStreamBodyIsNeverRetried()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(
@@ -3538,7 +3644,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ATextBodyIsSentAgainOnEveryRetry()
+    public async Task BhvRetries034ATextBodyIsSentAgainOnEveryRetry()
     {
         var handler = new SequenceHandler(_ => Respond(503));
         var client = new DefaultApiClient(
@@ -3550,6 +3656,48 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(2, handler.Bodies.Count);
         Assert.All(handler.Bodies, b => Assert.Equal("{\"a\":1}", b));
+    }
+
+    [Fact]
+    public async Task BhvRetries038A503IsSentAgainUntilItSucceeds()
+    {
+        var handler = new SequenceHandler(n => n < 2 ? Respond(503) : Respond(200, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvRetries039EveryRetryIsAFreshRequestCarryingTheSameAuthenticationHeaders()
+    {
+        var handler = new SequenceHandler(n => n < 2 ? Respond(503) : Respond(200, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/retry"),
+            new Dictionary<string, string> { ["Authorization"] = "Bearer abc" },
+            null,
+            false,
+            null,
+            CancellationToken.None
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(3, handler.Requests.Count);
+        Assert.All(
+            handler.Authorizations,
+            authorization => Assert.Equal("Bearer abc", authorization)
+        );
     }
 
     [Fact]
@@ -3649,13 +3797,26 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void BackoffJitterTakesOffAtMostAQuarter()
+    public void BhvRetries030BackoffJitterTakesOffAtMostAQuarter()
     {
         var none = new Dictionary<string, string>();
         var now = DateTimeOffset.UtcNow;
 
         Assert.Equal(TimeSpan.FromSeconds(0.375), DefaultApiClient.RetryDelay(0, none, now, 1));
         Assert.Equal(TimeSpan.FromSeconds(6), DefaultApiClient.RetryDelay(9, none, now, 1));
+    }
+
+    [Fact]
+    public void BhvRetries041BackoffStartsAtHalfASecondDoublesToEightAndTakesUpToAQuarterOff()
+    {
+        var none = new Dictionary<string, string>();
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Equal(TimeSpan.FromSeconds(0.5), DefaultApiClient.RetryDelay(0, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(1), DefaultApiClient.RetryDelay(1, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(8), DefaultApiClient.RetryDelay(4, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(0.375), DefaultApiClient.RetryDelay(0, none, now, 1));
+        Assert.Equal(TimeSpan.FromSeconds(6), DefaultApiClient.RetryDelay(4, none, now, 1));
     }
 
     [Fact]

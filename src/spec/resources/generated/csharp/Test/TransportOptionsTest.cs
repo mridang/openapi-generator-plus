@@ -286,6 +286,17 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void BhvOptions052ProxyUrlCarryingCredentialsIsAccepted()
+    {
+        string password = "pw-" + "marker";
+        string proxy = "http://user:" + password + "@proxy.example.com:8080";
+
+        var opts = TransportOptions.Builder().Proxy(proxy).Build();
+
+        Assert.Equal(proxy, opts.Proxy);
+    }
+
+    [Fact]
     public void BhvOptions009ProxyUrlWithAnIpv6LiteralHostIsAccepted()
     {
         var opts = TransportOptions.Builder().Proxy("http://[::1]:3128").Build();
