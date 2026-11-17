@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use {{packageName}}::*;
 
 #[test]
-fn test_configuration_default_values() {
+fn test_bhv_config_014_configuration_default_values() {
     let config = Configuration::default();
 
     assert_eq!(config.base_url(), "{{{basePath}}}");
@@ -13,7 +13,7 @@ fn test_configuration_default_values() {
 }
 
 #[test]
-fn test_configuration_builder_returns_instance() {
+fn test_bhv_config_007_configuration_builder_returns_instance() {
     let config = ConfigurationBuilder::new().build();
     assert_eq!(config.base_url(), "{{{basePath}}}");
 }
@@ -26,7 +26,7 @@ fn test_configuration_builder_entry_point() {
 }
 
 #[test]
-fn test_configuration_builder_sets_base_url() {
+fn test_bhv_config_011_configuration_builder_sets_base_url() {
     let config = ConfigurationBuilder::new()
         .base_url("https://custom.example.com")
         .build();
@@ -35,7 +35,7 @@ fn test_configuration_builder_sets_base_url() {
 }
 
 #[test]
-fn test_configuration_builder_sets_default_header() {
+fn test_bhv_config_013_configuration_builder_sets_default_header() {
     let config = ConfigurationBuilder::new()
         .default_header("X-Custom", "value")
         .build();
@@ -45,7 +45,7 @@ fn test_configuration_builder_sets_default_header() {
 }
 
 #[test]
-fn test_configuration_builder_sets_multiple_default_headers() {
+fn test_bhv_config_012_configuration_builder_sets_multiple_default_headers() {
     let mut headers = HashMap::new();
     headers.insert("X-First".to_string(), "one".to_string());
     headers.insert("X-Second".to_string(), "two".to_string());
@@ -74,7 +74,7 @@ fn test_configuration_builder_chaining() {
 }
 
 #[test]
-fn test_configuration_server_url_resolution() {
+fn test_bhv_config_008_configuration_server_url_resolution() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
@@ -121,7 +121,7 @@ fn test_configuration_server_url_resolution_with_defaults() {
 }
 
 #[test]
-fn test_configuration_base_url_override() {
+fn test_bhv_config_001_configuration_base_url_override() {
     let config = ConfigurationBuilder::new()
         .base_url("https://original.example.com")
         .base_url("https://override.example.com")
@@ -147,7 +147,7 @@ fn test_configuration_default_headers_copy_isolation() {
 }
 
 #[test]
-fn test_configuration_builder_accumulates_multiple_headers() {
+fn test_bhv_config_002_configuration_builder_accumulates_multiple_headers() {
     let config = ConfigurationBuilder::new()
         .default_header("X-First", "one")
         .default_header("X-Second", "two")
@@ -160,7 +160,7 @@ fn test_configuration_builder_accumulates_multiple_headers() {
 }
 
 #[test]
-fn test_configuration_builder_merges_single_and_bulk_headers() {
+fn test_bhv_config_004_configuration_builder_merges_single_and_bulk_headers() {
     let mut extra = HashMap::new();
     extra.insert("X-Second".to_string(), "two".to_string());
 
@@ -178,7 +178,7 @@ fn test_configuration_builder_merges_single_and_bulk_headers() {
 }
 
 #[test]
-fn test_configuration_invalid_server_variable_enum_value_returns_error() {
+fn test_bhv_config_016_configuration_invalid_server_variable_enum_value_returns_error() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
@@ -199,7 +199,7 @@ fn test_configuration_invalid_server_variable_enum_value_returns_error() {
 }
 
 #[test]
-fn test_configuration_builder_produces_independent_instances() {
+fn test_bhv_config_006_configuration_builder_produces_independent_instances() {
     let first = ConfigurationBuilder::new()
         .base_url("https://first.example.com")
         .build();
@@ -215,7 +215,7 @@ fn test_configuration_builder_produces_independent_instances() {
 // hand out shared values, private fields prevent a caller from mutating a
 // server's url_template / variables and corrupting every other consumer.
 #[test]
-fn test_server_configuration_and_variable_accessor_only() {
+fn test_bhv_config_009_server_configuration_and_variable_accessor_only() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
@@ -240,7 +240,7 @@ fn test_server_configuration_and_variable_accessor_only() {
 }
 
 #[test]
-fn test_configuration_debug_masks_credential_headers() {
+fn test_bhv_config_015_configuration_debug_masks_credential_headers() {
     let config = ConfigurationBuilder::new()
         .default_header("Authorization", "Bearer s3cr3t")
         .default_header("Cookie", "sid=s3cr3t")

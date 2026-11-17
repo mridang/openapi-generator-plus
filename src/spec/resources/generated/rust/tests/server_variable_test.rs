@@ -10,7 +10,7 @@
 use petstore::ServerVariable;
 
 #[test]
-fn test_exposes_default_value_when_no_override_is_applied() {
+fn test_bhv_servers_017_exposes_default_value_when_no_override_is_applied() {
     // The default value is what ServerConfiguration falls back to when a
     // variable is left unset, so it must be carried through verbatim.
     let variable = ServerVariable::new("v1".to_string(), "API version".to_string(), vec![]);
@@ -20,7 +20,7 @@ fn test_exposes_default_value_when_no_override_is_applied() {
 }
 
 #[test]
-fn test_empty_enum_values_means_any_value_allowed() {
+fn test_bhv_servers_016_empty_enum_values_means_any_value_allowed() {
     // enum_values is non-null by contract (empty slice = any value allowed);
     // an empty description is permitted.
     let variable = ServerVariable::new("prod".to_string(), String::new(), vec![]);

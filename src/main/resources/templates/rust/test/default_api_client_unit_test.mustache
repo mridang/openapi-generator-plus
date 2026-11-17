@@ -260,7 +260,7 @@ async fn test_a_3xx_without_location_is_returned_unchanged_when_max_redirects_is
 /// A 3xx whose Location cannot be parsed (F1132) is not a redirect to follow:
 /// the 302 comes back as the response, with the redirect budget spent or not.
 #[tokio::test]
-async fn test_a_3xx_with_an_unparseable_location_is_returned_as_the_response() {
+async fn test_bhv_redirects_010_a_3xx_with_an_unparseable_location_is_returned_as_the_response() {
     let base_url = start_fixed_response_server(
         "HTTP/1.1 302 Found\r\nLocation: http://[bad\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
     );
@@ -283,7 +283,7 @@ async fn test_a_3xx_with_an_unparseable_location_is_returned_as_the_response() {
 
 /// A 3xx that does carry a Location still fails once the budget is spent.
 #[tokio::test]
-async fn test_a_3xx_with_location_fails_when_max_redirects_is_zero() {
+async fn test_bhv_redirects_026_a_3xx_with_location_fails_when_max_redirects_is_zero() {
     let base_url = start_fixed_response_server(
         "HTTP/1.1 302 Found\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
     );
@@ -305,7 +305,7 @@ async fn test_a_3xx_with_location_fails_when_max_redirects_is_zero() {
 /// F860, F1181: a no-redirect request (the token POST) is sent without the
 /// transport's default headers, while an ordinary request carries them.
 #[tokio::test]
-async fn test_no_redirect_request_leaves_the_transport_default_headers_out() {
+async fn test_bhv_redirects_016_no_redirect_request_leaves_the_transport_default_headers_out() {
     for (no_redirect, expected) in [(true, None), (false, Some("kept".to_string()))] {
         let (base_url, head) = start_head_capture_server();
         let transport = TransportOptionsBuilder::new()
@@ -336,7 +336,7 @@ async fn test_no_redirect_request_leaves_the_transport_default_headers_out() {
 /// F1044: two spellings of one header are sent once, the later layer winning,
 /// and a caller's lower-case Accept-Encoding suppresses the SDK's own.
 #[tokio::test]
-async fn test_request_headers_merge_case_insensitively() {
+async fn test_bhv_serializationwire_036_request_headers_merge_case_insensitively() {
     let (base_url, head) = start_head_capture_server();
     let transport = TransportOptionsBuilder::new()
         .default_header("accept", "text/plain")
@@ -365,7 +365,7 @@ async fn test_request_headers_merge_case_insensitively() {
 }
 
 #[tokio::test]
-async fn test_empty_user_agent_is_sent_as_an_empty_header() {
+async fn test_bhv_transport_052_empty_user_agent_is_sent_as_an_empty_header() {
     let (base_url, head) = start_head_capture_server();
     let transport = TransportOptionsBuilder::new()
         .user_agent("")
@@ -382,7 +382,7 @@ async fn test_empty_user_agent_is_sent_as_an_empty_header() {
 }
 
 #[tokio::test]
-async fn test_injects_default_user_agent_when_not_explicitly_set() {
+async fn test_bhv_transport_042_injects_default_user_agent_when_not_explicitly_set() {
     let (base_url, head) = start_head_capture_server();
     let client = DefaultApiClient::new(None);
 
@@ -441,7 +441,7 @@ async fn test_allow_reserved_query_reaches_the_wire_with_the_apostrophe_rewritte
 }
 
 #[tokio::test]
-async fn test_default_api_client_injects_custom_user_agent() {
+async fn test_bhv_transport_041_default_api_client_injects_custom_user_agent() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -474,7 +474,7 @@ async fn test_default_api_client_succeeds_without_transport_options() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_builds_with_verify_ssl_false() {
+async fn test_bhv_transport_048_default_api_client_builds_with_verify_ssl_false() {
     /* Gap AM: a client built with verify_ssl(false) must construct without
      * panic (both danger_accept_invalid_certs and
      * danger_accept_invalid_hostnames are disabled) and remain usable against
@@ -496,7 +496,7 @@ async fn test_default_api_client_builds_with_verify_ssl_false() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_injects_request_id() {
+async fn test_bhv_transport_043_default_api_client_injects_request_id() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -514,7 +514,7 @@ async fn test_default_api_client_injects_request_id() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_does_not_inject_request_id_when_disabled() {
+async fn test_bhv_transport_036_default_api_client_does_not_inject_request_id_when_disabled() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -532,7 +532,7 @@ async fn test_default_api_client_does_not_inject_request_id_when_disabled() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_does_not_override_caller_request_id() {
+async fn test_bhv_options_006_default_api_client_does_not_override_caller_request_id() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -586,7 +586,7 @@ async fn test_default_api_client_caller_headers_win_case_insensitively() {
 /// Ambient proxy variables are ignored: with no explicit proxy the client
 /// connects directly even when HTTP_PROXY points at a dead address.
 #[tokio::test]
-async fn test_default_api_client_ignores_ambient_proxy_environment() {
+async fn test_bhv_transport_046_default_api_client_ignores_ambient_proxy_environment() {
     let (base_url, rx) = start_head_capture_server();
     // reqwest reads the proxy variables when the client is built. The other
     // tests in this binary only talk to 127.0.0.1, which a correct client
@@ -608,7 +608,7 @@ async fn test_default_api_client_ignores_ambient_proxy_environment() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_includes_transport_default_headers() {
+async fn test_bhv_transport_039_default_api_client_includes_transport_default_headers() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -626,7 +626,7 @@ async fn test_default_api_client_includes_transport_default_headers() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_caller_headers_override_defaults() {
+async fn test_bhv_options_005_default_api_client_caller_headers_override_defaults() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -646,7 +646,7 @@ async fn test_default_api_client_caller_headers_override_defaults() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_generates_unique_request_ids() {
+async fn test_bhv_transport_038_default_api_client_generates_unique_request_ids() {
     let (base_url, captured_ids) = start_request_id_capture_server(2);
 
     let transport = TransportOptionsBuilder::new()
@@ -865,7 +865,7 @@ fn start_cross_origin_redirect_servers() -> (String, Arc<Mutex<Vec<String>>>) {
 /// hop so the strip is proven to be selective, not a blanket drop. Mirrors the
 /// Python `test_authorization_stripped_on_cross_origin_redirect`.
 #[tokio::test]
-async fn test_authorization_stripped_on_cross_origin_redirect() {
+async fn test_bhv_redirects_012_authorization_stripped_on_cross_origin_redirect() {
     let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
 
     let transport = TransportOptionsBuilder::new()
@@ -915,7 +915,7 @@ async fn test_authorization_stripped_on_cross_origin_redirect() {
 /// F1093 (behavioural): a tenant token set by the caller is stripped on a
 /// cross-origin hop although no spec declares it, while a plain header survives.
 #[tokio::test]
-async fn test_token_named_header_stripped_on_cross_origin_redirect() {
+async fn test_bhv_redirects_025_token_named_header_stripped_on_cross_origin_redirect() {
     let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
 
     let transport = TransportOptionsBuilder::new()
@@ -945,7 +945,7 @@ async fn test_token_named_header_stripped_on_cross_origin_redirect() {
 /// leak to an attacker-controlled host via a malicious 302. Mirrors the Python
 /// `test_api_key_header_stripped_on_cross_origin_redirect`.
 #[tokio::test]
-async fn test_api_key_header_stripped_on_cross_origin_redirect() {
+async fn test_bhv_redirects_011_api_key_header_stripped_on_cross_origin_redirect() {
     // Use the first spec-declared API-key header for the assertion.
     let api_key_header_names: Vec<&str> = vec![{{#apiKeyHeaderNames}}"{{name}}", {{/apiKeyHeaderNames}}];
     let api_key_header = api_key_header_names[0];
@@ -985,7 +985,7 @@ async fn test_api_key_header_stripped_on_cross_origin_redirect() {
 /// keeps the credential headers, so a plain same-host redirect still
 /// authenticates.
 #[tokio::test]
-async fn test_credentials_forwarded_on_same_origin_redirect() {
+async fn test_bhv_redirects_013_credentials_forwarded_on_same_origin_redirect() {
     let (base_url, head) = start_redirect_server(302);
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -1012,7 +1012,7 @@ async fn test_credentials_forwarded_on_same_origin_redirect() {
 /// redirect target. The token manager inspects/rejects the 3xx itself, so the
 /// second connection must NOT happen.
 #[tokio::test]
-async fn test_no_redirect_returns_307_verbatim() {
+async fn test_bhv_redirects_021_no_redirect_returns_307_verbatim() {
     let (base_url, captured) =
         start_307_redirect_server("http://127.0.0.1:1/never".to_string());
 
@@ -1058,7 +1058,7 @@ async fn test_no_redirect_returns_307_verbatim() {
 /// confirms the guard fires only when explicitly requested. The redirect
 /// server's second connection returns 200, so the chain ultimately succeeds.
 #[tokio::test]
-async fn test_no_redirect_false_still_follows_307() {
+async fn test_bhv_redirects_014_no_redirect_false_still_follows_307() {
     // start_307_redirect_server: 1st conn -> 307 + Location; 2nd conn -> 200.
     // We point Location at the same server's /follow path so the SAME server
     // serves both connections.
@@ -1127,7 +1127,7 @@ fn start_multi_header_server() -> String {
 }
 
 #[tokio::test]
-async fn test_sends_get_request_and_returns_response() {
+async fn test_bhv_transport_054_sends_get_request_and_returns_response() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1140,7 +1140,7 @@ async fn test_sends_get_request_and_returns_response() {
 }
 
 #[tokio::test]
-async fn test_sends_post_with_json_body() {
+async fn test_bhv_serializationwire_052_sends_post_with_json_body() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
@@ -1156,7 +1156,7 @@ async fn test_sends_post_with_json_body() {
 }
 
 #[tokio::test]
-async fn test_returns_response_headers() {
+async fn test_bhv_transport_051_returns_response_headers() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1172,7 +1172,7 @@ async fn test_returns_response_headers() {
 }
 
 #[tokio::test]
-async fn test_returns_non_2xx_status_code() {
+async fn test_bhv_transport_050_returns_non_2xx_status_code() {
     let base_url = start_404_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1185,7 +1185,7 @@ async fn test_returns_non_2xx_status_code() {
 }
 
 #[tokio::test]
-async fn test_sends_put_request() {
+async fn test_bhv_transport_055_sends_put_request() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1199,7 +1199,7 @@ async fn test_sends_put_request() {
 }
 
 #[tokio::test]
-async fn test_sends_delete_request() {
+async fn test_bhv_transport_053_sends_delete_request() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1212,7 +1212,7 @@ async fn test_sends_delete_request() {
 }
 
 #[tokio::test]
-async fn test_returns_json_body_for_vendor_json_content_type() {
+async fn test_bhv_serializationwire_051_returns_json_body_for_vendor_json_content_type() {
     let base_url = start_vendor_json_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1225,7 +1225,7 @@ async fn test_returns_json_body_for_vendor_json_content_type() {
 }
 
 #[tokio::test]
-async fn test_joins_multi_value_response_headers() {
+async fn test_bhv_transport_044_joins_multi_value_response_headers() {
     let base_url = start_multi_header_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1330,7 +1330,7 @@ fn start_truncated_body_server() -> String {
 /* F1063: the client keeps no cookie jar, so a Set-Cookie on one response never
  * comes back as a Cookie header on the next request. */
 #[tokio::test]
-async fn test_a_response_cookie_is_never_replayed() {
+async fn test_bhv_retries_015_a_response_cookie_is_never_replayed() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let base_url = format!("http://{}", listener.local_addr().unwrap());
     let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -1399,7 +1399,7 @@ fn start_content_encoding_lie_server() -> String {
 /// silently. The response arrived, so it is an `ApiError` carrying the real
 /// status code — never a `NetworkError`.
 #[tokio::test]
-async fn test_al_content_encoding_lie_surfaces_api_error() {
+async fn test_bhv_transport_030_al_content_encoding_lie_surfaces_api_error() {
     let base_url = start_content_encoding_lie_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1456,7 +1456,7 @@ fn start_unknown_content_encoding_server() -> String {
 /// real status code — never a `NetworkError`, and never the body passed
 /// through still encoded.
 #[tokio::test]
-async fn test_unsupported_content_encoding_surfaces_api_error() {
+async fn test_bhv_errors_042_unsupported_content_encoding_surfaces_api_error() {
     let base_url = start_unknown_content_encoding_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1567,7 +1567,7 @@ fn compress_payload(encoding: &str) -> Vec<u8> {
 /// Every codec the client advertises must be decoded when a server answers
 /// with it: gzip, deflate (zlib-wrapped), brotli and zstd.
 #[tokio::test]
-async fn test_every_advertised_content_encoding_is_decoded() {
+async fn test_bhv_transport_027_every_advertised_content_encoding_is_decoded() {
     for encoding in ["gzip", "deflate", "br", "zstd"] {
         let (base_url, _) = start_encoded_body_server(encoding, compress_payload(encoding));
         let client = DefaultApiClient::new(None);
@@ -1587,7 +1587,7 @@ async fn test_every_advertised_content_encoding_is_decoded() {
 /// `Content-Encoding: identity` is no transformation: the body is passed
 /// through as it came and the header stays on the returned headers (F1135).
 #[tokio::test]
-async fn test_content_encoding_identity_is_passed_through_undecoded() {
+async fn test_bhv_transport_033_content_encoding_identity_is_passed_through_undecoded() {
     let (base_url, _) =
         start_encoded_body_server("identity", ENCODED_PAYLOAD.as_bytes().to_vec());
     let client = DefaultApiClient::new(None);
@@ -1609,7 +1609,7 @@ async fn test_content_encoding_identity_is_passed_through_undecoded() {
 /// name is not decodable and surfaces as an `ApiError` carrying the real
 /// status, never a `NetworkError` and never the raw bytes passed through.
 #[tokio::test]
-async fn test_raw_deflate_response_surfaces_api_error() {
+async fn test_bhv_transport_049_raw_deflate_response_surfaces_api_error() {
     use std::io::Write as _;
     let mut encoder = flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
     encoder.write_all(ENCODED_PAYLOAD.as_bytes()).unwrap();
@@ -1634,7 +1634,7 @@ async fn test_raw_deflate_response_surfaces_api_error() {
 /// With no `Accept-Encoding` supplied by the caller the client advertises the
 /// codecs it can decode, exactly this set.
 #[tokio::test]
-async fn test_default_accept_encoding_advertises_the_decodable_codecs() {
+async fn test_bhv_serializationwire_029_default_accept_encoding_advertises_the_decodable_codecs() {
     let (base_url, head) = start_head_capture_server();
     let client = DefaultApiClient::new(None);
 
@@ -1656,7 +1656,7 @@ async fn test_default_accept_encoding_advertises_the_decodable_codecs() {
 /// inflate. The decompressor must return the empty body unchanged, never error
 /// on the absent gzip stream.
 #[tokio::test]
-async fn test_empty_gzip_body_passes_through_as_empty() {
+async fn test_bhv_transport_037_empty_gzip_body_passes_through_as_empty() {
     let base_url = start_empty_gzip_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1674,7 +1674,7 @@ async fn test_empty_gzip_body_passes_through_as_empty() {
 /// SDK NetworkError (statusCode 0), not surface as a raw reqwest::Error. Callers
 /// downcast the boxed error to `NetworkError` to confirm the wrapping.
 #[tokio::test]
-async fn test_body_read_failure_wrapped_in_network_error() {
+async fn test_bhv_errors_043_body_read_failure_wrapped_in_network_error() {
     let base_url = start_truncated_body_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1698,7 +1698,7 @@ async fn test_body_read_failure_wrapped_in_network_error() {
 /// Gap T-D1: exceeding the configured redirect cap must FAIL LOUDLY with a
 /// "too many redirects" error, not silently return the last 3xx response.
 #[tokio::test]
-async fn test_redirect_exhaustion_returns_error() {
+async fn test_bhv_redirects_018_redirect_exhaustion_returns_error() {
     let base_url = start_infinite_redirect_server(10);
 
     let transport = TransportOptionsBuilder::new()
@@ -1727,7 +1727,7 @@ async fn test_redirect_exhaustion_returns_error() {
 /// Gap T-D3: a `Location:` to a non-http(s) scheme (file:, javascript:, ...)
 /// must be refused with an error, not silently returned as the 3xx response.
 #[tokio::test]
-async fn test_redirect_to_non_http_scheme_returns_error() {
+async fn test_bhv_redirects_020_redirect_to_non_http_scheme_returns_error() {
     let base_url = start_bad_scheme_redirect_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -1791,7 +1791,7 @@ async fn test_transport_error_preserves_underlying_cause() {
 /// network-timeout-error: a request that exceeds the configured timeout
 /// surfaces as NetworkTimeoutError with status 0, keeping the reqwest error.
 #[tokio::test]
-async fn test_timeout_returns_network_timeout_error() {
+async fn test_bhv_transport_058_timeout_returns_network_timeout_error() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let addr = listener.local_addr().expect("local addr");
     /* Accept the connection and never answer, so only the timeout ends it. */
@@ -1871,7 +1871,7 @@ async fn test_timeout_is_one_budget_across_redirect_hops() {
 /// at a different call site (`response.bytes()`), and it must classify as the
 /// same NetworkTimeoutError rather than a bare NetworkError.
 #[tokio::test]
-async fn test_body_read_timeout_returns_network_timeout_error() {
+async fn test_bhv_transport_031_body_read_timeout_returns_network_timeout_error() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let addr = listener.local_addr().expect("local addr");
     /* Headers and one body byte go out immediately, so the client is past the
@@ -1918,7 +1918,7 @@ async fn test_body_read_timeout_returns_network_timeout_error() {
 /// fast with `ConfigurationError::InvalidState` — not an SDK error, not a
 /// silent success, and not a foreign reqwest error.
 #[tokio::test]
-async fn test_request_after_close_returns_invalid_state() {
+async fn test_bhv_lifecycle_023_request_after_close_returns_invalid_state() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     assert!(!client.is_closed(), "client must start open");
@@ -1964,7 +1964,7 @@ fn start_delayed_server(delay_ms: u64) -> String {
 /// F1078: closing is graceful. A request already in flight when `close()` runs
 /// finishes, while a request started afterwards fails with the closed-client error.
 #[tokio::test]
-async fn test_close_lets_an_in_flight_request_finish() {
+async fn test_bhv_lifecycle_019_close_lets_an_in_flight_request_finish() {
     let base_url = start_delayed_server(400);
     let client = Arc::new(DefaultApiClient::new(None));
 
@@ -2040,7 +2040,7 @@ async fn test_dropping_an_in_flight_call_cancels_it() {
 /// A malformed request URL is a caller mistake: `ConfigurationError::
 /// InvalidArgument`, not a `NetworkError`.
 #[tokio::test]
-async fn test_malformed_url_returns_invalid_argument() {
+async fn test_bhv_errors_040_malformed_url_returns_invalid_argument() {
     let client = DefaultApiClient::new(None);
     let err = client
         .send_request("GET", "http://[::1", &HashMap::new(), None)
@@ -2102,7 +2102,7 @@ async fn test_redirect_to_non_http_scheme_is_api_error_with_status() {
 /// returns `ConfigurationError::InvalidCaCertificate`: a configuration
 /// mistake, not an `ApiError`, and not a panic.
 #[test]
-fn test_nonexistent_ca_cert_path_fails_fast() {
+fn test_bhv_errors_041_nonexistent_ca_cert_path_fails_fast() {
     let result = TransportOptionsBuilder::new()
         .ca_cert_path("/nonexistent/ca.pem")
         .build();

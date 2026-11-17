@@ -10,7 +10,7 @@
 use petstore::models::{Metadata, Pet};
 
 #[test]
-fn test_metadata_serialize_deserialize() {
+fn test_bhv_models_008_metadata_serialize_deserialize() {
     let original = Metadata::new();
 
     let data = serde_json::to_string(&original).expect("failed to serialize Metadata");
@@ -30,7 +30,7 @@ fn test_metadata_deserialize_from_json() {
 }
 
 #[test]
-fn test_metadata_deserialize_empty_object() {
+fn test_bhv_models_003_metadata_deserialize_empty_object() {
     let json_data = "{}";
 
     let metadata: Metadata =
@@ -39,7 +39,7 @@ fn test_metadata_deserialize_empty_object() {
 }
 
 #[test]
-fn test_metadata_deserialize_with_additional_properties() {
+fn test_bhv_models_004_metadata_deserialize_with_additional_properties() {
     // Metadata may contain additional properties beyond the defined schema fields.
     // This test verifies that unknown fields are handled gracefully during
     // deserialization (either ignored or captured depending on schema config).
@@ -52,7 +52,7 @@ fn test_metadata_deserialize_with_additional_properties() {
 }
 
 #[test]
-fn test_metadata_round_trip() {
+fn test_bhv_models_011_metadata_round_trip() {
     let json_data = r#"{"createdAt":"2024-01-15T10:30:00+00:00"}"#;
 
     let metadata: Metadata = serde_json::from_str(json_data).expect("failed to deserialize");
@@ -114,7 +114,7 @@ fn test_metadata_additional_properties_round_trip_preserves_free_form_json() {
 /// Equality covers the free-form additional properties: two models that differ
 /// only in an extra property are not equal.
 #[test]
-fn test_metadata_equality_includes_additional_properties() {
+fn test_bhv_models_005_metadata_equality_includes_additional_properties() {
     let one: Metadata = serde_json::from_str(r#"{"extra":1}"#).expect("failed to deserialize");
     let same: Metadata = serde_json::from_str(r#"{"extra":1}"#).expect("failed to deserialize");
     let two: Metadata = serde_json::from_str(r#"{"extra":2}"#).expect("failed to deserialize");
@@ -277,7 +277,7 @@ fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
 // non-empty `description` (wired from the spec's appDescription) so the crate
 // does not publish with an empty description on crates.io.
 #[test]
-fn test_cargo_manifest_declares_non_empty_description() {
+fn test_bhv_models_002_cargo_manifest_declares_non_empty_description() {
     let manifest_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
     let contents = std::fs::read_to_string(&manifest_path).expect("failed to read Cargo.toml");
 
@@ -307,7 +307,7 @@ fn test_cargo_manifest_declares_non_empty_description() {
 // source should carry the bogus doc text. Scan every model file to guard the
 // whole crate, not just one struct.
 #[test]
-fn test_generated_models_have_no_null_example_doc() {
+fn test_bhv_models_007_generated_models_have_no_null_example_doc() {
     let models_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/models");
     let entries = std::fs::read_dir(&models_dir).expect("failed to read src/models directory");
 
@@ -375,7 +375,7 @@ fn test_generated_source_has_no_line_comments() {
 }
 
 #[test]
-fn test_metadata_declared_property_wins_over_a_colliding_additional_property() {
+fn test_bhv_models_010_metadata_declared_property_wins_over_a_colliding_additional_property() {
     let mut metadata: Metadata = serde_json::from_str(r#"{"createdAt":"2024-01-15T10:30:00Z"}"#)
         .expect("failed to deserialize Metadata");
     metadata.additional_properties.insert(

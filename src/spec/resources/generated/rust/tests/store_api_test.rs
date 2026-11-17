@@ -151,7 +151,7 @@ async fn test_store_api_place_order_omitted_body_sends_no_body_and_no_content_ty
 /// serializer: compact JSON with `/`, `<` and non-ASCII left unescaped, then
 /// percent-encoded by the query encoder.
 #[tokio::test]
-async fn test_store_api_search_store_content_query_uses_object_serializer() {
+async fn test_bhv_operations_097_store_api_search_store_content_query_uses_object_serializer() {
     let client = Arc::new(RecordingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -205,7 +205,8 @@ async fn test_store_api_search_store_content_query_serialization_failure_sends_n
 }
 
 #[tokio::test]
-async fn test_store_api_place_order_supplied_body_sends_json_with_content_type() {
+async fn test_bhv_operations_121_store_api_place_order_supplied_body_sends_json_with_content_type()
+{
     let client = Arc::new(RecordingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -231,14 +232,14 @@ async fn test_store_api_place_order_supplied_body_sends_json_with_content_type()
 }
 
 #[tokio::test]
-async fn test_store_api_get_inventory() {
+async fn test_bhv_operations_102_store_api_get_inventory() {
     let api = new_store_api_for_integration();
     let result = api.get_inventory(None).await;
     assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
 }
 
 #[tokio::test]
-async fn test_store_api_get_inventory_with_http_info() {
+async fn test_bhv_operations_103_store_api_get_inventory_with_http_info() {
     let api = new_store_api_for_integration();
     let result = api.get_inventory_with_http_info(None).await;
     assert!(
@@ -252,14 +253,14 @@ async fn test_store_api_get_inventory_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_store_api_get_order_by_id() {
+async fn test_bhv_operations_104_store_api_get_order_by_id() {
     let api = new_store_api_for_integration();
     let result = api.get_order_by_id(1, None).await;
     assert!(result.is_ok(), "GetOrderById failed: {:?}", result.err());
 }
 
 #[tokio::test]
-async fn test_store_api_get_order_by_id_with_http_info() {
+async fn test_bhv_operations_105_store_api_get_order_by_id_with_http_info() {
     let api = new_store_api_for_integration();
     let result = api.get_order_by_id_with_http_info(1, None).await;
     assert!(
@@ -273,7 +274,7 @@ async fn test_store_api_get_order_by_id_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_store_api_place_order_with_http_info() {
+async fn test_bhv_operations_119_store_api_place_order_with_http_info() {
     let api = new_store_api_for_integration();
     let order = Order::new();
     let result = api.place_order_with_http_info(Some(order), None).await;
@@ -288,7 +289,7 @@ async fn test_store_api_place_order_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_store_api_place_order() {
+async fn test_bhv_operations_117_store_api_place_order() {
     let api = new_store_api_for_integration();
     let order = Order::new();
     let result = api.place_order(Some(order), None).await;
@@ -296,14 +297,14 @@ async fn test_store_api_place_order() {
 }
 
 #[tokio::test]
-async fn test_store_api_delete_order() {
+async fn test_bhv_operations_099_store_api_delete_order() {
     let api = new_store_api_for_integration();
     let result = api.delete_order(1, None).await;
     assert!(result.is_ok(), "DeleteOrder failed: {:?}", result.err());
 }
 
 #[tokio::test]
-async fn test_store_api_get_order_not_found() {
+async fn test_bhv_operations_106_store_api_get_order_not_found() {
     let api = new_store_api_for_mock(404, "application/json", r#"{"message":"Order not found"}"#);
 
     let err = api
@@ -319,7 +320,7 @@ async fn test_store_api_get_order_not_found() {
 /* F1161: the mock's typed status routes answer get_order_by_id with each
  * status, and the matching error kind is chosen. */
 #[tokio::test]
-async fn test_store_api_get_order_by_id_picks_the_status_specific_error_kind() {
+async fn test_bhv_operations_110_store_api_get_order_by_id_picks_the_status_specific_error_kind() {
     let chasm_url = testcontainers_helper::chasm_url();
     for status in [400u16, 401, 403, 404, 409, 418, 422, 500, 502] {
         let config = ConfigurationBuilder::new()
@@ -364,7 +365,7 @@ async fn test_store_api_get_order_by_id_picks_the_status_specific_error_kind() {
 }
 
 #[tokio::test]
-async fn test_store_api_place_order_server_error() {
+async fn test_bhv_operations_118_store_api_place_order_server_error() {
     let api = new_store_api_for_mock(
         500,
         "application/json",
@@ -383,7 +384,7 @@ async fn test_store_api_place_order_server_error() {
 }
 
 #[tokio::test]
-async fn test_store_api_delete_order_not_found() {
+async fn test_bhv_operations_100_store_api_delete_order_not_found() {
     let api = new_store_api_for_mock(404, "application/json", r#"{"message":"Order not found"}"#);
 
     let err = api
@@ -402,7 +403,7 @@ async fn test_store_api_delete_order_not_found() {
 // strongly-typed return type the field access below only compiles if the
 // leaf is genuinely a `Category`.
 #[tokio::test]
-async fn test_store_api_get_grouped_categories_typed_leaves() {
+async fn test_bhv_operations_101_store_api_get_grouped_categories_typed_leaves() {
     let api = new_store_api_for_mock(
         200,
         "application/json",
@@ -470,7 +471,7 @@ async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
 // Schema defaults apply to absent properties, mutually recursive models decode
 // through both directions, and an integer-backed enum decodes from its number.
 #[tokio::test]
-async fn test_store_api_defaults_cycles_and_integer_enums_decode() {
+async fn test_bhv_operations_123_store_api_defaults_cycles_and_integer_enums_decode() {
     let api = new_store_api_for_mock(200, "application/json", "{}");
     let defaults = api.get_defaults(None).await.expect("get_defaults failed");
     assert_eq!(defaults.retries, Some(3));
@@ -511,7 +512,7 @@ async fn test_store_api_defaults_cycles_and_integer_enums_decode() {
 // deserialization error, NOT silently hand back the raw body string. The
 // convenience method returns Err rather than a defaulted/empty value.
 #[tokio::test]
-async fn test_store_api_get_order_by_id_malformed_body_fails_loud() {
+async fn test_bhv_operations_111_store_api_get_order_by_id_malformed_body_fails_loud() {
     let api = new_store_api_for_mock(200, "application/json", "this is not valid json at all");
 
     let err = api
@@ -528,7 +529,7 @@ async fn test_store_api_get_order_by_id_malformed_body_fails_loud() {
 /// A named-enum parameter is sent as its wire value in the path, the query and
 /// a header, never as the language's name for the variant.
 #[tokio::test]
-async fn test_store_api_get_by_swatch_sends_enum_wire_values() {
+async fn test_bhv_operations_122_store_api_get_by_swatch_sends_enum_wire_values() {
     let client = Arc::new(RecordingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -561,7 +562,8 @@ async fn test_store_api_get_by_swatch_sends_enum_wire_values() {
 /* D67, F217: a required uuid path parameter is written in the lowercase
  * hyphenated form, whichever case the caller's value was parsed from. */
 #[tokio::test]
-async fn test_store_api_get_order_by_tracking_id_puts_the_lowercase_uuid_in_the_path() {
+async fn test_bhv_operations_124_store_api_get_order_by_tracking_id_puts_the_lowercase_uuid_in_the_path(
+) {
     let client = Arc::new(RecordingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -583,7 +585,7 @@ async fn test_store_api_get_order_by_tracking_id_puts_the_lowercase_uuid_in_the_
 /* D56, F025, F055: a write-only property is sent on the request and a
  * read-only property is kept when the response is decoded. */
 #[tokio::test]
-async fn test_store_api_create_account_sends_the_write_only_password() {
+async fn test_bhv_operations_098_store_api_create_account_sends_the_write_only_password() {
     let client = Arc::new(RecordingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -648,7 +650,8 @@ fn test_parameter_description_keeps_backticks() {
  * the actual status declares. The body satisfies both schemas, so only the
  * status can tell the 200 (existing reservation) from the 201 (new receipt). */
 #[tokio::test]
-async fn test_store_api_reserve_stock_decodes_the_variant_of_the_actual_status() {
+async fn test_bhv_operations_120_store_api_reserve_stock_decodes_the_variant_of_the_actual_status()
+{
     let body = r#"{"reservationId":1,"quantity":2,"receiptCode":"rcpt-1","expiresAt":"2030-01-01T00:00:00Z"}"#;
 
     let created = new_store_api_for_mock(201, "application/json", body)

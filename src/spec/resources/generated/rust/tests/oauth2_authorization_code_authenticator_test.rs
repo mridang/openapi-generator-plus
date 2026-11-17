@@ -102,7 +102,7 @@ fn create_authenticator() -> OAuth2AuthorizationCodeAuthenticator {
 }
 
 #[tokio::test]
-async fn test_builds_authorization_url_with_required_params() {
+async fn test_bhv_authoauthtwoauthcode_006_builds_authorization_url_with_required_params() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("");
@@ -121,7 +121,8 @@ async fn test_builds_authorization_url_with_required_params() {
 /// The authorization URL writes a space as `%20` and encodes every character
 /// outside `-._~` in the scope, the state and the redirect URI.
 #[tokio::test]
-async fn test_authorization_url_encodes_everything_but_the_unreserved_set() {
+async fn test_bhv_authoauthtwoauthcode_004_authorization_url_encodes_everything_but_the_unreserved_set(
+) {
     let auth = OAuth2AuthorizationCodeAuthenticator::new(
         "https://api.example.com",
         "my-client-id",
@@ -153,7 +154,7 @@ async fn test_authorization_url_encodes_everything_but_the_unreserved_set() {
 /// The code exchange goes to the token URL and the refresh grant to the
 /// refresh URL; with no refresh URL the refresh grant falls back to the token URL.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_grant_goes_to_the_refresh_url() {
+async fn test_bhv_authoauthtwoauthcode_024_refresh_grant_goes_to_the_refresh_url() {
     for (refresh_url, expected_refresh_target) in [
         (
             "https://auth.example.com/refresh",
@@ -233,7 +234,7 @@ async fn test_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
 
 /// The redacted representation shows every non-secret field.
 #[test]
-fn test_redacted_representation_shows_the_non_secret_fields() {
+fn test_bhv_authoauthtwoauthcode_025_redacted_representation_shows_the_non_secret_fields() {
     let auth = create_authenticator();
     assert_eq!(
         "OAuth2AuthorizationCodeAuthenticator { host: \"https://api.example.com\", client_id: \"my-client-id\", \
@@ -245,7 +246,7 @@ redirect_uri: \"https://app.example.com/callback\", scopes: [\"read\", \"write\"
 }
 
 #[tokio::test]
-async fn test_builds_authorization_url_with_state() {
+async fn test_bhv_authoauthtwoauthcode_007_builds_authorization_url_with_state() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("csrf-state-123");
@@ -254,7 +255,7 @@ async fn test_builds_authorization_url_with_state() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_exchanges_code_with_correct_grant_type() {
+async fn test_bhv_authoauthtwoauthcode_012_exchanges_code_with_correct_grant_type() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
@@ -278,7 +279,7 @@ async fn test_exchanges_code_with_correct_grant_type() {
 /// oauth-exchangecode-no-empty-code-guard: an empty authorization code must
 /// be rejected up front with an error, NOT POSTed to the token endpoint.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_exchange_code_rejects_empty_code() {
+async fn test_bhv_authoauthtwoauthcode_010_exchange_code_rejects_empty_code() {
     let client = Arc::new(FakeApiClient::new());
     // No response enqueued: if the guard fails and a POST is attempted, the
     // FakeApiClient would panic on the empty queue — so this also proves no
@@ -308,7 +309,7 @@ async fn test_exchange_code_rejects_empty_code() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_exchange_code_rejects_whitespace_only_code() {
+async fn test_bhv_authoauthtwoauthcode_011_exchange_code_rejects_whitespace_only_code() {
     // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
     // distinct from the empty-string case and must also be rejected before the
     // token POST (code.trim().is_empty() guard).
@@ -337,7 +338,7 @@ async fn test_exchange_code_rejects_whitespace_only_code() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_includes_refresh_token_on_refresh() {
+async fn test_bhv_authoauthtwoauthcode_015_includes_refresh_token_on_refresh() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
@@ -362,7 +363,7 @@ async fn test_includes_refresh_token_on_refresh() {
 }
 
 #[tokio::test]
-async fn test_throws_before_exchange_code_called() {
+async fn test_bhv_authoauthtwoauthcode_027_throws_before_exchange_code_called() {
     let auth = create_authenticator();
 
     // auth_headers (the infallible trait method) must NOT panic if
@@ -377,7 +378,8 @@ async fn test_throws_before_exchange_code_called() {
 }
 
 #[tokio::test]
-async fn test_auth_headers_before_exchange_returns_recoverable_error() {
+async fn test_bhv_authoauthtwoauthcode_003_auth_headers_before_exchange_returns_recoverable_error()
+{
     let auth = create_authenticator();
 
     // Construct without exchange_code, then prove the precondition
@@ -397,13 +399,14 @@ async fn test_auth_headers_before_exchange_returns_recoverable_error() {
 }
 
 #[test]
-fn test_get_host_returns_configured_host() {
+fn test_bhv_authoauthtwoauthcode_014_get_host_returns_configured_host() {
     let auth = create_authenticator();
     assert_eq!("https://api.example.com", auth.host());
 }
 
 #[tokio::test]
-async fn test_authorize_url_with_existing_query_string_uses_amp_separator() {
+async fn test_bhv_authoauthtwoauthcode_005_authorize_url_with_existing_query_string_uses_amp_separator(
+) {
     let auth = OAuth2AuthorizationCodeAuthenticator::new(
         "https://api.example.com",
         "my-client-id",
@@ -436,7 +439,7 @@ async fn test_authorize_url_with_existing_query_string_uses_amp_separator() {
 }
 
 #[test]
-fn redacts_secret() {
+fn test_bhv_authoauthtwoauthcode_019_redacts_secret() {
     let auth = create_authenticator();
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("my-client-secret"));
@@ -444,7 +447,7 @@ fn redacts_secret() {
 }
 
 #[test]
-fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
+fn test_bhv_authoauthtwoauthcode_020_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
     let auth = UserAuthAuthorizationCodeAuthenticator::new(
         "https://api.example.com",
         Some("id"),
@@ -467,7 +470,8 @@ fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
 /// exchange did, and a rejected refresh surfaces once, after exactly one
 /// refresh request.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_carries_the_client_credentials_and_a_rejection_is_sent_once() {
+async fn test_bhv_authoauthtwoauthcode_026_refresh_carries_the_client_credentials_and_a_rejection_is_sent_once(
+) {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
@@ -503,7 +507,7 @@ async fn test_refresh_carries_the_client_credentials_and_a_rejection_is_sent_onc
 /// A second exchange always sends the new code, even while the first
 /// exchange's token is still valid, and its token replaces the old one.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_second_exchange_code_sends_the_new_code() {
+async fn test_bhv_authoauthtwoauthcode_021_second_exchange_code_sends_the_new_code() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
@@ -538,7 +542,8 @@ async fn test_second_exchange_code_sends_the_new_code() {
 /// once its token expires the refresh is sent with an empty refresh token,
 /// never the previous session's.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_second_exchange_without_refresh_token_drops_the_old_one() {
+async fn test_bhv_authoauthtwoauthcode_022_second_exchange_without_refresh_token_drops_the_old_one()
+{
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
@@ -567,7 +572,7 @@ async fn test_second_exchange_without_refresh_token_drops_the_old_one() {
 
 /// A rejected code leaves the previous session in place.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_failed_exchange_keeps_the_previous_session() {
+async fn test_bhv_authoauthtwoauthcode_013_failed_exchange_keeps_the_previous_session() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
@@ -607,7 +612,7 @@ fn test_code_not_exchanged_error_uses_the_canonical_message() {
 /* RFC 9700 section 2.1.1, RFC 7636: the authorization URL carries an S256 code
  * challenge and the code exchange sends the verifier that hashes to it. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_authorization_code_flow_uses_pkce_s256() {
+async fn test_bhv_authoauthtwoauthcode_023_authorization_code_flow_uses_pkce_s256() {
     use base64::Engine as _;
     use sha2::{Digest, Sha256};
 
@@ -650,7 +655,7 @@ async fn test_authorization_code_flow_uses_pkce_s256() {
 
 /* Every authorization URL starts a new PKCE pair. */
 #[tokio::test]
-async fn test_each_authorization_url_has_its_own_code_challenge() {
+async fn test_bhv_authoauthtwoauthcode_008_each_authorization_url_has_its_own_code_challenge() {
     let auth = create_authenticator();
     let first = auth.build_authorization_url("");
     let second = auth.build_authorization_url("");

@@ -12,7 +12,7 @@ use petstore::auth::{AdminBasicAuthenticator, BasicAuthenticator, PetStoreBasicA
 use petstore::ConfigurationError;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_valid_credentials_produce_basic_header() {
+async fn test_bhv_authbasic_011_valid_credentials_produce_basic_header() {
     let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
     let headers = auth.auth_headers().await;
     assert_eq!(
@@ -36,7 +36,7 @@ fn assert_rejected_at_construction(username: &str, password: &str, expected: &st
 }
 
 #[test]
-fn test_rejects_username_with_crlf_at_construction() {
+fn test_bhv_authbasic_009_rejects_username_with_crlf_at_construction() {
     assert_rejected_at_construction(
         "alice\r\n",
         "s3cret",
@@ -50,7 +50,7 @@ fn test_rejects_username_with_crlf_at_construction() {
 }
 
 #[test]
-fn test_rejects_password_with_nul_at_construction() {
+fn test_bhv_authbasic_007_rejects_password_with_nul_at_construction() {
     assert_rejected_at_construction(
         "alice",
         "s3c\0ret",
@@ -59,7 +59,7 @@ fn test_rejects_password_with_nul_at_construction() {
 }
 
 #[test]
-fn test_rejects_username_with_colon_at_construction() {
+fn test_bhv_authbasic_008_rejects_username_with_colon_at_construction() {
     assert_rejected_at_construction(
         "ali:ce",
         "s3cret",
@@ -68,7 +68,7 @@ fn test_rejects_username_with_colon_at_construction() {
 }
 
 #[test]
-fn redacts_secret() {
+fn test_bhv_authbasic_006_redacts_secret() {
     let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("s3cret"));
@@ -89,7 +89,7 @@ fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_password() {
 /// Non-ASCII credentials are sent as UTF-8 bytes (RFC 7617 section 2.1), not as
 /// Latin-1 or the platform encoding.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_non_ascii_credentials_are_encoded_as_utf8() {
+async fn test_bhv_authbasic_004_non_ascii_credentials_are_encoded_as_utf8() {
     let auth = BasicAuthenticator::new("https://api.example.com", "ünïcødé", "pässwörd").unwrap();
     let headers = auth.auth_headers().await;
     assert_eq!(
@@ -101,7 +101,7 @@ async fn test_non_ascii_credentials_are_encoded_as_utf8() {
 /// The redacted representation shows the host and username and masks only the
 /// password.
 #[test]
-fn test_redacted_representation_shows_the_host_and_username() {
+fn test_bhv_authbasic_010_redacted_representation_shows_the_host_and_username() {
     let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
     assert_eq!(
         "BasicAuthenticator { host: \"https://api.example.com\", username: \"alice\", password: \"***\" }",
@@ -112,7 +112,7 @@ fn test_redacted_representation_shows_the_host_and_username() {
 /// The scheme wrappers emit the same header as the authenticator they wrap and
 /// validate the credentials as eagerly.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_scheme_wrappers_emit_the_basic_header_and_validate_eagerly() {
+async fn test_bhv_authbasic_002_scheme_wrappers_emit_the_basic_header_and_validate_eagerly() {
     let host = "https://api.example.com";
     let admin = AdminBasicAuthenticator::new(host, Some("alice"), Some("s3cret")).unwrap();
     let store = PetStoreBasicAuthenticator::new(host, Some("alice"), Some("s3cret")).unwrap();

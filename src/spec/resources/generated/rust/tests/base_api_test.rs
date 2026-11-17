@@ -150,7 +150,7 @@ async fn test_base_api_error_dispatch_502() {
 // -- Error body parsing --
 
 #[tokio::test]
-async fn test_base_api_parses_json_error_body() {
+async fn test_bhv_errors_034_base_api_parses_json_error_body() {
     let base_url = format!(
         "{}/test/status/400",
         testcontainers_helper::chasm_http_url()
@@ -202,7 +202,7 @@ async fn test_base_api_handles_empty_200_response() {
 // -- JSON response deserialization --
 
 #[tokio::test]
-async fn test_base_api_deserializes_json_response() {
+async fn test_bhv_serializationwire_004_base_api_deserializes_json_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
@@ -225,7 +225,7 @@ async fn test_base_api_deserializes_json_response() {
 // -- Non-JSON response --
 
 #[tokio::test]
-async fn test_base_api_returns_raw_body_for_non_json() {
+async fn test_bhv_serializationwire_019_base_api_returns_raw_body_for_non_json() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
@@ -247,7 +247,7 @@ async fn test_base_api_returns_raw_body_for_non_json() {
 // -- Returns unit when return type is void --
 
 #[tokio::test]
-async fn test_base_api_returns_unit_when_return_type_is_void() {
+async fn test_bhv_operations_015_base_api_returns_unit_when_return_type_is_void() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -266,7 +266,7 @@ async fn test_base_api_returns_unit_when_return_type_is_void() {
 // -- Gap Z: URL trailing-slash collapse --
 
 #[tokio::test]
-async fn test_base_api_collapses_double_slash_when_baseurl_has_trailing_slash() {
+async fn test_bhv_operations_007_base_api_collapses_double_slash_when_baseurl_has_trailing_slash() {
     // baseUrl='http://x/' + path='/y' must produce 'http://x/y', not
     // 'http://x//y' which most servers route to 404.
     let client = Arc::new(CapturingApiClient::new());
@@ -292,7 +292,7 @@ async fn test_base_api_collapses_double_slash_when_baseurl_has_trailing_slash() 
 // -- Auth header forwarding --
 
 #[tokio::test]
-async fn test_base_api_forwards_auth_headers() {
+async fn test_bhv_authintegration_010_base_api_forwards_auth_headers() {
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), "Bearer test-token".to_string());
@@ -427,7 +427,7 @@ impl petstore::api_client::ApiClient for VendorJsonApiClient {
 }
 
 #[tokio::test]
-async fn test_base_api_deserializes_vendor_json_mime_type() {
+async fn test_bhv_serializationwire_005_base_api_deserializes_vendor_json_mime_type() {
     let client = Arc::new(VendorJsonApiClient);
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -528,7 +528,7 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
 // -- Header flow-through tests --
 
 #[tokio::test]
-async fn test_base_api_all_headers_flow_through() {
+async fn test_bhv_operations_002_base_api_all_headers_flow_through() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -549,7 +549,7 @@ async fn test_base_api_all_headers_flow_through() {
 }
 
 #[tokio::test]
-async fn test_base_api_config_default_header_overrides_negotiated_accept() {
+async fn test_bhv_options_001_base_api_config_default_header_overrides_negotiated_accept() {
     /* A config default header must win over the operation-negotiated Accept.
      * get_pet_by_id negotiates `Accept: application/json`; with a config
      * default of `Accept: application/xml`, the outgoing request must carry
@@ -572,7 +572,7 @@ async fn test_base_api_config_default_header_overrides_negotiated_accept() {
 // -- Auth Option<>: falling back to the client-level authenticator --
 
 #[tokio::test]
-async fn test_base_api_op_auth_none_falls_back_to_client_authenticator() {
+async fn test_bhv_authintegration_009_base_api_op_auth_none_falls_back_to_client_authenticator() {
     /* When `None` is passed for `auth`, the operation must fall back to the
      * authenticator that was wired into the BaseApi at construction time. */
     let client = Arc::new(CapturingApiClient::new());
@@ -616,7 +616,7 @@ impl petstore::auth::Authenticator for HeaderAuthenticator {
 }
 
 #[tokio::test]
-async fn test_base_api_auth_code_not_exchanged_fails_the_call() {
+async fn test_bhv_errors_037_base_api_auth_code_not_exchanged_fails_the_call() {
     /* An authorization-code authenticator whose code was never exchanged must
      * fail the call with OAuth2AuthorizationCodeError::CodeNotExchanged; the
      * request must NOT go out unauthenticated. */
@@ -673,7 +673,7 @@ async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
 // -- Body serialization tests --
 
 #[tokio::test]
-async fn test_base_api_serializes_json_body() {
+async fn test_bhv_serializationwire_022_base_api_serializes_json_body() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -704,7 +704,7 @@ async fn test_base_api_serializes_json_body() {
 //   2. an optional null/absent field is omitted entirely (no `note=`);
 //   3. a space encodes as `+`, never `%20`.
 #[tokio::test]
-async fn test_base_api_serializes_form_urlencoded_body() {
+async fn test_bhv_serializationwire_013_base_api_serializes_form_urlencoded_body() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -911,7 +911,7 @@ async fn test_base_api_error_dispatch_418() {
 // -- Exception hierarchy --
 
 #[tokio::test]
-async fn test_base_api_not_found_is_client_error() {
+async fn test_bhv_errors_033_base_api_not_found_is_client_error() {
     let base_url = format!(
         "{}/test/status/404",
         testcontainers_helper::chasm_http_url()
@@ -931,7 +931,7 @@ async fn test_base_api_not_found_is_client_error() {
 }
 
 #[tokio::test]
-async fn test_base_api_internal_server_error_is_server_error() {
+async fn test_bhv_errors_031_base_api_internal_server_error_is_server_error() {
     let base_url = format!(
         "{}/test/status/500",
         testcontainers_helper::chasm_http_url()
@@ -979,7 +979,7 @@ impl petstore::auth::Authenticator for CookieAuthenticator {
 }
 
 #[tokio::test]
-async fn test_base_api_sets_cookie_from_auth() {
+async fn test_bhv_authintegration_017_base_api_sets_cookie_from_auth() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1021,7 +1021,7 @@ impl petstore::auth::Authenticator for ManyCookiesAuthenticator {
 /* F1089: two or more authenticator cookies are written sorted by name, so the
  * Cookie header has the same bytes on every run. */
 #[tokio::test]
-async fn test_base_api_writes_auth_cookies_sorted_by_name() {
+async fn test_bhv_authintegration_004_base_api_writes_auth_cookies_sorted_by_name() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1133,7 +1133,7 @@ async fn test_base_api_missing_required_param_is_invalid_argument() {
 // -- Empty content-type defaults to application/json --
 
 #[tokio::test]
-async fn test_base_api_empty_content_type_defaults_to_json() {
+async fn test_bhv_serializationwire_007_base_api_empty_content_type_defaults_to_json() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1215,7 +1215,7 @@ async fn test_base_api_query_param_serialization() {
 }
 
 #[tokio::test]
-async fn test_base_api_expands_array_query_params() {
+async fn test_bhv_serializationwire_009_base_api_expands_array_query_params() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1233,7 +1233,7 @@ async fn test_base_api_expands_array_query_params() {
 }
 
 #[tokio::test]
-async fn test_base_api_query_param_empty_when_no_options() {
+async fn test_bhv_serializationwire_015_base_api_query_param_empty_when_no_options() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1249,7 +1249,7 @@ async fn test_base_api_query_param_empty_when_no_options() {
 }
 
 #[tokio::test]
-async fn test_base_api_nil_options_omits_query_params() {
+async fn test_bhv_serializationwire_001_base_api_nil_options_omits_query_params() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1265,7 +1265,7 @@ async fn test_base_api_nil_options_omits_query_params() {
 }
 
 #[tokio::test]
-async fn test_base_api_allow_empty_value_omits_param_when_unset() {
+async fn test_bhv_options_002_base_api_allow_empty_value_omits_param_when_unset() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1285,7 +1285,8 @@ async fn test_base_api_allow_empty_value_omits_param_when_unset() {
 }
 
 #[tokio::test]
-async fn test_base_api_allow_empty_value_includes_param_in_query_string() {
+async fn test_bhv_serializationwire_016_base_api_allow_empty_value_includes_param_in_query_string()
+{
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1323,7 +1324,8 @@ impl petstore::auth::Authenticator for StatusQueryAuthenticator {
 }
 
 #[tokio::test]
-async fn test_base_api_auth_query_param_replaces_same_named_operation_param() {
+async fn test_bhv_serializationwire_002_base_api_auth_query_param_replaces_same_named_operation_param(
+) {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1355,7 +1357,7 @@ async fn test_base_api_auth_query_param_replaces_same_named_operation_param() {
 // -- Server variable overrides --
 
 #[test]
-fn test_base_api_server_variable_overrides_resolve() {
+fn test_bhv_options_003_base_api_server_variable_overrides_resolve() {
     let mut vars = HashMap::new();
     vars.insert("environment".to_string(), "staging".to_string());
     let config = ConfigurationBuilder::new()
@@ -1366,7 +1368,7 @@ fn test_base_api_server_variable_overrides_resolve() {
 }
 
 #[test]
-fn test_base_api_default_server_variables_resolve() {
+fn test_bhv_operations_009_base_api_default_server_variables_resolve() {
     let config = ConfigurationBuilder::new()
         .server(&petstore::servers::server_1(), &HashMap::new())
         .unwrap()
@@ -1375,7 +1377,7 @@ fn test_base_api_default_server_variables_resolve() {
 }
 
 #[test]
-fn test_base_api_invalid_enum_value_returns_error() {
+fn test_bhv_errors_032_base_api_invalid_enum_value_returns_error() {
     let mut vars = HashMap::new();
     vars.insert("environment".to_string(), "invalid".to_string());
     let result = ConfigurationBuilder::new().server(&petstore::servers::server_1(), &vars);
@@ -1383,7 +1385,7 @@ fn test_base_api_invalid_enum_value_returns_error() {
 }
 
 #[test]
-fn test_base_api_api_request_uses_resolved_server_url() {
+fn test_bhv_operations_005_base_api_api_request_uses_resolved_server_url() {
     let mut vars = HashMap::new();
     vars.insert("environment".to_string(), "staging".to_string());
     let config = ConfigurationBuilder::new()
@@ -1400,7 +1402,7 @@ fn test_base_api_api_request_uses_resolved_server_url() {
 // -- Query serialization --
 
 #[tokio::test]
-async fn test_base_api_serializes_boolean_query_params() {
+async fn test_bhv_serializationwire_020_base_api_serializes_boolean_query_params() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1417,7 +1419,7 @@ async fn test_base_api_serializes_boolean_query_params() {
 }
 
 #[tokio::test]
-async fn test_base_api_serializes_number_query_params() {
+async fn test_bhv_serializationwire_023_base_api_serializes_number_query_params() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1474,7 +1476,7 @@ impl petstore::api_client::ApiClient for BinaryResponseApiClient {
 }
 
 #[tokio::test]
-async fn test_binary_response_octet_stream_decoded_from_base64() {
+async fn test_bhv_serializationwire_018_binary_response_octet_stream_decoded_from_base64() {
     use base64::Engine as _;
     /* Bytes chosen to include 0x00 and 0xFF -- values that get mangled by
      * naive UTF-8 conversion. The transport layer base64-encodes binary
@@ -1513,7 +1515,7 @@ async fn test_binary_response_octet_stream_decoded_from_base64() {
 }
 
 #[tokio::test]
-async fn test_binary_response_image_png_decoded_from_base64() {
+async fn test_bhv_operations_012_binary_response_image_png_decoded_from_base64() {
     use base64::Engine as _;
     /* PNG magic header -- another byte sequence with high bytes that would
      * be corrupted under a UTF-8 round-trip. */
@@ -1543,7 +1545,7 @@ async fn test_binary_response_image_png_decoded_from_base64() {
 }
 
 #[tokio::test]
-async fn test_json_response_for_a_model_return_is_parsed_to_the_model() {
+async fn test_bhv_serializationwire_003_json_response_for_a_model_return_is_parsed_to_the_model() {
     let client = Arc::new(BinaryResponseApiClient {
         body: r#"{"id":42,"name":"test","photoUrls":["u"]}"#.to_string(),
         content_type: "application/json".to_string(),
@@ -1561,7 +1563,7 @@ async fn test_json_response_for_a_model_return_is_parsed_to_the_model() {
 }
 
 #[tokio::test]
-async fn test_byte_over_json_response_decodes_to_bytes() {
+async fn test_bhv_serializationwire_017_byte_over_json_response_decodes_to_bytes() {
     /* `getPetAvatarThumbnail` returns a top-level `format: byte` schema served
      * as `application/json`: the body is a JSON STRING of base64
      * (`"dGVzdC1pbWFnZQ=="`, quotes included). base_api must JSON-parse it and
@@ -1605,7 +1607,8 @@ async fn test_text_plain_body_for_a_string_return_is_the_text() {
 }
 
 #[tokio::test]
-async fn test_text_plain_body_for_a_model_return_is_a_serialization_error_naming_the_type() {
+async fn test_bhv_errors_035_text_plain_body_for_a_model_return_is_a_serialization_error_naming_the_type(
+) {
     let client = Arc::new(BinaryResponseApiClient {
         body: "hello world".to_string(),
         content_type: "text/plain; charset=utf-8".to_string(),
@@ -1628,7 +1631,7 @@ async fn test_text_plain_body_for_a_model_return_is_a_serialization_error_naming
 }
 
 #[tokio::test]
-async fn test_binary_response_empty_body_is_accepted_by_a_void_operation() {
+async fn test_bhv_operations_010_binary_response_empty_body_is_accepted_by_a_void_operation() {
     let client = Arc::new(BinaryResponseApiClient {
         body: "".to_string(),
         content_type: "application/octet-stream".to_string(),
@@ -1698,7 +1701,7 @@ impl petstore::api_client::ApiClient for HeaderCapturingApiClient {
 }
 
 #[tokio::test]
-async fn test_null_body_post_does_not_send_content_type() {
+async fn test_bhv_operations_013_null_body_post_does_not_send_content_type() {
     let client = Arc::new(HeaderCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1715,7 +1718,7 @@ async fn test_null_body_post_does_not_send_content_type() {
 }
 
 #[tokio::test]
-async fn test_body_present_includes_content_type() {
+async fn test_bhv_operations_011_body_present_includes_content_type() {
     let client = Arc::new(HeaderCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1749,7 +1752,7 @@ async fn test_get_request_with_no_body_omits_content_type() {
 // -- Proxy authentication propagation --
 
 #[tokio::test]
-async fn test_base_api_routes_through_proxy_with_basic_auth() {
+async fn test_bhv_transport_001_base_api_routes_through_proxy_with_basic_auth() {
     /* Cross-language parity: a `http://user:pass@proxy:port` URL must
      * forward Proxy-Authorization correctly. The bundled Squid testcontainer
      * is configured without basic-auth, so we exercise the credential-bearing
@@ -1883,7 +1886,7 @@ fn test_api_error_kind_network_variants_have_status_zero() {
 // -- ApiError::typed_error_body (typed error-body accessor) --
 
 #[test]
-fn test_api_error_typed_error_body_parses_into_target_type() {
+fn test_bhv_errors_030_api_error_typed_error_body_parses_into_target_type() {
     #[derive(serde::Deserialize, Debug, PartialEq)]
     struct Problem {
         title: String,
@@ -1909,7 +1912,7 @@ fn test_api_error_typed_error_body_parses_into_target_type() {
 }
 
 #[test]
-fn test_api_error_typed_error_body_returns_none_when_no_body() {
+fn test_bhv_errors_028_api_error_typed_error_body_returns_none_when_no_body() {
     let err = petstore::ApiError::new(500, "boom".to_string(), None, None);
     let parsed: Result<Option<serde_json::Value>, _> = err.typed_error_body();
     assert!(
@@ -1919,7 +1922,7 @@ fn test_api_error_typed_error_body_returns_none_when_no_body() {
 }
 
 #[test]
-fn test_api_error_typed_error_body_returns_err_when_body_invalid() {
+fn test_bhv_errors_029_api_error_typed_error_body_returns_err_when_body_invalid() {
     // The field is only a deserialization target and is never read directly;
     // underscore-prefixing exempts it from dead_code without a suppression,
     // while `serde(rename)` preserves the on-the-wire field name `id`.
@@ -1946,7 +1949,7 @@ fn test_api_error_typed_error_body_returns_err_when_body_invalid() {
 // read but never mutate the status / body / headers / data after the SDK
 // produced them.
 #[test]
-fn test_api_result_and_response_accessor_only() {
+fn test_bhv_operations_006_api_result_and_response_accessor_only() {
     let mut headers = HashMap::new();
     headers.insert("content-type".to_string(), "application/json".to_string());
 
@@ -2006,7 +2009,7 @@ fn test_typed_error_wrappers_accessor_only() {
 // through a SECURED operation and asserts the credential it produces actually
 // lands on the outbound request the SDK puts on the wire.
 #[tokio::test]
-async fn test_base_api_configured_bearer_authenticator_reaches_wire() {
+async fn test_bhv_authintegration_006_base_api_configured_bearer_authenticator_reaches_wire() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -2106,7 +2109,7 @@ impl petstore::auth::Authenticator for EverywhereAuthenticator {
 }
 
 #[tokio::test]
-async fn test_base_api_security_none_op_suppresses_client_authenticator() {
+async fn test_bhv_authintegration_005_base_api_security_none_op_suppresses_client_authenticator() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -2180,7 +2183,8 @@ async fn test_base_api_secured_op_applies_client_authenticator() {
 // MUST reach the wire -- the regression that silently dropped auth on every
 // inherited-security operation.
 #[tokio::test]
-async fn test_base_api_inherited_security_op_applies_client_authenticator() {
+async fn test_bhv_authintegration_012_base_api_inherited_security_op_applies_client_authenticator()
+{
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -2300,7 +2304,7 @@ impl petstore::api_client::ApiClient for StatusSequenceApiClient {
 }
 
 #[tokio::test]
-async fn test_a_401_renews_the_token_and_replays_the_request_once() {
+async fn test_bhv_retries_001_a_401_renews_the_token_and_replays_the_request_once() {
     let client = Arc::new(StatusSequenceApiClient {
         statuses: Mutex::new(vec![401, 200]),
         authorizations: Mutex::new(Vec::new()),
@@ -2325,7 +2329,7 @@ async fn test_a_401_renews_the_token_and_replays_the_request_once() {
 }
 
 #[tokio::test]
-async fn test_a_second_401_is_reported_after_one_replay() {
+async fn test_bhv_retries_008_a_second_401_is_reported_after_one_replay() {
     let client = Arc::new(StatusSequenceApiClient {
         statuses: Mutex::new(vec![401, 401]),
         authorizations: Mutex::new(Vec::new()),
@@ -2350,7 +2354,7 @@ async fn test_a_second_401_is_reported_after_one_replay() {
 }
 
 #[tokio::test]
-async fn test_a_per_call_authenticator_is_given_the_transport() {
+async fn test_bhv_authintegration_002_a_per_call_authenticator_is_given_the_transport() {
     let client = Arc::new(StatusSequenceApiClient {
         statuses: Mutex::new(vec![200]),
         authorizations: Mutex::new(Vec::new()),
@@ -2576,7 +2580,7 @@ async fn test_the_last_failure_is_reported_when_the_retries_run_out() {
 }
 
 #[tokio::test]
-async fn test_statuses_that_do_not_retry_are_sent_once() {
+async fn test_bhv_retries_007_statuses_that_do_not_retry_are_sent_once() {
     for status in [400, 404, 422, 501] {
         let client = ScriptedApiClient::new(
             vec![
@@ -2595,7 +2599,7 @@ async fn test_statuses_that_do_not_retry_are_sent_once() {
 }
 
 #[tokio::test]
-async fn test_zero_max_retries_sends_the_call_once() {
+async fn test_bhv_retries_004_zero_max_retries_sends_the_call_once() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(503, Some("0")),
@@ -2642,7 +2646,7 @@ async fn test_a_network_failure_is_retried_but_a_timeout_is_not() {
 }
 
 #[tokio::test]
-async fn test_a_retry_asks_the_authenticator_for_fresh_headers() {
+async fn test_bhv_retries_005_a_retry_asks_the_authenticator_for_fresh_headers() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(503, Some("0")),
@@ -2736,7 +2740,7 @@ async fn test_every_attempt_shares_one_deadline() {
 }
 
 #[tokio::test]
-async fn test_a_multipart_body_is_never_retried() {
+async fn test_bhv_retries_003_a_multipart_body_is_never_retried() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(503, Some("0")),

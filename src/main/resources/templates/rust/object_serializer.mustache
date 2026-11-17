@@ -904,7 +904,7 @@ mod tests {
      * non-ASCII literally; only the quote, the backslash and controls below
      * U+0020 are escaped. */
     #[test]
-    fn test_request_json_writes_line_separators_and_del_literally() {
+    fn test_bhv_serializationobject_124_request_json_writes_line_separators_and_del_literally() {
         let value = serde_json::json!({"k": "a\u{2028}b\u{2029}c\u{7f}/<>&\u{e9}\"\\\n"});
         let json = object_serializer::serialize(&value).expect("serializes");
         assert_eq!(
@@ -935,7 +935,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_failure_messages_start_with_the_canonical_prefix() {
+    fn test_bhv_serializationobject_004_deserialize_failure_messages_start_with_the_canonical_prefix() {
         let wrong_type = object_serializer::deserialize::<i32>(b"\"text\"").expect_err("a string is not an i32");
         assert!(
             wrong_type.message().starts_with("failed to deserialize JSON: "),
@@ -1070,7 +1070,7 @@ mod tests {
 {{/generateTests}}
 
     #[test]
-    fn test_serialize_map_to_json() {
+    fn test_bhv_serializationobject_147_serialize_map_to_json() {
         let mut input = serde_json::Map::new();
         input.insert("name".to_string(), serde_json::Value::String("example".to_string()));
         input.insert("age".to_string(), serde_json::json!(3));
@@ -1088,7 +1088,7 @@ mod tests {
      * range or with a fractional part as a SerializationError, instead of
      * truncating it, and an int64 keeps every digit of a value above 2^53. */
     #[test]
-    fn test_integer_widths_are_enforced_on_deserialize() {
+    fn test_bhv_serializationobject_032_integer_widths_are_enforced_on_deserialize() {
         let overflow: Result<Option<i32>, SerializationError> =
             object_serializer::deserialize(b"3000000000");
         assert!(overflow.is_err(), "3000000000 does not fit an int32");
@@ -1117,7 +1117,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_bare_null_is_an_absent_body() {
+    fn test_bhv_serializationobject_067_deserialize_bare_null_is_an_absent_body() {
         let model: Option<std::collections::HashMap<String, String>> =
             object_serializer::deserialize(b"null").expect("null must not be an error");
         assert!(model.is_none());
@@ -1138,26 +1138,26 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_empty_data() {
+    fn test_bhv_serializationobject_130_deserialize_empty_data() {
         let result: Result<Option<serde_json::Value>, _> = object_serializer::deserialize(b"");
         assert!(result.is_ok(), "expected Ok for empty data");
         assert!(result.unwrap().is_none(), "expected None for empty data");
     }
 
     #[test]
-    fn test_deserialize_invalid_json() {
+    fn test_bhv_serializationobject_066_deserialize_invalid_json() {
         let result: Result<Option<serde_json::Value>, _> = object_serializer::deserialize(b"not json");
         assert!(result.is_err(), "expected error for invalid JSON");
     }
 
     #[test]
-    fn test_to_path_value_string() {
+    fn test_bhv_serializationobject_141_to_path_value_string() {
         let result = object_serializer::to_path_value(&"hello".to_string());
         assert_eq!(result, "hello");
     }
 
     #[test]
-    fn test_to_path_value_bare_date_unchanged() {
+    fn test_bhv_serializationobject_002_to_path_value_bare_date_unchanged() {
         /* Already in YYYY-MM-DD form -- emitted verbatim. */
         let result = object_serializer::to_path_value(&"2024-01-15".to_string());
         assert_eq!(result, "2024-01-15");
@@ -1176,13 +1176,13 @@ mod tests {
     }
 
     #[test]
-    fn test_to_path_value_datetime_with_offset_is_not_truncated() {
+    fn test_bhv_serializationobject_149_to_path_value_datetime_with_offset_is_not_truncated() {
         let result = object_serializer::to_path_value(&"2024-01-15T10:30:00+01:00".to_string());
         assert_eq!(result, "2024-01-15T10:30:00+01:00");
     }
 
     #[test]
-    fn test_to_path_value_non_date_string_unchanged() {
+    fn test_bhv_serializationobject_114_to_path_value_non_date_string_unchanged() {
         let result = object_serializer::to_path_value(&"not-a-date".to_string());
         assert_eq!(result, "not-a-date");
     }
@@ -1224,7 +1224,7 @@ mod tests {
     /* -- BOM tolerance: a leading UTF-8 BOM must be stripped before parse -- */
 
     #[test]
-    fn test_deserialize_tolerates_leading_utf8_bom() {
+    fn test_bhv_serializationobject_060_deserialize_tolerates_leading_utf8_bom() {
         /* Cross-language parity: Windows-generated payloads often prepend a
          * UTF-8 BOM (U+FEFF) that RFC 8259 forbids and serde_json rejects.
          * `deserialize` strips it transparently, so a BOM-prefixed Category
@@ -1246,7 +1246,7 @@ mod tests {
      * is never silently constructed. Pet requires `name` and `photoUrls`. */
 
     #[test]
-    fn test_deserialize_missing_required_field_raises() {
+    fn test_bhv_serializationobject_063_deserialize_missing_required_field_raises() {
         /* `photoUrls` is present but the required `name` is absent. serde must
          * report the missing field rather than build a partial Pet. */
         let payload = br#"{"id":7,"photoUrls":["http://example.com/a.jpg"]}"#;
@@ -1259,7 +1259,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_explicitly_null_required_field_raises() {
+    fn test_bhv_serializationobject_084_deserialize_explicitly_null_required_field_raises() {
         /* The required `name` is present on the wire but explicitly null.
          * Because the field is a plain `String` (not `Option<String>`), serde
          * rejects the null value instead of treating it as absent. */
@@ -1273,7 +1273,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_complete_required_object_succeeds() {
+    fn test_bhv_serializationobject_061_deserialize_complete_required_object_succeeds() {
         /* Control: a Pet with all required fields present and non-null still
          * deserializes cleanly — strictness must not break valid payloads. */
         let payload = br#"{"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}"#;
@@ -1287,7 +1287,7 @@ mod tests {
     /* The Order.status property declares `default: placed`: a payload that omits
      * the key deserializes to the declared default, not to `None`. */
     #[test]
-    fn test_deserialize_applies_schema_default_for_absent_field() {
+    fn test_bhv_serializationobject_053_deserialize_applies_schema_default_for_absent_field() {
         let payload = br#"{"id":10,"petId":198772}"#;
         let order: Option<crate::models::Order> = object_serializer::deserialize(payload)
             .expect("deserializing an Order without a status must succeed");
@@ -1300,7 +1300,7 @@ mod tests {
     /// unknown enum value, a missing required field, and a malformed
     /// date-time or duration.
     #[test]
-    fn test_wire_shape_failures_are_serialization_errors() {
+    fn test_bhv_serializationobject_077_wire_shape_failures_are_serialization_errors() {
         fn assert_serialization_error<T: serde::de::DeserializeOwned + std::fmt::Debug>(
             case: &str,
             payload: &[u8],
@@ -1329,13 +1329,13 @@ mod tests {
 {{/generateTests}}
 
     #[test]
-    fn test_to_path_value_int() {
+    fn test_bhv_serializationobject_036_to_path_value_int() {
         let result = object_serializer::to_path_value(&42.to_string());
         assert_eq!(result, "42");
     }
 
     #[test]
-    fn test_to_path_value_bool() {
+    fn test_bhv_serializationobject_166_to_path_value_bool() {
         let result = object_serializer::to_path_value(&true.to_string());
         assert_eq!(result, "true");
 
@@ -1344,7 +1344,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_string() {
+    fn test_bhv_serializationobject_167_to_query_value_string() {
         let result = object_serializer::to_query_value(&"hello".to_string(), "");
         match result {
             QueryValue::Single(s) => assert_eq!(s, "hello"),
@@ -1353,7 +1353,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_bool_true() {
+    fn test_bhv_serializationobject_028_to_query_value_bool_true() {
         let result = object_serializer::to_query_value(&true.to_string(), "");
         match result {
             QueryValue::Single(s) => assert_eq!(s, "true"),
@@ -1362,7 +1362,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_bool_false() {
+    fn test_bhv_serializationobject_027_to_query_value_bool_false() {
         let result = object_serializer::to_query_value(&false.to_string(), "");
         match result {
             QueryValue::Single(s) => assert_eq!(s, "false"),
@@ -1371,7 +1371,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_string_slice_csv() {
+    fn test_bhv_serializationobject_168_to_query_value_string_slice_csv() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_query_value(&items, "csv");
         match result {
@@ -1381,7 +1381,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_string_slice_ssv() {
+    fn test_bhv_serializationobject_169_to_query_value_string_slice_ssv() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_query_value(&items, "ssv");
         match result {
@@ -1411,7 +1411,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_string_slice_multi() {
+    fn test_bhv_serializationobject_135_to_query_value_string_slice_multi() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_query_value(&items, "multi");
         match result {
@@ -1421,7 +1421,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_header_value_string() {
+    fn test_bhv_serializationobject_142_to_header_value_string() {
         let result = object_serializer::to_header_value(&"hello".to_string());
         assert_eq!(result, "hello");
     }
@@ -1434,7 +1434,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_form_value_string() {
+    fn test_bhv_serializationobject_140_to_form_value_string() {
         let result = object_serializer::to_form_value(&"hello".to_string());
         assert_eq!(result, "hello");
     }
@@ -1446,25 +1446,25 @@ mod tests {
     }
 
     #[test]
-    fn test_to_form_value_bool_true() {
+    fn test_bhv_serializationobject_042_to_form_value_bool_true() {
         let result = object_serializer::to_form_value(&true.to_string());
         assert_eq!(result, "true");
     }
 
     #[test]
-    fn test_to_form_value_bool_false() {
+    fn test_bhv_serializationobject_035_to_form_value_bool_false() {
         let result = object_serializer::to_form_value(&false.to_string());
         assert_eq!(result, "false");
     }
 
     #[test]
-    fn test_to_form_value_none() {
+    fn test_bhv_serializationobject_165_to_form_value_none() {
         let result = object_serializer::to_form_value(&Option::<String>::None);
         assert_eq!(result, "");
     }
 
     #[test]
-    fn test_to_header_value_int() {
+    fn test_bhv_serializationobject_038_to_header_value_int() {
         let result = object_serializer::to_header_value(&42.to_string());
         assert_eq!(result, "42");
     }
@@ -1482,7 +1482,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_none() {
+    fn test_bhv_serializationobject_137_to_query_value_none() {
         let result = object_serializer::to_query_value(&Option::<String>::None, "");
         match result {
             QueryValue::Single(s) => assert_eq!(s, ""),
@@ -1491,7 +1491,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_cookie_value_string() {
+    fn test_bhv_serializationobject_143_to_cookie_value_string() {
         let result = object_serializer::to_cookie_value(&"hello".to_string());
         assert_eq!(result, "hello");
     }
@@ -1503,13 +1503,13 @@ mod tests {
     }
 
     #[test]
-    fn test_to_cookie_value_int() {
+    fn test_bhv_serializationobject_040_to_cookie_value_int() {
         let result = object_serializer::to_cookie_value(&42.to_string());
         assert_eq!(result, "42");
     }
 
     #[test]
-    fn test_stringify_string() {
+    fn test_bhv_serializationobject_159_stringify_string() {
         let result = object_serializer::stringify(&"hello".to_string());
         assert_eq!(result, "hello");
     }
@@ -1521,26 +1521,26 @@ mod tests {
     }
 
     #[test]
-    fn test_stringify_bool() {
+    fn test_bhv_serializationobject_155_stringify_bool() {
         assert_eq!(object_serializer::stringify(&true.to_string()), "true");
         assert_eq!(object_serializer::stringify(&false.to_string()), "false");
     }
 
     #[test]
-    fn test_stringify_empty() {
+    fn test_bhv_serializationobject_110_stringify_empty() {
         let result = object_serializer::stringify(&"".to_string());
         assert_eq!(result, "");
     }
 
     #[test]
-    fn test_stringify_bytes_is_padded_standard_base64() {
+    fn test_bhv_serializationobject_156_stringify_bytes_is_padded_standard_base64() {
         assert_eq!(object_serializer::stringify(&b"hi".to_vec()), "aGk=");
         assert_eq!(object_serializer::stringify(&vec![0xFBu8, 0xFF]), "+/8=");
         assert_eq!(object_serializer::to_header_value(&b"hi".to_vec()), "aGk=");
     }
 
     #[test]
-    fn test_stringify_time_is_partial_time_truncated_to_milliseconds() {
+    fn test_bhv_serializationobject_164_stringify_time_is_partial_time_truncated_to_milliseconds() {
         let whole = chrono::NaiveTime::from_hms_opt(10, 30, 0).unwrap();
         assert_eq!(object_serializer::stringify(&whole), "10:30:00");
         let nanos = chrono::NaiveTime::from_hms_nano_opt(10, 30, 0, 123_456_789).unwrap();
@@ -1550,7 +1550,7 @@ mod tests {
     }
 
     #[test]
-    fn test_date_only_string_preserved() {
+    fn test_bhv_serializationobject_134_date_only_string_preserved() {
         let json_value = serde_json::json!("2024-01-01");
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
         assert!(serialized.contains("2024-01-01"), "date should be preserved: {serialized}");
@@ -1559,21 +1559,21 @@ mod tests {
     /* NonAsciiSerializationTests */
 
     #[test]
-    fn test_non_ascii_accented_character_not_escaped() {
+    fn test_bhv_serializationobject_019_non_ascii_accented_character_not_escaped() {
         let json_value = serde_json::json!({"key": "café"});
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
         assert!(serialized.contains('é'), "should contain literal é: {serialized}");
     }
 
     #[test]
-    fn test_non_ascii_cjk_characters_not_escaped() {
+    fn test_bhv_serializationobject_031_non_ascii_cjk_characters_not_escaped() {
         let json_value = serde_json::json!({"key": "日本"});
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
         assert!(serialized.contains("日本"), "should contain literal CJK chars: {serialized}");
     }
 
     #[test]
-    fn test_non_ascii_tab_character_escaped_properly() {
+    fn test_bhv_serializationobject_160_non_ascii_tab_character_escaped_properly() {
         let json_value = serde_json::json!({"key": "a\tb"});
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
         assert!(serialized.contains("\\t"), "tab should be escaped as \\t: {serialized}");
@@ -1582,7 +1582,7 @@ mod tests {
     /* DeserializationErrorWrappingTests */
 
     #[test]
-    fn test_deserialization_truncated_json_returns_serialization_error() {
+    fn test_bhv_serializationobject_170_deserialization_truncated_json_returns_serialization_error() {
         let result: Result<Option<serde_json::Value>, SerializationError> =
             object_serializer::deserialize(b"{");
         assert!(result.is_err(), "expected error for truncated JSON");
@@ -1591,14 +1591,14 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialization_invalid_json_returns_serialization_error() {
+    fn test_bhv_serializationobject_095_deserialization_invalid_json_returns_serialization_error() {
         let result: Result<Option<serde_json::Value>, SerializationError> =
             object_serializer::deserialize(b"not valid json {{{");
         assert!(result.is_err(), "expected error for invalid JSON");
     }
 
     #[test]
-    fn test_deserialization_error_has_cause() {
+    fn test_bhv_serializationobject_162_deserialization_error_has_cause() {
         let result: Result<Option<serde_json::Value>, SerializationError> =
             object_serializer::deserialize(b"{");
         let err = result.unwrap_err();
@@ -1612,7 +1612,7 @@ mod tests {
      * impls on generated models containing a Uuid field "just work". */
 
     #[test]
-    fn test_uuid_serializes_as_rfc4122_string() {
+    fn test_bhv_serializationobject_175_uuid_serializes_as_rfc4122_string() {
         let id: uuid::Uuid = "550e8400-e29b-41d4-a716-446655440000"
             .parse()
             .expect("valid UUID literal");
@@ -1623,7 +1623,7 @@ mod tests {
     }
 
     #[test]
-    fn test_uuid_deserializes_from_rfc4122_string() {
+    fn test_bhv_serializationobject_065_uuid_deserializes_from_rfc4122_string() {
         let payload = br#""550e8400-e29b-41d4-a716-446655440000""#;
         let result: Option<uuid::Uuid> = object_serializer::deserialize(payload)
             .expect("deserialize must succeed");
@@ -1632,7 +1632,7 @@ mod tests {
     }
 
     #[test]
-    fn test_uuid_round_trip_preserves_value() {
+    fn test_bhv_serializationobject_176_uuid_round_trip_preserves_value() {
         let original: uuid::Uuid = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
             .parse()
             .expect("valid UUID literal");
@@ -1643,7 +1643,7 @@ mod tests {
     }
 
     #[test]
-    fn test_uuid_invalid_string_returns_error() {
+    fn test_bhv_serializationobject_103_uuid_invalid_string_returns_error() {
         /* The `uuid` crate validates the input via serde, so a non-UUID
          * string must surface as a SerializationError rather than silently
          * producing a placeholder value. */
@@ -1654,7 +1654,7 @@ mod tests {
     }
 
     #[test]
-    fn test_uuid_inside_json_object_round_trip() {
+    fn test_bhv_serializationobject_148_uuid_inside_json_object_round_trip() {
         /* Verifies a Uuid embedded as a field in a JSON object survives a
          * round-trip — this is the shape generated model structs take when
          * the schema declares `type: string, format: uuid`. */
@@ -1684,7 +1684,7 @@ mod tests {
      * `null` (RFC 8259 §6 has no NaN/Infinity token); the FiniteFloatCheck
      * pre-flight walk surfaces it, at the top level and nested in a struct. */
     #[test]
-    fn test_serialize_non_finite_float_is_error() {
+    fn test_bhv_serializationobject_153_serialize_non_finite_float_is_error() {
         #[derive(serde::Serialize)]
         struct Holder {
             weight: f64,
@@ -1701,21 +1701,21 @@ mod tests {
      * and encoding always writes the key, as null when the value is None. */
     {{#generateTests}}
     #[test]
-    fn test_required_nullable_null_is_kept() {
+    fn test_bhv_serializationobject_049_required_nullable_null_is_kept() {
         let decoded: Option<RequiredNullable> =
             object_serializer::deserialize(br#"{"note":null}"#).expect("null is a legal value");
         assert_eq!(decoded, Some(RequiredNullable::new(None)));
     }
 
     #[test]
-    fn test_required_nullable_missing_key_rejected() {
+    fn test_bhv_serializationobject_126_required_nullable_missing_key_rejected() {
         let result: Result<Option<RequiredNullable>, SerializationError> =
             object_serializer::deserialize(br#"{}"#);
         assert!(result.is_err(), "a missing required nullable key must be rejected");
     }
 
     #[test]
-    fn test_required_nullable_writes_null_key() {
+    fn test_bhv_serializationobject_125_required_nullable_writes_null_key() {
         let json = object_serializer::serialize(&RequiredNullable::new(None))
             .expect("serialize must succeed");
         assert_eq!(json, r#"{"note":null}"#);
@@ -1742,7 +1742,7 @@ mod tests {
      * and the cap (e.g. 500) must now DECODE (it was rejected before the cap was
      * added), while one deeper than the cap is rejected as a SerializationError. */
     #[test]
-    fn test_json_nesting_depth_cap_matches_other_sdks() {
+    fn test_bhv_serializationobject_051_json_nesting_depth_cap_matches_other_sdks() {
         let shallow = format!("{}{}", "[".repeat(50), "]".repeat(50));
         let ok: Result<Option<serde_json::Value>, _> =
             object_serializer::deserialize(shallow.as_bytes());
@@ -1763,7 +1763,7 @@ mod tests {
 
 {{#generateTests}}
     #[test]
-    fn test_serialize_includes_fields_set_to_default_values() {
+    fn test_bhv_serializationobject_088_serialize_includes_fields_set_to_default_values() {
         let category = Category {
             id: Some(0),
             name: Some("".to_string()),
@@ -1786,7 +1786,7 @@ mod tests {
      * to its oneOf mapping value ("dry"/"wet"). */
 
     #[test]
-    fn test_dry_subtype_auto_emits_discriminator() {
+    fn test_bhv_serializationobject_072_dry_subtype_auto_emits_discriminator() {
         let dry = DryFood::new(2.5);
         let json = object_serializer::serialize(&dry).expect("serialize must succeed");
         assert!(
@@ -1797,7 +1797,7 @@ mod tests {
     }
 
     #[test]
-    fn test_wet_subtype_auto_emits_discriminator() {
+    fn test_bhv_serializationobject_178_wet_subtype_auto_emits_discriminator() {
         let wet = WetFood::new(350);
         let json = object_serializer::serialize(&wet).expect("serialize must succeed");
         assert!(
@@ -1809,7 +1809,7 @@ mod tests {
     /* A repeated key resolves to its last value, as in the other SDKs, rather
      * than failing with serde's "duplicate field" error. */
     #[test]
-    fn test_deserialize_duplicate_key_keeps_the_last_value() {
+    fn test_bhv_serializationobject_006_deserialize_duplicate_key_keeps_the_last_value() {
         let payload = br#"{"id":1,"name":"first","id":2}"#;
         let category: Option<Category> =
             object_serializer::deserialize(payload).expect("deserialize must succeed");
@@ -1830,7 +1830,7 @@ mod tests {
      * custom Deserialize routing on foodType="dry", not fall through to a
      * silent untagged match. */
     #[test]
-    fn test_deserialize_parent_routes_to_subtype() {
+    fn test_bhv_serializationobject_055_deserialize_parent_routes_to_subtype() {
         let payload = br#"{"foodType":"dry","weightKg":2.5}"#;
         let result: Option<PetFood> =
             object_serializer::deserialize(payload).expect("deserialize must succeed");
@@ -1847,7 +1847,7 @@ mod tests {
      * non-Option, surfacing the SDK's SerializationError rather than silently
      * constructing a Pet with an empty/partial `name`. */
     #[test]
-    fn test_null_on_required_field_rejected() {
+    fn test_bhv_serializationobject_062_null_on_required_field_rejected() {
         let payload = br#"{"name":null,"photoUrls":["u"]}"#;
         let result: Result<Option<Pet>, SerializationError> =
             object_serializer::deserialize(payload);
@@ -1896,7 +1896,7 @@ mod tests {
      * reads the discriminator field and returns an Err when it is absent
      * (rather than serde-untagged's "try every variant" fall-through). */
     #[test]
-    fn test_missing_discriminator_rejected() {
+    fn test_bhv_serializationobject_085_missing_discriminator_rejected() {
         let payload = br#"{"weightKg":5.0}"#;
         let result: Result<Option<PetFood>, SerializationError> =
             object_serializer::deserialize(payload);
@@ -1907,7 +1907,7 @@ mod tests {
     }
 
     #[test]
-    fn test_uri_property_accepts_any_absolute_uri_and_rejects_relative_references() {
+    fn test_bhv_serializationobject_008_uri_property_accepts_any_absolute_uri_and_rejects_relative_references() {
         for uri in [
             "urn:isbn:0451450523",
             "mailto:a@b.com",
@@ -1937,7 +1937,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unique_items_array_is_written_in_ascending_order() {
+    fn test_bhv_serializationobject_015_unique_items_array_is_written_in_ascending_order() {
         for _ in 0..2 {
             let urls: std::collections::HashSet<String> =
                 ["c", "a", "b"].iter().map(|u| u.to_string()).collect();
@@ -1948,7 +1948,7 @@ mod tests {
     }
 
     #[test]
-    fn test_time_property_is_partial_time_and_round_trips() {
+    fn test_bhv_serializationobject_163_time_property_is_partial_time_and_round_trips() {
         let mut edge = EdgeCases {
             cutoff: chrono::NaiveTime::from_hms_nano_opt(10, 30, 0, 123_456_789),
             ..Default::default()

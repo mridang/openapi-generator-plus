@@ -440,7 +440,8 @@ mod tests {
     /* -- path segment encoding -- */
 
     #[test]
-    fn test_encode_path_segment_keeps_the_sub_delimiters_and_unreserved_set_literal() {
+    fn test_bhv_serializationparam_081_encode_path_segment_keeps_the_sub_delimiters_and_unreserved_set_literal(
+    ) {
         let literal = ";=,:@!$&'()*+~-._";
         assert_eq!(super::encode_path_segment(literal), literal);
     }
@@ -458,230 +459,230 @@ mod tests {
     /* -- serialize_value by location -- */
 
     #[test]
-    fn test_serialize_value_path_null() {
+    fn test_bhv_serializationparam_062_serialize_value_path_null() {
         let result = super::serialize_value(None::<&str>, "path", "string", "");
         assert_eq!(result.unwrap(), "");
     }
 
     #[test]
-    fn test_serialize_value_path_string_as_is() {
+    fn test_bhv_serializationparam_100_serialize_value_path_string_as_is() {
         let result = super::serialize_value(Some("hello"), "path", "string", "");
         assert_eq!(result.unwrap(), "hello");
     }
 
     #[test]
-    fn test_serialize_value_path_string() {
+    fn test_bhv_serializationparam_102_serialize_value_path_string() {
         let result = super::serialize_value(Some("hello world"), "path", "string", "");
         assert_eq!(result.unwrap(), "hello%20world");
     }
 
     #[test]
-    fn test_serialize_value_path_string_slash() {
+    fn test_bhv_serializationparam_101_serialize_value_path_string_slash() {
         let result = super::serialize_value(Some("a/b"), "path", "string", "");
         assert_eq!(result.unwrap(), "a%2Fb");
     }
 
     #[test]
-    fn test_serialize_value_path_integer() {
+    fn test_bhv_serializationparam_044_serialize_value_path_integer() {
         let result = super::serialize_value(Some("42"), "path", "integer", "");
         assert_eq!(result.unwrap(), "42");
     }
 
     #[test]
-    fn test_serialize_value_path_boolean_true() {
+    fn test_bhv_serializationparam_021_serialize_value_path_boolean_true() {
         let result = super::serialize_value(Some("true"), "path", "boolean", "");
         assert_eq!(result.unwrap(), "true");
     }
 
     #[test]
-    fn test_serialize_value_path_boolean_false() {
+    fn test_bhv_serializationparam_018_serialize_value_path_boolean_false() {
         let result = super::serialize_value(Some("false"), "path", "boolean", "");
         assert_eq!(result.unwrap(), "false");
     }
 
     #[test]
-    fn test_serialize_value_query_null() {
+    fn test_bhv_serializationparam_067_serialize_value_query_null() {
         let result = super::serialize_value(None::<&str>, "query", "string", "");
         assert!(result.is_none());
     }
 
     #[test]
-    fn test_serialize_value_query_string() {
+    fn test_bhv_serializationparam_096_serialize_value_query_string() {
         let result = super::serialize_value(Some("hello"), "query", "string", "");
         assert_eq!(result.unwrap(), "hello");
     }
 
     #[test]
-    fn test_serialize_value_query_integer() {
+    fn test_bhv_serializationparam_045_serialize_value_query_integer() {
         let result = super::serialize_value(Some("42"), "query", "integer", "");
         assert_eq!(result.unwrap(), "42");
     }
 
     #[test]
-    fn test_serialize_value_query_boolean_true() {
+    fn test_bhv_serializationparam_022_serialize_value_query_boolean_true() {
         let result = super::serialize_value(Some("true"), "query", "boolean", "");
         assert_eq!(result.unwrap(), "true");
     }
 
     #[test]
-    fn test_serialize_value_query_boolean_false() {
+    fn test_bhv_serializationparam_019_serialize_value_query_boolean_false() {
         let result = super::serialize_value(Some("false"), "query", "boolean", "");
         assert_eq!(result.unwrap(), "false");
     }
 
     #[test]
-    fn test_serialize_value_query_array_csv() {
+    fn test_bhv_serializationparam_032_serialize_value_query_array_csv() {
         let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
         let result = super::serialize_array_value(&items, "query", "csv");
         assert_eq!(unwrap_single(result), "a,b,c");
     }
 
     #[test]
-    fn test_serialize_value_query_array_ssv() {
+    fn test_bhv_serializationparam_009_serialize_value_query_array_ssv() {
         let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
         let result = super::serialize_array_value(&items, "query", "ssv");
         assert_eq!(unwrap_single(result), "a b c");
     }
 
     #[test]
-    fn test_serialize_value_query_array_tsv() {
+    fn test_bhv_serializationparam_010_serialize_value_query_array_tsv() {
         let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
         let result = super::serialize_array_value(&items, "query", "tsv");
         assert_eq!(unwrap_single(result), "a\tb\tc");
     }
 
     #[test]
-    fn test_serialize_value_query_array_pipes() {
+    fn test_bhv_serializationparam_008_serialize_value_query_array_pipes() {
         let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
         let result = super::serialize_array_value(&items, "query", "pipes");
         assert_eq!(unwrap_single(result), "a|b|c");
     }
 
     #[test]
-    fn test_serialize_value_query_array_multi() {
+    fn test_bhv_serializationparam_015_serialize_value_query_array_multi() {
         let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
         let result = super::serialize_array_value(&items, "query", "multi");
         assert_eq!(unwrap_multi(result), vec!["a", "b", "c"]);
     }
 
     #[test]
-    fn test_serialize_value_query_array_empty_csv() {
+    fn test_bhv_serializationparam_007_serialize_value_query_array_empty_csv() {
         let items: Vec<String> = vec![];
         let result = super::serialize_array_value(&items, "query", "csv");
         assert_eq!(unwrap_single(result), "");
     }
 
     #[test]
-    fn test_serialize_value_query_array_empty_multi() {
+    fn test_bhv_serializationparam_031_serialize_value_query_array_empty_multi() {
         let items: Vec<String> = vec![];
         let result = super::serialize_array_value(&items, "query", "multi");
         assert_eq!(unwrap_multi(result), Vec::<String>::new());
     }
 
     #[test]
-    fn test_serialize_value_query_array_single_element() {
+    fn test_bhv_serializationparam_090_serialize_value_query_array_single_element() {
         let items: Vec<String> = vec!["a".into()];
         let result = super::serialize_array_value(&items, "query", "csv");
         assert_eq!(unwrap_single(result), "a");
     }
 
     #[test]
-    fn test_serialize_value_query_array_integers() {
+    fn test_bhv_serializationparam_014_serialize_value_query_array_integers() {
         let items: Vec<String> = vec!["1".into(), "2".into(), "3".into()];
         let result = super::serialize_array_value(&items, "query", "csv");
         assert_eq!(unwrap_single(result), "1,2,3");
     }
 
     #[test]
-    fn test_serialize_value_query_array_booleans() {
+    fn test_bhv_serializationparam_012_serialize_value_query_array_booleans() {
         let items: Vec<String> = vec!["true".into(), "false".into()];
         let result = super::serialize_array_value(&items, "query", "csv");
         assert_eq!(unwrap_single(result), "true,false");
     }
 
     #[test]
-    fn test_serialize_value_header_null() {
+    fn test_bhv_serializationparam_063_serialize_value_header_null() {
         let result = super::serialize_value(None::<&str>, "header", "string", "");
         assert_eq!(result.unwrap(), "");
     }
 
     #[test]
-    fn test_serialize_value_header_string() {
+    fn test_bhv_serializationparam_097_serialize_value_header_string() {
         let result = super::serialize_value(Some("hello"), "header", "string", "");
         assert_eq!(result.unwrap(), "hello");
     }
 
     #[test]
-    fn test_serialize_value_header_integer() {
+    fn test_bhv_serializationparam_046_serialize_value_header_integer() {
         let result = super::serialize_value(Some("42"), "header", "integer", "");
         assert_eq!(result.unwrap(), "42");
     }
 
     #[test]
-    fn test_serialize_value_header_boolean_true() {
+    fn test_bhv_serializationparam_023_serialize_value_header_boolean_true() {
         let result = super::serialize_value(Some("true"), "header", "boolean", "");
         assert_eq!(result.unwrap(), "true");
     }
 
     #[test]
-    fn test_serialize_value_header_array() {
+    fn test_bhv_serializationparam_005_serialize_value_header_array() {
         let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
         let result = super::serialize_array_value(&items, "header", "");
         assert_eq!(unwrap_single(result), "a,b,c");
     }
 
     #[test]
-    fn test_serialize_value_header_array_empty() {
+    fn test_bhv_serializationparam_030_serialize_value_header_array_empty() {
         let items: Vec<String> = vec![];
         let result = super::serialize_array_value(&items, "header", "");
         assert_eq!(unwrap_single(result), "");
     }
 
     #[test]
-    fn test_serialize_value_header_array_integers() {
+    fn test_bhv_serializationparam_013_serialize_value_header_array_integers() {
         let items: Vec<String> = vec!["1".into(), "2".into(), "3".into()];
         let result = super::serialize_array_value(&items, "header", "");
         assert_eq!(unwrap_single(result), "1,2,3");
     }
 
     #[test]
-    fn test_serialize_value_cookie_null() {
+    fn test_bhv_serializationparam_065_serialize_value_cookie_null() {
         let result = super::serialize_value(None::<&str>, "cookie", "string", "");
         assert_eq!(result.unwrap(), "");
     }
 
     #[test]
-    fn test_serialize_value_cookie_string() {
+    fn test_bhv_serializationparam_099_serialize_value_cookie_string() {
         let result = super::serialize_value(Some("hello"), "cookie", "string", "");
         assert_eq!(result.unwrap(), "hello");
     }
 
     #[test]
-    fn test_serialize_value_form_null() {
+    fn test_bhv_serializationparam_064_serialize_value_form_null() {
         let result = super::serialize_value(None::<&str>, "form", "string", "");
         assert_eq!(result.unwrap(), "");
     }
 
     #[test]
-    fn test_serialize_value_form_string() {
+    fn test_bhv_serializationparam_098_serialize_value_form_string() {
         let result = super::serialize_value(Some("hello"), "form", "string", "");
         assert_eq!(result.unwrap(), "hello");
     }
 
     #[test]
-    fn test_serialize_value_form_integer() {
+    fn test_bhv_serializationparam_047_serialize_value_form_integer() {
         let result = super::serialize_value(Some("42"), "form", "integer", "");
         assert_eq!(result.unwrap(), "42");
     }
 
     #[test]
-    fn test_serialize_value_form_boolean_true() {
+    fn test_bhv_serializationparam_024_serialize_value_form_boolean_true() {
         let result = super::serialize_value(Some("true"), "form", "boolean", "");
         assert_eq!(result.unwrap(), "true");
     }
 
     #[test]
-    fn test_serialize_value_form_boolean_false() {
+    fn test_bhv_serializationparam_020_serialize_value_form_boolean_false() {
         let result = super::serialize_value(Some("false"), "form", "boolean", "");
         assert_eq!(result.unwrap(), "false");
     }
@@ -689,14 +690,14 @@ mod tests {
     /* -- serialize_styled: matrix -- */
 
     #[test]
-    fn test_serialize_styled_matrix_scalar() {
+    fn test_bhv_serializationparam_058_serialize_styled_matrix_scalar() {
         let result =
             super::serialize_styled("id", Some("5"), None, "path", "string", "", "matrix", false);
         assert_eq!(unwrap_single(result), ";id=5");
     }
 
     #[test]
-    fn test_serialize_styled_matrix_array_no_explode() {
+    fn test_bhv_serializationparam_056_serialize_styled_matrix_array_no_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
             "color",
@@ -712,7 +713,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_matrix_array_explode() {
+    fn test_bhv_serializationparam_055_serialize_styled_matrix_array_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
             "color",
@@ -728,7 +729,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_matrix_null() {
+    fn test_bhv_serializationparam_057_serialize_styled_matrix_null() {
         let result = super::serialize_styled(
             "color",
             None::<&str>,
@@ -745,14 +746,14 @@ mod tests {
     /* -- serialize_styled: label -- */
 
     #[test]
-    fn test_serialize_styled_label_scalar() {
+    fn test_bhv_serializationparam_052_serialize_styled_label_scalar() {
         let result =
             super::serialize_styled("id", Some("5"), None, "path", "string", "", "label", false);
         assert_eq!(unwrap_single(result), ".5");
     }
 
     #[test]
-    fn test_serialize_styled_label_array_no_explode() {
+    fn test_bhv_serializationparam_050_serialize_styled_label_array_no_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
             "color",
@@ -768,7 +769,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_label_array_explode() {
+    fn test_bhv_serializationparam_049_serialize_styled_label_array_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
             "color",
@@ -784,7 +785,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_label_null() {
+    fn test_bhv_serializationparam_051_serialize_styled_label_null() {
         let result = super::serialize_styled(
             "color",
             None::<&str>,
@@ -801,7 +802,7 @@ mod tests {
     /* -- serialize_styled: simple -- */
 
     #[test]
-    fn test_serialize_styled_simple_null() {
+    fn test_bhv_serializationparam_085_serialize_styled_simple_null() {
         let result = super::serialize_styled(
             "id",
             None::<&str>,
@@ -816,14 +817,14 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_simple_scalar() {
+    fn test_bhv_serializationparam_086_serialize_styled_simple_scalar() {
         let result =
             super::serialize_styled("id", Some("5"), None, "path", "string", "", "simple", false);
         assert_eq!(unwrap_single(result), "5");
     }
 
     #[test]
-    fn test_serialize_styled_simple_array() {
+    fn test_bhv_serializationparam_084_serialize_styled_simple_array() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
             "color",
@@ -856,7 +857,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_form_array_no_explode() {
+    fn test_bhv_serializationparam_037_serialize_styled_form_array_no_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
             "color",
@@ -872,7 +873,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_form_array_explode() {
+    fn test_bhv_serializationparam_038_serialize_styled_form_array_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into()];
         let result = super::serialize_styled(
             "color",
@@ -888,7 +889,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_form_null_query() {
+    fn test_bhv_serializationparam_040_serialize_styled_form_null_query() {
         let result = super::serialize_styled(
             "color",
             None::<&str>,
@@ -905,7 +906,7 @@ mod tests {
     /* -- serialize_styled: spaceDelimited -- */
 
     #[test]
-    fn test_serialize_styled_space_delimited_array() {
+    fn test_bhv_serializationparam_093_serialize_styled_space_delimited_array() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
             "color",
@@ -921,7 +922,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_space_delimited_array_explode() {
+    fn test_bhv_serializationparam_094_serialize_styled_space_delimited_array_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
             "color",
@@ -937,7 +938,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_space_delimited_scalar() {
+    fn test_bhv_serializationparam_095_serialize_styled_space_delimited_scalar() {
         let result = super::serialize_styled(
             "color",
             Some("red"),
@@ -954,7 +955,7 @@ mod tests {
     /* -- serialize_styled: pipeDelimited -- */
 
     #[test]
-    fn test_serialize_styled_pipe_delimited_array() {
+    fn test_bhv_serializationparam_074_serialize_styled_pipe_delimited_array() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
             "color",
@@ -970,7 +971,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_pipe_delimited_array_explode() {
+    fn test_bhv_serializationparam_075_serialize_styled_pipe_delimited_array_explode() {
         let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
         let result = super::serialize_styled(
             "color",
@@ -986,7 +987,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_pipe_delimited_scalar() {
+    fn test_bhv_serializationparam_076_serialize_styled_pipe_delimited_scalar() {
         let result = super::serialize_styled(
             "color",
             Some("red"),
@@ -1016,7 +1017,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_deep_object_sorts_keys() {
+    fn test_bhv_serializationparam_017_serialize_deep_object_sorts_keys() {
         let mut obj = std::collections::HashMap::new();
         for key in ["m", "z", "a", "q", "b"] {
             obj.insert(key.to_string(), "v".to_string());
@@ -1033,7 +1034,7 @@ mod tests {
     /* F054: a `content: application/json` path parameter is serialized to JSON
      * by the SDK serializer and then segment-encoded exactly once. */
     #[test]
-    fn test_content_param_json_path_segment_encoded_once() {
+    fn test_bhv_serializationparam_071_content_param_json_path_segment_encoded_once() {
         let json = r#"{"a":"b c"}"#;
         let result =
             super::serialize_styled("q", Some(json), None, "path", "", "", "simple", false);
@@ -1041,7 +1042,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_deep_object_empty() {
+    fn test_bhv_serializationparam_061_serialize_deep_object_empty() {
         let obj = std::collections::HashMap::new();
         let result = super::serialize_deep_object("filter", &obj);
         assert!(result.is_empty());
@@ -1067,7 +1068,7 @@ mod tests {
     /* -- serialize_styled: empty style delegates to serialize_value -- */
 
     #[test]
-    fn test_serialize_styled_empty_style() {
+    fn test_bhv_serializationparam_035_serialize_styled_empty_style() {
         let result =
             super::serialize_styled("id", Some("5"), None, "query", "string", "", "", false);
         assert_eq!(unwrap_single(result), "5");
@@ -1078,73 +1079,73 @@ mod tests {
      * Every SDK must produce identical encoded strings for these inputs. */
 
     #[test]
-    fn test_path_encoding_parity_ascii_safe_pass_through() {
+    fn test_bhv_serializationparam_016_path_encoding_parity_ascii_safe_pass_through() {
         let result = super::serialize_value(Some("abc123"), "path", "string", "");
         assert_eq!(result.unwrap(), "abc123");
     }
 
     #[test]
-    fn test_path_encoding_parity_space_encoded() {
+    fn test_bhv_serializationparam_092_path_encoding_parity_space_encoded() {
         let result = super::serialize_value(Some("a b"), "path", "string", "");
         assert_eq!(result.unwrap(), "a%20b");
     }
 
     #[test]
-    fn test_path_encoding_parity_slash_encoded() {
+    fn test_bhv_serializationparam_091_path_encoding_parity_slash_encoded() {
         let result = super::serialize_value(Some("a/b"), "path", "string", "");
         assert_eq!(result.unwrap(), "a%2Fb");
     }
 
     #[test]
-    fn test_path_encoding_parity_question_mark_encoded() {
+    fn test_bhv_serializationparam_079_path_encoding_parity_question_mark_encoded() {
         let result = super::serialize_value(Some("a?b"), "path", "string", "");
         assert_eq!(result.unwrap(), "a%3Fb");
     }
 
     #[test]
-    fn test_path_encoding_parity_hash_encoded() {
+    fn test_bhv_serializationparam_043_path_encoding_parity_hash_encoded() {
         let result = super::serialize_value(Some("a#b"), "path", "string", "");
         assert_eq!(result.unwrap(), "a%23b");
     }
 
     #[test]
-    fn test_path_encoding_parity_comma_preserved() {
+    fn test_bhv_serializationparam_026_path_encoding_parity_comma_preserved() {
         let result = super::serialize_value(Some("a,b"), "path", "string", "");
         assert_eq!(result.unwrap(), "a,b");
     }
 
     #[test]
-    fn test_path_encoding_parity_colon_preserved() {
+    fn test_bhv_serializationparam_025_path_encoding_parity_colon_preserved() {
         let result = super::serialize_value(Some("a:b"), "path", "string", "");
         assert_eq!(result.unwrap(), "a:b");
     }
 
     #[test]
-    fn test_path_encoding_parity_plus_preserved() {
+    fn test_bhv_serializationparam_077_path_encoding_parity_plus_preserved() {
         let result = super::serialize_value(Some("a+b"), "path", "string", "");
         assert_eq!(result.unwrap(), "a+b");
     }
 
     #[test]
-    fn test_path_encoding_parity_unicode_encoded() {
+    fn test_bhv_serializationparam_103_path_encoding_parity_unicode_encoded() {
         let result = super::serialize_value(Some("日本"), "path", "string", "");
         assert_eq!(result.unwrap(), "%E6%97%A5%E6%9C%AC");
     }
 
     #[test]
-    fn test_path_encoding_parity_empty_string_preserved() {
+    fn test_bhv_serializationparam_034_path_encoding_parity_empty_string_preserved() {
         let result = super::serialize_value(Some(""), "path", "string", "");
         assert_eq!(result.unwrap(), "");
     }
 
     #[test]
-    fn test_path_encoding_parity_null_returns_empty() {
+    fn test_bhv_serializationparam_070_path_encoding_parity_null_returns_empty() {
         let result = super::serialize_value(None::<&str>, "path", "string", "");
         assert_eq!(result.unwrap(), "");
     }
 
     #[test]
-    fn test_path_encoding_parity_simple_style_encodes_value() {
+    fn test_bhv_serializationparam_089_path_encoding_parity_simple_style_encodes_value() {
         let result = super::serialize_styled(
             "color",
             Some("a b"),
@@ -1159,7 +1160,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_encoding_parity_simple_style_array_encodes_each_item() {
+    fn test_bhv_serializationparam_088_path_encoding_parity_simple_style_array_encodes_each_item() {
         let items: Vec<String> = vec!["a b".into(), "c?d".into()];
         let result = super::serialize_styled(
             "color",
@@ -1178,7 +1179,7 @@ mod tests {
      * percent-encoded BEFORE being joined with the structural separator.
      * Otherwise '/', '?', '#', space leak into the URL. */
     #[test]
-    fn test_path_array_item_with_reserved_char_is_percent_encoded() {
+    fn test_bhv_serializationparam_069_path_array_item_with_reserved_char_is_percent_encoded() {
         let items: Vec<String> = vec!["a/b".into(), "c".into()];
 
         let simple = super::serialize_styled(
@@ -1266,7 +1267,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_encoding_parity_matrix_style_encodes_value() {
+    fn test_bhv_serializationparam_059_path_encoding_parity_matrix_style_encodes_value() {
         let result = super::serialize_styled(
             "color",
             Some("a b"),
@@ -1281,7 +1282,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_encoding_parity_label_style_encodes_value() {
+    fn test_bhv_serializationparam_053_path_encoding_parity_label_style_encodes_value() {
         let result = super::serialize_styled(
             "color",
             Some("a b"),
@@ -1296,7 +1297,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_encoding_parity_query_location_not_path_encoded() {
+    fn test_bhv_serializationparam_078_path_encoding_parity_query_location_not_path_encoded() {
         let result = super::serialize_styled(
             "color",
             Some("a b"),
@@ -1313,7 +1314,7 @@ mod tests {
     /* -- regression tests -- */
 
     #[test]
-    fn test_serialize_styled_form_explode_scalar_returns_single() {
+    fn test_bhv_serializationparam_041_serialize_styled_form_explode_scalar_returns_single() {
         let result = super::serialize_styled(
             "color",
             Some("blue"),
@@ -1331,7 +1332,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_simple_path_url_encodes_value() {
+    fn test_bhv_serializationparam_087_serialize_styled_simple_path_url_encodes_value() {
         let result = super::serialize_styled(
             "name",
             Some("hello world"),
@@ -1346,7 +1347,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_styled_form_explode_single_element_array() {
+    fn test_bhv_serializationparam_042_serialize_styled_form_explode_single_element_array() {
         let items: Vec<String> = vec!["red".into()];
         let result = super::serialize_styled(
             "color",
@@ -1370,13 +1371,13 @@ mod tests {
      * unchanged (subject to path encoding). */
 
     #[test]
-    fn test_format_date_path_param_string_passes_through() {
+    fn test_bhv_serializationparam_048_format_date_path_param_string_passes_through() {
         let result = super::serialize_value(Some("2024-01-15"), "path", "string", "");
         assert_eq!(result.unwrap(), "2024-01-15");
     }
 
     #[test]
-    fn test_format_date_path_param_via_serialize_styled_simple() {
+    fn test_bhv_serializationparam_054_format_date_path_param_via_serialize_styled_simple() {
         let result = super::serialize_styled(
             "since",
             Some("2024-01-15"),
@@ -1395,7 +1396,7 @@ mod tests {
      * the path serializer unchanged, matching the StringifyDate UTC behaviour of
      * Go/Node/Swift/Dart. */
     #[test]
-    fn test_format_date_path_param_midnight_utc_string_passes_through() {
+    fn test_bhv_serializationparam_028_format_date_path_param_midnight_utc_string_passes_through() {
         let result = super::serialize_value(Some("2024-01-15"), "path", "string", "");
         assert_eq!(result.unwrap(), "2024-01-15");
     }
@@ -1404,7 +1405,7 @@ mod tests {
      * segment, so the operation template must NOT wrap it again. A space must
      * become %20 (never %2520) and a slash %2F (never %252F). */
     #[test]
-    fn test_serialize_styled_path_encoded_exactly_once() {
+    fn test_bhv_serializationparam_073_serialize_styled_path_encoded_exactly_once() {
         let space = super::serialize_styled(
             "id",
             Some("a b"),
@@ -1447,7 +1448,7 @@ mod tests {
      * reaching here); the serializer itself simply produces the empty segment
      * without panicking. */
     #[test]
-    fn test_empty_string_path_param_does_not_panic() {
+    fn test_bhv_serializationparam_033_empty_string_path_param_does_not_panic() {
         let result =
             super::serialize_styled("id", Some(""), None, "path", "string", "", "simple", false);
         match result {
@@ -1460,7 +1461,7 @@ mod tests {
      * everything else (space, control chars, non-ASCII) is still percent-encoded.
      * Mirrors the Java AllowReservedTests. */
     #[test]
-    fn test_encode_query_allowing_reserved_preserves_reserved_chars() {
+    fn test_bhv_serializationparam_002_encode_query_allowing_reserved_preserves_reserved_chars() {
         /* Reserved characters `/` and `:` are left literal. */
         assert_eq!(
             super::encode_query_allowing_reserved("v1.0/beta:rc1"),
@@ -1469,14 +1470,15 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_query_allowing_reserved_still_encodes_space() {
+    fn test_bhv_serializationparam_003_encode_query_allowing_reserved_still_encodes_space() {
         /* Space is not reserved, so it is still percent-encoded, while the
          * reserved `:` between the words stays literal. */
         assert_eq!(super::encode_query_allowing_reserved("a b:c"), "a%20b:c");
     }
 
     #[test]
-    fn test_encode_query_allowing_reserved_keeps_only_the_query_legal_reserved_set() {
+    fn test_bhv_serializationparam_068_encode_query_allowing_reserved_keeps_only_the_query_legal_reserved_set(
+    ) {
         /* `#` would start the fragment and `[`/`]` are not legal in a query, so
          * they are percent-encoded; the rest of the reserved set stays literal. */
         assert_eq!(

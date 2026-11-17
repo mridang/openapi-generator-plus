@@ -1230,7 +1230,7 @@ mod tests {
      * The predicate gates the body-replay guard in `send_request_with_options`
      * and traffics in `reqwest::Url`, so it can only be exercised in-crate. */
     #[test]
-    fn test_is_https_to_http_body_replay_predicate() {
+    fn test_bhv_retries_011_is_https_to_http_body_replay_predicate() {
         let https = reqwest::Url::parse("https://example.com/x").unwrap();
         let http = reqwest::Url::parse("http://example.com/x").unwrap();
         let https2 = reqwest::Url::parse("https://example.com/y").unwrap();
@@ -1820,7 +1820,7 @@ mod tests {
     /// hole. This test asserts the validator rejects CR/LF/NUL for a String value
     /// scenario.
     #[test]
-    fn test_multipart_field_name_with_crlf_rejected_on_string_value() {
+    fn test_bhv_serializationwire_026_multipart_field_name_with_crlf_rejected_on_string_value() {
         for bad in &[
             "name\rInjected: yes",
             "name\nInjected: yes",

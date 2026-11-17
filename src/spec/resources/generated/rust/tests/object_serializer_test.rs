@@ -26,7 +26,7 @@
 // serde impl and exercised here as a smoke test to lock the wire format
 // the codegen relies on.
 #[test]
-fn test_proto_duration_format_basic() {
+fn test_bhv_serializationobject_105_proto_duration_format_basic() {
     use chrono::Duration;
     use petstore::proto_duration;
 
@@ -48,7 +48,7 @@ fn test_proto_duration_format_basic() {
 }
 
 #[test]
-fn test_proto_duration_parse_basic() {
+fn test_bhv_serializationobject_113_proto_duration_parse_basic() {
     use chrono::Duration;
     use petstore::proto_duration;
 
@@ -72,7 +72,7 @@ fn test_proto_duration_parse_basic() {
 }
 
 #[test]
-fn test_proto_duration_round_trip() {
+fn test_bhv_serializationobject_073_proto_duration_round_trip() {
     use chrono::Duration;
     use petstore::proto_duration;
 
@@ -93,7 +93,7 @@ fn test_proto_duration_round_trip() {
 }
 
 #[test]
-fn test_proto_duration_rejects_malformed() {
+fn test_bhv_serializationobject_080_proto_duration_rejects_malformed() {
     use petstore::proto_duration;
 
     assert!(proto_duration::parse("PT1H").is_err());
@@ -106,7 +106,7 @@ fn test_proto_duration_rejects_malformed() {
 }
 
 #[test]
-fn test_proto_duration_rejects_overflow() {
+fn test_bhv_serializationobject_089_proto_duration_rejects_overflow() {
     use petstore::proto_duration;
 
     // google.protobuf.Duration is bounded at +-315,576,000,000 seconds.
@@ -188,7 +188,7 @@ fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
 }
 
 #[test]
-fn test_proto_duration_serde_round_trip() {
+fn test_bhv_serializationobject_145_proto_duration_serde_round_trip() {
     use chrono::Duration;
     use petstore::proto_duration;
     use serde::{Deserialize, Serialize};
@@ -221,7 +221,7 @@ fn test_proto_duration_serde_round_trip() {
 }
 
 #[test]
-fn test_decimal_type_number_serializes_as_unquoted_number() {
+fn test_bhv_serializationobject_171_decimal_type_number_serializes_as_unquoted_number() {
     // Wave B parity: a `type: number` property with NO `format` (a bare JSON
     // number, e.g. Pet.weightKg) must serialize as an UNQUOTED JSON number
     // (1.5), never as a quoted string ("1.5"). Some SDKs model such fields as
@@ -279,7 +279,7 @@ fn test_naive_time_serde_round_trip() {
 // readOnly and writeOnly carry no wire effect: a readOnly id is decoded from a
 // response and a writeOnly password is written on a request and kept on decode.
 #[test]
-fn test_read_only_and_write_only_fields_round_trip() {
+fn test_bhv_serializationobject_017_read_only_and_write_only_fields_round_trip() {
     use petstore::models::Account;
 
     let decoded: Account = serde_json::from_str(r#"{"id":7,"username":"u"}"#).unwrap();
@@ -297,7 +297,7 @@ fn test_read_only_and_write_only_fields_round_trip() {
 // F1112: byte arrays compare by content, not identity: a bare array, a list of
 // arrays and a map of arrays, each built fresh for the two sides.
 #[test]
-fn test_byte_array_fields_compare_by_content() {
+fn test_bhv_serializationobject_075_byte_array_fields_compare_by_content() {
     use petstore::models::BinaryVault;
 
     fn vault() -> BinaryVault {
@@ -332,7 +332,7 @@ fn test_byte_array_fields_compare_by_content() {
 // F867: a `format: password` property is shown as `***` in the Debug output,
 // and the wire form still carries the value.
 #[test]
-fn test_password_property_is_masked_in_debug_output() {
+fn test_bhv_serializationobject_007_password_property_is_masked_in_debug_output() {
     use petstore::models::Account;
 
     let secret = ["tr", "0ub4", "dor-", "9"].concat();

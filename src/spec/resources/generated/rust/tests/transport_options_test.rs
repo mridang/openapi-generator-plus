@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use petstore::*;
 
 #[test]
-fn test_transport_options_verify_ssl_defaults_to_true() {
+fn test_bhv_options_043_transport_options_verify_ssl_defaults_to_true() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -23,7 +23,7 @@ fn test_transport_options_verify_ssl_defaults_to_true() {
 }
 
 #[test]
-fn test_transport_options_ca_cert_path_defaults_to_null() {
+fn test_bhv_options_018_transport_options_ca_cert_path_defaults_to_null() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -34,7 +34,7 @@ fn test_transport_options_ca_cert_path_defaults_to_null() {
 }
 
 #[test]
-fn test_transport_options_proxy_defaults_to_null() {
+fn test_bhv_options_032_transport_options_proxy_defaults_to_null() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -42,7 +42,7 @@ fn test_transport_options_proxy_defaults_to_null() {
 }
 
 #[test]
-fn test_transport_options_timeout_defaults_to_10_seconds() {
+fn test_bhv_options_038_transport_options_timeout_defaults_to_10_seconds() {
     /* Cross-language parity: a 10s end-to-end timeout (10_000 ms) is the
      * default for every SDK. Callers can override or disable per request. */
     let opts = TransportOptionsBuilder::new()
@@ -52,7 +52,7 @@ fn test_transport_options_timeout_defaults_to_10_seconds() {
 }
 
 #[test]
-fn test_transport_options_follow_redirects_defaults_to_true() {
+fn test_bhv_options_020_transport_options_follow_redirects_defaults_to_true() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -63,7 +63,7 @@ fn test_transport_options_follow_redirects_defaults_to_true() {
 }
 
 #[test]
-fn test_transport_options_max_redirects_defaults_to_null() {
+fn test_bhv_options_025_transport_options_max_redirects_defaults_to_null() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -74,7 +74,7 @@ fn test_transport_options_max_redirects_defaults_to_null() {
 }
 
 #[test]
-fn test_transport_options_user_agent_defaults_to_branded_value() {
+fn test_bhv_options_042_transport_options_user_agent_defaults_to_branded_value() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -82,7 +82,7 @@ fn test_transport_options_user_agent_defaults_to_branded_value() {
 }
 
 #[test]
-fn test_transport_options_user_agent_defaults_to_non_empty_string() {
+fn test_bhv_options_041_transport_options_user_agent_defaults_to_non_empty_string() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -119,7 +119,7 @@ fn test_transport_options_user_agent_opt_some_and_none() {
 }
 
 #[test]
-fn test_transport_options_default_headers_defaults_to_empty() {
+fn test_bhv_options_019_transport_options_default_headers_defaults_to_empty() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -130,7 +130,7 @@ fn test_transport_options_default_headers_defaults_to_empty() {
 }
 
 #[test]
-fn test_transport_options_inject_request_id_defaults_to_false() {
+fn test_bhv_options_022_transport_options_inject_request_id_defaults_to_false() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -141,7 +141,7 @@ fn test_transport_options_inject_request_id_defaults_to_false() {
 }
 
 #[test]
-fn test_transport_options_builder_sets_all_fields() {
+fn test_bhv_options_017_transport_options_builder_sets_all_fields() {
     let ca_cert = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/certs/ca.pem").to_string();
     let opts = TransportOptionsBuilder::new()
         .verify_ssl(false)
@@ -168,7 +168,8 @@ fn test_transport_options_builder_sets_all_fields() {
 }
 
 #[test]
-fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redirects() {
+fn test_bhv_options_021_transport_options_follow_redirects_defaults_to_true_with_null_max_redirects(
+) {
     let opts = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .build()
@@ -184,7 +185,7 @@ fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redire
 /* D79: the proxy messages are the canonical ones, and the userinfo of the
  * rejected URL is shown as `***@`, so a proxy credential never reaches a log. */
 #[test]
-fn test_transport_options_invalid_proxy_url_throws_exception() {
+fn test_bhv_options_024_transport_options_invalid_proxy_url_throws_exception() {
     for (proxy, message) in [
         ("not-a-valid-url", "Invalid proxy URL: not-a-valid-url"),
         (
@@ -224,7 +225,7 @@ fn test_transport_options_invalid_proxy_url_throws_exception() {
 /// F1065: an IPv6 literal host is a valid proxy host (brackets kept, userinfo
 /// allowed); an unterminated literal is rejected with the userinfo masked.
 #[test]
-fn test_transport_options_proxy_with_an_ipv6_literal_host() {
+fn test_bhv_options_009_transport_options_proxy_with_an_ipv6_literal_host() {
     for proxy in [
         "http://[::1]:3128",
         "http://user@[::1]:3128",
@@ -256,7 +257,7 @@ fn test_transport_options_proxy_with_an_ipv6_literal_host() {
 /// URL schemes are case-insensitive, so an upper-case `HTTP` proxy is a valid
 /// proxy and is kept as written.
 #[test]
-fn test_transport_options_upper_case_proxy_scheme_is_accepted() {
+fn test_bhv_options_014_transport_options_upper_case_proxy_scheme_is_accepted() {
     let opts = TransportOptionsBuilder::new()
         .proxy("HTTP://proxy.example.com:8080")
         .build()
@@ -367,7 +368,8 @@ fn test_transport_options_negative_timeout_is_rejected() {
 /* D77: a timeout must be a positive number of milliseconds or None, so zero is
  * refused too, and the message is the canonical one. */
 #[test]
-fn test_transport_options_rejects_a_non_positive_timeout_with_the_canonical_message() {
+fn test_bhv_options_033_transport_options_rejects_a_non_positive_timeout_with_the_canonical_message(
+) {
     for (ms, message) in [
         (
             -5,
@@ -387,7 +389,7 @@ fn test_transport_options_rejects_a_non_positive_timeout_with_the_canonical_mess
 }
 
 #[test]
-fn test_transport_options_null_proxy_url_is_accepted() {
+fn test_bhv_options_030_transport_options_null_proxy_url_is_accepted() {
     let opts = TransportOptionsBuilder::new()
         .proxy("")
         .build()
@@ -397,7 +399,7 @@ fn test_transport_options_null_proxy_url_is_accepted() {
 }
 
 #[test]
-fn test_transport_options_builder_methods_return_same_instance() {
+fn test_bhv_options_015_transport_options_builder_methods_return_same_instance() {
     let opts = TransportOptionsBuilder::new()
         .verify_ssl(true)
         .user_agent("Test/1.0")
@@ -410,7 +412,7 @@ fn test_transport_options_builder_methods_return_same_instance() {
 }
 
 #[test]
-fn test_transport_options_accumulates_headers_from_default_header_calls() {
+fn test_bhv_options_012_transport_options_accumulates_headers_from_default_header_calls() {
     let opts = TransportOptionsBuilder::new()
         .default_header("X-First", "one")
         .default_header("X-Second", "two")
@@ -424,7 +426,7 @@ fn test_transport_options_accumulates_headers_from_default_header_calls() {
 }
 
 #[test]
-fn test_transport_options_merges_headers_from_default_headers_call() {
+fn test_bhv_options_028_transport_options_merges_headers_from_default_headers_call() {
     let mut extra = HashMap::new();
     extra.insert("X-Second".to_string(), "two".to_string());
     extra.insert("X-Third".to_string(), "three".to_string());
@@ -443,7 +445,7 @@ fn test_transport_options_merges_headers_from_default_headers_call() {
 }
 
 #[test]
-fn test_transport_options_modifying_source_map_does_not_affect_built_options() {
+fn test_bhv_options_029_transport_options_modifying_source_map_does_not_affect_built_options() {
     let opts = TransportOptionsBuilder::new()
         .default_header("X-Test", "value")
         .build()
@@ -463,7 +465,7 @@ fn test_transport_options_modifying_source_map_does_not_affect_built_options() {
 }
 
 #[test]
-fn test_transport_options_builder_produces_independent_instances() {
+fn test_bhv_options_016_transport_options_builder_produces_independent_instances() {
     let first = TransportOptionsBuilder::new()
         .verify_ssl(false)
         .build()
@@ -480,7 +482,7 @@ fn test_transport_options_builder_produces_independent_instances() {
 // TimeoutConfigTests
 
 #[test]
-fn test_transport_options_timeout_defaults_to_10_seconds_timeout_group() {
+fn test_bhv_options_039_transport_options_timeout_defaults_to_10_seconds_timeout_group() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -488,7 +490,7 @@ fn test_transport_options_timeout_defaults_to_10_seconds_timeout_group() {
 }
 
 #[test]
-fn test_transport_options_setting_timeout_is_accessible() {
+fn test_bhv_options_036_transport_options_setting_timeout_is_accessible() {
     let opts = TransportOptionsBuilder::new()
         .timeout(Some(5000))
         .build()
@@ -499,7 +501,7 @@ fn test_transport_options_setting_timeout_is_accessible() {
 /// "No timeout" must be expressible: `timeout(None)` clears the 10_000 ms
 /// default rather than being indistinguishable from leaving it unset.
 #[test]
-fn test_transport_options_no_timeout_is_expressible() {
+fn test_bhv_options_037_transport_options_no_timeout_is_expressible() {
     let opts = TransportOptionsBuilder::new()
         .timeout(None)
         .build()
@@ -526,7 +528,7 @@ fn test_transport_options_builder_entry_point() {
 }
 
 #[test]
-fn test_transport_options_timeout_field_is_named_timeout() {
+fn test_bhv_options_040_transport_options_timeout_field_is_named_timeout() {
     // Verify via the timeout() accessor that the field is named 'timeout'
     // (not e.g. 'connection_timeout' or 'open_timeout').
     let opts = TransportOptionsBuilder::new()
@@ -540,7 +542,7 @@ fn test_transport_options_timeout_field_is_named_timeout() {
 // ProxyConfigTests
 
 #[test]
-fn test_transport_options_proxy_url_is_preserved_on_read_back() {
+fn test_bhv_options_035_transport_options_proxy_url_is_preserved_on_read_back() {
     let opts = TransportOptionsBuilder::new()
         .proxy("http://proxy.example.com:8080")
         .build()
@@ -549,7 +551,7 @@ fn test_transport_options_proxy_url_is_preserved_on_read_back() {
 }
 
 #[test]
-fn test_transport_options_setting_proxy_is_supported_on_all_platforms() {
+fn test_bhv_options_034_transport_options_setting_proxy_is_supported_on_all_platforms() {
     // Proxy configuration must not panic on any platform.
     let opts = TransportOptionsBuilder::new()
         .proxy("http://proxy.example.com:8080")
@@ -575,7 +577,7 @@ fn test_readme_socks_note_names_the_builder_proxy_setter() {
 }
 
 #[test]
-fn test_transport_options_debug_masks_proxy_password_and_credential_headers() {
+fn test_bhv_options_023_transport_options_debug_masks_proxy_password_and_credential_headers() {
     let options = TransportOptions::builder()
         .proxy("http://user:s3cr3t@proxy.example.com:8080")
         .default_header("Proxy-Authorization", "Basic s3cr3t")
@@ -593,7 +595,7 @@ fn test_transport_options_debug_masks_proxy_password_and_credential_headers() {
 }
 
 #[test]
-fn test_transport_options_max_retries_defaults_to_two() {
+fn test_bhv_options_026_transport_options_max_retries_defaults_to_two() {
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
@@ -602,7 +604,7 @@ fn test_transport_options_max_retries_defaults_to_two() {
 }
 
 #[test]
-fn test_transport_options_max_retries_can_be_set_and_disabled() {
+fn test_bhv_options_027_transport_options_max_retries_can_be_set_and_disabled() {
     let five = TransportOptions::builder()
         .max_retries(5)
         .build()

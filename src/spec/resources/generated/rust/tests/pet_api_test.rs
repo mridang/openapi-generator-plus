@@ -127,7 +127,7 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
 }
 
 #[tokio::test]
-async fn test_pet_api_add_pet() {
+async fn test_bhv_operations_022_pet_api_add_pet() {
     let api = new_pet_api_for_integration_with(Some(Arc::new(bearer_auth())));
     let pet = Pet::new(
         "Fido".to_string(),
@@ -139,7 +139,7 @@ async fn test_pet_api_add_pet() {
 }
 
 #[tokio::test]
-async fn test_pet_api_add_pet_with_http_info() {
+async fn test_bhv_operations_025_pet_api_add_pet_with_http_info() {
     let api = new_pet_api_for_integration_with(Some(Arc::new(bearer_auth())));
     let pet = Pet::new(
         "Buddy".to_string(),
@@ -157,14 +157,14 @@ async fn test_pet_api_add_pet_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_by_id() {
+async fn test_bhv_operations_047_pet_api_get_pet_by_id() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_ok(), "GetPetById failed: {:?}", result.err());
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_by_id_with_http_info() {
+async fn test_bhv_operations_048_pet_api_get_pet_by_id_with_http_info() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_by_id_with_http_info(1, None, None).await;
     assert!(
@@ -177,7 +177,7 @@ async fn test_pet_api_get_pet_by_id_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_pet_api_update_pet() {
+async fn test_bhv_operations_087_pet_api_update_pet() {
     let api = new_pet_api_for_integration();
     let pet = Pet::new(
         "UpdatedFido".to_string(),
@@ -188,7 +188,7 @@ async fn test_pet_api_update_pet() {
 }
 
 #[tokio::test]
-async fn test_pet_api_update_pet_with_http_info() {
+async fn test_bhv_operations_088_pet_api_update_pet_with_http_info() {
     let api = new_pet_api_for_integration();
     let pet = Pet::new(
         "UpdatedFido".to_string(),
@@ -203,7 +203,7 @@ async fn test_pet_api_update_pet_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_pet_api_delete_pet() {
+async fn test_bhv_operations_027_pet_api_delete_pet() {
     let api = new_pet_api_for_integration_with(Some(Arc::new(basic_auth())));
     let opts = DeletePetOptions::new();
     let result = api.delete_pet(1, Some(&opts)).await;
@@ -263,7 +263,7 @@ async fn test_pet_api_delete_pet_rejects_invalid_cookie_value() {
 }
 
 #[tokio::test]
-async fn test_pet_api_delete_pet_with_http_info() {
+async fn test_bhv_operations_031_pet_api_delete_pet_with_http_info() {
     let api = new_pet_api_for_integration_with(Some(Arc::new(basic_auth())));
     let opts = DeletePetOptions::new();
     let result = api.delete_pet_with_http_info(1, Some(&opts)).await;
@@ -275,7 +275,7 @@ async fn test_pet_api_delete_pet_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_pet_api_find_pets_by_status() {
+async fn test_bhv_operations_039_pet_api_find_pets_by_status() {
     let api = new_pet_api_for_integration();
     let opts = FindPetsByStatusOptions::new().status("available".to_string());
     let result = api.find_pets_by_status(Some(&opts)).await;
@@ -287,7 +287,7 @@ async fn test_pet_api_find_pets_by_status() {
 }
 
 #[tokio::test]
-async fn test_pet_api_find_pets_by_status_with_http_info() {
+async fn test_bhv_operations_042_pet_api_find_pets_by_status_with_http_info() {
     let api = new_pet_api_for_integration();
     let opts = FindPetsByStatusOptions::new().status("available".to_string());
     let result = api.find_pets_by_status_with_http_info(Some(&opts)).await;
@@ -299,14 +299,14 @@ async fn test_pet_api_find_pets_by_status_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_passport() {
+async fn test_bhv_operations_053_pet_api_get_pet_passport() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_passport(1, None).await;
     assert!(result.is_ok(), "GetPetPassport failed: {:?}", result.err());
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_passport_with_http_info() {
+async fn test_bhv_operations_054_pet_api_get_pet_passport_with_http_info() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_passport_with_http_info(1, None).await;
     assert!(
@@ -317,7 +317,7 @@ async fn test_pet_api_get_pet_passport_with_http_info() {
 }
 
 #[tokio::test]
-async fn test_pet_api_set_pet_avatar() {
+async fn test_bhv_operations_070_pet_api_set_pet_avatar() {
     let api = new_pet_api_for_integration();
     let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
     let result = api.set_pet_avatar(1, image_bytes, None, None).await;
@@ -325,7 +325,7 @@ async fn test_pet_api_set_pet_avatar() {
 }
 
 #[tokio::test]
-async fn test_pet_api_set_pet_avatar_rejects_unknown_content_type() {
+async fn test_bhv_operations_076_pet_api_set_pet_avatar_rejects_unknown_content_type() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
@@ -348,7 +348,7 @@ declared types are [image/jpeg, image/png, application/json]"
 }
 
 #[tokio::test]
-async fn test_pet_api_upload_pet_document_rejects_unknown_content_type() {
+async fn test_bhv_operations_093_pet_api_upload_pet_document_rejects_unknown_content_type() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
@@ -369,14 +369,14 @@ declared types are [multipart/form-data, application/octet-stream]"
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_avatar() {
+async fn test_bhv_operations_045_pet_api_get_pet_avatar() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_avatar(1, None).await;
     assert!(result.is_ok(), "get_pet_avatar failed: {:?}", result.err());
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_avatar_thumbnail() {
+async fn test_bhv_operations_046_pet_api_get_pet_avatar_thumbnail() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_avatar_thumbnail(1, None).await;
     assert!(
@@ -387,7 +387,7 @@ async fn test_pet_api_get_pet_avatar_thumbnail() {
 }
 
 #[tokio::test]
-async fn test_pet_api_set_pet_avatar_thumbnail() {
+async fn test_bhv_operations_074_pet_api_set_pet_avatar_thumbnail() {
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let body = SetPetAvatarThumbnailRequest::VecU8(vec![0xFF, 0xD8, 0xFF, 0xE0]);
     api.set_pet_avatar_thumbnail(1, body, None)
@@ -405,7 +405,7 @@ async fn test_pet_api_set_pet_avatar_thumbnail() {
 }
 
 #[tokio::test]
-async fn test_pet_api_upload_pet_certificate() {
+async fn test_bhv_operations_090_pet_api_upload_pet_certificate() {
     let api = new_pet_api_for_integration();
     let opts = UploadPetCertificateOptions::new(b"certificate-content".to_vec());
     let result = api.upload_pet_certificate(1, Some(&opts)).await;
@@ -417,7 +417,7 @@ async fn test_pet_api_upload_pet_certificate() {
 }
 
 #[tokio::test]
-async fn test_pet_api_upload_pet_document() {
+async fn test_bhv_operations_091_pet_api_upload_pet_document() {
     let api = new_pet_api_for_integration();
     let opts = UploadPetDocumentOptions::new(b"document-content".to_vec())
         .document_type("vaccination_record".to_string())
@@ -431,7 +431,7 @@ async fn test_pet_api_upload_pet_document() {
 }
 
 #[tokio::test]
-async fn test_pet_api_add_pet_photos() {
+async fn test_bhv_operations_023_pet_api_add_pet_photos() {
     let (api, _) = new_pet_api_for_mock(
         200,
         "application/json",
@@ -451,7 +451,7 @@ async fn test_pet_api_add_pet_photos() {
 }
 
 #[tokio::test]
-async fn test_pet_api_download_pet_document() {
+async fn test_bhv_operations_035_pet_api_download_pet_document() {
     let api = new_pet_api_for_integration();
     let result = api.download_pet_document(1, 1, None).await;
     assert!(
@@ -462,7 +462,7 @@ async fn test_pet_api_download_pet_document() {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_photo() {
+async fn test_bhv_operations_055_pet_api_get_pet_photo() {
     let (api, _) = new_pet_api_for_mock(200, "image/jpeg", "FAKE_JPEG_BYTES");
     let photo = api
         .get_pet_photo(1, 1, None)
@@ -483,7 +483,7 @@ async fn test_pet_api_get_pet_photo_json_reply_returns_the_raw_bytes() {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_avatar_thumbnail_rejects_malformed_base64() {
+async fn test_bhv_operations_063_pet_api_get_pet_avatar_thumbnail_rejects_malformed_base64() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", "\"!!not*base64??\"");
     let err = api
         .get_pet_avatar_thumbnail(1, None)
@@ -497,7 +497,7 @@ async fn test_pet_api_get_pet_avatar_thumbnail_rejects_malformed_base64() {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_tag() {
+async fn test_bhv_operations_058_pet_api_get_pet_tag() {
     let api = new_pet_api_for_integration();
     let opts = GetPetTagOptions::new()
         .colors(vec!["blue".to_string(), "black".to_string()])
@@ -517,7 +517,7 @@ impl GetExternalPetInfoServer for MockExternalPetInfoServer {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_external_pet_info() {
+async fn test_bhv_operations_061_pet_api_get_external_pet_info() {
     let api = new_pet_api_for_integration();
     let pet = api
         .get_external_pet_info(1, Some(&MockExternalPetInfoServer), None)
@@ -527,7 +527,7 @@ async fn test_pet_api_get_external_pet_info() {
 }
 
 #[tokio::test]
-async fn test_pet_api_error_handling_not_found() {
+async fn test_bhv_operations_037_pet_api_error_handling_not_found() {
     let (api, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"Pet not found"}"#);
 
     let err = api
@@ -546,7 +546,7 @@ async fn test_pet_api_error_handling_not_found() {
 /// and not a bare string error. The `with_http_info` variant still surfaces
 /// the empty result with `data == None`.
 #[tokio::test]
-async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
+async fn test_bhv_operations_036_pet_api_get_pet_by_id_empty_body_throws_api_error() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", "");
 
     let result = api.get_pet_by_id(1, None, None).await;
@@ -685,7 +685,8 @@ fn split_http_request(raw: &[u8]) -> (&[u8], &[u8]) {
 /// application/octet-stream or application/json). This asserts BOTH the exact
 /// body bytes and the Content-Type header.
 #[tokio::test]
-async fn test_pet_api_set_pet_avatar_streams_raw_bytes_with_declared_content_type() {
+async fn test_bhv_operations_073_pet_api_set_pet_avatar_streams_raw_bytes_with_declared_content_type(
+) {
     let (api, rx, _) = new_pet_api_for_byte_capture();
 
     // JPEG SOI marker + APP0 — a known, non-trivial payload that is NOT valid
@@ -743,7 +744,7 @@ async fn test_pet_api_set_pet_avatar_streams_raw_bytes_with_declared_content_typ
 ///   (1) no selector  -> Content-Type: image/jpeg (first declared, backward compatible);
 ///   (2) selector "image/png" -> Content-Type: image/png (NOT image/jpeg).
 #[tokio::test]
-async fn test_pet_api_set_pet_avatar_honours_selected_request_content_type() {
+async fn test_bhv_operations_071_pet_api_set_pet_avatar_honours_selected_request_content_type() {
     // PNG signature bytes — a known, non-trivial payload that is NOT valid UTF-8,
     // identical for both calls so only the selected Content-Type differs.
     let image_bytes: Vec<u8> = vec![0x89, 0x50, 0x4E, 0x47];
@@ -815,7 +816,7 @@ async fn add_pet_request_with(credentials: Credentials) -> String {
 /// add_pet lists apiKeyHeader and petStoreBearer; with only the bearer held, the
 /// bearer is sent.
 #[tokio::test]
-async fn test_pet_api_credentials_send_the_bearer_scheme_the_operation_lists() {
+async fn test_bhv_operations_079_pet_api_credentials_send_the_bearer_scheme_the_operation_lists() {
     let credentials = Credentials::new().with_pet_store_bearer(bearer_auth());
     let request = add_pet_request_with(credentials).await;
     assert!(
@@ -837,7 +838,7 @@ async fn test_pet_api_credentials_send_the_api_key_scheme_the_operation_lists() 
 /// F857: when the client holds both schemes the operation lists, exactly one
 /// credential is sent, never both.
 #[tokio::test]
-async fn test_pet_api_credentials_send_one_scheme_when_the_client_holds_both() {
+async fn test_bhv_operations_080_pet_api_credentials_send_one_scheme_when_the_client_holds_both() {
     let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
     let credentials = Credentials::new()
         .with_api_key_header(key)
@@ -857,7 +858,7 @@ async fn test_pet_api_credentials_send_one_scheme_when_the_client_holds_both() {
 
 /// F857: a credential for a scheme the operation does not list is not sent.
 #[tokio::test]
-async fn test_pet_api_credentials_for_another_scheme_are_not_sent() {
+async fn test_bhv_operations_020_pet_api_credentials_for_another_scheme_are_not_sent() {
     let credentials = Credentials::new().with_admin_basic(basic_auth());
     let request = add_pet_request_with(credentials).await;
     assert!(!request.contains("basic ywrtaw46"), "request: {}", request);
@@ -867,7 +868,7 @@ async fn test_pet_api_credentials_for_another_scheme_are_not_sent() {
 /// Options is passed at all), the request must fall back to the Configuration's
 /// configured credentials rather than sending no auth.
 #[tokio::test]
-async fn test_pet_api_auth_omitted_uses_configuration_default() {
+async fn test_bhv_operations_078_pet_api_auth_omitted_uses_configuration_default() {
     let (api, rx, _) = new_pet_api_for_capture();
     let pet = Pet::new(
         "DefaultAuthDog".to_string(),
@@ -890,7 +891,7 @@ async fn test_pet_api_auth_omitted_uses_configuration_default() {
 /// Server arg instead. This compile-time check asserts that calling it with a
 /// plain server arg (and no authenticator anywhere) works.
 #[tokio::test]
-async fn test_pet_api_unsecured_op_has_no_auth_field() {
+async fn test_bhv_operations_086_pet_api_unsecured_op_has_no_auth_field() {
     let api = new_pet_api_for_integration();
     let server: Option<&dyn GetPetByIdServer> = None;
     let result = api.get_pet_by_id(1, server, None).await;
@@ -948,7 +949,7 @@ async fn test_pet_api_get_pet_by_name_missing_required_query_errors() {
 /// present value, so it is rejected with the same canonical message as a wholly
 /// missing one, matching the other SDKs (never sent to the wire as `category=`).
 #[tokio::test]
-async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
+async fn test_bhv_operations_049_pet_api_get_pet_by_name_empty_required_query_errors() {
     let api = new_pet_api_for_integration();
     let opts = GetPetByNameOptions::new(String::new(), "corr-1".to_string());
     let result = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
@@ -968,7 +969,7 @@ async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
 
 /// required query parameter is serialized on the wire when supplied via Options.
 #[tokio::test]
-async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
+async fn test_bhv_operations_065_pet_api_get_pet_by_name_required_query_on_wire() {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNameOptions::new("cats".to_string(), "corr-1".to_string());
     let _ = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
@@ -985,7 +986,7 @@ async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
 /* D28: the REQUIRED header `X-Correlation-Id` is guarded like the required
  * query parameter: an empty value is refused before any request is sent. */
 #[tokio::test]
-async fn test_pet_api_get_pet_by_name_empty_required_header_errors() {
+async fn test_bhv_operations_050_pet_api_get_pet_by_name_empty_required_header_errors() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
@@ -1007,7 +1008,7 @@ async fn test_pet_api_get_pet_by_name_empty_required_header_errors() {
 /* The REQUIRED cookie `session` of get_pet_summary: an empty value is refused,
  * and so is a value holding a character outside the RFC 6265 cookie-octet set. */
 #[tokio::test]
-async fn test_pet_api_get_pet_summary_guards_the_required_cookie() {
+async fn test_bhv_operations_056_pet_api_get_pet_summary_guards_the_required_cookie() {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
@@ -1045,7 +1046,7 @@ async fn test_pet_api_get_pet_summary_guards_the_required_cookie() {
 /* D47, F1143: object-valued query and header parameters are expanded per
  * property in their declared styles. */
 #[tokio::test]
-async fn test_pet_api_get_pet_tag_object_valued_params_expand_per_style() {
+async fn test_bhv_operations_067_pet_api_get_pet_tag_object_valued_params_expand_per_style() {
     let (api, rx, _) = new_pet_api_for_capture();
     let mut criteria = PetCriteria::new();
     criteria.breed = Some("lab".to_string());
@@ -1089,7 +1090,8 @@ async fn test_pet_api_get_pet_tag_object_valued_params_expand_per_style() {
 /* F1113: a digit-leading query parameter keeps its original wire name even
  * though its Rust identifier needs a letter prefix. */
 #[tokio::test]
-async fn test_pet_api_find_pets_by_status_digit_leading_query_param_keeps_its_wire_name() {
+async fn test_bhv_operations_021_pet_api_find_pets_by_status_digit_leading_query_param_keeps_its_wire_name(
+) {
     let (api, rx, _) = new_pet_api_for_capture();
     let _ = api
         .find_pets_by_status(Some(&FindPetsByStatusOptions::new().n2nd_page(2)))
@@ -1107,7 +1109,7 @@ async fn test_pet_api_find_pets_by_status_digit_leading_query_param_keeps_its_wi
 /* F1142: an operation whose request body is an anyOf wrapper puts exactly the
  * variant the caller passed on the wire, with its path parameter resolved. */
 #[tokio::test]
-async fn test_pet_api_add_pet_treatment_sends_the_chosen_variant_as_the_body() {
+async fn test_bhv_operations_024_pet_api_add_pet_treatment_sends_the_chosen_variant_as_the_body() {
     let (api, rx, _) = new_pet_api_for_capture();
     let input = serde_json::json!({"drugName": "Amoxicillin", "dosage": "500mg"});
     let treatment: PetTreatment =
@@ -1132,7 +1134,7 @@ async fn test_pet_api_add_pet_treatment_sends_the_chosen_variant_as_the_body() {
 /// client points at a closed port, so any request would fail with a network
 /// error instead of this ConfigurationError.
 #[tokio::test]
-async fn test_pet_api_get_pet_by_name_rejects_dot_segments() {
+async fn test_bhv_operations_051_pet_api_get_pet_by_name_rejects_dot_segments() {
     let config = ConfigurationBuilder::new()
         .base_url("http://127.0.0.1:1")
         .build();
@@ -1156,7 +1158,7 @@ async fn test_pet_api_get_pet_by_name_rejects_dot_segments() {
 
 /// Dots inside a longer segment are not dot segments and go out unchanged.
 #[tokio::test]
-async fn test_pet_api_get_pet_by_name_keeps_inner_dots() {
+async fn test_bhv_operations_064_pet_api_get_pet_by_name_keeps_inner_dots() {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNameOptions::new("cats".to_string(), "corr-1".to_string());
     let _ = api.get_pet_by_name("a..b".to_string(), Some(&opts)).await;
@@ -1176,7 +1178,8 @@ async fn test_pet_api_get_pet_by_name_keeps_inner_dots() {
 /// always send the key. So when the caller OMITS status (passes no value), the
 /// wire query string must carry no `status=` key at all.
 #[tokio::test]
-async fn test_pet_api_find_pets_by_status_omitting_status_sends_no_status_in_query() {
+async fn test_bhv_operations_041_pet_api_find_pets_by_status_omitting_status_sends_no_status_in_query(
+) {
     let (api, rx, _) = new_pet_api_for_capture();
     let _ = api.find_pets_by_status(None).await;
 
@@ -1194,7 +1197,8 @@ async fn test_pet_api_find_pets_by_status_omitting_status_sends_no_status_in_que
 /// wire with an empty value (`status=`). This is the case allowEmptyValue exists
 /// for, and it must be distinguishable from the omitted case above.
 #[tokio::test]
-async fn test_pet_api_find_pets_by_status_explicit_empty_status_sends_status_key() {
+async fn test_bhv_operations_040_pet_api_find_pets_by_status_explicit_empty_status_sends_status_key(
+) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = FindPetsByStatusOptions::new().status(String::new());
     let _ = api.find_pets_by_status(Some(&opts)).await;
@@ -1218,7 +1222,7 @@ async fn test_pet_api_find_pets_by_status_explicit_empty_status_sends_status_key
 /// `%5Bblue%2C+black%5D`), which is what a naive `{:?}`/Debug formatting of the
 /// underlying `Vec` would produce.
 #[tokio::test]
-async fn test_pet_api_get_pet_tag_optional_array_query_params_styled_on_wire() {
+async fn test_bhv_operations_068_pet_api_get_pet_tag_optional_array_query_params_styled_on_wire() {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetTagOptions::new()
         .colors(vec!["blue".to_string(), "black".to_string()])
@@ -1259,7 +1263,8 @@ async fn test_pet_api_get_pet_tag_optional_array_query_params_styled_on_wire() {
 /// literal, but a `#` is percent-encoded so it cannot start a fragment and cut
 /// the rest of the query off the wire.
 #[tokio::test]
-async fn test_pet_api_get_pet_tag_allow_reserved_encodes_the_fragment_delimiter() {
+async fn test_bhv_operations_066_pet_api_get_pet_tag_allow_reserved_encodes_the_fragment_delimiter()
+{
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetTagOptions::new()
         .revision("v1.0/beta:rc1#frag".to_string())
@@ -1279,7 +1284,7 @@ async fn test_pet_api_get_pet_tag_allow_reserved_encodes_the_fragment_delimiter(
 /// bytes go on the wire as padded standard-alphabet base64, never as a serde
 /// number array.
 #[tokio::test]
-async fn test_pet_api_get_pet_tag_byte_params_are_base64() {
+async fn test_bhv_operations_059_pet_api_get_pet_tag_byte_params_are_base64() {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetTagOptions::new()
         .fingerprint(b"hi".to_vec())
@@ -1316,7 +1321,7 @@ async fn test_pet_api_get_pet_tag_byte_param_uses_the_standard_alphabet() {
 }
 
 #[tokio::test]
-async fn test_pet_api_error_handling_server_error() {
+async fn test_bhv_operations_038_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(
         500,
         "application/json",
@@ -1334,7 +1339,7 @@ async fn test_pet_api_error_handling_server_error() {
 }
 
 #[tokio::test]
-async fn test_pet_api_download_binary_mock() {
+async fn test_bhv_operations_034_pet_api_download_binary_mock() {
     let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
     let avatar = api
@@ -1345,7 +1350,7 @@ async fn test_pet_api_download_binary_mock() {
 }
 
 #[tokio::test]
-async fn test_pet_api_upload_multipart_mock() {
+async fn test_bhv_operations_089_pet_api_upload_multipart_mock() {
     let (api, _) = new_pet_api_for_mock(
         200,
         "application/json",
@@ -1377,7 +1382,7 @@ async fn test_pet_api_upload_multipart_mock() {
 ///   (2) the default entry point (multipart/form-data) -> a multipart envelope
 ///       (boundary present, the raw bytes embedded inside a part).
 #[tokio::test]
-async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
+async fn test_bhv_operations_092_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
     // A known, non-trivial payload that is NOT valid UTF-8, so any base64 or
     // JSON re-encoding (or a multipart wrapper) would be detectable on the wire.
     let doc_bytes: Vec<u8> = vec![0x00, 0x01, 0xFF, 0xFE, 0xD8, 0x0A];
@@ -1451,7 +1456,7 @@ async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
 /* D36, F1125: the scalar multipart parts of upload_pet_document are plain text
  * parts with no part Content-Type of their own. */
 #[tokio::test]
-async fn test_pet_api_upload_pet_document_scalar_parts_are_plain_text() {
+async fn test_bhv_operations_095_pet_api_upload_pet_document_scalar_parts_are_plain_text() {
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let taken_at: petstore::date_time::DateTime = "2024-01-15T10:30:00+00:00"
         .parse()
@@ -1488,7 +1493,7 @@ async fn test_pet_api_upload_pet_document_scalar_parts_are_plain_text() {
 
 /* F1158: the matrix `petId` and label `tagName` path styles reach the URL. */
 #[tokio::test]
-async fn test_pet_api_get_pet_tag_path_styles_reach_the_url() {
+async fn test_bhv_operations_060_pet_api_get_pet_tag_path_styles_reach_the_url() {
     let (api, client) = new_pet_api_recording_urls();
     let _ = api.get_pet_tag(5, "cute".to_string(), None).await;
 
@@ -1499,7 +1504,7 @@ async fn test_pet_api_get_pet_tag_path_styles_reach_the_url() {
 
 /* F1158: the deepObject `filter` map is expanded per key in key order. */
 #[tokio::test]
-async fn test_pet_api_find_pets_by_status_filter_is_a_deep_object() {
+async fn test_bhv_operations_044_pet_api_find_pets_by_status_filter_is_a_deep_object() {
     let (api, client) = new_pet_api_recording_urls();
     let mut filter = HashMap::new();
     filter.insert("size".to_string(), "large".to_string());
@@ -1520,7 +1525,7 @@ async fn test_pet_api_find_pets_by_status_filter_is_a_deep_object() {
 /* F1155: the deprecation markers sit on the declarations the spec deprecates:
  * an operation, an Options parameter, a model and a property. */
 #[test]
-fn test_deprecated_elements_carry_the_deprecated_attribute() {
+fn test_bhv_operations_033_deprecated_elements_carry_the_deprecated_attribute() {
     let squash = |text: &str| text.split_whitespace().collect::<String>();
     let api = squash(include_str!("../src/api/pet_api.rs"));
     for operation in ["find_pets_by_status", "get_pet_by_id"] {
@@ -1554,7 +1559,8 @@ fn test_deprecated_elements_carry_the_deprecated_attribute() {
 /* F1068: a matrix-style `format: date` path segment and a date-array query
  * reach the URL as dates. */
 #[tokio::test]
-async fn test_pet_api_get_pet_summary_sends_the_matrix_date_and_the_date_array() {
+async fn test_bhv_operations_057_pet_api_get_pet_summary_sends_the_matrix_date_and_the_date_array()
+{
     let (api, client) = new_pet_api_recording_urls();
     let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
     let days = vec![
@@ -1625,7 +1631,7 @@ fn new_pet_api_recording_urls() -> (PetApi, Arc<UrlRecordingApiClient>) {
 }
 
 #[test]
-fn test_pet_api_operation_server_variants_resolve_the_spec_urls() {
+fn test_bhv_operations_083_pet_api_operation_server_variants_resolve_the_spec_urls() {
     assert_eq!(
         GetExternalPetInfoServerServer0 {}.get_url(),
         "https://external-api.example.com/v1"
@@ -1680,7 +1686,7 @@ fn test_pet_api_operation_server_variants_resolve_the_spec_urls() {
 
 /* F1147: a Mirror server reaches the request as its host and path prefix. */
 #[tokio::test]
-async fn test_pet_api_mirror_operation_server_is_the_host_of_the_request() {
+async fn test_bhv_operations_084_pet_api_mirror_operation_server_is_the_host_of_the_request() {
     let (api, client) = new_pet_api_recording_urls();
     let mirror = GetMultiServerPetInfoServerMirror {
         region: GetMultiServerPetInfoServerMirrorRegion::EU,
@@ -1756,7 +1762,7 @@ async fn test_pet_api_get_pet_summary_succeeds_with_a_text_plain_answer() {
 }
 
 #[tokio::test]
-async fn test_pet_api_operation_server_is_the_host_of_the_request() {
+async fn test_bhv_operations_085_pet_api_operation_server_is_the_host_of_the_request() {
     let (api, client) = new_pet_api_recording_urls();
     let staging = GetStagingPetInfoServerStagingServer {
         environment: GetStagingPetInfoServerEnvironment::SANDBOX,
@@ -1795,7 +1801,7 @@ async fn test_pet_api_operation_server_is_the_host_of_the_request() {
 /// A `format: date` path parameter is serialized as `YYYY-MM-DD`, with no time
 /// component and no second layer of percent-encoding.
 #[tokio::test]
-async fn test_pet_api_find_pets_born_on_path_param_is_date_only() {
+async fn test_bhv_operations_043_pet_api_find_pets_born_on_path_param_is_date_only() {
     let (api, client) = new_pet_api_recording_urls();
     let _ = api
         .find_pets_born_on(chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(), None)
@@ -1816,7 +1822,7 @@ fn test_pet_api_default_constructs_without_arguments() {
 /// The `options` argument is documented on every operation that takes one, and
 /// never mentions an authenticator: a call cannot pick another scheme.
 #[test]
-fn test_operations_document_their_options_argument() {
+fn test_bhv_operations_082_operations_document_their_options_argument() {
     let source = include_str!("../src/api/pet_api.rs");
     let documented =
         "    /// * `options`: Options for query, header, form, and cookie parameters.\n    \

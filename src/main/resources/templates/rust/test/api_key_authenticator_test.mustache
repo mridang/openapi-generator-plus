@@ -10,7 +10,7 @@ use {{packageName}}::auth::Authenticator;
 use {{packageName}}::ConfigurationError;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_valid_header_key_passes() {
+async fn test_bhv_authapikey_014_valid_header_key_passes() {
     let auth = ApiKeyAuthenticator::new(
         "https://api.example.com",
         "X-API-Key",
@@ -23,7 +23,7 @@ async fn test_valid_header_key_passes() {
 }
 
 #[test]
-fn test_valid_query_key_passes() {
+fn test_bhv_authapikey_016_valid_query_key_passes() {
     let auth = ApiKeyAuthenticator::new(
         "https://api.example.com",
         "api_key",
@@ -36,7 +36,7 @@ fn test_valid_query_key_passes() {
 }
 
 #[test]
-fn test_valid_cookie_key_passes() {
+fn test_bhv_authapikey_013_valid_cookie_key_passes() {
     let auth = ApiKeyAuthenticator::new(
         "https://api.example.com",
         "session",
@@ -49,7 +49,7 @@ fn test_valid_cookie_key_passes() {
 }
 
 #[test]
-fn test_query_accepts_non_ascii() {
+fn test_bhv_authapikey_009_query_accepts_non_ascii() {
     // Non-header locations accept arbitrary chars.
     let auth = ApiKeyAuthenticator::new(
         "https://api.example.com",
@@ -93,7 +93,7 @@ fn test_invalid_keys_are_invalid_arguments() {
 /// The default Debug representation must mask the stored API key: the secret
 /// value must be absent and a `***` redaction marker present.
 #[test]
-fn test_redacts_secret() {
+fn test_bhv_authapikey_010_redacts_secret() {
     let auth = ApiKeyAuthenticator::new(
         "https://api.example.com",
         "X-API-Key",
@@ -109,7 +109,7 @@ fn test_redacts_secret() {
 /// The redacted representation shows the non-secret fields (host, parameter
 /// name and location) and masks only the key.
 #[test]
-fn test_redacted_representation_shows_the_non_secret_fields() {
+fn test_bhv_authapikey_012_redacted_representation_shows_the_non_secret_fields() {
     for (location, name) in [
         (ApiKeyLocation::Header, "Header"),
         (ApiKeyLocation::Query, "Query"),
@@ -139,7 +139,7 @@ fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
 /// Each generated scheme wrapper emits its key under the name and at the
 /// location its security scheme declares, and nowhere else.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_scheme_wrappers_emit_the_key_at_the_declared_name_and_location() {
+async fn test_bhv_authapikey_007_scheme_wrappers_emit_the_key_at_the_declared_name_and_location() {
     let host = "https://api.example.com";
 
     let header = ApiKeyHeaderAuthenticator::new(host, Some("key-1")).unwrap();
@@ -206,7 +206,7 @@ fn test_scheme_wrappers_mask_the_key_and_keep_the_declared_name() {
 
 /// Only ASCII whitespace counts as blank: a Unicode space is a valid key.
 #[test]
-fn test_unicode_space_key_is_valid() {
+fn test_bhv_authapikey_001_unicode_space_key_is_valid() {
     for space in ["\u{a0}", "\u{2003}"] {
         assert!(ApiKeyAuthenticator::new(
             "https://api.example.com",

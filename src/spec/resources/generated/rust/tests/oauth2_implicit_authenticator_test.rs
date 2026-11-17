@@ -21,7 +21,7 @@ fn create_authenticator() -> OAuth2ImplicitAuthenticator {
 }
 
 #[test]
-fn test_builds_authorization_url_with_response_type_token() {
+fn test_bhv_authoauthtwoimplicit_003_builds_authorization_url_with_response_type_token() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("");
@@ -31,7 +31,7 @@ fn test_builds_authorization_url_with_response_type_token() {
 }
 
 #[test]
-fn test_builds_authorization_url_with_client_id() {
+fn test_bhv_authoauthtwoimplicit_002_builds_authorization_url_with_client_id() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("");
@@ -40,7 +40,7 @@ fn test_builds_authorization_url_with_client_id() {
 }
 
 #[test]
-fn test_builds_authorization_url_with_scopes() {
+fn test_bhv_authoauthtwoimplicit_004_builds_authorization_url_with_scopes() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("");
@@ -55,7 +55,7 @@ fn test_builds_authorization_url_with_scopes() {
 /// The authorization URL writes a space as `%20` and encodes every character
 /// outside `-._~` in the scope and the state.
 #[test]
-fn test_authorization_url_encodes_everything_but_the_unreserved_set() {
+fn test_bhv_authoauthtwoimplicit_001_authorization_url_encodes_everything_but_the_unreserved_set() {
     let auth = OAuth2ImplicitAuthenticator::new(
         "https://api.example.com",
         "my-client-id",
@@ -76,7 +76,7 @@ fn test_authorization_url_encodes_everything_but_the_unreserved_set() {
 }
 
 #[test]
-fn test_builds_authorization_url_with_state() {
+fn test_bhv_authoauthtwoimplicit_005_builds_authorization_url_with_state() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("my-state");
@@ -85,7 +85,8 @@ fn test_builds_authorization_url_with_state() {
 }
 
 #[tokio::test]
-async fn test_get_auth_headers_returns_bearer_after_set_access_token() {
+async fn test_bhv_authoauthtwoimplicit_007_get_auth_headers_returns_bearer_after_set_access_token()
+{
     let auth = create_authenticator();
     auth.set_access_token("implicit-tok").unwrap();
 
@@ -99,7 +100,7 @@ async fn test_get_auth_headers_returns_bearer_after_set_access_token() {
 /// `ConfigurationError::InvalidState`, never a panic, and `auth_headers`
 /// degrades to an empty map.
 #[tokio::test]
-async fn test_throws_when_access_token_not_set() {
+async fn test_bhv_authoauthtwoimplicit_012_throws_when_access_token_not_set() {
     let auth = create_authenticator();
     let err = auth
         .try_auth_headers()
@@ -121,7 +122,7 @@ async fn test_throws_when_access_token_not_set() {
 /// F-A5-04: a token that would inject a header is rejected with
 /// `ConfigurationError::InvalidArgument`, never a panic, and is not stored.
 #[tokio::test]
-async fn test_set_access_token_rejects_invalid_token() {
+async fn test_bhv_authoauthtwoimplicit_013_set_access_token_rejects_invalid_token() {
     let auth = create_authenticator();
     for token in ["tok\r\nInjected: yes", "ñoño", "tok\0"] {
         assert!(
@@ -137,13 +138,13 @@ async fn test_set_access_token_rejects_invalid_token() {
 }
 
 #[test]
-fn test_get_host_returns_configured_host() {
+fn test_bhv_authoauthtwoimplicit_008_get_host_returns_configured_host() {
     let auth = create_authenticator();
     assert_eq!("https://api.example.com", auth.host());
 }
 
 #[test]
-fn redacts_secret() {
+fn test_bhv_authoauthtwoimplicit_010_redacts_secret() {
     let auth = create_authenticator();
     auth.set_access_token("implicit-tok").unwrap();
     let debug = format!("{:?}", auth);
@@ -152,7 +153,7 @@ fn redacts_secret() {
 }
 
 #[test]
-fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
+fn test_bhv_authoauthtwoimplicit_006_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
     let auth =
         BrowserAuthImplicitAuthenticator::new("https://api.example.com", Some("id")).unwrap();
 
@@ -168,7 +169,7 @@ fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
 /// The redacted representation shows every non-secret field and masks the
 /// access token once it is set.
 #[test]
-fn test_redacted_representation_shows_the_non_secret_fields() {
+fn test_bhv_authoauthtwoimplicit_011_redacted_representation_shows_the_non_secret_fields() {
     let auth = create_authenticator();
     let before = format!("{:?}", auth);
     assert!(

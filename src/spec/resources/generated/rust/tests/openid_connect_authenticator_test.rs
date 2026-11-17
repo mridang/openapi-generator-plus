@@ -197,7 +197,7 @@ fn create_authenticator() -> OpenIdConnectAuthenticator {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_builds_authorization_url_from_discovery() {
+async fn test_bhv_authoidc_002_builds_authorization_url_from_discovery() {
     let client = Arc::new(FakeApiClient::new());
     // Discovery document response
     client.enqueue(
@@ -222,7 +222,7 @@ async fn test_builds_authorization_url_from_discovery() {
 /* D05: the authorization request always carries the `openid` scope (OIDC Core
  * 3.1.2.1), prepended when the caller left it out and never repeated. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_authorization_url_always_requests_the_openid_scope() {
+async fn test_bhv_authoidc_022_authorization_url_always_requests_the_openid_scope() {
     for scopes in [
         Vec::<String>::new(),
         vec!["profile".to_string()],
@@ -260,7 +260,7 @@ async fn test_authorization_url_always_requests_the_openid_scope() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_fetches_discovery_document() {
+async fn test_bhv_authoidc_010_fetches_discovery_document() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
@@ -305,7 +305,7 @@ async fn test_discovery_is_sent_without_following_redirects() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_discovery_non_2xx_status_surfaces_status_error() {
+async fn test_bhv_authoidc_027_discovery_non_2xx_status_surfaces_status_error() {
     let client = Arc::new(FakeApiClient::new());
     // Server returns 500 with an HTML body that is not valid discovery JSON.
     client.enqueue("<html><body>Internal Server Error</body></html>", 500);
@@ -341,7 +341,7 @@ async fn test_discovery_non_2xx_status_surfaces_status_error() {
 /// a `SerializationError`, and a transport failure passes through as the
 /// `NetworkError` / `NetworkTimeoutError` it already is.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_discovery_failures_are_typed() {
+async fn test_bhv_authoidc_006_discovery_failures_are_typed() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue("{not json", 200);
     let mut auth = create_authenticator();
@@ -396,7 +396,7 @@ async fn test_discovery_failures_are_typed() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_obtains_token_after_code_exchange() {
+async fn test_bhv_authoidc_017_obtains_token_after_code_exchange() {
     let client = Arc::new(FakeApiClient::new());
     // Discovery document
     client.enqueue(
@@ -423,7 +423,7 @@ async fn test_obtains_token_after_code_exchange() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_get_auth_headers_returns_bearer_after_exchange() {
+async fn test_bhv_authoidc_013_get_auth_headers_returns_bearer_after_exchange() {
     let client = Arc::new(FakeApiClient::new());
     // Discovery document
     client.enqueue(
@@ -450,7 +450,7 @@ async fn test_get_auth_headers_returns_bearer_after_exchange() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_throws_when_discovery_missing_authorization_endpoint() {
+async fn test_bhv_authoidc_025_throws_when_discovery_missing_authorization_endpoint() {
     let client = Arc::new(FakeApiClient::new());
     // Missing authorization_endpoint must produce an error rather than build a
     // delegate with a null/empty endpoint URL.
@@ -482,7 +482,7 @@ async fn test_throws_when_discovery_missing_authorization_endpoint() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_throws_when_discovery_missing_token_endpoint() {
+async fn test_bhv_authoidc_026_throws_when_discovery_missing_token_endpoint() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"authorization_endpoint":"https://auth.example.com/authorize"}"#,
@@ -504,7 +504,7 @@ async fn test_throws_when_discovery_missing_token_endpoint() {
 }
 
 #[tokio::test]
-async fn test_throws_when_no_api_client_injected() {
+async fn test_bhv_authoidc_028_throws_when_no_api_client_injected() {
     let auth = create_authenticator();
 
     let err = auth
@@ -522,7 +522,7 @@ async fn test_throws_when_no_api_client_injected() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_fetches_discovery_document_only_once() {
+async fn test_bhv_authoidc_011_fetches_discovery_document_only_once() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
@@ -544,7 +544,7 @@ async fn test_fetches_discovery_document_only_once() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_discovery_huge_max_age_is_clamped_not_a_panic() {
+async fn test_bhv_authoidc_001_discovery_huge_max_age_is_clamped_not_a_panic() {
     // A max-age beyond what Instant arithmetic can add must be clamped, not
     // overflow; the discovery document is then cached for the clamped span.
     let client = Arc::new(FakeApiClient::new());
@@ -567,13 +567,13 @@ async fn test_discovery_huge_max_age_is_clamped_not_a_panic() {
 }
 
 #[test]
-fn test_get_host_returns_configured_host() {
+fn test_bhv_authoidc_014_get_host_returns_configured_host() {
     let auth = create_authenticator();
     assert_eq!("https://api.example.com", auth.host());
 }
 
 #[test]
-fn redacts_secret() {
+fn test_bhv_authoidc_019_redacts_secret() {
     let auth = create_authenticator();
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("my-client-secret"));
@@ -617,7 +617,7 @@ async fn test_discovery_is_refetched_once_its_max_age_has_passed() {
 /// The scheme wrapper discovers the endpoints from the URL its security scheme
 /// declares.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_scheme_wrapper_discovers_from_the_declared_url() {
+async fn test_bhv_authoidc_012_scheme_wrapper_discovers_from_the_declared_url() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(DISCOVERY, 200);
     let mut auth = SsoAuthAuthenticator::new(
@@ -650,7 +650,7 @@ async fn test_scheme_wrapper_discovers_from_the_declared_url() {
 
 /// The redacted representation shows every non-secret field.
 #[test]
-fn test_redacted_representation_shows_the_non_secret_fields() {
+fn test_bhv_authoidc_023_redacted_representation_shows_the_non_secret_fields() {
     let auth = create_authenticator();
     assert_eq!(
         "OpenIdConnectAuthenticator { host: \"https://api.example.com\", \
@@ -726,7 +726,7 @@ const REDISCOVERY: &str = r#"{"authorization_endpoint":"https://auth.example.com
 /// exchanged session survives, its still-valid token is reused without a token
 /// request, and the new document's endpoints are used.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_rediscovery_after_max_age_keeps_the_exchanged_session() {
+async fn test_bhv_authoidc_020_rediscovery_after_max_age_keeps_the_exchanged_session() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue_cached(DISCOVERY, "max-age=0");
     client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
@@ -762,7 +762,7 @@ async fn test_rediscovery_after_max_age_keeps_the_exchanged_session() {
 /// A failed rediscovery surfaces its typed error and keeps the old delegate;
 /// the next call rediscovers and still has the same session.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_failed_rediscovery_keeps_the_old_delegate() {
+async fn test_bhv_authoidc_009_failed_rediscovery_keeps_the_old_delegate() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue_cached(DISCOVERY, "max-age=0");
     client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
@@ -832,7 +832,7 @@ fn test_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls() {
  * fetched from is refused; one without an issuer, or with a matching one
  * (trailing slash aside), is accepted. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_discovery_issuer_must_match_the_discovery_url() {
+async fn test_bhv_authoidc_024_discovery_issuer_must_match_the_discovery_url() {
     for (issuer, accepted) in [
         (Some("https://auth.example.com"), true),
         (Some("https://auth.example.com/"), true),
@@ -877,7 +877,7 @@ async fn test_discovery_issuer_must_match_the_discovery_url() {
 /* The code and the client secret travel to the discovered endpoints: clear text
  * is refused unless the host is loopback. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_discovery_refuses_clear_text_endpoints_except_loopback() {
+async fn test_bhv_authoidc_005_discovery_refuses_clear_text_endpoints_except_loopback() {
     for (endpoint, accepted) in [
         ("https://idp.example.com/token", true),
         ("http://127.0.0.1:8080/token", true),
