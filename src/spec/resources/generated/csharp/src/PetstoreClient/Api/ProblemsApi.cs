@@ -62,6 +62,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Result]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="UnexpectedFailureException">Thrown on HTTP default with a <see cref="UnexpectedFailure"/> body.</exception>
     public async Task<Result> GetFallbackAsync(
         string fallbackId,
         GetFallbackOptions? options = null,
@@ -106,6 +107,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="UnexpectedFailureException">Thrown on HTTP default with a <see cref="UnexpectedFailure"/> body.</exception>
     public async Task<ApiResult<Result>> GetFallbackWithHttpInfoAsync(
         string fallbackId,
         GetFallbackOptions? options = null,
@@ -154,7 +156,11 @@ public class ProblemsApi : BaseApi
                 operationName: "ProblemsApi.GetFallback",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries
+                maxRetries: options?.MaxRetries,
+                errorSchemas: new Dictionary<string, ErrorFactory>
+                {
+                    ["default"] = UnexpectedFailureException.FromErrorResponse,
+                }
             )
             .ConfigureAwait(false);
     }
@@ -167,6 +173,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Result]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="MemberNotFoundException">Thrown on HTTP 404 with a <see cref="MemberNotFound"/> body.</exception>
     public async Task<Result> GetMemberAsync(
         string memberId,
         GetMemberOptions? options = null,
@@ -211,6 +218,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="MemberNotFoundException">Thrown on HTTP 404 with a <see cref="MemberNotFound"/> body.</exception>
     public async Task<ApiResult<Result>> GetMemberWithHttpInfoAsync(
         string memberId,
         GetMemberOptions? options = null,
@@ -259,7 +267,11 @@ public class ProblemsApi : BaseApi
                 operationName: "ProblemsApi.GetMember",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries
+                maxRetries: options?.MaxRetries,
+                errorSchemas: new Dictionary<string, ErrorFactory>
+                {
+                    ["404"] = MemberNotFoundException.FromErrorResponse,
+                }
             )
             .ConfigureAwait(false);
     }
@@ -272,6 +284,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Result]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="ProjectNotFoundException">Thrown on HTTP 404 with a <see cref="ProjectNotFound"/> body.</exception>
     public async Task<Result> GetProjectAsync(
         string projectId,
         GetProjectOptions? options = null,
@@ -316,6 +329,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="ProjectNotFoundException">Thrown on HTTP 404 with a <see cref="ProjectNotFound"/> body.</exception>
     public async Task<ApiResult<Result>> GetProjectWithHttpInfoAsync(
         string projectId,
         GetProjectOptions? options = null,
@@ -364,7 +378,11 @@ public class ProblemsApi : BaseApi
                 operationName: "ProblemsApi.GetProject",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries
+                maxRetries: options?.MaxRetries,
+                errorSchemas: new Dictionary<string, ErrorFactory>
+                {
+                    ["404"] = ProjectNotFoundException.FromErrorResponse,
+                }
             )
             .ConfigureAwait(false);
     }
@@ -377,6 +395,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Result]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="RejectedRequestException">Thrown on HTTP 4XX with a <see cref="RejectedRequest"/> body.</exception>
     public async Task<Result> GetRangeAsync(
         string rangeId,
         GetRangeOptions? options = null,
@@ -421,6 +440,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="RejectedRequestException">Thrown on HTTP 4XX with a <see cref="RejectedRequest"/> body.</exception>
     public async Task<ApiResult<Result>> GetRangeWithHttpInfoAsync(
         string rangeId,
         GetRangeOptions? options = null,
@@ -469,7 +489,11 @@ public class ProblemsApi : BaseApi
                 operationName: "ProblemsApi.GetRange",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries
+                maxRetries: options?.MaxRetries,
+                errorSchemas: new Dictionary<string, ErrorFactory>
+                {
+                    ["4XX"] = RejectedRequestException.FromErrorResponse,
+                }
             )
             .ConfigureAwait(false);
     }
@@ -482,6 +506,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Result]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="UpstreamFailureException">Thrown on HTTP 5XX with a <see cref="UpstreamFailure"/> body.</exception>
     public async Task<Result> GetUpstreamAsync(
         string upstreamId,
         GetUpstreamOptions? options = null,
@@ -526,6 +551,7 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="UpstreamFailureException">Thrown on HTTP 5XX with a <see cref="UpstreamFailure"/> body.</exception>
     public async Task<ApiResult<Result>> GetUpstreamWithHttpInfoAsync(
         string upstreamId,
         GetUpstreamOptions? options = null,
@@ -574,7 +600,11 @@ public class ProblemsApi : BaseApi
                 operationName: "ProblemsApi.GetUpstream",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries
+                maxRetries: options?.MaxRetries,
+                errorSchemas: new Dictionary<string, ErrorFactory>
+                {
+                    ["5XX"] = UpstreamFailureException.FromErrorResponse,
+                }
             )
             .ConfigureAwait(false);
     }
@@ -587,6 +617,8 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Result]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="StateConflictException">Thrown on HTTP 409 with a <see cref="StateConflict"/> body.</exception>
+    /// <exception cref="StateConflictException">Thrown on HTTP 423 with a <see cref="StateConflict"/> body.</exception>
     public async Task<Result> TakeLockAsync(
         string lockId,
         TakeLockOptions? options = null,
@@ -631,6 +663,8 @@ public class ProblemsApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="StateConflictException">Thrown on HTTP 409 with a <see cref="StateConflict"/> body.</exception>
+    /// <exception cref="StateConflictException">Thrown on HTTP 423 with a <see cref="StateConflict"/> body.</exception>
     public async Task<ApiResult<Result>> TakeLockWithHttpInfoAsync(
         string lockId,
         TakeLockOptions? options = null,
@@ -679,7 +713,12 @@ public class ProblemsApi : BaseApi
                 operationName: "ProblemsApi.TakeLock",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries
+                maxRetries: options?.MaxRetries,
+                errorSchemas: new Dictionary<string, ErrorFactory>
+                {
+                    ["409"] = StateConflictException.FromErrorResponse,
+                    ["423"] = StateConflictException.FromErrorResponse,
+                }
             )
             .ConfigureAwait(false);
     }

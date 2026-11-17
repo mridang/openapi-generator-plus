@@ -39,4 +39,50 @@ public class SerializationException : OpenAPIException
     /// <param name="innerException">The underlying native serializer exception.</param>
     public SerializationException(string message, Exception innerException)
         : base(message, innerException) { }
+
+    /// <summary>
+    /// The HTTP status of the response whose body could not be decoded, or null
+    /// when the failure did not come from a response.
+    /// </summary>
+    public int? StatusCode { get; private set; }
+
+    /// <summary>
+    /// The headers of the response whose body could not be decoded, or null when
+    /// the failure did not come from a response.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? ResponseHeaders { get; private set; }
+
+    /// <summary>
+    /// The raw body of the response that could not be decoded, or null when the
+    /// failure did not come from a response.
+    /// </summary>
+    public string? ResponseBody { get; private set; }
+
+    /// <summary>
+    /// The HTTP method of the request whose response could not be decoded, or null
+    /// when the failure did not come from a response.
+    /// </summary>
+    public string? RequestMethod { get; private set; }
+
+    /// <summary>
+    /// The path of the request whose response could not be decoded, without its
+    /// query string, or null when the failure did not come from a response.
+    /// </summary>
+    public string? RequestPath { get; private set; }
+
+    /// <summary>Records the response and the request whose body could not be decoded.</summary>
+    internal void AttachResponse(
+        int statusCode,
+        IReadOnlyDictionary<string, string> responseHeaders,
+        string? responseBody,
+        string requestMethod,
+        string requestPath
+    )
+    {
+        StatusCode = statusCode;
+        ResponseHeaders = responseHeaders;
+        ResponseBody = responseBody;
+        RequestMethod = requestMethod;
+        RequestPath = requestPath;
+    }
 }

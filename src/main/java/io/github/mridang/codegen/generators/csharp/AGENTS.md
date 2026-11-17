@@ -229,6 +229,11 @@ Why: one contract for all twelve; null headers mean no response arrived.
 Where: `api_error.mustache`, `errors/*.mustache`, `object_serializer.mustache`.
 Test: `ApiExceptionTest.mustache`, `OAuth2TokenManagerTest.mustache` (`OAuth2ServerErrorMessageHasThreeForms`).
 
+### Typed errors per declared schema (issue 123, errors201-205)
+Rule: one `<Model>Exception` per distinct declared error schema, written by `errors/SchemaException.mustache` and subclassing the status class of its status (a status without a type of its own, a range or `default` gives `ClientException`, `ServerException` or `ApiException`, whose constructor takes the status). Each operation passes `errorSchemas` (status to `ErrorFactory` delegate) to `InvokeApiForResultAsync`; `ApiException.FromResponse(..., errorSchemas)` picks exact status, then `4XX`/`5XX`, then `default`. The schema class overrides the virtual `ApiException.ErrorBody` with a covariant read-only property of the model type, so `ApiException` is not generic. A body that does not match its schema gives the status class with the raw body and the decoding failure as `InnerException`. `IsRetryable` is status-only (408, 409, 429, 5xx except 501) and `RequestId` reads `x-request-id`. A response body that cannot be decoded raises `SerializationException` with `StatusCode`, `ResponseHeaders`, `ResponseBody`, `RequestMethod` and `RequestPath` (no query) set by `BaseApi`. The `errorSchemas` parameter sits before the `CancellationToken` (CA1068).
+Where: `api_error.mustache`, `errors/ErrorFactory.mustache`, `errors/SchemaException.mustache`, `errors/SerializationException.mustache`, `base_api.mustache`, `api/api.mustache`, `BetterCSharpCodegen.errorSchemaTemplate`.
+Test: `ApiExceptionTest.mustache` (`BhvErrors201` to `BhvErrors204`), `BaseApiTest.mustache` (`BhvErrors205`).
+
 ### Required parameter messages (D25, D26)
 Rule: a null required Options object throws `ArgumentNullException` with the canonical "Missing the required parameter '<x>' when calling <Class>.<operation>" (via `BaseApi.RequireOption`), and so does each missing required field; an optional body defaults to `null` unless a required Options argument follows (C# forbids a default before a required parameter).
 Why: one message in all twelve; `ThrowIfNull` gave no canonical text.

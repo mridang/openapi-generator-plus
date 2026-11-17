@@ -418,6 +418,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.cs"),
             new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".cs"),
             new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.cs"),
+            new SupportingFileSpec("errors/ErrorFactory.mustache", errorsFolder, "ErrorFactory.cs"),
             new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.cs"),
             new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.cs"),
             new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.cs"),
@@ -1171,6 +1172,19 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         context.put("params", params);
         context.put("hasModelImports", hasAnyModelImports);
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/SchemaException.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, sourceFolder, packageName.replace(".", "/"), "Errors", className + ".cs")
+                .toString();
     }
 
     /** {@inheritDoc} */
