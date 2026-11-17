@@ -406,3 +406,9 @@ test('bhv errors 036 the error carries the method and the path without the query
     expect($ex->getRequestMethod())->toBe('POST');
     expect($ex->getRequestPath())->toBe('/items');
 });
+
+test('bhv errors 049 an oauth2 server error message names the status and the error code', function (): void {
+    $error = new \{{invokerPackage}}\Errors\OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
+
+    expect($error->getMessage())->toBe('Token request failed with status 400: invalid_grant');
+});

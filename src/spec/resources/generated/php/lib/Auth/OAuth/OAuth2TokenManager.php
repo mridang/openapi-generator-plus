@@ -44,6 +44,15 @@ final class OAuth2TokenManager
     /** Ceiling in seconds applied to a server-supplied expires_in (one year). */
     private const int MAX_EXPIRES_IN_SECONDS = 31536000;
 
+    /**
+     * The fixed order of the token-request body keys, shared by every SDK. Keys
+     * outside it follow in byte order.
+     */
+    private const array TOKEN_FORM_KEY_ORDER = [
+        'grant_type', 'code', 'refresh_token', 'username', 'password',
+        'client_id', 'client_secret', 'redirect_uri', 'code_verifier', 'scope',
+    ];
+
     /** @var ApiClient|null The shared API client for making token requests. */
     private ?ApiClient $apiClient = null;
 
@@ -250,7 +259,7 @@ final class OAuth2TokenManager
          * for application/x-www-form-urlencoded) but escapes '~' to %7E; RFC
          * 3986 keeps '~' unreserved, so map it back so every SDK emits
          * byte-identical bodies. */
-        $body = str_replace('%7E', '~', http_build_query($params));
+        $body = str_replace('%7E', '~', http_build_query($this->orderTokenForm($params)));
 
         /* Gap 3.2: token POSTs must not transparently follow ANY 3xx
          * redirect (RFC 6749 §3.2 forbids redirects at the token
@@ -334,6 +343,25 @@ final class OAuth2TokenManager
      *
      * @param mixed $raw the raw JSON-decoded value
      */
+    /**
+     * Returns the token-request params in the fixed key order, then the other keys sorted.
+     *
+     * @param array<string, string> $params the token request parameters
+     * @return array<string, string> the same parameters in the shared order
+     */
+    private function orderTokenForm(array $params): array
+    {
+        $ordered = [];
+        foreach (self::TOKEN_FORM_KEY_ORDER as $key) {
+            if (array_key_exists($key, $params)) {
+                $ordered[$key] = $params[$key];
+            }
+        }
+        $rest = array_diff_key($params, $ordered);
+        ksort($rest, SORT_STRING);
+        return $ordered + $rest;
+    }
+
     /**
      * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
      * {@see OAuth2ServerException}. Falls back to a generic error using the raw
