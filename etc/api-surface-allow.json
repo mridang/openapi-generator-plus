@@ -2785,18 +2785,6 @@
    "reason": "owner decision F827 (2026-11-17): every operation, with or without parameters, takes the trailing optional Options argument that carries the per-call settings; rust has no default arguments, so the argument is always passed (None for none)."
   },
   {
-   "element": [
-    "apierror.requestmethod",
-    "apierror.requestpath",
-    "apierror.withrequest"
-   ],
-   "aspect": "member",
-   "languages": [
-    "rust"
-   ],
-   "reason": "owner decision F830 (2026-11-17): ApiError exposes request_method and request_path (the status wrappers reach them through api_error(), rust has no inheritance); with_request records them on an error built elsewhere. Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
    "element": "apierror.fromresponse",
    "aspect": "params",
    "languages": [
@@ -2804,17 +2792,6 @@
    ],
    "value": "*requestpath)",
    "reason": "owner decision F830 (2026-11-17): from_response takes the request method and path as trailing optional arguments, which name the request in the message and on the error; rust has no default arguments."
-  },
-  {
-   "element": [
-    "client.withtokenprovider",
-    "bearerauthenticator.withtokenprovider"
-   ],
-   "aspect": "member",
-   "languages": [
-    "rust"
-   ],
-   "reason": "owner decision F862 (2026-11-17): a token-provider callback (Arc<dyn Fn() -> String>) beside the static token; rust has no overloads, so the provider is a separate constructor. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
    "element": "baseapi.invokeapiforstatusunion",
@@ -3100,14 +3077,6 @@
     "csharp"
    ],
    "reason": "F857 owner decision: no per-call scheme override. An operation uses the credential of the scheme its spec requires, so the csharp Options record carries no Auth member; the other languages drop it when they adopt F857"
-  },
-  {
-   "element": "*options",
-   "aspect": "type",
-   "languages": [
-    "rust"
-   ],
-   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options struct carrying the per-call timeout, headers and max_retries; rust opts in through mintsOptionsForEveryOperation() and the shared pass mints one for each operation. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
    "element": [
@@ -3505,6 +3474,54 @@
     "go"
    ],
    "reason": "F878: go has no static methods and no overloads, so the typed factory of a union variant is the package-level New<Variant><Union> (NewReservationReserveStockResponse), already allowed as the extra New* member"
+  },
+  {
+   "element": [
+    "petfood.dryfood",
+    "petfood.wetfood",
+    "petfood.asdryfood",
+    "petfood.aswetfood",
+    "reservestockresponse.fromreservation",
+    "reservestockresponse.fromreservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust models a oneOf as a sum type: the enum variant constructor (PetFood::DryFood(v)) is the typed factory and match or if let is the typed test and accessor, so a union has no from/is/as functions per variant"
+  },
+  {
+   "element": [
+    "pettreatment.asmedication",
+    "pettreatment.assurgery",
+    "treatmentrecord.asmedication",
+    "treatmentrecord.assurgery"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust anyOf is a struct of typed Option variant slots, so the public field (medication, surgery) is read directly and no as_<variant> accessor exists beside it"
+  },
+  {
+   "element": "client.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust has no overloads, named or default arguments: Client::new keeps the (authenticator, transport_options) shape and the per-scheme credentials of the other languages go through the separate constructor Client::with_credentials(host, Credentials, transport_options)"
+  },
+  {
+   "element": [
+    "baseapi.<ctor>",
+    "petapi.<ctor>",
+    "storeapi.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust has no overloads or default arguments: the API group is built with (api_client, config, authenticator) and the per-scheme credentials of the client are attached with the builder method with_scheme_authenticators"
   }
  ]
 }
