@@ -61,3 +61,4 @@ rust | *unnumbered | tests beyond the shared catalogue: language-specific behavi
 swift | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 elixir | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 java | lifecycle014 | The Java client takes built authenticator objects and never reads the environment itself; the per-scheme authenticator reads it when built with no credential, and that behaviour is pinned by bhv authbearer 010 (same promise)
+python | operations111 | the trackingId parameter is typed uuid.UUID, which refuses a malformed value when the caller builds it, so the SDK never receives one it must reject; a plain str bypasses that type and is sent unchecked

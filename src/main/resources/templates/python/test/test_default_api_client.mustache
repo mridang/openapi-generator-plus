@@ -567,7 +567,7 @@ class TestN1RedirectBodyReplayMatrix:
 
         return _Pool()
 
-    def test_bhv_redirects_001_302_https_to_http_with_body_proceeds(self) -> None:
+    def test_bhv_redirects_001_https_to_http_302_with_body_proceeds(self) -> None:
         # 302 demotes POST -> GET and drops the body, so the plaintext hop
         # carries no sensitive payload: it must proceed, not throw.
         transport = TransportOptions.builder().follow_redirects(True).build()
@@ -620,7 +620,7 @@ class TestN1RedirectBodyReplayMatrix:
         client.send_request('HEAD', 'http://example.com/start', {}, None)
         assert pool.calls[1][0] == 'HEAD'
 
-    def test_bhv_retries_010_bhv_retries_017_307_https_to_http_with_body_raises(self) -> None:
+    def test_bhv_retries_010_https_to_http_307_with_body_raises(self) -> None:
         from {{packageName}}.errors import ApiException
 
         transport = TransportOptions.builder().follow_redirects(True).build()
@@ -636,7 +636,23 @@ class TestN1RedirectBodyReplayMatrix:
         # The plaintext replay must never have been issued.
         assert len(pool.calls) == 1
 
-    def test_bhv_retries_011_308_https_to_http_with_body_raises(self) -> None:
+    def test_bhv_retries_017_https_to_http_downgrade_refuses_body_replay_on_307(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(307)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request(
+                'PUT',
+                'https://example.com/secure',
+                {'Content-Type': 'application/json'},
+                '{"secret":"value"}',
+            )
+        # The plaintext replay must never have been issued.
+        assert len(pool.calls) == 1
+
+    def test_bhv_retries_011_https_to_http_308_with_body_raises(self) -> None:
         from {{packageName}}.errors import ApiException
 
         transport = TransportOptions.builder().follow_redirects(True).build()
