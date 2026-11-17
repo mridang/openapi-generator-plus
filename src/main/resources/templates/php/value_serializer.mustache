@@ -251,7 +251,7 @@ final class ValueSerializer
             return '';
         }
 
-        if (is_object($value) && self::isModel($value)) {
+        if (is_object($value) && self::isObjectValue($value)) {
             return self::serializeObjectStyled($paramName, $value, $location, $style, $explode)
                 ?? self::serialize($value, $location, $schemaType, $collectionFormat);
         }
@@ -330,13 +330,16 @@ final class ValueSerializer
     }
 
     /**
-     * Whether a value is a generated model, as opposed to a date, enum, UUID
-     * or other value object that has its own text form.
+     * Whether an object has an OAS object form: every object except the ones with their own
+     * text or collection form (enums, date-times, Stringable value objects such as UUIDs and the
+     * php-ds collections), so a class outside the generated model namespace explodes like a model.
      */
-    private static function isModel(object $value): bool
+    private static function isObjectValue(object $value): bool
     {
         return !$value instanceof \UnitEnum
-            && str_starts_with($value::class, '{{modelPackage}}\\');
+            && !$value instanceof \DateTimeInterface
+            && !$value instanceof \Stringable
+            && !$value instanceof \Ds\Collection;
     }
 
     /**
