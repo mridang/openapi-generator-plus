@@ -8,7 +8,8 @@ namespace {{packageName}};
 /// <summary>
 /// Unified entry point for all API services.
 ///
-/// Takes an <see cref="IAuthenticator"/> and optionally <see cref="TransportOptions"/>,
+/// Takes an <see cref="IAuthenticator"/> (or one optional credential per security scheme,
+/// named after the scheme) and optionally <see cref="TransportOptions"/>,
 /// then exposes each API group as a typed property. If the authenticator
 /// implements <see cref="IHttpAwareAuthenticator"/>, the shared <see cref="IApiClient"/>
 /// is injected so that authentication HTTP calls (token exchange, discovery)
@@ -50,15 +51,50 @@ public sealed class {{clientClassName}} : IDisposable
     /// <summary>
     /// Creates a new client with the given authenticator and transport options.
     ///
-    /// If the authenticator implements <see cref="IHttpAwareAuthenticator"/>, the
-    /// shared <see cref="IApiClient"/> is injected so that token exchange and
-    /// discovery requests use the same proxy, TLS, and timeout settings.
+    /// The authenticator is the credential for every operation. If it implements
+    /// <see cref="IHttpAwareAuthenticator"/>, the shared <see cref="IApiClient"/>
+    /// is injected so that token exchange and discovery requests use the same
+    /// proxy, TLS, and timeout settings.
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     /// <param name="transportOptions">HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
     public {{clientClassName}}(IAuthenticator authenticator, TransportOptions? transportOptions)
+        : this(HostOf(authenticator), authenticator, NoSchemeAuthenticators, transportOptions) { }
+
+    /// <summary>
+    /// Creates a new client that holds one optional credential per security scheme the spec
+    /// declares, each named after its scheme. An operation uses the credential of the scheme its
+    /// spec requires; a call cannot pick another scheme. An operation whose scheme has no
+    /// credential here is sent without one.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+{{#clientSchemes}}
+    /// <param name="{{argName}}">Credential for the <c>{{schemeName}}</c> security scheme, or null for none.</param>
+{{/clientSchemes}}
+    /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    public {{clientClassName}}(
+        string host,
+{{#clientSchemes}}
+        {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}? {{argName}} = null,
+{{/clientSchemes}}
+        TransportOptions? transportOptions = null)
+        : this(
+            host,
+            null,
+            SchemeAuthenticatorMap(
+{{#clientSchemes}}
+                ("{{schemeName}}", {{argName}}){{^-last}},{{/-last}}
+{{/clientSchemes}}
+            ),
+            transportOptions) { }
+
+    private {{clientClassName}}(
+        string host,
+        IAuthenticator? authenticator,
+        IReadOnlyDictionary<string, IAuthenticator> schemeAuthenticators,
+        TransportOptions? transportOptions)
     {
-        ArgumentNullException.ThrowIfNull(authenticator);
+        ArgumentNullException.ThrowIfNull(host);
         transportOptions ??= TransportOptions.Builder().Build();
 
         _apiClient = new DefaultApiClient(transportOptions);
@@ -67,18 +103,48 @@ public sealed class {{clientClassName}} : IDisposable
         {
             httpAware.SetApiClient(_apiClient);
         }
+        foreach (IAuthenticator scheme in schemeAuthenticators.Values)
+        {
+            if (scheme is IHttpAwareAuthenticator schemeHttpAware)
+            {
+                schemeHttpAware.SetApiClient(_apiClient);
+            }
+        }
 
         Configuration config = Configuration
             .Builder()
-            .BaseUrl(authenticator.GetHost())
+            .BaseUrl(host)
             .Build();
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        {{clientPropertyName}} = new {{classname}}(_apiClient, config, authenticator);
+        {{clientPropertyName}} = new {{classname}}(_apiClient, config, authenticator, schemeAuthenticators);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+    }
+
+    private static readonly IReadOnlyDictionary<string, IAuthenticator> NoSchemeAuthenticators =
+        new Dictionary<string, IAuthenticator>();
+
+    private static string HostOf(IAuthenticator authenticator)
+    {
+        ArgumentNullException.ThrowIfNull(authenticator);
+        return authenticator.GetHost();
+    }
+
+    private static Dictionary<string, IAuthenticator> SchemeAuthenticatorMap(
+        params (string Scheme, IAuthenticator? Authenticator)[] entries)
+    {
+        var map = new Dictionary<string, IAuthenticator>();
+        foreach ((string scheme, IAuthenticator? authenticator) in entries)
+        {
+            if (authenticator is not null)
+            {
+                map[scheme] = authenticator;
+            }
+        }
+        return map;
     }
 
     /// <summary>

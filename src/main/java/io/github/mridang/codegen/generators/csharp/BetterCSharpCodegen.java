@@ -1008,6 +1008,50 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         schemeAuthTests.add(entry);
     }
 
+    /** C# reserved words that cannot name a client argument without an at-sign prefix. */
+    private static final Set<String> CSHARP_KEYWORDS = Set.of(
+            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
+            "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
+            "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
+            "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
+            "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
+            "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed",
+            "short", "sizeof", "stackalloc", "static", "string", "struct", "switch", "this",
+            "throw", "true", "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort",
+            "using", "virtual", "void", "volatile", "while");
+
+    /**
+     * Computes the {@code clientSchemes} property (F857): one entry per distinct security scheme
+     * with the client argument named after the scheme and the class of its authenticator.
+     */
+    @Override
+    public void processOpenAPI(final io.swagger.v3.oas.models.OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final List<Map<String, Object>> clientSchemes = new ArrayList<>();
+        if (openAPI.getComponents() != null
+                && openAPI.getComponents().getSecuritySchemes() != null) {
+            for (final Map.Entry<String, io.swagger.v3.oas.models.security.SecurityScheme> entry :
+                    openAPI.getComponents().getSecuritySchemes().entrySet()) {
+                final SchemeAuthSpec spec = buildSchemeAuthSpec(entry.getKey(), entry.getValue());
+                if (spec == null) {
+                    continue;
+                }
+                final String arg = NamingConvention.CAMEL_CASE.apply(entry.getKey());
+                final Map<String, Object> scheme = new HashMap<>();
+                scheme.put("schemeName", entry.getKey());
+                scheme.put("paramName", arg);
+                scheme.put("argName", CSHARP_KEYWORDS.contains(arg) ? "@" + arg : arg);
+                scheme.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+                if (spec.isOAuth()) {
+                    scheme.put("namespaceSuffix", "OAuth");
+                }
+                clientSchemes.add(scheme);
+            }
+        }
+        additionalProperties.put("clientSchemes", clientSchemes);
+        additionalProperties.put("hasClientSchemes", !clientSchemes.isEmpty());
+    }
+
     /** {@inheritDoc} */
     @Override
     protected boolean mintsOptionsForEveryOperation() {
@@ -1081,7 +1125,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         context.put("operationId", op.operationId);
         context.put("params", params);
         context.put("hasModelImports", hasAnyModelImports);
-        injectAuthFieldContext(op, context);
         return renderOptionsTemplate("api/options.mustache", context);
     }
 
@@ -1271,9 +1314,43 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                     modelMap.put("referencesDeprecated", true);
                 }
                 nameUnionVariants(model);
+                markGuardedRequiredProperties(model);
             }
         }
         return result;
+    }
+
+    /**
+     * Flags the required, non-null reference properties whose null is refused at decode
+     * (F316). The model keeps no check in its constructors or init accessors; the flag makes
+     * the template emit one {@code OnDeserialized} check per flagged property, so a wrong
+     * value fails loudly only when a payload is decoded. The conditions mirror the template's
+     * choice of a guarded backing field.
+     */
+    private static void markGuardedRequiredProperties(final CodegenModel model) {
+        boolean any = false;
+        for (final CodegenProperty property : model.vars) {
+            final boolean hasDefault =
+                    property.defaultValue != null && !property.defaultValue.isEmpty();
+            final boolean referenceTyped =
+                    property.isContainer
+                            || !property.isPrimitiveType
+                            || property.isString
+                            || property.isByteArray
+                            || property.isBinary;
+            if (property.required
+                    && !hasDefault
+                    && !property.isNullable
+                    && !property.isEnum
+                    && !property.isEnumRef
+                    && referenceTyped) {
+                property.vendorExtensions.put("guardedRequired", true);
+                any = true;
+            }
+        }
+        if (any) {
+            model.vendorExtensions.put("hasGuardedRequired", true);
+        }
     }
 
     /**

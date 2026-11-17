@@ -107,9 +107,15 @@ public class {{classname}} : BaseApi
     /// <summary>Initializes a new instance of <see cref="{{classname}}"/> with the given client, configuration, and default authenticator.</summary>
     /// <param name="apiClient">The HTTP client used to make API calls.</param>
     /// <param name="config">The configuration for the API client.</param>
-    /// <param name="authenticator">Optional default authenticator applied when none is passed per-operation.</param>
-    public {{classname}}(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
-        : base(apiClient, config, authenticator) { }
+    /// <param name="authenticator">Optional default authenticator, used for an operation whose scheme has no credential in <paramref name="schemeAuthenticators"/>.</param>
+    /// <param name="schemeAuthenticators">Optional credential per security scheme, keyed by the scheme name; each operation uses the scheme its spec requires.</param>
+    public {{classname}}(
+        IApiClient apiClient,
+        Configuration config,
+        IAuthenticator? authenticator,
+        IReadOnlyDictionary<string, IAuthenticator>? schemeAuthenticators = null
+    )
+        : base(apiClient, config, authenticator, schemeAuthenticators) { }
     {{#operation}}
 
     /// <summary>
@@ -141,15 +147,15 @@ public class {{classname}} : BaseApi
     parameters, plus the optional auth field only on operations that declare
     their own security, so the sentence names each part only where it exists. }}
 {{#queryParams}}{{#-first}}
-    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
 {{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
-    /// <param name="options">Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry budget.</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
 {{/hasAuthMethods}}{{^hasAuthMethods}}
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
 {{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
@@ -232,15 +238,15 @@ public class {{classname}} : BaseApi
     parameters, plus the optional auth field only on operations that declare
     their own security, so the sentence names each part only where it exists. }}
 {{#queryParams}}{{#-first}}
-    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
 {{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
-    /// <param name="options">Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry budget.</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
 {{/hasAuthMethods}}{{^hasAuthMethods}}
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
 {{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
@@ -513,7 +519,7 @@ public class {{classname}} : BaseApi
             if (!IsValidCookieValue(cookieValue))
             {
                 throw new ArgumentException(
-                    $"Cookie value for '{cookieName}' contains characters forbidden by RFC 6265");
+                    $"Cookie value for '{cookieName}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it");
             }
             cookieParts.Add(cookieName + "=" + cookieValue);
         }
@@ -568,13 +574,15 @@ public class {{classname}} : BaseApi
     the last consume fires once only for two-or-more declared types. }}
 {{#consumes}}{{#-last}}{{^-first}}                effectiveRequestContentType,{{/-first}}{{#-first}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/consumes}}
                 {{#returnType}}typeof({{{returnType}}}){{/returnType}}{{^returnType}}null{{/returnType}},
-{{! Auth argument (Wave A2). A secured operation passes the optional per-call
-    override (options?.Auth) — null there means "no override", so BaseApi falls
-    back to the client-level authenticator. An operation with NO auth methods
+{{! Auth argument (F857). A secured operation uses the credential the client
+    holds for the scheme its spec requires (ResolveSchemeAuth over the scheme
+    names the operation lists); there is no per-call scheme override. When
+    the client holds none, BaseApi falls back to the client-level
+    authenticator. An operation with NO auth methods
     (security: []) is explicitly unauthenticated: pass the NoAuth sentinel so
     BaseApi suppresses the client-level authenticator and attaches no credential
     (passing null here would WRONGLY re-acquire it and leak the credential). }}
-                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
+                {{#hasAuthMethods}}ResolveSchemeAuth({{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}}){{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
                 rawBody: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
                 cancellationToken: cancellationToken,
                 operationName: "{{classname}}.{{operationId}}"{{#vendorExtensions.op.hasMultiple2xx}},

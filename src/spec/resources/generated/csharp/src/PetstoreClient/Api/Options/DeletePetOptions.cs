@@ -1,5 +1,4 @@
 #nullable enable
-using PetstoreClient.Auth;
 
 namespace PetstoreClient.Api.Options;
 
@@ -31,11 +30,4 @@ public sealed class DeletePetOptions
     /// When null the transport's setting applies.
     /// </summary>
     public int? MaxRetries { get; init; }
-
-    /// <summary>
-    /// Per-operation authenticator. When set, it overrides the client's
-    /// configured credentials for this call only; when null the configured
-    /// credentials are used.
-    /// </summary>
-    public IAuthenticator? Auth { get; init; }
 }

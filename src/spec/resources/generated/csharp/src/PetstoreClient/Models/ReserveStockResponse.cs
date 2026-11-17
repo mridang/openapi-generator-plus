@@ -25,7 +25,6 @@ public class ReserveStockResponse(object value) : IEquatable<ReserveStockRespons
     /// <returns>A union holding <paramref name="value"/>.</returns>
     public static ReserveStockResponse FromReservation(Reservation value)
     {
-        ArgumentNullException.ThrowIfNull(value);
         return new ReserveStockResponse(value);
     }
 
@@ -48,7 +47,6 @@ public class ReserveStockResponse(object value) : IEquatable<ReserveStockRespons
     /// <returns>A union holding <paramref name="value"/>.</returns>
     public static ReserveStockResponse FromReservationReceipt(ReservationReceipt value)
     {
-        ArgumentNullException.ThrowIfNull(value);
         return new ReserveStockResponse(value);
     }
 

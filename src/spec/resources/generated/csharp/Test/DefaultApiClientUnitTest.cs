@@ -1933,6 +1933,62 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task ClosingTheClientLetsARunningRequestFinish()
+    {
+        // F1078: Dispose marks the client closed and returns; a request that
+        // already started is not cut off, and a new one fails with the one
+        // closed error.
+        using var gate = new GatedHandler();
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().HttpMessageHandler(gate).Build()
+        );
+        Task<ApiHttpResponse> running = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null
+        );
+        await gate.Entered.Task;
+
+        client.Dispose();
+        client.Dispose();
+
+        Assert.False(running.IsCompleted);
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/next"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        Assert.Equal("ApiClient has been closed and can no longer send requests", ex.Message);
+
+        gate.Release.SetResult();
+        ApiHttpResponse response = await running;
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    private sealed class GatedHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource Entered { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Entered.SetResult();
+            await Release.Task.ConfigureAwait(false);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("ok") };
+        }
+    }
+
+    [Fact]
     public void NonexistentCaCertPathThrowsArgumentExceptionAtConstruction()
     {
         // ca-cert-fail-fast: an explicitly configured CA certificate path that

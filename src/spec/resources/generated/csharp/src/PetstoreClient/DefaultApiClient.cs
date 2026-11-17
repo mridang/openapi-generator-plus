@@ -96,6 +96,19 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// </summary>
     private bool _closed;
 
+    /// <summary>Guards <c>_closed</c>, <c>_inFlight</c> and <c>_transportReleased</c>.</summary>
+    private readonly object _lifecycle = new();
+
+    /// <summary>Requests that have started and not yet finished; closing waits for them.</summary>
+    private int _inFlight;
+
+    /// <summary>Set once the transport the SDK created has been released, so it is released once.</summary>
+    private bool _transportReleased;
+
+    /// <summary>The one error every request issued after the client was closed fails with.</summary>
+    private const string ClosedMessage =
+        "ApiClient has been closed and can no longer send requests";
+
     /// <summary>
     /// Whether this instance owns <c>_httpClient</c> and so disposes it. False
     /// when the caller supplied the client through
@@ -530,13 +543,60 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(headers);
 
-        if (_closed)
+        /* A request is counted in before it starts, so closing the client lets
+           it finish; a request that arrives after closing fails with the one
+           closed error and never reaches the transport. */
+        lock (_lifecycle)
         {
-            throw new InvalidOperationException(
-                "ApiClient has been closed and can no longer send requests"
-            );
+            if (_closed)
+            {
+                throw new InvalidOperationException(ClosedMessage);
+            }
+            _inFlight++;
         }
+        try
+        {
+            return await SendCountedAsync(
+                    method,
+                    url,
+                    headers,
+                    body,
+                    noRedirect,
+                    refreshHeaders,
+                    timeout,
+                    maxRetries,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            bool release;
+            lock (_lifecycle)
+            {
+                _inFlight--;
+                release = _closed && _inFlight == 0 && !_transportReleased;
+                _transportReleased |= release;
+            }
+            if (release && _ownsHttpClient)
+            {
+                _httpClient.Dispose();
+            }
+        }
+    }
 
+    private async Task<ApiHttpResponse> SendCountedAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        CancellationToken cancellationToken
+    )
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!url.IsAbsoluteUri)
@@ -1723,8 +1783,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        _closed = true;
-        if (_ownsHttpClient)
+        /* Graceful and idempotent: the first call marks the client closed and
+           returns; requests already running finish, and the last one releases
+           the transport. Only a transport the SDK created is released, never a
+           client the caller supplied. */
+        bool release;
+        lock (_lifecycle)
+        {
+            _closed = true;
+            release = _inFlight == 0 && !_transportReleased;
+            _transportReleased |= release;
+        }
+        if (release && _ownsHttpClient)
         {
             _httpClient.Dispose();
         }
