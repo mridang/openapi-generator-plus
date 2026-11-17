@@ -485,6 +485,9 @@ public final class DefaultApiClient implements ApiClient {
         timeoutOverride != null ? timeoutOverride : transportOptions.getTimeout();
     final int maxRetries =
         maxRetriesOverride != null ? maxRetriesOverride : transportOptions.getMaxRetries();
+    /* RFC 9110 section 5.1: a caller header replaces a transport default of
+     * another letter case; keeping both would send the two values joined. */
+    mergedHeaders.keySet().removeIf(name -> hasHeader(headers, name));
     mergedHeaders.putAll(headers);
 
     /* RFC 9110 section 5.1: field names are case-insensitive, so a caller

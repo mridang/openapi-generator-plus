@@ -644,7 +644,7 @@ class PetApiTest {
 
         assertThatThrownBy(() -> petApi.getPetByName("", new GetPetByNameOptions("cats", "corr-1")))
                 .isExactlyInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Path parameter 'name' must not be empty");
+                .hasMessage("Missing the required parameter 'name' when calling PetApi.getPetByName");
         assertThat(capturing.capturedUrl).isNull();
     }
 
