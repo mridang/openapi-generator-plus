@@ -244,6 +244,46 @@ defmodule PetstoreClient.Api.StoreApiTest do
     end
   end
 
+  test "bhv operations 018 with_http_info variant returns ApiResult with status, data, headers, and raw_body",
+       %{api: api} do
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory_with_http_info(api)
+    assert result.status_code >= 200 and result.status_code < 300
+    assert result.data != nil
+    assert is_map(result.headers)
+    assert is_binary(result.raw_body)
+  end
+
+  test "bhv operations 097 content json query param is the object serializer output" do
+    {:ok, name} = StubApiClient.start("")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    photo = %PetstoreClient.Models.PhotoMetadata{
+      caption: "a<b",
+      taken_at: ~U[2024-01-15 10:30:00Z]
+    }
+
+    options = %PetstoreClient.Api.Options.SearchStoreOptions{q: photo}
+
+    _result = PetstoreClient.Api.StoreApi.search_store(api, options)
+
+    captured = StubApiClient.captured(name)
+    query = captured.url |> String.split("?") |> List.last() |> URI.decode_query()
+    assert query["q"] == PetstoreClient.ObjectSerializer.serialize(photo)
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 109 get_matrix decodes an array of integer arrays" do
+    {:ok, name} = StubApiClient.start("[[1,2],[3]]")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, [[1, 2], [3]]} = PetstoreClient.Api.StoreApi.get_matrix(api)
+
+    Agent.stop(name)
+  end
+
   # A named-enum ($ref) parameter goes on the wire as its declared value in a
   # path, a query string and a header, never as the atom's debug form.
   test "bhv operations 122 get_by_swatch sends the named enum's wire value in path, query and header" do
@@ -272,7 +312,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
   # An operation with no query, header, form or cookie parameter and no security
   # still takes an options struct, which carries only the per-call settings.
-  test "get_inventory takes an options struct that carries the per-call settings and no auth" do
+  test "bhv authintegration 011 get_inventory takes an options struct that carries the per-call settings and no auth" do
     {:ok, name} = StubApiClient.start(~s({"available":1}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
@@ -315,7 +355,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
   # F857: an operation declared `security: []` sends no credential, however many
   # a client holds; an operation that inherits the root requirement (petStoreBasic
   # or petStoreBearer) uses the first of those two the client holds.
-  test "get_inventory (security: []) sends no credential even when the client holds several" do
+  test "bhv authintegration 016 get_inventory (security: []) sends no credential even when the client holds several" do
     {:ok, name} = StubApiClient.start(~s({"available":1}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     default = %{auth_headers: %{"Authorization" => "default"}}
@@ -324,6 +364,25 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
     assert {:ok, _inventory} = PetstoreClient.Api.StoreApi.get_inventory(api)
 
+    refute Map.has_key?(StubApiClient.captured(name).headers, "Authorization")
+
+    Agent.stop(name)
+  end
+
+  test "bhv authintegration 007 each operation sends the credential of the scheme it names, not another's" do
+    {:ok, name} = StubApiClient.start(~s({"id":1}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    bearer = %{auth_headers: %{"Authorization" => "bearer"}}
+
+    api =
+      PetstoreClient.Api.StoreApi.new(StubApiClient, config, nil, %{"petStoreBearer" => bearer})
+
+    assert {:ok, _order} =
+             PetstoreClient.Api.StoreApi.place_order(api, %PetstoreClient.Models.Order{id: 1})
+
+    assert StubApiClient.captured(name).headers["Authorization"] == "bearer"
+
+    assert {:ok, _inventory} = PetstoreClient.Api.StoreApi.get_inventory(api)
     refute Map.has_key?(StubApiClient.captured(name).headers, "Authorization")
 
     Agent.stop(name)
@@ -354,7 +413,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
-  test "get_by_swatch without options sends only the path value" do
+  test "bhv operations 107 get_by_swatch omits the optional query parameter and header when they are not set" do
     {:ok, name} = StubApiClient.start(~s({"id":1,"name":"sample"}))
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)

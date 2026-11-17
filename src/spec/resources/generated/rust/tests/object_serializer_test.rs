@@ -253,7 +253,7 @@ fn test_bhv_serializationobject_171_decimal_type_number_serializes_as_unquoted_n
 }
 
 #[test]
-fn test_naive_time_serde_round_trip() {
+fn test_bhv_serializationobject_064_naive_time_serde_round_trip() {
     use chrono::NaiveTime;
     use serde::{Deserialize, Serialize};
 
@@ -347,4 +347,409 @@ fn test_bhv_serializationobject_007_password_property_is_masked_in_debug_output(
     assert!(!pretty.contains(&secret), "{}", pretty);
     let wire = serde_json::to_string(&account).expect("serializes");
     assert!(wire.contains(&secret), "{}", wire);
+}
+
+#[test]
+fn test_bhv_serializationobject_005_a_differing_byte_inside_a_map_value_makes_them_unequal() {
+    use petstore::models::BinaryVault;
+
+    fn vault(bytes: Vec<u8>) -> BinaryVault {
+        let mut vault = BinaryVault::new();
+        vault.labels = Some(std::collections::HashMap::from([(
+            "first".to_string(),
+            bytes,
+        )]));
+        vault
+    }
+
+    assert_eq!(vault(vec![7, 8]), vault(vec![7, 8]));
+    assert_ne!(vault(vec![7, 8]), vault(vec![7, 9]));
+}
+
+#[test]
+fn test_bhv_serializationobject_018_write_only_property_is_serialized() {
+    use petstore::models::Account;
+
+    let secret = ["s", "3cret"].concat();
+    let mut account = Account::new("u".to_string());
+    account.password = Some(secret.clone());
+    let body = serde_json::to_string(&account).expect("serialize Account");
+    assert!(
+        body.contains(&format!(r#""password":"{}""#, secret)),
+        "got: {}",
+        body
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_026_array_of_byte_field_round_trips_through_base64() {
+    use petstore::models::BinaryVault;
+
+    let mut vault = BinaryVault::new();
+    vault.seal = Some(vec![1, 2, 3]);
+    let json = serde_json::to_string(&vault).expect("serialize BinaryVault");
+    assert!(json.contains(r#""seal":"AQID""#), "got: {}", json);
+    let back: BinaryVault = serde_json::from_str(&json).expect("deserialize BinaryVault");
+    assert_eq!(back.seal, Some(vec![1, 2, 3]));
+}
+
+#[test]
+fn test_bhv_serializationobject_054_proto_duration_parses_fractional_seconds() {
+    use chrono::Duration;
+    use petstore::proto_duration;
+
+    assert_eq!(
+        proto_duration::parse("0.25s").unwrap(),
+        Duration::milliseconds(250)
+    );
+    assert_eq!(
+        proto_duration::parse("2.000000001s").unwrap(),
+        Duration::seconds(2) + Duration::nanoseconds(1)
+    );
+}
+
+fn test_bhv_serializationobject_057_double_literal_overflowing_to_infinity_is_refused() {
+    use petstore::models::Pet;
+
+    let body = r#"{"name":"Rex","photoUrls":[],"weightKg":1e400}"#;
+    assert!(
+        serde_json::from_str::<Pet>(body).is_err(),
+        "1e400 must not decode to infinity"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_070_deserializes_json_to_typed_model() {
+    use petstore::models::{Pet, PetStatusEnum};
+
+    let body = r#"{"id":7,"name":"Rex","photoUrls":["u"],"status":"sold"}"#;
+    let pet: Pet = serde_json::from_str(body).expect("failed to deserialize Pet");
+    assert_eq!(pet.id, Some(7));
+    assert_eq!(pet.name, "Rex");
+    assert_eq!(pet.status, Some(PetStatusEnum::Sold));
+}
+
+#[test]
+fn test_bhv_serializationobject_071_double_field_deserializes_from_integral_json_value() {
+    use petstore::models::Pet;
+
+    let pet: Pet = serde_json::from_str(r#"{"name":"Rex","photoUrls":[],"weightKg":2}"#)
+        .expect("an integral JSON number must deserialize into a double field");
+    assert_eq!(pet.weight_kg, Some(2.0));
+}
+
+#[test]
+fn test_bhv_serializationobject_074_edge_cases_slug_accepts_a_value_matching_its_pattern() {
+    use petstore::models::EdgeCases;
+
+    let body = r#"{"slug":"7/xyz"}"#;
+    let edge: EdgeCases = serde_json::from_str(body).expect("a matching slug must decode");
+    assert_eq!(edge.slug.as_deref(), Some("7/xyz"));
+    assert_eq!(
+        serde_json::to_string(&edge).expect("failed to encode EdgeCases"),
+        body
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_079_format_byte_scalar_and_array_fields_round_trip_through_base64()
+{
+    use petstore::models::BinaryVault;
+
+    let mut vault = BinaryVault::new();
+    vault.seal = Some(vec![1, 2, 3]);
+    vault.shards = Some(vec![vec![4, 5], vec![6]]);
+    let json = serde_json::to_string(&vault).expect("failed to serialize BinaryVault");
+    assert!(json.contains(r#""seal":"AQID""#), "{json}");
+    assert!(json.contains(r#""shards":["BAU=","Bg=="]"#), "{json}");
+    let back: BinaryVault = serde_json::from_str(&json).expect("failed to deserialize BinaryVault");
+    assert_eq!(back, vault);
+}
+
+#[test]
+fn test_bhv_serializationobject_081_format_protobuf_duration_emits_whole_seconds() {
+    use chrono::Duration;
+    use petstore::models::EdgeCases;
+
+    let mut edge = EdgeCases::new();
+    edge.retry_after = Some(Duration::seconds(3600));
+    let json = serde_json::to_string(&edge).expect("failed to serialize EdgeCases");
+    assert!(json.contains(r#""retryAfter":"3600s""#), "{json}");
+
+    edge.retry_after = Some(Duration::seconds(45));
+    let json = serde_json::to_string(&edge).expect("failed to serialize EdgeCases");
+    assert!(json.contains(r#""retryAfter":"45s""#), "{json}");
+}
+
+#[test]
+fn test_bhv_serializationobject_083_from_json_throws_when_a_required_field_is_absent() {
+    use petstore::models::Pet;
+
+    let err = serde_json::from_str::<Pet>(r#"{"photoUrls":[]}"#)
+        .expect_err("a payload without the required name must be rejected");
+    assert!(err.to_string().contains("name"), "{err}");
+}
+
+#[test]
+fn test_bhv_serializationobject_086_null_on_a_required_non_nullable_field_throws() {
+    use petstore::models::Pet;
+
+    let result = serde_json::from_str::<Pet>(r#"{"name":null,"photoUrls":[]}"#);
+    assert!(result.is_err(), "a null required name must not decode");
+}
+
+#[test]
+fn test_bhv_serializationobject_090_equal_content_is_equal_though_every_array_is_distinct() {
+    use petstore::models::Pet;
+
+    fn pet(urls: &[&str]) -> Pet {
+        let mut pet = Pet::new(
+            "Rex".to_string(),
+            urls.iter().map(|u| u.to_string()).collect(),
+        );
+        pet.nickname = Some("r".to_string());
+        pet
+    }
+
+    assert_eq!(pet(&["a", "b"]), pet(&["b", "a"]));
+    assert_ne!(pet(&["a", "b"]), pet(&["a", "c"]));
+}
+
+#[test]
+fn test_bhv_serializationobject_094_invalid_base64_in_a_byte_field_is_rejected() {
+    use petstore::models::BinaryVault;
+
+    let result = serde_json::from_str::<BinaryVault>(r#"{"seal":"!!not base64!!"}"#);
+    assert!(
+        result.is_err(),
+        "invalid base64 must not decode into a byte field"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_106_negative_fractional_duration_keeps_the_sign() {
+    use chrono::Duration;
+    use petstore::proto_duration;
+
+    let negative = -Duration::milliseconds(1500);
+    assert_eq!(proto_duration::format(&negative), "-1.500s");
+    assert_eq!(proto_duration::parse("-1.500s").unwrap(), negative);
+}
+
+#[test]
+fn test_bhv_serializationobject_109_non_lowercase_string_enum_keeps_wire_casing_on_round_trip() {
+    use petstore::models::{Availability, StockItem};
+
+    let body = r#"{"priority":1,"availability":"Sold"}"#;
+    let item: StockItem = serde_json::from_str(body).expect("failed to deserialize StockItem");
+    assert_eq!(item.availability, Some(Availability::Sold));
+    let json = serde_json::to_string(&item).expect("failed to serialize StockItem");
+    assert!(json.contains(r#""availability":"Sold""#), "{json}");
+}
+
+fn test_bhv_serializationobject_112_proto_duration_parse_whole_seconds() {
+    use chrono::Duration;
+    use petstore::proto_duration;
+
+    assert_eq!(
+        proto_duration::parse("3600s").unwrap(),
+        Duration::seconds(3600)
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_115_content_encoded_property_round_trips_as_bytes() {
+    use petstore::models::PetPassport;
+
+    let passport = PetPassport {
+        biometric_chip: Some(vec![1, 2, 3]),
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&passport).expect("serialize");
+    assert!(json.contains(r#""biometricChip":"AQID""#), "got: {}", json);
+    let back: PetPassport = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back.biometric_chip, Some(vec![1, 2, 3]));
+}
+
+#[test]
+fn test_bhv_serializationobject_116_positive_offset_is_preserved_in_serialized_string() {
+    use petstore::date_time::DateTime;
+
+    let value = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45+05:30").expect("valid"),
+    );
+    assert_eq!(
+        serde_json::to_string(&value).expect("serialize"),
+        "\"2024-01-01T12:30:45.000+05:30\""
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_117_keyword_named_properties_keep_their_wire_keys() {
+    use petstore::models::EdgeCases;
+
+    let decoded: EdgeCases = serde_json::from_str(
+        r#"{"and":true,"or":false,"not":true,"class":"c","return":"r","null":"n","true":true,"false":false}"#,
+    )
+    .expect("deserialize");
+    assert_eq!(decoded.class.as_deref(), Some("c"));
+    let json = serde_json::to_string(&decoded).expect("serialize");
+    assert!(json.contains(r#""return":"r""#), "got: {}", json);
+    assert!(json.contains(r#""null":"n""#), "got: {}", json);
+    assert!(json.contains(r#""true":true"#), "got: {}", json);
+    assert!(json.contains(r#""false":false"#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_serializationobject_119_referenced_enum_field_rejects_an_unknown_wire_value() {
+    use petstore::models::EdgeCases;
+
+    assert!(
+        serde_json::from_str::<EdgeCases>(r#"{"favoriteColor":"mauve"}"#).is_err(),
+        "a colour outside the enum must be refused"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_127_any_of_throws_when_no_variant_matches() {
+    use petstore::models::PetTreatment;
+
+    assert!(
+        serde_json::from_str::<PetTreatment>(r#"{"notes":"x"}"#).is_err(),
+        "a payload that matches neither anyOf member must be refused"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_144_round_trip_datetime_yields_equivalent_instant() {
+    use petstore::date_time::DateTime;
+
+    let original = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-03-10T08:15:30.123+02:00").expect("valid"),
+    );
+    let json = serde_json::to_string(&original).expect("serialize");
+    let back: DateTime = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back.into_inner(), original.into_inner());
+}
+
+#[test]
+fn test_bhv_serializationobject_146_serialize_emits_the_protobuf_duration_inside_an_object() {
+    use chrono::Duration;
+    use petstore::models::EdgeCases;
+
+    let edge = EdgeCases {
+        retry_after: Some(Duration::seconds(5400)),
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&edge).expect("serialize");
+    assert!(json.contains(r#""retryAfter":"5400s""#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_serializationobject_150_serialized_datetime_ends_with_numeric_offset_never_z() {
+    use petstore::date_time::DateTime;
+
+    let value =
+        DateTime::new(chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45Z").expect("valid"));
+    let json = serde_json::to_string(&value).expect("serialize");
+    assert!(json.ends_with("+00:00\""), "got: {}", json);
+    assert!(!json.contains('Z'), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_serializationobject_151_serializes_a_date_time_in_the_canonical_form() {
+    use petstore::date_time::DateTime;
+
+    let value = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45.250+00:00").expect("valid"),
+    );
+    assert_eq!(
+        serde_json::to_string(&value).expect("serialize"),
+        "\"2024-01-01T12:30:45.250+00:00\""
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_152_serializes_a_model_to_valid_json() {
+    use petstore::models::Pet;
+
+    let pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    let json = serde_json::to_string(&pet).expect("serialize");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+    assert_eq!(value["name"], "doggie");
+}
+
+#[test]
+fn test_bhv_serializationobject_161_separator_wire_values_decode_to_distinct_constants_and_re_encode(
+) {
+    use petstore::models::Separator;
+
+    let wires = [" ", "@@", "a-b", "a_b"];
+    let decoded: Vec<Separator> = wires
+        .iter()
+        .map(|wire| serde_json::from_str(&format!("\"{}\"", wire)).expect("decodes"))
+        .collect();
+    for (wire, member) in wires.iter().zip(decoded.iter()) {
+        assert_eq!(
+            serde_json::to_string(member).expect("serialize"),
+            format!("\"{}\"", wire)
+        );
+    }
+    for (i, a) in decoded.iter().enumerate() {
+        for b in &decoded[i + 1..] {
+            assert_ne!(a, b);
+        }
+    }
+}
+
+#[test]
+fn test_bhv_serializationobject_173_uri_reference_field_still_accepts_a_relative_reference() {
+    use petstore::models::PetWithOwner;
+
+    let owner: PetWithOwner = serde_json::from_str(
+        r#"{"name":"fido","photoUrls":[],"thumbnailRef":"../thumbs/fido.png"}"#,
+    )
+    .expect("a relative reference decodes");
+    assert_eq!(owner.thumbnail_ref.as_deref(), Some("../thumbs/fido.png"));
+}
+
+#[test]
+fn test_bhv_serializationobject_174_utc_datetime_serializes_with_date_time_and_offset() {
+    use chrono::TimeZone;
+    use petstore::date_time::DateTime;
+
+    let utc = chrono::Utc
+        .with_ymd_and_hms(2024, 1, 1, 12, 30, 45)
+        .single()
+        .expect("valid UTC instant");
+    assert_eq!(
+        serde_json::to_string(&DateTime::from(utc)).expect("serialize"),
+        "\"2024-01-01T12:30:45.000+00:00\""
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_177_weight_kg_survives_a_round_trip_as_a_number() {
+    use petstore::models::Pet;
+
+    let mut pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    pet.weight_kg = Some(2.5);
+    let json = serde_json::to_string(&pet).expect("serialize");
+    assert!(json.contains(r#""weightKg":2.5"#), "got: {}", json);
+    let back: Pet = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back.weight_kg, Some(2.5));
+}
+
+#[test]
+fn test_bhv_serializationobject_179_whole_second_datetime_serializes_with_a_fixed_three_digit_fraction(
+) {
+    use petstore::date_time::DateTime;
+
+    let value = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45+02:00").expect("valid"),
+    );
+    assert_eq!(
+        serde_json::to_string(&value).expect("serialize"),
+        "\"2024-01-01T12:30:45.000+02:00\""
+    );
 }

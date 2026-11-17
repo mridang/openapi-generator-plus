@@ -72,6 +72,24 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert err.status_code == 0
   end
 
+  test "bhv transport 023 the default transport rejects a certificate from an untrusted CA" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+    client = PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new())
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{chasm_url}/test/echo",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 0
+  end
+
   test "bhv transport 015 makes HTTP request through proxy" do
     chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
@@ -229,7 +247,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
              200
   end
 
-  test "a Set-Cookie of one response is never replayed on the next request" do
+  test "bhv retries 015 a Set-Cookie of one response is never replayed on the next request" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 

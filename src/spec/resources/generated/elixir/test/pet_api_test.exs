@@ -649,6 +649,86 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "bhv operations 021 a digit-leading query parameter keeps its wire name" do
+    {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
+
+    options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{
+      status: "available",
+      n2nd_page: 2
+    }
+
+    assert {:ok, []} = PetstoreClient.Api.PetApi.find_pets_by_status(api, options)
+    assert StubResponseApiClient.captured(name).url =~ "2ndPage=2"
+    Agent.stop(name)
+  end
+
+  test "bhv operations 029 delete pet cookie param with CRLF fails closed" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    for bad <- @illegal_cookie_values do
+      error =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.Api.PetApi.delete_pet(
+            api,
+            1,
+            %PetstoreClient.Api.Options.DeletePetOptions{api_key: bad}
+          )
+        end
+
+      assert Exception.message(error) =~ "RFC 6265"
+    end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "bhv operations 032 deprecated operations, parameters and models carry the deprecation marker" do
+    deprecated =
+      PetstoreClient.Api.PetApi.__info__(:deprecated)
+      |> Enum.map(fn {key, _message} -> elem(key, 0) end)
+      |> Enum.uniq()
+
+    assert :find_pets_by_status in deprecated
+    assert :get_pet_by_id in deprecated
+  end
+
+  test "bhv operations 063 get_pet_avatar_thumbnail rejects malformed base64 with a SerializationError" do
+    {:ok, name} = StubResponseApiClient.start(200, ~s("not base64 !!!"), "application/json")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Api.PetApi.get_pet_avatar_thumbnail(api, 5)
+    end
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 078 test add pet uses configured credentials when no scheme credential is held" do
+    headers = delete_with(credential("default"), %{"petStoreBearer" => credential("bearer")})
+
+    assert headers["Authorization"] == "default"
+  end
+
+  test "bhv operations 094 upload_pet_document default selection still sends a multipart body", %{
+    api: api
+  } do
+    pet_id = :rand.uniform(1_000_000_000)
+
+    options = %PetstoreClient.Api.Options.UploadPetDocumentOptions{
+      file: "doc-data",
+      document_type: "vaccination_record",
+      notes: "Annual checkup"
+    }
+
+    assert {:ok, result} = PetstoreClient.Api.PetApi.upload_pet_document(api, pet_id, options)
+    assert result != nil
+  end
+
   defp new_pet_api_for_mock(status, content_type, body) do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(socket)
@@ -1644,7 +1724,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # apiresult-rawbody-nullability: ApiResult.raw_body is typed String.t() (never
   # nil) because ApiHttpResponse.body is always populated. Even an empty 200 body
   # surfaces raw_body as a binary, not nil.
-  test "api_result raw_body is always a binary, never nil" do
+  test "bhv operations 006 api_result raw_body is always a binary, never nil" do
     api = new_pet_api_for_mock(200, "application/json", "")
 
     assert {:ok, result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1)

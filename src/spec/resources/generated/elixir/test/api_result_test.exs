@@ -4,7 +4,7 @@ defmodule PetstoreClient.ApiResultTest do
   alias PetstoreClient.ApiResult
 
   describe "ApiResult struct" do
-    test "bhv results 003 carries data, status, raw body, and headers" do
+    test "bhv results 003 bhv results 002 carries data, status, raw body, and headers" do
       result = %ApiResult{
         status_code: 200,
         data: %{"id" => 1},

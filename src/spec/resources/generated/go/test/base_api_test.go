@@ -678,7 +678,7 @@ func TestBaseApi_FormUrlencodedWireFormat(t *testing.T) {
 	}
 }
 
-func TestBaseApi_FormUrlencodedDateTimeUsesCanonicalForm(t *testing.T) {
+func TestBhvOperations075_BaseApi_FormUrlencodedDateTimeUsesCanonicalForm(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -723,7 +723,7 @@ func (c *queryCapturingApiClient) SendRequestWithOptions(method, url string, hea
 // Close satisfies the ApiClient contract; this stub holds no resources.
 func (c *queryCapturingApiClient) Close() error { return nil }
 
-func TestBaseApi_QueryParamSerialization(t *testing.T) {
+func TestBhvSerializationwire002_BaseApi_QueryParamSerialization(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -843,7 +843,7 @@ func TestBhvSerializationwire009_BaseApi_ExpandsArrayQueryParams(t *testing.T) {
 // pointer, so the optional array fell through to %v formatting. The decoded
 // query string is inspected so the assertions hold regardless of which
 // percent-encoding the transport applies to the structural separators.
-func TestBaseApi_OptionalArrayQueryParamsSerializeAsStyledValues(t *testing.T) {
+func TestBhvOperations068_BaseApi_OptionalArrayQueryParamsSerializeAsStyledValues(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -917,7 +917,7 @@ func TestBhvOptions002_BaseApi_MissingRequiredQueryParam_NilOptions(t *testing.T
 
 // A missing required path parameter is a caller mistake: the sentinel is
 // returned before any HTTP call, never a panic and never an SDK error.
-func TestBaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
+func TestBhvOperations052_BaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -937,7 +937,7 @@ func TestBaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
 
 // required-nested-param-validation: an empty-string required query param is also
 // treated as missing for string-typed params.
-func TestBaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
+func TestBhvOperations049_BaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -956,7 +956,7 @@ func TestBaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
 
 // required-nested-param-validation: a present required query param is serialized
 // into the request URL and the call proceeds.
-func TestBaseApi_RequiredQueryParamIsSent(t *testing.T) {
+func TestBhvOperations065_BaseApi_RequiredQueryParamIsSent(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -969,7 +969,7 @@ func TestBaseApi_RequiredQueryParamIsSent(t *testing.T) {
 
 // A path parameter of exactly "." or ".." would become a dot segment and
 // re-route the request, so it is rejected before any HTTP call.
-func TestBaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
+func TestBhvOperations051_BaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{".", ".."} {
 		client := &queryCapturingApiClient{}
@@ -1386,7 +1386,7 @@ func TestBaseApi_NullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 
 // An omitted optional request body (a nil *Order) must put no entity and no
 // Content-Type on the wire, not a literal JSON null.
-func TestBaseApi_NullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T) {
+func TestBhvOperations016_BaseApi_NullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1608,7 +1608,7 @@ func TestBhvTransport001_BaseApi_ProxyAuth_BuilderAcceptsUserinfoInProxyUrl(t *t
 
 // A format:date PATH parameter is serialized as YYYY-MM-DD with no time
 // component and no second round of percent-encoding.
-func TestBaseApi_FormatDatePathParamIsDateOnly(t *testing.T) {
+func TestBhvOperations043_BaseApi_FormatDatePathParamIsDateOnly(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1635,7 +1635,7 @@ func TestBaseApi_FormatDateHeaderParamIsPlainDate(t *testing.T) {
 // An operation that declares its own servers sends the request to the server
 // variant the caller picked, with the variant's variables substituted; without
 // a variant it uses the configured base URL.
-func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
+func TestBhvOperations083_BaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -1718,6 +1718,96 @@ func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 	}
 }
 
+// A config default Accept header wins over the Accept an operation negotiates
+// from its response content types.
+func TestBhvOperations008_BaseApi_ConfigDefaultAcceptWinsOverOperationNegotiatedAccept(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().
+		BaseURL("http://localhost").
+		DefaultHeader("Accept", "text/csv").
+		Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	_, _ = api.GetPetById(context.Background(), int64(1), nil)
+	if got := client.capturedHeaders["Accept"]; got != "text/csv" {
+		t.Errorf("expected config default Accept 'text/csv' to win over the negotiated Accept, got %q", got)
+	}
+}
+
+// A format:date form field is written as the plain YYYY-MM-DD date.
+func TestBhvOperations019_BaseApi_DateOnlyFormFieldSerializesAsYYYYMMDD(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	renewal := "2024-01-02"
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{
+		Nickname:    "a",
+		RenewalDate: &renewal,
+	})
+	body, _ := client.capturedBody.([]byte)
+	if got, want := string(body), "nickname=a&renewalDate=2024-01-02"; got != want {
+		t.Errorf("expected form body %q, got %q", want, got)
+	}
+}
+
+// format:date query and header parameters reach the wire as the plain YYYY-MM-DD date.
+func TestBhvOperations069_BaseApi_DateQueryAndHeaderParamsAreYYYYMMDD(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	bornAfter, reportDate := "2024-01-01", "2024-01-02"
+	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{
+		BornAfter:  &bornAfter,
+		ReportDate: &reportDate,
+	})
+	if !strings.Contains(client.capturedURL, "bornAfter=2024-01-01") {
+		t.Errorf("expected the query to carry bornAfter=2024-01-01, got %q", client.capturedURL)
+	}
+	if strings.Contains(client.capturedURL, "T00") {
+		t.Errorf("a date query param must not carry a time component, got %q", client.capturedURL)
+	}
+	if got := client.capturedHeaders["Report-Date"]; got != "2024-01-02" {
+		t.Errorf("expected Report-Date 2024-01-02, got %q", got)
+	}
+}
+
+// The Mirror server variant of a multi-server operation keeps the reserved
+// characters of its variable values raw in the request URL.
+func TestBhvOperations084_BaseApi_MirrorOperationServerResolvesReservedCharactersRaw(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	_, _ = api.GetMultiServerPetInfo(context.Background(), 1, petstore.GetMultiServerPetInfoServerMirror{
+		Region:  petstore.GetMultiServerPetInfoServerMirrorRegionEU,
+		Channel: petstore.GetMultiServerPetInfoServerChannelAB,
+	})
+	if want := "https://eu.mirror.example.com/a&b/v1/"; !strings.HasPrefix(client.capturedURL, want) {
+		t.Errorf("expected the request URL to start with %q, got %q", want, client.capturedURL)
+	}
+}
+
+// A multi-server operation offers a fixed server and a templated server, and
+// each call goes to the server the caller picked.
+func TestBhvOperations085_BaseApi_MultiServerOperationOffersAFixedAndATemplatedServer(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	_, _ = api.GetMultiServerPetInfo(context.Background(), 1, petstore.GetMultiServerPetInfoServerPrimary{})
+	if want := "https://primary.example.com/v1/"; !strings.HasPrefix(client.capturedURL, want) {
+		t.Errorf("fixed server: expected the request URL to start with %q, got %q", want, client.capturedURL)
+	}
+	_, _ = api.GetMultiServerPetInfo(context.Background(), 1, petstore.GetMultiServerPetInfoServerRegional{
+		Region: petstore.GetMultiServerPetInfoServerRegionalRegionEU,
+	})
+	if want := "https://eu.example.com/v1/"; !strings.HasPrefix(client.capturedURL, want) {
+		t.Errorf("templated server: expected the request URL to start with %q, got %q", want, client.capturedURL)
+	}
+}
+
 type ctxKey struct{}
 
 // Every operation takes the caller's context first and hands it to the
@@ -1797,7 +1887,7 @@ func TestBhvRetries003_BaseApi_QueryFormAndMultipartPartsKeepTheSpecDeclarationO
 
 // A header parameter declared with content (not schema) goes through the SDK's
 // own object serializer, like a request body.
-func TestBaseApi_ContentHeaderParameterIsEncodedBySdkSerializer(t *testing.T) {
+func TestBhvOperations121_BaseApi_ContentHeaderParameterIsEncodedBySdkSerializer(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -2019,7 +2109,7 @@ func TestBaseApi_StopsAfterMaxRetriesAndReturnsTheLastFailure(t *testing.T) {
 	}
 }
 
-func TestBaseApi_MaxRetriesZeroSendsOneRequest(t *testing.T) {
+func TestBhvRetries018_BaseApi_MaxRetriesZeroSendsOneRequest(t *testing.T) {
 	t.Parallel()
 	srv := newScriptedServer(t, scriptedReply{status: 503})
 	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
@@ -2065,7 +2155,7 @@ func TestBaseApi_RetryAfterSecondsReplacesTheBackoff(t *testing.T) {
 	}
 }
 
-func TestBaseApi_RetryAfterHttpDateReplacesTheBackoff(t *testing.T) {
+func TestBhvRetries022_BaseApi_RetryAfterHttpDateReplacesTheBackoff(t *testing.T) {
 	t.Parallel()
 	date := time.Now().Add(2 * time.Second).UTC().Format(http.TimeFormat)
 	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: date}, scriptedReply{status: 200})
@@ -2080,7 +2170,7 @@ func TestBaseApi_RetryAfterHttpDateReplacesTheBackoff(t *testing.T) {
 	}
 }
 
-func TestBaseApi_RetriesNeverExtendTheEndToEndTimeout(t *testing.T) {
+func TestBhvRetries025_BaseApi_RetriesNeverExtendTheEndToEndTimeout(t *testing.T) {
 	t.Parallel()
 	srv := newScriptedServer(t, scriptedReply{status: 503})
 	timeout := 1200
@@ -2439,7 +2529,7 @@ func countingFailureServer(hits *atomic.Int32) *httptest.Server {
 	}))
 }
 
-func TestBaseApi_PerCallMaxRetriesZeroTurnsRetryingOffForTheCall(t *testing.T) {
+func TestBhvRetries014_BaseApi_PerCallMaxRetriesZeroTurnsRetryingOffForTheCall(t *testing.T) {
 	t.Parallel()
 	var hits atomic.Int32
 	server := countingFailureServer(&hits)
@@ -2498,5 +2588,237 @@ func TestBhvAuthintegration011_BaseApi_AnInvalidPerCallOptionFailsBeforeAnyReque
 	}
 	if client.capturedURL != "" {
 		t.Errorf("expected no request, got one to %s", client.capturedURL)
+	}
+}
+
+// headerCredential is a scheme credential, or a client-level authenticator, that
+// sends one header and no query parameter or cookie.
+func headerCredential(name, value string) *baseApiAuth {
+	return &baseApiAuth{
+		headers: map[string]string{name: value},
+		query:   map[string]string{},
+		cookies: map[string]string{},
+	}
+}
+
+// A scheme credential takes the place of the client-level authenticator: the
+// operation sends its scheme's header and not the client's.
+func TestBhvAuthintegration003_BaseApi_Auth_SchemeCredentialWinsOverTheClientLevelAuthenticator(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	clientLevelAuth := headerCredential("X-Client-Auth", "client-level-token")
+	credentials := petstore.Credentials{PetStoreBearer: headerCredential("Authorization", "Bearer scheme-token")}
+	api := petstore.NewPetApi(client, config, clientLevelAuth, credentials)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(context.Background(), pet, nil)
+
+	if got := client.headers["Authorization"]; got != "Bearer scheme-token" {
+		t.Errorf("expected the scheme credential, got %q", got)
+	}
+	if got, ok := client.headers["X-Client-Auth"]; ok {
+		t.Errorf("the client-level authenticator must not be sent when a scheme credential matches, got %q", got)
+	}
+}
+
+// Each operation sends the credential of one of its own schemes: AddPet takes
+// the bearer scheme and DeletePet the admin basic scheme.
+func TestBhvAuthintegration007_BaseApi_Auth_EachOperationSendsTheCredentialOfItsOwnScheme(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	credentials := petstore.Credentials{
+		PetStoreBearer: headerCredential("Authorization", "Bearer bearer-token"),
+		AdminBasic:     headerCredential("Authorization", "Basic admin-basic"),
+	}
+	api := petstore.NewPetApi(client, config, nil, credentials)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(context.Background(), pet, nil)
+	if got := client.headers["Authorization"]; got != "Bearer bearer-token" {
+		t.Errorf("AddPet: expected its bearer scheme credential, got %q", got)
+	}
+
+	_ = api.DeletePet(context.Background(), int64(1), nil)
+	if got := client.headers["Authorization"]; got != "Basic admin-basic" {
+		t.Errorf("DeletePet: expected its admin basic scheme credential, got %q", got)
+	}
+}
+
+// With no scheme credential matching the operation, the client-level
+// authenticator is used, and a credential of a scheme the operation does not
+// accept is never sent.
+func TestBhvAuthintegration008_BaseApi_Auth_NoSchemeCredentialFallsBackToTheClientLevelAuthenticator(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	clientLevelAuth := headerCredential("X-Client-Auth", "client-level-token")
+	// AddPet does not accept the admin basic scheme, so this credential matches nothing.
+	credentials := petstore.Credentials{AdminBasic: headerCredential("Authorization", "Basic admin-basic")}
+	api := petstore.NewPetApi(client, config, clientLevelAuth, credentials)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(context.Background(), pet, nil)
+
+	if got := client.headers["X-Client-Auth"]; got != "client-level-token" {
+		t.Errorf("expected the client-level authenticator, got %q", got)
+	}
+	if got, ok := client.headers["Authorization"]; ok {
+		t.Errorf("a credential of a scheme the operation does not accept must not be sent, got %q", got)
+	}
+}
+
+// When the client holds credentials for several schemes the operation accepts,
+// the one listed first in the spec is used.
+func TestBhvAuthintegration014_BaseApi_Auth_TheFirstListedSchemeTheClientHoldsWins(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	credentials := petstore.Credentials{
+		ApiKeyHeader:   headerCredential("X-API-Key", "key-value"),
+		PetStoreBearer: headerCredential("Authorization", "Bearer bearer-token"),
+	}
+	api := petstore.NewPetApi(client, config, nil, credentials)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(context.Background(), pet, nil)
+
+	if got := client.headers["X-API-Key"]; got != "key-value" {
+		t.Errorf("expected the first listed scheme's credential, got %q", got)
+	}
+	if got, ok := client.headers["Authorization"]; ok {
+		t.Errorf("the second listed scheme's credential must not be sent, got %q", got)
+	}
+}
+
+// An operation declared security:[] suppresses a configured api key on both the
+// header and the query, and so the key does not reach the wire.
+func TestBhvAuthintegration015_BaseApi_Auth_SecurityNoneSuppressesAConfiguredApiKey(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	apiKey := &baseApiAuth{
+		headers: map[string]string{"X-API-Key": "secret-key"},
+		query:   map[string]string{"api_key": "secret-key"},
+		cookies: map[string]string{},
+	}
+	api := petstore.NewStoreApi(client, config, apiKey, petstore.Credentials{})
+	_, _ = api.GetInventory(context.Background())
+
+	if got, ok := client.capturedHeaders["X-API-Key"]; ok {
+		t.Errorf("security:[] operation leaked the api key header = %q", got)
+	}
+	if strings.Contains(client.capturedURL, "api_key") {
+		t.Errorf("security:[] operation leaked the api key query param in %q", client.capturedURL)
+	}
+}
+
+// An operation declared security:[] sends no scheme credential, even when the
+// client holds one for a scheme that other operations use.
+func TestBhvAuthintegration016_BaseApi_Auth_SecurityNoneSendsNoSchemeCredential(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	credentials := petstore.Credentials{
+		ApiKeyHeader:   headerCredential("X-API-Key", "key-value"),
+		PetStoreBearer: headerCredential("Authorization", "Bearer bearer-token"),
+	}
+	api := petstore.NewStoreApi(client, config, nil, credentials)
+	_, _ = api.GetInventory(context.Background())
+
+	if got, ok := client.capturedHeaders["Authorization"]; ok {
+		t.Errorf("security:[] operation sent a bearer credential = %q", got)
+	}
+	if got, ok := client.capturedHeaders["X-API-Key"]; ok {
+		t.Errorf("security:[] operation sent an api key = %q", got)
+	}
+}
+
+func TestBhvSerializationwire006_BaseApi_EmptyBinaryBodyYieldsNil(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        "",
+		responseContentType: "application/octet-stream",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	got, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
+	}
+	if got != nil {
+		t.Errorf("expected a nil []byte for an empty binary body, got %v", got)
+	}
+}
+
+func TestBhvSerializationwire008_BaseApi_EmptyJsonObjectBodyIncludesContentType(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
+	_, _ = api.PlaceOrder(context.Background(), models.NewOrder())
+	body, _ := client.capturedBody.([]byte)
+	if !strings.HasPrefix(string(body), "{") {
+		t.Errorf("expected a JSON object body, got %q", string(body))
+	}
+	if ct := client.capturedHeaders["Content-Type"]; ct != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %q", ct)
+	}
+}
+
+func TestBhvSerializationwire010_BaseApi_FindPetsByStatusOmittingStatusSendsNoStatusParam(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{})
+	if strings.Contains(client.capturedURL, "status=") {
+		t.Errorf("expected no status parameter when status is omitted, got %q", client.capturedURL)
+	}
+}
+
+func TestBhvSerializationwire011_BaseApi_FormOptionalNullFieldsAreOmitted(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{Nickname: "good boy"})
+	body, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected a serialized []byte body, got %T", client.capturedBody)
+	}
+	if string(body) != "nickname=good+boy" {
+		t.Errorf("expected only the set field in the form body, got %q", string(body))
+	}
+}
+
+// Only the transient statuses are retried, and each is retried exactly once
+// when MaxRetries is 1.
+func TestBhvRetries021_BaseApi_RetriesExactlyTheRetryableStatuses(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{408, 429, 500, 502, 503, 504, 599} {
+		srv := newScriptedServer(t, scriptedReply{status: status, retryAfter: "0"})
+		api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(1) }, nil)
+
+		if err := addPetCall(api); err == nil {
+			t.Errorf("status %d: expected an error", status)
+		}
+		if got := srv.hits.Load(); got != 2 {
+			t.Errorf("status %d: expected 2 requests, got %d", status, got)
+		}
+	}
+}
+
+// A 401 replays an OAuth2 request with a fresh token, but a multipart body is
+// never replayed: the first attempt may already have consumed its file part.
+func TestBhvRetries006_BaseApi_AMultipartBodyIsNotReplayedOnA401(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 0)
+	client := replayClient(t, srv)
+
+	_, err := client.Pet.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: strings.NewReader("document-bytes")})
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError without a replay, got %T: %v", err, err)
+	}
+	if got := srv.apiHits.Load(); got != 1 {
+		t.Errorf("expected the multipart request sent once, got %d", got)
 	}
 }

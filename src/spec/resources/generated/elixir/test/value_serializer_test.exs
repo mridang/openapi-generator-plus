@@ -682,6 +682,70 @@ defmodule PetstoreClient.ValueSerializerTest do
     end
   end
 
+  describe "form and simple object expansion" do
+    test "bhv serializationparam 036 expands an exploded form query value to one entry per property" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "filter",
+          %{"a" => "1", "b" => "2"},
+          :query,
+          "object",
+          nil,
+          "form",
+          true
+        )
+
+      assert result == {:exploded_object, [{"a", "1"}, {"b", "2"}]}
+    end
+
+    test "bhv serializationparam 039 form not exploded is one comma separated key and value list" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "filter",
+          %{"a" => "1", "b" => "2"},
+          :query,
+          "object",
+          nil,
+          "form",
+          false
+        )
+
+      assert result == "a,1,b,2"
+    end
+
+    test "bhv serializationparam 082 serialize_styled writes a simple-style object as a header list" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "X-Filter",
+          %{"a" => "1", "b" => "2"},
+          :header,
+          "object",
+          nil,
+          "simple",
+          false
+        )
+
+      assert result == "a,1,b,2"
+    end
+  end
+
+  describe "date-time parameter" do
+    test "bhv serializationparam 048 keeps the time of a date-time parameter that is not a format: date" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "since",
+          ~U[2024-01-15 10:30:00Z],
+          :path,
+          "string",
+          nil,
+          "simple",
+          false
+        )
+
+      assert String.starts_with?(result, "2024-01-15T10:30:00")
+    end
+  end
+
   describe "serialize_deep_object/2" do
     test "bhv serializationparam 017 basic map returns bracketed keys" do
       result =
@@ -703,6 +767,10 @@ defmodule PetstoreClient.ValueSerializerTest do
   # Cross-language parity tests for path-segment percent-encoding.
   # Every SDK must produce identical encoded strings for these inputs.
   describe "path encoding parity" do
+    test "bhv serializationparam 070 path encoding parity null returns empty" do
+      assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
+    end
+
     test "bhv serializationparam 016 ASCII-safe pass-through" do
       assert PetstoreClient.ValueSerializer.serialize("abc123", :path, "string") == "abc123"
     end
@@ -1040,6 +1108,18 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "allowReserved query encoding" do
+    test "bhv serializationparam 003 allow reserved still percent encodes non-ASCII" do
+      assert PetstoreClient.ValueSerializer.encode_query_allowing_reserved("ñ/é a") ==
+               "%C3%B1/%C3%A9%20a"
+    end
+
+    test "bhv serializationparam 068 only the RFC 3986 query-legal reserved set stays literal" do
+      assert PetstoreClient.ValueSerializer.encode_query_allowing_reserved(
+               "a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u"
+             ) ==
+               "a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u"
+    end
+
     test "bhv serializationparam 080 reserved characters are left literal, other characters still encoded" do
       assert PetstoreClient.ValueSerializer.encode_query_allowing_reserved("v1.0/beta:rc1") ==
                "v1.0/beta:rc1"

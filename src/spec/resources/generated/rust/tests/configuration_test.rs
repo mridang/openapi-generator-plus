@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use petstore::*;
 
 #[test]
-fn test_bhv_config_014_configuration_default_values() {
+fn test_bhv_config_014_bhv_config_005_configuration_default_values() {
     let config = Configuration::default();
 
     assert_eq!(config.base_url(), "/api/v3");
@@ -67,7 +67,7 @@ fn test_bhv_config_012_configuration_builder_sets_multiple_default_headers() {
 }
 
 #[test]
-fn test_configuration_builder_chaining() {
+fn test_bhv_config_003_configuration_builder_chaining_is_fluent() {
     let config = ConfigurationBuilder::new()
         .base_url("https://api.example.com")
         .default_header("Authorization", "Bearer token")
@@ -298,4 +298,26 @@ fn test_bhv_config_015_configuration_debug_masks_credential_headers() {
     assert!(!shown.contains("s3cr3t"));
     assert!(shown.contains("***"));
     assert!(shown.contains("visible"));
+}
+
+/// The builder sets the base URL, a single default header and a bulk of default
+/// headers on one configuration.
+#[test]
+fn test_bhv_config_010_configuration_builder_sets_all_fields() {
+    let mut bulk = HashMap::new();
+    bulk.insert("X-Trace".to_string(), "abc".to_string());
+
+    let config = ConfigurationBuilder::new()
+        .base_url("https://all.example.com")
+        .default_header("Authorization", "Bearer token")
+        .default_headers(bulk)
+        .build();
+
+    assert_eq!(config.base_url(), "https://all.example.com");
+    let headers = config.default_headers();
+    assert_eq!(
+        headers.get("Authorization").map(|v| v.as_str()),
+        Some("Bearer token")
+    );
+    assert_eq!(headers.get("X-Trace").map(|v| v.as_str()), Some("abc"));
 }

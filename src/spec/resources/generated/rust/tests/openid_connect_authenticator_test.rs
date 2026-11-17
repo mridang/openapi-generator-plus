@@ -321,7 +321,11 @@ async fn test_bhv_authoidc_027_discovery_non_2xx_status_surfaces_status_error() 
         .downcast_ref::<InternalServerError>()
         .unwrap_or_else(|| panic!("expected InternalServerError, got: {}", err));
     assert_eq!(internal.server_error().api_error().status_code(), 500);
+}
 
+/// A 404 from discovery is a `NotFoundError`.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_007_discovery404_raises_not_found_error() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue("missing", 404);
     let mut auth = create_authenticator();
@@ -337,11 +341,9 @@ async fn test_bhv_authoidc_027_discovery_non_2xx_status_surfaces_status_error() 
     );
 }
 
-/// OIDC discovery is an HTTP call like any other: an unparseable document is
-/// a `SerializationError`, and a transport failure passes through as the
-/// `NetworkError` / `NetworkTimeoutError` it already is.
+/// An unparseable discovery document is a `SerializationError`.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_authoidc_006_discovery_failures_are_typed() {
+async fn test_bhv_authoidc_016_malformed_discovery_document_raises_serialization_error() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue("{not json", 200);
     let mut auth = create_authenticator();
@@ -355,7 +357,12 @@ async fn test_bhv_authoidc_006_discovery_failures_are_typed() {
         "expected SerializationError, got: {}",
         err
     );
+}
 
+/// A discovery transport failure passes through as the `NetworkError` or
+/// `NetworkTimeoutError` it already is.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_006_discovery_transport_failures_propagate_as_network_errors() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue_error(Box::new(
         NetworkError::try_from(ApiError::new(
@@ -585,7 +592,7 @@ const DISCOVERY: &str = r#"{"authorization_endpoint":"https://auth.example.com/a
 /// The discovery document is cached for the `max-age` the server sent: a
 /// `max-age=0` document is fetched again on the next call, a positive one is not.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_discovery_is_refetched_once_its_max_age_has_passed() {
+async fn test_bhv_authoidc_003_caches_the_discovery_document_for_the_cache_control_max_age() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue_cached(DISCOVERY, "public, max-age=0");
     client.enqueue_cached(DISCOVERY, "public, max-age=0");
@@ -826,6 +833,126 @@ fn test_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls() {
         !source.contains("unsafe impl"),
         "openid_connect_authenticator.rs must not carry an unsafe impl"
     );
+}
+
+/// An issuer equal to the discovery URL's origin, with a trailing slash, is accepted.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_004_discovery_accepts_a_matching_issuer_with_a_trailing_slash() {
+    let client = Arc::new(FakeApiClient::new());
+    let document = serde_json::json!({
+        "issuer": "https://auth.example.com/",
+        "authorization_endpoint": "https://auth.example.com/authorize",
+        "token_endpoint": "https://auth.example.com/token"
+    });
+    client.enqueue(&document.to_string(), 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client);
+    let url = auth
+        .build_authorization_url("")
+        .await
+        .expect("a trailing slash on the issuer is accepted");
+    assert!(
+        url.starts_with("https://auth.example.com/authorize?"),
+        "{}",
+        url
+    );
+}
+
+/// An empty state is left out of the authorization URL.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_018_an_empty_state_is_omitted_from_the_authorization_url() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client);
+    let url = auth
+        .build_authorization_url("")
+        .await
+        .expect("should succeed");
+    assert!(
+        url.starts_with("https://auth.example.com/authorize?"),
+        "{}",
+        url
+    );
+    assert!(!url.contains("state="), "{}", url);
+}
+
+/// Invalidating the access token keeps the session and the refresh token: the
+/// next header request renews through a refresh grant and does not rediscover.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_015_invalidate_access_token_keeps_the_session_and_the_refresh_token() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(
+        r#"{"access_token":"tok2","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.exchange_code("oidc-code")
+        .await
+        .expect("the exchange succeeds");
+
+    assert!(auth.invalidate_access_token().await);
+    let headers = auth
+        .try_auth_headers()
+        .await
+        .expect("the refresh renews the token");
+
+    assert_eq!(
+        Some(&"Bearer tok2".to_string()),
+        headers.get("Authorization")
+    );
+    assert_eq!(1, client.get_count());
+    let body = client.last_body().expect("a refresh request body");
+    assert!(body.contains("grant_type=refresh_token"), "{}", body);
+    assert!(body.contains("refresh_token=ref1"), "{}", body);
+}
+
+/// The PKCE verifier of the authorization URL survives a rediscovery, so the
+/// code exchange sends the verifier that hashes to the challenge in the URL.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_021_rediscovery_keeps_the_pkce_verifier_of_the_authorization_url() {
+    use base64::Engine as _;
+    use sha2::{Digest, Sha256};
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "max-age=0");
+    client.enqueue_cached(REDISCOVERY, "max-age=3600");
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let url = auth
+        .build_authorization_url("")
+        .await
+        .expect("should succeed");
+    let challenge = url
+        .split_once('?')
+        .expect("a query string")
+        .1
+        .split('&')
+        .find_map(|p| p.strip_prefix("code_challenge="))
+        .expect("a code_challenge")
+        .to_string();
+
+    auth.exchange_code("oidc-code")
+        .await
+        .expect("the exchange succeeds");
+
+    let body = client.last_body().expect("a token request body");
+    let verifier = body
+        .split('&')
+        .find_map(|p| p.strip_prefix("code_verifier="))
+        .expect("a code_verifier");
+    let expected = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(Sha256::digest(verifier.as_bytes()));
+    assert_eq!(expected, challenge);
+    assert_eq!(2, client.get_count());
 }
 
 /* OIDC Discovery 1.0 section 4.3: a document whose issuer is not the URL it was

@@ -693,7 +693,7 @@ func TestBhvAuthoauthtwotokenmgr008_OAuth2TokenManager_ExpiresInAsFloatIsFloored
 // A lifetime beyond what time.Duration holds is clamped to one year, so the
 // token is cached instead of the expiry wrapping into the past and every call
 // refetching.
-func TestOAuth2TokenManager_ExpiresInHugeValueIsClampedAndCached(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr005_OAuth2TokenManager_ExpiresInHugeValueIsClampedAndCached(t *testing.T) {
 	t.Parallel()
 	for _, expiresIn := range []string{`9999999999`, `1e20`, `"99999999999999999999"`} {
 		client := newFakeTokenClient(
@@ -1326,5 +1326,116 @@ func TestBhvAuthoauthtwotokenmgr015_OAuth2TokenManager_FailedExchangeRestoresThe
 	}
 	if client.requestCount() != 2 {
 		t.Errorf("expected no request beyond the two exchanges, got %d", client.requestCount())
+	}
+}
+
+// A 2xx token response that is not JSON is an OAuth2TokenError, not a raw parse error.
+func TestBhvAuthoauthtwotokenmgr001_OAuth2TokenManager_ANonJsonTokenResponseRaisesOAuth2TokenError(t *testing.T) {
+	t.Parallel()
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(newFakeTokenClient(fakeResponse{body: "not json at all", statusCode: 200}))
+
+	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"})
+	var typed *apierrors.OAuth2TokenError
+	if !errors.As(err, &typed) {
+		t.Fatalf("expected *OAuth2TokenError, got %T: %v", err, err)
+	}
+}
+
+// A token with a lifetime of 60 or 120 seconds is kept for part of that lifetime,
+// so the second call is served from the cache.
+func TestBhvAuthoauthtwotokenmgr007_OAuth2TokenManager_ExpiresInAppliesOneMarginCappedAtHalfTheLifetime(t *testing.T) {
+	t.Parallel()
+	for _, expiresIn := range []int{60, 120} {
+		client := &recordingTokenClient{responses: []fakeResponse{
+			{body: fmt.Sprintf(`{"access_token":"tok","expires_in":%d}`, expiresIn), statusCode: 200},
+		}}
+		manager := oauth.NewOAuth2TokenManager()
+		manager.SetApiClient(client)
+
+		params := map[string]string{"grant_type": "client_credentials"}
+		for i := 0; i < 2; i++ {
+			if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+				t.Fatalf("expires_in %d, call %d: unexpected error: %v", expiresIn, i+1, err)
+			}
+		}
+		if client.requestCount() != 1 {
+			t.Errorf("expires_in %d: expected 1 token request, got %d", expiresIn, client.requestCount())
+		}
+	}
+}
+
+// An expires_in of zero makes the token stale at once, so the next call fetches again.
+func TestBhvAuthoauthtwotokenmgr012_OAuth2TokenManager_ExpiresInOfZeroIsStaleAtOnce(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"zero-1","expires_in":0}`, statusCode: 200},
+		{body: `{"access_token":"zero-2","expires_in":0}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on the first call: %v", err)
+	}
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on the second call: %v", err)
+	}
+	if first != "zero-1" || second != "zero-2" {
+		t.Errorf("expected tokens zero-1 and zero-2, got %q and %q", first, second)
+	}
+	if client.requestCount() != 2 {
+		t.Errorf("expected 2 token requests, got %d", client.requestCount())
+	}
+}
+
+// A refresh_token that is not a string is ignored: the cached refresh token survives.
+func TestBhvAuthoauthtwotokenmgr017_OAuth2TokenManager_ANonStringRefreshTokenKeepsTheCachedOne(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":0}`, statusCode: 200},
+		{body: `{"access_token":"a2","refresh_token":12345,"expires_in":3600}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "authorization_code"}
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		t.Fatalf("unexpected error on the first call: %v", err)
+	}
+	token, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on the refresh: %v", err)
+	}
+	if token != "a2" {
+		t.Errorf("expected the refreshed token a2, got %q", token)
+	}
+	if got := manager.RefreshToken(); got != "r1" {
+		t.Errorf("expected the cached refresh token r1 to survive, got %q", got)
+	}
+}
+
+// A refresh_token that is not a string is ignored on the first grant too, so no
+// refresh token is held and the access token is still returned.
+func TestBhvAuthoauthtwotokenmgr020_OAuth2TokenManager_ANonStringRefreshTokenIsIgnoredOnAFirstGrant(t *testing.T) {
+	t.Parallel()
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(newFakeTokenClient(fakeResponse{
+		body:       `{"access_token":"b1","refresh_token":true,"expires_in":3600}`,
+		statusCode: 200,
+	}))
+
+	token, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token != "b1" {
+		t.Errorf("expected the access token b1, got %q", token)
+	}
+	if got := manager.RefreshToken(); got != "" {
+		t.Errorf("expected no refresh token to be held, got %q", got)
 	}
 }

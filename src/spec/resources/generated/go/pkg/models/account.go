@@ -41,6 +41,22 @@ func (o Account) Equal(other Account) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON with every format: password property replaced
+// by "***", so a logged value never shows the secret. The copy is masked, never the
+// receiver, and MarshalJSON (the wire form) still sends the real value.
+func (o Account) String() string {
+	masked := o
+	if masked.Password != nil {
+		mask := "***"
+		masked.Password = &mask
+	}
+	data, err := json.Marshal(masked)
+	if err != nil {
+		return "Account{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithId returns a copy of the model with Id replaced; the receiver is unchanged.
 func (o Account) WithId(value int64) Account {
 	o.Id = &value

@@ -569,6 +569,44 @@ async fn test_bhv_options_001_base_api_config_default_header_overrides_negotiate
     );
 }
 
+#[tokio::test]
+async fn test_bhv_operations_001_base_api_per_call_header_replaces_default_header_of_same_name() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .default_header("X-Trace-Id", "default")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let opts = AddPetOptions::new().header("X-Trace-Id", "per-call");
+    let _ = api.add_pet(pet, Some(&opts)).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("X-Trace-Id").map(|s| s.as_str()),
+        Some("per-call"),
+        "a per-call header must replace the default header of the same name"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_operations_004_base_api_explicit_accept_header_beats_default_and_negotiated_accept(
+) {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .default_header("Accept", "application/xml")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = GetPetByIdOptions::new().header("Accept", "text/plain");
+    let _ = api.get_pet_by_id(1, None, Some(&opts)).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Accept").map(|s| s.as_str()),
+        Some("text/plain"),
+        "an explicit Accept header must beat the config default and the negotiated Accept"
+    );
+}
+
 // -- Auth Option<>: falling back to the client-level authenticator --
 
 #[tokio::test]
@@ -769,7 +807,7 @@ async fn test_bhv_serializationwire_013_base_api_serializes_form_urlencoded_body
 // A date-time form field goes on the wire in the canonical stringify form
 // (millisecond fraction, numeric offset), percent-encoded.
 #[tokio::test]
-async fn test_set_pet_preferences_form_body_date_time_canonical() {
+async fn test_bhv_operations_075_base_api_set_pet_preferences_form_body_date_time_canonical() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -820,14 +858,16 @@ async fn test_set_pet_preferences_sends_form_content_type() {
 // for each position: query (`bornAfter`), header (`Report-Date`) and
 // form-urlencoded body (`renewalDate`). None may carry a time component.
 #[tokio::test]
-async fn test_date_query_param_serialises_date_only() {
+async fn test_bhv_serializationobject_044_date_query_param_serialises_date_only() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
     let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
-    let opts = FindPetsByStatusOptions::new().born_after(date);
+    let opts = FindPetsByStatusOptions::new()
+        .born_after(date)
+        .report_date(date);
     let _ = api.find_pets_by_status(Some(&opts)).await;
     let url = client.captured_url.lock().unwrap();
     assert!(
@@ -840,18 +880,36 @@ async fn test_date_query_param_serialises_date_only() {
         "date-only query param must carry no time component, got: {}",
         url
     );
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Report-Date").map(String::as_str),
+        Some("2024-01-01"),
+        "date-only header must be exactly YYYY-MM-DD with no time"
+    );
 }
 
-#[tokio::test]
-async fn test_date_header_param_serialises_date_only() {
+async fn test_bhv_operations_069_base_api_date_query_and_header_params_serialise_date_only() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
     let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
-    let opts = FindPetsByStatusOptions::new().report_date(date);
+    let opts = FindPetsByStatusOptions::new()
+        .born_after(date)
+        .report_date(date);
     let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        url.contains("bornAfter=2024-01-01"),
+        "expected bornAfter=2024-01-01, got: {}",
+        url
+    );
+    assert!(
+        !url.contains("bornAfter=2024-01-01T") && !url.contains("bornAfter=2024-01-01%20"),
+        "date-only query param must carry no time component, got: {}",
+        url
+    );
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("Report-Date").map(String::as_str),
@@ -861,7 +919,7 @@ async fn test_date_header_param_serialises_date_only() {
 }
 
 #[tokio::test]
-async fn test_date_form_param_serialises_date_only() {
+async fn test_bhv_operations_019_base_api_date_form_param_serialises_date_only() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1265,6 +1323,24 @@ async fn test_bhv_serializationwire_001_base_api_nil_options_omits_query_params(
 }
 
 #[tokio::test]
+async fn test_bhv_serializationwire_010_base_api_omitted_find_pets_by_status_sends_no_query_string()
+{
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = petstore::api::options::FindPetsByStatusOptions::new();
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        !url.contains('?'),
+        "an omitted status must leave no query string at all, got: {}",
+        url
+    );
+}
+
+#[tokio::test]
 async fn test_bhv_options_002_base_api_allow_empty_value_omits_param_when_unset() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
@@ -1280,6 +1356,23 @@ async fn test_bhv_options_002_base_api_allow_empty_value_omits_param_when_unset(
     assert!(
         !url.contains("status="),
         "expected no status= for allowEmptyValue param with unset value, got: {}",
+        url
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_operations_003_base_api_allow_empty_value_sends_the_key_for_an_empty_string() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = FindPetsByStatusOptions::new().status(String::new());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        url.contains("status="),
+        "an empty allowEmptyValue param must send the status= key, got: {}",
         url
     );
 }
@@ -1589,7 +1682,7 @@ async fn test_bhv_serializationwire_017_byte_over_json_response_decodes_to_bytes
 }
 
 #[tokio::test]
-async fn test_text_plain_body_for_a_string_return_is_the_text() {
+async fn test_bhv_serializationwire_025_text_plain_body_for_a_string_return_is_the_text() {
     let client = Arc::new(BinaryResponseApiClient {
         body: "hello world".to_string(),
         content_type: "text/plain".to_string(),
@@ -1701,6 +1794,24 @@ impl petstore::api_client::ApiClient for HeaderCapturingApiClient {
 }
 
 #[tokio::test]
+async fn test_bhv_operations_014_base_api_passes_a_binary_body_as_is() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
+    let _ = api.set_pet_avatar(1, image_bytes.clone(), None, None).await;
+    let body = client.captured_body.lock().unwrap();
+    assert_eq!(
+        body.as_deref(),
+        Some(image_bytes.as_slice()),
+        "a binary body must reach the wire unchanged, got: {:?}",
+        body
+    );
+}
+
+#[tokio::test]
 async fn test_bhv_operations_013_null_body_post_does_not_send_content_type() {
     let client = Arc::new(HeaderCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
@@ -1731,6 +1842,31 @@ async fn test_bhv_operations_011_body_present_includes_content_type() {
     assert!(
         headers.contains_key("Content-Type"),
         "Content-Type must be sent when body is non-None"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_serializationwire_008_empty_json_object_body_includes_content_type() {
+    let client = Arc::new(HeaderCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    /* An explicit null status keeps the schema default out of the model, so every
+     * field is None and the encoded body is the empty JSON object. */
+    let empty: Order = serde_json::from_str("{\"status\":null}").expect("an all-null Order");
+    let _ = api.place_order(Some(empty), None).await;
+    let body = client.captured_body.lock().unwrap();
+    assert_eq!(
+        body.as_deref(),
+        Some(&b"{}"[..]),
+        "an empty model must be sent as the empty JSON object"
+    );
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Content-Type").map(String::as_str),
+        Some("application/json"),
+        "an empty JSON object body must carry Content-Type: application/json"
     );
 }
 
@@ -2154,7 +2290,8 @@ async fn test_bhv_authintegration_005_base_api_security_none_op_suppresses_clien
 // authenticator` branch of the three-state contract; the sentinel change must
 // not regress it. `add_pet` is a secured operation.
 #[tokio::test]
-async fn test_base_api_secured_op_applies_client_authenticator() {
+async fn test_bhv_operations_026_base_api_secured_op_with_no_matching_scheme_uses_client_authenticator(
+) {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -2554,7 +2691,7 @@ async fn test_a_retryable_status_is_retried_until_the_call_succeeds() {
 }
 
 #[tokio::test]
-async fn test_the_last_failure_is_reported_when_the_retries_run_out() {
+async fn test_bhv_retries_024_the_last_failure_is_reported_when_the_retries_run_out() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(500, Some("0")),
@@ -2616,7 +2753,7 @@ async fn test_bhv_retries_004_zero_max_retries_sends_the_call_once() {
 }
 
 #[tokio::test]
-async fn test_a_network_failure_is_retried_but_a_timeout_is_not() {
+async fn test_bhv_retries_013_a_network_failure_is_retried_but_a_timeout_is_not() {
     let client = ScriptedApiClient::new(
         vec![Scripted::Network, Scripted::Status(200, None)],
         2,
@@ -2695,7 +2832,7 @@ async fn test_retry_after_seconds_is_honoured() {
 }
 
 #[tokio::test]
-async fn test_a_retry_that_does_not_fit_the_timeout_is_not_made() {
+async fn test_bhv_retries_025_a_retry_that_does_not_fit_the_timeout_is_not_made() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(503, Some("30")),
@@ -2756,4 +2893,173 @@ async fn test_bhv_retries_003_a_multipart_body_is_never_retried() {
 
     assert!(outcome.is_err());
     assert_eq!(1, client.calls());
+}
+
+/// A bearer token cannot be renewed, so a 401 is reported after one attempt and
+/// the request is not sent again.
+#[tokio::test]
+async fn test_bhv_retries_002_a_bearer_authenticator_never_replays_a_401() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(401, None), Scripted::Status(200, None)],
+        2,
+        None,
+    );
+    let auth = petstore::auth::BearerAuthenticator::new("http://localhost", "secret-token")
+        .expect("a valid token");
+
+    let outcome = retrying_api_with(&client, Arc::new(auth))
+        .delete_pet(1, None)
+        .await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+}
+
+/// A multipart body is not sent again after a 401, even though the authenticator
+/// could renew its token: the body cannot be replayed.
+#[tokio::test]
+async fn test_bhv_retries_006_a_multipart_body_is_not_replayed_after_a_401() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(401, None), Scripted::Status(200, None)],
+        2,
+        None,
+    );
+
+    let outcome = retrying_api_with(&client, Arc::new(RenewableAuthenticator::new()))
+        .upload_pet_document(1, Some(&UploadPetDocumentOptions::new(vec![1, 2, 3])), None)
+        .await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+}
+
+/// With max retries at zero a failing call is sent exactly once, and its error is
+/// reported.
+#[tokio::test]
+async fn test_bhv_retries_018_max_retries_zero_sends_the_request_once() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some("0")),
+            Scripted::Status(200, None),
+        ],
+        0,
+        None,
+    );
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+}
+
+/// Every call starts its own end-to-end budget, so the second call's deadline is
+/// measured from when it starts rather than from the first call.
+#[tokio::test]
+async fn test_bhv_retries_019_each_call_starts_a_fresh_timeout_budget() {
+    let budget = std::time::Duration::from_secs(30);
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(200, None), Scripted::Status(200, None)],
+        0,
+        Some(budget),
+    );
+    let api = retrying_api(&client);
+    api.delete_pet(1, None)
+        .await
+        .expect("the first call succeeds");
+    let second_started = std::time::Instant::now();
+
+    api.delete_pet(1, None)
+        .await
+        .expect("the second call succeeds");
+
+    let deadlines = client.deadlines.lock().unwrap();
+    assert_eq!(2, deadlines.len());
+    let second = deadlines[1].expect("a deadline");
+    assert!(
+        second >= second_started + budget,
+        "deadline {:?} is older than the call",
+        second
+    );
+}
+
+/// A per-call timeout replaces the transport's budget for that call: the deadline
+/// the client receives is the call's 30 seconds, not the transport's 600.
+#[tokio::test]
+async fn test_bhv_transport_028_a_per_call_timeout_replaces_the_transport_timeout() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(200, None)],
+        0,
+        Some(std::time::Duration::from_secs(600)),
+    );
+    let started = std::time::Instant::now();
+
+    retrying_api(&client)
+        .delete_pet(
+            1,
+            Some(&DeletePetOptions::new().timeout(std::time::Duration::from_secs(30))),
+        )
+        .await
+        .expect("the call succeeds");
+
+    let deadline = client.deadlines.lock().unwrap()[0].expect("a deadline");
+    assert!(
+        deadline >= started + std::time::Duration::from_secs(30),
+        "deadline {:?}",
+        deadline
+    );
+    assert!(
+        deadline < started + std::time::Duration::from_secs(600),
+        "deadline {:?}",
+        deadline
+    );
+}
+
+/// A `security: []` operation sends neither the query nor the header position of a configured
+/// api-key client authenticator.
+#[tokio::test]
+async fn test_bhv_authintegration_015_security_none_suppresses_a_configured_api_key_client_authenticator(
+) {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(EverywhereAuthenticator);
+    let api = StoreApi::new(client.clone(), config, Some(client_auth));
+
+    let _ = api.get_inventory(None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        !headers.contains_key("X-API-Key"),
+        "got: {:?}",
+        headers.get("X-API-Key")
+    );
+    assert!(!url.contains("api_key="), "got: {}", url);
+}
+
+/// A `security: []` operation sends no scheme credential, so neither the bearer header nor the
+/// auth cookie of a configured client authenticator reaches the wire.
+#[tokio::test]
+async fn test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_credential() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(EverywhereAuthenticator);
+    let api = StoreApi::new(client.clone(), config, Some(client_auth));
+
+    let _ = api.get_inventory(None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    assert!(
+        !headers.contains_key("Authorization"),
+        "got: {:?}",
+        headers.get("Authorization")
+    );
+    assert!(
+        !headers.contains_key("Cookie"),
+        "got: {:?}",
+        headers.get("Cookie")
+    );
 }

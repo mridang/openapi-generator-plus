@@ -15,7 +15,7 @@ import (
 	petstore "petstore/pkg"
 )
 
-func TestApiResult_ConstructorPopulatesAllFields(t *testing.T) {
+func TestBhvResults003_ApiResult_ExposesStatusCodeDataRawBodyAndHeaders(t *testing.T) {
 	t.Parallel()
 	data := "payload"
 	headers := map[string]string{"Content-Type": "application/json"}
@@ -88,7 +88,7 @@ func TestApiResult_HoldsStructData(t *testing.T) {
 	}
 }
 
-func TestApiResult_HeadersAreCopiedAtConstruction(t *testing.T) {
+func TestBhvResults002_ApiResult_ExposesHeadersAsACopy(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{"Content-Type": "application/json"}
 

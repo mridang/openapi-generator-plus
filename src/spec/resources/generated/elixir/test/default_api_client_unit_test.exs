@@ -157,6 +157,27 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   # follow-up requests it makes, a token fetch or a retry, still go out); one
   # that starts after close raises the canonical error; the release of what the
   # SDK started is claimed by exactly one caller, once nothing is in flight.
+  test "bhv lifecycle 020 close never closes a caller-supplied transport" do
+    adapter = fn request -> {request, Req.Response.new(status: 200, body: "")} end
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    first = PetstoreClient.DefaultApiClient.new(transport)
+
+    assert PetstoreClient.DefaultApiClient.close(first) == :ok
+
+    second = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        second,
+        :get,
+        "http://closing.invalid/supplied",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+  end
+
   test "bhv lifecycle 019 close lets an admitted request finish, refuses a new one and lets one caller claim the release" do
     adapter = fn request -> {request, Req.Response.new(status: 200, body: "")} end
     transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
@@ -539,6 +560,159 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert headers["accept"] == "application/json"
   end
 
+  test "bhv transport 008 generates unique X-Request-ID per request" do
+    {base_url1, _} = start_header_capture_server()
+    {base_url2, _} = start_header_capture_server()
+    transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url1}/test", %{}, nil)
+    PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url2}/test", %{}, nil)
+    assert_receive {:captured_headers, headers1}, 5000
+    assert_receive {:captured_headers, headers2}, 5000
+    assert headers1["x-request-id"] != headers2["x-request-id"]
+  end
+
+  test "bhv transport 011 includes transport-level default headers" do
+    {base_url, _port} = start_header_capture_server()
+
+    transport =
+      PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["x-custom"] == "custom-value"
+  end
+
+  test "bhv transport 014 injects X-Request-ID header with UUID format" do
+    {base_url, _port} = start_header_capture_server()
+    transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+
+    assert headers["x-request-id"] =~
+             ~r/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}\z/
+  end
+
+  test "bhv transport 022 repeated response headers are joined in order" do
+    base_url =
+      start_server(200, "text/plain", "ok", [
+        {"X-Custom-Value", "val1"},
+        {"X-Custom-Value", "val2"}
+      ])
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/multi", %{}, nil)
+
+    assert response.headers["x-custom-value"] == "val1, val2"
+  end
+
+  test "bhv transport 027 a decoded body drops the Content-Encoding and Content-Length headers" do
+    base_url =
+      start_server(200, "text/plain", :zlib.gzip("decoded"), [{"Content-Encoding", "gzip"}])
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gzip", %{}, nil)
+
+    assert response.body == "decoded"
+    refute Map.has_key?(response.headers, "content-encoding")
+    refute Map.has_key?(response.headers, "content-length")
+  end
+
+  test "bhv transport 034 decompresses a valid gzip-encoded response body" do
+    base_url =
+      start_server(200, "text/plain", :zlib.gzip("gzipped body"), [{"Content-Encoding", "gzip"}])
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gzip", %{}, nil)
+
+    assert response.body == "gzipped body"
+  end
+
+  test "bhv transport 002 the timeout reaches the transport for this call only" do
+    adapter = fn request ->
+      Process.sleep(500)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new(req_options: [adapter: adapter], timeout: 60_000)
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    deadline = System.monotonic_time(:millisecond) + 100
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://custom.invalid/echo",
+        %{},
+        nil,
+        deadline: deadline
+      )
+    end
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://custom.invalid/echo",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+  end
+
+  test "bhv transport 046 leaves the proxy auth header null when no proxy is configured" do
+    opts = PetstoreClient.DefaultApiClient.request_options(PetstoreClient.TransportOptions.new())
+    connect_options = Keyword.get(opts, :connect_options, [])
+    assert Keyword.get(connect_options, :proxy_headers) == nil
+  end
+
+  test "bhv transport 048 a nonexistent ca cert path fails even when verify ssl is false" do
+    path = "/nonexistent/ca-#{System.unique_integer([:positive])}.pem"
+    transport = PetstoreClient.TransportOptions.new(ca_cert_path: path, verify_ssl: false)
+    assert_raise ArgumentError, fn -> PetstoreClient.DefaultApiClient.new(transport) end
+  end
+
+  test "bhv transport 052 sends an empty User-Agent header when the option is the empty string" do
+    {base_url, _port} = start_header_capture_server()
+    transport = PetstoreClient.TransportOptions.new(user_agent: "")
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["user-agent"] == ""
+  end
+
+  test "bhv transport 056 sensitive header names include api key header names" do
+    redacted = PetstoreClient.TransportOptions.redact_headers(%{"X-Api-Key" => "secret-value"})
+    assert redacted == %{"X-Api-Key" => "***"}
+  end
+
+  test "bhv transport 057 sensitive header names include the static triple" do
+    headers = %{
+      "Authorization" => "a",
+      "Proxy-Authorization" => "b",
+      "Cookie" => "c",
+      "Accept" => "d"
+    }
+
+    assert PetstoreClient.TransportOptions.redact_headers(headers) == %{
+             "Authorization" => "***",
+             "Proxy-Authorization" => "***",
+             "Cookie" => "***",
+             "Accept" => "d"
+           }
+  end
+
   # ── Redirect guard tests (3.1 / 3.2 / 3.3) ─────────────────────────────────
 
   # Issues a single 3xx with a Location: header then closes. Designed for one
@@ -763,7 +937,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
            )
   end
 
-  test "3.3: body replay is refused only for a real body on a 307/308 downgrade" do
+  test "bhv retries 011 3.3: body replay is refused only for a real body on a 307/308 downgrade" do
     https = "https://api.example.com/x"
     http = "http://api.example.com/y"
 
@@ -859,6 +1033,115 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
            ) ==
              "Refusing to replay request body across HTTPS->HTTP redirect: " <>
                "https://api.example.com/a -> http://api.example.com/b"
+  end
+
+  test "bhv redirects 007 returns the redirect response when following is disabled" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(follow_redirects: false)
+      )
+
+    assert PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code ==
+             302
+
+    refute_receive {:captured_headers, _}, 200
+  end
+
+  test "bhv redirects 017 a redirect is followed when it is not suppressed" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    assert PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code ==
+             200
+
+    assert_receive {:captured_headers, _}, 5000
+  end
+
+  test "bhv redirects 021 send_request/6 with no_redirect: true returns the raw 307 response" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(307, "#{target_url}/echo")
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :post, source_url, %{}, "body",
+        no_redirect: true
+      )
+
+    assert response.status_code == 307
+    refute_receive {:captured_headers, _}, 200
+  end
+
+  test "bhv redirects 023 returns the last 3xx without a Location when the redirect budget is used up" do
+    last_hop = start_server(302, "text/plain", "")
+    {source_url, _} = start_redirect_server(302, last_hop)
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true, max_redirects: 1)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    assert PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code ==
+             302
+  end
+
+  test "bhv redirects 024 a same origin redirect keeps the proxy and authorization headers" do
+    base_url = start_same_origin_redirect_server()
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{base_url}/first",
+        %{"Authorization" => "Bearer secret", "Proxy-Authorization" => "Basic Zm9v"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert_receive {:second_headers, headers}, 5000
+    assert headers["authorization"] == "Bearer secret"
+    assert headers["proxy-authorization"] == "Basic Zm9v"
+  end
+
+  test "bhv redirects 025 strips default headers and credential-named headers on a cross-origin redirect" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    transport = PetstoreClient.TransportOptions.new(default_headers: %{"X-Default-Token" => "d"})
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      source_url,
+      %{"X-Trace" => "keep"},
+      nil
+    )
+
+    assert_receive {:source_headers, source_headers}, 5000
+    assert source_headers["x-default-token"] == "d"
+    assert_receive {:captured_headers, target_headers}, 5000
+    refute Map.has_key?(target_headers, "x-default-token")
+    assert target_headers["x-trace"] == "keep"
+  end
+
+  test "bhv redirects 026 throws ApiError when maxRedirects is exceeded" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true, max_redirects: 0)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    err =
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
+      end
+
+    assert err.status_code == 302
   end
 
   test "bhv redirects 010 a 3xx whose Location is absent or unparseable comes back as the response, never an exception" do
@@ -992,7 +1275,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
   # A connection that dies after the headers arrived is a NetworkError with no
   # status: the response never completed.
-  test "bhv errors 038 a body cut off after the headers raises NetworkError with status 0" do
+  test "bhv errors 043 bhv errors 038 a body cut off after the headers raises NetworkError with status 0" do
     base_url = start_partial_body_server(:close)
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -1125,7 +1408,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   # arrive as `%Req.TransportError{reason: :timeout}`; the pool checkout is a
   # `%Finch.Error{reason: :pool_timeout}`, which used to miss the transport
   # clause entirely and surface the same expired deadline as a NetworkError.
-  test "every configured deadline classifies as NetworkTimeoutError" do
+  test "bhv transport 031 connect deadline raises network timeout exception" do
     for cause <- [
           %Req.TransportError{reason: :timeout},
           %Finch.Error{reason: :pool_timeout}
@@ -1276,7 +1559,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert err.status_code == 302
   end
 
-  test "an identity-encoded body keeps its Content-Encoding and Content-Length headers" do
+  test "bhv transport 033 Content-Encoding: identity passes the body through undecoded" do
     base_url = start_server(200, "text/plain", "plain", [{"Content-Encoding", "identity"}])
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -1606,7 +1889,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     # A NEGATIVE duration must serialize with a leading minus and round-trip
     # back to the same signed total — the protobuf-JSON grammar allows `-?`.
-    test "negative duration round-trips with a leading minus sign" do
+    test "bhv serializationobject 105 negative duration carries the sign and round-trips" do
       d = Duration.new!(second: -90)
       pb = PetstoreClient.ObjectSerializer.stringify(d)
       assert pb == "-90s"

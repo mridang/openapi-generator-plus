@@ -15,12 +15,14 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert metadata != nil
     end
 
-    test "bhv models 004 deserializes additional string properties" do
+    test "bhv models 004 bhv models 009 deserializes additional string properties and keeps them strings" do
       json = ~s({"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"})
       metadata = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
 
       assert metadata != nil
       assert %PetstoreClient.Models.Metadata{} = metadata
+      assert is_binary(metadata.additional_properties["customField"])
+      assert metadata.additional_properties["customField"] == "hello"
     end
 
     test "bhv models 011 round-trip preserves known properties" do
@@ -38,6 +40,19 @@ defmodule PetstoreClient.Models.MetadataTest do
         PetstoreClient.ObjectSerializer.deserialize(~s({"customField":"hello"}), "Metadata")
 
       assert metadata.additional_properties == %{"customField" => "hello"}
+    end
+
+    test "bhv models 010 declared property wins over a colliding additional property" do
+      metadata = %PetstoreClient.Models.Metadata{
+        created_at: "2024-01-01T00:00:00+00:00",
+        additional_properties: %{"createdAt" => "x", "other" => "y"}
+      }
+
+      data = metadata |> PetstoreClient.ObjectSerializer.serialize() |> Jason.decode!()
+
+      assert data["createdAt"] =~ "2024-01-01"
+      refute data["createdAt"] == "x"
+      assert data["other"] == "y"
     end
 
     test "bhv models 005 equality includes additional_properties" do
@@ -95,6 +110,17 @@ defmodule PetstoreClient.Models.MetadataTest do
 
       assert metadata[:deprecated] == "This schema is deprecated."
       assert PetstoreClient.Models.Tag.__info__(:deprecated) == []
+    end
+  end
+
+  # The file header is the info description, written as comment text.
+  describe "generated file header" do
+    test "bhv models 006 file header prints the info description without backslash-escaped quotes" do
+      [path] = Path.wildcard(Path.join([File.cwd!(), "lib", "**", "models", "metadata.ex"]))
+      source = File.read!(path)
+
+      assert String.contains?(source, ~s("quoted" text))
+      refute String.contains?(source, ~s(\\"quoted\\"))
     end
   end
 

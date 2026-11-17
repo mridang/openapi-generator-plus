@@ -313,6 +313,45 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/refresh"
     end
 
+    test "bhv authoauthtwopassword 006 password sends the refresh grant to the refresh url and falls back to the token url" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 0
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret",
+          "https://auth.example.com/token",
+          "testuser",
+          "testpass",
+          ["read"]
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/token"
+      assert String.contains?(FakeApiClient.last_body(fake_client), "grant_type=refresh_token")
+    end
+
     test "bhv authoauthtwopassword 010 a rejected refresh re-runs the password grant at the token URL" do
       fake_client =
         FakeApiClient.new([
@@ -428,6 +467,37 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       last_body = FakeApiClient.last_body(fake_client)
       assert String.contains?(last_body, "scope=read+write")
       assert String.contains?(last_body, "client_id=id~%2A%21%27%28%29")
+    end
+
+    test "bhv authoauthtwopassword 005 keeps ~ literal and percent-encodes * ! ' ( ) in the token request body" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "at", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+          "https://api.example.com",
+          "id~*!'()",
+          "secret~*!'()",
+          "https://auth.example.com/token",
+          "user~*!'()",
+          "pass~*!'()",
+          ["read"]
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+
+      last_body = FakeApiClient.last_body(fake_client)
+      assert String.contains?(last_body, "client_id=id~%2A%21%27%28%29")
+      assert String.contains?(last_body, "client_secret=secret~%2A%21%27%28%29")
+      assert String.contains?(last_body, "password=pass~%2A%21%27%28%29")
     end
 
     test "bhv authoauthtwopassword 001 basic auth percent-encodes * ! ' ( ) and keeps ~ literal" do
@@ -557,6 +627,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       refute inspect(auth) =~ "testpass"
       assert inspect(auth) =~ ~s(client_secret: "***")
       assert inspect(auth) =~ ~s(password: "***")
+    end
+
+    test "bhv authoauthtwopassword 018 the redacted repr shows the non-secret fields" do
+      shown = create_authenticator() |> inspect()
+
+      assert shown =~ ~s(client_id: "my-client-id")
+      assert shown =~ ~s(token_url: "https://auth.example.com/token")
+      assert shown =~ ~s(username: "testuser")
     end
   end
 end

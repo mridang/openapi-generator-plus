@@ -632,7 +632,7 @@ async fn test_bhv_options_006_default_api_client_does_not_override_caller_reques
 /// A caller header in any letter case suppresses the injected User-Agent and
 /// X-Request-ID: exactly one value of each reaches the wire, the caller's.
 #[tokio::test]
-async fn test_default_api_client_caller_headers_win_case_insensitively() {
+async fn test_bhv_transport_003_default_api_client_caller_headers_win_case_insensitively() {
     let (base_url, rx) = start_head_capture_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -1850,6 +1850,28 @@ async fn test_bhv_transport_037_empty_gzip_body_passes_through_as_empty() {
     );
 }
 
+/// A body truncated after the headers is a NetworkError with status 0, because
+/// no status reached the caller for the failed call to report.
+#[tokio::test]
+async fn test_bhv_errors_038_a_truncated_body_throws_network_error_with_status_zero() {
+    let base_url = start_truncated_body_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+
+    let err = match client
+        .send_request("GET", &format!("{}/truncated", base_url), &headers, None)
+        .await
+    {
+        Ok(_) => panic!("a truncated body read must surface as an error"),
+        Err(err) => err,
+    };
+
+    let network = err
+        .downcast_ref::<NetworkError>()
+        .unwrap_or_else(|| panic!("expected NetworkError, got: {}", err));
+    assert_eq!(0, network.api_error().status_code());
+}
+
 /// Gap: a body-read failure that happens AFTER response headers are received
 /// (here a truncated Content-Length response) must be wrapped in the uniform
 /// SDK NetworkError (statusCode 0), not surface as a raw reqwest::Error. Callers
@@ -2022,7 +2044,7 @@ async fn test_bhv_transport_058_timeout_returns_network_timeout_error() {
 /// 400 ms hops and a 400 ms final answer exceed a 1000 ms budget even though
 /// each single request is well inside it.
 #[tokio::test]
-async fn test_timeout_is_one_budget_across_redirect_hops() {
+async fn test_bhv_redirects_009_timeout_is_one_budget_across_redirect_hops() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let addr = listener.local_addr().expect("local addr");
     thread::spawn(move || {
@@ -2340,3 +2362,588 @@ fn test_bhv_errors_041_nonexistent_ca_cert_path_fails_fast() {
 // they exercise (mime_for_filename, build_filename_directive,
 // validate_multipart_filename, decode_text_body, parse_charset,
 // SENSITIVE_HEADER_NAMES) live in the crate-private `default_api_client` module.
+
+/// Sends `requests` calls through a client that injects X-Request-ID and returns
+/// the ids the server received, in arrival order.
+async fn captured_request_ids(requests: usize) -> Vec<String> {
+    let (base_url, captured) = start_request_id_capture_server(requests);
+    let transport = TransportOptionsBuilder::new()
+        .inject_request_id(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    for _ in 0..requests {
+        client
+            .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+            .await
+            .expect("unexpected error");
+    }
+    let ids = captured.lock().unwrap().clone();
+    ids
+}
+
+/// Each call gets a request id of its own, so two calls never share one.
+#[tokio::test]
+async fn test_bhv_transport_007_generates_unique_request_ids() {
+    let ids = captured_request_ids(2).await;
+
+    assert_eq!(2, ids.len(), "{:?}", ids);
+    assert_ne!(ids[0], ids[1]);
+}
+
+/// Every request of a run carries a fresh X-Request-ID, one distinct value per call.
+#[tokio::test]
+async fn test_bhv_transport_008_generates_a_unique_x_request_id_per_request() {
+    let ids = captured_request_ids(3).await;
+    let distinct: std::collections::HashSet<&String> = ids.iter().collect();
+
+    assert_eq!(3, ids.len(), "{:?}", ids);
+    assert_eq!(3, distinct.len(), "{:?}", ids);
+}
+
+/// The injected X-Request-ID is a UUID in its canonical lower-case hyphenated form.
+#[tokio::test]
+async fn test_bhv_transport_014_injects_x_request_id_with_uuid_format() {
+    let ids = captured_request_ids(1).await;
+
+    assert_eq!(1, ids.len(), "{:?}", ids);
+    let parsed = uuid::Uuid::parse_str(&ids[0]).expect("the request id is a UUID");
+    assert_eq!(parsed.to_string(), ids[0]);
+}
+
+/// With no proxy configured the ambient proxy variables are not used, so the
+/// request reaches the local server directly.
+#[tokio::test]
+async fn test_bhv_transport_009_ignores_ambient_proxy_environment_when_none_is_configured() {
+    let (base_url, head) = start_head_capture_server();
+    for name in ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"] {
+        std::env::set_var(name, "http://127.0.0.1:1");
+    }
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("a direct connection must succeed");
+    assert_eq!(200, resp.status_code());
+    assert!(
+        head.recv().is_ok(),
+        "the local server must have received the request"
+    );
+}
+
+/// A header set on the transport reaches the server on every request.
+#[tokio::test]
+async fn test_bhv_transport_011_includes_transport_level_default_headers() {
+    let (base_url, head) = start_head_capture_server();
+    let transport = TransportOptionsBuilder::new()
+        .default_header("X-Default", "default-value")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    assert_eq!(
+        Some("default-value".to_string()),
+        head_header(&head, "X-Default"),
+        "{}",
+        head
+    );
+}
+
+/// A caller's lower-case accept-encoding replaces the SDK's own: the request
+/// carries exactly one Accept-Encoding header, the caller's value.
+#[tokio::test]
+async fn test_bhv_transport_026_a_lower_case_caller_accept_encoding_suppresses_the_sdk_default() {
+    let (base_url, head) = start_head_capture_server();
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("accept-encoding".to_string(), "identity".to_string());
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    let count = head
+        .lines()
+        .filter(|line| line.to_lowercase().starts_with("accept-encoding:"))
+        .count();
+    assert_eq!(1, count, "{}", head);
+    assert_eq!(
+        Some("identity".to_string()),
+        head_header(&head, "accept-encoding"),
+        "{}",
+        head
+    );
+}
+
+/// A caller-supplied Accept-Encoding in any letter case is sent as it was given
+/// and the SDK's default is not added alongside it.
+#[tokio::test]
+async fn test_bhv_transport_045_keeps_a_caller_supplied_accept_encoding() {
+    let (base_url, head) = start_head_capture_server();
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("Accept-Encoding".to_string(), "br".to_string());
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    let count = head
+        .lines()
+        .filter(|line| line.to_lowercase().starts_with("accept-encoding:"))
+        .count();
+    assert_eq!(1, count, "{}", head);
+    assert_eq!(
+        Some("br".to_string()),
+        head_header(&head, "accept-encoding"),
+        "{}",
+        head
+    );
+}
+
+/// A caller header whose name differs only in case replaces the transport
+/// default: one value reaches the wire and it is the caller's.
+#[tokio::test]
+async fn test_bhv_transport_047_a_caller_header_replaces_a_transport_default_of_another_case() {
+    let (base_url, head) = start_head_capture_server();
+    let transport = TransportOptionsBuilder::new()
+        .default_header("X-Default", "transport-value")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let mut headers = HashMap::new();
+    headers.insert("x-default".to_string(), "caller-value".to_string());
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    let count = head
+        .lines()
+        .filter(|line| line.to_lowercase().starts_with("x-default:"))
+        .count();
+    assert_eq!(1, count, "{}", head);
+    assert_eq!(
+        Some("caller-value".to_string()),
+        head_header(&head, "X-Default"),
+        "{}",
+        head
+    );
+}
+
+/// A connection refused before any response is a NetworkError, never a timeout.
+#[tokio::test]
+async fn test_bhv_transport_032_connection_refused_raises_network_error() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("local addr");
+    drop(listener);
+    let client = DefaultApiClient::new(None);
+
+    let err = client
+        .send_request(
+            "GET",
+            &format!("http://{}/refused", addr),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect_err("nothing listens on that port");
+
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
+    assert!(
+        err.downcast_ref::<NetworkTimeoutError>().is_none(),
+        "got: {}",
+        err
+    );
+}
+
+/// A valid gzip-encoded body is decoded and the caller receives the plain payload.
+#[tokio::test]
+async fn test_bhv_transport_034_decompresses_a_valid_gzip_response_body() {
+    let (base_url, _) = start_encoded_body_server("gzip", compress_payload("gzip"));
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &format!("{}/enc", base_url), &HashMap::new(), None)
+        .await
+        .expect("a valid gzip body must decode");
+
+    assert_eq!(200, resp.status_code());
+    assert_eq!(ENCODED_PAYLOAD, resp.body());
+}
+
+/// A zlib-wrapped deflate body, the format RFC 9110 names deflate, is decoded.
+#[tokio::test]
+async fn test_bhv_transport_035_decompresses_a_zlib_wrapped_deflate_response() {
+    let (base_url, _) = start_encoded_body_server("deflate", compress_payload("deflate"));
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &format!("{}/enc", base_url), &HashMap::new(), None)
+        .await
+        .expect("a zlib-wrapped deflate body must decode");
+
+    assert_eq!(200, resp.status_code());
+    assert_eq!(ENCODED_PAYLOAD, resp.body());
+}
+
+/// A caller-supplied reqwest client still sends the request with the SDK's
+/// User-Agent and X-Request-ID applied on top of it.
+#[tokio::test]
+async fn test_bhv_transport_040_injected_http_client_receives_the_request_with_sdk_defaults() {
+    let (base_url, head) = start_head_capture_server();
+    let http_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("a plain reqwest client");
+    let transport = TransportOptionsBuilder::new()
+        .user_agent("SdkAgent/1.0")
+        .inject_request_id(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::with_client(http_client, Some(transport))
+        .expect("no setting conflicts with a supplied client");
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    assert_eq!(
+        Some("SdkAgent/1.0".to_string()),
+        head_header(&head, "User-Agent"),
+        "{}",
+        head
+    );
+    assert!(head_header(&head, "X-Request-ID").is_some(), "{}", head);
+}
+
+/// Sends the headers and one body byte of a 1 KiB response, then holds the
+/// connection open without sending the rest.
+fn start_stalling_body_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("local addr");
+    thread::spawn(move || {
+        if let Some(Ok(mut stream)) = listener.incoming().next() {
+            use std::io::{BufRead, BufReader, Write};
+            let mut reader = BufReader::new(stream.try_clone().expect("clone"));
+            let mut line = String::new();
+            while reader.read_line(&mut line).unwrap_or(0) > 0 {
+                if line == "\r\n" || line == "\n" {
+                    break;
+                }
+                line.clear();
+            }
+            let _ = stream.write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1024\r\n\r\nx",
+            );
+            let _ = stream.flush();
+            thread::sleep(std::time::Duration::from_secs(5));
+        }
+    });
+    format!("http://{}", addr)
+}
+
+/// A body that stalls after the headers have arrived ends in a
+/// NetworkTimeoutError with status 0 once the timeout passes.
+#[tokio::test]
+async fn test_bhv_transport_029_a_body_that_stalls_after_the_headers_throws_network_timeout_error()
+{
+    let base_url = start_stalling_body_server();
+    let transport = TransportOptionsBuilder::new()
+        .timeout(Some(300))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let err = client
+        .send_request(
+            "GET",
+            &format!("{}/trickle", base_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect_err("a stalled body must time out");
+
+    let timeout_err = err
+        .downcast_ref::<NetworkTimeoutError>()
+        .unwrap_or_else(|| panic!("expected NetworkTimeoutError, got: {}", err));
+    assert_eq!(0, timeout_err.network_error().api_error().status_code());
+}
+
+/// Starts a server that answers the first `hops` requests with a 302 to
+/// `/hop`, and every later request with `last`.
+fn start_redirect_chain_server(hops: usize, last: &'static str) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        for (i, stream) in listener.incoming().enumerate() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let response = if i < hops {
+                "HTTP/1.1 302 Found\r\nLocation: /hop\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            } else {
+                last
+            };
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_002_a_redirect_chain_inside_the_budget_completes() {
+    let base_url = start_redirect_chain_server(
+        2,
+        "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(3))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("a chain inside the budget must complete");
+
+    assert_eq!(200, response.status_code());
+}
+
+/// With redirects disabled, a 302 is the response and nothing is followed.
+#[tokio::test]
+async fn test_bhv_redirects_007_a_redirect_response_is_returned_when_redirects_are_disabled() {
+    let (base_url, _head) = start_redirect_server(302);
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(false)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(302, response.status_code());
+}
+
+/// Redirects are followed by default: a plain request to a 302 reaches the
+/// Location target without any option being set.
+#[tokio::test]
+async fn test_bhv_redirects_017_a_redirect_is_followed_when_not_suppressed() {
+    let (base_url, head) = start_redirect_server(302);
+    let client = DefaultApiClient::new(None);
+
+    let response = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(200, response.status_code());
+    let follow_up = head.recv().expect("no follow-up request captured");
+    assert!(follow_up.starts_with("GET /next "), "{}", follow_up);
+}
+
+/// The budget is used up on the second hop, whose 3xx carries no Location: that
+/// response comes back unchanged instead of a too-many-redirects error.
+#[tokio::test]
+async fn test_bhv_redirects_023_the_last_3xx_without_a_location_is_returned_when_the_budget_is_used_up(
+) {
+    let base_url = start_redirect_chain_server(
+        1,
+        "HTTP/1.1 302 Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(1))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("a 3xx without a Location is not an error");
+
+    assert_eq!(302, response.status_code());
+}
+
+/// Gap 3.2 variant: `no_redirect` returns a 307 as the response.
+#[tokio::test]
+async fn test_bhv_redirects_015_no_redirect_returns_the_307_response() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 307 Temporary Redirect\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request_with_options(
+            "POST",
+            &format!("{}/token", base_url),
+            &HashMap::new(),
+            None,
+            &RequestOptions::new().no_redirect(true),
+        )
+        .await
+        .expect("no_redirect must return the 3xx, not error");
+
+    assert_eq!(307, response.status_code());
+}
+
+/// `no_redirect` returns a 308 as the response, with the body untouched.
+#[tokio::test]
+async fn test_bhv_redirects_022_no_redirect_returns_the_308_response_verbatim() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 308 Permanent Redirect\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request_with_options(
+            "POST",
+            &format!("{}/token", base_url),
+            &HashMap::new(),
+            None,
+            &RequestOptions::new().no_redirect(true),
+        )
+        .await
+        .expect("no_redirect must return the 3xx, not error");
+
+    assert_eq!(308, response.status_code());
+}
+
+/// A credential-named header survives a redirect that stays on the same origin.
+#[tokio::test]
+async fn test_bhv_redirects_024_a_same_origin_redirect_keeps_the_sensitive_headers() {
+    let (base_url, head) = start_redirect_server(302);
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let mut headers = HashMap::new();
+    headers.insert("X-API-Key".to_string(), "secret-key".to_string());
+
+    client
+        .send_request("GET", &format!("{}/start", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let follow_up = head.recv().expect("no follow-up request captured");
+    assert_eq!(
+        Some("secret-key".to_string()),
+        head_header(&follow_up, "x-api-key"),
+        "{}",
+        follow_up
+    );
+}
+
+/// A closed client refuses a request made through the `ApiClient` trait object.
+#[tokio::test]
+async fn test_bhv_lifecycle_008_closed_client_rejects_further_requests() {
+    let base_url = start_method_echo_server();
+    let client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(None));
+    client.close();
+
+    let err = client
+        .send_request("GET", &format!("{}/echo", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a request on a closed client must fail");
+
+    assert!(matches!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(ConfigurationError::InvalidState(_))
+    ));
+}
+
+/// Closing a client never releases a caller-supplied client, however many times
+/// close runs: a request through the supplied client still reaches the server.
+#[tokio::test]
+async fn test_bhv_lifecycle_020_close_never_closes_a_caller_supplied_http_client() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let supplied = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("valid client");
+    let client = DefaultApiClient::with_client(supplied.clone(), None).expect("no conflict");
+
+    client.close();
+    client.close();
+
+    let status = supplied
+        .get(format!("{}/ping", base_url))
+        .send()
+        .await
+        .expect("the caller's client still sends")
+        .status();
+    assert_eq!(status.as_u16(), 200);
+}
+
+/// A request already running when close runs finishes, observed through the
+/// `ApiClient` trait object.
+#[tokio::test]
+async fn test_bhv_lifecycle_021_closing_the_client_lets_a_running_request_finish() {
+    let base_url = start_delayed_server(400);
+    let client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(None));
+    let in_flight = {
+        let client = client.clone();
+        let url = format!("{}/slow", base_url);
+        tokio::spawn(async move {
+            client
+                .send_request("GET", &url, &HashMap::new(), None)
+                .await
+                .map(|response| response.status_code())
+        })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+
+    client.close();
+
+    let status = in_flight
+        .await
+        .expect("the task must not panic")
+        .expect("the running request must finish");
+    assert_eq!(200, status);
+}
+
+/// An idle client releases its transport at once, and a second close is a no-op.
+#[tokio::test]
+async fn test_bhv_lifecycle_022_idle_close_releases_the_transport_and_a_second_close_is_a_no_op() {
+    let client = DefaultApiClient::new(None);
+
+    client.close();
+    assert!(client.is_closed());
+    client.close();
+    assert!(client.is_closed());
+}

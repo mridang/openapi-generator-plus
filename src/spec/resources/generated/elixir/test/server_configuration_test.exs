@@ -33,7 +33,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
                "https://staging.api.example.com"
     end
 
-    test "accepts an override matching an enum constraint" do
+    test "bhv servers 003 accepts an override that is in the variable enum" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
         variables: %{
@@ -46,6 +46,18 @@ defmodule PetstoreClient.ServerConfigurationTest do
 
       assert ServerConfiguration.url(config, %{"env" => "staging"}) ==
                "https://staging.api.example.com"
+    end
+
+    test "bhv servers 009 resolves the url template from the default variable values" do
+      config = %ServerConfiguration{
+        url_template: "https://{region}.{env}.example.com",
+        variables: %{
+          "region" => %ServerVariable{default_value: "eu"},
+          "env" => %ServerVariable{default_value: "prod"}
+        }
+      }
+
+      assert ServerConfiguration.url(config) == "https://eu.prod.example.com"
     end
 
     test "bhv servers 008 rejects an override outside the enum with ArgumentError" do
@@ -103,7 +115,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
                "https://{version}.api.example.com/v2"
     end
 
-    test "a placeholder with no declared variable is left as written" do
+    test "bhv servers 007 leaves an unknown placeholder in the template untouched" do
       config = %ServerConfiguration{url_template: "https://{unknown}.example.com"}
 
       assert ServerConfiguration.url(config) == "https://{unknown}.example.com"
@@ -167,7 +179,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
   end
 
   describe "the hostile third global server" do
-    test "its url, description, default, variable description and enum values come through unchanged" do
+    test "bhv servers 013 the third global server keeps its hostile text unchanged" do
       config = PetstoreClient.Servers.server_2()
       tenant = config.variables["tenant"]
 

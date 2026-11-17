@@ -16,6 +16,7 @@ import (
 	"time"
 
 	pkgerrors "petstore/pkg/errors"
+	"petstore/pkg/models"
 )
 
 // An optional integer, number or boolean parameter is a pointer in the Options
@@ -177,11 +178,156 @@ func TestBhvSerializationparam019_ValueSerializer_SerializeValue_QueryBooleanFal
 	}
 }
 
-func TestValueSerializer_SerializeValue_QueryArray(t *testing.T) {
+func TestBhvSerializationparam007_ValueSerializer_SerializeValue_QueryArrayCsv(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{"a", "b", "c"}, "query", "array", "csv")
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", result)
+	}
+}
+
+func TestBhvSerializationparam006_ValueSerializer_SerializeValue_QueryArrayDefaultJoinsWithComma(t *testing.T) {
+	t.Parallel()
+	result := serializeValue([]string{"a", "b", "c"}, "query", "array", "")
+	if result != "a,b,c" {
+		t.Errorf("expected 'a,b,c' with no collection format, got %v", result)
+	}
+}
+
+// A null element keeps its empty slot: the joined value has an empty field
+// where the nil element sits.
+func TestBhvSerializationparam001_ValueSerializer_SerializeValue_NullArrayElementKeepsItsEmptySlot(t *testing.T) {
+	t.Parallel()
+	result := serializeValue([]any{"a", nil, "c"}, "query", "array", "csv")
+	if result != "a,,c" {
+		t.Errorf("expected 'a,,c', got %v", result)
+	}
+}
+
+func TestBhvSerializationparam011_ValueSerializer_SerializeValue_NullElementKeepsItsEmptySlotForMulti(t *testing.T) {
+	t.Parallel()
+	result := serializeValue([]any{"a", nil, "c"}, "query", "array", "multi")
+	items, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string for multi, got %T", result)
+	}
+	if len(items) != 3 || items[0] != "a" || items[1] != "" || items[2] != "c" {
+		t.Errorf("expected [a  c] with an empty second entry, got %q", items)
+	}
+}
+
+func TestBhvSerializationparam083_ValueSerializer_SerializeValue_SetExpandsLikeList(t *testing.T) {
+	t.Parallel()
+	set := models.Set[string]{"a", "b"}
+	if result := serializeValue(set, "query", "array", "csv"); result != "a,b" {
+		t.Errorf("expected 'a,b' for a Set in csv, got %v", result)
+	}
+	items, ok := serializeValue(set, "query", "array", "multi").([]string)
+	if !ok || len(items) != 2 || items[0] != "a" || items[1] != "b" {
+		t.Errorf("expected the Set to expand to [a b] for multi, got %v", items)
+	}
+}
+
+func TestBhvSerializationparam027_ValueSerializer_FormatDatePathParam_DayAndYearBoundaryIsDateOnly(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		when time.Time
+		want string
+	}{
+		{time.Date(2024, time.December, 31, 23, 59, 59, 0, time.UTC), "2024-12-31"},
+		{time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC), "2025-01-01"},
+	}
+	for _, tc := range cases {
+		if got := stringifyDate(tc.when); got != tc.want {
+			t.Errorf("expected %q with no time or offset, got %q", tc.want, got)
+		}
+	}
+}
+
+func TestBhvSerializationparam036_ValueSerializer_SerializeStyled_FormExplodeExpandsOnePairPerProperty(t *testing.T) {
+	t.Parallel()
+	breed := "lab"
+	minAge := int32(3)
+	criteria := &styledCriteria{Breed: &breed, MinAge: &minAge}
+	exploded, ok := serializeStyled("criteria", criteria, "query", "styledCriteria", "", "form", true).(queryPairs)
+	if !ok || len(exploded) != 2 || exploded[0] != [2]string{"breed", "lab"} || exploded[1] != [2]string{"min_age", "3"} {
+		t.Errorf("expected breed=lab then min_age=3 as separate entries, got %v", exploded)
+	}
+}
+
+func TestBhvSerializationparam039_ValueSerializer_SerializeStyled_FormNotExplodedIsOneCommaList(t *testing.T) {
+	t.Parallel()
+	breed := "lab"
+	minAge := int32(3)
+	criteria := &styledCriteria{Breed: &breed, MinAge: &minAge}
+	if got := serializeStyled("criteria", criteria, "query", "styledCriteria", "", "form", false); got != "breed,lab,min_age,3" {
+		t.Errorf("expected one comma separated list 'breed,lab,min_age,3', got %v", got)
+	}
+}
+
+func TestBhvSerializationparam066_ValueSerializer_SerializeStyled_NullInPathLocationIsEmptyString(t *testing.T) {
+	t.Parallel()
+	if got := serializeStyled("id", nil, "path", "string", "", "", false); got != "" {
+		t.Errorf("expected empty string for a null path value, got %v", got)
+	}
+}
+
+// Only the RFC 3986 query-legal reserved set stays literal under allowReserved;
+// the gen-delimiters # [ and ] are not query-legal and are percent-encoded.
+func TestBhvSerializationparam068_ValueSerializer_EncodeQueryAllowingReserved_OnlyQueryLegalReservedStayLiteral(t *testing.T) {
+	t.Parallel()
+	got := encodeQueryAllowingReserved(":/?#[]@!$&'()*+,;=")
+	want := ":/?%23%5B%5D@!$&'()*+,;="
+	if got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// Reserved characters are left literal under allowReserved, while every other
+// character that is not legal in a URL is still percent-encoded.
+func TestBhvSerializationparam080_ValueSerializer_EncodeQueryAllowingReserved_OtherCharactersStillEncoded(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"a\"b", "a%22b"},
+		{"a<b", "a%3Cb"},
+		{"a>b", "a%3Eb"},
+		{`a\b`, "a%5Cb"},
+		{"a^b", "a%5Eb"},
+		{"a`b", "a%60b"},
+		{"a{b", "a%7Bb"},
+		{"a|b", "a%7Cb"},
+		{"a}b", "a%7Db"},
+		{"a%b", "a%25b"},
+	}
+	for _, tc := range cases {
+		if got := encodeQueryAllowingReserved(tc.in); got != tc.want {
+			t.Errorf("expected %q encoded as %q, got %q", tc.in, tc.want, got)
+		}
+	}
+	if got := encodeQueryAllowingReserved(":/?@!$&'()*+,;="); got != ":/?@!$&'()*+,;=" {
+		t.Errorf("expected the reserved characters literal, got %q", got)
+	}
+}
+
+// A content-encoded JSON value in a path is segment-encoded exactly once.
+func TestBhvSerializationparam071_ValueSerializer_SerializeStyled_PathJsonIsSegmentEncodedOnce(t *testing.T) {
+	t.Parallel()
+	got := serializeStyled("p", `{"k":"v"}`, "path", "string", "", "simple", false)
+	if got != "%7B%22k%22:%22v%22%7D" {
+		t.Errorf("expected the JSON segment encoded once, got %v", got)
+	}
+}
+
+// A path value that merely contains dots is kept; only "." and ".." are refused.
+func TestBhvSerializationparam072_ValueSerializer_SerializeStyled_PathValueWithInnerDotsIsKept(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"a..b", ".hidden"} {
+		if got := serializeStyled("name", value, "path", "string", "", "simple", false); got != value {
+			t.Errorf("expected %q kept as is, got %v", value, got)
+		}
 	}
 }
 

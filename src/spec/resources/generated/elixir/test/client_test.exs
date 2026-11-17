@@ -133,7 +133,7 @@ defmodule PetstoreClient.ClientTest do
     end
   end
 
-  test "close lets an in-flight request finish and releases the authenticator after it" do
+  test "bhv lifecycle 021 closing the client lets a running request finish and releases the authenticator after it" do
     {_adapter, transport} = blocked_transport()
     authenticator = %ClosingAuthenticator{notify: self()}
     client = PetstoreClient.Client.new(authenticator, transport)
@@ -150,7 +150,7 @@ defmodule PetstoreClient.ClientTest do
     assert_received {:released, nil}
   end
 
-  test "a request that starts after close fails with the one canonical client closed error" do
+  test "bhv lifecycle 008 a request that starts after close fails with the one canonical client closed error" do
     authenticator = %ClosingAuthenticator{notify: self()}
     {_adapter, transport} = blocked_transport()
     client = PetstoreClient.Client.new(authenticator, transport)
@@ -270,6 +270,56 @@ defmodule PetstoreClient.ClientTest do
     assert_received {:released, :default}
     assert_received {:released, :scheme}
     refute_received {:released, _label}
+  end
+
+  test "bhv lifecycle 002 api key header rejects CR, LF and non-ASCII keys at construction" do
+    for key <- ["abc\r", "abc\n", "kéy"] do
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.Auth.ApiKeyAuthenticator.new("/api/v3", "X-Api-Key", key, :header)
+      end
+    end
+  end
+
+  test "bhv lifecycle 003 api key query accepts non-ASCII keys and values" do
+    authenticator =
+      PetstoreClient.Auth.ApiKeyAuthenticator.new("/api/v3", "api_key", "kéy ñ", :query)
+
+    assert PetstoreClient.Auth.ApiKeyAuthenticator.query_params(authenticator) == %{
+             "api_key" => "kéy ñ"
+           }
+  end
+
+  test "bhv lifecycle 007 closing a client leaves its supplied transport usable for another client" do
+    adapter = fn request -> {request, Req.Response.new(status: 200, body: "")} end
+
+    transport =
+      PetstoreClient.TransportOptions.new(req_options: [adapter: adapter], max_retries: 0)
+
+    first = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+    second = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+
+    assert PetstoreClient.Client.close(first) == :ok
+
+    assert {:ok, %{status_code: 200}} = call_through(second).()
+  end
+
+  test "bhv lifecycle 017 takes a token provider instead of a token and calls it for every request" do
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+
+    provider = fn ->
+      "t" <> Integer.to_string(Agent.get_and_update(counter, fn n -> {n + 1, n + 1} end))
+    end
+
+    client =
+      PetstoreClient.Client.new(PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", provider))
+
+    assert PetstoreClient.Auth.BearerAuthenticator.auth_headers(client.authenticator)[
+             "Authorization"
+           ] == "Bearer t1"
+
+    assert PetstoreClient.Auth.BearerAuthenticator.auth_headers(client.authenticator)[
+             "Authorization"
+           ] == "Bearer t2"
   end
 
   test "bhv lifecycle 006 BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do

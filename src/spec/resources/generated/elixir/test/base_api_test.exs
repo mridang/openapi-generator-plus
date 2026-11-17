@@ -710,6 +710,33 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # The header selector negotiates Accept: application/json for this operation,
   # but the config default Accept: application/xml must override it because
   # base_api merges config.default_headers OVER the selected headers.
+  test "bhv operations 008 config default Accept wins over operation-negotiated Accept", %{
+    chasm_url: chasm_url
+  } do
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: chasm_url,
+        default_headers: %{"Accept" => "application/xml"}
+      )
+
+    state = %{config: config, api_client: PetstoreClient.DefaultApiClient.new()}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object"
+             )
+
+    assert result["headers"]["accept"] == "application/xml"
+  end
+
   test "bhv options 001 config default Accept overrides operation-negotiated Accept", %{
     chasm_url: chasm_url
   } do
@@ -968,6 +995,32 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     # chasm echoes the request headers (lowercased) under .headers
     assert result["headers"]["cookie"] == "session=abc123"
+  end
+
+  test "bhv authintegration 004 appends auth cookies to a Cookie header the operation already set",
+       %{state: state} do
+    auth = %TestAuthenticator{
+      host_url: "",
+      headers: %{},
+      query: %{},
+      cookies: %{"session" => "abc123"}
+    }
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{"Cookie" => "theme=dark"},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object",
+               auth
+             )
+
+    assert result["headers"]["cookie"] == "theme=dark; session=abc123"
   end
 
   # An authenticator cookie holding characters RFC 6265 forbids is a caller
@@ -1278,7 +1331,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "bhv serializationwire 017 octet-stream binary response roundtrips exactly via base64 decode" do
+  test "bhv serializationwire 017 bhv serializationwire 018 octet-stream binary response roundtrips exactly via base64 decode" do
     original = <<0x00, 0xFF, 0x42>>
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: OctetStreamApiClient}
@@ -1362,7 +1415,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert is_binary(result)
   end
 
-  test "bhv operations 010 empty body returns nil" do
+  test "bhv serializationwire 006 bhv operations 010 empty body returns nil" do
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: EmptyBinaryApiClient}
 
@@ -1505,7 +1558,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Charset-aware response decoding (Gap H)
 
-  test "decode_text_body decodes ISO-8859-1 to é" do
+  test "bhv serializationwire 032 decode_text_body decodes ISO-8859-1 to é" do
     result =
       PetstoreClient.DefaultApiClient.decode_text_body(
         <<0xE9>>,
@@ -1515,14 +1568,14 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert result == "é"
   end
 
-  test "decode_text_body with no charset returns bytes unchanged (UTF-8 default)" do
+  test "bhv serializationwire 034 decode_text_body with no charset returns bytes unchanged (UTF-8 default)" do
     result =
       PetstoreClient.DefaultApiClient.decode_text_body("hello", "text/plain")
 
     assert result == "hello"
   end
 
-  test "decode_text_body with unknown charset falls back to UTF-8 (no exception)" do
+  test "bhv serializationwire 035 decode_text_body with unknown charset falls back to UTF-8 (no exception)" do
     bytes = "hello"
 
     result =
@@ -2379,7 +2432,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # Behavior #4: a multipart file part derives its Content-Type from the
   # filename extension (.png -> image/png), falling back to
   # application/octet-stream for an unknown/extension-less filename.
-  test "multipart file part Content-Type is derived from the filename extension" do
+  test "bhv serializationwire 037 bhv serializationwire 039 bhv serializationwire 047 multipart file part Content-Type is derived from the filename extension" do
     body = %{"file" => {:file, "avatar.png", <<1, 2, 3>>}}
     serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
@@ -2387,7 +2440,21 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "Expected image/png for .png file, got: #{serialized}"
   end
 
-  test "bhv authintegration 008 multipart file part falls back to application/octet-stream for unknown extension" do
+  test "bhv serializationwire 038 a pdf file part is application/pdf" do
+    body = %{"file" => {:file, "report.pdf", <<1, 2, 3>>}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: application/pdf")
+  end
+
+  test "bhv serializationwire 036 the file extension is matched case-insensitively" do
+    body = %{"file" => {:file, "AVATAR.PNG", <<1, 2, 3>>}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: image/png")
+  end
+
+  test "bhv authintegration 008 bhv serializationwire 040 multipart file part falls back to application/octet-stream for unknown extension" do
     body = %{"file" => {:file, "blob", <<1, 2, 3>>}}
     serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
@@ -2399,7 +2466,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # reuses the field name as the filename and derives its Content-Type from
   # that name's extension, falling back to application/octet-stream when the
   # name has none. Matches the cross-language go/node/java contract.
-  test "multipart raw-bytes part reuses field name as filename and falls back to octet-stream" do
+  test "bhv serializationwire 049 multipart raw-bytes part reuses field name as filename and falls back to octet-stream" do
     body = %{"file" => {:raw, <<0, 1, 2>>}}
     serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
@@ -2413,7 +2480,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # Behavior #5: a non-ASCII multipart field name is preserved verbatim as
   # UTF-8 in the Content-Disposition `name=` parameter — not transliterated
   # to `?` and not stripped.
-  test "multipart non-ASCII field name is preserved as UTF-8" do
+  test "bhv serializationwire 046 multipart non-ASCII field name is preserved as UTF-8" do
     body = %{"имя" => "value"}
     serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
 
@@ -2422,6 +2489,23 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     refute String.contains?(serialized, "name=\"?\""),
            "Field name must not be transliterated to ?, got: #{serialized}"
+  end
+
+  test "bhv serializationwire 045 multipart model part uses wire property names and date time format" do
+    pet = %PetstoreClient.Models.Pet{name: "rex", photo_urls: []}
+    body = %{"pet" => pet}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: application/json")
+    assert String.contains?(serialized, "\"photoUrls\"")
+    refute String.contains?(serialized, "photo_urls")
+
+    when_sent = ~U[2024-01-02 03:04:05Z]
+
+    stamped =
+      PetstoreClient.DefaultApiClient.build_multipart_body(%{"at" => when_sent}, "BOUNDARY")
+
+    assert String.contains?(stamped, "2024-01-02T03:04:05.000+00:00")
   end
 
   # Behavior #6: deserializing an out-of-schema enum value raises the SDK
@@ -2545,6 +2629,34 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(token_requests(client)) == 2
   end
 
+  test "bhv authintegration 001 a failed re-authentication leaves the 401 as it is" do
+    client =
+      ScriptedApiClient.new(fn url, _headers, requests ->
+        if String.ends_with?(url, "/token") do
+          issued =
+            Enum.count(requests, fn {requested, _} -> String.ends_with?(requested, "/token") end)
+
+          if issued == 1 do
+            %PetstoreClient.ApiHttpResponse{
+              status_code: 200,
+              headers: %{},
+              body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+            }
+          else
+            %PetstoreClient.ApiHttpResponse{status_code: 500, headers: %{}, body: ""}
+          end
+        else
+          %PetstoreClient.ApiHttpResponse{status_code: 401, headers: %{}, body: ""}
+        end
+      end)
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{status_code: 401}} =
+             put_thing(oauth_state(client), nil, "application/json")
+
+    assert length(api_requests(client)) == 1
+    assert length(token_requests(client)) == 2
+  end
+
   test "bhv retries 002 a 401 is never replayed for a bearer token or an operation without authentication" do
     client = ScriptedApiClient.new(token_answer(fn _ -> 401 end))
 
@@ -2638,7 +2750,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     )
   end
 
-  test "a call is retried on 408, 409, 429 and 5xx other than 501, and then succeeds" do
+  test "bhv retries 021 a call is retried on 408, 409, 429 and 5xx other than 501, and then succeeds" do
     for status <- [408, 409, 429, 500, 502, 503, 504] do
       state = retry_state([{status, [{"retry-after", "0"}]}, 200])
 
@@ -2647,7 +2759,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "a call that keeps failing is tried max_retries + 1 times and reports the last response" do
+  test "bhv retries 024 a call that keeps failing is tried max_retries + 1 times and reports the last response" do
     state = retry_state([{500, [{"retry-after", "0"}]}])
 
     assert {:error, %PetstoreClient.Errors.InternalServerError{status_code: 500}} =
@@ -2661,7 +2773,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
-  test "max_retries 0 sends the request once" do
+  test "bhv retries 018 max_retries 0 sends the request once" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
 
     assert {:error, %PetstoreClient.Errors.ServerError{status_code: 503}} = get_thing(state)
@@ -2677,7 +2789,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "a network error before any response is retried" do
+  test "bhv retries 013 a network error before any response is retried" do
     state = retry_state([{:transport_error, :econnrefused}, 200], max_retries: 1)
 
     assert {:ok, _} = get_thing(state)
@@ -2705,7 +2817,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
-  test "a retry never waits past the end-to-end timeout" do
+  test "bhv retries 025 a retry never waits past the end-to-end timeout" do
     started = System.monotonic_time(:millisecond)
 
     asked = retry_state([{503, [{"retry-after", "5"}]}, 200], timeout: 300)
@@ -2751,7 +2863,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     )
   end
 
-  test "bhv retries 004 a per-call max_retries replaces the transport's for that call only" do
+  test "bhv retries 014 bhv retries 004 a per-call max_retries replaces the transport's for that call only" do
     state = retry_state([{500, [{"retry-after", "0"}]}])
 
     assert {:error, _} = get_thing_with(state, max_retries: 0)
@@ -2826,7 +2938,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "bhv errors 036 an error response names the request, without its query string" do
+  test "bhv errors 026 bhv errors 036 an error response names the request, without its query string" do
     state = retry_state([404])
 
     assert {:error, %PetstoreClient.Errors.NotFoundError{} = error} =
@@ -2899,7 +3011,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert {:ok, %PetstoreClient.Models.Tag{}} = decode_as(return_type, 201)
   end
 
-  test "bhv retries 007 the retry policy: statuses, backoff and Retry-After" do
+  test "bhv retries 022 bhv retries 023 bhv retries 007 the retry policy: statuses, backoff and Retry-After" do
     for status <- [408, 409, 429, 500, 502, 503, 599] do
       assert PetstoreClient.Api.BaseApi.retryable_status?(status)
     end

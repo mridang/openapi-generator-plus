@@ -57,7 +57,7 @@ func TestBhvUnions013_ComposedSchema_PetFood_DeserializeWetFood(t *testing.T) {
 	}
 }
 
-func TestComposedSchema_PetFood_DeserializeUnknownDiscriminator(t *testing.T) {
+func TestBhvUnions016_ComposedSchema_PetFood_DeserializeUnknownDiscriminator(t *testing.T) {
 	t.Parallel()
 	// Gap AU: SDK now throws on unknown discriminator values for parity
 	// with the other 11 SDKs. Previously this test asserted silent nil.
@@ -70,6 +70,9 @@ func TestComposedSchema_PetFood_DeserializeUnknownDiscriminator(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown discriminator") {
 		t.Errorf("expected 'unknown discriminator' in error message, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), `"raw"`) {
+		t.Errorf("expected the unknown value named in the error message, got: %v", err)
 	}
 }
 
@@ -327,6 +330,34 @@ func TestBhvUnions010_ComposedSchema_PetTreatment_SharedPropertyCollisionLastWin
 	}
 }
 
+// anyOf variants keep their declared order, not alphabetical order: the same
+// payload matches Surgery first in TreatmentRecord, which declares Surgery
+// first, and Medication first in PetTreatment, which declares Medication first.
+func TestBhvUnions005_ComposedSchema_AnyOfKeepsDeclaredOrderNotAlphabetical(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"drugName":"Amoxicillin","procedureName":"Spay"}`)
+
+	var record models.TreatmentRecord
+	if err := json.Unmarshal(payload, &record); err != nil {
+		t.Fatalf("failed to deserialize TreatmentRecord: %v", err)
+	}
+	var treatment models.PetTreatment
+	if err := json.Unmarshal(payload, &treatment); err != nil {
+		t.Fatalf("failed to deserialize PetTreatment: %v", err)
+	}
+	recordMatches := record.MatchedInstances()
+	treatmentMatches := treatment.MatchedInstances()
+	if len(recordMatches) != 2 || len(treatmentMatches) != 2 {
+		t.Fatalf("expected two matched variants each, got %d and %d", len(recordMatches), len(treatmentMatches))
+	}
+	if _, ok := recordMatches[0].(models.Surgery); !ok {
+		t.Errorf("expected TreatmentRecord to try Surgery first, got %T", recordMatches[0])
+	}
+	if _, ok := treatmentMatches[0].(models.Medication); !ok {
+		t.Errorf("expected PetTreatment to try Medication first, got %T", treatmentMatches[0])
+	}
+}
+
 // TreatmentRecord declares its variants as Surgery then Medication, the reverse
 // of alphabetical order: the variants are tried, and kept, in declaration order,
 // and on a shared property the later declared variant (Medication) wins.
@@ -481,6 +512,22 @@ func TestBhvUnions017_ComposedSchema_PetWithOwner_RoundTrip(t *testing.T) {
 // reaches the wire. These tests pin that contract and the scalar-vs-array
 // decode ordering.
 
+// A base64 string on the wire is the scalar []byte variant, never an array.
+func TestBhvUnions018_ComposedSchema_SetPetAvatarThumbnailRequest_ScalarBase64StringResolvesToTheScalarVariant(t *testing.T) {
+	t.Parallel()
+	var request models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal([]byte(`"AQIDBA=="`), &request); err != nil {
+		t.Fatalf("failed to deserialize scalar base64 string: %v", err)
+	}
+	got, ok := request.ActualInstance().([]byte)
+	if !ok {
+		t.Fatalf("expected the scalar []byte variant, got %T", request.ActualInstance())
+	}
+	if want := []byte{0x01, 0x02, 0x03, 0x04}; string(got) != string(want) {
+		t.Errorf("expected the decoded bytes %v, got %v", want, got)
+	}
+}
+
 func TestBhvUnions023_ComposedSchema_SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64(t *testing.T) {
 	t.Parallel()
 
@@ -632,7 +679,7 @@ func TestComposedSchema_DryFood_NullDiscriminatorPropertyIsStillRejected(t *test
 
 // ── Typed variant constructors and accessors ──
 
-func TestComposedSchema_PetFood_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
+func TestBhvUnions001_ComposedSchema_PetFood_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
 	t.Parallel()
 	food := models.NewDryFoodPetFood(*models.NewDryFood(2.5))
 

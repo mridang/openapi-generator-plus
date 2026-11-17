@@ -266,6 +266,49 @@ async fn test_bhv_authoauthtwoclientcred_003_caches_token_across_calls() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwoclientcred_005_invalidate_access_token_drops_the_cached_token() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let first = auth.try_auth_headers().await.expect("should succeed");
+    auth.invalidate_access_token().await;
+    let second = auth.try_auth_headers().await.expect("should succeed");
+
+    assert_eq!("Bearer tok1", first.get("Authorization").unwrap());
+    assert_eq!("Bearer tok2", second.get("Authorization").unwrap());
+}
+
+/// The request body keeps `-._~` and the alphanumerics literal and
+/// percent-encodes `*`, `!`, `'`, `(` and `)`, the same set as the Basic header.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwoclientcred_006_body_keeps_tilde_literal_and_encodes_sub_delimiters() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"at","expires_in":3600}"#, 200);
+    let mut auth = OAuth2ClientCredentialsAuthenticator::new(
+        "https://api.example.com",
+        "id~1-2_3.4*5!6'7(8)",
+        "secret",
+        "https://auth.example.com/token",
+        vec!["read".to_string()],
+    );
+    auth.set_api_client(client.clone());
+
+    auth.auth_headers().await;
+
+    let body = client.last_body().expect("should have body");
+    assert!(
+        body.split('&')
+            .any(|pair| pair == "client_id=id~1-2_3.4%2A5%216%277%288%29"),
+        "token request body: {}",
+        body
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_bhv_authoauthtwoclientcred_002_basic_auth_url_encodes_client_id_and_secret() {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-

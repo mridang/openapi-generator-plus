@@ -197,6 +197,12 @@ defmodule PetstoreClient.TransportOptions do
     end
 
     if result.proxy do
+      # URI.parse/1 accepts an IPv6 host with no closing bracket, so it is refused here.
+      if String.contains?(result.proxy, "[") and not String.contains?(result.proxy, "]") do
+        raise ArgumentError,
+              "Invalid proxy URL (unterminated IPv6 literal): #{mask_userinfo(result.proxy)}"
+      end
+
       parsed = URI.parse(result.proxy)
 
       unless parsed.scheme in ["http", "https"] do

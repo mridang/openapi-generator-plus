@@ -1163,7 +1163,7 @@ mod tests {
 
     /* D16: the redirect refusal texts, with the query and fragment left out. */
     #[test]
-    fn test_redirect_refusal_messages_are_canonical_and_credential_free() {
+    fn test_bhv_redirects_019_redirect_refusal_messages_are_canonical_and_credential_free() {
         let file = reqwest::Url::parse("file:///etc/passwd?k=secret#frag").unwrap();
         assert_eq!(
             "Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd",
@@ -1323,6 +1323,55 @@ mod tests {
         assert!(!is_https_to_http_body_replay(
             303,
             "PUT",
+            Some(&https),
+            &http,
+            true
+        ));
+    }
+
+    /* A 307 or 308 that keeps the body across an HTTPS to HTTPS hop is replayed. */
+    #[test]
+    fn test_bhv_retries_016_https_to_https_redirect_with_a_body_is_replayed() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let https2 = reqwest::Url::parse("https://example.com/y").unwrap();
+        assert!(!is_https_to_http_body_replay(
+            307,
+            "PUT",
+            Some(&https),
+            &https2,
+            true
+        ));
+        assert!(!is_https_to_http_body_replay(
+            308,
+            "POST",
+            Some(&https),
+            &https2,
+            true
+        ));
+    }
+
+    /* A 307 that downgrades HTTPS to HTTP with a PUT body is refused. */
+    #[test]
+    fn test_bhv_retries_017_https_to_http_downgrade_refuses_the_body_on_307() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(is_https_to_http_body_replay(
+            307,
+            "PUT",
+            Some(&https),
+            &http,
+            true
+        ));
+    }
+
+    /* A POST body is not replayed across a 307 from HTTPS to HTTP. */
+    #[test]
+    fn test_bhv_retries_020_refuses_to_replay_a_post_body_redirected_from_https_to_http() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(is_https_to_http_body_replay(
+            307,
+            "POST",
             Some(&https),
             &http,
             true
@@ -1491,7 +1540,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multipart_file_part_content_type_png_from_extension() {
+    fn test_bhv_serializationwire_039_multipart_file_part_content_type_png_from_extension() {
         let fields = [(
             "avatar.png".to_string(),
             MultipartValue::Bytes(vec![0x89, 0x50, 0x4e, 0x47]),
@@ -1506,7 +1555,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multipart_file_part_content_type_json_from_extension() {
+    fn test_bhv_serializationwire_037_multipart_file_part_content_type_json_from_extension() {
         let fields = [(
             "data.json".to_string(),
             MultipartValue::Bytes(b"{}".to_vec()),
@@ -1521,7 +1570,8 @@ mod tests {
     }
 
     #[test]
-    fn test_multipart_file_part_content_type_unknown_extension_falls_back() {
+    fn test_bhv_serializationwire_040_multipart_file_part_content_type_unknown_extension_falls_back(
+    ) {
         let fields = [("file".to_string(), MultipartValue::Bytes(vec![1, 2, 3]))];
         let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
@@ -1537,7 +1587,8 @@ mod tests {
      * the field name carries no (known) extension. Mirrors the cross-language
      * contract already implemented by go, node, and java. */
     #[test]
-    fn test_multipart_raw_bytes_part_reuses_field_name_as_filename_and_octet_stream() {
+    fn test_bhv_serializationwire_049_multipart_raw_bytes_part_reuses_field_name_as_filename_and_octet_stream(
+    ) {
         let fields = [(
             "file".to_string(),
             MultipartValue::Bytes(vec![0x00, 0x01, 0x02]),
@@ -1552,6 +1603,62 @@ mod tests {
         assert!(
             body_str.contains("Content-Type: application/octet-stream\r\n"),
             "raw-bytes part with no extension must use application/octet-stream, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationwire_038_multipart_pdf_file_part_sets_application_pdf() {
+        let fields = [(
+            "report.pdf".to_string(),
+            MultipartValue::Bytes(b"%PDF-1.4".to_vec()),
+        )];
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: application/pdf\r\n"),
+            ".pdf file part must derive application/pdf Content-Type, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationwire_047_multipart_png_file_part_is_the_exact_image_png_part() {
+        let fields = [(
+            "avatar.png".to_string(),
+            MultipartValue::Bytes(vec![0x89, 0x50, 0x4e, 0x47]),
+        )];
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
+        let expected = b"--BOUNDARY\r\nContent-Disposition: form-data; name=\"avatar.png\"; filename=\"avatar.png\"\r\nContent-Type: image/png\r\n\r\n\x89PNG\r\n--BOUNDARY--\r\n";
+        assert_eq!(body, expected);
+    }
+
+    #[test]
+    fn test_bhv_serializationwire_048_multipart_primitives_are_plain_text_and_only_models_are_json()
+    {
+        let fields = [
+            ("count".to_string(), MultipartValue::Text("3".to_string())),
+            (
+                "meta".to_string(),
+                MultipartValue::Json("{\"a\":1}".to_string()),
+            ),
+        ];
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
+        let body_str = String::from_utf8_lossy(&body).into_owned();
+        assert!(
+            body_str.contains("Content-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n"),
+            "a primitive part must be plain text with no Content-Type, got: {}",
+            body_str
+        );
+        assert!(
+            body_str.contains("Content-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json\r\n\r\n{\"a\":1}\r\n"),
+            "an object part must be the JSON part, got: {}",
+            body_str
+        );
+        assert_eq!(
+            body_str.matches("Content-Type: application/json").count(),
+            1,
+            "only the object part may carry application/json, got: {}",
             body_str
         );
     }
@@ -1574,7 +1681,8 @@ mod tests {
      * through `serialize_multipart_body` (the lowest-level multipart writer the
      * operation ultimately drives) and asserts on the captured body bytes. */
     #[test]
-    fn test_multipart_model_part_uses_wire_property_names_and_datetime_format() {
+    fn test_bhv_serializationwire_045_multipart_model_part_uses_wire_property_names_and_datetime_format(
+    ) {
         use crate::date_time::DateTime;
 
         /* Build a PhotoMetadata exactly as a caller of the multipart operation would,
@@ -1655,7 +1763,7 @@ mod tests {
      * parameter — never transliterated to `?` nor stripped. */
 
     #[test]
-    fn test_multipart_non_ascii_field_name_preserved_as_utf8_text_part() {
+    fn test_bhv_serializationwire_046_multipart_non_ascii_field_name_preserved_as_utf8_text_part() {
         let field_name = "café"; // 'é' is U+00E9 -> UTF-8 0xC3 0xA9
         let fields = [(
             field_name.to_string(),
@@ -1722,7 +1830,8 @@ mod tests {
      * ASCII fallback has one underscore for it, and filename* carries its four
      * UTF-8 bytes. */
     #[test]
-    fn test_build_filename_directive_non_bmp_character_is_one_underscore_in_the_fallback() {
+    fn test_bhv_serializationwire_028_build_filename_directive_non_bmp_character_is_one_underscore_in_the_fallback(
+    ) {
         assert_eq!(
             "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
             build_filename_directive("\u{1F600}.png")
@@ -1741,7 +1850,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_filename_directive_backslash_escapes_quotes() {
+    fn test_bhv_serializationwire_042_build_filename_directive_backslash_escapes_quotes() {
         let directive = build_filename_directive("a\"b.txt");
         assert!(
             directive.contains("a\\\"b.txt"),
@@ -1753,7 +1862,7 @@ mod tests {
     /// Non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
     /// rather than raw UTF-8 inside the quoted filename="" form.
     #[test]
-    fn test_multipart_filename_non_ascii_emits_rfc5987() {
+    fn test_bhv_serializationwire_044_multipart_filename_non_ascii_emits_rfc5987() {
         let directive = build_filename_directive("日本.pdf");
         assert!(
             directive.contains("filename*=UTF-8''"),
@@ -1774,7 +1883,7 @@ mod tests {
 
     /// ASCII-only filenames must NOT emit a filename*= parameter.
     #[test]
-    fn test_multipart_filename_ascii_only_omits_filename_star() {
+    fn test_bhv_serializationwire_041_multipart_filename_ascii_only_omits_filename_star() {
         let directive = build_filename_directive("file.png");
         assert_eq!(directive, "filename=\"file.png\"");
         assert!(
@@ -1796,14 +1905,14 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_multipart_filename_rejects_nul() {
+    fn test_bhv_serializationwire_050_validate_multipart_filename_rejects_nul() {
         assert!(validate_multipart_filename("a\u{0}b.pdf").is_err());
     }
 
     /// Filenames containing CR/LF/NUL must be rejected to prevent
     /// Content-Disposition header injection.
     #[test]
-    fn test_multipart_filename_crlf_rejected() {
+    fn test_bhv_serializationwire_043_multipart_filename_crlf_rejected() {
         for bad in &["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\0b.pdf"] {
             assert!(
                 validate_multipart_filename(bad).is_err(),
@@ -1855,20 +1964,20 @@ mod tests {
     /* ── Response charset decoding ── */
 
     #[test]
-    fn test_decode_text_body_iso_8859_1() {
+    fn test_bhv_serializationwire_032_decode_text_body_iso_8859_1() {
         /* 0xE9 is "é" in ISO-8859-1. */
         let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
         assert_eq!(decoded, "é");
     }
 
     #[test]
-    fn test_decode_text_body_defaults_to_utf8_when_no_charset() {
+    fn test_bhv_serializationwire_034_decode_text_body_defaults_to_utf8_when_no_charset() {
         let decoded = decode_text_body("héllo".as_bytes(), "text/plain");
         assert_eq!(decoded, "héllo");
     }
 
     #[test]
-    fn test_decode_text_body_unknown_charset_falls_back_to_utf8() {
+    fn test_bhv_serializationwire_035_decode_text_body_unknown_charset_falls_back_to_utf8() {
         /* Unknown charset must not panic and must fall back to UTF-8. */
         let decoded =
             decode_text_body("héllo".as_bytes(), "text/plain; charset=not-a-real-charset");
@@ -1881,7 +1990,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_text_body_honours_iso_8859_1_charset() {
+    fn test_bhv_serializationwire_033_decode_text_body_honours_iso_8859_1_charset() {
         /* 0xE9 in ISO-8859-1 is "é"; UTF-8 lossy would yield U+FFFD. */
         let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
         assert_eq!(decoded, "é");
@@ -1909,7 +2018,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_text_body_bare_utf16_no_bom_is_big_endian() {
+    fn test_bhv_serializationwire_031_decode_text_body_bare_utf16_no_bom_is_big_endian() {
         /* RFC 2781: a UTF-16 body with no BOM defaults to BIG-ENDIAN.
          * "Tag" as UTF-16BE without a BOM is 00 54 00 61 00 67. */
         let big_endian_bytes = [0x00, 0x54, 0x00, 0x61, 0x00, 0x67];
@@ -1932,7 +2041,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_text_body_utf16_honours_be_bom() {
+    fn test_bhv_serializationwire_030_decode_text_body_utf16_honours_be_bom() {
         /* A UTF-16BE BOM (FE FF) selects big-endian explicitly.
          * "Tag" as UTF-16BE: FE FF 00 54 00 61 00 67. */
         let be_with_bom = [0xFE, 0xFF, 0x00, 0x54, 0x00, 0x61, 0x00, 0x67];
@@ -1946,7 +2055,7 @@ mod tests {
     /// to the cross-origin redirect strip allowlist. The static base set
     /// (authorization / cookie / proxy-authorization) must always be present.
     #[test]
-    fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
+    fn test_bhv_transport_057_sensitive_header_allowlist_contains_fixed_credential_headers() {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
         assert!(
             names.contains(&"authorization"),
@@ -1971,7 +2080,7 @@ mod tests {
     /* ── spec-declared API-key header names are sensitive ── */
 
     #[test]
-    fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {
+    fn test_bhv_transport_056_sensitive_header_allowlist_includes_spec_api_key_headers() {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
         assert!(
             names.contains(&"x-api-key"),

@@ -101,6 +101,35 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert %PetstoreClient.Models.Surgery{} = result
     end
 
+    test "bhv unions 001 a factory wraps its variant and only its is accessor answers true" do
+      medication = %PetstoreClient.Models.Medication{drug_name: "Amoxicillin", dosage: "500mg"}
+
+      wrapped = PetstoreClient.Models.PetTreatment.from_medication(medication)
+
+      assert wrapped == medication
+      assert PetstoreClient.Models.PetTreatment.medication?(wrapped)
+      refute PetstoreClient.Models.PetTreatment.surgery?(wrapped)
+      assert PetstoreClient.Models.PetTreatment.as_medication(wrapped) == medication
+    end
+
+    test "bhv unions 011 anyOf wrappers have value equality and a matching hash" do
+      json =
+        ~s({"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45})
+
+      first = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
+      second = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
+
+      other =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"drugName":"Doxycycline","dosage":"100mg"}),
+          "PetTreatment"
+        )
+
+      assert first == second
+      assert :erlang.phash2(first) == :erlang.phash2(second)
+      refute first == other
+    end
+
     test "bhv unions 003 a single-variant anyOf is its own actual and matched instance" do
       json = ~s({"drugName":"Amoxicillin","dosage":"500mg"})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
@@ -286,7 +315,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert restored == raw
     end
 
-    test "array-of-byte variant serializes to an array of base64 strings and round-trips" do
+    test "bhv unions 022 array-of-byte variant serializes to an array of base64 strings and round-trips" do
       first = <<0x01, 0x02, 0x03, 0x04>>
       second = <<0x05, 0x06>>
 

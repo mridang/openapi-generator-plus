@@ -79,6 +79,44 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.max_redirects == nil
   end
 
+  test "bhv options 027 max_retries given to new/1 reaches the client, and 0 disables retries" do
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(max_retries: 0))
+
+    assert client.transport_options.max_retries == 0
+  end
+
+  test "bhv options 010 a proxy URL with an unterminated IPv6 literal is rejected with its reason" do
+    error =
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.TransportOptions.new(proxy: "http://[::1:3128")
+      end
+
+    assert error.message == "Invalid proxy URL (unterminated IPv6 literal): http://[::1:3128"
+  end
+
+  test "bhv options 031 a proxy URL is rejected with the exact message for its reason" do
+    for {url, message} <- [
+          {"proxy.example.com:8080",
+           "Invalid proxy URL (must use http or https scheme): proxy.example.com:8080"},
+          {"http://", "Invalid proxy URL (missing host): http://"}
+        ] do
+      error =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.TransportOptions.new(proxy: url)
+        end
+
+      assert error.message == message
+    end
+  end
+
+  test "bhv options 042 user_agent defaults to the package name, its version and the language" do
+    user_agent = PetstoreClient.TransportOptions.new().user_agent
+
+    assert String.starts_with?(user_agent, "petstore_client/")
+    assert String.ends_with?(user_agent, " (elixir)")
+  end
+
   test "bhv options 026 max_retries defaults to 2 and 0 turns retries off" do
     assert PetstoreClient.TransportOptions.new().max_retries == 2
     assert PetstoreClient.TransportOptions.new(max_retries: 0).max_retries == 0

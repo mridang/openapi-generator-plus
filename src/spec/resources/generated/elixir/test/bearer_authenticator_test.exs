@@ -90,7 +90,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer xyz"
     end
 
-    test "an empty or absent environment variable fails when the authenticator is built" do
+    test "bhv lifecycle 013 an empty or absent environment variable fails when no token is passed" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
       on_exit(fn -> System.delete_env(name) end)
       message = "Missing the credential 'token': pass it, or set the environment variable #{name}"
@@ -105,6 +105,25 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
 
       assert_raise ArgumentError, message, fn ->
         BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv lifecycle 014 reads the token from the environment when none is passed" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "env-token")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer env-token"
+    end
+
+    test "bhv lifecycle 016 a token provider that fails stops the request before it is sent" do
+      auth =
+        BearerAuthenticator.new("https://api.example.com", fn -> raise "token provider failed" end)
+
+      assert_raise RuntimeError, "token provider failed", fn ->
+        BearerAuthenticator.auth_headers(auth)
       end
     end
 
@@ -132,6 +151,25 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
 
     # authenticator-secret-in-default-string-repr: the token must never
     # appear in the authenticator's default Inspect representation.
+    test "bhv authbearer 013 the redacted representation shows the host and masks the token" do
+      auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
+
+      assert inspect(auth) =~ ~s(host: "https://api.example.com")
+      refute inspect(auth) =~ "super-secret-token"
+    end
+
+    test "bhv authbearer 006 a generated scheme wrapper emits a bearer header and masks the token" do
+      wrapper =
+        PetstoreClient.Auth.PetStoreBearerAuthenticator.new("https://api.example.com", "xyz")
+
+      assert BearerAuthenticator.auth_headers(wrapper) == %{"Authorization" => "Bearer xyz"}
+      refute inspect(wrapper) =~ "xyz"
+
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.Auth.PetStoreBearerAuthenticator.new("https://api.example.com", "")
+      end
+    end
+
     test "bhv authbearer 011 default inspect/1 redacts the token but keeps the host" do
       auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
 

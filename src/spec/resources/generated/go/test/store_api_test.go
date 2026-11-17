@@ -514,6 +514,79 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 	})
 }
 
+// An array of integer arrays decodes into nested int32 slices.
+func TestBhvOperations109_StoreApi_GetMatrixDecodesAnArrayOfIntegerArrays(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`[[1,2],[3,4]]`, func(*http.Request) {})
+	defer server.Close()
+	result, err := newStoreApiForMock(t, server).GetMatrix(context.Background())
+	if err != nil {
+		t.Fatalf("GetMatrix failed: %v", err)
+	}
+	if len(result) != 2 || len(result[1]) != 2 || result[1][0] != 3 {
+		t.Errorf("expected [[1 2] [3 4]], got %v", result)
+	}
+}
+
+// A bare enum response decodes into its typed member.
+func TestBhvOperations113_StoreApi_GetSwatchDecodesABareEnum(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`"green"`, func(*http.Request) {})
+	defer server.Close()
+	result, err := newStoreApiForMock(t, server).GetSwatch(context.Background())
+	if err != nil {
+		t.Fatalf("GetSwatch failed: %v", err)
+	}
+	if result == nil || *result != models.SwatchGreen {
+		t.Errorf("expected green, got %v", result)
+	}
+}
+
+// Enum leaves inside an array of maps decode into typed Swatch values.
+func TestBhvOperations114_StoreApi_GetSwatchGroupsDecodesEnumLeavesIntoSwatch(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`[{"warm":"red"},{"cool":"blue"}]`, func(*http.Request) {})
+	defer server.Close()
+	result, err := newStoreApiForMock(t, server).GetSwatchGroups(context.Background())
+	if err != nil {
+		t.Fatalf("GetSwatchGroups failed: %v", err)
+	}
+	if len(result) != 2 || result[0]["warm"] != models.SwatchRed || result[1]["cool"] != models.SwatchBlue {
+		t.Errorf("expected typed swatches per group, got %v", result)
+	}
+}
+
+// Date-time leaves inside an array of maps decode into DateTime values.
+func TestBhvOperations115_StoreApi_GetTimestampGroupsDecodesDateTimeLeavesIntoDate(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`[{"created":"2024-01-02T03:04:05.000Z"}]`, func(*http.Request) {})
+	defer server.Close()
+	result, err := newStoreApiForMock(t, server).GetTimestampGroups(context.Background())
+	if err != nil {
+		t.Fatalf("GetTimestampGroups failed: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(result))
+	}
+	if got := result[0]["created"].Time().UTC().Format("2006-01-02T15:04:05"); got != "2024-01-02T03:04:05" {
+		t.Errorf("expected the timestamp to decode, got %s", got)
+	}
+}
+
+// A self-recursive model decodes into typed nodes, each holding its child.
+func TestBhvOperations116_StoreApi_GetTreeDecodesTheSelfRecursiveModel(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`{"value":"root","child":{"value":"leaf"}}`, func(*http.Request) {})
+	defer server.Close()
+	result, err := newStoreApiForMock(t, server).GetTree(context.Background())
+	if err != nil {
+		t.Fatalf("GetTree failed: %v", err)
+	}
+	if result == nil || result.Value != "root" || result.Child == nil || result.Child.Value != "leaf" {
+		t.Errorf("expected root with a leaf child, got %+v", result)
+	}
+}
+
 // A model that refers back to the one that contains it decodes through the
 // operation without recursing forever.
 func TestBhvOperations108_StoreApi_GetDepartmentDecodesTheMutualReference(t *testing.T) {

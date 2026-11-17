@@ -37,7 +37,7 @@ fn server_with_vars() -> ServerConfiguration {
 }
 
 #[test]
-fn test_bhv_servers_010_url_substitutes_overrides() {
+fn test_bhv_servers_010_bhv_servers_001_url_substitutes_overrides() {
     let server = server_with_vars();
 
     let mut overrides = HashMap::new();
@@ -71,7 +71,7 @@ fn test_bhv_servers_008_url_rejects_value_outside_enum() {
 }
 
 #[test]
-fn test_server_configuration_accessors() {
+fn test_bhv_servers_006_server_configuration_accessors_expose_the_raw_template_and_description() {
     let server = server_with_vars();
 
     assert_eq!(
@@ -84,7 +84,7 @@ fn test_server_configuration_accessors() {
 }
 
 #[test]
-fn test_bhv_servers_003_unconstrained_variable_accepts_any_override() {
+fn test_bhv_servers_003_bhv_servers_014_unconstrained_variable_accepts_any_override() {
     let mut variables = HashMap::new();
     variables.insert(
         "tenant".to_string(),
@@ -192,7 +192,7 @@ fn test_url_never_re_expands_a_placeholder_a_value_introduces() {
 /// Every occurrence of a variable is substituted, an unknown placeholder and a
 /// stray brace stay as written, and a value is taken literally.
 #[test]
-fn test_url_substitutes_every_occurrence_and_keeps_unknown_placeholders() {
+fn test_bhv_servers_002_url_substitutes_every_occurrence_and_keeps_unknown_placeholders() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
@@ -248,5 +248,22 @@ fn test_skills_servers_section_documents_all_servers() {
     assert!(
         skills.contains("returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them."),
         "the Servers section must mention all_servers()"
+    );
+}
+
+/// A server without a description (null in the specification) is allowed: the
+/// description is empty and the URL still resolves.
+#[test]
+fn test_bhv_servers_015_a_server_without_a_description_is_allowed() {
+    let server = ServerConfiguration::new(
+        "https://api.example.com/v1".to_string(),
+        String::new(),
+        HashMap::new(),
+    );
+
+    assert_eq!(server.description(), "");
+    assert_eq!(
+        server.url(&HashMap::new()).unwrap(),
+        "https://api.example.com/v1"
     );
 }

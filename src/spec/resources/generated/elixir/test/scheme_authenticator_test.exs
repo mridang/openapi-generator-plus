@@ -56,6 +56,10 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
      ]}
   ]
 
+  # The basic schemes are the ones whose credentials are exactly a username and a password.
+  @basic_schemes for {module, [{"username", user_env}, {"password", pass_env}]} <- @schemes,
+                     do: {module, user_env, pass_env}
+
   setup do
     names = for {_module, vars} <- @schemes, {_arg, env} <- vars, do: env
     saved = Map.new(names, fn name -> {name, System.get_env(name)} end)
@@ -73,12 +77,58 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
 
   defp build(module, args), do: apply(module, :new, args)
 
+  # Records the URL a discovery request is sent to, and answers with a valid document.
+  defmodule DiscoveryRecorder do
+    defstruct []
+
+    def send_request(%__MODULE__{}, :get, url, _headers, nil) do
+      send(self(), {:discovered, url})
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+    end
+  end
+
+  test "bhv authoidc 012 an OpenID Connect scheme wrapper discovers from its spec url and sends the openid scope" do
+    for {module, vars} <- @schemes do
+      auth = build(module, [@host | Enum.map(vars, fn {arg, _env} -> "explicit-" <> arg end)])
+
+      case auth do
+        %{__struct__: PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator} ->
+          authenticator =
+            PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+              auth,
+              %DiscoveryRecorder{}
+            )
+
+          url =
+            PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(
+              authenticator
+            )
+
+          assert_received {:discovered, discovered_url}
+          assert discovered_url == auth.openid_connect_url
+          assert url =~ "scope=openid"
+
+        _other ->
+          :ok
+      end
+    end
+  end
+
   for {module, vars} <- @schemes do
     describe "#{inspect(module)}" do
       @module module
       @vars vars
 
-      test "builds from its environment variables alone" do
+      test "bhv authscheme 001 builds from its environment variables alone" do
         Enum.each(@vars, fn {arg, env} -> System.put_env(env, "from-env-" <> arg) end)
 
         auth = build(@module, [@host])
@@ -148,6 +198,25 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
             build(@module, [@host])
           end
         end
+      end
+    end
+  end
+
+  describe "generated basic scheme wrappers" do
+    test "bhv authbasic 002 generated scheme wrapper emits a basic header and masks the password" do
+      refute @basic_schemes == []
+
+      for {module, user_env, pass_env} <- @basic_schemes do
+        System.put_env(user_env, "from-env-user")
+        System.put_env(pass_env, "from-env-pass")
+
+        auth = apply(module, :new, [@host])
+        expected = "Basic " <> Base.encode64("from-env-user:from-env-pass")
+
+        assert PetstoreClient.Auth.BasicAuthenticator.auth_headers(auth)["Authorization"] ==
+                 expected
+
+        refute inspect(auth) =~ "from-env-pass"
       end
     end
   end

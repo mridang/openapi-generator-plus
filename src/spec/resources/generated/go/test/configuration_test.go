@@ -38,6 +38,62 @@ func TestBhvConfig007_Configuration_BuilderReturnsBuilderInstance(t *testing.T) 
 	}
 }
 
+// A builder with nothing set produces the same defaults as DefaultConfiguration.
+func TestBhvConfig005_Configuration_BuilderProducesCorrectDefaults(t *testing.T) {
+	t.Parallel()
+	config := petstore.NewConfigurationBuilder().Build()
+
+	if config.BaseURL() != "/api/v3" {
+		t.Errorf("expected default base URL %q, got %q", "/api/v3", config.BaseURL())
+	}
+	if len(config.DefaultHeaders()) != 0 {
+		t.Errorf("expected empty default headers, got %v", config.DefaultHeaders())
+	}
+}
+
+// A server variable set on the builder overrides its default and leaves the others alone.
+func TestBhvConfig009_Configuration_BuilderServerWithVariableOverrides(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env":     petstore.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": petstore.NewServerVariable("v3", "", []string{"v2", "v3"}),
+		},
+	)
+
+	builder, err := petstore.NewConfigurationBuilder().
+		Server(server, map[string]string{"version": "v2"})
+	if err != nil {
+		t.Fatalf("Server() returned error: %v", err)
+	}
+	config := builder.Build()
+
+	expected := "https://api.example.com/api/v2"
+	if config.BaseURL() != expected {
+		t.Errorf("expected base URL %q, got %q", expected, config.BaseURL())
+	}
+}
+
+// Every field set on the builder is kept on the built configuration.
+func TestBhvConfig010_Configuration_BuilderSetsAllFields(t *testing.T) {
+	t.Parallel()
+	config := petstore.NewConfigurationBuilder().
+		BaseURL("https://custom.example.com").
+		DefaultHeader("X-Custom", "value").
+		DefaultHeader("X-Trace", "abc").
+		Build()
+
+	if config.BaseURL() != "https://custom.example.com" {
+		t.Errorf("expected base URL 'https://custom.example.com', got %q", config.BaseURL())
+	}
+	headers := config.DefaultHeaders()
+	if headers["X-Custom"] != "value" || headers["X-Trace"] != "abc" {
+		t.Errorf("expected both default headers to be kept, got %v", headers)
+	}
+}
+
 func TestBhvConfig011_Configuration_BuilderSetsBaseURL(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().

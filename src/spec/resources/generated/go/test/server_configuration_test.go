@@ -251,3 +251,124 @@ func TestBhvServers013_ServerConfiguration_TheHostileThirdServerRoundTripsUnchan
 		t.Errorf("URL = %q, %v", got, err)
 	}
 }
+
+// A variable that appears twice in the template is replaced at both places.
+func TestBhvServers002_ServerConfiguration_URLReplacesARepeatedVariableEverywhere(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/{env}",
+		"",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", nil),
+		},
+	)
+
+	url, err := server.URL(map[string]string{"env": "staging"})
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://staging.example.com/staging"; url != want {
+		t.Errorf("URL = %q, want %q", url, want)
+	}
+}
+
+// An override that is one of the variable's enum values is accepted.
+func TestBhvServers003_ServerConfiguration_URLAcceptsAnOverrideInTheEnum(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com",
+		"",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", []string{"api", "staging"}),
+		},
+	)
+
+	url, err := server.URL(map[string]string{"env": "staging"})
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://staging.example.com"; url != want {
+		t.Errorf("URL = %q, want %q", url, want)
+	}
+}
+
+// A value that contains a placeholder name is substituted literally, and the
+// placeholder it introduces is not expanded again.
+func TestBhvServers005_ServerConfiguration_URLDoesNotExpandAPlaceholderAValueIntroduces(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/{version}",
+		"",
+		map[string]petstore.ServerVariable{
+			"env":     petstore.NewServerVariable("api", "", nil),
+			"version": petstore.NewServerVariable("v2", "", nil),
+		},
+	)
+
+	url, err := server.URL(map[string]string{"env": "{version}"})
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://{version}.example.com/v2"; url != want {
+		t.Errorf("URL = %q, want %q", url, want)
+	}
+}
+
+// The raw URL template and the server description are exposed unchanged.
+func TestBhvServers006_ServerConfiguration_ExposesTheRawTemplateAndDescription(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", nil),
+		},
+	)
+
+	if got, want := server.URLTemplate(), "https://{env}.example.com"; got != want {
+		t.Errorf("URLTemplate = %q, want %q", got, want)
+	}
+	if got, want := server.Description(), "Test server"; got != want {
+		t.Errorf("Description = %q, want %q", got, want)
+	}
+}
+
+// A placeholder with no declared variable is left in the URL and is not an error.
+func TestBhvServers007_ServerConfiguration_URLLeavesAnUnknownPlaceholderUntouched(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/{unknown}",
+		"",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", nil),
+		},
+	)
+
+	url, err := server.URL(nil)
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://api.example.com/{unknown}"; url != want {
+		t.Errorf("URL = %q, want %q", url, want)
+	}
+}
+
+// An empty enum list means the variable accepts any value.
+func TestBhvServers016_ServerConfiguration_EmptyEnumValuesMeansAnyValueIsAllowed(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com",
+		"",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", []string{}),
+		},
+	)
+
+	url, err := server.URL(map[string]string{"env": "anything"})
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://anything.example.com"; url != want {
+		t.Errorf("URL = %q, want %q", url, want)
+	}
+}

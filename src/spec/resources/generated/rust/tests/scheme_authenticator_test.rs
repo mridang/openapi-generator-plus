@@ -91,7 +91,7 @@ mod pet_store_basic_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(PetStoreBasicAuthenticator::new("https://api.example.com", None, None).is_ok());
         });
@@ -110,7 +110,7 @@ mod pet_store_basic_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(PetStoreBasicAuthenticator::new(
                 "https://api.example.com",
@@ -126,7 +126,7 @@ mod pet_store_basic_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(PetStoreBasicAuthenticator::new(
                 "https://api.example.com",
@@ -204,7 +204,7 @@ mod admin_basic_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(AdminBasicAuthenticator::new("https://api.example.com", None, None).is_ok());
         });
@@ -223,7 +223,7 @@ mod admin_basic_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(AdminBasicAuthenticator::new(
                 "https://api.example.com",
@@ -239,7 +239,7 @@ mod admin_basic_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(AdminBasicAuthenticator::new(
                 "https://api.example.com",
@@ -302,7 +302,7 @@ mod pet_store_bearer_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(PetStoreBearerAuthenticator::new("https://api.example.com", None).is_ok());
         });
@@ -320,7 +320,7 @@ mod pet_store_bearer_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
                 "https://api.example.com",
@@ -335,7 +335,7 @@ mod pet_store_bearer_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
                 "https://api.example.com",
@@ -431,7 +431,7 @@ mod service_token_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(ServiceTokenAuthenticator::new("https://api.example.com", None).is_ok());
         });
@@ -449,7 +449,7 @@ mod service_token_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(ServiceTokenAuthenticator::new(
                 "https://api.example.com",
@@ -464,7 +464,7 @@ mod service_token_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(ServiceTokenAuthenticator::new(
                 "https://api.example.com",
@@ -560,7 +560,7 @@ mod api_key_header_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(ApiKeyHeaderAuthenticator::new("https://api.example.com", None).is_ok());
         });
@@ -578,7 +578,7 @@ mod api_key_header_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(ApiKeyHeaderAuthenticator::new(
                 "https://api.example.com",
@@ -593,7 +593,7 @@ mod api_key_header_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(ApiKeyHeaderAuthenticator::new(
                 "https://api.example.com",
@@ -651,7 +651,7 @@ mod internal_api_key_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(InternalApiKeyAuthenticator::new("https://api.example.com", None).is_ok());
         });
@@ -669,7 +669,7 @@ mod internal_api_key_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(InternalApiKeyAuthenticator::new(
                 "https://api.example.com",
@@ -684,7 +684,7 @@ mod internal_api_key_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(InternalApiKeyAuthenticator::new(
                 "https://api.example.com",
@@ -739,7 +739,7 @@ mod api_key_query_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(ApiKeyQueryAuthenticator::new("https://api.example.com", None).is_ok());
         });
@@ -757,7 +757,7 @@ mod api_key_query_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(ApiKeyQueryAuthenticator::new(
                 "https://api.example.com",
@@ -772,7 +772,7 @@ mod api_key_query_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(ApiKeyQueryAuthenticator::new(
                 "https://api.example.com",
@@ -827,7 +827,7 @@ mod session_cookie_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(SessionCookieAuthenticator::new("https://api.example.com", None).is_ok());
         });
@@ -845,7 +845,7 @@ mod session_cookie_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(SessionCookieAuthenticator::new(
                 "https://api.example.com",
@@ -860,7 +860,7 @@ mod session_cookie_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(SessionCookieAuthenticator::new(
                 "https://api.example.com",
@@ -933,7 +933,7 @@ mod machine_auth_client_credentials_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(MachineAuthClientCredentialsAuthenticator::new(
                 "https://api.example.com",
@@ -957,7 +957,7 @@ mod machine_auth_client_credentials_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(MachineAuthClientCredentialsAuthenticator::new(
                 "https://api.example.com",
@@ -973,7 +973,7 @@ mod machine_auth_client_credentials_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(MachineAuthClientCredentialsAuthenticator::new(
                 "https://api.example.com",
@@ -1072,7 +1072,7 @@ mod legacy_auth_password_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(LegacyAuthPasswordAuthenticator::new(
                 "https://api.example.com",
@@ -1100,7 +1100,7 @@ mod legacy_auth_password_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(LegacyAuthPasswordAuthenticator::new(
                 "https://api.example.com",
@@ -1118,7 +1118,7 @@ mod legacy_auth_password_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(LegacyAuthPasswordAuthenticator::new(
                 "https://api.example.com",
@@ -1220,7 +1220,7 @@ mod user_auth_authorization_code_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(UserAuthAuthorizationCodeAuthenticator::new(
                 "https://api.example.com",
@@ -1246,7 +1246,7 @@ mod user_auth_authorization_code_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(UserAuthAuthorizationCodeAuthenticator::new(
                 "https://api.example.com",
@@ -1263,7 +1263,7 @@ mod user_auth_authorization_code_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(UserAuthAuthorizationCodeAuthenticator::new(
                 "https://api.example.com",
@@ -1332,7 +1332,7 @@ mod browser_auth_implicit_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(BrowserAuthImplicitAuthenticator::new("https://api.example.com", None).is_ok());
         });
@@ -1350,7 +1350,7 @@ mod browser_auth_implicit_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(BrowserAuthImplicitAuthenticator::new(
                 "https://api.example.com",
@@ -1365,7 +1365,7 @@ mod browser_auth_implicit_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(BrowserAuthImplicitAuthenticator::new(
                 "https://api.example.com",
@@ -1441,7 +1441,7 @@ mod sso_auth_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!(SsoAuthAuthenticator::new("https://api.example.com", None, None, None).is_ok());
         });
@@ -1461,7 +1461,7 @@ mod sso_auth_authenticator {
     }
 
     #[test]
-    fn test_bhv_authscheme_001_a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(SsoAuthAuthenticator::new(
                 "https://api.example.com",
@@ -1478,7 +1478,7 @@ mod sso_auth_authenticator {
     }
 
     #[test]
-    fn test_an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(SsoAuthAuthenticator::new(
                 "https://api.example.com",

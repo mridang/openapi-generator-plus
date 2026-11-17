@@ -127,6 +127,27 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
 }
 
 #[tokio::test]
+async fn test_bhv_operations_018_pet_api_with_http_info_returns_status_data_headers_and_raw_body() {
+    let body = r#"{"id":1,"name":"x","photoUrls":[]}"#;
+    let (api, _) = new_pet_api_for_mock(200, "application/json", body);
+    let result = api
+        .get_pet_by_id_with_http_info(1, None, None)
+        .await
+        .expect("get_pet_by_id_with_http_info failed");
+    assert_eq!(result.status_code(), 200);
+    assert_eq!(result.data().map(|pet| pet.name.as_str()), Some("x"));
+    assert_eq!(result.raw_body(), body);
+    assert!(
+        result
+            .headers()
+            .keys()
+            .any(|k| k.eq_ignore_ascii_case("content-type")),
+        "the ApiResult must carry the response headers, got: {:?}",
+        result.headers()
+    );
+}
+
+#[tokio::test]
 async fn test_bhv_operations_022_pet_api_add_pet() {
     let api = new_pet_api_for_integration_with(Some(Arc::new(bearer_auth())));
     let pet = Pet::new(
@@ -240,12 +261,13 @@ async fn test_pet_api_required_multipart_body_missing_names_first_required_part(
 }
 
 #[tokio::test]
-async fn test_pet_api_delete_pet_rejects_invalid_cookie_value() {
+async fn test_bhv_operations_028_pet_api_delete_pet_rejects_a_cookie_character_outside_cookie_octet(
+) {
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
-    for value in ["a;b", "a\r\nInjected: yes", "a\nb", "a\0b"] {
+    for value in ["a;b", "a\0b"] {
         let opts = DeletePetOptions::new().api_key(value.to_string());
         let err = api
             .delete_pet(1, Some(&opts))
@@ -260,6 +282,45 @@ async fn test_pet_api_delete_pet_rejects_invalid_cookie_value() {
             value
         );
     }
+}
+
+#[tokio::test]
+async fn test_bhv_operations_029_pet_api_delete_pet_fails_closed_on_crlf_in_a_cookie_value() {
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    for value in ["a\r\nInjected: yes", "a\nb"] {
+        let opts = DeletePetOptions::new().api_key(value.to_string());
+        let err = api
+            .delete_pet(1, Some(&opts))
+            .await
+            .expect_err("a cookie value holding CR or LF must be rejected before sending");
+        assert_eq!(
+            err.downcast_ref::<ConfigurationError>(),
+            Some(&ConfigurationError::InvalidArgument(
+                "Cookie value for 'api_key' contains characters forbidden by RFC 6265".to_string()
+            )),
+            "cookie value {:?}",
+            value
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_operations_030_pet_api_delete_pet_sends_a_legal_cookie_value_raw() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = DeletePetOptions::new().api_key("abc-DEF_123.~".to_string());
+    let _ = api.delete_pet(1, Some(&opts)).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("cookie: api_key=abc-def_123.~"),
+        "a legal cookie value must be sent exactly as given, got request: {}",
+        request
+    );
 }
 
 #[tokio::test]
@@ -405,6 +466,32 @@ async fn test_bhv_operations_074_pet_api_set_pet_avatar_thumbnail() {
 }
 
 #[tokio::test]
+async fn test_bhv_operations_077_pet_api_set_pet_avatar_thumbnail_still_sends_a_base64_json_string()
+{
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let body = SetPetAvatarThumbnailRequest::VecU8(vec![0xFF, 0xD8, 0xFF, 0xE0]);
+    api.set_pet_avatar_thumbnail(1, body, None)
+        .await
+        .expect("set_pet_avatar_thumbnail failed");
+
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, wire_body) = split_http_request(&raw);
+    assert_eq!(
+        wire_body,
+        b"\"/9j/4A==\"",
+        "a byte body must be sent as a base64 JSON string, got: {:?}",
+        String::from_utf8_lossy(wire_body)
+    );
+    assert!(
+        String::from_utf8_lossy(headers)
+            .to_ascii_lowercase()
+            .contains("content-type: application/json"),
+        "the base64 string must be sent as application/json, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+}
+
+#[tokio::test]
 async fn test_bhv_operations_090_pet_api_upload_pet_certificate() {
     let api = new_pet_api_for_integration();
     let opts = UploadPetCertificateOptions::new(b"certificate-content".to_vec());
@@ -494,6 +581,17 @@ async fn test_bhv_operations_063_pet_api_get_pet_avatar_thumbnail_rejects_malfor
             .is_some(),
         "expected a SerializationError, got {err}"
     );
+}
+
+#[tokio::test]
+async fn test_bhv_operations_062_pet_api_get_pet_avatar_thumbnail_decodes_a_json_string_literal_as_base64(
+) {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "\"AQID\"");
+    let bytes = api
+        .get_pet_avatar_thumbnail(1, None)
+        .await
+        .expect("get_pet_avatar_thumbnail failed");
+    assert_eq!(bytes, vec![1u8, 2, 3]);
 }
 
 #[tokio::test]
@@ -793,6 +891,32 @@ async fn test_bhv_operations_071_pet_api_set_pet_avatar_honours_selected_request
     );
 }
 
+/// The `application/json` selector on setPetAvatar does not JSON-encode a binary
+/// body: the raw bytes reach the wire unchanged with the selected Content-Type.
+#[tokio::test]
+async fn test_bhv_operations_072_pet_api_set_pet_avatar_sends_the_bytes_verbatim_under_the_json_selector(
+) {
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
+    let _ = api
+        .set_pet_avatar(1, image_bytes.clone(), None, Some("application/json"))
+        .await;
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
+    assert_eq!(
+        body,
+        image_bytes.as_slice(),
+        "the json selector must send the raw bytes, not a JSON encoding, got: {:?}",
+        body
+    );
+    assert!(
+        header_text.contains("content-type: application/json"),
+        "the selected application/json must be the Content-Type, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+}
+
 /// per-call-auth-override: an Authenticator passed to the BASE operation method
 /// (not just `with_http_info`) must be applied to the outgoing request. The
 /// default header carries one token; the per-call authenticator carries a
@@ -810,6 +934,34 @@ async fn add_pet_request_with(credentials: Credentials) -> String {
     rx.recv()
         .expect("expected a captured request")
         .to_lowercase()
+}
+
+/// With no default header and a configured client authenticator, add_pet sends
+/// the configured credential and no per-call one.
+#[tokio::test]
+async fn test_bhv_operations_081_pet_api_add_pet_uses_the_configured_credentials() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let pet = Pet::new(
+        "ConfiguredDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let _ = api.add_pet(pet, None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("authorization: bearer test-token"),
+        "request: {}",
+        request
+    );
+    assert!(!request.contains("default-token"), "request: {}", request);
 }
 
 /// F857: an operation uses the credential of the scheme its spec requires.
@@ -964,6 +1116,26 @@ async fn test_bhv_operations_049_pet_api_get_pet_by_name_empty_required_query_er
         ),
         "an empty required query param must be rejected with the canonical message, got: {}",
         msg
+    );
+}
+
+/// A required path parameter must not be empty: an empty string is not a present
+/// value, so the call is refused with the canonical message before sending.
+#[tokio::test]
+async fn test_bhv_operations_052_pet_api_get_pet_by_name_throws_when_the_path_param_is_empty() {
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let err = api
+        .get_pet_by_name(String::new(), None)
+        .await
+        .expect_err("an empty required path parameter must be rejected");
+    assert_eq!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Missing the required parameter 'name' when calling PetApi.get_pet_by_name".to_string()
+        ))
     );
 }
 
@@ -1134,7 +1306,8 @@ async fn test_bhv_operations_024_pet_api_add_pet_treatment_sends_the_chosen_vari
 /// client points at a closed port, so any request would fail with a network
 /// error instead of this ConfigurationError.
 #[tokio::test]
-async fn test_bhv_operations_051_pet_api_get_pet_by_name_rejects_dot_segments() {
+async fn test_bhv_operations_051_bhv_serializationparam_029_pet_api_get_pet_by_name_rejects_dot_segments(
+) {
     let config = ConfigurationBuilder::new()
         .base_url("http://127.0.0.1:1")
         .build();
@@ -1366,6 +1539,29 @@ async fn test_bhv_operations_089_pet_api_upload_multipart_mock() {
     assert_eq!(response.message.as_deref(), Some("success"));
 }
 
+/// With no request content-type selected, uploadPetDocument sends its first
+/// declared body, multipart/form-data, with the file as a named part.
+#[tokio::test]
+async fn test_bhv_operations_094_pet_api_upload_pet_document_default_selection_sends_multipart() {
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let opts = UploadPetDocumentOptions::new(b"document-content".to_vec());
+    let _ = api.upload_pet_document(1, Some(&opts), None).await;
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
+    assert!(
+        header_text.contains("content-type: multipart/form-data; boundary="),
+        "the default selection must send multipart/form-data, got headers: {}",
+        String::from_utf8_lossy(headers)
+    );
+    let body_text = String::from_utf8_lossy(body);
+    assert!(
+        body_text.contains("name=\"file\"") && body_text.contains("document-content"),
+        "the file must travel as a named multipart part, got: {}",
+        body_text
+    );
+}
+
 /// octet-stream-raw-body (multi-content-type request bodies): the fixture
 /// operation `uploadPetDocument` (POST /pet/{petId}/documents) declares TWO
 /// request content-types — `multipart/form-data` AND `application/octet-stream`.
@@ -1525,7 +1721,7 @@ async fn test_bhv_operations_044_pet_api_find_pets_by_status_filter_is_a_deep_ob
 /* F1155: the deprecation markers sit on the declarations the spec deprecates:
  * an operation, an Options parameter, a model and a property. */
 #[test]
-fn test_bhv_operations_033_deprecated_elements_carry_the_deprecated_attribute() {
+fn test_bhv_operations_032_deprecated_elements_carry_the_deprecated_attribute() {
     let squash = |text: &str| text.split_whitespace().collect::<String>();
     let api = squash(include_str!("../src/api/pet_api.rs"));
     for operation in ["find_pets_by_status", "get_pet_by_id"] {
@@ -1554,6 +1750,42 @@ fn test_bhv_operations_033_deprecated_elements_carry_the_deprecated_attribute() 
         pet.contains("#[deprecated(note=\"Thispropertyisdeprecated.\")]#[serde(rename=\"status\""),
         "Pet.status must be deprecated"
     );
+}
+
+/* Returns true when the item declared at `signature` is preceded, through its
+ * doc comments and other attributes, by `#[deprecated]`. */
+fn is_marked_deprecated(source: &str, signature: &str) -> bool {
+    let lines: Vec<&str> = source.lines().collect();
+    let Some(at) = lines
+        .iter()
+        .position(|line| line.trim_start().starts_with(signature))
+    else {
+        return false;
+    };
+    lines[..at]
+        .iter()
+        .rev()
+        .map(|line| line.trim())
+        .take_while(|line| line.starts_with("///") || line.starts_with("#["))
+        .any(|line| line == "#[deprecated]")
+}
+
+/* Every variant of a deprecated operation (the plain call and the
+ * `_with_http_info` call) carries the deprecation marker. */
+#[test]
+fn test_bhv_operations_033_deprecation_markers_sit_on_every_variant_of_a_deprecated_operation() {
+    let source = include_str!("../src/api/pet_api.rs");
+    for signature in [
+        "pub async fn find_pets_by_status(",
+        "pub async fn find_pets_by_status_with_http_info(",
+        "pub async fn get_pet_by_id(",
+        "pub async fn get_pet_by_id_with_http_info(",
+    ] {
+        assert!(
+            is_marked_deprecated(source, signature),
+            "{signature} must carry #[deprecated]"
+        );
+    }
 }
 
 /* F1068: a matrix-style `format: date` path segment and a date-array query

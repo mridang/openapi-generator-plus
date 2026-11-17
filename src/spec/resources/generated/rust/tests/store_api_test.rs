@@ -420,23 +420,29 @@ async fn test_bhv_operations_101_store_api_get_grouped_categories_typed_leaves()
     assert_eq!(first.name, Some("Dogs".to_string()), "leaf name mismatch");
 }
 
-// Nested containers and named enums decode into their typed leaves: a matrix of
-// integers, a named enum, arrays of maps of enums and of timestamps, and a
-// self-referencing model.
+/// An array of integer arrays decodes into nested integer vectors.
 #[tokio::test]
-async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
+async fn test_bhv_operations_109_store_api_get_matrix_decodes_an_array_of_integer_arrays() {
     let api = new_store_api_for_mock(200, "application/json", "[[1,2],[3]]");
     assert_eq!(
         api.get_matrix(None).await.expect("get_matrix failed"),
         vec![vec![1, 2], vec![3]]
     );
+}
 
+/// A bare named enum decodes into its member.
+#[tokio::test]
+async fn test_bhv_operations_113_store_api_get_swatch_decodes_a_bare_enum() {
     let api = new_store_api_for_mock(200, "application/json", r#""green""#);
     assert_eq!(
         api.get_swatch(None).await.expect("get_swatch failed"),
         Swatch::Green
     );
+}
 
+/// An array of maps of enum leaves decodes into typed Swatch values.
+#[tokio::test]
+async fn test_bhv_operations_114_store_api_get_swatch_groups_decodes_enum_leaves_into_swatch() {
     let api = new_store_api_for_mock(200, "application/json", r#"[{"a":"red"},{"b":"blue"}]"#);
     let groups = api
         .get_swatch_groups(None)
@@ -445,7 +451,11 @@ async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
     assert_eq!(groups.len(), 2);
     assert_eq!(groups[0].get("a"), Some(&Swatch::Red));
     assert_eq!(groups[1].get("b"), Some(&Swatch::Blue));
+}
 
+/// An array of maps of timestamps decodes its leaves into dates.
+#[tokio::test]
+async fn test_bhv_operations_115_store_api_get_timestamp_groups_decodes_date_time_leaves() {
     let api = new_store_api_for_mock(
         200,
         "application/json",
@@ -457,7 +467,11 @@ async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
         .expect("get_timestamp_groups failed");
     assert_eq!(stamps.len(), 1);
     assert!(stamps[0].contains_key("at"));
+}
 
+/// A self-referencing model decodes into typed nodes.
+#[tokio::test]
+async fn test_bhv_operations_116_store_api_get_tree_decodes_the_self_recursive_model() {
     let api = new_store_api_for_mock(
         200,
         "application/json",
@@ -468,15 +482,18 @@ async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
     assert_eq!(tree.child.expect("expected a child node").value, "leaf");
 }
 
-// Schema defaults apply to absent properties, mutually recursive models decode
-// through both directions, and an integer-backed enum decodes from its number.
+/// Schema defaults apply to absent properties.
 #[tokio::test]
 async fn test_bhv_operations_123_store_api_defaults_cycles_and_integer_enums_decode() {
     let api = new_store_api_for_mock(200, "application/json", "{}");
     let defaults = api.get_defaults(None).await.expect("get_defaults failed");
     assert_eq!(defaults.retries, Some(3));
     assert_eq!(defaults.mode, Some(DefaultsModeEnum::Medium));
+}
 
+/// A mutually recursive model decodes through both directions.
+#[tokio::test]
+async fn test_bhv_operations_108_store_api_get_department_decodes_the_mutually_recursive_models() {
     let api = new_store_api_for_mock(
         200,
         "application/json",
@@ -493,7 +510,12 @@ async fn test_bhv_operations_123_store_api_defaults_cycles_and_integer_enums_dec
         lead.department.expect("expected a department").name,
         "inner"
     );
+}
 
+/// An integer-backed enum decodes from its number, and nested arrays decode.
+#[tokio::test]
+async fn test_bhv_operations_112_store_api_get_stock_item_decodes_the_int_enum_and_the_nested_arrays(
+) {
     let api = new_store_api_for_mock(
         200,
         "application/json",
@@ -559,6 +581,59 @@ async fn test_bhv_operations_122_store_api_get_by_swatch_sends_enum_wire_values(
     );
 }
 
+/* An optional query parameter and header that are not set are left off the
+ * request: the URL carries only the path, and no Preferred-Swatch header is sent. */
+#[tokio::test]
+async fn test_bhv_operations_107_store_api_get_by_swatch_omits_unset_optional_query_and_header() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    api.get_by_swatch(Swatch::Red, None)
+        .await
+        .expect("get_by_swatch failed");
+
+    assert_eq!(
+        client.url.lock().unwrap().as_str(),
+        "http://localhost/store/by-swatch/red"
+    );
+    assert!(
+        !client
+            .headers
+            .lock()
+            .unwrap()
+            .contains_key("Preferred-Swatch"),
+        "an unset optional header must not be sent"
+    );
+}
+
+/* An operation with no parameters and no security still takes per-call headers
+ * from its options. */
+#[tokio::test]
+async fn test_bhv_operations_096_store_api_operation_without_parameters_takes_per_call_headers() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = PlaceOrderOptions::new().header("X-Trace-Id", "per-call");
+
+    let _ = api.place_order(Some(Order::new()), Some(&opts)).await;
+
+    assert_eq!(
+        client
+            .headers
+            .lock()
+            .unwrap()
+            .get("X-Trace-Id")
+            .map(|s| s.as_str()),
+        Some("per-call"),
+        "a per-call header must reach an operation with no parameters or security"
+    );
+}
+
 /* D67, F217: a required uuid path parameter is written in the lowercase
  * hyphenated form, whichever case the caller's value was parsed from. */
 #[tokio::test]
@@ -609,7 +684,7 @@ async fn test_bhv_operations_098_store_api_create_account_sends_the_write_only_p
 }
 
 #[tokio::test]
-async fn test_store_api_create_account_keeps_the_read_only_id() {
+async fn test_bhv_serializationobject_014_store_api_create_account_keeps_the_read_only_id() {
     let api = new_store_api_for_mock(200, "application/json", r#"{"id":7,"username":"u"}"#);
 
     let created = api

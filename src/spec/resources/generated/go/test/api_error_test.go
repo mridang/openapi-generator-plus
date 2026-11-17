@@ -229,7 +229,7 @@ func TestBhvErrors015_ApiError_GetTypedErrorBodyReturnsNilWhenNoBody(t *testing.
 // path applies, so a non-2xx response can't be a stack-overflow DoS vector.
 // FromResponse must leave errorBody nil (parse skipped) rather than recursing,
 // and GetTypedErrorBody must return an error instead of parsing it.
-func TestApiError_ErrorBodyIsDepthCapped(t *testing.T) {
+func TestBhvErrors009_ApiError_ErrorBodyIsDepthCapped(t *testing.T) {
 	t.Parallel()
 	// 1001 `[` exceeds the 1000 cap.
 	deep := strings.Repeat("[", 1001) + strings.Repeat("]", 1001)
@@ -674,5 +674,169 @@ func TestBhvErrors002_ApiError_EverySubclassCarriesTheRequest(t *testing.T) {
 	network.AttachRequest("GET", "/slow")
 	if !strings.Contains(network.Error(), "\nRequest: GET /slow") {
 		t.Errorf("expected the request on a timeout error, got %q", network.Error())
+	}
+}
+
+func TestBhvErrors005_ApiError_FromResponseLeavesErrorBodyNilWhenBodyIsNotJSON(t *testing.T) {
+	t.Parallel()
+	var apiErr *apierrors.ApiError
+	if !errors.As(apierrors.FromResponse(500, nil, "upstream exploded"), &apiErr) {
+		t.Fatal("expected an *ApiError")
+	}
+	if apiErr.ErrorBody() != nil {
+		t.Errorf("expected nil error body for a non-JSON body, got %#v", apiErr.ErrorBody())
+	}
+	if apiErr.ResponseBody() != "upstream exploded" {
+		t.Errorf("expected the raw body to be kept, got %q", apiErr.ResponseBody())
+	}
+}
+
+func TestBhvErrors007_ApiError_FromResponseRecordsRequestMethodAndPathWithoutQuery(t *testing.T) {
+	t.Parallel()
+	var apiErr *apierrors.ApiError
+	if !errors.As(apierrors.FromResponse(404, nil, ""), &apiErr) {
+		t.Fatal("expected an *ApiError")
+	}
+	apiErr.AttachRequest("GET", "/items/7?token=secret")
+	if apiErr.RequestMethod() != "GET" || apiErr.RequestPath() != "/items/7" {
+		t.Errorf("expected GET /items/7, got %s %s", apiErr.RequestMethod(), apiErr.RequestPath())
+	}
+}
+
+func TestBhvErrors010_ApiError_FromResponseKeepsAScalarJSONBodyAsTheErrorBody(t *testing.T) {
+	t.Parallel()
+	var apiErr *apierrors.ApiError
+	if !errors.As(apierrors.FromResponse(500, nil, `"upstream error"`), &apiErr) {
+		t.Fatal("expected an *ApiError")
+	}
+	if apiErr.ErrorBody() != "upstream error" {
+		t.Errorf("expected the scalar as the error body, got %#v", apiErr.ErrorBody())
+	}
+}
+
+func TestBhvErrors012_ApiError_FromResponseWithoutARequestKeepsThePlainMessage(t *testing.T) {
+	t.Parallel()
+	var apiErr *apierrors.ApiError
+	if !errors.As(apierrors.FromResponse(404, nil, ""), &apiErr) {
+		t.Fatal("expected an *ApiError")
+	}
+	if apiErr.RequestMethod() != "" || apiErr.RequestPath() != "" {
+		t.Errorf("expected no request, got %s %s", apiErr.RequestMethod(), apiErr.RequestPath())
+	}
+	if got, want := apiErr.Error(), "API returned status code 404\nHTTP status code: 404"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBhvErrors016_ApiError_GetTypedErrorBodyLeavesTargetUntouchedForEmptyBody(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(503, "unavailable", "", nil, nil, nil)
+
+	var typed map[string]any
+	if deErr := err.GetTypedErrorBody(&typed); deErr != nil {
+		t.Fatalf("expected no error for an empty body, got %v", deErr)
+	}
+	if typed != nil {
+		t.Errorf("expected the target to stay nil, got %#v", typed)
+	}
+}
+
+func TestBhvErrors019_ApiError_IsAnErrorWithTheStatusInItsString(t *testing.T) {
+	t.Parallel()
+	var err error = apierrors.FromResponse(409, nil, "")
+
+	var conflict *apierrors.ConflictError
+	if !errors.As(err, &conflict) {
+		t.Fatalf("expected *ConflictError, got %T", err)
+	}
+	if !strings.Contains(err.Error(), "\nHTTP status code: 409") {
+		t.Errorf("expected the status in the message, got %q", err.Error())
+	}
+}
+
+func TestBhvErrors022_ApiError_ErrorOmitsEmptyHeadersAndAnEmptyBody(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(404, "missing", "", map[string]string{}, nil, nil)
+
+	if got, want := err.Error(), "missing\nHTTP status code: 404"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBhvErrors023_ApiError_RenderedFormMasksCredentialHeaders(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(401, "denied", "", map[string]string{
+		"Authorization": "Bearer zz-masked",
+		"Cookie":        "sid=zz-masked",
+	}, nil, nil)
+
+	if rendered := err.Error(); strings.Contains(rendered, "zz-masked") {
+		t.Errorf("expected credential headers masked in the rendered form, got %q", rendered)
+	}
+	if err.ResponseHeaders()["Authorization"] != "Bearer zz-masked" {
+		t.Error("the real header value must stay on ResponseHeaders")
+	}
+}
+
+func TestBhvErrors024_ApiError_ErrorRendersMessageStatusHeadersAndBody(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(502, "bad gateway", "upstream down", map[string]string{"retry-after": "5"}, nil, nil)
+
+	if got, want := err.Error(), "bad gateway\nHTTP status code: 502\nResponse headers: {\"retry-after\":\"5\"}\nResponse body: upstream down"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBhvErrors026_ApiError_RequestLineIsOwnLineAndNeverCarriesTheQuery(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(404, "gone", "nope", nil, nil, nil)
+	err.AttachRequest("DELETE", "/items/7?force=true")
+
+	if got, want := err.Error(), "gone\nRequest: DELETE /items/7\nHTTP status code: 404\nResponse body: nope"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBhvErrors028_ApiError_GetTypedErrorBodyReturnsNilForAnEmptyBodyFromResponse(t *testing.T) {
+	t.Parallel()
+	var apiErr *apierrors.ApiError
+	if !errors.As(apierrors.FromResponse(400, nil, ""), &apiErr) {
+		t.Fatal("expected an *ApiError")
+	}
+
+	var typed models.Category
+	if deErr := apiErr.GetTypedErrorBody(&typed); deErr != nil {
+		t.Fatalf("expected no error for an empty body, got %v", deErr)
+	}
+	if typed.Id != nil || typed.Name != nil {
+		t.Errorf("expected an unset Category, got %+v", typed)
+	}
+}
+
+func TestBhvErrors029_ApiError_GetTypedErrorBodyDeserializesTheRawBody(t *testing.T) {
+	t.Parallel()
+	var apiErr *apierrors.ApiError
+	if !errors.As(apierrors.FromResponse(400, nil, `{"id":9,"name":"Dogs"}`), &apiErr) {
+		t.Fatal("expected an *ApiError")
+	}
+
+	var typed models.Category
+	if deErr := apiErr.GetTypedErrorBody(&typed); deErr != nil {
+		t.Fatalf("GetTypedErrorBody returned error: %v", deErr)
+	}
+	if typed.Id == nil || *typed.Id != 9 || typed.Name == nil || *typed.Name != "Dogs" {
+		t.Errorf("expected id 9 and name 'Dogs', got %+v", typed)
+	}
+}
+
+func TestBhvErrors037_ApiError_FromResponseThrowsTheStatusSpecificError(t *testing.T) {
+	t.Parallel()
+	var notFound *apierrors.NotFoundError
+	if !errors.As(apierrors.FromResponse(404, nil, ""), &notFound) {
+		t.Error("expected *NotFoundError for status 404")
+	}
+	var internal *apierrors.InternalServerError
+	if !errors.As(apierrors.FromResponse(500, nil, ""), &internal) {
+		t.Error("expected *InternalServerError for status 500")
 	}
 }

@@ -550,7 +550,7 @@ func TestBhvOptions034_TransportOptions_SettingProxyIsSupportedOnAllPlatforms(t 
 // A CA file that exists and is readable but holds no PEM certificate is a caller
 // mistake just like a missing one: Build reports it, naming the file, instead of
 // the first request failing or silently falling back to the system trust store.
-func TestTransportOptions_GarbagePemCaCertFileIsRejected(t *testing.T) {
+func TestBhvErrors039_TransportOptions_GarbagePemCaCertFileIsRejected(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "ca.pem")
 	if err := os.WriteFile(path, []byte("this is not a certificate"), 0o600); err != nil {
@@ -623,6 +623,65 @@ func TestTransportOptions_EmptyCaCertFileAndDirectoryGetTheirOwnMessages(t *test
 	}
 	if want := fmt.Sprintf("failed to read CA certificate from %q: ", dir); !strings.HasPrefix(err.Error(), want) {
 		t.Errorf("directory: expected a message starting with %q, got %v", want, err)
+	}
+}
+
+// A proxy URL error never shows the user-info: the password is masked.
+func TestBhvOptions008_TransportOptions_ProxyUrlErrorNeverCarriesTheUserInfo(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"socks5://svc:s3cret@proxy.example.com:1080", "http://svc:s3cret@"} {
+		_, err := petstore.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if err == nil {
+			t.Fatalf("expected an error for %q", proxy)
+		}
+		if strings.Contains(err.Error(), "s3cret") || strings.Contains(err.Error(), "svc:") {
+			t.Errorf("expected the user-info to be masked in %q, got %q", proxy, err.Error())
+		}
+	}
+}
+
+// A bracketed IPv6 literal proxy host is accepted and read back verbatim.
+func TestBhvOptions009_TransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndKeptVerbatim(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"http://[::1]:3128", "http://[2001:db8::1]:8080"} {
+		opts, err := petstore.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if err != nil {
+			t.Fatalf("expected the IPv6 proxy %q to be accepted, got %v", proxy, err)
+		}
+		if opts.Proxy() == nil || opts.Proxy().String() != proxy {
+			t.Errorf("expected proxy %q kept verbatim, got %v", proxy, opts.Proxy())
+		}
+	}
+}
+
+// A proxy URL with no host is rejected as an invalid proxy URL.
+func TestBhvOptions011_TransportOptions_ProxyUrlWithNoHostIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"http://", "https:///only-a-path"} {
+		_, err := petstore.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if !errors.Is(err, petstore.ErrInvalidProxyURL) {
+			t.Errorf("%q: expected ErrInvalidProxyURL, got %v", proxy, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "missing host") {
+			t.Errorf("%q: expected a missing host message, got %q", proxy, err.Error())
+		}
+	}
+}
+
+// The proxy setter only records the value; the URL is checked by Build.
+func TestBhvOptions013_TransportOptions_InvalidProxyUrlIsRejectedAtBuildNotInTheSetter(t *testing.T) {
+	t.Parallel()
+	builder := petstore.NewTransportOptionsBuilder().Proxy("not-a-valid-url")
+	if builder == nil {
+		t.Fatal("expected the setter to return the builder")
+	}
+	opts, err := builder.Build()
+	if !errors.Is(err, petstore.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL from Build, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected nil TransportOptions from Build")
 	}
 }
 

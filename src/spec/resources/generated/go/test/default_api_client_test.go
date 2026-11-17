@@ -10,17 +10,21 @@
 package petstore_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -394,7 +398,7 @@ func TestBhvRedirects004_DefaultApiClient_FollowsRedirectsWhenEnabled(t *testing
 
 // An unusable Location (unparseable, or absent) stops the redirect loop: the
 // 3xx itself comes back with its status and body, never a transport error.
-func TestDefaultApiClient_UnusableLocationReturnsTheRedirect(t *testing.T) {
+func TestBhvRedirects010_DefaultApiClient_UnusableLocationReturnsTheRedirect(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		path     string
@@ -426,6 +430,110 @@ func TestDefaultApiClient_UnusableLocationReturnsTheRedirect(t *testing.T) {
 				t.Errorf("%s (follow=%v): expected the Location %q kept, got %q", tc.path, followRedirects, tc.location, got)
 			}
 		}
+	}
+}
+
+// With redirects disabled the 3xx comes back as it arrived, Location included,
+// and the redirect target is never requested.
+func TestBhvRedirects007_DefaultApiClient_ReturnsTheRedirectResponseWhenDisabled(t *testing.T) {
+	t.Parallel()
+	var targetHits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/followed")
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		targetHits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(false).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 302 {
+		t.Errorf("expected status 302, got %d", resp.StatusCode)
+	}
+	if got := resp.Headers["location"]; got != "/followed" {
+		t.Errorf("expected the Location /followed kept, got %q", got)
+	}
+	if targetHits != 0 {
+		t.Errorf("expected the redirect target not to be requested, got %d hits", targetHits)
+	}
+}
+
+// NoRedirect set to false is the default: the call follows redirects as the
+// client does when the flag is off.
+func TestBhvRedirects014_DefaultApiClient_NoRedirectFalseFollowsRedirects(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/followed")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequestWithOptions("GET", server.URL+"/start", map[string]string{}, nil,
+		&RequestOptions{NoRedirect: false})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected the redirect to be followed to 200, got %d", resp.StatusCode)
+	}
+}
+
+// A chain of redirects that stays inside maxRedirects completes with the last
+// response, here two hops within a budget of five.
+func TestBhvRedirects002_DefaultApiClient_RedirectChainWithinTheBudgetCompletes(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/hop1":
+			w.Header().Set("Location", "/hop2")
+			w.WriteHeader(http.StatusFound)
+		case "/hop2":
+			w.Header().Set("Location", "/done")
+			w.WriteHeader(http.StatusFound)
+		default:
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("done"))
+		}
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		MaxRedirects(5).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/hop1", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200 at the end of the chain, got %d", resp.StatusCode)
+	}
+	if resp.Body != "done" {
+		t.Errorf("expected body done from the last hop, got %q", resp.Body)
 	}
 }
 
@@ -695,7 +803,7 @@ func TestBhvTransport006_DefaultApiClient_DecompressesZstdResponse(t *testing.T)
 // The Squid fixture's second port demands Basic proxy credentials: a request
 // without them is answered 407, and the same request with credentials in the
 // proxy URL's userinfo is forwarded to the mock server.
-func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
+func TestBhvTransport020_DefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 	t.Parallel()
 	send := func(proxy string) *ApiHttpResponse {
 		t.Helper()
@@ -862,6 +970,53 @@ func TestBhvRetries011_DefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t 
 				t.Errorf("a refused redirect must not be a *NetworkError, got %v", err)
 			}
 		})
+	}
+}
+
+// A 302 from HTTPS to HTTP proceeds, and the follow-up is a bodyless GET, so
+// the form body never crosses in plaintext.
+func TestBhvRedirects001_DefaultApiClient_Redirect302HttpsToHttpDropsTheBodyAndBecomesGet(t *testing.T) {
+	t.Parallel()
+	var method string
+	var bodyLen int
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		data, _ := io.ReadAll(r.Body)
+		bodyLen = len(data)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer plainTarget.Close()
+
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/downgraded")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer origin.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		VerifySsl(false).
+		FollowRedirects(true).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest(
+		"POST", origin.URL+"/start",
+		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+		[]byte("client_secret=hunter2"),
+	)
+	if err != nil {
+		t.Fatalf("expected the 302 HTTPS to HTTP redirect to proceed, got %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200 from the plaintext target, got %d", resp.StatusCode)
+	}
+	if method != "GET" {
+		t.Errorf("expected the follow-up to be a GET, got %q", method)
+	}
+	if bodyLen != 0 {
+		t.Errorf("expected no body on the follow-up, got %d bytes", bodyLen)
 	}
 }
 
@@ -1101,7 +1256,7 @@ func TestDefaultApiClient_CancellingTheCallContextAbortsTheRequest(t *testing.T)
 // F1078: Close is graceful. A request already in flight finishes with its
 // response, a request sent afterwards fails with ErrClientClosed, and closing
 // twice is harmless.
-func TestDefaultApiClient_CloseLetsTheRequestsInFlightFinish(t *testing.T) {
+func TestBhvLifecycle021_DefaultApiClient_CloseLetsTheRequestsInFlightFinish(t *testing.T) {
 	t.Parallel()
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -1146,7 +1301,7 @@ func TestDefaultApiClient_CloseLetsTheRequestsInFlightFinish(t *testing.T) {
 
 // Close releases only a transport the SDK created: one the caller supplied is
 // still usable through the caller's own handle afterwards.
-func TestDefaultApiClient_CloseNeverClosesACallerSuppliedClient(t *testing.T) {
+func TestBhvLifecycle020_DefaultApiClient_CloseNeverClosesACallerSuppliedClient(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
 	defer server.Close()
@@ -1211,7 +1366,7 @@ type closeTrackingTransport struct {
 
 func (c *closeTrackingTransport) CloseIdleConnections() { c.closed = true }
 
-func TestDefaultApiClient_CustomRoundTripperReceivesTheRequestWithSdkDefaults(t *testing.T) {
+func TestBhvTransport040_DefaultApiClient_CustomRoundTripperReceivesTheRequestWithSdkDefaults(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }))
 	defer server.Close()
@@ -1253,7 +1408,7 @@ func (d *recordingDoer) Do(req *http.Request) (*http.Response, error) {
 	}, nil
 }
 
-func TestDefaultApiClient_ClosedClientRejectsRequestsAndLeavesSuppliedDoerOpen(t *testing.T) {
+func TestBhvLifecycle007_DefaultApiClient_ClosedClientRejectsRequestsAndLeavesSuppliedDoerOpen(t *testing.T) {
 	t.Parallel()
 	doer := &recordingDoer{}
 	transport, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
@@ -1316,5 +1471,479 @@ func TestDefaultApiClient_TransportOptionsBuilder_SuppliedTransportConflictsWith
 		if _, err := builder.Build(); !errors.Is(err, ErrTransportConflict) {
 			t.Errorf("%s: expected ErrTransportConflict, got %v", name, err)
 		}
+	}
+}
+
+// gzipPayloadForTest returns payload gzip-compressed, for a server that sends
+// Content-Encoding: gzip. Writing to a bytes.Buffer cannot fail, so the errors
+// are not checked.
+func gzipPayloadForTest(payload string) []byte {
+	var buf bytes.Buffer
+	writer := gzip.NewWriter(&buf)
+	_, _ = writer.Write([]byte(payload))
+	_ = writer.Close()
+	return buf.Bytes()
+}
+
+// The SDK's request id is a new UUID on every request, so two requests never
+// share one.
+func TestBhvTransport008_DefaultApiClient_GeneratesUniqueXRequestIdPerRequest(t *testing.T) {
+	t.Parallel()
+	const requests = 20
+	seen := make(chan string, requests)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("X-Request-ID")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().InjectRequestID(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	ids := make(map[string]bool, requests)
+	for i := 0; i < requests; i++ {
+		if _, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		id := <-seen
+		if id == "" {
+			t.Fatal("expected an X-Request-ID on every request")
+		}
+		if ids[id] {
+			t.Fatalf("expected a unique X-Request-ID per request, got %q twice", id)
+		}
+		ids[id] = true
+	}
+}
+
+// The X-Request-ID the SDK injects is a UUID in its canonical lower-case form.
+func TestBhvTransport014_DefaultApiClient_InjectsXRequestIdHeaderWithUuidFormat(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("X-Request-ID")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().InjectRequestID(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	id := <-seen
+	uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	if !uuidPattern.MatchString(id) {
+		t.Errorf("expected an X-Request-ID in UUID format, got %q", id)
+	}
+}
+
+// A transport-level default header goes out on every request, without the
+// caller repeating it.
+func TestBhvTransport011_DefaultApiClient_IncludesTransportLevelDefaultHeaders(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		DefaultHeader("X-Transport-Level", "transport").
+		DefaultHeader("X-Tenant", "tenant-1").
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	received := <-seen
+	for name, want := range map[string]string{"X-Transport-Level": "transport", "X-Tenant": "tenant-1"} {
+		if got := received.Get(name); got != want {
+			t.Errorf("expected %s %q, got %q", name, want, got)
+		}
+	}
+}
+
+// A lower-case accept-encoding from the caller replaces the SDK's own, so the
+// request carries exactly one Accept-Encoding header, the caller's.
+func TestBhvTransport026_DefaultApiClient_LowerCaseAcceptEncodingSuppressesTheSdkOwn(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	if _, err := client.SendRequest("GET", server.URL+"/test", map[string]string{"accept-encoding": "identity"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	received := <-seen
+	values := received.Values("Accept-Encoding")
+	if len(values) != 1 || values[0] != "identity" {
+		t.Errorf("expected the single caller Accept-Encoding identity, got %q", values)
+	}
+}
+
+// A caller-supplied Accept-Encoding is sent as the caller wrote it, not
+// replaced by the SDK's default list.
+func TestBhvTransport045_DefaultApiClient_KeepsACallerSuppliedAcceptEncoding(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	if _, err := client.SendRequest("GET", server.URL+"/test", map[string]string{"Accept-Encoding": "deflate"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := (<-seen).Get("Accept-Encoding"); got != "deflate" {
+		t.Errorf("expected the caller's Accept-Encoding deflate, got %q", got)
+	}
+}
+
+// Without a configured proxy, no Proxy-Authorization header is sent.
+func TestBhvTransport046_DefaultApiClient_LeavesProxyAuthHeaderNullWhenNoProxyConfigured(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	if _, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, ok := (<-seen)["Proxy-Authorization"]; ok {
+		t.Errorf("expected no Proxy-Authorization header, got %q", got)
+	}
+}
+
+// An empty User-Agent option sends no SDK user agent: the server receives none,
+// not the branded default and not the Go default.
+func TestBhvTransport052_DefaultApiClient_SendsAnEmptyUserAgentWhenTheOptionIsEmpty(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	empty := ""
+	transport, buildErr := NewTransportOptionsBuilder().UserAgent(&empty).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := (<-seen).Get("User-Agent"); got != "" {
+		t.Errorf("expected no User-Agent, got %q", got)
+	}
+}
+
+// A valid gzip-encoded response body is inflated by the SDK.
+func TestBhvTransport034_DefaultApiClient_DecompressesAValidGzipResponseBody(t *testing.T) {
+	t.Parallel()
+	const payload = `{"ok":true}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(200)
+		_, _ = w.Write(gzipPayloadForTest(payload))
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != payload {
+		t.Errorf("expected the inflated body %q, got %q", payload, resp.Body)
+	}
+}
+
+// A decoded body no longer describes the wire encoding, so Content-Encoding and
+// Content-Length are dropped from the response headers.
+func TestBhvTransport027_DefaultApiClient_DecodedBodyDropsContentEncodingAndContentLength(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(200)
+		_, _ = w.Write(gzipPayloadForTest(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, ok := resp.Headers["content-encoding"]; ok {
+		t.Errorf("expected the decoded response to drop Content-Encoding, got %q", got)
+	}
+	if got, ok := resp.Headers["content-length"]; ok {
+		t.Errorf("expected the decoded response to drop Content-Length, got %q", got)
+	}
+}
+
+// A per-call timeout replaces the transport timeout for that call only: a
+// transport budget too short for the server fails, and the same server answers
+// under a per-call budget that is long enough.
+func TestBhvTransport028_DefaultApiClient_APerCallTimeoutReplacesTheTransportTimeout(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(300 * time.Millisecond):
+			w.WriteHeader(200)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+
+	shortMs := 100
+	transport, buildErr := NewTransportOptionsBuilder().Timeout(&shortMs).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	budget := 2 * time.Second
+	resp, err := client.SendRequestWithOptions("GET", server.URL+"/slow", map[string]string{}, nil, &RequestOptions{Timeout: &budget})
+	if err != nil {
+		t.Fatalf("expected the per-call budget to replace the transport timeout, got %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+// An unreadable CA file is refused even when verification is off: the path is
+// read at Build, before any verification choice matters.
+func TestBhvTransport048_DefaultApiClient_NonexistentCaCertPathFailsEvenWhenVerifySslIsFalse(t *testing.T) {
+	t.Parallel()
+	_, err := NewTransportOptionsBuilder().VerifySsl(false).CACertPath("/nonexistent/ca.pem").Build()
+	if !errors.Is(err, ErrInvalidCACertificate) {
+		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
+	}
+}
+
+func TestBhvLifecycle008_DefaultApiClient_ClosedClientRejectsFurtherRequests(t *testing.T) {
+	t.Parallel()
+	client := NewDefaultApiClient(nil)
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	_, err := client.SendRequest("POST", "http://example.invalid/pets", map[string]string{"Content-Type": "application/json"}, []byte("{}"))
+	if !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed for a POST after Close, got %v", err)
+	}
+}
+
+// closeCountingDoer is a caller-supplied doer that also has a Close method, so a
+// test can see whether the SDK ever closes a transport it does not own.
+type closeCountingDoer struct {
+	recordingDoer
+	closes int
+}
+
+func (d *closeCountingDoer) Close() error {
+	d.closes++
+	return nil
+}
+
+func TestBhvLifecycle009_DefaultApiClient_CloseNeverClosesASuppliedTransportThatHasAClose(t *testing.T) {
+	t.Parallel()
+	doer := &closeCountingDoer{}
+	transport, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	if doer.closes != 0 {
+		t.Errorf("expected the caller's transport never to be closed, got %d Close calls", doer.closes)
+	}
+}
+
+func TestBhvLifecycle019_DefaultApiClient_CloseLetsAnInFlightPostFinishAndRefusesANewOne(t *testing.T) {
+	t.Parallel()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		close(started)
+		<-release
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte("created"))
+	}))
+	defer server.Close()
+	client := NewDefaultApiClient(nil)
+	type outcome struct {
+		resp *ApiHttpResponse
+		err  error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		resp, err := client.SendRequest("POST", server.URL, map[string]string{"Content-Type": "application/json"}, []byte("{}"))
+		done <- outcome{resp, err}
+	}()
+	<-started
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	if _, err := client.SendRequest("POST", server.URL, map[string]string{"Content-Type": "application/json"}, []byte("{}")); !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed for a POST sent after Close, got %v", err)
+	}
+	close(release)
+
+	got := <-done
+	if got.err != nil {
+		t.Fatalf("expected the in-flight POST to finish, got %v", got.err)
+	}
+	if got.resp.StatusCode != 201 || got.resp.Body != "created" {
+		t.Errorf("expected the full in-flight response, got %d %q", got.resp.StatusCode, got.resp.Body)
+	}
+}
+
+func TestBhvLifecycle022_DefaultApiClient_CloseReleasesTheTransportAtOnceAndASecondCloseIsANoOp(t *testing.T) {
+	t.Parallel()
+	var closedConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateClosed {
+			closedConnections.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	if _, err := client.SendRequest("GET", server.URL, map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for closedConnections.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if closedConnections.Load() == 0 {
+		t.Error("expected Close to release the idle connection of the transport it created")
+	}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected a second Close to be a no-op, got %v", err)
+	}
+}
+
+// A 307 keeps the method and body, so an HTTPS→HTTP hop with a body is refused
+// before anything reaches the plaintext target.
+func TestBhvRetries010_DefaultApiClient_Https307ToHttpWithBodyThrowsWithoutReplay(t *testing.T) {
+	t.Parallel()
+	var plainHits atomic.Int32
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		plainHits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer plainTarget.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/downgraded")
+		w.WriteHeader(307)
+	}))
+	defer origin.Close()
+	transport, err := NewTransportOptionsBuilder().VerifySsl(false).FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	_, err = client.SendRequest("POST", origin.URL+"/start", map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, []byte("client_secret=hunter2"))
+	if err == nil {
+		t.Fatal("expected the 307 HTTPS→HTTP body replay to be refused, got nil")
+	}
+	if plainHits.Load() != 0 {
+		t.Errorf("expected no request to reach the plaintext target, got %d", plainHits.Load())
+	}
+}
+
+// A 308 keeps the method and body too, so the same HTTPS→HTTP hop is refused.
+func TestBhvRetries020_DefaultApiClient_Https308ToHttpWithBodyRefusesTheReplay(t *testing.T) {
+	t.Parallel()
+	var plainHits atomic.Int32
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		plainHits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer plainTarget.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/downgraded")
+		w.WriteHeader(308)
+	}))
+	defer origin.Close()
+	transport, err := NewTransportOptionsBuilder().VerifySsl(false).FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	_, err = client.SendRequest("POST", origin.URL+"/start", map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, []byte("client_secret=hunter2"))
+	if err == nil {
+		t.Fatal("expected the 308 HTTPS→HTTP body replay to be refused, got nil")
+	}
+	if plainHits.Load() != 0 {
+		t.Errorf("expected no request to reach the plaintext target, got %d", plainHits.Load())
+	}
+}
+
+// Between two HTTPS origins there is no downgrade, so a 307 replays the body
+// to the target unchanged.
+func TestBhvRetries016_DefaultApiClient_Https307ToHttpsReplaysTheBody(t *testing.T) {
+	t.Parallel()
+	const form = "client_secret=hunter2"
+	received := make(chan string, 1)
+	target := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		received <- string(b)
+		w.WriteHeader(200)
+	}))
+	defer target.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/next")
+		w.WriteHeader(307)
+	}))
+	defer origin.Close()
+	transport, err := NewTransportOptionsBuilder().VerifySsl(false).FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	resp, err := client.SendRequest("POST", origin.URL+"/start", map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, []byte(form))
+	if err != nil {
+		t.Fatalf("expected the HTTPS→HTTPS redirect to proceed, got %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if got := <-received; got != form {
+		t.Errorf("expected the target to receive the body %q, got %q", form, got)
 	}
 }

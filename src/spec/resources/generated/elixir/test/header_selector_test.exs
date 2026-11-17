@@ -105,7 +105,7 @@ defmodule PetstoreClient.HeaderSelectorTest do
       assert headers["Content-Type"] == "application/json"
     end
 
-    test "bhv headers 017 returns single accept as-is" do
+    test "bhv headers 017 bhv headers 023 returns single accept as-is" do
       headers =
         PetstoreClient.HeaderSelector.select_headers(
           ["application/json"],

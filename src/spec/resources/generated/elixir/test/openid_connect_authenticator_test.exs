@@ -42,6 +42,25 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     def get_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.get_count)
   end
 
+  # Records the options a discovery request is sent with, and answers with a valid document.
+  defmodule DiscoveryOptionsApiClient do
+    defstruct []
+
+    def send_request(%__MODULE__{}, :get, _url, _headers, nil, opts) do
+      send(self(), {:discovery_opts, opts})
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+    end
+  end
+
   defp create_authenticator do
     PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.new(
       "https://api.example.com",
@@ -401,7 +420,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       end
     end
 
-    test "a discovery document with a different issuer, or plain-http endpoints, is refused" do
+    test "bhv authoidc 005 a plain-http endpoint is refused unless it is loopback" do
       refuse = fn doc, pattern ->
         fake_client =
           FakeApiClient.new([
@@ -425,9 +444,6 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         "token_endpoint" => "https://auth.example.com/token"
       }
 
-      refuse.(%{good | "issuer" => "https://evil.example.com"}, ~r/'issuer' does not match/)
-      refuse.(Map.delete(good, "issuer"), ~r/'issuer' does not match/)
-
       refuse.(
         %{good | "token_endpoint" => "http://auth.example.com/token"},
         ~r/'token_endpoint' must be an https URL/
@@ -437,6 +453,76 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         %{good | "authorization_endpoint" => "http://auth.example.com/authorize"},
         ~r/'authorization_endpoint' must be an https URL/
       )
+    end
+
+    test "bhv authoidc 024 throws when the discovery issuer does not match the discovery url" do
+      for doc <- [
+            %{
+              "issuer" => "https://evil.example.com",
+              "authorization_endpoint" => "https://auth.example.com/authorize",
+              "token_endpoint" => "https://auth.example.com/token"
+            },
+            %{
+              "authorization_endpoint" => "https://auth.example.com/authorize",
+              "token_endpoint" => "https://auth.example.com/token"
+            }
+          ] do
+        fake_client =
+          FakeApiClient.new([
+            %PetstoreClient.ApiHttpResponse{status_code: 200, body: Jason.encode!(doc)}
+          ])
+
+        auth =
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+            create_authenticator(),
+            fake_client
+          )
+
+        assert_raise PetstoreClient.Errors.SerializationError, ~r/'issuer' does not match/, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end
+      end
+    end
+
+    test "bhv authoidc 007 a 404 discovery response raises not found" do
+      fake_client =
+        FakeApiClient.new([%PetstoreClient.ApiHttpResponse{status_code: 404, body: "missing"}])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+          create_authenticator(),
+          fake_client
+        )
+
+      err =
+        assert_raise PetstoreClient.Errors.NotFoundError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end
+
+      assert err.status_code == 404
+    end
+
+    test "bhv authoidc 016 a malformed discovery document raises serialization error" do
+      fake_client =
+        FakeApiClient.new([%PetstoreClient.ApiHttpResponse{status_code: 200, body: "[1, 2]"}])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+          create_authenticator(),
+          fake_client
+        )
+
+      assert_raise PetstoreClient.Errors.SerializationError, ~r/not a JSON object/, fn ->
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      end
+    end
+
+    test "bhv authoidc 023 the redacted repr shows the non-secret fields" do
+      repr = inspect(create_authenticator())
+
+      assert repr =~ "https://auth.example.com/.well-known/openid-configuration"
+      assert repr =~ ~s(client_id: "my-client-id")
+      refute repr =~ "my-client-secret"
     end
 
     test "bhv authoidc 004 a trailing slash on the issuer and a loopback http endpoint are accepted" do
@@ -461,6 +547,20 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
       assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) =~
                "http://127.0.0.1:8080/authorize"
+    end
+
+    test "bhv authoidc 008 does not send the transport default headers to the discovery endpoint" do
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+          create_authenticator(),
+          %DiscoveryOptionsApiClient{}
+        )
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) =~
+               "https://auth.example.com/authorize"
+
+      assert_received {:discovery_opts, opts}
+      assert opts[:no_default_headers] == true
     end
 
     test "bhv authoidc 014 get_host returns configured host" do

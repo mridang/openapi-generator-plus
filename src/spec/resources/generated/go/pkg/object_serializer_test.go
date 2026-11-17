@@ -353,7 +353,7 @@ func TestBhvSerializationobject117_ObjectSerializer_EdgeCases_KeywordNamedProper
 
 // F1130: a uuid model property is written in lowercase, decodes from the
 // uppercase spelling, and rejects a malformed value.
-func TestObjectSerializer_Order_TrackingIdIsWrittenLowercaseAndDecodesUppercase(t *testing.T) {
+func TestBhvSerializationobject016_ObjectSerializer_Order_TrackingIdIsWrittenLowercaseAndDecodesUppercase(t *testing.T) {
 	t.Parallel()
 	const upper = "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"
 	const lower = "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
@@ -696,7 +696,7 @@ func TestBhvSerializationobject038_ObjectSerializer_ToHeaderValue_Int(t *testing
 	}
 }
 
-func TestObjectSerializer_ToHeaderValue_Nil(t *testing.T) {
+func TestBhvSerializationobject131_ObjectSerializer_ToHeaderValue_Nil(t *testing.T) {
 	t.Parallel()
 	result := toHeaderValue(nil)
 	if result != "" {
@@ -712,7 +712,7 @@ func TestBhvSerializationobject143_ObjectSerializer_ToCookieValue_String(t *test
 	}
 }
 
-func TestObjectSerializer_ToCookieValue_Nil(t *testing.T) {
+func TestBhvSerializationobject133_ObjectSerializer_ToCookieValue_Nil(t *testing.T) {
 	t.Parallel()
 	result := toCookieValue(nil)
 	if result != "" {
@@ -818,7 +818,7 @@ func TestObjectSerializer_Stringify_Time(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Stringify_Nil(t *testing.T) {
+func TestBhvSerializationparam062_ObjectSerializer_Stringify_NullReturnsEmptyString(t *testing.T) {
 	t.Parallel()
 	result := stringify(nil)
 	if result != "" {
@@ -1194,6 +1194,64 @@ func TestBhvSerializationobject113_ObjectSerializer_Deserialize_DurationFieldIsN
 	}
 }
 
+// A whole-second protobuf-JSON duration parses to the matching time.Duration.
+func TestBhvSerializationobject112_ObjectSerializer_Deserialize_ParsesWholeSecondDuration(t *testing.T) {
+	t.Parallel()
+	var result models.EdgeCases
+	if err := deserialize([]byte(`{"retryAfter":"3600s"}`), &result); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.RetryAfter == nil || time.Duration(*result.RetryAfter) != time.Hour {
+		t.Fatalf("expected retryAfter of 1h0m0s, got %v", result.RetryAfter)
+	}
+}
+
+// A negative Duration carries its sign on the whole value, not on one part.
+func TestBhvSerializationobject105_ObjectSerializer_Stringify_NegativeDurationCarriesTheSign(t *testing.T) {
+	t.Parallel()
+	if got := stringify(models.Duration(-1500 * time.Millisecond)); got != "-1.500s" {
+		t.Errorf("expected -1.500s, got %q", got)
+	}
+}
+
+// A Duration stringifies to its canonical protobuf-JSON form: whole seconds, no
+// fraction and a trailing "s".
+func TestBhvSerializationobject158_ObjectSerializer_Stringify_CanonicalProtobufDuration(t *testing.T) {
+	t.Parallel()
+	if got := stringify(models.Duration(time.Hour)); got != "3600s" {
+		t.Errorf("expected 3600s, got %q", got)
+	}
+}
+
+// A Duration survives serialize then deserialize as an equivalent value.
+func TestBhvSerializationobject145_ObjectSerializer_Duration_RoundTripYieldsAnEquivalentValue(t *testing.T) {
+	t.Parallel()
+	retry := models.Duration(90*time.Second + 250*time.Millisecond)
+	data, err := serialize(models.EdgeCases{RetryAfter: &retry})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var decoded models.EdgeCases
+	if err := deserialize(data, &decoded); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if decoded.RetryAfter == nil || *decoded.RetryAfter != retry {
+		t.Errorf("expected %v, got %v", retry, decoded.RetryAfter)
+	}
+}
+
+// A Duration held in a generic map is written as the protobuf-JSON string.
+func TestBhvSerializationobject146_ObjectSerializer_Serialize_DurationInsideAMapIsProtobufJSON(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(map[string]any{"retryAfter": models.Duration(time.Hour)})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != `{"retryAfter":"3600s"}` {
+		t.Errorf("expected the protobuf-JSON duration string, got %s", data)
+	}
+}
+
 // A malformed or out-of-range duration is a *SerializationError, like any
 // other wire-shape failure.
 func TestBhvSerializationobject080_ObjectSerializer_Deserialize_MalformedDurationIsSerializationError(t *testing.T) {
@@ -1205,6 +1263,186 @@ func TestBhvSerializationobject080_ObjectSerializer_Deserialize_MalformedDuratio
 		if !errors.As(err, &serErr) {
 			t.Errorf("expected *SerializationError for %s, got %T: %v", wire, err, err)
 		}
+	}
+}
+
+// A malformed uuid string is a *SerializationError on decode, not a silent zero.
+func TestBhvSerializationobject103_ObjectSerializer_Deserialize_MalformedUUIDIsSerializationError(t *testing.T) {
+	t.Parallel()
+	var order models.Order
+	err := deserialize([]byte(`{"trackingId":"not-a-uuid"}`), &order)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// A value of the referenced enum type outside its wire values is rejected
+// through the enclosing model.
+func TestBhvSerializationobject119_ObjectSerializer_Deserialize_ReferencedEnumRejectsUnknownWireValue(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	err := deserialize([]byte(`{"priority":1,"availability":"banana"}`), &item)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// An int32 field rejects a fractional number instead of truncating it.
+func TestBhvSerializationobject120_ObjectSerializer_Deserialize_RejectsFractionalInt32(t *testing.T) {
+	t.Parallel()
+	var result models.Error
+	err := deserialize([]byte(`{"code":1.5}`), &result)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// Nil input to deserialize is not an error and leaves the target untouched.
+func TestBhvSerializationobject138_ObjectSerializer_Deserialize_NilInputReturnsNilAndLeavesTheTarget(t *testing.T) {
+	t.Parallel()
+	var category models.Category
+	if err := deserialize(nil, &category); err != nil {
+		t.Fatalf("expected nil input to return no error, got %v", err)
+	}
+	if !reflect.DeepEqual(category, models.Category{}) {
+		t.Errorf("expected the target untouched, got %+v", category)
+	}
+}
+
+// A uuid field is written in lowercase on the wire.
+func TestBhvSerializationobject148_ObjectSerializer_Serialize_UUIDFieldIsWrittenLowercase(t *testing.T) {
+	t.Parallel()
+	id := uuid.MustParse("E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
+	data, err := serialize(models.Order{TrackingId: &id})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"trackingId":"e621e1f8-c36c-495a-93fc-0c247a3e6e5f"`) {
+		t.Errorf("expected the lowercase uuid on the wire, got %s", data)
+	}
+}
+
+// A date-time keeps its numeric offset in the serialized string.
+func TestBhvSerializationobject149_ObjectSerializer_Serialize_DateTimeStringContainsOffset(t *testing.T) {
+	t.Parallel()
+	loc := time.FixedZone("IST", 5*60*60+30*60)
+	data, err := serialize(map[string]any{"at": models.DateTime(time.Date(2024, 1, 1, 12, 30, 45, 0, loc))})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != `{"at":"2024-01-01T12:30:45.000+05:30"}` {
+		t.Errorf("expected the offset in the serialized date-time, got %s", data)
+	}
+}
+
+// A strict model refuses a key it does not declare when deserialized.
+func TestBhvSerializationobject154_ObjectSerializer_Deserialize_StrictModelRejectsUndeclaredKey(t *testing.T) {
+	t.Parallel()
+	var tag models.StrictTag
+	err := deserialize([]byte(`{"id":1,"extra":true}`), &tag)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// Every Separator wire value decodes to its own member and re-encodes to the
+// same wire value.
+func TestBhvSerializationobject161_ObjectSerializer_Separator_WireValuesDecodeToDistinctMembers(t *testing.T) {
+	t.Parallel()
+	seen := map[models.Separator]bool{}
+	for _, value := range models.AllSeparatorValues() {
+		data, err := serialize(value)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var decoded models.Separator
+		if err := deserialize(data, &decoded); err != nil {
+			t.Fatalf("unexpected error for %s: %v", data, err)
+		}
+		if decoded != value {
+			t.Errorf("expected %q to decode unchanged, got %q", value, decoded)
+		}
+		seen[decoded] = true
+	}
+	if len(seen) != 4 {
+		t.Errorf("expected four distinct Separator members, got %d", len(seen))
+	}
+}
+
+// A format: uri-reference field keeps a relative reference as plain text.
+func TestBhvSerializationobject173_ObjectSerializer_Deserialize_UriReferenceAcceptsARelativeReference(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"Rex","photoUrls":[],"thumbnailRef":"/assets/thumb.png"}`), &pet); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pet.ThumbnailRef == nil || *pet.ThumbnailRef != "/assets/thumb.png" {
+		t.Errorf("expected the relative reference kept, got %v", pet.ThumbnailRef)
+	}
+}
+
+// A uuid stringifies to its canonical lowercase 8-4-4-4-12 text.
+func TestBhvSerializationobject175_ObjectSerializer_UUID_ReturnsItsStringRepresentation(t *testing.T) {
+	t.Parallel()
+	const canonical = "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
+	if got := stringify(uuid.MustParse(canonical)); got != canonical {
+		t.Errorf("expected %s, got %s", canonical, got)
+	}
+}
+
+// A uuid survives serialize then deserialize as the same identity.
+func TestBhvSerializationobject176_ObjectSerializer_UUID_RoundTripPreservesIdentity(t *testing.T) {
+	t.Parallel()
+	id := uuid.MustParse("e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
+	data, err := serialize(models.Order{TrackingId: &id})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var decoded models.Order
+	if err := deserialize(data, &decoded); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if decoded.TrackingId == nil || *decoded.TrackingId != id {
+		t.Errorf("expected %s, got %v", id, decoded.TrackingId)
+	}
+}
+
+// A number-typed property with decimal precision survives a round trip as a
+// JSON number.
+func TestBhvSerializationobject177_ObjectSerializer_WeightKg_RoundTripsAsANumber(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"Rex","photoUrls":[],"weightKg":12.345}`), &pet); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := serialize(pet)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"weightKg":12.345`) {
+		t.Errorf("expected the weight written as a number, got %s", data)
+	}
+	var again models.Pet
+	if err := deserialize(data, &again); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if again.WeightKg == nil || *again.WeightKg != 12.345 {
+		t.Errorf("expected 12.345, got %v", again.WeightKg)
+	}
+}
+
+// A value of the wrong primitive type is a *SerializationError.
+func TestBhvSerializationobject180_ObjectSerializer_Deserialize_WrongPrimitiveTypeIsSerializationError(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	err := deserialize([]byte(`{"name":7,"photoUrls":[]}`), &pet)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
 	}
 }
 
@@ -1663,7 +1901,7 @@ func TestObjectSerializer_ModelEqual_MapBearingModel(t *testing.T) {
 // A self-referential model ($ref to itself via an optional field) must
 // deserialize recursively: the nested object decodes into a real TreeNode, not
 // a raw map, and the absent grandchild stays nil.
-func TestObjectSerializer_Deserialize_RecursiveModelDecodesNestedNode(t *testing.T) {
+func TestBhvSerializationobject068_ObjectSerializer_Deserialize_RecursiveModelDecodesNestedNode(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"value":"root","child":{"value":"leaf"}}`)
 	var top models.TreeNode
@@ -1861,7 +2099,7 @@ func TestBhvSerializationobject022_ObjectSerializer_EdgeCases_InlinePhaseEnumRou
 
 // F1145: a format:time model property goes out and comes back as the text the
 // caller set.
-func TestObjectSerializer_EdgeCases_CutoffTimeRoundTripsAsText(t *testing.T) {
+func TestBhvSerializationobject163_ObjectSerializer_EdgeCases_CutoffTimeRoundTripsAsText(t *testing.T) {
 	t.Parallel()
 	cutoff := "10:30:00.123"
 	data, err := serialize(models.EdgeCases{Cutoff: &cutoff})
@@ -2134,7 +2372,7 @@ func TestObjectSerializer_IsJSONNull(t *testing.T) {
 // A format:byte field accepts only strict RFC 4648 base64 (standard alphabet,
 // padded, no whitespace); anything else is a *SerializationError at decode
 // time, in a scalar, an array and a map field alike.
-func TestObjectSerializer_Deserialize_StrictBase64ForByteFields(t *testing.T) {
+func TestBhvSerializationobject094_ObjectSerializer_Deserialize_StrictBase64ForByteFields(t *testing.T) {
 	t.Parallel()
 	rejected := []string{"dGVzdA", "dGVz dA==", "dGVz\\ndA==", "-_8=", "!!!!"}
 	for _, value := range rejected {
@@ -2309,7 +2547,7 @@ func TestObjectSerializer_Deserialize_UnroutableDiscriminatorIsSerializationErro
 // Integer formats are enforced when decoding: a value outside int32 or a
 // fraction in an integer field is refused as a *SerializationError rather than
 // truncated, and an int64 beyond 2^53 survives exactly.
-func TestObjectSerializer_Deserialize_IntegerFormatBoundaries(t *testing.T) {
+func TestBhvSerializationobject030_ObjectSerializer_Deserialize_IntegerFormatBoundaries(t *testing.T) {
 	t.Parallel()
 	rejected := map[string]string{
 		"int32 above the maximum":   `{"quantity":2147483648}`,
@@ -2572,5 +2810,329 @@ func TestBhvSerializationobject101_ObjectSerializer_JoinsArrayWithTabForTsv(t *t
 	t.Parallel()
 	if got := toQueryValue([]string{"a", "b", "c"}, "tsv"); got != "a\tb\tc" {
 		t.Errorf("expected tab-joined 'a b c', got %q", got)
+	}
+}
+
+// A deserialize failure is a *SerializationError whose message is the canonical
+// wording followed by the parser detail.
+func TestBhvSerializationobject004_ObjectSerializer_Deserialize_FailureCarriesTheCanonicalMessage(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	err := deserialize([]byte(`{"name":`), &pet)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if !strings.HasPrefix(serErr.Message(), "failed to deserialize JSON: ") {
+		t.Errorf("expected the canonical message prefix, got %q", serErr.Message())
+	}
+	if !strings.Contains(serErr.Message(), "unexpected end of JSON input") {
+		t.Errorf("expected the parser detail in the message, got %q", serErr.Message())
+	}
+}
+
+// A differing byte inside a map value makes two vaults unequal.
+func TestBhvSerializationobject005_ObjectSerializer_BinaryVault_DifferingByteInAMapValueMakesThemUnequal(t *testing.T) {
+	t.Parallel()
+	left := models.BinaryVault{Labels: &map[string][]byte{"k": []byte("ab")}}
+	right := models.BinaryVault{Labels: &map[string][]byte{"k": []byte("ac")}}
+	if left.Equal(right) {
+		t.Error("expected a differing byte in a map value to make the vaults unequal")
+	}
+}
+
+// A format: uri property refuses a relative reference, free text and an empty
+// string (the accepting side is covered by the absolute-URI test).
+func TestBhvSerializationobject008_ObjectSerializer_Deserialize_FormatUriRejectsARelativeReference(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"/relative", "not a uri", ""} {
+		var pet models.Pet
+		wire := `{"name":"x","photoUrls":[],"homepageUrl":"` + value + `"}`
+		err := deserialize([]byte(wire), &pet)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%q: expected *SerializationError, got %T: %v", value, err, err)
+		}
+	}
+}
+
+// A list of byte arrays is never equal to a map of the same byte arrays.
+func TestBhvSerializationobject009_ObjectSerializer_BinaryVault_ListOfByteArraysIsNotAMapOfThem(t *testing.T) {
+	t.Parallel()
+	shard := []byte("a")
+	asList := models.BinaryVault{Shards: &[][]byte{shard}}
+	asMap := models.BinaryVault{Labels: &map[string][]byte{"0": shard}}
+	if asList.Equal(asMap) {
+		t.Error("expected a list of byte arrays to differ from a map of them")
+	}
+}
+
+// A date-time that is not RFC 3339 (an RFC 2822 date, a basic ISO 8601 stamp)
+// is a *SerializationError.
+func TestBhvSerializationobject011_ObjectSerializer_Deserialize_NonRFC3339DateTimeIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, wire := range []string{`"Mon, 01 Jan 2024 10:00:00 GMT"`, `"20240101T100000Z"`} {
+		var model models.EdgeCases
+		err := deserialize([]byte(`{"expiresAt":`+wire+`}`), &model)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%s: expected *SerializationError, got %T: %v", wire, err, err)
+		}
+	}
+}
+
+// A negative protobuf-JSON duration decodes with its sign and is written back
+// with the same sign.
+func TestBhvSerializationobject013_ObjectSerializer_Deserialize_NegativeProtobufDurationKeepsItsSign(t *testing.T) {
+	t.Parallel()
+	var model models.EdgeCases
+	if err := deserialize([]byte(`{"retryAfter":"-3600.5s"}`), &model); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if model.RetryAfter == nil || time.Duration(*model.RetryAfter) != -(time.Hour+500*time.Millisecond) {
+		t.Fatalf("expected retryAfter of -1h0.5s, got %v", model.RetryAfter)
+	}
+	data, err := serialize(model)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"retryAfter":"-3600.500s"`) {
+		t.Errorf("expected the signed protobuf-JSON duration on the wire, got %s", data)
+	}
+}
+
+// A readOnly property is populated when a payload carries it.
+func TestBhvSerializationobject014_ObjectSerializer_Deserialize_ReadOnlyPropertyIsDecoded(t *testing.T) {
+	t.Parallel()
+	var decoded models.Account
+	if err := deserialize([]byte(`{"id":7,"username":"u"}`), &decoded); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if decoded.Id == nil || *decoded.Id != 7 {
+		t.Errorf("expected the read-only id 7 to be decoded, got %v", decoded.Id)
+	}
+}
+
+// A writeOnly property is written on serialize.
+func TestBhvSerializationobject018_ObjectSerializer_Serialize_WriteOnlyPropertyIsWritten(t *testing.T) {
+	t.Parallel()
+	password := "p"
+	data, err := serialize(models.Account{Username: "u", Password: &password})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"password":"p"`) {
+		t.Errorf("expected the write-only password on the wire, got %s", data)
+	}
+}
+
+// An inline enum rejects a value that is not one of its declared wire values.
+func TestBhvSerializationobject024_ObjectSerializer_EdgeCases_UnknownInlineEnumValueIsRejected(t *testing.T) {
+	t.Parallel()
+	var model models.EdgeCases
+	err := deserialize([]byte(`{"phase":"Gone"}`), &model)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// Slug, nickname and quantity are constraint keywords this SDK does not enforce:
+// values outside their declared pattern, length and maximum decode as given.
+func TestBhvSerializationobject032_ObjectSerializer_ConstraintKeywordsAreNotEnforced(t *testing.T) {
+	t.Parallel()
+	var edge models.EdgeCases
+	if err := deserialize([]byte(`{"slug":"ab/12"}`), &edge); err != nil {
+		t.Fatalf("unexpected error for the slug: %v", err)
+	}
+	if edge.Slug == nil || *edge.Slug != "ab/12" {
+		t.Errorf("expected slug ab/12, got %v", edge.Slug)
+	}
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"x","photoUrls":[],"nickname":"ZZZZZZZZZZ"}`), &pet); err != nil {
+		t.Fatalf("unexpected error for the nickname: %v", err)
+	}
+	if pet.Nickname == nil || *pet.Nickname != "ZZZZZZZZZZ" {
+		t.Errorf("expected nickname ZZZZZZZZZZ, got %v", pet.Nickname)
+	}
+	var order models.Order
+	if err := deserialize([]byte(`{"quantity":150}`), &order); err != nil {
+		t.Fatalf("unexpected error for the quantity: %v", err)
+	}
+	if order.Quantity == nil || *order.Quantity != 150 {
+		t.Errorf("expected quantity 150, got %v", order.Quantity)
+	}
+}
+
+// Converting a bool to a string gives the lower-case word false.
+func TestBhvSerializationobject033_ObjectSerializer_Stringify_FalseBecomesTheStringFalse(t *testing.T) {
+	t.Parallel()
+	if got := stringify(false); got != "false" {
+		t.Errorf("expected \"false\", got %q", got)
+	}
+}
+
+// Converting a bool to a string gives the lower-case word true.
+func TestBhvSerializationobject043_ObjectSerializer_Stringify_TrueBecomesTheStringTrue(t *testing.T) {
+	t.Parallel()
+	if got := stringify(true); got != "true" {
+		t.Errorf("expected \"true\", got %q", got)
+	}
+}
+
+// A date-time field in a model body keeps its milliseconds in the wire form.
+func TestBhvSerializationobject045_ObjectSerializer_Serialize_DateTimeBodyKeepsSubsecondPrecision(t *testing.T) {
+	t.Parallel()
+	expires := models.DateTime(time.Date(2024, 1, 1, 12, 30, 45, 123000000, time.UTC))
+	data, err := serialize(models.EdgeCases{ExpiresAt: &expires})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"expiresAt":"2024-01-01T12:30:45.123+00:00"`) {
+		t.Errorf("expected the sub-second date-time on the wire, got %s", data)
+	}
+}
+
+// A uuid that is not well formed is a *SerializationError.
+func TestBhvSerializationobject048_ObjectSerializer_Deserialize_MalformedUuidIsRejected(t *testing.T) {
+	t.Parallel()
+	var order models.Order
+	err := deserialize([]byte(`{"trackingId":"not-a-uuid"}`), &order)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// A fractional protobuf-JSON duration parses to the exact time.Duration.
+func TestBhvSerializationobject054_ObjectSerializer_Deserialize_FractionalProtobufSecondsParse(t *testing.T) {
+	t.Parallel()
+	var model models.EdgeCases
+	if err := deserialize([]byte(`{"retryAfter":"1.5s"}`), &model); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if model.RetryAfter == nil || time.Duration(*model.RetryAfter) != 1500*time.Millisecond {
+		t.Errorf("expected retryAfter of 1.5s, got %v", model.RetryAfter)
+	}
+}
+
+// A double literal that overflows to infinity is a *SerializationError.
+func TestBhvSerializationobject057_ObjectSerializer_Deserialize_DoubleOverflowIsSerializationError(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	err := deserialize([]byte(`{"name":"x","photoUrls":[],"weightKg":1e400}`), &pet)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// A model that declares unevaluatedProperties:false rejects an undeclared key.
+func TestBhvSerializationobject058_ObjectSerializer_StrictTag_RejectsAnUndeclaredKey(t *testing.T) {
+	t.Parallel()
+	var strict models.StrictTag
+	err := deserialize([]byte(`{"id":1,"extra":2}`), &strict)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// A payload with every required field present decodes without error.
+func TestBhvSerializationobject061_ObjectSerializer_Deserialize_SucceedsWhenRequiredFieldsArePresent(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"Rex","photoUrls":["u"]}`), &pet); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pet.Name != "Rex" {
+		t.Errorf("expected name Rex, got %q", pet.Name)
+	}
+}
+
+// A uuid given as a string decodes into the uuid property.
+func TestBhvSerializationobject065_ObjectSerializer_Deserialize_UuidFromString(t *testing.T) {
+	t.Parallel()
+	const wire = "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
+	var order models.Order
+	if err := deserialize([]byte(`{"trackingId":"`+wire+`"}`), &order); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if order.TrackingId == nil || order.TrackingId.String() != wire {
+		t.Errorf("expected the uuid %s, got %v", wire, order.TrackingId)
+	}
+}
+
+// A duration property keeps its value through a decode and an encode of the body.
+func TestBhvSerializationobject073_ObjectSerializer_Deserialize_DurationRoundTripsThroughABody(t *testing.T) {
+	t.Parallel()
+	var model models.EdgeCases
+	if err := deserialize([]byte(`{"retryAfter":"90s"}`), &model); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := serialize(model)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"retryAfter":"90s"`) {
+		t.Errorf("expected the duration to round-trip, got %s", data)
+	}
+}
+
+// A whole-hour duration is written as whole seconds, with no fractional part.
+func TestBhvSerializationobject081_ObjectSerializer_Serialize_DurationEmitsWholeSeconds(t *testing.T) {
+	t.Parallel()
+	retry := models.Duration(time.Hour)
+	data, err := serialize(models.EdgeCases{RetryAfter: &retry})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"retryAfter":"3600s"`) {
+		t.Errorf("expected whole seconds on the wire, got %s", data)
+	}
+}
+
+// A required property that is absent from the payload is a *SerializationError.
+func TestBhvSerializationobject083_ObjectSerializer_Deserialize_AbsentRequiredFieldThrows(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	err := deserialize([]byte(`{"name":"Rex"}`), &pet)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// A required non-nullable string property sent as an explicit null is a
+// *SerializationError.
+func TestBhvSerializationobject084_ObjectSerializer_Deserialize_ExplicitNullRequiredStringThrows(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	err := deserialize([]byte(`{"name":null,"photoUrls":["u"]}`), &pet)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// A required array property sent as an explicit null is a *SerializationError.
+func TestBhvSerializationobject086_ObjectSerializer_Deserialize_NullOnRequiredArrayThrows(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	err := deserialize([]byte(`{"name":"Rex","photoUrls":null}`), &pet)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+// A JSON object cut off before its closing brace is a *SerializationError.
+func TestBhvSerializationobject089_ObjectSerializer_Deserialize_IncompleteObjectIsSerializationError(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	err := deserialize([]byte(`{"name":"Rex"`), &pet)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
 	}
 }

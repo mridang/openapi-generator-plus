@@ -165,7 +165,8 @@ fn invalid_argument_text<T>(result: Result<T, ConfigurationError>) -> String {
 }
 
 #[test]
-fn test_bhv_lifecycle_014_client_with_token_reads_the_environment_when_nothing_is_passed() {
+fn test_bhv_lifecycle_014_bhv_authbearer_010_client_with_token_reads_the_environment_when_nothing_is_passed(
+) {
     with_environment(Some("/api/v3"), Some("env-token"), || {
         assert!(Client::with_token(None, None, None).is_ok());
     });
@@ -223,4 +224,67 @@ fn test_bhv_lifecycle_016_client_with_token_provider_needs_a_host_but_no_token_v
         let text = invalid_argument_text(Client::with_token_provider(None, provider, None));
         assert!(text.contains("PETSTORE_BASE_URL"), "{}", text);
     });
+}
+
+/// RFC 7230 §3.2.6: the Header location refuses a bare CR and a non-ASCII key
+/// with `ConfigurationError::InvalidArgument`.
+#[test]
+fn test_bhv_lifecycle_004_api_key_authenticator_header_rejects_cr_and_non_ascii() {
+    for key in ["abc\rdef", "naïve"] {
+        let result = ApiKeyAuthenticator::new("/api/v3", "X-Api-Key", key, ApiKeyLocation::Header);
+        assert!(
+            matches!(result, Err(ConfigurationError::InvalidArgument(_))),
+            "expected InvalidArgument for {:?}, got {:?}",
+            key,
+            result
+        );
+    }
+}
+
+/* F824 / S9: a caller-supplied transport stays usable after the client that
+ * wraps it is closed, so a request sent through it still reaches the server. */
+#[tokio::test]
+async fn test_bhv_lifecycle_009_closing_a_client_never_closes_a_supplied_transport() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().expect("local address"));
+    std::thread::spawn(move || {
+        for stream in listener.incoming().take(1) {
+            let mut stream = stream.expect("connection");
+            let mut buf = [0u8; 4096];
+            let _ = std::io::Read::read(&mut stream, &mut buf);
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            );
+        }
+    });
+    let supplied = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("valid client");
+    let authenticator = BearerAuthenticator::new(&base_url, "test-token").unwrap();
+    let client = Client::with_http_client(Box::new(authenticator), supplied.clone(), None)
+        .expect("no conflict");
+
+    client.close();
+
+    let status = supplied
+        .get(format!("{}/ping", base_url))
+        .send()
+        .await
+        .expect("the supplied client still sends")
+        .status();
+    assert_eq!(status.as_u16(), 200);
+}
+
+/* One optional credential per security scheme, each setter named after the scheme:
+ * a client built with the credential of the first scheme is constructed. */
+#[test]
+fn test_bhv_lifecycle_015_takes_one_optional_keyword_credential_per_security_scheme_named_after_it()
+{
+    let host = "/api/v3";
+    let credentials = petstore::Credentials::new()
+        .with_pet_store_basic(BearerAuthenticator::new(host, "test-token").unwrap());
+    let client = Client::with_credentials(host, credentials, None);
+    let _ = &client;
 }

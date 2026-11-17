@@ -822,12 +822,17 @@ pub fn serialize_extras<V: Serialize, S: serde::Serializer>(
 
 /// Returns the wire text of the parameter types whose form is not their serde
 /// form: `format: byte` (`Vec<u8>`) is padded standard-alphabet base64 rather
-/// than a number array, and `format: time` is [`format_time`].
+/// than a number array, `format: time` is [`format_time`], and `format: duration`
+/// is the protobuf-JSON string of `crate::proto_duration::format` (chrono's own
+/// serde form is a `{secs, nanos}` struct).
 fn scalar_override<T: 'static>(value: &T) -> Option<String> {
     use base64::Engine as _;
     let any = value as &dyn std::any::Any;
     if let Some(bytes) = any.downcast_ref::<Vec<u8>>() {
         return Some(base64::engine::general_purpose::STANDARD.encode(bytes));
+    }
+    if let Some(duration) = any.downcast_ref::<chrono::Duration>() {
+        return Some(crate::proto_duration::format(duration));
     }
     any.downcast_ref::<chrono::NaiveTime>().map(format_time)
 }
@@ -959,15 +964,20 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 mod tests {
     use super::{self as object_serializer, QueryValue, SerializationError};
 
-    /* D47: an object-valued parameter is expanded per property, in declaration
-     * order for a model and in key order for a map; a nested value is refused. */
-    #[test]
-    fn test_object_valued_parameters_expand_per_style() {
+    fn sample_object() -> std::collections::HashMap<String, serde_json::Value> {
         let mut map: std::collections::HashMap<String, serde_json::Value> =
             std::collections::HashMap::new();
         map.insert("min_age".to_string(), serde_json::json!(3));
         map.insert("breed".to_string(), serde_json::json!("lab"));
         map.insert("skipped".to_string(), serde_json::Value::Null);
+        map
+    }
+
+    /* D47: an object-valued parameter is expanded per property, in declaration
+     * order for a model and in key order for a map; a nested value is refused. */
+    #[test]
+    fn test_bhv_serializationparam_036_object_query_pairs_one_entry_per_property() {
+        let map = sample_object();
 
         assert_eq!(
             Some(vec![
@@ -976,6 +986,12 @@ mod tests {
             ]),
             object_serializer::object_query_pairs(&map, "form", true).unwrap()
         );
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_039_stringify_param_form_not_exploded_is_one_list() {
+        let map = sample_object();
+
         assert_eq!(
             None,
             object_serializer::object_query_pairs(&map, "form", false).unwrap()
@@ -984,10 +1000,22 @@ mod tests {
             "breed,lab,min_age,3",
             object_serializer::stringify_param(&map, "form", false).unwrap()
         );
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_082_stringify_param_simple_object_is_a_header_list() {
+        let map = sample_object();
+
         assert_eq!(
             "breed=lab,min_age=3",
             object_serializer::stringify_param(&map, "simple", true).unwrap()
         );
+    }
+
+    #[test]
+    fn test_object_valued_parameters_pipe_delimited_and_nested_values() {
+        let mut map = sample_object();
+
         assert_eq!(
             "breed|lab|min_age|3",
             object_serializer::stringify_param(&map, "pipeDelimited", false).unwrap()
@@ -1218,7 +1246,7 @@ mod tests {
      * range or with a fractional part as a SerializationError, instead of
      * truncating it, and an int64 keeps every digit of a value above 2^53. */
     #[test]
-    fn test_bhv_serializationobject_032_integer_widths_are_enforced_on_deserialize() {
+    fn test_bhv_serializationobject_030_integer_widths_are_enforced_on_deserialize() {
         let overflow: Result<Option<i32>, SerializationError> =
             object_serializer::deserialize(b"3000000000");
         assert!(overflow.is_err(), "3000000000 does not fit an int32");
@@ -1307,6 +1335,31 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationparam_001_stringify_null_element_keeps_an_empty_slot() {
+        let items: Vec<Option<String>> = vec![Some("a".to_string()), None, Some("c".to_string())];
+        let texts: Vec<String> = items.iter().map(object_serializer::stringify).collect();
+        assert_eq!(texts, ["a", "", "c"]);
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_011_null_element_in_multi_array_is_an_empty_value() {
+        let items: Vec<Option<String>> = vec![Some("a".to_string()), None, Some("c".to_string())];
+        let texts: Vec<String> = items.iter().map(object_serializer::stringify).collect();
+        match crate::value_serializer::serialize_array_value(&texts, "query", "multi") {
+            Some(crate::value_serializer::SerializedValue::Multi(values)) => {
+                assert_eq!(values, ["a", "", "c"]);
+            }
+            other => panic!("expected a multi list, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_027_to_path_value_date_at_year_boundary_is_date_only() {
+        let date = chrono::NaiveDate::from_ymd_opt(2024, 12, 31).expect("a valid date");
+        assert_eq!(object_serializer::to_path_value(&date), "2024-12-31");
+    }
+
+    #[test]
     fn test_bhv_serializationobject_149_to_path_value_datetime_with_offset_is_not_truncated() {
         let result = object_serializer::to_path_value(&"2024-01-15T10:30:00+01:00".to_string());
         assert_eq!(result, "2024-01-15T10:30:00+01:00");
@@ -1343,7 +1396,7 @@ mod tests {
     /* -- Unknown fields tolerated on deserialize (no deny_unknown_fields) -- */
 
     #[test]
-    fn test_unknown_fields_tolerated_on_deserialize() {
+    fn test_bhv_serializationobject_082_unknown_fields_tolerated_on_deserialize() {
         /* By default the SDK accepts and ignores additional fields the server
          * includes that are not declared in the schema. Without this,
          * server-side additions break clients. */
@@ -1520,7 +1573,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_string_slice_tsv() {
+    fn test_bhv_serializationobject_101_to_query_value_string_slice_tsv() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_query_value(&items, "tsv");
         match result {
@@ -1530,11 +1583,38 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_string_slice_pipes() {
+    fn test_bhv_serializationobject_099_to_query_value_string_slice_pipes() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_query_value(&items, "pipes");
         match result {
             QueryValue::Single(s) => assert_eq!(s, "a|b|c"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_097_to_query_value_joins_with_comma_by_default() {
+        let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        match object_serializer::to_query_value(&items, "") {
+            QueryValue::Single(s) => assert_eq!(s, "a,b,c"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_098_to_query_value_joins_non_string_items_with_comma_for_csv() {
+        let items = vec![1, 2, 3];
+        match object_serializer::to_query_value(&items, "csv") {
+            QueryValue::Single(s) => assert_eq!(s, "1,2,3"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_100_to_query_value_joins_non_string_items_with_space_for_ssv() {
+        let items = vec![1, 2, 3];
+        match object_serializer::to_query_value(&items, "ssv") {
+            QueryValue::Single(s) => assert_eq!(s, "1 2 3"),
             _ => panic!("expected QueryValue::Single"),
         }
     }
@@ -1556,7 +1636,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_header_value_string_slice() {
+    fn test_bhv_serializationobject_096_to_header_value_string_slice() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_header_value(&items);
         assert_eq!(result, "a,b,c");
@@ -1569,7 +1649,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_form_value_int() {
+    fn test_bhv_serializationobject_037_to_form_value_int() {
         let result = object_serializer::to_form_value(&123.to_string());
         assert_eq!(result, "123");
     }
@@ -1593,19 +1673,39 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationobject_033_to_header_value_bool_false() {
+        assert_eq!(object_serializer::to_header_value(&false), "false");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_034_to_cookie_value_bool_false() {
+        assert_eq!(object_serializer::to_cookie_value(&false), "false");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_041_to_header_value_bool_true() {
+        assert_eq!(object_serializer::to_header_value(&true), "true");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_043_to_cookie_value_bool_true() {
+        assert_eq!(object_serializer::to_cookie_value(&true), "true");
+    }
+
+    #[test]
     fn test_bhv_serializationobject_038_to_header_value_int() {
         let result = object_serializer::to_header_value(&42.to_string());
         assert_eq!(result, "42");
     }
 
     #[test]
-    fn test_to_header_value_none() {
+    fn test_bhv_serializationobject_132_to_header_value_none() {
         let result = object_serializer::to_header_value(&Option::<String>::None);
         assert_eq!(result, "");
     }
 
     #[test]
-    fn test_to_path_value_none() {
+    fn test_bhv_serializationobject_131_to_path_value_none() {
         let result = object_serializer::to_path_value(&Option::<String>::None);
         assert_eq!(result, "");
     }
@@ -1626,7 +1726,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_cookie_value_none() {
+    fn test_bhv_serializationobject_133_to_cookie_value_none() {
         let result = object_serializer::to_cookie_value(&Option::<String>::None);
         assert_eq!(result, "");
     }
@@ -1644,7 +1744,13 @@ mod tests {
     }
 
     #[test]
-    fn test_stringify_int() {
+    fn test_bhv_serializationobject_078_stringify_float_returns_string_representation() {
+        assert_eq!(object_serializer::stringify(&1.5_f64), "1.5");
+        assert_eq!(object_serializer::stringify(&-2.25_f64), "-2.25");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_039_stringify_int() {
         let result = object_serializer::stringify(&42.to_string());
         assert_eq!(result, "42");
     }
@@ -1873,7 +1979,7 @@ mod tests {
 
     /* serialize of a None option emits the literal JSON null. */
     #[test]
-    fn test_serialize_none_emits_null() {
+    fn test_bhv_serializationobject_087_serialize_none_emits_null() {
         let json =
             object_serializer::serialize(&Option::<i32>::None).expect("serialize must succeed");
         assert_eq!(json, "null");
@@ -2104,6 +2210,16 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationobject_021_absolute_uri_is_accepted_verbatim() {
+        let uri = "https://example.com/a/b?x=1&y=two#frag";
+        let payload = String::from(r#"{"name":"n","photoUrls":[],"homepageUrl":""#) + uri + r#""}"#;
+        let pet: Pet = object_serializer::deserialize(payload.as_bytes())
+            .expect("an absolute URI must decode")
+            .expect("expected Some");
+        assert_eq!(pet.homepage_url.as_deref(), Some(uri));
+    }
+
+    #[test]
     fn test_bhv_serializationobject_015_unique_items_array_is_written_in_ascending_order() {
         for _ in 0..2 {
             let urls: std::collections::HashSet<String> =
@@ -2137,6 +2253,156 @@ mod tests {
         assert_eq!(
             decoded.cutoff,
             chrono::NaiveTime::from_hms_milli_opt(10, 30, 0, 123)
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_118_scalar_for_a_nested_model_raises_serialization_error() {
+        assert!(
+            object_serializer::deserialize::<crate::models::PetPassport>(br#"{"pet":5}"#).is_err(),
+            "a scalar where a Pet object is expected must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_120_fractional_number_for_an_int32_field_is_rejected() {
+        assert!(
+            object_serializer::deserialize::<crate::models::Order>(br#"{"quantity":1.5}"#).is_err(),
+            "a fractional quantity must not be truncated to an int32"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_121_null_element_in_an_array_of_models_is_rejected() {
+        assert!(
+            object_serializer::deserialize::<Vec<crate::models::Tag>>(br#"[{"id":1},null]"#)
+                .is_err(),
+            "a null element of an array of models must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_122_null_elements_of_int32_maps_and_nested_arrays_are_rejected()
+    {
+        assert!(
+            object_serializer::deserialize::<std::collections::HashMap<String, i32>>(
+                br#"{"a":1,"b":null}"#
+            )
+            .is_err(),
+            "a null value in a map of int32 must be refused"
+        );
+        assert!(
+            object_serializer::deserialize::<Vec<Vec<i32>>>(br#"[[1,null]]"#).is_err(),
+            "a null element of a nested array of int32 must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_123_null_value_in_a_map_of_models_is_rejected() {
+        assert!(
+            object_serializer::deserialize::<std::collections::HashMap<String, crate::models::Tag>>(
+                br#"{"a":null}"#
+            )
+            .is_err(),
+            "a null value in a map of models must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_128_one_of_returns_the_first_matching_variant() {
+        let decoded: Option<crate::models::SetPetAvatarThumbnailRequest> =
+            object_serializer::deserialize(br#""AQID""#).expect("a base64 string decodes");
+        assert_eq!(
+            decoded,
+            Some(crate::models::SetPetAvatarThumbnailRequest::VecU8(vec![
+                1, 2, 3
+            ]))
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_129_one_of_throws_when_no_variant_matches() {
+        assert!(
+            object_serializer::deserialize::<crate::models::SetPetAvatarThumbnailRequest>(b"42")
+                .is_err(),
+            "a number matches neither variant of the oneOf"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_136_returns_none_for_empty_input() {
+        let decoded: Option<crate::models::Tag> =
+            object_serializer::deserialize(b"").expect("empty input is not an error");
+        assert!(decoded.is_none());
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_138_returns_none_for_null_input() {
+        let decoded: Option<crate::models::Tag> =
+            object_serializer::deserialize(b"null").expect("null is not an error");
+        assert!(decoded.is_none());
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_139_returns_the_string_for_a_string_value() {
+        assert_eq!(object_serializer::stringify(&"hello".to_string()), "hello");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_154_strict_model_rejects_an_undeclared_key() {
+        assert!(
+            object_serializer::deserialize::<crate::models::StrictTag>(br#"{"id":1,"extra":true}"#)
+                .is_err(),
+            "a strict model must refuse a key it does not declare"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_157_stringify_date_time_returns_iso_8601_string() {
+        let value = crate::date_time::DateTime::new(
+            chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45.250+00:00")
+                .expect("valid date-time"),
+        );
+        assert_eq!(
+            object_serializer::stringify(&value),
+            "2024-01-01T12:30:45.250+00:00"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_158_stringify_emits_the_canonical_protobuf_duration() {
+        assert_eq!(
+            object_serializer::stringify(&chrono::Duration::seconds(5400)),
+            "5400s"
+        );
+        assert_eq!(
+            object_serializer::stringify(&chrono::Duration::milliseconds(1500)),
+            "1.500s"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_172_unknown_enum_value_raises_serialization_error() {
+        assert!(
+            object_serializer::deserialize::<crate::models::Separator>(br#""banana""#).is_err(),
+            "an enum value outside the schema must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_180_wrong_primitive_type_is_a_serialization_error() {
+        assert!(
+            object_serializer::deserialize::<crate::models::Order>(br#"{"quantity":"five"}"#)
+                .is_err(),
+            "a string where an int32 is expected must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_181_zero_duration_stringifies_as_0s() {
+        assert_eq!(
+            object_serializer::stringify(&chrono::Duration::zero()),
+            "0s"
         );
     }
 }

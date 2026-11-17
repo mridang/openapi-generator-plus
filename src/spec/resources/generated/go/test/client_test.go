@@ -294,3 +294,62 @@ func TestBhvLifecycle013_Client_WithTokenProviderRejectsANilProviderAndAMissingH
 		t.Errorf("expected ErrMissingCredential for a missing host, got %v", err)
 	}
 }
+
+// The environment supplies the token when none is passed, and the request carries it.
+func TestBhvAuthbearer010_Client_ReadsTheTokenFromTheEnvironmentWhenNoneIsPassed(t *testing.T) {
+	var seen string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", server.URL)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
+
+	client, err := petstore.NewClientWithToken("", "", nil)
+	if err != nil {
+		t.Fatalf("expected the environment to supply the token, got %v", err)
+	}
+	defer func() { _ = client.Close() }()
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+
+	if seen != "Bearer env-token" {
+		t.Errorf("expected the token from the environment, got %q", seen)
+	}
+}
+
+func TestBhvLifecycle003_Client_ApiKeyQueryAcceptsNonAscii(t *testing.T) {
+	t.Parallel()
+	queryAuth := mustApiKey(t, "/api/v3", "api_key", "kéy", auth.ApiKeyLocationQuery)
+	if got := queryAuth.QueryParams()["api_key"]; got != "kéy" {
+		t.Fatalf("expected the non-ASCII query key to pass through, got %q", got)
+	}
+}
+
+func TestBhvLifecycle004_Client_ApiKeyHeaderRejectsCarriageReturnLineFeedAndNonAscii(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"abc\rInjected", "abc\nInjected", "kéy"} {
+		expectInvalidApiKey(t, bad, auth.ApiKeyLocationHeader)
+	}
+}
+
+func TestBhvLifecycle005_Client_BearerRejectsEmptyToken(t *testing.T) {
+	t.Parallel()
+	authenticator, err := auth.NewBearerAuthenticator("/api/v3", "")
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Fatalf("expected ErrInvalidBearerToken for an empty token, got %v", err)
+	}
+	if authenticator != nil {
+		t.Error("expected a nil authenticator for an empty token")
+	}
+}
+
+func TestBhvLifecycle006_Client_BearerRejectsCarriageReturnLineFeedAndNonAscii(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño"} {
+		if _, err := auth.NewBearerAuthenticator("/api/v3", bad); !errors.Is(err, auth.ErrInvalidBearerToken) {
+			t.Errorf("token %q: expected ErrInvalidBearerToken, got %v", bad, err)
+		}
+	}
+}

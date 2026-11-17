@@ -166,6 +166,43 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                )
     end
 
+    test "bhv authoauthtwoauthcode 017 code exchange body keeps ~ literal and percent-encodes * ! ' ( )" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+          "https://api.example.com",
+          "id~*!'()",
+          "secret~*!'()",
+          "https://auth.example.com/authorize",
+          "https://auth.example.com/token",
+          "https://app.example.com/callback",
+          ["read"]
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+        auth,
+        "code~*!'()"
+      )
+
+      last_body = FakeApiClient.last_body(fake_client)
+      assert String.contains?(last_body, "client_id=id~%2A%21%27%28%29")
+      assert String.contains?(last_body, "client_secret=secret~%2A%21%27%28%29")
+      assert String.contains?(last_body, "code=code~%2A%21%27%28%29")
+    end
+
     test "bhv authoauthtwoauthcode 012 exchanges code with correct grant type" do
       fake_client =
         FakeApiClient.new([
@@ -587,7 +624,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
     end
 
-    test "bhv authoauthtwoauthcode 008 each authorization URL has its own challenge and the exchange proves the last one" do
+    test "bhv authoauthtwoauthcode 008 bhv authoauthtwoauthcode 009 each authorization URL has its own challenge and the exchange proves the last one" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -860,6 +897,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
       refute inspect(auth) =~ "my-client-secret"
       assert inspect(auth) =~ ~s(client_secret: "***")
+    end
+
+    test "bhv authoauthtwoauthcode 025 the redacted repr shows the non-secret fields" do
+      shown = create_authenticator() |> inspect()
+
+      assert shown =~ ~s(client_id: "my-client-id")
+      assert shown =~ ~s(authorization_url: "https://auth.example.com/authorize")
+      assert shown =~ ~s(redirect_uri: "https://app.example.com/callback")
     end
   end
 end

@@ -883,8 +883,8 @@ fn is_valid_cookie_value(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        fits_budget, is_retryable_error, is_retryable_status, parse_retry_after, retry_delay,
-        serialize_body, BaseApi, CallOptions, InvokeApiParams,
+        build_query_string, fits_budget, is_retryable_error, is_retryable_status,
+        parse_retry_after, retry_delay, serialize_body, BaseApi, CallOptions, InvokeApiParams,
     };
     use crate::api_client::{ApiClient, RequestBody};
     use crate::api_http_response::ApiHttpResponse;
@@ -894,7 +894,7 @@ mod tests {
 
     /* F823: the retry policy. */
     #[test]
-    fn test_retryable_statuses_are_408_409_429_and_5xx_except_501() {
+    fn test_bhv_retries_021_retryable_statuses_are_408_409_429_and_5xx_except_501() {
         for status in [408, 409, 429, 500, 502, 503, 504, 599] {
             assert!(is_retryable_status(status), "status {}", status);
         }
@@ -925,7 +925,7 @@ mod tests {
     }
 
     #[test]
-    fn test_retry_after_parses_seconds_and_http_dates() {
+    fn test_bhv_retries_022_retry_after_parses_seconds_and_http_dates() {
         use std::time::Duration;
         assert_eq!(Some(Duration::from_secs(7)), parse_retry_after(" 7 "));
         assert_eq!(
@@ -974,7 +974,7 @@ mod tests {
     }
 
     #[test]
-    fn test_retry_after_replaces_the_backoff_and_is_capped_at_sixty_seconds() {
+    fn test_bhv_retries_023_retry_after_replaces_the_backoff_and_is_capped_at_sixty_seconds() {
         use std::time::Duration;
         assert_eq!(
             Duration::from_secs(3),
@@ -1243,6 +1243,58 @@ mod tests {
         assert!(!text.contains("secret"), "{text}");
     }
 
+    /// Records the URL of the one request it receives.
+    struct UrlCapturingClient {
+        url: std::sync::Mutex<Option<String>>,
+    }
+
+    impl ApiClient for UrlCapturingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.url.lock().unwrap() = Some(url.to_string());
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /* Catalogue 027: an absolute URL in the path is the request target, so a
+     * per-operation server reaches its own host and the client base URL is
+     * never prepended. */
+    #[tokio::test]
+    async fn test_bhv_errors_027_an_absolute_path_bypasses_the_client_base_url() {
+        let client = Arc::new(UrlCapturingClient {
+            url: std::sync::Mutex::new(None),
+        });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            path: "https://pets.example.org/v2/items/7",
+            query_params: Vec::new(),
+            ..call_params(CallOptions::default())
+        };
+
+        api.invoke_api(params).await.expect("a 200 succeeds");
+
+        assert_eq!(
+            Some("https://pets.example.org/v2/items/7".to_string()),
+            *client.url.lock().unwrap()
+        );
+    }
+
     #[tokio::test]
     async fn test_a_network_failure_carries_the_method_and_path_of_the_request() {
         let api = api_for(ScriptedClient::custom(200, true, 0));
@@ -1282,7 +1334,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_a_per_call_retry_budget_of_zero_turns_the_client_retries_off() {
+    async fn test_bhv_retries_014_a_per_call_retry_budget_of_zero_turns_the_client_retries_off() {
         let client = ScriptedClient::custom(500, false, 2);
         let api = api_for(client.clone());
 
@@ -1555,5 +1607,221 @@ mod tests {
     fn test_bhv_operations_016_serialize_body_none() {
         let result = serialize_body(None, "application/json").unwrap();
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_060_build_query_string_encodes_reserved_by_default() {
+        let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), false)]);
+        assert_eq!(query, "q=a%3Ab%2Fc");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_060_build_query_string_keeps_reserved_when_allowed() {
+        let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), true)]);
+        assert_eq!(query, "q=a:b/c");
+    }
+
+    /* Authenticators that name themselves, so a test can tell which one a call used. */
+    struct NamedAuthenticator(&'static str);
+
+    impl crate::auth::Authenticator for NamedAuthenticator {
+        fn host(&self) -> &str {
+            self.0
+        }
+
+        fn auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+        {
+            let name = self.0;
+            Box::pin(async move {
+                let mut headers = HashMap::new();
+                headers.insert("X-Client-Auth".to_string(), name.to_string());
+                headers
+            })
+        }
+    }
+
+    static PER_CALL: NamedAuthenticator = NamedAuthenticator("per-call");
+
+    /* Its token can be dropped, but the new one it asks for is never given. */
+    struct RenewalFailsAuthenticator {
+        token_requests: std::sync::atomic::AtomicUsize,
+    }
+
+    impl crate::auth::Authenticator for RenewalFailsAuthenticator {
+        fn host(&self) -> &str {
+            "https://api.example.com"
+        }
+
+        fn auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+        {
+            Box::pin(async move { HashMap::new() })
+        }
+
+        fn try_auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<
+                            HashMap<String, String>,
+                            Box<dyn std::error::Error + Send + Sync>,
+                        >,
+                    > + Send
+                    + 'a,
+            >,
+        > {
+            let first = self
+                .token_requests
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                == 0;
+            Box::pin(async move {
+                if first {
+                    Ok(HashMap::new())
+                } else {
+                    Err(Box::new(crate::errors::ConfigurationError::InvalidState(
+                        "no token can be obtained".to_string(),
+                    ))
+                        as Box<dyn std::error::Error + Send + Sync>)
+                }
+            })
+        }
+
+        fn invalidate_access_token<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+            Box::pin(async { true })
+        }
+    }
+
+    /* A failed re-authentication leaves the 401 as the error of the call. */
+    #[tokio::test]
+    async fn test_bhv_authintegration_001_a_failed_reauthentication_leaves_the_401_as_it_is() {
+        let client = ScriptedClient::new(401);
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let auth: Arc<dyn crate::auth::Authenticator> = Arc::new(RenewalFailsAuthenticator {
+            token_requests: std::sync::atomic::AtomicUsize::new(0),
+        });
+        let api = BaseApi::new(client.clone(), config, Some(auth));
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("a 401 that cannot be renewed is an error");
+
+        assert!(
+            err.downcast_ref::<crate::errors::UnauthorizedError>()
+                .is_some(),
+            "the 401 must be the error of the call, got: {}",
+            err
+        );
+    }
+
+    /* A per-call authenticator handed to invoke_api replaces the client-level one. */
+    #[tokio::test]
+    async fn test_bhv_authintegration_013_a_per_call_authenticator_overrides_the_client_level_one()
+    {
+        let client = ScriptedClient::new(200);
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let client_level: Arc<dyn crate::auth::Authenticator> =
+            Arc::new(NamedAuthenticator("client"));
+        let api = BaseApi::new(client.clone(), config, Some(client_level));
+        let per_call: &dyn crate::auth::Authenticator = &PER_CALL;
+        let mut params = call_params(CallOptions::default());
+        params.auth = Some(per_call);
+
+        api.invoke_api(params)
+            .await
+            .expect("a 200 response must succeed");
+
+        assert_eq!(
+            Some("per-call".to_string()),
+            client
+                .last_headers
+                .lock()
+                .unwrap()
+                .get("X-Client-Auth")
+                .cloned()
+        );
+    }
+
+    /* F857: with no credential for the operation's scheme, the call falls back to
+     * the client-level authenticator. */
+    #[tokio::test]
+    async fn test_bhv_authintegration_008_a_call_with_no_scheme_credential_falls_back_to_the_client_authenticator(
+    ) {
+        let client = ScriptedClient::new(200);
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let client_level: Arc<dyn crate::auth::Authenticator> =
+            Arc::new(NamedAuthenticator("client"));
+        let api = BaseApi::new(client.clone(), config, Some(client_level));
+
+        api.invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("a 200 response must succeed");
+
+        assert_eq!(
+            Some("client".to_string()),
+            client
+                .last_headers
+                .lock()
+                .unwrap()
+                .get("X-Client-Auth")
+                .cloned()
+        );
+    }
+
+    /* Each operation resolves the credential of the scheme it names, and the schemes do not cross. */
+    #[test]
+    fn test_bhv_authintegration_007_each_operation_sends_the_credential_of_its_own_scheme() {
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let mut schemes: HashMap<String, Arc<dyn crate::auth::Authenticator>> = HashMap::new();
+        schemes.insert("bearer".to_string(), Arc::new(NamedAuthenticator("bearer")));
+        schemes.insert(
+            "api_key".to_string(),
+            Arc::new(NamedAuthenticator("api_key")),
+        );
+        let api = BaseApi::new(ScriptedClient::new(200), config, None)
+            .with_scheme_authenticators(schemes);
+
+        let host_for = |scheme: &str| {
+            api.authenticator_for(&[scheme])
+                .map(|a| a.host().to_string())
+        };
+
+        assert_eq!(Some("bearer".to_string()), host_for("bearer"));
+        assert_eq!(Some("api_key".to_string()), host_for("api_key"));
+        assert_eq!(None, host_for("oauth2"));
+    }
+
+    /* The first listed scheme the client holds supplies the credential. */
+    #[test]
+    fn test_bhv_authintegration_014_resolves_the_credential_of_the_first_listed_scheme_the_client_holds(
+    ) {
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let mut schemes: HashMap<String, Arc<dyn crate::auth::Authenticator>> = HashMap::new();
+        schemes.insert("b".to_string(), Arc::new(NamedAuthenticator("b")));
+        schemes.insert("c".to_string(), Arc::new(NamedAuthenticator("c")));
+        let api = BaseApi::new(ScriptedClient::new(200), config, None)
+            .with_scheme_authenticators(schemes);
+
+        let host_for =
+            |schemes: &[&str]| api.authenticator_for(schemes).map(|a| a.host().to_string());
+
+        assert_eq!(Some("b".to_string()), host_for(&["a", "b", "c"]));
+        assert_eq!(Some("c".to_string()), host_for(&["a", "c", "b"]));
     }
 }

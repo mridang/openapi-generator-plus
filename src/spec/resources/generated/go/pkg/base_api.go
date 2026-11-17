@@ -352,6 +352,9 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		defer cancel()
 	}
 	invalidator, canReplay := effectiveAuth.(auth.AccessTokenInvalidator)
+	/* A multipart body is never replayed after a 401: its file parts are
+	 * streams that the first attempt may already have consumed. */
+	canReplay = canReplay && params.contentType != "multipart/form-data"
 	replayed := false
 	retries := 0
 	var lastFailure error
@@ -910,7 +913,7 @@ func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) er
 // helper reverses that encoding for callers that expect a []byte return type.
 func decodeBinaryResponse(body string) ([]byte, error) {
 	if body == "" {
-		return []byte{}, nil
+		return nil, nil
 	}
 	return base64.StdEncoding.DecodeString(body)
 }

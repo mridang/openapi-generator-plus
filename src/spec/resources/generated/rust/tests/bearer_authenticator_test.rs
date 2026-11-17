@@ -57,7 +57,7 @@ async fn test_bhv_authbearer_008_mixed_case_bearer_prefix_is_stripped() {
 /// (bearer-no-empty-token-guard). All fail closed with
 /// `ConfigurationError::InvalidArgument`, never a panic.
 #[test]
-fn test_bhv_authbearer_005_bearer_rejects_invalid_tokens() {
+fn test_bhv_authbearer_005_bhv_authbearer_012_bhv_authbearer_017_bearer_rejects_invalid_tokens() {
     for (token, expected) in [
         ("tok\r\nInjected: yes", "printable ASCII"),
         ("ñoño", "printable ASCII"),
@@ -97,7 +97,8 @@ fn test_bhv_authbearer_016_unicode_space_only_token_is_rejected_by_the_printable
 /// The `Bearer ` prefix is removed once and only as a whole word: a token that
 /// merely starts with the letters is kept whole.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_authbearer_004_prefix_is_stripped_once_and_only_as_a_whole_word() {
+async fn test_bhv_authbearer_004_bhv_authbearer_015_prefix_is_stripped_once_and_only_as_a_whole_word(
+) {
     let twice = BearerAuthenticator::new("https://api.example.com", "Bearer Bearer xyz").unwrap();
     assert_eq!(
         twice
@@ -200,7 +201,7 @@ async fn test_bhv_authbearer_014_token_provider_is_called_for_every_request() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_provider_returning_an_unusable_token_fails_the_request() {
+async fn test_bhv_authbearer_002_token_provider_returning_an_unusable_token_fails_the_request() {
     let provider: petstore::auth::TokenProvider = std::sync::Arc::new(|| "   ".to_string());
     let auth = BearerAuthenticator::with_token_provider("https://api.example.com", provider);
 
@@ -215,4 +216,34 @@ async fn test_token_provider_returning_an_unusable_token_fails_the_request() {
         err
     );
     assert!(auth.auth_headers().await.is_empty());
+}
+
+#[test]
+fn test_bhv_lifecycle_005_bearer_rejects_an_empty_token() {
+    for token in ["", " \t "] {
+        match BearerAuthenticator::new("https://api.example.com", token) {
+            Err(ConfigurationError::InvalidArgument(reason)) => {
+                assert!(reason.contains("must not be empty"), "{}", reason)
+            }
+            other => panic!(
+                "expected ConfigurationError::InvalidArgument for {:?}, got {:?}",
+                token, other
+            ),
+        }
+    }
+}
+
+#[test]
+fn test_bhv_lifecycle_006_bearer_rejects_crlf_and_non_ascii() {
+    for token in ["tok\r\n", "tokén"] {
+        match BearerAuthenticator::new("https://api.example.com", token) {
+            Err(ConfigurationError::InvalidArgument(reason)) => {
+                assert!(reason.contains("printable ASCII"), "{}", reason)
+            }
+            other => panic!(
+                "expected ConfigurationError::InvalidArgument for {:?}, got {:?}",
+                token, other
+            ),
+        }
+    }
 }

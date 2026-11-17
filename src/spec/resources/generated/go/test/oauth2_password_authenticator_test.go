@@ -385,6 +385,26 @@ func TestBhvAuthoauthtwopassword001_OAuth2PasswordAuthenticator_PercentEncodesRe
 	}
 }
 
+// The token body keeps the unreserved marks literal and percent-encodes the
+// sub-delimiters of the client id and secret.
+func TestBhvAuthoauthtwopassword005_OAuth2PasswordAuthenticator_KeepsTildeLiteralAndEncodesSubDelimitersInTokenBody(t *testing.T) {
+	t.Parallel()
+	client := &fakePasswordClient{responses: []fakePasswordResponse{
+		{body: `{"access_token":"at","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := oauth.NewOAuth2PasswordAuthenticator(
+		"https://api.example.com", "id~-._*!'()", "s~-._*!'()", "https://auth.example.com/token",
+		"testuser", "testpass", []string{"read"}, "")
+	authObj.SetApiClient(client)
+	authObj.AuthHeaders()
+
+	for _, want := range []string{"client_id=id~-._%2A%21%27%28%29", "client_secret=s~-._%2A%21%27%28%29"} {
+		if !strings.Contains(client.LastBody, want) {
+			t.Errorf("expected body to contain %q, got %q", want, client.LastBody)
+		}
+	}
+}
+
 // The token body is x-www-form-urlencoded, so the space between scopes is a
 // plus, not %20.
 func TestBhvAuthoauthtwopassword015_OAuth2PasswordAuthenticator_TokenBodyEncodesScopeSpacesAsPlus(t *testing.T) {

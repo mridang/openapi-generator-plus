@@ -68,7 +68,7 @@ fn test_bhv_authbasic_008_rejects_username_with_colon_at_construction() {
 }
 
 #[test]
-fn test_bhv_authbasic_006_redacts_secret() {
+fn test_bhv_authbasic_006_bhv_authbasic_005_redacts_secret() {
     let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("s3cret"));

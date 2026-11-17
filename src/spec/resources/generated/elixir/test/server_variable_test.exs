@@ -10,6 +10,13 @@ defmodule PetstoreClient.ServerVariableTest do
       assert variable.default_value == "prod"
     end
 
+    test "bhv servers 015 a null description is allowed and the default value is kept" do
+      variable = %ServerVariable{default_value: "v1", description: nil}
+
+      assert variable.description == nil
+      assert variable.default_value == "v1"
+    end
+
     test "bhv servers 016 description and enum_values default to nil and an empty list" do
       variable = %ServerVariable{default_value: "v1"}
 

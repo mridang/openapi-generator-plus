@@ -13,32 +13,98 @@ import (
 	"testing"
 )
 
-func TestHeaderSelector_IsJSONMIME(t *testing.T) {
+func TestBhvHeaders019_HeaderSelector_IsJSONMIMETrueForApplicationJSON(t *testing.T) {
+	t.Parallel()
+	if !newHeaderSelector().isJSONMIME("application/json") {
+		t.Error("expected application/json to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders020_HeaderSelector_IsJSONMIMETrueForApplicationJSONWithCharset(t *testing.T) {
+	t.Parallel()
+	if !newHeaderSelector().isJSONMIME("application/json; charset=UTF-8") {
+		t.Error("expected application/json with a charset to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders021_HeaderSelector_IsJSONMIMEIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
+	if !newHeaderSelector().isJSONMIME("APPLICATION/JSON") {
+		t.Error("expected APPLICATION/JSON to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders022_HeaderSelector_IsJSONMIMETrueForVendorJSONTypes(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
-
-	testCases := []struct {
-		input    string
-		expected bool
-	}{
-		{"application/json", true},
-		{"application/json; charset=utf-8", true},
-		{"application/vnd.api+json", true},
-		{"application/xml", false},
-		{"text/plain", false},
-		{"", false},
-		{"application/octet-stream", false},
-		{"application/hal+json", true},
-		{"APPLICATION/JSON", true},
+	for _, mime := range []string{"application/vnd.api+json", "application/hal+json"} {
+		if !hs.isJSONMIME(mime) {
+			t.Errorf("expected %q to be a JSON MIME type", mime)
+		}
 	}
+}
 
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			result := hs.isJSONMIME(tc.input)
-			if result != tc.expected {
-				t.Errorf("IsJSONMIME(%q) = %v, want %v", tc.input, result, tc.expected)
-			}
-		})
+func TestBhvHeaders012_HeaderSelector_IsJSONMIMEFalseForOctetStream(t *testing.T) {
+	t.Parallel()
+	if newHeaderSelector().isJSONMIME("application/octet-stream") {
+		t.Error("expected application/octet-stream not to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders013_HeaderSelector_IsJSONMIMEFalseForApplicationXML(t *testing.T) {
+	t.Parallel()
+	if newHeaderSelector().isJSONMIME("application/xml") {
+		t.Error("expected application/xml not to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders014_HeaderSelector_IsJSONMIMEFalseForEmptyString(t *testing.T) {
+	t.Parallel()
+	if newHeaderSelector().isJSONMIME("") {
+		t.Error("expected the empty string not to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders016_HeaderSelector_IsJSONMIMEFalseForTextHTML(t *testing.T) {
+	t.Parallel()
+	if newHeaderSelector().isJSONMIME("text/html") {
+		t.Error("expected text/html not to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders003_HeaderSelector_SelectAcceptHeaderDoesNotReorderOrWeightJSONTypes(t *testing.T) {
+	t.Parallel()
+	accept := newHeaderSelector().selectAcceptHeader([]string{"text/html", "application/vnd.api+json", "application/json"})
+
+	if accept != "text/html, application/vnd.api+json, application/json" {
+		t.Errorf("expected the declared order with no weights, got %q", accept)
+	}
+}
+
+func TestBhvHeaders026_HeaderSelector_SelectHeadersJoinsNonJSONTypesInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	headers := newHeaderSelector().selectHeaders([]string{"text/html", "text/plain"}, "application/json", false)
+
+	if headers["Accept"] != "text/html, text/plain" {
+		t.Errorf("expected Accept 'text/html, text/plain', got %q", headers["Accept"])
+	}
+}
+
+func TestBhvHeaders006_HeaderSelector_SelectHeadersOmitsAcceptWhenAllEntriesAreBlank(t *testing.T) {
+	t.Parallel()
+	headers := newHeaderSelector().selectHeaders([]string{"", "   "}, "application/json", false)
+
+	if _, ok := headers["Accept"]; ok {
+		t.Errorf("expected no Accept header, got %q", headers["Accept"])
+	}
+}
+
+func TestBhvHeaders025_HeaderSelector_SelectHeadersSetsContentTypeWhenNotMultipart(t *testing.T) {
+	t.Parallel()
+	headers := newHeaderSelector().selectHeaders([]string{"application/json"}, "text/plain", false)
+
+	if headers["Content-Type"] != "text/plain" {
+		t.Errorf("expected Content-Type 'text/plain', got %q", headers["Content-Type"])
 	}
 }
 
