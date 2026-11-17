@@ -326,3 +326,204 @@ fn test_bhv_serializationobject_007_password_property_is_masked_in_debug_output(
     let wire = serde_json::to_string(&account).expect("serializes");
     assert!(wire.contains(&secret), "{}", wire);
 }
+
+#[test]
+fn test_bhv_serializationobject_112_proto_duration_parse_whole_seconds() {
+    use {{packageName}}::proto_duration;
+    use chrono::Duration;
+
+    assert_eq!(proto_duration::parse("3600s").unwrap(), Duration::seconds(3600));
+}
+
+#[test]
+fn test_bhv_serializationobject_115_content_encoded_property_round_trips_as_bytes() {
+    use {{packageName}}::models::PetPassport;
+
+    let passport = PetPassport {
+        biometric_chip: Some(vec![1, 2, 3]),
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&passport).expect("serialize");
+    assert!(json.contains(r#""biometricChip":"AQID""#), "got: {}", json);
+    let back: PetPassport = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back.biometric_chip, Some(vec![1, 2, 3]));
+}
+
+#[test]
+fn test_bhv_serializationobject_116_positive_offset_is_preserved_in_serialized_string() {
+    use {{packageName}}::date_time::DateTime;
+
+    let value = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45+05:30").expect("valid"),
+    );
+    assert_eq!(
+        serde_json::to_string(&value).expect("serialize"),
+        "\"2024-01-01T12:30:45.000+05:30\""
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_117_keyword_named_properties_keep_their_wire_keys() {
+    use {{packageName}}::models::EdgeCases;
+
+    let decoded: EdgeCases = serde_json::from_str(
+        r#"{"and":true,"or":false,"not":true,"class":"c","return":"r","null":"n","true":true,"false":false}"#,
+    )
+    .expect("deserialize");
+    assert_eq!(decoded.class.as_deref(), Some("c"));
+    let json = serde_json::to_string(&decoded).expect("serialize");
+    assert!(json.contains(r#""return":"r""#), "got: {}", json);
+    assert!(json.contains(r#""null":"n""#), "got: {}", json);
+    assert!(json.contains(r#""true":true"#), "got: {}", json);
+    assert!(json.contains(r#""false":false"#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_serializationobject_119_referenced_enum_field_rejects_an_unknown_wire_value() {
+    use {{packageName}}::models::EdgeCases;
+
+    assert!(
+        serde_json::from_str::<EdgeCases>(r#"{"favoriteColor":"mauve"}"#).is_err(),
+        "a colour outside the enum must be refused"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_127_any_of_throws_when_no_variant_matches() {
+    use {{packageName}}::models::PetTreatment;
+
+    assert!(
+        serde_json::from_str::<PetTreatment>(r#"{"notes":"x"}"#).is_err(),
+        "a payload that matches neither anyOf member must be refused"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_144_round_trip_datetime_yields_equivalent_instant() {
+    use {{packageName}}::date_time::DateTime;
+
+    let original = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-03-10T08:15:30.123+02:00").expect("valid"),
+    );
+    let json = serde_json::to_string(&original).expect("serialize");
+    let back: DateTime = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back.into_inner(), original.into_inner());
+}
+
+#[test]
+fn test_bhv_serializationobject_146_serialize_emits_the_protobuf_duration_inside_an_object() {
+    use {{packageName}}::models::EdgeCases;
+    use chrono::Duration;
+
+    let edge = EdgeCases {
+        retry_after: Some(Duration::seconds(5400)),
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&edge).expect("serialize");
+    assert!(json.contains(r#""retryAfter":"5400s""#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_serializationobject_150_serialized_datetime_ends_with_numeric_offset_never_z() {
+    use {{packageName}}::date_time::DateTime;
+
+    let value = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45Z").expect("valid"),
+    );
+    let json = serde_json::to_string(&value).expect("serialize");
+    assert!(json.ends_with("+00:00\""), "got: {}", json);
+    assert!(!json.contains('Z'), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_serializationobject_151_serializes_a_date_time_in_the_canonical_form() {
+    use {{packageName}}::date_time::DateTime;
+
+    let value = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45.250+00:00").expect("valid"),
+    );
+    assert_eq!(
+        serde_json::to_string(&value).expect("serialize"),
+        "\"2024-01-01T12:30:45.250+00:00\""
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_152_serializes_a_model_to_valid_json() {
+    use {{packageName}}::models::Pet;
+
+    let pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    let json = serde_json::to_string(&pet).expect("serialize");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+    assert_eq!(value["name"], "doggie");
+}
+
+#[test]
+fn test_bhv_serializationobject_161_separator_wire_values_decode_to_distinct_constants_and_re_encode() {
+    use {{packageName}}::models::Separator;
+
+    let wires = [" ", "@@", "a-b", "a_b"];
+    let decoded: Vec<Separator> = wires
+        .iter()
+        .map(|wire| serde_json::from_str(&format!("\"{}\"", wire)).expect("decodes"))
+        .collect();
+    for (wire, member) in wires.iter().zip(decoded.iter()) {
+        assert_eq!(serde_json::to_string(member).expect("serialize"), format!("\"{}\"", wire));
+    }
+    for (i, a) in decoded.iter().enumerate() {
+        for b in &decoded[i + 1..] {
+            assert_ne!(a, b);
+        }
+    }
+}
+
+#[test]
+fn test_bhv_serializationobject_173_uri_reference_field_still_accepts_a_relative_reference() {
+    use {{packageName}}::models::PetWithOwner;
+
+    let owner: PetWithOwner = serde_json::from_str(
+        r#"{"name":"fido","photoUrls":[],"thumbnailRef":"../thumbs/fido.png"}"#,
+    )
+    .expect("a relative reference decodes");
+    assert_eq!(owner.thumbnail_ref.as_deref(), Some("../thumbs/fido.png"));
+}
+
+#[test]
+fn test_bhv_serializationobject_174_utc_datetime_serializes_with_date_time_and_offset() {
+    use {{packageName}}::date_time::DateTime;
+    use chrono::TimeZone;
+
+    let utc = chrono::Utc
+        .with_ymd_and_hms(2024, 1, 1, 12, 30, 45)
+        .single()
+        .expect("valid UTC instant");
+    assert_eq!(
+        serde_json::to_string(&DateTime::from(utc)).expect("serialize"),
+        "\"2024-01-01T12:30:45.000+00:00\""
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_177_weight_kg_survives_a_round_trip_as_a_number() {
+    use {{packageName}}::models::Pet;
+
+    let mut pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    pet.weight_kg = Some(2.5);
+    let json = serde_json::to_string(&pet).expect("serialize");
+    assert!(json.contains(r#""weightKg":2.5"#), "got: {}", json);
+    let back: Pet = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back.weight_kg, Some(2.5));
+}
+
+#[test]
+fn test_bhv_serializationobject_179_whole_second_datetime_serializes_with_a_fixed_three_digit_fraction() {
+    use {{packageName}}::date_time::DateTime;
+
+    let value = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45+02:00").expect("valid"),
+    );
+    assert_eq!(
+        serde_json::to_string(&value).expect("serialize"),
+        "\"2024-01-01T12:30:45.000+02:00\""
+    );
+}
