@@ -69,14 +69,17 @@ internal enum ObjectSerializer {
   /// ISO8601 strategies first (handling `Z`, offsets and fractional seconds)
   /// and fall back to a date-only formatter.
   static func parseDate(_ string: String) -> Date? {
-    if let date = iso8601WithFractional.date(from: string) {
-      return date
-    }
-    if let date = iso8601NoFractional.date(from: string) {
-      return date
-    }
-    if let date = dateFormatter.date(from: string) {
-      return date
+    /* Only the RFC 3339 date-time shape reaches the ISO 8601 parsers: on
+     * some platforms they also read a slash date or a basic stamp
+     * ("20240101T100000Z"), which the other SDKs refuse. */
+    if string.range(of: rfc3339DateTimePattern, options: .regularExpression) != nil {
+      if let date = iso8601WithFractional.date(from: string) {
+        return date
+      }
+      if let date = iso8601NoFractional.date(from: string) {
+        return date
+      }
+      return dateFormatter.date(from: string)
     }
     /* The date-only fallback takes exactly yyyy-MM-dd: a date and time with
      * no offset ("2024-01-01T10:00:00") is not an instant, and a lenient
@@ -87,6 +90,11 @@ internal enum ObjectSerializer {
     }
     return dateOnlyFormatter.date(from: string)
   }
+
+  /// The RFC 3339 `date-time` shape: a `T` separator, a required zone (`Z` or
+  /// a `+hh:mm` offset) and optional fractional seconds.
+  private static let rfc3339DateTimePattern =
+    "^\\d{4}-\\d{2}-\\d{2}[Tt]\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?([Zz]|[+-]\\d{2}:\\d{2})$"
 
   /// Formats a date in the canonical `date-time` wire form, TRUNCATING any
   /// sub-millisecond component like the other eleven SDKs. `DateFormatter`
