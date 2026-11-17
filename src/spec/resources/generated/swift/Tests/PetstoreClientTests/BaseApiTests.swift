@@ -633,7 +633,7 @@ import Testing
     }
   }
 
-  @Test func testSerializeBodyTextPlain() {
+  @Test func testSerializesTextPlainBody() {
     let result = try? BaseApi.serializeBody("hello world", contentType: "text/plain")
     #expect(result != nil)
     if let data = result {
@@ -654,7 +654,7 @@ import Testing
     #expect(result == nil)  // nil body serializes to nil
   }
 
-  @Test func testSerializeBodyFormUrlencoded() {
+  @Test func testSerializesFormUrlencodedBody() {
     // Pass a [String: Any] dict directly — BaseApi.serializeBody expects a dictionary
     // for application/x-www-form-urlencoded, not pre-encoded JSON Data.
     let params: [String: Any] = ["name": "alice"]

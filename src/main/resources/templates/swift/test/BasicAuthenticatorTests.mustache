@@ -112,6 +112,27 @@ import Testing
         }
     }
 
+    @Test func testRejectsUsernameWithColonAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Basic auth username must not contain ':' (RFC 7617 \u{A7}2)")) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com", username: "ali:ce", password: "s3cret")
+        }
+    }
+
+    @Test func testRejectsUsernameWithCrlfAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Basic auth username must not contain CR, LF, or NUL characters")) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com", username: "alice\r\n", password: "s3cret")
+        }
+    }
+
+    @Test func testRejectsPasswordWithNulAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Basic auth password must not contain CR, LF, or NUL characters")) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com", username: "alice", password: "s3c\u{0}ret")
+        }
+    }
+
     // MARK: - Generated scheme wrappers
 
     /* Each HTTP basic securityScheme generates a wrapper that sends the same
