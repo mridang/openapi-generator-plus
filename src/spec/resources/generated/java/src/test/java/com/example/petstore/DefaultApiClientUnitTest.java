@@ -2347,7 +2347,12 @@ class DefaultApiClientUnitTest {
         new Thread(
             () -> {
               try {
-                Thread.sleep(400);
+                long deadline =
+                    System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+                while (hits.get() < 1 && System.nanoTime() < deadline) {
+                  Thread.sleep(10);
+                }
+                Thread.sleep(200);
               } catch (InterruptedException ignored) {
                 return;
               }
