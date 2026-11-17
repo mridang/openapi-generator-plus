@@ -18,7 +18,7 @@ package com.example.petstore.errors
  * @param requestMethod the HTTP method of the request that failed, if known
  * @param requestPath the path of the request that failed, without its query string, if known
  */
-class PayloadTooLargeException(
+open class PayloadTooLargeException(
     message: String = "",
     responseHeaders: Map<String, String>? = null,
     responseBody: String? = null,

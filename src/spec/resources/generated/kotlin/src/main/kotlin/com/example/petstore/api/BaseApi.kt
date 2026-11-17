@@ -154,6 +154,7 @@ abstract class BaseApi {
      * @param callTimeout optional end-to-end timeout in milliseconds for this call only
      * @param callHeaders optional headers for this call only; they replace a header of the same name
      * @param callMaxRetries optional number of retries for this call only; `0` disables them
+     * @param errorSchemas the operation's error factories by declared status, or null
      * @return ApiHttpResponse containing status code, body, and headers
      * @throws ApiException if the API call fails
      */
@@ -169,6 +170,7 @@ abstract class BaseApi {
         callTimeout: Long? = null,
         callHeaders: Map<String, String>? = null,
         callMaxRetries: Int? = null,
+        errorSchemas: Map<String, com.example.petstore.errors.ErrorFactory>? = null,
     ): ApiHttpResponse {
         require(callTimeout == null || callTimeout > 0) {
             "Invalid timeout: must be a positive number of milliseconds (got $callTimeout)"
@@ -176,16 +178,7 @@ abstract class BaseApi {
         require(callMaxRetries == null || callMaxRetries >= 0) {
             "Invalid maxRetries: must not be negative (got $callMaxRetries)"
         }
-        var url =
-            if (path.startsWith("http://") || path.startsWith("https://")) {
-                path
-            } else {
-                /* Strip trailing slash from baseUrl when path starts with `/`
-                 * so baseUrl='https://x/' + path='/y' produces 'https://x/y',
-                 * not 'https://x//y' which most servers route to 404. */
-                val base = if (path.startsWith("/")) config.baseUrl.trimEnd('/') else config.baseUrl
-                base + path
-            }
+        var url = resolveUrl(path)
 
         /* Three-state auth resolution:
          *   - auth === NoAuth        -> the operation is declared `security: []`
@@ -376,10 +369,50 @@ abstract class BaseApi {
                 response.body,
                 method,
                 requestPath,
+                errorSchemas,
             )
         }
 
         return response
+    }
+
+    /**
+     * The full URL of a request: [path] itself when it is absolute, else the configured base
+     * URL followed by it.
+     */
+    private fun resolveUrl(path: String): String =
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            path
+        } else {
+            /* Strip trailing slash from baseUrl when path starts with `/`
+             * so baseUrl='https://x/' + path='/y' produces 'https://x/y',
+             * not 'https://x//y' which most servers route to 404. */
+            val base = if (path.startsWith("/")) config.baseUrl.trimEnd('/') else config.baseUrl
+            base + path
+        }
+
+    /**
+     * The given decode failure of a response, carrying what is needed to diagnose it: the
+     * response status, headers and raw body, and the request method and path without its query.
+     *
+     * @param failure the decode failure
+     * @param response the response whose body could not be decoded
+     * @param method the HTTP method of the request
+     * @param path the URL path of the request
+     * @return [failure], with the response and request context set
+     */
+    protected fun withResponseContext(
+        failure: com.example.petstore.errors.SerializationException,
+        response: ApiHttpResponse,
+        method: String,
+        path: String,
+    ): com.example.petstore.errors.SerializationException {
+        failure.statusCode = response.statusCode
+        failure.responseHeaders = response.headers.toMap()
+        failure.responseBody = response.body
+        failure.requestMethod = method
+        failure.requestPath = requestPathOf(resolveUrl(path))
+        return failure
     }
 
     /**
@@ -419,6 +452,8 @@ abstract class BaseApi {
      * @param callMaxRetries optional number of retries for this call only; `0` disables them
      * @param decodeSuccess decodes a success body by the actual status code, for an operation
      *   whose 2xx responses carry different schemas; when null the body is decoded as [T]
+     * @param errorSchemas the operation's error factories by declared status (`404`, `4XX`,
+     *   `default`), or null when it declares none
      * @return ApiResult containing deserialized data, status code, raw body, and headers
      * @throws ApiException if the API call fails
      */
@@ -436,6 +471,7 @@ abstract class BaseApi {
         callHeaders: Map<String, String>? = null,
         callMaxRetries: Int? = null,
         noinline decodeSuccess: ((Int, String) -> T?)? = null,
+        errorSchemas: Map<String, com.example.petstore.errors.ErrorFactory>? = null,
     ): ApiResult<T> {
         val response =
             invokeApi(
@@ -450,6 +486,7 @@ abstract class BaseApi {
                 callTimeout,
                 callHeaders,
                 callMaxRetries,
+                errorSchemas,
             )
         val responseContentType =
             response.headers.entries
@@ -458,74 +495,78 @@ abstract class BaseApi {
         // A void operation (T is Unit) never decodes its body: any success body,
         // JSON or not, is ignored rather than cast or deserialized into Unit.
         val data: T? =
-            if (response.body.isNotEmpty() && decodeSuccess != null) {
-                // Several 2xx responses with different schemas: the status code, not the
-                // shape of the body, says which variant this body is.
-                decodeSuccess(response.statusCode, response.body)
-            } else if (response.body.isNotEmpty() && T::class != Unit::class) {
-                if (T::class == ByteArray::class) {
-                    // Binary return types must never be JSON-deserialized, even
-                    // when the negotiated response Content-Type is JSON (an
-                    // operation whose Accept set includes application/json can
-                    // still receive raw image bytes). Recover the raw bytes the
-                    // way the transport encoded them:
-                    //   * application/json: a top-level `format: byte` value is a
-                    //     JSON string literal ("dGVzdC1pbWFnZQ==") — JSON-parse to
-                    //     strip the quotes/escapes, then base64-decode the inner
-                    //     string to the raw bytes. Returning the quoted literal's
-                    //     UTF-8 bytes (with the `"`) or the un-decoded base64 text
-                    //     would both be wrong.
-                    //   * other text content types: the transport keeps the body
-                    //     as a decoded string, so the raw bytes are its UTF-8.
-                    //   * binary content types: base64-encoded by the transport.
-                    if (headerSelector.isJsonMime(responseContentType)) {
-                        val document = response.body.trimStart()
-                        if (document.startsWith("{") || document.startsWith("[")) {
-                            // A JSON document (content negotiation answered the
-                            // binary operation with its application/json variant):
-                            // the caller gets its raw bytes.
+            try {
+                if (response.body.isNotEmpty() && decodeSuccess != null) {
+                    // Several 2xx responses with different schemas: the status code, not the
+                    // shape of the body, says which variant this body is.
+                    decodeSuccess(response.statusCode, response.body)
+                } else if (response.body.isNotEmpty() && T::class != Unit::class) {
+                    if (T::class == ByteArray::class) {
+                        // Binary return types must never be JSON-deserialized, even
+                        // when the negotiated response Content-Type is JSON (an
+                        // operation whose Accept set includes application/json can
+                        // still receive raw image bytes). Recover the raw bytes the
+                        // way the transport encoded them:
+                        //   * application/json: a top-level `format: byte` value is a
+                        //     JSON string literal ("dGVzdC1pbWFnZQ==") — JSON-parse to
+                        //     strip the quotes/escapes, then base64-decode the inner
+                        //     string to the raw bytes. Returning the quoted literal's
+                        //     UTF-8 bytes (with the `"`) or the un-decoded base64 text
+                        //     would both be wrong.
+                        //   * other text content types: the transport keeps the body
+                        //     as a decoded string, so the raw bytes are its UTF-8.
+                        //   * binary content types: base64-encoded by the transport.
+                        if (headerSelector.isJsonMime(responseContentType)) {
+                            val document = response.body.trimStart()
+                            if (document.startsWith("{") || document.startsWith("[")) {
+                                // A JSON document (content negotiation answered the
+                                // binary operation with its application/json variant):
+                                // the caller gets its raw bytes.
+                                response.body.toByteArray(Charsets.UTF_8) as T
+                            } else {
+                                val inner = objectSerializer.deserialize<String>(response.body) ?: ""
+                                try {
+                                    java.util.Base64
+                                        .getDecoder()
+                                        .decode(inner) as T
+                                } catch (e: IllegalArgumentException) {
+                                    throw com.example.petstore.errors.SerializationException(
+                                        "Invalid base64 value for a format: byte response",
+                                        e,
+                                    )
+                                }
+                            }
+                        } else if (isTextResponseContentType(responseContentType)) {
                             response.body.toByteArray(Charsets.UTF_8) as T
                         } else {
-                            val inner = objectSerializer.deserialize<String>(response.body) ?: ""
-                            try {
-                                java.util.Base64
-                                    .getDecoder()
-                                    .decode(inner) as T
-                            } catch (e: IllegalArgumentException) {
-                                throw com.example.petstore.errors.SerializationException(
-                                    "Invalid base64 value for a format: byte response",
-                                    e,
-                                )
-                            }
+                            java.util.Base64
+                                .getDecoder()
+                                .decode(response.body) as T
                         }
-                    } else if (isTextResponseContentType(responseContentType)) {
-                        response.body.toByteArray(Charsets.UTF_8) as T
+                    } else if (responseContentType.isNotEmpty() &&
+                        !headerSelector.isJsonMime(responseContentType)
+                    ) {
+                        // A non-JSON success body is returned verbatim only for a
+                        // String return type with a text-class Content-Type; any
+                        // other return type is a serialization error rather than
+                        // an unchecked cast.
+                        if (T::class == String::class && isTextResponseContentType(responseContentType)) {
+                            response.body as T
+                        } else {
+                            throw com.example.petstore.errors.SerializationException(
+                                "Unexpected response Content-Type '" +
+                                    responseContentType.substringBefore(';').trim() +
+                                    "' for " + operation + ": expected a JSON body",
+                            )
+                        }
                     } else {
-                        java.util.Base64
-                            .getDecoder()
-                            .decode(response.body) as T
-                    }
-                } else if (responseContentType.isNotEmpty() &&
-                    !headerSelector.isJsonMime(responseContentType)
-                ) {
-                    // A non-JSON success body is returned verbatim only for a
-                    // String return type with a text-class Content-Type; any
-                    // other return type is a serialization error rather than
-                    // an unchecked cast.
-                    if (T::class == String::class && isTextResponseContentType(responseContentType)) {
-                        response.body as T
-                    } else {
-                        throw com.example.petstore.errors.SerializationException(
-                            "Unexpected response Content-Type '" +
-                                responseContentType.substringBefore(';').trim() +
-                                "' for " + operation + ": expected a JSON body",
-                        )
+                        objectSerializer.deserialize<T>(response.body)
                     }
                 } else {
-                    objectSerializer.deserialize<T>(response.body)
+                    null
                 }
-            } else {
-                null
+            } catch (e: com.example.petstore.errors.SerializationException) {
+                throw withResponseContext(e, response, method, path)
             }
         // The result owns a read-only copy: mutating the map the transport handed over
         // must never change what the caller already holds, and the caller cannot change it.

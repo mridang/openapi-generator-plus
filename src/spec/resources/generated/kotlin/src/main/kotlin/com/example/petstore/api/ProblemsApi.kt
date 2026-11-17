@@ -49,6 +49,7 @@ class ProblemsApi : BaseApi {
 
      * @return ModelResult
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a `UnexpectedFailure` body
      */
     suspend fun getFallback(
         fallbackId: String,
@@ -99,6 +100,14 @@ class ProblemsApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            errorSchemas =
+                mapOf(
+                    "default" to
+                        com.example.petstore.errors.ErrorFactory { method, requestPath, status, headers, body ->
+                            com.example.petstore.errors.UnexpectedFailureException
+                                .fromErrorResponse(method, requestPath, status, headers, body)
+                        },
+                ),
         )
     }
 
@@ -109,6 +118,7 @@ class ProblemsApi : BaseApi {
 
      * @return ModelResult
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a `MemberNotFound` body
      */
     suspend fun getMember(
         memberId: String,
@@ -159,6 +169,14 @@ class ProblemsApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            errorSchemas =
+                mapOf(
+                    "404" to
+                        com.example.petstore.errors.ErrorFactory { method, requestPath, status, headers, body ->
+                            com.example.petstore.errors.MemberNotFoundException
+                                .fromErrorResponse(method, requestPath, status, headers, body)
+                        },
+                ),
         )
     }
 
@@ -169,6 +187,7 @@ class ProblemsApi : BaseApi {
 
      * @return ModelResult
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a `ProjectNotFound` body
      */
     suspend fun getProject(
         projectId: String,
@@ -219,6 +238,14 @@ class ProblemsApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            errorSchemas =
+                mapOf(
+                    "404" to
+                        com.example.petstore.errors.ErrorFactory { method, requestPath, status, headers, body ->
+                            com.example.petstore.errors.ProjectNotFoundException
+                                .fromErrorResponse(method, requestPath, status, headers, body)
+                        },
+                ),
         )
     }
 
@@ -229,6 +256,7 @@ class ProblemsApi : BaseApi {
 
      * @return ModelResult
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a `RejectedRequest` body
      */
     suspend fun getRange(
         rangeId: String,
@@ -279,6 +307,14 @@ class ProblemsApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            errorSchemas =
+                mapOf(
+                    "4XX" to
+                        com.example.petstore.errors.ErrorFactory { method, requestPath, status, headers, body ->
+                            com.example.petstore.errors.RejectedRequestException
+                                .fromErrorResponse(method, requestPath, status, headers, body)
+                        },
+                ),
         )
     }
 
@@ -289,6 +325,7 @@ class ProblemsApi : BaseApi {
 
      * @return ModelResult
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a `UpstreamFailure` body
      */
     suspend fun getUpstream(
         upstreamId: String,
@@ -339,6 +376,14 @@ class ProblemsApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            errorSchemas =
+                mapOf(
+                    "5XX" to
+                        com.example.petstore.errors.ErrorFactory { method, requestPath, status, headers, body ->
+                            com.example.petstore.errors.UpstreamFailureException
+                                .fromErrorResponse(method, requestPath, status, headers, body)
+                        },
+                ),
         )
     }
 
@@ -349,6 +394,8 @@ class ProblemsApi : BaseApi {
 
      * @return ModelResult
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a `StateConflict` body
+     * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a `StateConflict` body
      */
     suspend fun takeLock(
         lockId: String,
@@ -399,6 +446,19 @@ class ProblemsApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            errorSchemas =
+                mapOf(
+                    "409" to
+                        com.example.petstore.errors.ErrorFactory { method, requestPath, status, headers, body ->
+                            com.example.petstore.errors.StateConflictException
+                                .fromErrorResponse(method, requestPath, status, headers, body)
+                        },
+                    "423" to
+                        com.example.petstore.errors.ErrorFactory { method, requestPath, status, headers, body ->
+                            com.example.petstore.errors.StateConflictException
+                                .fromErrorResponse(method, requestPath, status, headers, body)
+                        },
+                ),
         )
     }
 }
