@@ -1738,6 +1738,22 @@ public class DefaultApiClientUnitTest
     // ---- response-body-read-error-not-wrapped ----
 
     [Fact]
+    public async Task BhvTransport029AResponseBodyThatStallsAfterTheHeadersThrowsNetworkTimeoutException()
+    {
+        var client = new DefaultApiClient(
+            new HttpClient(new StalledBodyHandler()),
+            TransportOptions.Builder().Timeout(200).MaxRetries(0).Build());
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkTimeoutException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/stalled-body"),
+            new Dictionary<string, string>(),
+            null
+        ));
+        Assert.Equal(0, ex.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvErrors043WrapsBodyReadFailureInNetworkException()
     {
         // A failure that happens AFTER headers (during body read) must surface
@@ -2139,6 +2155,32 @@ public class DefaultApiClientUnitTest
         Assert.IsAssignableFrom<{{packageName}}.Errors.NetworkException>(ex);
         Assert.Equal(0, ex.StatusCode);
         Assert.IsType<TaskCanceledException>(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task BhvTransport031ConnectDeadlineRaisesNetworkTimeoutException()
+    {
+        /* The connect callback never returns, so the budget runs out in the
+           connect phase and no network access is needed. */
+        using var handler = new SocketsHttpHandler
+        {
+            ConnectCallback = async (_, cancellationToken) =>
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                return Stream.Null;
+            },
+        };
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Timeout(50).MaxRetries(0).Build());
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkTimeoutException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/connect"),
+            new Dictionary<string, string>(),
+            null
+        ));
+        Assert.Equal(0, ex.StatusCode);
     }
 
     [Fact]
@@ -2686,6 +2728,75 @@ public class DefaultApiClientUnitTest
             public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
             public override void SetLength(long value) => throw new NotSupportedException();
             public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        }
+    }
+
+    /// <summary>
+    /// Returns a response whose headers arrive at once and whose body is
+    /// never finished, so the budget must expire while the body is read.
+    /// </summary>
+    private sealed class StalledBodyHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new StalledStream()),
+            };
+            return Task.FromResult(response);
+        }
+
+        private sealed class StalledStream : Stream
+        {
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                return WaitForever(cancellationToken);
+            }
+
+            public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<int>(WaitForever(cancellationToken));
+            }
+
+            public override void Flush() { }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            private static async Task<int> WaitForever(CancellationToken cancellationToken)
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                return 0;
+            }
         }
     }
 
