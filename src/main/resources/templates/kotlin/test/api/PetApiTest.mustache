@@ -1094,6 +1094,33 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("bhvOperations051 getPetByName rejects a dot segment before dispatch")
+        fun bhvOperations051GetPetByNameRejectsADotSegmentBeforeDispatch() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+            val options = GetPetByNameOptions(category = "dog", xCorrelationId = "corr-1")
+
+            for (segment in listOf(".", "..")) {
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        runBlocking { api.getPetByName(segment, options) }
+                    }
+                assertEquals("Path parameter 'name' must not be '.' or '..'", ex.message)
+            }
+            assertEquals(0, requests)
+        }
+
+        @Test
         @DisplayName("bhvOperations068 optional-array-param: array query params serialize as styled values, not a debug blob")
         fun testGetPetTagOptionalArrayQuerySerializesStyled() {
             // optional-array-param parity: getPetTag carries two OPTIONAL array
@@ -1598,6 +1625,193 @@ class PetApiTest {
             )
         }
 
+        @Test
+        @DisplayName("bhvOperations019 a format:date urlencoded form field serializes as YYYY-MM-DD")
+        fun bhvOperations019FormDateFieldIsDateOnly() {
+            var capturedBody: String? = null
+            val api =
+                capturingPetApi("""{"code":200,"type":"ok","message":"saved"}""") { _, body -> capturedBody = body }
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(nickname = "rex", renewalDate = LocalDate.of(2024, 1, 1)),
+                )
+            }
+
+            assertEquals("nickname=rex&renewalDate=2024-01-01", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvOperations040 findPetsByStatus with an explicit empty status sends the status key in the query")
+        fun bhvOperations040FindPetsByStatusExplicitEmptyStatusSendsStatusKey() {
+            var query: io.ktor.http.Parameters? = null
+            val api = capturingPetApi("[]") { request, _ -> query = request.url.parameters }
+
+            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions(status = "")) }
+
+            assertEquals("", query!!["status"])
+        }
+
+        @Test
+        @DisplayName("bhvOperations041 findPetsByStatus with the status omitted sends no status key in the query")
+        fun bhvOperations041FindPetsByStatusOmittingStatusSendsNoStatusKey() {
+            var query: io.ktor.http.Parameters? = null
+            val api = capturingPetApi("[]") { request, _ -> query = request.url.parameters }
+
+            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions()) }
+
+            assertFalse(query!!.contains("status"), "query was: $query")
+        }
+
+        @Test
+        @DisplayName("bhvOperations044 findPetsByStatus sends the deepObject filter as bracketed pairs")
+        fun bhvOperations044FindPetsByStatusSendsTheDeepObjectFilterAsBracketedPairs() {
+            var query: io.ktor.http.Parameters? = null
+            val api = capturingPetApi("[]") { request, _ -> query = request.url.parameters }
+
+            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions(filter = mapOf("owner" to "ann"))) }
+
+            assertEquals("ann", query!!["filter[owner]"])
+            assertFalse(query!!.contains("filter"), "query was: $query")
+        }
+
+        @Test
+        @DisplayName("bhvOperations052 getPetByName throws when the required path parameter is empty, before any request")
+        fun bhvOperations052GetPetByNameThrowsWhenTheRequiredPathParamIsEmpty() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking {
+                        api.getPetByName("", GetPetByNameOptions(category = "dog", xCorrelationId = "corr-1"))
+                    }
+                }
+
+            assertEquals("Missing the required parameter 'name' when calling PetApi.getPetByName", ex.message)
+            assertEquals(0, requests)
+        }
+
+        @Test
+        @DisplayName("bhvOperations056 getPetSummary refuses an empty required cookie before sending")
+        fun bhvOperations056GetPetSummaryRefusesAnEmptyRequiredCookieBeforeSending() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking {
+                        api.getPetSummary(7L, LocalDate.of(2024, 1, 15), {{apiPackage}}.options.GetPetSummaryOptions(session = ""))
+                    }
+                }
+
+            assertEquals("Missing the required parameter 'session' when calling PetApi.getPetSummary", ex.message)
+            assertEquals(0, requests)
+        }
+
+        @Test
+        @DisplayName("bhvOperations060 getPetTag uses the matrix path style for petId and the label path style for tagName")
+        fun bhvOperations060GetPetTagUsesTheMatrixAndLabelPathStyles() {
+            var path: String? = null
+            val api = capturingPetApi("""{"id":1,"name":"Rex","photoUrls":[]}""") { request, _ -> path = request.url.encodedPath }
+
+            runBlocking { api.getPetTag(7L, "cute") }
+
+            assertEquals("/pet/;petId=7/tag/.cute", path)
+        }
+
+        @Test
+        @DisplayName("bhvOperations072 setPetAvatar sends the bytes verbatim under the json selector")
+        fun bhvOperations072SetPetAvatarSendsTheBytesVerbatimUnderTheJsonSelector() {
+            var capturedBytes: ByteArray? = null
+            var capturedContentType: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBytes = request.body.toByteArray()
+                    capturedContentType =
+                        request.body.contentType?.toString()
+                            ?: request.headers["Content-Type"]
+                    respond(content = "", status = HttpStatusCode.NoContent, headers = headersOf())
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+            val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+
+            runBlocking { api.setPetAvatar(1L, imageData, requestContentType = "application/json") }
+
+            assertArrayEquals(imageData, capturedBytes)
+            assertEquals("application/json", capturedContentType)
+        }
+
+        @Test
+        @DisplayName("bhvOperations077 setPetAvatarThumbnail still sends a byte body as a base64 json string")
+        fun bhvOperations077SetPetAvatarThumbnailStillSendsBase64Json() {
+            var capturedBody: String? = null
+            val api = capturingPetApi("{}") { _, body -> capturedBody = body }
+            val png = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47))
+
+            runBlocking { api.setPetAvatarThumbnail(1L, png) }
+
+            assertEquals("\"iVBORw==\"", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvOperations082 the secured operation options carry no per-call auth field")
+        fun bhvOperations082SecuredOperationOptionsOfferNoPerCallAuthenticator() {
+            for (options in listOf(AddPetOptions::class.java, DeletePetOptions::class.java)) {
+                assertFalse(options.declaredFields.any { it.name == "auth" }, "${options.simpleName} must have no auth field")
+                assertFalse(options.methods.any { it.name == "getAuth" }, "${options.simpleName} must have no getAuth method")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvOperations093 uploadPetDocument rejects an undeclared request content type before sending")
+        fun bhvOperations093UploadPetDocumentRejectsAnUndeclaredRequestContentType() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking {
+                        api.uploadPetDocument(
+                            1L,
+                            UploadPetDocumentOptions(_file = byteArrayOf(1)),
+                            requestContentType = "application/unknown-type",
+                        )
+                    }
+                }
+
+            assertEquals(
+                "Unsupported request content-type 'application/unknown-type' for uploadPetDocument; " +
+                    "declared types are [multipart/form-data, application/octet-stream]",
+                ex.message,
+            )
+            assertEquals(0, requests)
+        }
+
         private fun apiRecordingUrls(urls: MutableList<String>): PetApi {
             val engine =
                 MockEngine { request ->
@@ -1671,8 +1885,8 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("a third server whose variables repeat a name gets its own enum types and literal values")
-        fun testMultiServerMirrorVariantUrl() {
+        @DisplayName("bhvOperations084 the mirror operation server resolves reserved characters raw")
+        fun bhvOperations084TheMirrorOperationServerResolvesReservedCharactersRaw() {
             val mirror =
                 PetApi.GetMultiServerPetInfoServer.Mirror(
                     PetApi.GetMultiServerPetInfoServer.MirrorRegion.EU,

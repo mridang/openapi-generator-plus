@@ -269,30 +269,60 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("response-shape operations decode their return types")
-        fun testResponseShapeOperations() {
-            // F1141: bare enum, array of enum maps, array of date-time maps, recursive models, defaults, int enum.
+        @DisplayName("bhvOperations113 getSwatch decodes a bare enum")
+        fun bhvOperations113GetSwatchDecodesABareEnum() {
             assertEquals(Swatch.GREEN, runBlocking { capturingStoreApi("\"green\"").getSwatch() })
+        }
+
+        @Test
+        @DisplayName("bhvOperations114 getSwatchGroups decodes enum leaves into Swatch")
+        fun bhvOperations114GetSwatchGroupsDecodesEnumLeavesIntoSwatch() {
             assertEquals(
                 listOf(mapOf("a" to Swatch.RED), mapOf("b" to Swatch.BLUE)),
                 runBlocking { capturingStoreApi("""[{"a":"red"},{"b":"blue"}]""").getSwatchGroups() },
             )
+        }
+
+        @Test
+        @DisplayName("bhvOperations115 getTimestampGroups decodes date-time leaves into Date")
+        fun bhvOperations115GetTimestampGroupsDecodesDateTimeLeaves() {
             val groups =
                 runBlocking {
                     capturingStoreApi("""[{"t":"2024-01-15T10:30:00Z"}]""").getTimestampGroups()
                 }
             assertEquals(OffsetDateTime.parse("2024-01-15T10:30:00Z").toInstant(), groups[0]["t"]!!.toInstant())
+        }
 
+        @Test
+        @DisplayName("bhvOperations108 getDepartment decodes the mutually recursive models")
+        fun bhvOperations108GetDepartmentDecodesTheMutuallyRecursiveModels() {
             val department =
                 runBlocking {
                     capturingStoreApi("""{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}""").getDepartment()
                 }
             assertEquals("d2", department.lead!!.department!!.name)
+        }
 
+        @Test
+        @DisplayName("bhvOperations109 getMatrix decodes an array of integer arrays")
+        fun bhvOperations109GetMatrixDecodesAnArrayOfIntegerArrays() {
+            assertEquals(
+                listOf(listOf(1, 2), listOf(3, 4)),
+                runBlocking { capturingStoreApi("[[1,2],[3,4]]").getMatrix() },
+            )
+        }
+
+        @Test
+        @DisplayName("bhvOperations116 getTree decodes the self-recursive model")
+        fun bhvOperations116GetTreeDecodesTheSelfRecursiveModel() {
             val tree =
                 runBlocking { capturingStoreApi("""{"value":"a","child":{"value":"b","child":{"value":"c"}}}""").getTree() }
             assertEquals("c", tree.child!!.child!!._value)
+        }
 
+        @Test
+        @DisplayName("bhvOperations123 getDefaults applies the schema defaults to missing fields")
+        fun bhvOperations123GetDefaultsAppliesTheSchemaDefaultsToMissingFields() {
             val defaults = runBlocking { capturingStoreApi("{}").getDefaults() }
             assertEquals(3, defaults.retries)
             assertEquals(Defaults.ModeEnum.MEDIUM, defaults.mode)
@@ -312,15 +342,19 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("F1062: reserveStock decodes a 200 body as the Reservation and a 201 body as the receipt")
-        fun testReserveStockDecodesByStatusCode() {
+        @DisplayName("F1062: reserveStock decodes a 200 body as the Reservation")
+        fun testReserveStockDecodesA200BodyAsTheReservation() {
             val existing =
                 runBlocking {
                     capturingStoreApi("""{"reservationId":31,"quantity":4}""").reserveStock()
                 }
             assertTrue(existing.actualInstance is Reservation)
             assertEquals(31L, (existing.actualInstance as Reservation).reservationId)
+        }
 
+        @Test
+        @DisplayName("bhvOperations120 reserveStock decodes a 201 body as the new receipt")
+        fun bhvOperations120ReserveStockDecodesA201BodyAsTheReceipt() {
             val created =
                 runBlocking {
                     capturingStoreApi(
@@ -494,6 +528,51 @@ class StoreApiTest {
             // Assigning to a non-null String compiles only if rawBody is non-null.
             val rawBody: String = result.rawBody
             assertTrue(rawBody.isNotEmpty())
+        }
+
+        @Test
+        @DisplayName("bhvOperations006 ApiResult rawBody is a non-null String for an empty body")
+        fun bhvOperations006RawBodyIsANonNullStringForAnEmptyBody() {
+            val result = runBlocking { capturingStoreApi("", HttpStatusCode.NoContent).deleteOrderWithHttpInfo(1L) }
+
+            // Assigning to a non-null String compiles only if rawBody is non-null.
+            val rawBody: String = result.rawBody
+            assertEquals("", rawBody)
+        }
+
+        @Test
+        @DisplayName("bhvOperations018 the WithHttpInfo variant returns status, data, headers and rawBody")
+        fun bhvOperations018WithHttpInfoReturnsStatusDataHeadersAndRawBody() {
+            val body = """{"id":7,"petId":1,"quantity":1,"status":"placed","complete":false}"""
+
+            val result = runBlocking { capturingStoreApi(body).getOrderByIdWithHttpInfo(7L) }
+
+            assertEquals(200, result.statusCode)
+            assertEquals(7L, result.data!!.id)
+            assertTrue(result.headers.keys.any { it.equals("content-type", ignoreCase = true) }, "headers: ${result.headers}")
+            assertEquals(body, result.rawBody)
+        }
+
+        @Test
+        @DisplayName("bhvOperations097 the content query parameter q is the object serializer output")
+        fun bhvOperations097ContentQueryParameterIsTheObjectSerializerOutput() {
+            var query: io.ktor.http.Parameters? = null
+            val api = capturingStoreApi("[]", capture = { request, _ -> query = request.url.parameters })
+
+            runBlocking { api.searchStore(SearchStoreOptions(q = PhotoMetadata(caption = "a/b<é"))) }
+
+            assertEquals("{\"caption\":\"a/b<é\"}", query!!["q"])
+        }
+
+        @Test
+        @DisplayName("bhvOperations121 the content header X-Filter is the object serializer output")
+        fun bhvOperations121ContentHeaderXFilterIsTheObjectSerializerOutput() {
+            var header: String? = null
+            val api = capturingStoreApi("[]", capture = { request, _ -> header = request.headers["X-Filter"] })
+
+            runBlocking { api.searchStore(SearchStoreOptions(xFilter = mapOf("k" to "v"))) }
+
+            assertEquals("{\"k\":\"v\"}", header)
         }
 
         @Test

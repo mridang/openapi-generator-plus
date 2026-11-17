@@ -41,3 +41,4 @@ csharp | serializationobject015 | S6 leaves uniqueItems order to the natural col
 csharp | operations111 | the uuid path parameter is typed System.Guid, so a malformed value cannot be built and the SDK never receives a string to reject
 csharp | errors040 | SendRequestAsync takes a System.Uri, so a malformed request URL fails in the caller new Uri(...) with UriFormatException before the SDK runs and no SDK path receives one
 java | operations111 | The uuid parameter is typed java.util.UUID, so a malformed value cannot reach the method; UUID.fromString rejects it before the call
+kotlin | operations111 | Kotlin types the tracking id as kotlin.uuid.Uuid, so a malformed value cannot be built; Uuid.parse refuses it in the caller before any call is made, and Java (typed UUID) has the same gap
