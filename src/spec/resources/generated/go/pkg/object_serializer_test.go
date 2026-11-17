@@ -30,7 +30,7 @@ import (
 // to compile.
 var _ apierrors.OpenAPIError = (*SerializationError)(nil)
 
-func TestObjectSerializer_EncodeContentCookieValue_UsesTheUnreservedSetOnly(t *testing.T) {
+func TestBhvSerializationparam104_ObjectSerializer_EncodeContentCookieValue_UsesTheUnreservedSetOnly(t *testing.T) {
 	t.Parallel()
 	raw, err := serialize(map[string]any{"k": "a b~*\u00e9"})
 	if err != nil {

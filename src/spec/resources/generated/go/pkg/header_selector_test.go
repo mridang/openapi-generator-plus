@@ -152,6 +152,13 @@ func TestBhvHeaders008_HeaderSelector_SelectAcceptHeaderDropsWhitespaceOnlyEntri
 	}
 }
 
+func TestBhvHeaders027_HeaderSelector_SelectAcceptHeaderOfAnEmptyArrayIsEmptyString(t *testing.T) {
+	t.Parallel()
+	if accept := newHeaderSelector().selectAcceptHeader([]string{}); accept != "" {
+		t.Errorf("expected an empty Accept header, got %q", accept)
+	}
+}
+
 func TestBhvHeaders005_HeaderSelector_SelectAcceptHeaderEmptyWhenNothingRemains(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()

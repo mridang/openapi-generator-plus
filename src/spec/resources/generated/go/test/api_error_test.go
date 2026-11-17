@@ -21,6 +21,25 @@ import (
 	"petstore/pkg/models"
 )
 
+// Every error type is declared in the errors package and the root package exports it under the same type.
+func TestBhvErrors044_ApiError_EveryErrorTypeLivesInTheErrorsPackageAndTheRootExportsIt(t *testing.T) {
+	t.Parallel()
+	types := []reflect.Type{
+		reflect.TypeOf((*petstore.ApiError)(nil)),
+		reflect.TypeOf((*petstore.NotFoundError)(nil)),
+		reflect.TypeOf((*petstore.InternalServerError)(nil)),
+		reflect.TypeOf((*petstore.NetworkTimeoutError)(nil)),
+		reflect.TypeOf((*petstore.SerializationError)(nil)),
+		reflect.TypeOf((*petstore.OAuth2ServerError)(nil)),
+		reflect.TypeOf((*petstore.OAuth2TokenError)(nil)),
+	}
+	for _, typ := range types {
+		if got, want := typ.Elem().PkgPath(), "petstore/pkg/errors"; got != want {
+			t.Errorf("expected %s to be declared in %s, got %s", typ, want, got)
+		}
+	}
+}
+
 // Compile-time proof that every SDK-thrown error type satisfies the branded
 // OpenAPIError root. Go has no inheritance, so the hierarchy is expressed
 // through interface conformance: *ApiError, the typed 4xx/5xx and network

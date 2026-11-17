@@ -152,6 +152,37 @@ func TestSchemeAuthenticator_{{className}}_PrefersTheArgumentsOverTheEnvironment
 	requireScheme{{className}}Credentials(t, a, schemeArgValue)
 }
 
+func Test{{#firstBasic}}BhvAuthbasic012_{{/firstBasic}}SchemeAuthenticator_{{className}}_AnEmptyVariableCountsAsUnset(t *testing.T) {
+	for _, variable := range scheme{{className}}Variables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, "empty")
+
+			a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireScheme{{className}}Credentials(t, a, schemeArgValue)
+		})
+	}
+}
+{{#isApiKey}}
+
+func Test{{#firstApiKey}}BhvAuthapikey019_{{/firstApiKey}}SchemeAuthenticator_{{className}}_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+	for _, variable := range scheme{{className}}Variables {
+		setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, "unset")
+
+		a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+		if err == nil {
+			t.Errorf("expected an empty key to be refused at construction for %s", variable)
+		}
+		if a != nil {
+			t.Error("expected no authenticator")
+		}
+	}
+}
+{{/isApiKey}}
+
 func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range scheme{{className}}Variables {
 		for _, mode := range []string{"empty", "unset"} {

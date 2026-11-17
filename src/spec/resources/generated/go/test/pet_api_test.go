@@ -1445,6 +1445,26 @@ func TestPetApi_CallerSuppliedFileHandleIsNeverClosedByTheSdk(t *testing.T) {
 	}
 }
 
+// An empty required query parameter is refused before any request is sent.
+func TestBhvOperations125_PetApi_EmptyRequiredQueryParamIsRefusedBeforeAnyRequest(t *testing.T) {
+	t.Parallel()
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetByName(context.Background(), "rex", &options.GetPetByNameOptions{XCorrelationId: "c-1"})
+	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
+		t.Fatalf("expected ErrMissingRequiredParameter for the empty category, got %v", err)
+	}
+	if requests != 0 {
+		t.Errorf("expected no request to be sent, got %d", requests)
+	}
+}
+
 // F1127: a required header and a required cookie are refused before dispatch
 // when they are empty, naming the caller-facing parameter.
 func TestBhvOperations050_PetApi_RequiredHeaderAndCookieAreRefusedBeforeAnyRequest(t *testing.T) {

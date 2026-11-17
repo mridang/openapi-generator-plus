@@ -252,7 +252,7 @@ func TestBhvConfig001_Configuration_BaseURLOverride(t *testing.T) {
 	}
 }
 
-func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
+func TestBhvConfig017_Configuration_DefaultHeadersCopyIsolation(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("X-Test", "value").

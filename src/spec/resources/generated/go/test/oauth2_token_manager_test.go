@@ -486,6 +486,21 @@ func TestBhvAuthoauthtwotokenmgr040_OAuth2TokenManager_UnusableTokenResponsesUse
 	}
 }
 
+// A 2xx token body that is not JSON is never echoed into the error message.
+func TestBhvAuthoauthtwotokenmgr041_OAuth2TokenManager_ANonJsonTokenBodyIsNotEchoedIntoTheError(t *testing.T) {
+	t.Parallel()
+	marker := "marker-" + "41f3"
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(newFakeTokenClient(fakeResponse{body: "<html>" + marker + "</html>", statusCode: 200}))
+	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"})
+	if err == nil {
+		t.Fatal("expected an error for a non-JSON token body")
+	}
+	if strings.Contains(err.Error(), marker) {
+		t.Errorf("expected the token body not to be echoed, got %q", err.Error())
+	}
+}
+
 // RFC 6749 section 7.1: only a bearer token (any case) or an absent type is
 // used; the refusal does not echo the issued type.
 func TestBhvAuthoauthtwotokenmgr038_OAuth2TokenManager_ATokenTypeThatIsNotBearerIsRefusedWithoutEchoingIt(t *testing.T) {

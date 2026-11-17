@@ -13,6 +13,25 @@ import (
 	"{{packageName}}/pkg/models"
 )
 
+// Every error type is declared in the errors package and the root package exports it under the same type.
+func TestBhvErrors044_ApiError_EveryErrorTypeLivesInTheErrorsPackageAndTheRootExportsIt(t *testing.T) {
+	t.Parallel()
+	types := []reflect.Type{
+		reflect.TypeOf((*{{packageName}}.ApiError)(nil)),
+		reflect.TypeOf((*{{packageName}}.NotFoundError)(nil)),
+		reflect.TypeOf((*{{packageName}}.InternalServerError)(nil)),
+		reflect.TypeOf((*{{packageName}}.NetworkTimeoutError)(nil)),
+		reflect.TypeOf((*{{packageName}}.SerializationError)(nil)),
+		reflect.TypeOf((*{{packageName}}.OAuth2ServerError)(nil)),
+		reflect.TypeOf((*{{packageName}}.OAuth2TokenError)(nil)),
+	}
+	for _, typ := range types {
+		if got, want := typ.Elem().PkgPath(), "{{packageName}}/pkg/errors"; got != want {
+			t.Errorf("expected %s to be declared in %s, got %s", typ, want, got)
+		}
+	}
+}
+
 // Compile-time proof that every SDK-thrown error type satisfies the branded
 // {{errorPrefix}}Error root. Go has no inheritance, so the hierarchy is expressed
 // through interface conformance: *ApiError, the typed 4xx/5xx and network

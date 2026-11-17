@@ -146,6 +146,17 @@ func TestBhvAuthoauthtwoimplicit012_OAuth2ImplicitAuthenticator_ThrowsWhenAccess
 	}
 }
 
+// A non-ASCII access token is refused with the RFC 7230 message.
+func TestBhvAuthoauthtwoimplicit014_OAuth2ImplicitAuthenticator_SetAccessTokenRejectsNonAsciiWithTheRfc7230Message(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	if err := auth.SetAccessToken("caf\u00e9"); !errors.Is(err, oauth.ErrInvalidAccessToken) {
+		t.Fatalf("expected ErrInvalidAccessToken, got %v", err)
+	} else if want := "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"; err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
+	}
+}
+
 // F-A5-04: a token that would inject a header is rejected with
 // ErrInvalidAccessToken, never a panic, and the previous token is kept.
 func TestBhvAuthoauthtwoimplicit013_OAuth2ImplicitAuthenticator_SetAccessTokenRejectsInvalidToken(t *testing.T) {
