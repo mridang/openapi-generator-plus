@@ -220,7 +220,7 @@ func TestBhvOptions005_DefaultApiClientUnit_CallerHeadersOverrideDefaults(t *tes
 	}
 }
 
-func TestDefaultApiClientUnit_HeaderSpellingsAreMergedCaseInsensitively(t *testing.T) {
+func TestBhvTransport047_DefaultApiClientUnit_HeaderSpellingsAreMergedCaseInsensitively(t *testing.T) {
 	t.Parallel()
 	var received http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1065,6 +1065,24 @@ func TestDefaultApiClientUnit_StripsSecretNamedHeadersAcrossCrossOriginRedirect(
 	}
 }
 
+// The static credential headers are always stripped across origins, whatever
+// the spec declares: Authorization, Cookie and Proxy-Authorization.
+func TestBhvTransport057_DefaultApiClientUnit_SensitiveHeaderNamesIncludesStaticTriple(t *testing.T) {
+	t.Parallel()
+	for _, want := range []string{"Authorization", "Cookie", "Proxy-Authorization"} {
+		found := false
+		for _, h := range sensitiveHeaderAllowlist {
+			if strings.EqualFold(h, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %q in sensitiveHeaderAllowlist, got %v", want, sensitiveHeaderAllowlist)
+		}
+	}
+}
+
 {{#hasApiKeyHeaderNames}}
 // Gap 3.1: the spec-declared API-key header names harvested from the OpenAPI
 // securitySchemes (apiKey, in: header) must be present in the cross-origin
@@ -1175,7 +1193,7 @@ func TestBhvErrors040_DefaultApiClientUnit_MalformedUrlReturnsErrInvalidRequest(
 // A body that arrived but cannot be decompressed is not a network failure: the
 // server answered, so the error is an *ApiError carrying the real status code
 // with the decompression error preserved as the cause.
-func TestDefaultApiClientUnit_CorruptCompressedBodyIsApiErrorWithStatus(t *testing.T) {
+func TestBhvTransport030_DefaultApiClientUnit_CorruptCompressedBodyIsApiErrorWithStatus(t *testing.T) {
 	t.Parallel()
 	// Advertise gzip but send bytes that are not valid gzip, so decompression
 	// fails after the 200 headers and body are received.
@@ -1542,7 +1560,7 @@ func TestBhvTransport058_DefaultApiClientUnit_TimeoutReturnsNetworkTimeoutError(
 // arrive inside the budget and whose body then stalls past it fails in
 // io.ReadAll, a different call site from the one above, and it must classify
 // as the same *NetworkTimeoutError rather than a bare *NetworkError.
-func TestBhvTransport031_DefaultApiClientUnit_BodyReadTimeoutReturnsNetworkTimeoutError(t *testing.T) {
+func TestBhvTransport029_DefaultApiClientUnit_BodyReadTimeoutReturnsNetworkTimeoutError(t *testing.T) {
 	t.Parallel()
 	release := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1726,6 +1744,30 @@ func TestDefaultApiClientUnit_BuildHTTPClient_TransportHasStandardTimeoutsAndNoI
 	}
 	if transport.Proxy != nil {
 		t.Error("expected no implicit environment proxy")
+	}
+}
+
+// A proxy named in the environment is not used: the SDK reads a proxy only from
+// TransportOptions, so HTTP_PROXY and its siblings leave the transport proxy-free.
+func TestBhvTransport009_DefaultApiClientUnit_IgnoresAmbientProxyEnvironmentWithoutProxy(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "http://127.0.0.1:1")
+	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+	t.Setenv("http_proxy", "http://127.0.0.1:1")
+	t.Setenv("https_proxy", "http://127.0.0.1:1")
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard, ok := buildHTTPClient(opts).Transport.(*locationGuardTransport)
+	if !ok {
+		t.Fatal("expected the Location guard around the *http.Transport")
+	}
+	transport, ok := guard.inner.(*http.Transport)
+	if !ok {
+		t.Fatal("expected the guard to wrap an *http.Transport")
+	}
+	if transport.Proxy != nil {
+		t.Errorf("expected no proxy from the ambient environment, got %v", transport.Proxy)
 	}
 }
 
@@ -2051,7 +2093,7 @@ func unrelatedCaDER(t *testing.T) []byte {
 
 // Verification is on by default: a server whose certificate no trusted
 // authority signed is refused as a *NetworkError with status 0, not answered.
-func TestBhvTransport048_DefaultApiClientUnit_VerifySslTrueRejectsUntrustedCertificate(t *testing.T) {
+func TestBhvTransport023_DefaultApiClientUnit_VerifySslTrueRejectsUntrustedCertificate(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -2077,6 +2119,36 @@ func TestBhvTransport048_DefaultApiClientUnit_VerifySslTrueRejectsUntrustedCerti
 	var verifyErr *tls.CertificateVerificationError
 	if !errors.As(err, &verifyErr) {
 		t.Errorf("expected the certificate verification failure to be the cause, got %v", err)
+	}
+}
+
+// httptest's certificate names 127.0.0.1, ::1 and example.com, not localhost, so
+// with verification on the same server is trusted by its IP address and refused
+// by the name localhost.
+func TestBhvTransport025_DefaultApiClientUnit_VerifySslTrueRejectsAnAddressTheCertificateDoesNotName(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().CACertPath(writeCertPEM(t, server.Certificate().Raw)).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("expected the certificate to verify for the address it names, got %v", err)
+	}
+
+	localhostURL := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
+	resp, err := client.SendRequest("GET", localhostURL+"/test", map[string]string{}, nil)
+	if resp != nil {
+		t.Fatalf("expected no response for an address the certificate does not name, got status %d", resp.StatusCode)
+	}
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected *NetworkError for an address the certificate does not name, got %T: %v", err, err)
 	}
 }
 
