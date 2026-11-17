@@ -216,19 +216,43 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.auth_headers(cookie) == %{}
     end
 
-    test "scheme authenticators validate eagerly and mask the key" do
+    test "bhv authapikey 019 every API-key wrapper rejects an empty key at construction" do
       for module <- [
             PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
             PetstoreClient.Auth.InternalApiKeyAuthenticator,
             PetstoreClient.Auth.ApiKeyQueryAuthenticator,
             PetstoreClient.Auth.SessionCookieAuthenticator
           ] do
-        assert_raise ArgumentError, fn -> module.new("https://api.example.com", "") end
+        assert_raise ArgumentError, ~r/must not be empty/, fn ->
+          module.new("https://api.example.com", "")
+        end
+      end
+    end
 
+    test "bhv authapikey 020 every API-key wrapper redacts the key in its inspect output" do
+      for module <- [
+            PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
+            PetstoreClient.Auth.InternalApiKeyAuthenticator,
+            PetstoreClient.Auth.ApiKeyQueryAuthenticator,
+            PetstoreClient.Auth.SessionCookieAuthenticator
+          ] do
         auth = module.new("https://api.example.com", "super-secret-key")
         refute inspect(auth) =~ "super-secret-key"
         assert inspect(auth) =~ ~s(api_key: "***")
       end
+    end
+
+    test "bhv authapikey 018 rejects a CR in a header API key value at construction" do
+      assert_raise ArgumentError,
+                   "API key value for 'X-Api-Key' contains forbidden control characters (CR/LF/NUL)",
+                   fn ->
+                     ApiKeyAuthenticator.new(
+                       "https://api.example.com",
+                       "X-Api-Key",
+                       "abc\rdef",
+                       :header
+                     )
+                   end
     end
 
     test "scheme authenticators for Basic and Bearer delegate to the base authenticators" do

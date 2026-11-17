@@ -244,6 +244,22 @@ defmodule PetstoreClient.Api.StoreApiTest do
     end
   end
 
+  test "bhv operations 126 place_order without an order sends no body and no content type" do
+    {:ok, name} = StubApiClient.start(~s({"id":1}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.place_order(api)
+    assert result.id == 1
+
+    captured = StubApiClient.captured(name)
+    assert captured.method == :post
+    assert captured.body == nil
+    refute Map.has_key?(captured.headers, "Content-Type")
+
+    Agent.stop(name)
+  end
+
   test "bhv operations 018 with_http_info variant returns ApiResult with status, data, headers, and raw_body",
        %{api: api} do
     assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory_with_http_info(api)

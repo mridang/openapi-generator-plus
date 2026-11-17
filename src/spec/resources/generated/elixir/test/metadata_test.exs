@@ -80,6 +80,19 @@ defmodule PetstoreClient.Models.MetadataTest do
       refute with_extra == other_extra
     end
 
+    test "bhv models 012 inspect dumps the fields and the additional_properties map" do
+      metadata = %PetstoreClient.Models.Metadata{
+        created_at: ~U[2024-01-15 10:30:00Z],
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      text = inspect(metadata)
+
+      assert text =~ "%PetstoreClient.Models.Metadata{"
+      assert text =~ "created_at: ~U[2024-01-15 10:30:00Z]"
+      assert text =~ ~s(additional_properties: %{"customField" => "hello"})
+    end
+
     test "defines additional_properties function" do
       assert PetstoreClient.Models.Metadata.additional_properties() == true
     end

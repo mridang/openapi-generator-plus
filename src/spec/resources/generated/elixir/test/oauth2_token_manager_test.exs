@@ -475,6 +475,35 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert err.message == "Token response is not valid JSON"
     end
 
+    test "bhv authoauthtwotokenmgr 041 a non-JSON 2xx token body is not echoed into the error message" do
+      # A form-encoded 2xx answer carries the token itself; the parser's own message would quote it.
+      token = "gho_" <> "SECRET123"
+
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: "access_token=#{token}&token_type=bearer"
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      err =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      assert err.message == "Token response is not valid JSON"
+      refute err.message =~ token
+      assert Map.get(err, :cause) == nil
+    end
+
     test "bhv authoauthtwotokenmgr 007 expires_in applies one margin capped at half the lifetime" do
       for {expires_in, margin_ms} <- [{60, 30_000}, {3600, 60_000}] do
         fake_client =

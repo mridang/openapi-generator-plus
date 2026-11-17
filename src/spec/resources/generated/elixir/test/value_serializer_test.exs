@@ -1177,7 +1177,7 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "content cookie bytes" do
-    test "JSON is percent-encoded keeping only the unreserved set literal" do
+    test "bhv serializationparam 104 JSON is percent-encoded keeping only the unreserved set literal" do
       json = PetstoreClient.ObjectSerializer.serialize(%{"k" => "a b~*\u00E9"})
 
       assert URI.encode(json, &URI.char_unreserved?/1) == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"

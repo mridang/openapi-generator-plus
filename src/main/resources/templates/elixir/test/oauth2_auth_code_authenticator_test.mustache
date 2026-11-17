@@ -263,6 +263,28 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/refresh"
     end
 
+    test "bhv authoauthtwopassword 020 without a refresh_url the refresh grant also goes to the token_url" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 0})
+        },
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+        }
+      ])
+
+      auth = create_authenticator()
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, fake_client)
+
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "auth-code-xyz")
+      {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
+
+      assert Enum.map(FakeApiClient.requests(fake_client), fn {url, _body} -> url end) ==
+               ["https://auth.example.com/token", "https://auth.example.com/token"]
+    end
+
     test "bhv authoauthtwoauthcode 002 a rejected refresh raises OAuth2ServerError after exactly one refresh request" do
       fake_client = FakeApiClient.new([
         %{{moduleName}}.ApiHttpResponse{

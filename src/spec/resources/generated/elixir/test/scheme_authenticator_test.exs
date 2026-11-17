@@ -186,7 +186,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         end
       end
 
-      test "an empty environment variable counts as unset" do
+      test "bhv authbasic 012 an empty environment variable counts as unset" do
         for {arg, env} <- @vars do
           Enum.each(@vars, fn {other, other_env} ->
             System.put_env(other_env, "from-env-" <> other)

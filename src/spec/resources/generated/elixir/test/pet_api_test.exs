@@ -1735,7 +1735,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # required-nested-param-validation: get_pet_by_name has a REQUIRED query param
   # `category`. A nil value or empty string must raise before any HTTP call,
   # and a present value must be serialized onto the wire.
-  test "get_pet_by_name raises when required category is nil" do
+  test "bhv operations 125 get_pet_by_name raises when required category is nil" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)

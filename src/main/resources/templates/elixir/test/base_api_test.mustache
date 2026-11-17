@@ -713,7 +713,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
 
   # Nil body handling
 
-  test "handles nil body", %{state: state} do
+  test "bhv serializationobject 183 handles nil body", %{state: state} do
     assert {:ok, result} =
              {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{}, nil, ["application/json"], "application/json", "Object")
 
@@ -1591,7 +1591,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
 
   # Behavior #1: a form array serializes to repeated keys (tags=a&tags=b),
   # never a single comma-joined value.
-  test "form array body serializes to repeated keys" do
+  test "bhv serializationwire 053 form array body serializes to repeated keys" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: BodyCapturingApiClient}
@@ -1781,7 +1781,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
   # (de)serialization error instead of silently passing the raw value through
   # or defaulting to an "unknown" member. The Pet model declares an inline
   # `status` enum (available | pending | sold).
-  test "unknown enum wire value raises SerializationError on deserialize" do
+  test "bhv serializationobject 182 unknown enum wire value raises SerializationError on deserialize" do
     assert_raise {{moduleName}}.Errors.SerializationError, fn ->
       {{moduleName}}.ObjectSerializer.deserialize(
         ~s({"name":"rex","photoUrls":[],"status":"banana"}),
@@ -2040,7 +2040,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert length(attempts()) == 1
   end
 
-  test "Retry-After sets the wait before the retry" do
+  test "bhv retries 026 Retry-After sets the wait before the retry" do
     state = retry_state([{429, [{"retry-after", "1"}]}, 200])
     started = System.monotonic_time(:millisecond)
 
@@ -2061,6 +2061,16 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert length(attempts()) == 1
 
     assert System.monotonic_time(:millisecond) - started < 1_000
+  end
+
+  test "bhv retries 028 cancelling the caller during the wait stops the retrying" do
+    state = retry_state([503, 200])
+    caller = Task.async(fn -> get_thing(state) end)
+
+    assert_receive {:attempt, _request}, 2_000
+    Task.shutdown(caller, :brutal_kill)
+
+    refute_receive {:attempt, _request}, 1_000
   end
 
   test "bhv retries 005 every retry rebuilds the request, authentication headers included" do
@@ -2230,14 +2240,16 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     end
   end
 
-  test "backoff doubles to 8 seconds, and a Retry-After in seconds is read" do
+  test "bhv retries 027 backoff doubles from half a second to eight seconds with quarter jitter" do
     # 0.5 s doubling to 8 s, less up to 25% jitter.
     assert Enum.map(1..6, &{{moduleName}}.Api.BaseApi.backoff_delay(&1, 0.0)) ==
              [500, 1_000, 2_000, 4_000, 8_000, 8_000]
 
     assert {{moduleName}}.Api.BaseApi.backoff_delay(1, 1.0) == 375
     assert {{moduleName}}.Api.BaseApi.backoff_delay(9, 1.0) == 6_000
+  end
 
+  test "retry_after_ms reads a Retry-After given in seconds" do
     now = ~U[1994-11-06 08:49:00Z]
     retry_after = &{{moduleName}}.Api.BaseApi.retry_after_ms(&1, now)
 

@@ -997,7 +997,7 @@ unions026 | Unknown discriminator error names the offending value
 options044 | README names the builder setter that rejects a SOCKS proxy
 serializationwire053 | #1 array form field emits repeated keys
 retries026 | Waits for a Retry-After given in seconds
-authapikey018 | Rejects CR in a header key at construction
+authapikey018 | Rejects a CR in a header API key value at construction
 authoauthtwoimplicit014 | Rejects a non-ASCII access token with the RFC 7230 message
 operations125 | Raises ArgumentError when the required query param category is nil
 errors044 | Every error lives in src/errors and the package root exports it

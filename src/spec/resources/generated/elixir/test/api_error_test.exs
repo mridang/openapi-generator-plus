@@ -390,6 +390,17 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.SerializationError in modules
     end
 
+    test "bhv errors 044 every error lives under the Errors namespace and the package root lists the whole tree" do
+      errors = PetstoreClient.errors()
+
+      assert PetstoreClient.Errors.OpenAPIError in errors
+
+      for error <- errors do
+        assert Code.ensure_loaded?(error)
+        assert ["PetstoreClient", "Errors", _name] = Module.split(error)
+      end
+    end
+
     test "a rescued SDK error is recognised via exceptions/0" do
       # Elixir's `rescue e in [...]` clause needs a compile-time literal list
       # of exception modules, so a runtime list cannot be spliced in. The
