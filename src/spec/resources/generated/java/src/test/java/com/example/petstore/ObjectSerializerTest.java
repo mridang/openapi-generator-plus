@@ -22,11 +22,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.SerializationException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -2378,5 +2380,60 @@ class ObjectSerializerTest {
                   "{\"quantity\":500}", com.example.petstore.models.Order.class));
       assertEquals(Integer.valueOf(500), order.quantity);
     }
+  }
+
+  @Test
+  void bhvSerializationObject147SerializeWritesAMapAsAJsonObject() {
+    assertEquals("{\"a\":1}", new ObjectSerializer().serialize(Map.of("a", 1)));
+  }
+
+  @Test
+  void bhvSerializationObject148SerializeWritesAUuidInLowercase() {
+    UUID uuid = UUID.fromString("550E8400-E29B-41D4-A716-446655440000");
+    assertEquals(
+        "\"550e8400-e29b-41d4-a716-446655440000\"", new ObjectSerializer().serialize(uuid));
+  }
+
+  @Test
+  void bhvSerializationObject176UuidRoundTripPreservesIdentity() {
+    ObjectSerializer serializer = new ObjectSerializer();
+    UUID uuid = UUID.randomUUID();
+    assertEquals(uuid, serializer.deserialize(serializer.serialize(uuid), UUID.class));
+  }
+
+  @Test
+  void bhvSerializationObject113ParsesNegativeDurations() {
+    assertEquals(
+        Duration.ofMillis(-1500), new ObjectSerializer().deserialize("\"-1.5s\"", Duration.class));
+  }
+
+  @Test
+  void bhvSerializationObject054DeserializeParsesFractionalProtobufSeconds() {
+    assertEquals(
+        Duration.ofMillis(1500), new ObjectSerializer().deserialize("\"1.5s\"", Duration.class));
+  }
+
+  @Test
+  void bhvSerializationObject158StringifyEmitsTheCanonicalProtobufDuration() {
+    assertEquals("1.500s", ObjectSerializer.stringify(Duration.ofMillis(1500)));
+  }
+
+  @Test
+  void bhvSerializationObject106StringifyEmitsANegativeFractionalDuration() {
+    assertEquals("-1.500s", ObjectSerializer.stringify(Duration.ofMillis(-1500)));
+  }
+
+  @Test
+  void bhvSerializationObject145DurationRoundTripYieldsAnEquivalentValue() {
+    ObjectSerializer serializer = new ObjectSerializer();
+    Duration duration = Duration.ofSeconds(90);
+    assertEquals(duration, serializer.deserialize(serializer.serialize(duration), Duration.class));
+  }
+
+  @Test
+  void bhvSerializationObject116PositiveOffsetIsPreservedInTheSerializedString() {
+    OffsetDateTime dt =
+        OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.ofHoursMinutes(5, 30));
+    assertTrue(ObjectSerializer.stringify(dt).endsWith("+05:30"));
   }
 }
