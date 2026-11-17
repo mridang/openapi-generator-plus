@@ -871,7 +871,7 @@ mod tests {
 
     /* F823: the retry policy. */
     #[test]
-    fn test_retryable_statuses_are_408_409_429_and_5xx_except_501() {
+    fn test_bhv_retries_021_retryable_statuses_are_408_409_429_and_5xx_except_501() {
         for status in [408, 409, 429, 500, 502, 503, 504, 599] {
             assert!(is_retryable_status(status), "status {}", status);
         }
@@ -895,7 +895,7 @@ mod tests {
     }
 
     #[test]
-    fn test_retry_after_parses_seconds_and_http_dates() {
+    fn test_bhv_retries_022_retry_after_parses_seconds_and_http_dates() {
         use std::time::Duration;
         assert_eq!(Some(Duration::from_secs(7)), parse_retry_after(" 7 "));
         assert_eq!(Some(Duration::ZERO), parse_retry_after("Sun, 06 Nov 1994 08:49:37 GMT"));
@@ -920,7 +920,7 @@ mod tests {
     }
 
     #[test]
-    fn test_retry_after_replaces_the_backoff_and_is_capped_at_sixty_seconds() {
+    fn test_bhv_retries_023_retry_after_replaces_the_backoff_and_is_capped_at_sixty_seconds() {
         use std::time::Duration;
         assert_eq!(Duration::from_secs(3), retry_delay(0, Some(Duration::from_secs(3))));
         assert_eq!(Duration::from_secs(60), retry_delay(0, Some(Duration::from_secs(3_600))));
@@ -1204,7 +1204,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_a_per_call_retry_budget_of_zero_turns_the_client_retries_off() {
+    async fn test_bhv_retries_014_a_per_call_retry_budget_of_zero_turns_the_client_retries_off() {
         let client = ScriptedClient::custom(500, false, 2);
         let api = api_for(client.clone());
 

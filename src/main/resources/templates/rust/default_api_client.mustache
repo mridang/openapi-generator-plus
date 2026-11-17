@@ -1217,6 +1217,31 @@ mod tests {
         assert!(!is_https_to_http_body_replay(303, "PUT", Some(&https), &http, true));
     }
 
+    /* A 307 or 308 that keeps the body across an HTTPS to HTTPS hop is replayed. */
+    #[test]
+    fn test_bhv_retries_016_https_to_https_redirect_with_a_body_is_replayed() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let https2 = reqwest::Url::parse("https://example.com/y").unwrap();
+        assert!(!is_https_to_http_body_replay(307, "PUT", Some(&https), &https2, true));
+        assert!(!is_https_to_http_body_replay(308, "POST", Some(&https), &https2, true));
+    }
+
+    /* A 307 that downgrades HTTPS to HTTP with a PUT body is refused. */
+    #[test]
+    fn test_bhv_retries_017_https_to_http_downgrade_refuses_the_body_on_307() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(is_https_to_http_body_replay(307, "PUT", Some(&https), &http, true));
+    }
+
+    /* A POST body is not replayed across a 307 from HTTPS to HTTP. */
+    #[test]
+    fn test_bhv_retries_020_refuses_to_replay_a_post_body_redirected_from_https_to_http() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(is_https_to_http_body_replay(307, "POST", Some(&https), &http, true));
+    }
+
     /* F861: a query-parameter API key must not reach a redirect refusal
      * message, so the query and fragment are dropped from the URLs it names. */
     #[test]
@@ -1836,7 +1861,7 @@ mod tests {
     /// to the cross-origin redirect strip allowlist. The static base set
     /// (authorization / cookie / proxy-authorization) must always be present.
     #[test]
-    fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
+    fn test_bhv_transport_057_sensitive_header_allowlist_contains_fixed_credential_headers() {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
         assert!(
             names.contains(&"authorization"),
@@ -1859,7 +1884,7 @@ mod tests {
     /* ── spec-declared API-key header names are sensitive ── */
 
     #[test]
-    fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {
+    fn test_bhv_transport_056_sensitive_header_allowlist_includes_spec_api_key_headers() {
         let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
 {{#apiKeyHeaderNames}}        assert!(
             names.contains(&"{{nameLower}}"),
