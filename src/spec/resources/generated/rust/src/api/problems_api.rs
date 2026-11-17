@@ -66,11 +66,15 @@ impl ProblemsApi {
 
     /// Read a fallback, declaring a default response
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP default: [`UnexpectedFailureError`](crate::errors::UnexpectedFailureError), a ApiError with a [`UnexpectedFailure`](crate::models::UnexpectedFailure) body
     pub async fn get_fallback(
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> Result<Result, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
             .get_fallback_with_http_info(fallback_id, options)
             .await?;
@@ -96,7 +100,7 @@ impl ProblemsApi {
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -115,7 +119,7 @@ impl ProblemsApi {
         options: Option<&GetFallbackOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         if fallback_id.is_empty() {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
@@ -173,8 +177,13 @@ impl ProblemsApi {
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
-            return_type: "Result",
+            return_type: "ModelResult",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[(
+                "default",
+                crate::errors::UnexpectedFailureError::from_error_response
+                    as crate::errors::api_error::ErrorFactory,
+            )],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -183,16 +192,20 @@ impl ProblemsApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Result>(params).await
+        self.base.invoke_api_for_result::<ModelResult>(params).await
     }
 
     /// Read a member, declaring a 404 with a different schema
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`MemberNotFoundError`](crate::errors::MemberNotFoundError), a NotFoundError with a [`MemberNotFound`](crate::models::MemberNotFound) body
     pub async fn get_member(
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> Result<Result, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_member_with_http_info(member_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -216,7 +229,7 @@ impl ProblemsApi {
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -235,7 +248,7 @@ impl ProblemsApi {
         options: Option<&GetMemberOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         if member_id.is_empty() {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
@@ -291,8 +304,13 @@ impl ProblemsApi {
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
-            return_type: "Result",
+            return_type: "ModelResult",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[(
+                "404",
+                crate::errors::MemberNotFoundError::from_error_response
+                    as crate::errors::api_error::ErrorFactory,
+            )],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -301,16 +319,20 @@ impl ProblemsApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Result>(params).await
+        self.base.invoke_api_for_result::<ModelResult>(params).await
     }
 
     /// Read a project, declaring a 404 with its own schema
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`ProjectNotFoundError`](crate::errors::ProjectNotFoundError), a NotFoundError with a [`ProjectNotFound`](crate::models::ProjectNotFound) body
     pub async fn get_project(
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> Result<Result, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_project_with_http_info(project_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -334,7 +356,7 @@ impl ProblemsApi {
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -353,7 +375,7 @@ impl ProblemsApi {
         options: Option<&GetProjectOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         if project_id.is_empty() {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
@@ -411,8 +433,13 @@ impl ProblemsApi {
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
-            return_type: "Result",
+            return_type: "ModelResult",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[(
+                "404",
+                crate::errors::ProjectNotFoundError::from_error_response
+                    as crate::errors::api_error::ErrorFactory,
+            )],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -421,16 +448,20 @@ impl ProblemsApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Result>(params).await
+        self.base.invoke_api_for_result::<ModelResult>(params).await
     }
 
     /// Read a range, declaring one schema for every 4XX status
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 4XX: [`RejectedRequestError`](crate::errors::RejectedRequestError), a ClientError with a [`RejectedRequest`](crate::models::RejectedRequest) body
     pub async fn get_range(
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> Result<Result, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_range_with_http_info(range_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -454,7 +485,7 @@ impl ProblemsApi {
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -473,7 +504,7 @@ impl ProblemsApi {
         options: Option<&GetRangeOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         if range_id.is_empty() {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
@@ -529,8 +560,13 @@ impl ProblemsApi {
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
-            return_type: "Result",
+            return_type: "ModelResult",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[(
+                "4XX",
+                crate::errors::RejectedRequestError::from_error_response
+                    as crate::errors::api_error::ErrorFactory,
+            )],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -539,16 +575,20 @@ impl ProblemsApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Result>(params).await
+        self.base.invoke_api_for_result::<ModelResult>(params).await
     }
 
     /// Read an upstream, declaring one schema for every 5XX status
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 5XX: [`UpstreamFailureError`](crate::errors::UpstreamFailureError), a ServerError with a [`UpstreamFailure`](crate::models::UpstreamFailure) body
     pub async fn get_upstream(
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> Result<Result, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
             .get_upstream_with_http_info(upstream_id, options)
             .await?;
@@ -574,7 +614,7 @@ impl ProblemsApi {
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -593,7 +633,7 @@ impl ProblemsApi {
         options: Option<&GetUpstreamOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         if upstream_id.is_empty() {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
@@ -651,8 +691,13 @@ impl ProblemsApi {
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
-            return_type: "Result",
+            return_type: "ModelResult",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[(
+                "5XX",
+                crate::errors::UpstreamFailureError::from_error_response
+                    as crate::errors::api_error::ErrorFactory,
+            )],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -661,16 +706,21 @@ impl ProblemsApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Result>(params).await
+        self.base.invoke_api_for_result::<ModelResult>(params).await
     }
 
     /// Take a lock, declaring one schema under two statuses
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 409: [`StateConflictError`](crate::errors::StateConflictError), a ConflictError with a [`StateConflict`](crate::models::StateConflict) body
+    /// * HTTP 423: [`StateConflictError`](crate::errors::StateConflictError), a LockedError with a [`StateConflict`](crate::models::StateConflict) body
     pub async fn take_lock(
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> Result<Result, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.take_lock_with_http_info(lock_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -694,7 +744,7 @@ impl ProblemsApi {
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -713,7 +763,7 @@ impl ProblemsApi {
         options: Option<&TakeLockOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Result>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
         if lock_id.is_empty() {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
@@ -769,8 +819,20 @@ impl ProblemsApi {
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
-            return_type: "Result",
+            return_type: "ModelResult",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[
+                (
+                    "409",
+                    crate::errors::StateConflictError::from_error_response
+                        as crate::errors::api_error::ErrorFactory,
+                ),
+                (
+                    "423",
+                    crate::errors::StateConflictError::from_error_response
+                        as crate::errors::api_error::ErrorFactory,
+                ),
+            ],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -779,6 +841,6 @@ impl ProblemsApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Result>(params).await
+        self.base.invoke_api_for_result::<ModelResult>(params).await
     }
 }

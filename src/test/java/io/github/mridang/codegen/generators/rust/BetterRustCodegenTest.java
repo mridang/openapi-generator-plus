@@ -121,6 +121,19 @@ class BetterRustCodegenTest {
   }
 
   @Test
+  void aTypeThatNamesARenamedPreludeModelIsPointedAtTheRenamedModel() {
+    assertThat(BetterRustCodegen.renamePreludeModels("Result")).isEqualTo("ModelResult");
+    assertThat(BetterRustCodegen.renamePreludeModels("Vec<Result>")).isEqualTo("Vec<ModelResult>");
+    assertThat(BetterRustCodegen.renamePreludeModels("HashMap<String, Result>"))
+        .isEqualTo("HashMap<String, ModelResult>");
+    assertThat(BetterRustCodegen.renamePreludeModels("Order")).isEqualTo("Order");
+    assertThat(BetterRustCodegen.renamePreludeModels("ModelResult")).isEqualTo("ModelResult");
+    assertThat(BetterRustCodegen.renamePreludeModels("Result<Order, Error>"))
+        .isEqualTo("Result<Order, Error>");
+    assertThat(BetterRustCodegen.renamePreludeModels(null)).isNull();
+  }
+
+  @Test
   void renamesAParameterNamedLikeAnInjectedArgumentOrALocal() {
     assertThat(codegen.toParamName("options")).isEqualTo("options_param");
     assertThat(codegen.toParamName("server")).isEqualTo("server_param");

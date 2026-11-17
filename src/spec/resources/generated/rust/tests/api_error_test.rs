@@ -18,7 +18,9 @@ use petstore::errors::{
 };
 use petstore::models::Category;
 use petstore::ApiError;
+use petstore::ApiErrorInfo;
 use petstore::ApiErrorKind;
+use petstore::ErrorFactory;
 use petstore::OpenAPIError;
 use petstore::OpenAPIErrorExt;
 use petstore::SerializationError;
@@ -1146,4 +1148,181 @@ fn test_boxed_error_kind_can_be_matched() {
         err.api_error_kind(),
         Some(ApiErrorKind::NotFound(_))
     ));
+}
+
+#[test]
+fn test_bhv_errors_201_an_error_is_retryable_exactly_for_the_statuses_the_client_retries() {
+    for status in [408u16, 409, 429, 500, 502, 503, 504, 599] {
+        let err = ApiError::from_response(status, &HashMap::new(), "", None, None);
+        assert!(
+            err.as_api_error().expect("an ApiError").is_retryable(),
+            "status {status}"
+        );
+    }
+    for status in [400u16, 401, 403, 404, 422, 501, 302] {
+        let err = ApiError::from_response(status, &HashMap::new(), "", None, None);
+        assert!(
+            !err.as_api_error().expect("an ApiError").is_retryable(),
+            "status {status}"
+        );
+    }
+}
+
+#[test]
+fn test_bhv_errors_202_an_error_exposes_the_x_request_id_header_as_its_request_id() {
+    let with_header = |name: &str| {
+        let mut headers = HashMap::new();
+        headers.insert(name.to_string(), "abc".to_string());
+        ApiError::new(500, "boom".to_string(), Some(headers), None)
+    };
+
+    assert_eq!(with_header("X-Request-ID").request_id(), Some("abc"));
+    assert_eq!(with_header("x-request-id").request_id(), Some("abc"));
+    assert_eq!(with_header("other").request_id(), None);
+    assert_eq!(
+        ApiError::new(0, "no response".to_string(), None, None).request_id(),
+        None
+    );
+    let mut headers = HashMap::new();
+    headers.insert("X-Request-Id".to_string(), "def".to_string());
+    let missing = ApiError::new(404, "gone".to_string(), Some(headers), None);
+    let named = NotFoundError::try_from(ClientError::try_from(missing).expect("4xx")).expect("404");
+    assert_eq!(ApiErrorInfo::request_id(&named), Some("def"));
+}
+
+fn labelled_factory(
+    label: &'static str,
+) -> fn(
+    u16,
+    &HashMap<String, String>,
+    &str,
+    Option<&str>,
+    Option<&str>,
+) -> Box<dyn std::error::Error + Send + Sync> {
+    match label {
+        "exact" => |status, headers, body, _, _| {
+            Box::new(ApiError::new(
+                status,
+                "exact".to_string(),
+                Some(headers.clone()),
+                Some(body.to_string()),
+            ))
+        },
+        "range" => |status, headers, body, _, _| {
+            Box::new(ApiError::new(
+                status,
+                "range".to_string(),
+                Some(headers.clone()),
+                Some(body.to_string()),
+            ))
+        },
+        _ => |status, headers, body, _, _| {
+            Box::new(ApiError::new(
+                status,
+                "default".to_string(),
+                Some(headers.clone()),
+                Some(body.to_string()),
+            ))
+        },
+    }
+}
+
+#[test]
+fn test_bhv_errors_203_the_error_factory_of_an_operation_is_chosen_by_exact_status_then_range_then_default(
+) {
+    let factories: [(&str, ErrorFactory); 3] = [
+        ("404", labelled_factory("exact")),
+        ("4XX", labelled_factory("range")),
+        ("default", labelled_factory("default")),
+    ];
+    let message_of = |status: u16| {
+        let err = ApiError::from_response_with(
+            status,
+            &HashMap::new(),
+            "{}",
+            Some("GET"),
+            Some("/x"),
+            &factories,
+        );
+        err.as_api_error()
+            .expect("an ApiError")
+            .message()
+            .to_string()
+    };
+
+    assert_eq!(message_of(404), "exact");
+    assert_eq!(message_of(418), "range");
+    assert_eq!(message_of(502), "default");
+
+    let none =
+        ApiError::from_response_with(502, &HashMap::new(), "{}", Some("GET"), Some("/x"), &[]);
+    assert!(none.is::<BadGatewayError>());
+    let unmatched = ApiError::from_response_with(
+        404,
+        &HashMap::new(),
+        "{}",
+        Some("GET"),
+        Some("/x"),
+        &[("5XX", labelled_factory("range"))],
+    );
+    assert!(unmatched.is::<NotFoundError>());
+}
+
+#[test]
+fn test_bhv_errors_204_a_body_that_does_not_match_its_declared_error_schema_leaves_the_status_error_with_the_raw_body_and_a_cause(
+) {
+    use petstore::errors::UnexpectedFailureError;
+
+    let err = UnexpectedFailureError::from_error_response(
+        400,
+        &HashMap::new(),
+        "[1, 2",
+        Some("GET"),
+        Some("/x"),
+    );
+    let status_only =
+        ApiError::from_response(400, &HashMap::new(), "[1, 2", Some("GET"), Some("/x"));
+
+    assert!(!err.is::<UnexpectedFailureError>());
+    assert_eq!(
+        std::mem::discriminant(&err.api_error_kind().expect("an ApiError")),
+        std::mem::discriminant(&status_only.api_error_kind().expect("an ApiError")),
+    );
+    let info = err.as_api_error().expect("an ApiError");
+    assert_eq!(info.response_body(), Some("[1, 2"));
+    assert_eq!(info.status_code(), 400);
+    let mut cause = std::error::Error::source(&*err);
+    let mut found = false;
+    while let Some(c) = cause {
+        found = found || c.is::<SerializationError>();
+        cause = c.source();
+    }
+    assert!(found, "the decoding failure is the cause");
+}
+
+#[test]
+fn test_a_declared_error_schema_decodes_into_its_own_error_below_its_status_error() {
+    use petstore::errors::UnexpectedFailureError;
+    use petstore::models::UnexpectedFailure;
+
+    let body = serde_json::to_string(&UnexpectedFailure::default()).expect("the model serializes");
+    let err = UnexpectedFailureError::from_error_response(
+        400,
+        &HashMap::new(),
+        &body,
+        Some("GET"),
+        Some("/x?q=1"),
+    );
+
+    let typed = err
+        .downcast_ref::<UnexpectedFailureError>()
+        .expect("the declared schema's error");
+    assert_eq!(typed.error_body(), &UnexpectedFailure::default());
+    assert_eq!(ApiErrorInfo::status_code(typed), 400);
+    assert_eq!(ApiErrorInfo::request_path(typed), Some("/x"));
+    assert!(err.is_api_error());
+    assert_eq!(
+        err.api_error_kind().map(|kind| kind.status_code()),
+        Some(400)
+    );
 }
