@@ -20647,8 +20647,8 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F316",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "open",
+   "note": "Decided 2026-11-17: no validation at model construction; validate only at the wire boundary (unknown enum fails loudly on decode)",
    "outcomes": {
     "ruby": {
      "outcome": "too-big",
@@ -36146,7 +36146,7 @@
    ],
    "unit_testable": null,
    "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - owner decision not taken: csharp AGENTS.md:331, go:321, ruby:370, java:309, kotlin:294 skip F840; S2/S11/S12 do not deci",
+   "note": "Decided 2026-11-17: send cookie values raw, validate against RFC 6265 cookie-octet and fail client-side with a clear error; style form is percent-encoded",
    "batch": null
   },
   {
@@ -36844,7 +36844,7 @@
    ],
    "unit_testable": null,
    "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - java/api/api.mustache:427-428 still passes only null/NO_AUTH to BaseApi; rust AGENTS:377, go AGENTS:322, elixir AGENTS:2",
+   "note": "Decided 2026-11-17: one optional credential per security scheme on the client, operations use the scheme their spec requires; per-call scheme override deferred",
    "batch": null
   },
   {
@@ -45768,7 +45768,7 @@
    ],
    "unit_testable": true,
    "status": "open",
-   "note": "still open: java,node - src/main/resources/templates/java/default_api_client.mustache:1378-1387 close() = httpClient.close() (graceful, waits); ",
+   "note": "Decided 2026-11-17: close() is graceful and idempotent in every language; in-flight requests finish, new ones fail with a client-closed error; cancellation is per request",
    "batch": null
   },
   {
@@ -46086,7 +46086,7 @@
    ],
    "unit_testable": false,
    "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - src/main/resources/fixtures/certs/ca-key.pem and server-key.pem still ship (golden go/testdata/certs, python/test/fixtur",
+   "note": "Decided 2026-11-17: generate the test CA and server key at test start with each language's standard library; commit no private keys",
    "batch": null
   },
   {
