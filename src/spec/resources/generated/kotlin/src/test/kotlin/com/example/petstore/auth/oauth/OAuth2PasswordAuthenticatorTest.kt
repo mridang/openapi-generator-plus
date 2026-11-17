@@ -59,7 +59,7 @@ class OAuth2PasswordAuthenticatorTest {
         )
 
     @Test
-    fun invalidateAccessTokenKeepsTheRefreshTokenForTheNextCall() {
+    fun bhvAuthoauthtwopassword004InvalidateAccessTokenKeepsTheRefreshTokenForTheNextCall() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -77,7 +77,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun refreshUrlIsATrailingOptionalArgument() {
+    fun bhvAuthoauthtwopassword017RefreshUrlIsATrailingOptionalArgument() {
         // refreshUrl comes after scopes and defaults to null (like the
         // authorization-code authenticator and the other SDKs), so the required
         // arguments can be passed positionally without it.
@@ -104,7 +104,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun sendsPasswordGrantType() {
+    fun bhvAuthoauthtwopassword014SendsPasswordGrantType() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -118,7 +118,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun sendsUsernameAndPassword() {
+    fun bhvAuthoauthtwopassword016SendsUsernameAndPassword() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -132,7 +132,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun sendsClientIdAndSecret() {
+    fun bhvAuthoauthtwopassword013SendsClientIdAndSecret() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -146,7 +146,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun returnsAuthorizationBearerHeader() {
+    fun bhvAuthoauthtwopassword011ReturnsAuthorizationBearerHeader() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok-pwd","expires_in":3600}""")
 
@@ -159,7 +159,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun usesRefreshTokenOnSubsequentCalls() {
+    fun bhvAuthoauthtwopassword019UsesRefreshTokenOnSubsequentCalls() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -177,14 +177,14 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun getHostReturnsConfiguredHost() {
+    fun bhvAuthoauthtwopassword003GetHostReturnsConfiguredHost() {
         val auth = createAuthenticator()
 
         assertEquals("https://api.example.com", auth.getHost())
     }
 
     @Test
-    fun basicAuthUrlEncodesClientIdAndSecret() {
+    fun bhvAuthoauthtwopassword002BasicAuthUrlEncodesClientIdAndSecret() {
         // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
         // client_id and client_secret MUST be application/x-www-form-
         // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -224,7 +224,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun redactsSecret() {
+    fun bhvAuthoauthtwopassword007RedactsSecret() {
         val auth = createAuthenticator()
         val rendered = auth.toString()
         assertFalse(rendered.contains("my-client-secret"))
@@ -233,7 +233,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun redactedReprShowsExactlyTheNonSecretFields() {
+    fun bhvAuthoauthtwopassword018RedactedReprShowsExactlyTheNonSecretFields() {
         assertEquals(
             "OAuth2PasswordAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
                 "clientSecret=***, tokenUrl=https://auth.example.com/token, refreshUrl=null, " +
@@ -243,7 +243,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun basicAuthKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+    fun bhvAuthoauthtwopassword001BasicAuthKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
         // RFC 6749 section 2.3.1 plus the shared unreserved set: '-._~' stay
         // literal and '*' '!' ''' '(' ')' are percent-encoded in both parts.
         val client = FakeApiClient()
@@ -277,7 +277,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun sendsScopesWithSpacesAsPlusInTheTokenBody() {
+    fun bhvAuthoauthtwopassword015SendsScopesWithSpacesAsPlusInTheTokenBody() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -290,7 +290,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun refreshGrantCarriesTheClientCredentialsInBodyMode() {
+    fun bhvAuthoauthtwopassword009RefreshGrantCarriesTheClientCredentialsInBodyMode() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -308,7 +308,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun refreshGrantCarriesTheBasicHeaderInBasicMode() {
+    fun bhvAuthoauthtwopassword008RefreshGrantCarriesTheBasicHeaderInBasicMode() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -334,7 +334,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun rejectedRefreshReRunsThePasswordGrant() {
+    fun bhvAuthoauthtwopassword010RejectedRefreshReRunsThePasswordGrant() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
@@ -404,7 +404,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperFailsNamingTheVariableOfAMissingCredential() {
+    fun bhvAuthoauthtwopassword012GeneratedSchemeWrapperFailsNamingTheVariableOfAMissingCredential() {
         val env =
             mapOf(
                 "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID" to "env-id",

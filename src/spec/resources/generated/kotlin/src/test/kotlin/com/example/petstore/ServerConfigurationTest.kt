@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 
 class ServerConfigurationTest {
     @Test
-    @DisplayName("getUrl substitutes variable defaults into the URL template")
+    @DisplayName("bhvServers010 getUrl substitutes variable defaults into the URL template")
     fun getUrlUsesVariableDefaults() {
         val server =
             ServerConfiguration(
@@ -29,7 +29,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("getUrl applies overrides over defaults")
+    @DisplayName("bhvServers009 getUrl applies overrides over defaults")
     fun getUrlAppliesOverrides() {
         val server =
             ServerConfiguration(
@@ -47,7 +47,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("getUrl does not expand a placeholder that a substituted value introduces")
+    @DisplayName("bhvServers005 getUrl does not expand a placeholder that a substituted value introduces")
     fun getUrlDoesNotReExpandSubstitutedPlaceholders() {
         val variables =
             listOf(
@@ -67,7 +67,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("the third global server keeps its hostile text unchanged")
+    @DisplayName("bhvServers013 the third global server keeps its hostile text unchanged")
     fun theThirdGlobalServerKeepsItsHostileTextUnchanged() {
         val server = Servers.SERVER_2
 
@@ -81,14 +81,14 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("getUrl with no variables returns the template verbatim")
+    @DisplayName("bhvServers011 getUrl with no variables returns the template verbatim")
     fun getUrlWithoutVariables() {
         val server = ServerConfiguration("https://api.example.com", null, emptyMap())
         assertEquals("https://api.example.com", server.getUrl())
     }
 
     @Test
-    @DisplayName("getUrl rejects a value outside the variable enum")
+    @DisplayName("bhvServers008 getUrl rejects a value outside the variable enum")
     fun getUrlRejectsInvalidEnumValue() {
         val server =
             ServerConfiguration(
@@ -106,7 +106,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("getUrl accepts an override that is within the enum")
+    @DisplayName("bhvServers003 getUrl accepts an override that is within the enum")
     fun getUrlAcceptsValidEnumValue() {
         val server =
             ServerConfiguration(
@@ -136,7 +136,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("the enum rejection message names the value, the variable and the allowed values")
+    @DisplayName("bhvServers012 the enum rejection message names the value, the variable and the allowed values")
     fun getUrlRejectionMessageIsExact() {
         val server =
             ServerConfiguration(
@@ -152,7 +152,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("a default outside the enum is rejected when no override is given")
+    @DisplayName("bhvServers004 a default outside the enum is rejected when no override is given")
     fun getUrlRejectsADefaultOutsideTheEnum() {
         val server =
             ServerConfiguration(
@@ -165,7 +165,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("a partial override keeps the other variables at their defaults")
+    @DisplayName("bhvServers001 a partial override keeps the other variables at their defaults")
     fun getUrlPartialOverrideKeepsOtherDefaults() {
         val server =
             ServerConfiguration(
@@ -180,7 +180,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("a variable that appears twice in the template is replaced everywhere")
+    @DisplayName("bhvServers002 a variable that appears twice in the template is replaced everywhere")
     fun getUrlReplacesEveryOccurrenceOfAVariable() {
         val server =
             ServerConfiguration(
@@ -192,7 +192,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("the raw template, the description and the variables are exposed")
+    @DisplayName("bhvServers006 the raw template, the description and the variables are exposed")
     fun exposesTemplateDescriptionAndVariables() {
         val variable = ServerVariable("api", "the environment", listOf("api"))
         val server = ServerConfiguration("https://{env}.example.com", "Production", mapOf("env" to variable))

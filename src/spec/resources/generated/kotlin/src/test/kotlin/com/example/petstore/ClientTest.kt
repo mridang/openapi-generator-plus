@@ -26,7 +26,7 @@ class ClientTest {
     private val authenticator = BearerAuthenticator("/api/v3", "test-token")
 
     @Test
-    @DisplayName("construct with authenticator only")
+    @DisplayName("bhvLifecycle012 construct with authenticator only")
     fun constructWithAuthenticatorOnly() {
         val client = Client(authenticator)
 
@@ -34,7 +34,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("construct with authenticator and transport options")
+    @DisplayName("bhvLifecycle011 construct with authenticator and transport options")
     fun constructWithAuthenticatorAndTransportOptions() {
         val transport = TransportOptions.builder().build()
 
@@ -44,7 +44,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("F857: the scheme constructor takes one optional credential per scheme, named after it")
+    @DisplayName("bhvLifecycle015 F857: the scheme constructor takes one optional credential per scheme, named after it")
     fun schemeConstructorTakesOneOptionalCredentialPerScheme() {
         val client =
             Client(
@@ -70,7 +70,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("F857: a client given only a host sends no authentication header")
+    @DisplayName("bhvLifecycle016 F857: a client given only a host sends no authentication header")
     fun clientWithNoCredentialSendsNoAuthenticationHeader() {
         var authorization: String? = "unset"
         val engine =
@@ -90,7 +90,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    @DisplayName("bhvLifecycle006 Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun bearerRejectsCrlfAndNonAscii() {
         assertThrows(IllegalArgumentException::class.java) {
             BearerAuthenticator("/api/v3", "tok\r\nInjected: yes")
@@ -101,7 +101,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("bearer-no-empty-token-guard: Bearer rejects empty/blank token")
+    @DisplayName("bhvLifecycle005 bearer-no-empty-token-guard: Bearer rejects empty/blank token")
     fun bearerRejectsEmptyOrBlankToken() {
         // An empty or whitespace-only token would emit a credential-less
         // "Authorization: Bearer " header (fail-open); reject it up front.
@@ -117,7 +117,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("ApiKey header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    @DisplayName("bhvLifecycle004 ApiKey header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun apiKeyHeaderRejectsCrlfAndNonAscii() {
         // ApiKeyAuthenticator's HEADER location must reject any value
         // outside printable ASCII + TAB to prevent both header injection
@@ -135,7 +135,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("ApiKey query location accepts non-ASCII characters")
+    @DisplayName("bhvLifecycle003 ApiKey query location accepts non-ASCII characters")
     fun apiKeyQueryAcceptsNonAscii() {
         // The QUERY location is URL-encoded downstream, so it must accept a
         // non-ASCII key value verbatim and surface it through getQueryParams.
@@ -206,7 +206,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("F824: a closed client rejects further requests")
+    @DisplayName("bhvLifecycle008 F824: a closed client rejects further requests")
     fun closedClientRejectsRequests() {
         val client = Client(authenticator)
         client.close()
@@ -219,7 +219,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("F824: closing the client never closes a caller-supplied transport")
+    @DisplayName("bhvLifecycle009 F824: closing the client never closes a caller-supplied transport")
     fun closingTheClientKeepsASuppliedTransportOpen() {
         val custom = HttpClient(MockEngine { respond("{}") })
         val client = Client(authenticator, TransportOptions.builder().httpClient(custom).build())
@@ -258,7 +258,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("API groups are accessible")
+    @DisplayName("bhvLifecycle001 API groups are accessible")
     fun apiGroupsAreAccessible() {
         val client = Client(authenticator)
 

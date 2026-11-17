@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 
 class BearerAuthenticatorTest {
     @Test
-    @DisplayName("raw token is prefixed with Bearer")
+    @DisplayName("bhvAuthbearer009 raw token is prefixed with Bearer")
     fun rawTokenIsPrefixedWithBearer() =
         runBlocking {
             val auth = BearerAuthenticator("https://api.example.com", "xyz")
@@ -23,7 +23,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("already-prefixed token is not doubled")
+    @DisplayName("bhvAuthbearer003 already-prefixed token is not doubled")
     fun alreadyPrefixedTokenIsNotDoubled() =
         runBlocking {
             val auth = BearerAuthenticator("https://api.example.com", "Bearer xyz")
@@ -32,7 +32,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("lowercase bearer prefix is stripped")
+    @DisplayName("bhvAuthbearer007 lowercase bearer prefix is stripped")
     fun lowercaseBearerPrefixIsStripped() =
         runBlocking {
             val auth = BearerAuthenticator("https://api.example.com", "bearer xyz")
@@ -41,7 +41,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("mixed-case bearer prefix is stripped")
+    @DisplayName("bhvAuthbearer008 mixed-case bearer prefix is stripped")
     fun mixedCaseBearerPrefixIsStripped() =
         runBlocking {
             val auth = BearerAuthenticator("https://api.example.com", "BeArEr xyz")
@@ -50,7 +50,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("a token that merely begins with the word bearer is kept whole")
+    @DisplayName("bhvAuthbearer015 a token that merely begins with the word bearer is kept whole")
     fun lookalikeTokenIsKeptWhole() =
         runBlocking {
             val auth = BearerAuthenticator("https://api.example.com", "bearerxyz")
@@ -58,7 +58,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("a doubled Bearer prefix is stripped only once")
+    @DisplayName("bhvAuthbearer004 a doubled Bearer prefix is stripped only once")
     fun doubledPrefixIsStrippedOnce() =
         runBlocking {
             val auth = BearerAuthenticator("https://api.example.com", "Bearer Bearer xyz")
@@ -66,7 +66,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("a Unicode space is not blank, so the printable ASCII check rejects it")
+    @DisplayName("bhvAuthbearer016 a Unicode space is not blank, so the printable ASCII check rejects it")
     fun unicodeSpaceIsNotBlank() {
         for (space in listOf("\u00A0", "\u2003")) {
             val ex =
@@ -81,7 +81,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("empty token is rejected at construction")
+    @DisplayName("bhvAuthbearer005 empty token is rejected at construction")
     fun emptyTokenIsRejectedAtConstruction() {
         // An empty or whitespace-only token would emit a credential-less
         // "Authorization: Bearer " header (fail-open); reject it up front.
@@ -97,7 +97,7 @@ class BearerAuthenticatorTest {
     // whitespace cases here exercise the runtime guard.
 
     @Test
-    @DisplayName("whitespace-only token is rejected at construction")
+    @DisplayName("bhvAuthbearer017 whitespace-only token is rejected at construction")
     fun whitespaceOnlyTokenIsRejectedAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             BearerAuthenticator("https://api.example.com", "   ")
@@ -120,7 +120,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    @DisplayName("bhvAuthbearer012 Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun bearerRejectsCrlfAndNonAscii() {
         // RFC 7230 §3.2.6 — reject CR/LF (header injection from tokens read
         // from .env / files with trailing newlines) and non-ASCII bytes that
@@ -138,7 +138,7 @@ class BearerAuthenticatorTest {
      * must be absent and a *** redaction marker present.
      */
     @Test
-    @DisplayName("toString() redacts the token and shows ***")
+    @DisplayName("bhvAuthbearer011 toString() redacts the token and shows ***")
     fun redactsSecret() {
         val auth = BearerAuthenticator("https://api.example.com", "xyz")
         val repr = auth.toString()
@@ -147,13 +147,13 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    fun redactedReprShowsExactlyTheNonSecretFields() {
+    fun bhvAuthbearer013RedactedReprShowsExactlyTheNonSecretFields() {
         val auth = BearerAuthenticator("https://api.example.com", "xyz")
         assertEquals("BearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
     }
 
     @Test
-    fun generatedSchemeWrapperEmitsABearerHeaderAndMasksTheToken() =
+    fun bhvAuthbearer006GeneratedSchemeWrapperEmitsABearerHeaderAndMasksTheToken() =
         runBlocking {
             val auth = PetStoreBearerAuthenticator("https://api.example.com", "xyz")
             assertEquals("Bearer xyz", auth.getAuthHeaders()["Authorization"])
@@ -205,7 +205,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: a token provider is called on every request when no token and no variable is set")
+    @DisplayName("bhvAuthbearer014 F862: a token provider is called on every request when no token and no variable is set")
     fun tokenProviderIsCalledOnEveryRequest() =
         runBlocking {
             var calls = 0
@@ -238,7 +238,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: a token the provider returns is validated like a static one")
+    @DisplayName("bhvAuthbearer002 F862: a token the provider returns is validated like a static one")
     fun providerTokenIsValidated() {
         val auth =
             BearerAuthenticator("https://api.example.com", tokenProvider = { "bad\r\ntoken" })

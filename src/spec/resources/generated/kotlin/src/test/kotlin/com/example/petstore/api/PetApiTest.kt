@@ -115,7 +115,7 @@ class PetApiTest {
         private val api: PetApi get() = sharedApi
 
         @Test
-        @DisplayName("addPet")
+        @DisplayName("bhvOperations022 addPet")
         fun testAddPet() {
             val pet =
                 Pet(
@@ -130,7 +130,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("addPet falls back to configured credentials when no scheme credential is held")
+        @DisplayName("bhvOperations081 addPet falls back to configured credentials when no scheme credential is held")
         fun testAddPetUsingConfiguredCredentials() {
             // No scheme credential is held: the call falls back to the
             // credentials configured on the client (the default Authorization
@@ -149,7 +149,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("addPet with HttpInfo")
+        @DisplayName("bhvOperations025 addPet with HttpInfo")
         fun testAddPetWithHttpInfo() {
             val pet =
                 Pet(
@@ -165,7 +165,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetById")
+        @DisplayName("bhvOperations047 getPetById")
         fun testGetPetById() {
             val result = runBlocking { api.getPetById(1L) }
 
@@ -175,7 +175,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetById with HttpInfo")
+        @DisplayName("bhvOperations048 getPetById with HttpInfo")
         fun testGetPetByIdWithHttpInfo() {
             val result = runBlocking { api.getPetByIdWithHttpInfo(1L) }
 
@@ -185,7 +185,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("updatePet")
+        @DisplayName("bhvOperations087 updatePet")
         fun testUpdatePet() {
             val pet =
                 Pet(
@@ -199,7 +199,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("updatePet with HttpInfo")
+        @DisplayName("bhvOperations088 updatePet with HttpInfo")
         fun testUpdatePetWithHttpInfo() {
             val pet =
                 Pet(
@@ -214,13 +214,13 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("deletePet")
+        @DisplayName("bhvOperations027 deletePet")
         fun testDeletePet() {
             assertDoesNotThrow { runBlocking { sharedSchemeApi.deletePet(1L) } }
         }
 
         @Test
-        @DisplayName("deletePet with HttpInfo")
+        @DisplayName("bhvOperations031 deletePet with HttpInfo")
         fun testDeletePetWithHttpInfo() {
             val result = runBlocking { sharedSchemeApi.deletePetWithHttpInfo(1L) }
 
@@ -229,7 +229,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("findPetsByStatus")
+        @DisplayName("bhvOperations039 findPetsByStatus")
         fun testFindPetsByStatus() {
             val result =
                 runBlocking {
@@ -243,7 +243,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("findPetsByStatus with HttpInfo")
+        @DisplayName("bhvOperations042 findPetsByStatus with HttpInfo")
         fun testFindPetsByStatusWithHttpInfo() {
             val result =
                 runBlocking {
@@ -257,7 +257,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetPassport")
+        @DisplayName("bhvOperations053 getPetPassport")
         fun testGetPetPassport() {
             val result = runBlocking { api.getPetPassport(1L) }
 
@@ -269,7 +269,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetPassport with HttpInfo")
+        @DisplayName("bhvOperations054 getPetPassport with HttpInfo")
         fun testGetPetPassportWithHttpInfo() {
             val result = runBlocking { api.getPetPassportWithHttpInfo(1L) }
 
@@ -278,7 +278,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("setPetAvatar")
+        @DisplayName("bhvOperations070 setPetAvatar")
         fun testSetPetAvatar() {
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
 
@@ -286,7 +286,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("setPetAvatar rejects an unrecognised request content-type")
+        @DisplayName("bhvOperations076 setPetAvatar rejects an unrecognised request content-type")
         fun testSetPetAvatarRejectsUnknownContentType() {
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())
             // An unknown requestContentType must be rejected client-side, not
@@ -305,7 +305,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetAvatar")
+        @DisplayName("bhvOperations045 getPetAvatar")
         fun testGetPetAvatar() {
             val result = runBlocking { api.getPetAvatar(1L) }
 
@@ -313,7 +313,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetAvatarThumbnail")
+        @DisplayName("bhvOperations046 getPetAvatarThumbnail")
         fun testGetPetAvatarThumbnail() {
             val result = runBlocking { api.getPetAvatarThumbnail(1L) }
 
@@ -321,7 +321,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("setPetAvatarThumbnail")
+        @DisplayName("bhvOperations074 setPetAvatarThumbnail")
         fun testSetPetAvatarThumbnail() {
             val request = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47))
 
@@ -329,7 +329,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("uploadPetCertificate")
+        @DisplayName("bhvOperations090 uploadPetCertificate")
         fun testUploadPetCertificate() {
             val fileBytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
             val result = runBlocking { api.uploadPetCertificate(1L, UploadPetCertificateOptions(fileBytes)) }
@@ -338,7 +338,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("uploadPetDocument")
+        @DisplayName("bhvOperations091 uploadPetDocument")
         fun testUploadPetDocument() {
             val fileBytes = "fake-doc-data".toByteArray()
             val options =
@@ -353,14 +353,14 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("addPetPhotos")
+        @DisplayName("bhvOperations023 addPetPhotos")
         fun testAddPetPhotos() {
             val files = listOf(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()))
             runBlocking { api.addPetPhotos(1L, AddPetPhotosOptions(files, PhotoMetadata())) }
         }
 
         @Test
-        @DisplayName("downloadPetDocument")
+        @DisplayName("bhvOperations035 downloadPetDocument")
         fun testDownloadPetDocument() {
             val result = runBlocking { api.downloadPetDocument(1L, 1L) }
 
@@ -368,7 +368,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetPhoto")
+        @DisplayName("bhvOperations055 getPetPhoto")
         fun testGetPetPhoto() {
             val result = runBlocking { api.getPetPhoto(1L, 1L) }
 
@@ -376,7 +376,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetTag sends styled path and query parameters")
+        @DisplayName("bhvOperations058 getPetTag sends styled path and query parameters")
         fun testGetPetTag() {
             val result =
                 runBlocking {
@@ -394,7 +394,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getExternalPetInfo uses per-operation server URL")
+        @DisplayName("bhvOperations061 getExternalPetInfo uses per-operation server URL")
         fun testGetExternalPetInfo() {
             // The operation declares its own server. The client below sends
             // every request for that server to the mock server instead, and
@@ -439,7 +439,7 @@ class PetApiTest {
     @DisplayName("Mock tests")
     inner class MockTests {
         @Test
-        @DisplayName("getPetAvatarThumbnail rejects malformed base64 with a SerializationException")
+        @DisplayName("bhvOperations063 getPetAvatarThumbnail rejects malformed base64 with a SerializationException")
         fun testGetPetAvatarThumbnailRejectsMalformedBase64() {
             val engine =
                 MockEngine {
@@ -458,7 +458,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("setPetAvatar streams raw bytes with declared content type")
+        @DisplayName("bhvOperations073 setPetAvatar streams raw bytes with declared content type")
         fun testSetPetAvatarMock() {
             // setPetAvatar (PUT /pet/{petId}/avatar) takes a type:string
             // format:binary body with a DECLARED Content-Type of image/jpeg.
@@ -502,7 +502,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("setPetAvatar honours the selected request content type")
+        @DisplayName("bhvOperations071 setPetAvatar honours the selected request content type")
         fun testSetPetAvatarHonoursSelectedContentType() {
             // setPetAvatar declares THREE request content-types -- image/jpeg,
             // image/png and application/json. The optional requestContentType
@@ -539,7 +539,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("uploadMultipartMock")
+        @DisplayName("bhvOperations089 uploadMultipartMock")
         fun testUploadMultipart() {
             var capturedMethod: String? = null
             var capturedPath: String? = null
@@ -568,7 +568,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("uploadPetDocument with application/octet-stream sends raw bytes, not multipart")
+        @DisplayName("bhvOperations092 uploadPetDocument with application/octet-stream sends raw bytes, not multipart")
         fun testUploadPetDocumentOctetStreamSendsRawBody() {
             // octet-stream-raw-body parity: uploadPetDocument declares TWO request
             // content-types -- multipart/form-data AND application/octet-stream.
@@ -639,7 +639,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("uploadPetDocument default selection still sends a multipart body")
+        @DisplayName("bhvOperations094 uploadPetDocument default selection still sends a multipart body")
         fun testUploadPetDocumentDefaultSendsMultipart() {
             // Guard against over-correction: with no requestContentType selector,
             // uploadPetDocument defaults to its first declared type,
@@ -747,7 +747,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("error handling not found")
+        @DisplayName("bhvOperations037 error handling not found")
         fun testErrorHandlingNotFound() {
             val engine =
                 MockEngine { _ ->
@@ -772,7 +772,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("500 response throws InternalServerErrorException")
+        @DisplayName("bhvOperations038 500 response throws InternalServerErrorException")
         fun testErrorHandlingServerError() {
             val engine =
                 MockEngine { _ ->
@@ -797,7 +797,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("empty 200 body on a body-returning op throws ApiException")
+        @DisplayName("bhvOperations036 empty 200 body on a body-returning op throws ApiException")
         fun testEmptyBodyOnBodyReturningOpThrows() {
             // convenience-empty-body-handling: a body-returning operation that
             // receives a 2xx with an empty body must surface a typed
@@ -828,7 +828,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetByName sends the required query param on the wire")
+        @DisplayName("bhvOperations065 getPetByName sends the required query param on the wire")
         fun testGetPetByNameSendsRequiredQuery() {
             var capturedQuery: String? = null
             val engine =
@@ -855,7 +855,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetTag sends a '#' in an allowReserved value percent-encoded, keeping the query")
+        @DisplayName("bhvOperations066 getPetTag sends a '#' in an allowReserved value percent-encoded, keeping the query")
         fun testGetPetTagAllowReservedEncodesFragmentDelimiter() {
             var capturedQuery: String? = null
             val engine =
@@ -903,7 +903,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetTag sends object-valued query and header parameters in their styles")
+        @DisplayName("bhvOperations067 getPetTag sends object-valued query and header parameters in their styles")
         fun testGetPetTagObjectValuedParameters() {
             // F1143/D47: form exploded, form not exploded, deepObject and simple header.
             var query = ""
@@ -932,7 +932,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("a digit-leading query parameter keeps its wire name")
+        @DisplayName("bhvOperations021 a digit-leading query parameter keeps its wire name")
         fun testDigitLeadingQueryParameterKeepsWireName() {
             // F1113: the identifier is n2ndPage, the wire name stays 2ndPage.
             var query = ""
@@ -947,7 +947,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetSummary sends the matrix date path, the cookie and the date array, and returns the text body")
+        @DisplayName("bhvOperations057 getPetSummary sends the matrix date path, the cookie and the date array, and returns the text body")
         fun testGetPetSummaryWireShapes() {
             // F1068: matrix-style format:date path segment, required cookie, date-array query, text/plain.
             var path = ""
@@ -980,7 +980,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("uploadPetDocument sends non-string scalar parts as plain text parts")
+        @DisplayName("bhvOperations095 uploadPetDocument sends non-string scalar parts as plain text parts")
         fun testUploadPetDocumentScalarParts() {
             // F1125/D36: boolean, integer, date-time and enum parts carry their text form and no Content-Type.
             var wire = ""
@@ -1016,7 +1016,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("addPetTreatment puts exactly the chosen variant on the wire as JSON")
+        @DisplayName("bhvOperations024 addPetTreatment puts exactly the chosen variant on the wire as JSON")
         fun testAddPetTreatmentSendsTheChosenVariant() {
             // F1142: the anyOf wrapper is the request body of the operation.
             var body = ""
@@ -1037,7 +1037,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetTag sends format: byte query and header values as padded standard base64")
+        @DisplayName("bhvOperations059 getPetTag sends format: byte query and header values as padded standard base64")
         fun testGetPetTagByteParamsAreBase64() {
             val queries = mutableListOf<String>()
             val headers = mutableListOf<String?>()
@@ -1072,7 +1072,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetByName rejects a dot-segment name before sending and keeps inner dots")
+        @DisplayName("bhvOperations064 getPetByName rejects a dot-segment name before sending and keeps inner dots")
         fun testGetPetByNameRejectsDotSegments() {
             val paths = mutableListOf<String>()
             val engine =
@@ -1106,7 +1106,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("optional-array-param: array query params serialize as styled values, not a debug blob")
+        @DisplayName("bhvOperations068 optional-array-param: array query params serialize as styled values, not a debug blob")
         fun testGetPetTagOptionalArrayQuerySerializesStyled() {
             // optional-array-param parity: getPetTag carries two OPTIONAL array
             // query params -- `colors` (style pipeDelimited) and `sizes` (style
@@ -1203,7 +1203,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("required-nested-param-validation: empty required string query param fails loud")
+        @DisplayName("bhvOperations049 required-nested-param-validation: empty required string query param fails loud")
         fun testGetPetByNameEmptyRequiredQueryFailsLoud() {
             // required-nested-param-validation: a REQUIRED string param must be
             // rejected when it is the empty string, not just when it is null.
@@ -1232,7 +1232,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("an empty required header or cookie parameter fails loud before any request is sent")
+        @DisplayName("bhvOperations050 an empty required header or cookie parameter fails loud before any request is sent")
         fun testEmptyRequiredHeaderAndCookieFailLoud() {
             // F1127: the guard covers a required header (getPetByName X-Correlation-Id) and a
             // required cookie (getPetSummary session), not only query parameters.
@@ -1274,7 +1274,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F857: an operation uses the credential of the scheme its spec names")
+        @DisplayName("bhvOperations079 F857: an operation uses the credential of the scheme its spec names")
         fun testSchemeCredentialIsUsed() {
             val captured = Captured()
             val api =
@@ -1290,7 +1290,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F857: the first scheme in the operation's own order that the client holds wins")
+        @DisplayName("bhvOperations080 F857: the first scheme in the operation's own order that the client holds wins")
         fun testFirstHeldSchemeInOperationOrderWins() {
             val captured = Captured()
             val api =
@@ -1309,7 +1309,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F857: a credential held for a scheme the operation does not name is not sent")
+        @DisplayName("bhvOperations020 F857: a credential held for a scheme the operation does not name is not sent")
         fun testCredentialForAnotherSchemeIsIgnored() {
             val captured = Captured()
             val api =
@@ -1326,7 +1326,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F857: an operation none of whose schemes is held uses the client-level authenticator")
+        @DisplayName("bhvOperations026 F857: an operation none of whose schemes is held uses the client-level authenticator")
         fun testClientLevelAuthenticatorIsTheFallback() {
             val captured = Captured()
             val api =
@@ -1395,7 +1395,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("configured credentials used when no scheme credential is held")
+        @DisplayName("bhvOperations078 configured credentials used when no scheme credential is held")
         fun testAddPetUsesConfiguredCredentialsWhenAuthOmitted() {
             // When the client holds no scheme credential, the call falls back to
             // the credentials configured on the
@@ -1426,7 +1426,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F857: no Options object carries an auth field")
+        @DisplayName("bhvOperations086 F857: no Options object carries an auth field")
         fun testUnsecuredOperationOptionsExposesNoAuth() {
             // There is no per-call scheme override, so no Options object exposes
             // an auth field. An unsecured operation with path params only
@@ -1486,7 +1486,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("downloadBinaryMock")
+        @DisplayName("bhvOperations034 downloadBinaryMock")
         fun testDownloadBinaryMock() {
             val engine =
                 MockEngine { _ ->
@@ -1508,7 +1508,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("setPetPreferences form body: repeated array keys, omitted null, space as +")
+        @DisplayName("bhvOperations075 setPetPreferences form body: repeated array keys, omitted null, space as +")
         fun testSetPetPreferencesFormWireFormat() {
             // Parity rules 1/2/3 for application/x-www-form-urlencoded bodies:
             //   1. array fields explode into REPEATED keys: tags=x&tags=y
@@ -1555,7 +1555,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("format:date query, header and form params serialize as YYYY-MM-DD with no time")
+        @DisplayName("bhvOperations069 format:date query, header and form params serialize as YYYY-MM-DD with no time")
         fun testFormatDateParamsAreDateOnly() {
             // Case 14: a date-only (`format: date`) value must reach the wire as
             // YYYY-MM-DD with no time component, in the query string, a header
@@ -1645,7 +1645,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("a format:date path parameter reaches the wire as YYYY-MM-DD with no time")
+        @DisplayName("bhvOperations043 a format:date path parameter reaches the wire as YYYY-MM-DD with no time")
         fun testFormatDatePathParamIsDateOnly() {
             val urls = mutableListOf<String>()
             val api = apiRecordingUrls(urls)
@@ -1656,7 +1656,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("the generated staging server variant resolves its variables into the request URL")
+        @DisplayName("bhvOperations083 the generated staging server variant resolves its variables into the request URL")
         fun testStagingServerVariantUrl() {
             val urls = mutableListOf<String>()
             val api = apiRecordingUrls(urls)
@@ -1674,7 +1674,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("each server of a multi-server operation resolves to its own URL")
+        @DisplayName("bhvOperations085 each server of a multi-server operation resolves to its own URL")
         fun testMultiServerVariantUrls() {
             assertEquals("https://primary.example.com/v1", PetApi.GetMultiServerPetInfoServer.Primary.getUrl())
             for (region in PetApi.GetMultiServerPetInfoServer.RegionalRegion.entries) {
@@ -1710,7 +1710,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("getPetAvatarThumbnail decodes a base64 string sent as application/json to raw bytes")
+        @DisplayName("bhvOperations062 getPetAvatarThumbnail decodes a base64 string sent as application/json to raw bytes")
         fun testGetPetAvatarThumbnailByteOverJson() {
             // Case 13: a top-level `format: byte` response is a JSON string
             // literal. The SDK must JSON-parse it (dropping the quotes) and then
@@ -1764,7 +1764,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("deletePet cookie param with CR/LF fails closed with the RFC 6265 error")
+        @DisplayName("bhvOperations029 deletePet cookie param with CR/LF fails closed with the RFC 6265 error")
         fun testDeletePetCookieCrlfFailsClosed() {
             // Parity rule 6: an operation cookie param value (the deletePet
             // api_key cookie) carrying a CR/LF or other control character must
@@ -1794,7 +1794,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F840: a cookie value of legal cookie-octets is sent exactly as given")
+        @DisplayName("bhvOperations030 F840: a cookie value of legal cookie-octets is sent exactly as given")
         fun testLegalCookieValueIsSentRaw() {
             var cookie: String? = null
             val engine =
@@ -1811,7 +1811,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F840: a cookie value with an illegal cookie-octet fails before any request")
+        @DisplayName("bhvOperations028 F840: a cookie value with an illegal cookie-octet fails before any request")
         fun testIllegalCookieValueFailsBeforeSending() {
             var requests = 0
             val engine =

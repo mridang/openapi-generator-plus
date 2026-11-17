@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 
 class ApiExceptionTest {
     @Test
-    fun exposesStatusCodeMessageBodyHeadersErrorBody() {
+    fun bhvErrors004ExposesStatusCodeMessageBodyHeadersErrorBody() {
         val ex =
             ApiException(
                 statusCode = 404,
@@ -36,7 +36,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun nullHeadersAndBodyMarkTransportNoResponse() {
+    fun bhvErrors021NullHeadersAndBodyMarkTransportNoResponse() {
         // apierror-responsebody-headers-nullable-split: null is distinct from an
         // empty header map / empty body so a pre-response transport failure can
         // be encoded.
@@ -53,7 +53,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun isAnExceptionWithStatusInItsStringForm() {
+    fun bhvErrors019IsAnExceptionWithStatusInItsStringForm() {
         // message stays the detail message the exception was constructed with;
         // the response context is rendered by the string conversion, one
         // labelled field per line.
@@ -78,7 +78,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun requestContextIsRenderedBetweenTheStatusAndTheHeaders() {
+    fun bhvErrors024RequestContextIsRenderedBetweenTheStatusAndTheHeaders() {
         val ex =
             ApiException(
                 statusCode = 500,
@@ -102,7 +102,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun noRequestContextMeansNoRequestLine() {
+    fun bhvErrors012NoRequestContextMeansNoRequestLine() {
         val ex = ApiException(statusCode = 500, message = "boom", responseHeaders = null, responseBody = null)
 
         assertNull(ex.requestMethod)
@@ -111,7 +111,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun everyStatusExceptionCarriesTheRequestFromFromResponse() {
+    fun bhvErrors002EveryStatusExceptionCarriesTheRequestFromFromResponse() {
         for (status in listOf(400, 401, 403, 404, 409, 418, 422, 429, 500, 503, 302)) {
             val ex = ApiException.fromResponse(status, emptyMap(), null, "DELETE", "/items/3")
 
@@ -152,7 +152,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun typedExceptionsShareTheBrandedRoot() {
+    fun bhvErrors018TypedExceptionsShareTheBrandedRoot() {
         // Unified hierarchy: BadRequest is-a Client is-a Api is-a OpenAPI.
         val ex =
             BadRequestException(
@@ -193,7 +193,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun networkExceptionsExtendApiExceptionWithStatusZero() {
+    fun bhvErrors020NetworkExceptionsExtendApiExceptionWithStatusZero() {
         // No HTTP response arrived, so the status is 0 and the transport
         // failure is kept as the cause. Both sit under ApiException so an
         // existing catch on ApiException keeps catching them.
@@ -215,7 +215,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun serializationExceptionShareTheBrandedRoot() {
+    fun bhvErrors025SerializationExceptionShareTheBrandedRoot() {
         // SerializationException is-a OpenAPI, so callers can catch the whole
         // SDK error surface via the single branded root.
         val ex = SerializationException("decode failed")
@@ -224,7 +224,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun getTypedErrorBodyDeserializesTheBodyIntoTheGivenClass() {
+    fun bhvErrors013GetTypedErrorBodyDeserializesTheBodyIntoTheGivenClass() {
         // Built through fromResponse, the way a real response reaches a caller:
         // the typed body must come out of the raw body, not out of whatever the
         // generic parse happened to leave behind.
@@ -237,14 +237,14 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun getTypedErrorBodyReturnsNullWhenThereIsNoResponseBody() {
+    fun bhvErrors015GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody() {
         val ex = ApiException.fromResponse(500, emptyMap(), null)
 
         assertNull(ex.getTypedErrorBody<com.example.petstore.models.Category>())
     }
 
     @Test
-    fun getTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel() {
+    fun bhvErrors014GetTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel() {
         val ex =
             ApiException.fromResponse(
                 422,
@@ -259,7 +259,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun fromResponseMapsEveryStatusToItsException() {
+    fun bhvErrors006FromResponseMapsEveryStatusToItsException() {
         val expected =
             mapOf(
                 400 to com.example.petstore.errors.BadRequestException::class.java,
@@ -294,7 +294,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun fromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
+    fun bhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
         val ex = ApiException.fromResponse(502, emptyMap(), "<html>bad gateway</html>")
 
         assertEquals(com.example.petstore.errors.ServerException::class.java, ex.javaClass)
@@ -303,7 +303,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun fromResponsePopulatesTheErrorBodyWhenTheBodyStartsWithABom() {
+    fun bhvErrors008FromResponsePopulatesTheErrorBodyWhenTheBodyStartsWithABom() {
         val ex = ApiException.fromResponse(404, emptyMap(), "\uFEFF{\"code\":1}")
 
         assertEquals(
@@ -359,7 +359,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun renderedFormMasksCredentialHeadersButKeepsThemOnTheException() {
+    fun bhvErrors023RenderedFormMasksCredentialHeadersButKeepsThemOnTheException() {
         val ex =
             ApiException(
                 401,
@@ -417,7 +417,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun renderedBodyEscapesControlCharactersSoNothingCanForgeALogLine() {
+    fun bhvErrors001RenderedBodyEscapesControlCharactersSoNothingCanForgeALogLine() {
         val ex = ApiException(500, "boom", null, "a\r\nHTTP status code: 200\u0001\u007f")
 
         assertEquals(
@@ -427,7 +427,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun fromResponseRefusesADeeplyNestedErrorBodyButKeepsTheRawBody() {
+    fun bhvErrors009FromResponseRefusesADeeplyNestedErrorBodyButKeepsTheRawBody() {
         val nested = "[".repeat(5000) + "]".repeat(5000)
 
         val ex = ApiException.fromResponse(400, emptyMap(), nested)
@@ -438,7 +438,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun fromResponseKeepsAScalarJsonBodyAsAPrimitive() {
+    fun bhvErrors010FromResponseKeepsAScalarJsonBodyAsAPrimitive() {
         val ex = ApiException.fromResponse(400, emptyMap(), "\"quota exceeded\"")
 
         assertEquals(kotlinx.serialization.json.JsonPrimitive("quota exceeded"), ex.errorBody)
@@ -446,12 +446,26 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun statusSpecificExceptionsKeepAnOptionalCause() {
+    fun bhvErrors003StatusSpecificExceptionsKeepAnOptionalCause() {
         val cause = IllegalStateException("root")
         assertSame(cause, BadRequestException("bad", cause = cause).cause)
         assertSame(cause, NotFoundException("gone", cause = cause).cause)
         assertSame(cause, ClientException(418, "teapot", cause = cause).cause)
         assertSame(cause, ServerException(503, "down", cause = cause).cause)
         assertNull(NotFoundException("gone").cause)
+    }
+
+    @Test
+    @DisplayName("bhvErrors016 GetTypedErrorBody returns null for an empty response body")
+    fun errorBodyIsNullForAnEmptyResponseBody() {
+        assertNull(ApiException.fromResponse(400, emptyMap(), "").errorBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors040 From response leaves the error body null when the body is not json")
+    fun errorBodyIsNullForANonJsonBody() {
+        val ex = ApiException.fromResponse(500, emptyMap(), "<html>oops</html>")
+        assertNull(ex.errorBody)
+        assertEquals("<html>oops</html>", ex.responseBody)
     }
 }

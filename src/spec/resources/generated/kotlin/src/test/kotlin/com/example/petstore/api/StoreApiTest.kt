@@ -52,7 +52,7 @@ class StoreApiTest {
         private val api: StoreApi get() = sharedApi
 
         @Test
-        @DisplayName("placeOrder")
+        @DisplayName("bhvOperations117 placeOrder")
         fun testPlaceOrder() {
             val order =
                 Order(
@@ -71,7 +71,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("placeOrder with HttpInfo")
+        @DisplayName("bhvOperations119 placeOrder with HttpInfo")
         fun testPlaceOrderWithHttpInfo() {
             val order =
                 Order(
@@ -91,7 +91,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getOrderById")
+        @DisplayName("bhvOperations104 getOrderById")
         fun testGetOrderById() {
             val result = runBlocking { api.getOrderById(1L) }
 
@@ -100,7 +100,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getOrderById with HttpInfo")
+        @DisplayName("bhvOperations105 getOrderById with HttpInfo")
         fun testGetOrderByIdWithHttpInfo() {
             val result = runBlocking { api.getOrderByIdWithHttpInfo(1L) }
 
@@ -110,13 +110,13 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("deleteOrder")
+        @DisplayName("bhvOperations099 deleteOrder")
         fun testDeleteOrder() {
             assertDoesNotThrow { runBlocking { api.deleteOrder(1L) } }
         }
 
         @Test
-        @DisplayName("getOrderById picks the status-specific error class for each typed status route")
+        @DisplayName("bhvOperations110 getOrderById picks the status-specific error class for each typed status route")
         fun testGetOrderByIdPicksTheStatusSpecificErrorClass() {
             val cases =
                 listOf(
@@ -138,7 +138,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getInventory")
+        @DisplayName("bhvOperations102 getInventory")
         fun testGetInventory() {
             val result = runBlocking { api.getInventory() }
 
@@ -146,7 +146,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getInventory with HttpInfo")
+        @DisplayName("bhvOperations103 getInventory with HttpInfo")
         fun testGetInventoryWithHttpInfo() {
             val result = runBlocking { api.getInventoryWithHttpInfo() }
 
@@ -160,7 +160,7 @@ class StoreApiTest {
     @DisplayName("Mock tests")
     inner class MockTests {
         @Test
-        @DisplayName("getOrderNotFound")
+        @DisplayName("bhvOperations106 getOrderNotFound")
         fun testGetOrderNotFound() {
             val engine =
                 MockEngine { _ ->
@@ -185,7 +185,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("placeOrderServerError")
+        @DisplayName("bhvOperations118 placeOrderServerError")
         fun testPlaceOrderServerError() {
             val engine =
                 MockEngine { _ ->
@@ -219,7 +219,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("deleteOrderNotFound")
+        @DisplayName("bhvOperations100 deleteOrderNotFound")
         fun testDeleteOrderNotFound() {
             val engine =
                 MockEngine { _ ->
@@ -262,7 +262,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("createAccount sends the writeOnly password and keeps the readOnly id")
+        @DisplayName("bhvOperations098 createAccount sends the writeOnly password and keeps the readOnly id")
         fun testCreateAccountSendsAndReceivesReadOnlyAndWriteOnly() {
             // F1128/D56
             var sent = ""
@@ -308,7 +308,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getStockItem decodes the integer enum, the open-valued enum and the nested arrays")
+        @DisplayName("bhvOperations112 getStockItem decodes the integer enum, the open-valued enum and the nested arrays")
         fun testGetStockItemDecodesEnumsAndNestedArrays() {
             val item =
                 runBlocking {
@@ -358,7 +358,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getOrderByTrackingId puts the canonical lowercase uuid in the path")
+        @DisplayName("bhvOperations124 getOrderByTrackingId puts the canonical lowercase uuid in the path")
         fun testGetOrderByTrackingIdSendsLowercaseUuid() {
             val paths = mutableListOf<String>()
             val engine =
@@ -415,7 +415,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getBySwatch sends the enum wire value in the path, the query and the header")
+        @DisplayName("bhvOperations122 getBySwatch sends the enum wire value in the path, the query and the header")
         fun testGetBySwatchSendsEnumWireValues() {
             var capturedPath: String? = null
             var capturedQuery: String? = null
@@ -453,7 +453,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getBySwatch omits the optional query and header when no options are given")
+        @DisplayName("bhvOperations107 getBySwatch omits the optional query and header when no options are given")
         fun testGetBySwatchOmitsAbsentOptions() {
             var capturedQuery: String? = null
             var capturedHeader: String? = null
@@ -505,7 +505,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getGroupedCategories decodes nested array-of-map leaves into typed Category instances")
+        @DisplayName("bhvOperations101 getGroupedCategories decodes nested array-of-map leaves into typed Category instances")
         fun testGetGroupedCategoriesNestedContainer() {
             // The response is Array<Map<String, Category>>. Each leaf value must
             // be deserialized into a typed Category, not left as a raw map, so a
@@ -540,7 +540,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("F827: an operation with no parameter and no security still takes per-call headers and retries")
+        @DisplayName("bhvOperations096 F827: an operation with no parameter and no security still takes per-call headers and retries")
         fun testOperationWithNothingOfItsOwnTakesPerCallOptions() {
             val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
             val engine =

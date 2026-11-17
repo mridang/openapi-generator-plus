@@ -55,7 +55,7 @@ class ObjectSerializerTest {
     @DisplayName("DateTimeOffsetPreservationTests")
     inner class DateTimeOffsetPreservationTests {
         @Test
-        @DisplayName("UTC datetime serializes as the canonical wire string with a +00:00 offset")
+        @DisplayName("bhvSerializationobject174 UTC datetime serializes as the canonical wire string with a +00:00 offset")
         fun utcDateTimeSerializesWithOffset() {
             val dt = OffsetDateTime.parse("2024-01-01T12:30:45+00:00")
             val result = serializer.stringify(dt)
@@ -63,7 +63,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("datetime with +05:30 offset preserves offset in serialized string")
+        @DisplayName("bhvSerializationobject107 datetime with +05:30 offset preserves offset in serialized string")
         fun positiveOffsetPreserved() {
             val dt = OffsetDateTime.parse("2024-01-01T12:30:45+05:30")
             val result = serializer.stringify(dt)
@@ -71,7 +71,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("datetime with -08:00 offset preserves offset in serialized string")
+        @DisplayName("bhvSerializationobject149 datetime with -08:00 offset preserves offset in serialized string")
         fun negativeOffsetPreserved() {
             val dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00")
             val result = serializer.stringify(dt)
@@ -79,7 +79,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("date-time serialization preserves sub-second precision")
+        @DisplayName("bhvSerializationobject046 date-time serialization preserves sub-second precision")
         fun subsecondsPreserved() {
             // The instant 2020-01-02T03:04:05.123Z carries millisecond sub-second
             // precision — 3 fractional digits, the cross-SDK common denominator.
@@ -94,7 +94,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("date-only serializes as ISO 8601 date without time component")
+        @DisplayName("bhvSerializationobject044 date-only serializes as ISO 8601 date without time component")
         fun dateOnlySerializesAsDate() {
             val date = java.time.LocalDate.parse("2024-01-01")
             val result = serializer.stringify(date)
@@ -102,7 +102,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("serialized datetime string uses a numeric offset and never the Z designator")
+        @DisplayName("bhvSerializationobject150 serialized datetime string uses a numeric offset and never the Z designator")
         fun serializedDateTimeHasOffset() {
             val dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
@@ -111,7 +111,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
+        @DisplayName("bhvSerializationobject144 round-trip: serialize then deserialize yields equivalent datetime")
         fun roundTripDateTime() {
             val original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30")
             val serialized = serializer.stringify(original)
@@ -124,21 +124,21 @@ class ObjectSerializerTest {
     @DisplayName("NonAsciiSerializationTests")
     inner class NonAsciiSerializationTests {
         @Test
-        @DisplayName("string with accented character serializes without unicode escape")
+        @DisplayName("bhvSerializationobject019 string with accented character serializes without unicode escape")
         fun accentedCharacterNotEscaped() {
             val result = serializer.serialize("café")
             assertTrue(result.contains("é"), "should contain literal é, got: $result")
         }
 
         @Test
-        @DisplayName("string with CJK characters serializes without unicode escape")
+        @DisplayName("bhvSerializationobject031 string with CJK characters serializes without unicode escape")
         fun cjkCharactersNotEscaped() {
             val result = serializer.serialize("日本")
             assertTrue(result.contains("日本"), "should contain literal CJK chars, got: $result")
         }
 
         @Test
-        @DisplayName("string with tab character serializes as JSON \\t escape")
+        @DisplayName("bhvSerializationobject160 string with tab character serializes as JSON \\t escape")
         fun tabCharacterEscapedProperly() {
             val result = serializer.serialize("a\tb")
             assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: $result")
@@ -149,7 +149,7 @@ class ObjectSerializerTest {
     @DisplayName("DeserializationErrorWrappingTests")
     inner class DeserializationErrorWrappingTests {
         @Test
-        @DisplayName("truncated JSON throws SerializationException not raw parse error")
+        @DisplayName("bhvSerializationobject170 truncated JSON throws SerializationException not raw parse error")
         fun truncatedJsonThrowsSerializationException() {
             // Fully qualified: the SDK type, never kotlinx's SerializationException.
             val ex =
@@ -165,7 +165,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("type mismatch JSON throws SerializationException")
+        @DisplayName("bhvSerializationobject095 type mismatch JSON throws SerializationException")
         fun typeMismatchThrowsSerializationException() {
             val ex =
                 assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
@@ -175,7 +175,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("unknown enum value throws SerializationException")
+        @DisplayName("bhvSerializationobject172 unknown enum value throws SerializationException")
         fun unknownEnumValueThrowsSerializationException() {
             val ex =
                 assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
@@ -185,7 +185,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("missing required field throws SerializationException")
+        @DisplayName("bhvSerializationobject063 missing required field throws SerializationException")
         fun missingRequiredFieldThrowsSerializationException() {
             val ex =
                 assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
@@ -195,7 +195,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("malformed date-time throws SerializationException")
+        @DisplayName("bhvSerializationobject102 malformed date-time throws SerializationException")
         fun malformedDateTimeThrowsSerializationException() {
             val ex =
                 assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
@@ -205,7 +205,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("thrown SerializationException message references original error")
+        @DisplayName("bhvSerializationobject162 thrown SerializationException message references original error")
         fun serializationExceptionHasMessage() {
             val ex =
                 assertThrows(SerializationException::class.java) {
@@ -219,7 +219,7 @@ class ObjectSerializerTest {
     @DisplayName("serialize")
     inner class SerializeTests {
         @Test
-        @DisplayName("handles null")
+        @DisplayName("bhvSerializationobject087 handles null")
         fun handlesNull() {
             val json = serializer.serialize(null)
             assertEquals("null", json)
@@ -233,7 +233,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("includes fields explicitly set to default values")
+        @DisplayName("bhvSerializationobject088 includes fields explicitly set to default values")
         fun includesFieldsSetToDefaultValues() {
             val category =
                 com.example.petstore.models
@@ -290,7 +290,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a uniqueItems array of scalars goes on the wire in the set's insertion order")
+        @DisplayName("bhvSerializationobject015 a uniqueItems array of scalars goes on the wire in the set's insertion order")
         fun scalarSetKeepsItsInsertionOrderOnTheWire() {
             val pet =
                 com.example.petstore.models
@@ -302,7 +302,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("omits an explicitly-nulled optional even when its default is non-null")
+        @DisplayName("bhvSerializationobject023 omits an explicitly-nulled optional even when its default is non-null")
         fun omitsExplicitNullEvenWithNonNullDefault() {
             // label has a non-null schema default ("untitled"). Setting it to null
             // must omit the key entirely (parity with swift encodeIfPresent / go
@@ -323,21 +323,21 @@ class ObjectSerializerTest {
     @DisplayName("deserialize")
     inner class DeserializeTests {
         @Test
-        @DisplayName("returns null for empty string")
+        @DisplayName("bhvSerializationobject136 returns null for empty string")
         fun returnsNullForEmptyString() {
             val result: String? = serializer.deserialize("")
             assertNull(result)
         }
 
         @Test
-        @DisplayName("returns null for null input")
+        @DisplayName("bhvSerializationobject138 returns null for null input")
         fun returnsNullForNullInput() {
             val result: String? = serializer.deserialize(null)
             assertNull(result)
         }
 
         @Test
-        @DisplayName("deserializes string from JSON")
+        @DisplayName("bhvSerializationobject070 deserializes string from JSON")
         fun deserializesStringFromJson() {
             val result: String? = serializer.deserialize("\"hello\"")
             assertEquals("hello", result)
@@ -381,7 +381,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("free-form Any preserves a JSON null nested in an array as a real null")
+        @DisplayName("bhvSerializationobject165 free-form Any preserves a JSON null nested in an array as a real null")
         fun freeFormAnyNestedArrayNullStaysNull() {
             val edge =
                 serializer.deserialize<com.example.petstore.models.EdgeCases>(
@@ -397,7 +397,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("ignores unknown JSON fields on deserialize (Gap 14: discard extras)")
+        @DisplayName("bhvSerializationobject082 ignores unknown JSON fields on deserialize (Gap 14: discard extras)")
         fun ignoresUnknownFieldsOnDeserialize() {
             val jsonWithExtras = "{\"id\":1,\"name\":\"Dogs\",\"unknownField\":\"x\",\"another\":42}"
             val result = serializer.deserialize<com.example.petstore.models.Category>(jsonWithExtras)
@@ -407,7 +407,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("BOM-tolerance: leading UTF-8 BOM is stripped before decode")
+        @DisplayName("bhvSerializationobject060 BOM-tolerance: leading UTF-8 BOM is stripped before decode")
         fun leadingBomStrippedBeforeDecode() {
             // RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
             // Windows-generated payloads often include one and kotlinx-
@@ -422,7 +422,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("Gap AJ: null on required non-nullable field throws")
+        @DisplayName("bhvSerializationobject086 Gap AJ: null on required non-nullable field throws")
         fun nullOnRequiredFieldThrows() {
             val json = "{\"name\":null,\"photoUrls\":[\"x\"]}"
             assertThrows(SerializationException::class.java) {
@@ -431,7 +431,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("Gap AJ: missing required non-nullable field throws")
+        @DisplayName("bhvSerializationobject083 Gap AJ: missing required non-nullable field throws")
         fun missingRequiredFieldThrows() {
             val json = "{\"photoUrls\":[\"x\"]}"
             assertThrows(SerializationException::class.java) {
@@ -440,7 +440,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("missing required array property throws instead of defaulting to empty")
+        @DisplayName("bhvSerializationobject126 missing required array property throws instead of defaulting to empty")
         fun missingRequiredArrayPropertyThrows() {
             val json = "{\"name\":\"doggie\"}"
             val ex =
@@ -451,7 +451,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("deserializes a self-referential model preserving the nested child")
+        @DisplayName("bhvSerializationobject068 deserializes a self-referential model preserving the nested child")
         fun deserializesSelfReferentialModel() {
             // TreeNode is recursive ({ value, child: TreeNode? }). The decoder
             // must reconstruct the nested child as a typed TreeNode rather than
@@ -468,7 +468,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("deserialize applies schema default for absent field")
+        @DisplayName("bhvSerializationobject053 deserialize applies schema default for absent field")
         fun deserializeAppliesSchemaDefaultForAbsentField() {
             // The Order.status field declares `default: placed` in the schema, so
             // a payload that omits "status" must populate it with the enum default
@@ -480,7 +480,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("schema defaults apply only when the property is absent, not on explicit null")
+        @DisplayName("bhvSerializationobject025 schema defaults apply only when the property is absent, not on explicit null")
         fun deserializeAppliesDefaultsOnlyWhenAbsent() {
             // The Defaults model declares retries=3 (non-enum scalar),
             // mode=medium (enum default that is not the first variant) and
@@ -506,7 +506,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("F866: a property whose \$ref carries a sibling default starts at that default")
+        @DisplayName("bhvSerializationobject001 F866: a property whose \$ref carries a sibling default starts at that default")
         fun refSiblingDefaultAppliesOnConstructionAndDecode() {
             // StockItem.availability is a $ref to the Availability enum with
             // `default: on-hold` written next to it. The default must be the
@@ -526,7 +526,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("F316: building a model never validates, an unknown enum string fails only at decode")
+        @DisplayName("bhvSerializationobject029 F316: building a model never validates, an unknown enum string fails only at decode")
         fun constructionNeverValidatesAndDecodeFailsOnAnUnknownEnum() {
             val built =
                 com.example.petstore.models
@@ -538,7 +538,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("F316: out-of-range, out-of-pattern and empty values are accepted when built in code")
+        @DisplayName("bhvSerializationobject074 F316: out-of-range, out-of-pattern and empty values are accepted when built in code")
         fun constructionAcceptsAnyValue() {
             assertEquals(
                 -5,
@@ -560,7 +560,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("F316: a null for a required property and a missing one fail only at decode")
+        @DisplayName("bhvSerializationobject062 F316: a null for a required property and a missing one fail only at decode")
         fun decodeRejectsANullOrMissingRequiredProperty() {
             assertThrows(SerializationException::class.java) {
                 serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":null,\"photoUrls\":[]}")
@@ -571,7 +571,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("primitive-type-coercion-lenient: unquoted scalar on a String field throws")
+        @DisplayName("bhvSerializationobject180 primitive-type-coercion-lenient: unquoted scalar on a String field throws")
         fun unquotedScalarOnStringFieldThrows() {
             // isLenient=true accepts an unquoted bare literal as a string value
             // ({"name":Dogs}), coercing malformed JSON into a valid object and
@@ -619,7 +619,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("integer container leaves reject fractional, quoted and out-of-range values")
+        @DisplayName("bhvSerializationobject030 integer container leaves reject fractional, quoted and out-of-range values")
         fun integerContainerLeavesAreStrict() {
             for (body in listOf("{\"a\":\"5\"}", "{\"a\":3000000000}", "{\"a\":1.5}")) {
                 assertThrowsExactly(SerializationException::class.java, {
@@ -666,7 +666,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("number-into-boolean-field: {\"complete\":1} on a Boolean field throws")
+        @DisplayName("bhvSerializationobject155 number-into-boolean-field: {\"complete\":1} on a Boolean field throws")
         fun numberIntoBooleanFieldThrows() {
             val json = "{\"complete\":1}"
             assertThrows(SerializationException::class.java) {
@@ -675,7 +675,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("quoted-scalar-into-boolean-field: {\"complete\":\"true\"} on a Boolean field throws")
+        @DisplayName("bhvSerializationobject166 quoted-scalar-into-boolean-field: {\"complete\":\"true\"} on a Boolean field throws")
         fun quotedScalarIntoBooleanFieldThrows() {
             val json = "{\"complete\":\"true\"}"
             assertThrows(SerializationException::class.java) {
@@ -722,7 +722,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("control: round-trip serialize then deserialize preserves numeric and boolean values")
+        @DisplayName("bhvSerializationobject026 control: round-trip serialize then deserialize preserves numeric and boolean values")
         fun numericBooleanRoundTrip() {
             val original =
                 com.example.petstore.models
@@ -740,57 +740,57 @@ class ObjectSerializerTest {
     @DisplayName("stringify")
     inner class StringifyTests {
         @Test
-        @DisplayName("null returns empty string")
+        @DisplayName("bhvSerializationobject110 null returns empty string")
         fun nullReturnsEmptyString() {
             assertEquals("", serializer.stringify(null))
         }
 
         @Test
-        @DisplayName("boolean true returns \"true\"")
+        @DisplayName("bhvSerializationobject028 boolean true returns \"true\"")
         fun booleanTrueReturnsTrue() {
             assertEquals("true", serializer.stringify(true))
         }
 
         @Test
-        @DisplayName("boolean false returns \"false\"")
+        @DisplayName("bhvSerializationobject027 boolean false returns \"false\"")
         fun booleanFalseReturnsFalse() {
             assertEquals("false", serializer.stringify(false))
         }
 
         @Test
-        @DisplayName("byte array returns padded standard-alphabet base64")
+        @DisplayName("bhvSerializationobject156 byte array returns padded standard-alphabet base64")
         fun byteArrayReturnsBase64() {
             assertEquals("aGk=", serializer.stringify("hi".toByteArray(Charsets.UTF_8)))
             assertEquals("+/8=", serializer.stringify(byteArrayOf(0xFB.toByte(), 0xFF.toByte())))
         }
 
         @Test
-        @DisplayName("Duration returns a protobuf-JSON duration string")
+        @DisplayName("bhvSerializationobject013 Duration returns a protobuf-JSON duration string")
         fun durationReturnsProtobufJsonString() {
             assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
             assertEquals("-1.500s", serializer.stringify(java.time.Duration.ofMillis(-1500)))
         }
 
         @Test
-        @DisplayName("integer returns string representation")
+        @DisplayName("bhvSerializationobject091 integer returns string representation")
         fun integerReturnsString() {
             assertEquals("42", serializer.stringify(42))
         }
 
         @Test
-        @DisplayName("double returns string representation")
+        @DisplayName("bhvSerializationobject078 double returns string representation")
         fun doubleReturnsString() {
             assertEquals("3.14", serializer.stringify(3.14))
         }
 
         @Test
-        @DisplayName("string passes through unchanged")
+        @DisplayName("bhvSerializationobject114 string passes through unchanged")
         fun stringPassesThrough() {
             assertEquals("hello", serializer.stringify("hello"))
         }
 
         @Test
-        @DisplayName("OffsetDateTime returns ISO 8601 string")
+        @DisplayName("bhvSerializationobject157 OffsetDateTime returns ISO 8601 string")
         fun offsetDateTimeReturnsIso8601() {
             val dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
@@ -798,14 +798,14 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("LocalDate returns ISO 8601 date string")
+        @DisplayName("bhvSerializationobject134 LocalDate returns ISO 8601 date string")
         fun localDateReturnsIso8601() {
             val date = LocalDate.of(2024, 1, 15)
             assertEquals("2024-01-15", serializer.stringify(date))
         }
 
         @Test
-        @DisplayName("UUID returns string representation")
+        @DisplayName("bhvSerializationobject175 UUID returns string representation")
         fun uuidReturnsString() {
             val uuid = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
             assertEquals("550e8400-e29b-41d4-a716-446655440000", serializer.stringify(uuid))
@@ -818,7 +818,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("format time is HH:mm:ss, plus truncated .SSS when the millisecond part is non-zero")
+        @DisplayName("bhvSerializationobject164 format time is HH:mm:ss, plus truncated .SSS when the millisecond part is non-zero")
         fun timeIsPartialTimeWithTruncatedMillis() {
             assertEquals("10:30:00", serializer.stringify(java.time.LocalTime.of(10, 30, 0)))
             assertEquals("10:30:00.123", serializer.stringify(java.time.LocalTime.of(10, 30, 0, 123_456_789)))
@@ -831,31 +831,31 @@ class ObjectSerializerTest {
     @DisplayName("toPathValue")
     inner class ToPathValueTests {
         @Test
-        @DisplayName("returns empty string for null")
+        @DisplayName("bhvSerializationobject130 returns empty string for null")
         fun returnsEmptyStringForNull() {
             assertEquals("", serializer.toPathValue(null))
         }
 
         @Test
-        @DisplayName("returns the string for a string value")
+        @DisplayName("bhvSerializationobject141 returns the string for a string value")
         fun returnsStringForStringValue() {
             assertEquals("hello", serializer.toPathValue("hello"))
         }
 
         @Test
-        @DisplayName("converts integer to string")
+        @DisplayName("bhvSerializationobject036 converts integer to string")
         fun convertsIntegerToString() {
             assertEquals("42", serializer.toPathValue(42))
         }
 
         @Test
-        @DisplayName("converts true to \"true\"")
+        @DisplayName("bhvSerializationobject043 converts true to \"true\"")
         fun convertsTrueToString() {
             assertEquals("true", serializer.toPathValue(true))
         }
 
         @Test
-        @DisplayName("converts false to \"false\"")
+        @DisplayName("bhvSerializationobject033 converts false to \"false\"")
         fun convertsFalseToString() {
             assertEquals("false", serializer.toPathValue(false))
         }
@@ -865,73 +865,73 @@ class ObjectSerializerTest {
     @DisplayName("toQueryValue")
     inner class ToQueryValueTests {
         @Test
-        @DisplayName("returns null for null value")
+        @DisplayName("bhvSerializationobject137 returns null for null value")
         fun returnsNullForNull() {
             assertNull(serializer.toQueryValue(null, null))
         }
 
         @Test
-        @DisplayName("returns the string for a string value")
+        @DisplayName("bhvSerializationobject139 returns the string for a string value")
         fun returnsStringForStringValue() {
             assertEquals("hello", serializer.toQueryValue("hello", null))
         }
 
         @Test
-        @DisplayName("joins collection with comma by default (csv)")
+        @DisplayName("bhvSerializationobject097 joins collection with comma by default (csv)")
         fun joinsWithCommaByDefault() {
             val list = listOf("a", "b", "c")
             assertEquals("a,b,c", serializer.toQueryValue(list, null))
         }
 
         @Test
-        @DisplayName("joins collection with comma for csv")
+        @DisplayName("bhvSerializationobject098 joins collection with comma for csv")
         fun joinsWithCommaForCsv() {
             val list = listOf("a", "b", "c")
             assertEquals("a,b,c", serializer.toQueryValue(list, "csv"))
         }
 
         @Test
-        @DisplayName("joins collection with space for ssv")
+        @DisplayName("bhvSerializationobject100 joins collection with space for ssv")
         fun joinsWithSpaceForSsv() {
             val list = listOf("a", "b", "c")
             assertEquals("a b c", serializer.toQueryValue(list, "ssv"))
         }
 
         @Test
-        @DisplayName("joins collection with tab for tsv")
+        @DisplayName("bhvSerializationobject101 joins collection with tab for tsv")
         fun joinsWithTabForTsv() {
             val list = listOf("a", "b", "c")
             assertEquals("a\tb\tc", serializer.toQueryValue(list, "tsv"))
         }
 
         @Test
-        @DisplayName("joins collection with pipe for pipes")
+        @DisplayName("bhvSerializationobject099 joins collection with pipe for pipes")
         fun joinsWithPipeForPipes() {
             val list = listOf("a", "b", "c")
             assertEquals("a|b|c", serializer.toQueryValue(list, "pipes"))
         }
 
         @Test
-        @DisplayName("returns list as-is for multi")
+        @DisplayName("bhvSerializationobject135 returns list as-is for multi")
         fun returnsListForMulti() {
             val list = listOf("a", "b", "c")
             assertEquals(list, serializer.toQueryValue(list, "multi"))
         }
 
         @Test
-        @DisplayName("converts integer to string")
+        @DisplayName("bhvSerializationobject037 converts integer to string")
         fun convertsIntegerToString() {
             assertEquals("42", serializer.toQueryValue(42, null))
         }
 
         @Test
-        @DisplayName("converts true to \"true\"")
+        @DisplayName("bhvSerializationobject041 converts true to \"true\"")
         fun convertsTrueToString() {
             assertEquals("true", serializer.toQueryValue(true, null))
         }
 
         @Test
-        @DisplayName("converts false to \"false\"")
+        @DisplayName("bhvSerializationobject035 converts false to \"false\"")
         fun convertsFalseToString() {
             assertEquals("false", serializer.toQueryValue(false, null))
         }
@@ -941,19 +941,19 @@ class ObjectSerializerTest {
     @DisplayName("toCookieValue")
     inner class ToCookieValueTests {
         @Test
-        @DisplayName("returns empty string for null")
+        @DisplayName("bhvSerializationobject133 returns empty string for null")
         fun returnsEmptyStringForNull() {
             assertEquals("", serializer.toCookieValue(null))
         }
 
         @Test
-        @DisplayName("returns the string for a string value")
+        @DisplayName("bhvSerializationobject143 returns the string for a string value")
         fun returnsStringForStringValue() {
             assertEquals("hello", serializer.toCookieValue("hello"))
         }
 
         @Test
-        @DisplayName("converts integer to string")
+        @DisplayName("bhvSerializationobject040 converts integer to string")
         fun convertsIntegerToString() {
             assertEquals("42", serializer.toCookieValue(42))
         }
@@ -963,26 +963,26 @@ class ObjectSerializerTest {
     @DisplayName("toHeaderValue")
     inner class ToHeaderValueTests {
         @Test
-        @DisplayName("returns empty string for null")
+        @DisplayName("bhvSerializationobject131 returns empty string for null")
         fun returnsEmptyStringForNull() {
             assertEquals("", serializer.toHeaderValue(null))
         }
 
         @Test
-        @DisplayName("returns the string for a string value")
+        @DisplayName("bhvSerializationobject142 returns the string for a string value")
         fun returnsStringForStringValue() {
             assertEquals("hello", serializer.toHeaderValue("hello"))
         }
 
         @Test
-        @DisplayName("joins collection with comma")
+        @DisplayName("bhvSerializationobject096 joins collection with comma")
         fun joinsCollectionWithComma() {
             val list = listOf("a", "b", "c")
             assertEquals("a,b,c", serializer.toHeaderValue(list))
         }
 
         @Test
-        @DisplayName("converts integer to string")
+        @DisplayName("bhvSerializationobject038 converts integer to string")
         fun convertsIntegerToString() {
             assertEquals("42", serializer.toHeaderValue(42))
         }
@@ -992,31 +992,31 @@ class ObjectSerializerTest {
     @DisplayName("toFormValue")
     inner class ToFormValueTests {
         @Test
-        @DisplayName("returns empty string for null")
+        @DisplayName("bhvSerializationobject132 returns empty string for null")
         fun returnsEmptyStringForNull() {
             assertEquals("", serializer.toFormValue(null))
         }
 
         @Test
-        @DisplayName("returns the string for a string value")
+        @DisplayName("bhvSerializationobject140 returns the string for a string value")
         fun returnsStringForStringValue() {
             assertEquals("hello", serializer.toFormValue("hello"))
         }
 
         @Test
-        @DisplayName("converts integer to string")
+        @DisplayName("bhvSerializationobject039 converts integer to string")
         fun convertsIntegerToString() {
             assertEquals("42", serializer.toFormValue(42))
         }
 
         @Test
-        @DisplayName("converts true to \"true\"")
+        @DisplayName("bhvSerializationobject042 converts true to \"true\"")
         fun convertsTrueToString() {
             assertEquals("true", serializer.toFormValue(true))
         }
 
         @Test
-        @DisplayName("converts false to \"false\"")
+        @DisplayName("bhvSerializationobject034 converts false to \"false\"")
         fun convertsFalseToString() {
             assertEquals("false", serializer.toFormValue(false))
         }
@@ -1032,7 +1032,7 @@ class ObjectSerializerTest {
     @DisplayName("UuidSerializationTests")
     inner class UuidSerializationTests {
         @Test
-        @DisplayName("UUID field serializes to canonical lowercase hex string")
+        @DisplayName("bhvSerializationobject148 UUID field serializes to canonical lowercase hex string")
         fun uuidFieldSerializesToCanonicalString() {
             val id = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
             val holder = UuidHolder(id = id)
@@ -1044,7 +1044,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("UUID field deserializes from canonical string into kotlin.uuid.Uuid")
+        @DisplayName("bhvSerializationobject065 UUID field deserializes from canonical string into kotlin.uuid.Uuid")
         fun uuidFieldDeserializesFromString() {
             val raw = "{\"id\":\"550e8400-e29b-41d4-a716-446655440000\"}"
             val holder = serializer.deserialize<UuidHolder>(raw)
@@ -1053,7 +1053,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("UUID round-trip preserves identity")
+        @DisplayName("bhvSerializationobject176 UUID round-trip preserves identity")
         fun uuidRoundTripPreservesIdentity() {
             val original =
                 UuidHolder(
@@ -1068,7 +1068,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("malformed UUID string raises SerializationException on decode")
+        @DisplayName("bhvSerializationobject103 malformed UUID string raises SerializationException on decode")
         fun malformedUuidThrows() {
             val raw = "{\"id\":\"not-a-uuid\"}"
             assertThrows(SerializationException::class.java) {
@@ -1081,7 +1081,7 @@ class ObjectSerializerTest {
     @DisplayName("oneOf/anyOf no-match")
     inner class OneOfNoMatch {
         @Test
-        @DisplayName("oneof-nondiscriminator-no-match-silent: resolveOneOf throws when no variant matches")
+        @DisplayName("bhvSerializationobject129 oneof-nondiscriminator-no-match-silent: resolveOneOf throws when no variant matches")
         fun resolveOneOfThrowsOnNoMatch() {
             // Every candidate fails to decode the payload. The resolver must
             // throw rather than silently return null/store the raw value, so a
@@ -1098,7 +1098,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("resolveOneOf returns the first matching variant")
+        @DisplayName("bhvSerializationobject128 resolveOneOf returns the first matching variant")
         fun resolveOneOfReturnsFirstMatch() {
             val candidates: List<(String) -> Any?> =
                 listOf(
@@ -1110,7 +1110,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("resolveAnyOf throws when no variant matches")
+        @DisplayName("bhvSerializationobject127 resolveAnyOf throws when no variant matches")
         fun resolveAnyOfThrowsOnNoMatch() {
             val candidates: List<(String) -> Any?> =
                 listOf(
@@ -1126,7 +1126,7 @@ class ObjectSerializerTest {
     @DisplayName("DiscriminatorDeserializationTests")
     inner class DiscriminatorDeserializationTests {
         @Test
-        @DisplayName("deserializing the oneOf parent routes to the subtype by discriminator")
+        @DisplayName("bhvSerializationobject055 deserializing the oneOf parent routes to the subtype by discriminator")
         fun deserializeParentRoutesToSubtype() {
             val json = "{\"foodType\":\"dry\",\"weightKg\":2.5}"
             val food = serializer.deserialize<com.example.petstore.models.PetFood>(json)
@@ -1136,7 +1136,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("AU-resid: PetFood payload missing the foodType discriminator throws")
+        @DisplayName("bhvSerializationobject085 AU-resid: PetFood payload missing the foodType discriminator throws")
         fun missingDiscriminatorThrows() {
             // A discriminated payload that omits the `foodType` discriminator
             // property must fail loud rather than be silently wrapped in a union
@@ -1154,7 +1154,7 @@ class ObjectSerializerTest {
     @DisplayName("FixtureModelRegressionTests")
     inner class FixtureModelRegressionTests {
         @Test
-        @DisplayName("a required nullable property accepts null, rejects absence and is written as null")
+        @DisplayName("bhvSerializationobject125 a required nullable property accepts null, rejects absence and is written as null")
         fun requiredNullablePropertyKeepsItsKey() {
             val decoded = serializer.deserialize<com.example.petstore.models.RequiredNullable>("{\"note\":null}")
             assertNotNull(decoded)
@@ -1200,7 +1200,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("integer-backed enum (Priority) round-trips as a JSON NUMBER, not a string")
+        @DisplayName("bhvSerializationobject093 integer-backed enum (Priority) round-trips as a JSON NUMBER, not a string")
         fun integerBackedEnumSerializesAsNumber() {
             // Priority is an integer-backed enum (enum: 1, 2, 3). Seven SDKs
             // hard-coded the int-enum path as String-backed; the corrected
@@ -1221,7 +1221,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("type:number Decimal (Pet.weightKg) serializes as an UNQUOTED JSON number")
+        @DisplayName("bhvSerializationobject171 type:number Decimal (Pet.weightKg) serializes as an UNQUOTED JSON number")
         fun decimalNumberFieldSerializesAsUnquotedNumber() {
             // weightKg is a bare `type: number` (no format) property modelled
             // as java.math.BigDecimal with the contextual BigDecimalSerializer.
@@ -1248,7 +1248,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("type:number Decimal is exact: no double round trip and no exponent notation")
+        @DisplayName("bhvSerializationobject002 type:number Decimal is exact: no double round trip and no exponent notation")
         fun decimalNumberFieldIsExactAndPlain() {
             // D83/F1162: a bare `type: number` keeps every digit and is written in plain
             // notation, whatever notation the wire value used.
@@ -1274,7 +1274,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("non-lowercase string enum (Availability) round-trips with wire casing preserved")
+        @DisplayName("bhvSerializationobject109 non-lowercase string enum (Availability) round-trips with wire casing preserved")
         fun nonLowercaseStringEnumPreservesWireCasing() {
             // Availability is a non-lowercase string enum (Available, Sold,
             // on-hold). The @SerialName wire form must be preserved verbatim,
@@ -1308,7 +1308,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("unknown Availability wire value is rejected on deserialize")
+        @DisplayName("bhvSerializationobject059 unknown Availability wire value is rejected on deserialize")
         fun unknownAvailabilityValueRejected() {
             // An undeclared enum value must fail loud rather than coerce to null
             // or a default.
@@ -1320,7 +1320,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("colliding schema names (Error, Result) keep their wire keys through EdgeCases")
+        @DisplayName("bhvSerializationobject104 colliding schema names (Error, Result) keep their wire keys through EdgeCases")
         fun collidingSchemaNamesRoundTrip() {
             // F1131/D45: lastError and outcome decode and re-encode under their own keys.
             val wire = "{\"lastError\":{\"code\":7,\"message\":\"boom\"},\"outcome\":{\"ok\":true}}"
@@ -1338,7 +1338,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("enum members with non-identifier wire values (Separator) decode to distinct constants")
+        @DisplayName("bhvSerializationobject161 enum members with non-identifier wire values (Separator) decode to distinct constants")
         fun separatorEnumRoundTrip() {
             // F1124: ' ', '@@', 'a-b' and 'a_b' sanitise to empty or colliding identifiers.
             val members = mutableSetOf<Any>()
@@ -1353,7 +1353,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a contentEncoding property (PetPassport.biometricChip) is a base64 byte field")
+        @DisplayName("bhvSerializationobject115 a contentEncoding property (PetPassport.biometricChip) is a base64 byte field")
         fun contentEncodedPropertyIsBase64Bytes() {
             // F1116: normalised to format: byte, so it decodes from and encodes to standard base64.
             val decoded = serializer.deserialize<com.example.petstore.models.PetPassport>("{\"biometricChip\":\"AQID\"}")
@@ -1379,7 +1379,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a prefixItems tuple (Pet.location) keeps its mixed items in order")
+        @DisplayName("bhvSerializationobject012 a prefixItems tuple (Pet.location) keeps its mixed items in order")
         fun prefixItemsTupleRoundTrips() {
             // F1175: two numbers then a string.
             val decoded =
@@ -1392,7 +1392,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a date-time without an offset is rejected, never completed from the host time zone")
+        @DisplayName("bhvSerializationobject003 a date-time without an offset is rejected, never completed from the host time zone")
         fun dateTimeWithoutOffsetIsRejected() {
             // D57/F080, F1163: the host time zone must never fill the missing offset in.
             assertThrows(SerializationException::class.java) {
@@ -1401,7 +1401,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a duplicate object key resolves to the last value")
+        @DisplayName("bhvSerializationobject006 a duplicate object key resolves to the last value")
         fun duplicateKeyKeepsTheLastValue() {
             // F1067
             val decoded = serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"first\",\"name\":\"last\",\"photoUrls\":[]}")
@@ -1436,7 +1436,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("an inline enum (EdgeCases.phase) round-trips its non-identifier wire values")
+        @DisplayName("bhvSerializationobject022 an inline enum (EdgeCases.phase) round-trips its non-identifier wire values")
         fun inlineEnumWireValuesRoundTrip() {
             // F1146: each wire value decodes to a distinct member and re-encodes verbatim.
             val members = mutableSetOf<Any>()
@@ -1454,7 +1454,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("constraint keywords are not enforced: slug, nickname and quantity decode as given")
+        @DisplayName("bhvSerializationobject032 constraint keywords are not enforced: slug, nickname and quantity decode as given")
         fun constraintKeywordsAreNotEnforced() {
             // F1124: pattern, minLength/maxLength and maximum never reject a value on decode.
             val edge = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"slug\":\"12/ab\"}")
@@ -1471,7 +1471,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("keyword-named and digit-leading properties keep their wire keys")
+        @DisplayName("bhvSerializationobject117 keyword-named and digit-leading properties keep their wire keys")
         fun keywordAndDigitLeadingPropertiesKeepWireKeys() {
             // F1114/F1113: the identifier is mangled, the wire key never is.
             val note =
@@ -1489,7 +1489,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("request JSON writes U+2028, U+2029, DEL and non-ASCII literally")
+        @DisplayName("bhvSerializationobject124 request JSON writes U+2028, U+2029, DEL and non-ASCII literally")
         fun requestJsonWritesSeparatorsAndDelLiterally() {
             // D84/F1148: only the quote, the backslash and controls below U+0020 are escaped.
             val text = "a\u2028b\u2029c\u007fd\u00e9/<>&"
@@ -1502,7 +1502,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a model field typed as a referenced enum (Color) rejects an unknown wire value")
+        @DisplayName("bhvSerializationobject119 a model field typed as a referenced enum (Color) rejects an unknown wire value")
         fun referencedEnumFieldRejectsUnknownValue() {
             // EdgeCases.favoriteColor is a $ref to the standalone Color enum
             // component (red/green/blue) rather than an inline property enum.
@@ -1518,7 +1518,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("format:byte fields round-trip through base64 (scalar and array)")
+        @DisplayName("bhvSerializationobject079 format:byte fields round-trip through base64 (scalar and array)")
         fun byteFieldsRoundTripThroughBase64() {
             // PetPassport carries both a scalar byte field (thumbnail) and an
             // array-of-byte field (scans). Each must wire-encode as a base64
@@ -1548,7 +1548,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("date-time serialization preserves sub-second precision")
+        @DisplayName("bhvSerializationobject045 date-time serialization preserves sub-second precision")
         fun dateTimeBodyPreservesSubSecondPrecision() {
             // PhotoMetadata.takenAt is a @Contextual OffsetDateTime, so it
             // wire-encodes through the JSON-body OffsetDateTimeSerializer. The
@@ -1576,7 +1576,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a double-typed field deserializes from an INTEGRAL JSON value without crashing")
+        @DisplayName("bhvSerializationobject071 a double-typed field deserializes from an INTEGRAL JSON value without crashing")
         fun doubleFieldAcceptsIntegralJsonValue() {
             // PhotoMetadataLocation.lat/lng are format:double. A server that
             // emits a whole number ({"lat":5} rather than 5.0) must still decode
@@ -1591,7 +1591,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("F390: a double literal that overflows is refused rather than decoded as Infinity")
+        @DisplayName("bhvSerializationobject057 F390: a double literal that overflows is refused rather than decoded as Infinity")
         fun overflowingDoubleLiteralIsRefused() {
             for (literal in listOf("1e400", "-1e400")) {
                 assertThrows(SerializationException::class.java, {
@@ -1615,7 +1615,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("additionalProperties round-trips at the TOP level, not nested under a key")
+        @DisplayName("bhvSerializationobject020 additionalProperties round-trips at the TOP level, not nested under a key")
         fun additionalPropertiesRoundTripAtTopLevel() {
             // Metadata declares `additionalProperties: true` and carries the
             // extras in a @Transient map. An extra JSON key seen on deserialize
@@ -1686,7 +1686,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a nested array-of-array<int> container deep-round-trips to typed leaves")
+        @DisplayName("bhvSerializationobject108 a nested array-of-array<int> container deep-round-trips to typed leaves")
         fun nestedContainerDeepRoundTrips() {
             // StockItem.matrix is array<array<int>>. The recursive per-element
             // deserialization path must rebuild typed Int leaves rather than
@@ -1776,7 +1776,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("format:duration that is malformed or overflows raises the SDK SerializationException")
+        @DisplayName("bhvSerializationobject080 format:duration that is malformed or overflows raises the SDK SerializationException")
         fun malformedOrOverflowingDurationRaisesSerializationException() {
             // Neither kotlinx's SerializationException nor a raw
             // NumberFormatException may escape: both become the SDK's own
@@ -1795,7 +1795,7 @@ class ObjectSerializerTest {
     @DisplayName("StrictModuleTests")
     inner class StrictModuleTests {
         @Test
-        @DisplayName("deserialize rejects an undeclared key on an unevaluatedProperties:false model")
+        @DisplayName("bhvSerializationobject058 deserialize rejects an undeclared key on an unevaluatedProperties:false model")
         fun deserializeRejectsUndeclaredKey() {
             val ex =
                 assertThrows(SerializationException::class.java) {
@@ -1814,7 +1814,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("deserialize rejects an undeclared key on a strict model inside a list")
+        @DisplayName("bhvSerializationobject154 deserialize rejects an undeclared key on a strict model inside a list")
         fun deserializeRejectsUndeclaredKeyInList() {
             val ex =
                 assertThrows(SerializationException::class.java) {
@@ -1827,7 +1827,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("deserialize rejects an undeclared key on a strict model inside a map")
+        @DisplayName("bhvSerializationobject052 deserialize rejects an undeclared key on a strict model inside a map")
         fun deserializeRejectsUndeclaredKeyInMap() {
             val ex =
                 assertThrows(SerializationException::class.java) {
@@ -1978,7 +1978,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("instances holding equal content are equal though every array is distinct")
+        @DisplayName("bhvSerializationobject090 instances holding equal content are equal though every array is distinct")
         fun equalContentDistinctArraysCompareEqual() {
             val left = vaultOf()
             val right = vaultOf()
@@ -2009,7 +2009,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a differing byte in the bare array makes them unequal")
+        @DisplayName("bhvSerializationobject075 a differing byte in the bare array makes them unequal")
         fun differingBareArrayCompareUnequal() {
             val left = vaultOf()
             val right = vaultOf(seal = byteArrayOf(1, 2, 4))
@@ -2018,7 +2018,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a differing byte inside the list makes them unequal")
+        @DisplayName("bhvSerializationobject009 a differing byte inside the list makes them unequal")
         fun differingListElementCompareUnequal() {
             val left = vaultOf()
             val right = vaultOf(shards = listOf(byteArrayOf(4, 5), byteArrayOf(9)))
@@ -2027,7 +2027,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a differing byte inside a map VALUE makes them unequal")
+        @DisplayName("bhvSerializationobject005 a differing byte inside a map VALUE makes them unequal")
         fun differingMapValueCompareUnequal() {
             val left = vaultOf()
             val right = vaultOf(labels = mapOf("first" to byteArrayOf(7, 9)))
@@ -2061,7 +2061,7 @@ class ObjectSerializerTest {
         // allowSpecialFloatingPointValues = false rejects non-finite floats,
         // which serialize() surfaces as the SDK's SerializationException.
         @Test
-        @DisplayName("serializing a non-finite double throws SerializationException")
+        @DisplayName("bhvSerializationobject153 serializing a non-finite double throws SerializationException")
         fun nonFiniteDoubleThrowsOnSerialize() {
             assertThrows(SerializationException::class.java) { serializer.serialize(Double.NaN) }
             assertThrows(SerializationException::class.java) {
@@ -2074,7 +2074,7 @@ class ObjectSerializerTest {
 
         // A bare JSON null body decoded to a model type returns null.
         @Test
-        @DisplayName("a literal null body deserializes to null")
+        @DisplayName("bhvSerializationobject067 a literal null body deserializes to null")
         fun literalNullBodyDeserializesToNull() {
             assertNull(serializer.deserialize<com.example.petstore.models.Category>("null"))
         }
@@ -2084,7 +2084,7 @@ class ObjectSerializerTest {
         // decoder throws rather than silently truncating, and the SDK surfaces
         // it as SerializationException.
         @Test
-        @DisplayName("invalid base64 in a byte field throws SerializationException")
+        @DisplayName("bhvSerializationobject094 invalid base64 in a byte field throws SerializationException")
         fun invalidBase64ByteFieldThrowsSerializationException() {
             assertThrows(SerializationException::class.java) {
                 serializer.deserialize<com.example.petstore.models.PetPassport>("{\"thumbnail\":\"!!!!\"}")
@@ -2104,7 +2104,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a format: uri field accepts any absolute URI and rejects relative or blank text")
+        @DisplayName("bhvSerializationobject008 a format: uri field accepts any absolute URI and rejects relative or blank text")
         fun uriFieldRequiresAnAbsoluteUri() {
             val good = listOf("urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/items/1")
             for (uri in good) {
@@ -2127,7 +2127,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("readOnly and writeOnly properties are decoded and encoded like any other")
+        @DisplayName("bhvSerializationobject017 readOnly and writeOnly properties are decoded and encoded like any other")
         fun readOnlyAndWriteOnlyPropertiesHaveNoWireEffect() {
             val decoded = serializer.deserialize<com.example.petstore.models.Account>("{\"id\":7,\"username\":\"u\"}")
             assertEquals(7L, decoded!!.id)
@@ -2145,7 +2145,7 @@ class ObjectSerializerTest {
         // A payload nested ~600 deep parses fine; ~1500 deep exceeds the 1000
         // MAX_JSON_DEPTH cap and is rejected.
         @Test
-        @DisplayName("deep JSON within the depth cap parses; past it is rejected")
+        @DisplayName("bhvSerializationobject051 deep JSON within the depth cap parses; past it is rejected")
         fun deepJsonDepthCap() {
             val within = "[".repeat(600) + "]".repeat(600)
             assertNotNull(serializer.parseToJsonElement(within))
@@ -2158,7 +2158,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a format: password property is redacted in toString but still on the wire")
+        @DisplayName("bhvSerializationobject007 a format: password property is redacted in toString but still on the wire")
         fun passwordIsRedactedInToString() {
             val account =
                 com.example.petstore.models
@@ -2169,7 +2169,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("an enum member renders as its wire value, not its constant name")
+        @DisplayName("bhvSerializationobject076 an enum member renders as its wire value, not its constant name")
         fun enumStringFormIsTheWireValue() {
             for (member in com.example.petstore.models.Color.entries) {
                 assertEquals(member.value, member.toString())

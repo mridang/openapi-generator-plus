@@ -179,7 +179,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("F855: a 401 answer invalidates the cached OAuth2 token, other statuses do not")
+    @DisplayName("bhvRetries007 F855: a 401 answer invalidates the cached OAuth2 token, other statuses do not")
     fun unauthorizedAnswerInvalidatesTheCachedToken() {
         val auth = CountingOAuthAuthenticator()
         val api = TestableApiWithClient(UnauthorizedApiClient(), "http://localhost")
@@ -241,7 +241,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("F855: a 401 drops the cached token and replays the request once with a fresh one")
+    @DisplayName("bhvRetries001 F855: a 401 drops the cached token and replays the request once with a fresh one")
     fun unauthorizedAnswerReplaysTheRequestOnceWithAFreshToken() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = RotatingOAuthAuthenticator()
@@ -262,7 +262,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("F855: a second 401 is reported as Unauthorized and the request is not sent a third time")
+    @DisplayName("bhvRetries008 F855: a second 401 is reported as Unauthorized and the request is not sent a third time")
     fun aSecondUnauthorizedAnswerIsReported() {
         val client = ScriptedApiClient(listOf(401))
         val auth = RotatingOAuthAuthenticator()
@@ -279,7 +279,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("F855: a multipart body is not replayed after a 401")
+    @DisplayName("bhvRetries006 F855: a multipart body is not replayed after a 401")
     fun aMultipartBodyIsNotReplayed() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = RotatingOAuthAuthenticator()
@@ -305,7 +305,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("F855: a failed re-authentication leaves the 401 as the answer")
+    @DisplayName("bhvAuthintegration001 F855: a failed re-authentication leaves the 401 as the answer")
     fun aFailedReauthenticationLeavesTheUnauthorizedAnswer() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = RotatingOAuthAuthenticator(failAfterInvalidate = true)
@@ -321,7 +321,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("F855: static credentials never replay a 401")
+    @DisplayName("bhvRetries002 F855: static credentials never replay a 401")
     fun staticAuthenticatorsDoNotReplay() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = TestAuthenticator(mapOf("Authorization" to "Bearer static"), emptyMap(), emptyMap())
@@ -337,7 +337,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("F1121: an explicit Accept header parameter beats the configured default and the negotiated Accept")
+    @DisplayName("bhvOperations004 F1121: an explicit Accept header parameter beats the configured default and the negotiated Accept")
     fun headerParamAcceptWinsOverDefaultAndNegotiated() {
         val client = CapturingApiClient()
         val config =
@@ -361,7 +361,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("null body POST does not send Content-Type")
+    @DisplayName("bhvOperations013 null body POST does not send Content-Type")
     fun nullBodyPostDoesNotSendContentType() {
         val client = CapturingApiClient()
         val testApi = TestableApiWithClient(client, "http://localhost")
@@ -436,7 +436,7 @@ class BaseApiTest {
     @DisplayName("request context on errors and per-call settings")
     inner class RequestContextAndPerCallSettings {
         @Test
-        @DisplayName("F830: an error response carries the method and the path without the query string")
+        @DisplayName("bhvErrors036 F830: an error response carries the method and the path without the query string")
         fun errorResponseCarriesTheRequest() {
             val (client, _) = statusClient(404)
             val ex =
@@ -472,7 +472,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("F827: per-call headers replace a header of the same name, whatever its case")
+        @DisplayName("bhvOperations001 F827: per-call headers replace a header of the same name, whatever its case")
         fun callHeadersReplaceAnyLayer() {
             val client = CapturingApiClient()
             runBlocking {
@@ -499,7 +499,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("F827: a per-call maxRetries replaces the client's own, and 0 disables the retries")
+        @DisplayName("bhvRetries004 F827: a per-call maxRetries replaces the client's own, and 0 disables the retries")
         fun callMaxRetriesReplacesTheClientsOwn() {
             val (client, seen) = statusClient(503, 503, 200)
             val ok = runBlocking { PerCallApi(client).call(callMaxRetries = 2) }
@@ -514,7 +514,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("F827: an invalid per-call timeout or maxRetries is refused before anything is sent")
+        @DisplayName("bhvRetries009 F827: an invalid per-call timeout or maxRetries is refused before anything is sent")
         fun invalidCallSettingsAreRefused() {
             val (client, seen) = statusClient(200)
             assertThrows(IllegalArgumentException::class.java) {
@@ -619,7 +619,7 @@ class BaseApiTest {
     @DisplayName("error body parsing")
     inner class ErrorBodyParsing {
         @Test
-        @DisplayName("parses JSON error body")
+        @DisplayName("bhvErrors034 parses JSON error body")
         fun parsesJsonErrorBody() {
             val ex =
                 assertThrows(BadRequestException::class.java) {
@@ -633,7 +633,7 @@ class BaseApiTest {
     @DisplayName("exception hierarchy")
     inner class ExceptionHierarchy {
         @Test
-        @DisplayName("NotFoundException is a ClientException")
+        @DisplayName("bhvErrors033 NotFoundException is a ClientException")
         fun notFoundIsClientException() {
             val ex =
                 assertThrowsExactly(NotFoundException::class.java) {
@@ -645,7 +645,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("InternalServerErrorException is a ServerException")
+        @DisplayName("bhvErrors031 InternalServerErrorException is a ServerException")
         fun internalServerErrorIsServerException() {
             val ex =
                 assertThrowsExactly(InternalServerErrorException::class.java) {
@@ -661,7 +661,7 @@ class BaseApiTest {
     @DisplayName("success deserialization")
     inner class SuccessDeserialization {
         @Test
-        @DisplayName("deserializes JSON response")
+        @DisplayName("bhvSerializationwire004 deserializes JSON response")
         fun deserializesJsonResponse() {
             val response =
                 runBlocking {
@@ -676,7 +676,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("returns raw string for non-JSON response")
+        @DisplayName("bhvSerializationwire019 returns raw string for non-JSON response")
         fun returnsRawStringForNonJson() {
             val response =
                 runBlocking {
@@ -691,7 +691,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("returns null when returnType is null")
+        @DisplayName("bhvOperations015 returns null when returnType is null")
         fun returnsNullWhenReturnTypeIsNull() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -710,7 +710,7 @@ class BaseApiTest {
     @DisplayName("auth injection")
     inner class AuthInjection {
         @Test
-        @DisplayName("forwards auth headers")
+        @DisplayName("bhvAuthintegration010 forwards auth headers")
         fun forwardsAuthHeaders() {
             val auth =
                 TestAuthenticator(
@@ -735,7 +735,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("sets Cookie header from auth cookies")
+        @DisplayName("bhvAuthintegration017 sets Cookie header from auth cookies")
         fun setsCookieHeader() {
             val auth =
                 TestAuthenticator(
@@ -755,7 +755,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("falls back to client-level authenticator when no per-call auth is supplied")
+        @DisplayName("bhvAuthintegration009 falls back to client-level authenticator when no per-call auth is supplied")
         fun fallsBackToClientLevelAuthenticator() {
             val client = CapturingApiClient()
             val clientAuth =
@@ -772,7 +772,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("a scheme credential is used in place of the client-level authenticator")
+        @DisplayName("bhvAuthintegration007 a scheme credential is used in place of the client-level authenticator")
         fun schemeCredentialIsUsedInPlaceOfClientLevel() {
             val client = CapturingApiClient()
             val clientAuth =
@@ -795,7 +795,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("F857: schemeAuthenticator returns the first listed scheme the client holds")
+        @DisplayName("bhvAuthintegration014 F857: schemeAuthenticator returns the first listed scheme the client holds")
         fun schemeAuthenticatorReturnsTheFirstHeldScheme() {
             val first = TestAuthenticator(mapOf("X" to "first"), emptyMap(), emptyMap())
             val second = TestAuthenticator(mapOf("X" to "second"), emptyMap(), emptyMap())
@@ -825,7 +825,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("F857: a call with no scheme credential falls back to the client-level authenticator")
+        @DisplayName("bhvAuthintegration008 F857: a call with no scheme credential falls back to the client-level authenticator")
         fun noSchemeCredentialFallsBackToClientLevel() {
             val client = CapturingApiClient()
             val clientAuth = TestAuthenticator(mapOf("X-Client-Auth" to "client-level"), emptyMap(), emptyMap())
@@ -835,7 +835,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("AUTH-APPLIED: configured Bearer authenticator reaches a secured operation's outbound request")
+        @DisplayName("bhvAuthintegration006 AUTH-APPLIED: configured Bearer authenticator reaches a secured operation's outbound request")
         fun configuredAuthenticatorAppliedToSecuredOperation() {
             // Regression guard for the Elixir auth-drop bug: a client constructed
             // with a client-level authenticator must actually carry the credential
@@ -869,7 +869,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("SECURITY-NONE: client authenticator is suppressed for an unauthenticated operation")
+        @DisplayName("bhvAuthintegration005 SECURITY-NONE: client authenticator is suppressed for an unauthenticated operation")
         fun clientAuthenticatorSuppressedForSecurityNoneOperation() {
             // An operation declared `security: []` is explicitly unauthenticated.
             // Even when the client is constructed WITH an authenticator, invoking
@@ -917,7 +917,9 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("INHERITED-SECURITY: client authenticator is applied to an operation that inherits the global requirement")
+        @DisplayName(
+            "bhvAuthintegration012 INHERITED-SECURITY: client authenticator is applied to an operation that inherits the global requirement",
+        )
         fun clientAuthenticatorAppliedForInheritedSecurityOperation() {
             // getPetById declares no security of its own, so it inherits the
             // global requirement. This generator strips the inherited auth
@@ -953,7 +955,7 @@ class BaseApiTest {
     @DisplayName("content-type handling")
     inner class ContentTypeHandling {
         @Test
-        @DisplayName("skips JSON deserialization for text/plain response")
+        @DisplayName("bhvSerializationwire025 skips JSON deserialization for text/plain response")
         fun skipsDeserializationForTextPlain() {
             val client =
                 object : CapturingApiClient() {
@@ -1036,7 +1038,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
+        @DisplayName("bhvSerializationwire005 deserializes vendor JSON MIME types like application/problem+json")
         fun deserializesVendorJsonMimeType() {
             val client =
                 object : CapturingApiClient() {
@@ -1070,7 +1072,7 @@ class BaseApiTest {
     @DisplayName("per-call authenticators")
     inner class PerCallAuthenticators {
         @Test
-        @DisplayName("a per-call OAuth2 authenticator is handed the API's transport for its token request")
+        @DisplayName("bhvAuthintegration002 a per-call OAuth2 authenticator is handed the API's transport for its token request")
         fun perCallOAuth2AuthenticatorUsesTheApiTransport() {
             val urls = mutableListOf<String>()
             var apiAuthorization: String? = null
@@ -1112,7 +1114,7 @@ class BaseApiTest {
     @DisplayName("body serialization")
     inner class BodySerialization {
         @Test
-        @DisplayName("serializes JSON body for POST")
+        @DisplayName("bhvSerializationwire022 serializes JSON body for POST")
         fun serializesJsonBody() {
             val body = mapOf("key" to "value")
             val response =
@@ -1133,7 +1135,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("sends no body when body is null")
+        @DisplayName("bhvOperations016 sends no body when body is null")
         fun sendsNoBodyWhenNull() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1144,7 +1146,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("serializes text/plain body")
+        @DisplayName("bhvSerializationwire024 serializes text/plain body")
         fun serializesTextPlainBody() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1156,7 +1158,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("serializes form-urlencoded body")
+        @DisplayName("bhvSerializationwire021 serializes form-urlencoded body")
         fun serializesFormUrlencodedBody() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1173,7 +1175,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("form-urlencoded body encodes space as + not %20")
+        @DisplayName("bhvSerializationwire012 form-urlencoded body encodes space as + not %20")
         fun formUrlencodedBodyEncodesSpaceAsPlus() {
             // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
             // mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
@@ -1211,7 +1213,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("form-urlencoded body rejects a nested object field instead of sending its toString")
+        @DisplayName("bhvSerializationwire014 form-urlencoded body rejects a nested object field instead of sending its toString")
         fun formUrlencodedBodyRejectsNestedObject() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1231,7 +1233,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("passes binary body as-is")
+        @DisplayName("bhvOperations014 passes binary body as-is")
         fun passesBinaryBody() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1251,7 +1253,7 @@ class BaseApiTest {
     @DisplayName("query parameters")
     inner class QueryParameters {
         @Test
-        @DisplayName("appends query params to URL")
+        @DisplayName("bhvSerializationwire002 appends query params to URL")
         fun appendsQueryParams() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1262,7 +1264,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("includes empty value param in query string when value is empty string")
+        @DisplayName("bhvSerializationwire016 includes empty value param in query string when value is empty string")
         fun includesEmptyValueParam() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1273,7 +1275,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("expands array query params")
+        @DisplayName("bhvSerializationwire009 expands array query params")
         fun expandsArrayQueryParams() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1284,7 +1286,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("serializes boolean query params")
+        @DisplayName("bhvSerializationwire020 serializes boolean query params")
         fun serializesBooleanQueryParams() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1295,7 +1297,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("serializes number query params")
+        @DisplayName("bhvSerializationwire023 serializes number query params")
         fun serializesNumberQueryParams() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1306,7 +1308,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("handles empty query params")
+        @DisplayName("bhvSerializationwire015 handles empty query params")
         fun handlesEmptyQueryParams() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1339,7 +1341,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("collapses double-slash when baseUrl has trailing slash")
+        @DisplayName("bhvOperations007 collapses double-slash when baseUrl has trailing slash")
         fun collapsesDoubleSlashWhenBaseUrlHasTrailingSlash() {
             // baseUrl='http://host/' + path='/v1/thing' must produce
             // 'http://host/v1/thing', not 'http://host//v1/thing' which most
@@ -1357,7 +1359,7 @@ class BaseApiTest {
     @DisplayName("allowEmptyValue query params")
     inner class AllowEmptyValueQueryParams {
         @Test
-        @DisplayName("findPetsByStatus omitting status sends no status= in query")
+        @DisplayName("bhvSerializationwire010 findPetsByStatus omitting status sends no status= in query")
         fun allowEmptyValueOmittedWhenStatusUnset() {
             // allowEmptyValue means the server tolerates an empty value IF the
             // client chooses to send the key — it does NOT mean the SDK must
@@ -1378,7 +1380,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("allowEmptyValue param included when value is empty string")
+        @DisplayName("bhvOperations003 allowEmptyValue param included when value is empty string")
         fun allowEmptyValueIncludedWhenEmpty() {
             val client = CapturingApiClient()
             val config = Configuration.builder().baseUrl("http://localhost").build()
@@ -1399,7 +1401,7 @@ class BaseApiTest {
     @DisplayName("server variable overrides")
     inner class ServerVariableOverrides {
         @Test
-        @DisplayName("server variable overrides resolve in base URL")
+        @DisplayName("bhvOptions003 server variable overrides resolve in base URL")
         fun serverVariableOverridesResolve() {
             val config =
                 Configuration
@@ -1410,7 +1412,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("default server variables produce correct base URL")
+        @DisplayName("bhvOperations009 default server variables produce correct base URL")
         fun defaultServerVariablesResolve() {
             val config =
                 Configuration
@@ -1421,7 +1423,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("API request uses resolved server URL")
+        @DisplayName("bhvOperations005 API request uses resolved server URL")
         fun apiRequestUsesResolvedUrl() {
             val config =
                 Configuration
@@ -1435,7 +1437,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("invalid enum value throws error")
+        @DisplayName("bhvErrors032 invalid enum value throws error")
         fun invalidEnumValueThrows() {
             assertThrows(IllegalArgumentException::class.java) {
                 Configuration
@@ -1450,7 +1452,7 @@ class BaseApiTest {
     @DisplayName("header flow-through")
     inner class HeaderFlowThrough {
         @Test
-        @DisplayName("empty content-type defaults to application/json")
+        @DisplayName("bhvSerializationwire007 empty content-type defaults to application/json")
         fun emptyContentTypeDefaultsToJson() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1461,7 +1463,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("all headers from selector flow through to request")
+        @DisplayName("bhvOperations002 all headers from selector flow through to request")
         fun allHeadersFlowThrough() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1473,7 +1475,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("R5-1: config default Accept wins over the operation-negotiated Accept")
+        @DisplayName("bhvOperations008 R5-1: config default Accept wins over the operation-negotiated Accept")
         fun configDefaultAcceptWinsOverNegotiated() {
             // The operation negotiates Accept=application/json, but a client
             // config default header of Accept=application/xml must win: the
@@ -1505,7 +1507,7 @@ class BaseApiTest {
     @DisplayName("BinaryResponseTests")
     inner class BinaryResponseTests {
         @Test
-        @DisplayName("octet-stream base64 body decodes to correct bytes (strong roundtrip)")
+        @DisplayName("bhvSerializationwire018 octet-stream base64 body decodes to correct bytes (strong roundtrip)")
         fun octetStreamBase64DecodesToCorrectBytes() {
             // Original bytes include 0x00 and 0xFF — values that would mangle under UTF-8 conversion.
             val original = byteArrayOf(0x00, 0xFF.toByte(), 0x42)
@@ -1532,7 +1534,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("image/png response body represents bytes not plain text")
+        @DisplayName("bhvOperations012 image/png response body represents bytes not plain text")
         fun imagePngResponseRepresentsBytes() {
             val client =
                 object : CapturingApiClient() {
@@ -1554,7 +1556,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("application/json response parses to object")
+        @DisplayName("bhvSerializationwire003 application/json response parses to object")
         fun jsonResponseParsesToObject() {
             val client =
                 object : CapturingApiClient() {
@@ -1615,7 +1617,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("text/plain response returns string")
+        @DisplayName("bhvOperations017 text/plain response returns string")
         fun textPlainResponseReturnsString() {
             val client =
                 object : CapturingApiClient() {
@@ -1637,7 +1639,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("text/plain response for a non-String return type is a serialization error naming the Content-Type")
+        @DisplayName("bhvErrors035 text/plain response for a non-String return type is a serialization error naming the Content-Type")
         fun textPlainResponseForNonStringTypeIsSerializationError() {
             val client =
                 object : CapturingApiClient() {
@@ -1669,7 +1671,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("octet-stream with empty body yields empty raw body")
+        @DisplayName("bhvOperations010 octet-stream with empty body yields empty raw body")
         fun octetStreamEmptyBodyYieldsEmpty() {
             val client =
                 object : CapturingApiClient() {
@@ -1706,7 +1708,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("POST with empty string body sends Content-Type")
+        @DisplayName("bhvOperations011 POST with empty string body sends Content-Type")
         fun postWithEmptyStringBodySendsContentType() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1720,7 +1722,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("POST with empty JSON object body sends Content-Type and correct body")
+        @DisplayName("bhvSerializationwire008 POST with empty JSON object body sends Content-Type and correct body")
         fun postWithEmptyJsonBodySendsContentTypeAndBody() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -1742,7 +1744,7 @@ class BaseApiTest {
     @DisplayName("ProxyAuthTests")
     inner class ProxyAuthTests {
         @Test
-        @DisplayName("proxy URL with embedded basic-auth credentials routes through proxy")
+        @DisplayName("bhvTransport001 proxy URL with embedded basic-auth credentials routes through proxy")
         fun proxyUrlWithBasicAuthCredentialsRoutesThroughProxy() {
             val chasmUrl = ChasmContainer.getInternalHttpUrl()
             val proxyHostPort = SquidContainer.getAuthProxyUrl().removePrefix("http://")
@@ -1797,7 +1799,7 @@ class BaseApiTest {
     @DisplayName("TypedErrorBodyTests")
     inner class TypedErrorBodyTests {
         @Test
-        @DisplayName("getTypedErrorBody deserializes the raw body into the requested type")
+        @DisplayName("bhvErrors029 getTypedErrorBody deserializes the raw body into the requested type")
         fun deserializesRawBody() {
             val ex = BadRequestException("boom", emptyMap(), "{\"id\":42,\"name\":\"Dogs\"}", null)
             val typed = ex.getTypedErrorBody<com.example.petstore.models.Category>()
@@ -1807,7 +1809,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("getTypedErrorBody returns null when there is no response body")
+        @DisplayName("bhvErrors030 getTypedErrorBody returns null when there is no response body")
         fun returnsNullWhenThereIsNoResponseBody() {
             val ex = BadRequestException("boom", emptyMap(), "", null)
             assertNull(ex.getTypedErrorBody<com.example.petstore.models.Category>())

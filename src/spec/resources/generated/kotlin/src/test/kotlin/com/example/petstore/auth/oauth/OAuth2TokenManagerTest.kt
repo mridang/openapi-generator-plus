@@ -59,7 +59,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenRequestIsAFormPostAcceptingJson() {
+    fun bhvAuthoauthtwotokenmgr035TokenRequestIsAFormPostAcceptingJson() {
         // F1075: RFC 6749 section 4.4.2 / 5.1 headers of the token request.
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok","expires_in":3600}""")
@@ -73,7 +73,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun fetchTokenPassesNoRedirectTrue() {
+    fun bhvAuthoauthtwotokenmgr034FetchTokenPassesNoRedirectTrue() {
         // Gap 3.2: token endpoint POSTs must refuse 307/308 redirects so
         // credentials in the form body can't be silently replayed.
         val client = FakeApiClient()
@@ -94,7 +94,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenEndpointRedirectIsRejected() {
+    fun bhvAuthoauthtwotokenmgr033TokenEndpointRedirectIsRejected() {
         // Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
         // manager must refuse the whole 300-399 range (302 and 307 both checked
         // here, plus 301/303/308) rather than replaying the credential-bearing
@@ -120,7 +120,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun extractsAccessTokenFromResponse() {
+    fun bhvAuthoauthtwotokenmgr014ExtractsAccessTokenFromResponse() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok123","expires_in":3600}""")
 
@@ -139,7 +139,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun storesRefreshToken() {
+    fun bhvAuthoauthtwotokenmgr028StoresRefreshToken() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
 
@@ -157,7 +157,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun refreshIsSentToTheRefreshUrlAndARefreshGrantIsPostedOnce() {
+    fun bhvAuthoauthtwotokenmgr023RefreshIsSentToTheRefreshUrlAndARefreshGrantIsPostedOnce() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -196,7 +196,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun exchangeBypassesTheCacheAndRestoresTheSessionOnFailure() {
+    fun bhvAuthoauthtwotokenmgr006ExchangeBypassesTheCacheAndRestoresTheSessionOnFailure() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -219,7 +219,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun ignoresNonStringRefreshToken() {
+    fun bhvAuthoauthtwotokenmgr017IgnoresNonStringRefreshToken() {
         // A numeric (non-string) refresh_token must be ignored, not coerced to a
         // string — matching the other SDKs, which require a JSON string.
         val client = FakeApiClient()
@@ -239,7 +239,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun returnsCachedTokenWhenNotExpired() {
+    fun bhvAuthoauthtwotokenmgr025ReturnsCachedTokenWhenNotExpired() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 
@@ -257,7 +257,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun refetchesTokenWhenExpired() {
+    fun bhvAuthoauthtwotokenmgr021RefetchesTokenWhenExpired() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -276,7 +276,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun setAccessTokenBypassesEndpoint() {
+    fun bhvAuthoauthtwotokenmgr026SetAccessTokenBypassesEndpoint() {
         val manager = OAuth2TokenManager()
         manager.setAccessToken("manual-token")
 
@@ -292,7 +292,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun invalidateAccessTokenForcesRefetch() {
+    fun bhvAuthoauthtwotokenmgr018InvalidateAccessTokenForcesRefetch() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -312,7 +312,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun throwsWhenNoApiClientInjected() {
+    fun bhvAuthoauthtwotokenmgr030ThrowsWhenNoApiClientInjected() {
         val manager = OAuth2TokenManager()
 
         assertThrowsExactly(IllegalStateException::class.java) {
@@ -326,7 +326,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun singleFlightRefreshCoalescesConcurrentCallers() {
+    fun bhvAuthoauthtwotokenmgr027SingleFlightRefreshCoalescesConcurrentCallers() {
         // 10 coroutines all see no cached token and race into getAccessToken.
         // The Mutex + double-checked locking inside the manager must coalesce them
         // into exactly one network round-trip to the token endpoint.
@@ -373,7 +373,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun refreshTokenEmptyStringPreservesExisting() {
+    fun bhvAuthoauthtwotokenmgr024RefreshTokenEmptyStringPreservesExisting() {
         // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
         // MUST NOT clobber the cached refresh_token.
         val client = FakeApiClient()
@@ -401,7 +401,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInAsJsonStringIsAccepted() {
+    fun bhvAuthoauthtwotokenmgr009ExpiresInAsJsonStringIsAccepted() {
         // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
         // quoted string. The manager must accept it and cache the token; a
         // second call within the buffer window must serve from cache.
@@ -426,7 +426,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInAsFloatIsFloored() {
+    fun bhvAuthoauthtwotokenmgr008ExpiresInAsFloatIsFloored() {
         // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
         // The manager must floor it and cache the token.
         val client = FakeApiClient()
@@ -487,7 +487,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInNegativeSkipsCaching() {
+    fun bhvAuthoauthtwotokenmgr011ExpiresInNegativeSkipsCaching() {
         // D1: a negative expires_in (e.g. -1) must mark the token as
         // immediately stale so the very next call refetches.
         val client = FakeApiClient()
@@ -512,7 +512,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun throwsWhenTokenRequestFails() {
+    fun bhvAuthoauthtwotokenmgr031ThrowsWhenTokenRequestFails() {
         val client = FakeApiClient()
         client.enqueue("""{"error":"invalid_client"}""", statusCode = 401)
 
@@ -533,7 +533,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun malformedTokenResponseRaisesOAuth2TokenException() {
+    fun bhvAuthoauthtwotokenmgr001MalformedTokenResponseRaisesOAuth2TokenException() {
         // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException.
         val client = FakeApiClient()
         client.enqueue("<html>not json</html>")
@@ -573,7 +573,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun unusableTokenBodiesGetTheirFixedMessages() {
+    fun bhvAuthoauthtwotokenmgr040UnusableTokenBodiesGetTheirFixedMessages() {
         val cases =
             listOf(
                 "not json at all" to "Token response is not valid JSON",
@@ -604,7 +604,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenTransportFailurePropagatesNetworkException() {
+    fun bhvAuthoauthtwotokenmgr037TokenTransportFailurePropagatesNetworkException() {
         // A transport failure on the token POST reaches the caller unchanged.
         val failure =
             com.example.petstore.errors
@@ -634,7 +634,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenResponseMissingAccessTokenThrowsTypedError() {
+    fun bhvAuthoauthtwotokenmgr036TokenResponseMissingAccessTokenThrowsTypedError() {
         // A 2xx response whose body omits access_token must surface as the
         // typed OAuth2TokenException, not silently cache an empty token.
         val client = FakeApiClient()
@@ -655,7 +655,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenEndpointErrorResponseParsedToTypedError() {
+    fun bhvAuthoauthtwotokenmgr032TokenEndpointErrorResponseParsedToTypedError() {
         // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
         // as a typed OAuth2ServerException carrying code/description/uri.
         val client = FakeApiClient()
@@ -697,7 +697,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenEndpointErrorWithNonStringErrorCodeIsNotCoerced() {
+    fun bhvAuthoauthtwotokenmgr020TokenEndpointErrorWithNonStringErrorCodeIsNotCoerced() {
         // RFC 6749 §5.2: error is a string. A numeric error must not be coerced
         // into the code "400"; the code stays null and the raw body is reported.
         val ex = oauth2ErrorFor("""{"error":400}""")
@@ -719,7 +719,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInShortLivedTokenDoesNotStorm() {
+    fun bhvAuthoauthtwotokenmgr013ExpiresInShortLivedTokenDoesNotStorm() {
         // Gap CM: short-lived token (expires_in < safety buffer) must produce
         // exactly ONE network request from a single getAccessToken call, with
         // no inner refresh storm.
@@ -753,7 +753,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInLongLivedTokenAppliesFullBuffer() {
+    fun bhvAuthoauthtwotokenmgr010ExpiresInLongLivedTokenAppliesFullBuffer() {
         // Gap CM: long-lived token gets the full 30s buffer clamped by
         // min(expires_in, 30). With expires_in=3600 the token stays cached on a
         // second call within the same instant.
@@ -786,7 +786,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenTypeOtherThanBearerIsRefusedWithoutEchoingIt() {
+    fun bhvAuthoauthtwotokenmgr038TokenTypeOtherThanBearerIsRefusedWithoutEchoingIt() {
         for (tokenType in listOf("DPoP", "mac", "N_A")) {
             val client = FakeApiClient()
             client.enqueue("""{"access_token":"tok","token_type":"$tokenType","expires_in":3600}""")
@@ -804,7 +804,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenTypeBearerInAnyCaseOrMissingIsAccepted() {
+    fun bhvAuthoauthtwotokenmgr002TokenTypeBearerInAnyCaseOrMissingIsAccepted() {
         for (body in listOf(
             """{"access_token":"tok","token_type":"Bearer","expires_in":3600}""",
             """{"access_token":"tok","token_type":"bearer","expires_in":3600}""",
@@ -823,7 +823,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInSixtySecondsIsServedFromCacheOnTheSecondCall() {
+    fun bhvAuthoauthtwotokenmgr007ExpiresInSixtySecondsIsServedFromCacheOnTheSecondCall() {
         // One safety margin only: a token valid for 60s is reused for 30s, so two
         // back-to-back calls make exactly one token request.
         val networkCalls = AtomicInteger(0)
@@ -854,7 +854,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInNinetySecondsIsServedFromCacheOnTheSecondCall() {
+    fun bhvAuthoauthtwotokenmgr004ExpiresInNinetySecondsIsServedFromCacheOnTheSecondCall() {
         // F854/F895: the margin is min(60 s, expires_in / 2) and is applied once, at store, so a
         // token valid for 90 s (which two stacked margins used to make permanently stale) is reused.
         val networkCalls = AtomicInteger(0)
@@ -885,7 +885,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInZeroCollapsesExpiryToNow() {
+    fun bhvAuthoauthtwotokenmgr012ExpiresInZeroCollapsesExpiryToNow() {
         // Gap CM: expires_in == 0 collapses expiry to now, forcing the next
         // getAccessToken call to refetch.
         val networkCalls = AtomicInteger(0)
@@ -917,7 +917,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun invalidateAccessTokenTriggersSingleRefetchUnderConcurrency() {
+    fun bhvAuthoauthtwotokenmgr019InvalidateAccessTokenTriggersSingleRefetchUnderConcurrency() {
         // After invalidation, 10 concurrent coroutines must coalesce into
         // exactly ONE additional network round-trip (single-flight), all
         // observing the same freshly fetched token.
@@ -967,7 +967,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun failedRefreshFallsBackToTheOriginalGrant() {
+    fun bhvAuthoauthtwotokenmgr016FailedRefreshFallsBackToTheOriginalGrant() {
         // The refresh grant carries the cached refresh token and the client
         // credentials; when the endpoint rejects it, the manager re-runs the
         // original grant instead of surfacing the refresh error.
@@ -1049,7 +1049,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenWithoutExpiresInIsCachedIndefinitely() {
+    fun bhvAuthoauthtwotokenmgr039TokenWithoutExpiresInIsCachedIndefinitely() {
         // No expires_in means the lifetime is unknown: the token is kept, so
         // the second call issues no second token request.
         val client = FakeApiClient()

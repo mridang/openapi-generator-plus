@@ -22,25 +22,25 @@ class HeaderSelectorTest {
     inner class IsJsonMimeTests {
 
         @Test
-        @DisplayName("returns true for application/json")
+        @DisplayName("bhvHeaders019 returns true for application/json")
         fun returnsTrueForApplicationJson() {
             assertTrue(selector.isJsonMime("application/json"))
         }
 
         @Test
-        @DisplayName("returns true for application/json with charset")
+        @DisplayName("bhvHeaders020 returns true for application/json with charset")
         fun returnsTrueForApplicationJsonWithCharset() {
             assertTrue(selector.isJsonMime("application/json; charset=UTF-8"))
         }
 
         @Test
-        @DisplayName("returns true for APPLICATION/JSON (case insensitive)")
+        @DisplayName("bhvHeaders021 returns true for APPLICATION/JSON (case insensitive)")
         fun returnsTrueForUppercaseApplicationJson() {
             assertTrue(selector.isJsonMime("APPLICATION/JSON"))
         }
 
         @Test
-        @DisplayName("returns true for vendor JSON types")
+        @DisplayName("bhvHeaders022 returns true for vendor JSON types")
         fun returnsTrueForVendorJsonTypes() {
             assertTrue(selector.isJsonMime("application/vnd.api+json"))
             assertTrue(selector.isJsonMime("application/vnd.company+json"))
@@ -48,25 +48,25 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("returns false for text/html")
+        @DisplayName("bhvHeaders016 returns false for text/html")
         fun returnsFalseForTextHtml() {
             assertFalse(selector.isJsonMime("text/html"))
         }
 
         @Test
-        @DisplayName("returns false for application/xml")
+        @DisplayName("bhvHeaders013 returns false for application/xml")
         fun returnsFalseForApplicationXml() {
             assertFalse(selector.isJsonMime("application/xml"))
         }
 
         @Test
-        @DisplayName("returns false for null")
+        @DisplayName("bhvHeaders015 returns false for null")
         fun returnsFalseForNull() {
             assertFalse(selector.isJsonMime(null))
         }
 
         @Test
-        @DisplayName("returns false for empty string")
+        @DisplayName("bhvHeaders014 returns false for empty string")
         fun returnsFalseForEmptyString() {
             assertFalse(selector.isJsonMime(""))
         }
@@ -78,7 +78,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("returns false for application/octet-stream")
+        @DisplayName("bhvHeaders012 returns false for application/octet-stream")
         fun returnsFalseForOctetStream() {
             assertFalse(selector.isJsonMime("application/octet-stream"))
         }
@@ -100,7 +100,7 @@ class HeaderSelectorTest {
     inner class SelectHeadersTests {
 
         @Test
-        @DisplayName("sets Accept header for single accept")
+        @DisplayName("bhvHeaders023 sets Accept header for single accept")
         fun setsAcceptHeaderForSingleAccept() {
             val headers = selector.selectHeaders(
                 arrayOf("application/json"),
@@ -111,7 +111,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("joins media types in declaration order with comma-space")
+        @DisplayName("bhvHeaders011 joins media types in declaration order with comma-space")
         fun joinsInDeclarationOrder() {
             val headers = selector.selectHeaders(
                 arrayOf("image/jpeg", "image/png", "application/json"),
@@ -122,7 +122,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("returns single accept as-is")
+        @DisplayName("bhvHeaders017 returns single accept as-is")
         fun returnsSingleAcceptAsIs() {
             val headers = selector.selectHeaders(
                 arrayOf("application/json"),
@@ -133,7 +133,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("does not reorder or JSON-prioritize")
+        @DisplayName("bhvHeaders003 does not reorder or JSON-prioritize")
         fun doesNotReorderOrPrioritizeJson() {
             val headers = selector.selectHeaders(
                 arrayOf("text/html", "application/json", "text/plain"),
@@ -158,7 +158,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("filters out empty and blank entries")
+        @DisplayName("bhvHeaders009 filters out empty and blank entries")
         fun filtersOutEmptyAndBlankEntries() {
             val headers = selector.selectHeaders(
                 arrayOf("", "image/jpeg", "   ", "application/json"),
@@ -169,7 +169,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("drops whitespace-only entries before joining")
+        @DisplayName("bhvHeaders008 drops whitespace-only entries before joining")
         fun dropsWhitespaceOnlyEntries() {
             val headers = selector.selectHeaders(
                 arrayOf("   ", "application/json"),
@@ -180,7 +180,29 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("returns null Accept when only blank entries")
+        @DisplayName("bhvHeaders010 drops empty entries and keeps the others in order")
+        fun dropsEmptyEntriesKeepingTheRest() {
+            val headers = selector.selectHeaders(
+                arrayOf("", "image/jpeg", "application/json"),
+                "application/json",
+                false
+            )
+            assertEquals("image/jpeg, application/json", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("bhvHeaders024 sets Accept header when accepts provided")
+        fun setsAcceptHeaderWhenAcceptsProvided() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json", "text/plain"),
+                "application/json",
+                false
+            )
+            assertEquals("application/json, text/plain", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("bhvHeaders006 returns null Accept when only blank entries")
         fun returnsNullAcceptWhenOnlyBlank() {
             val headers = selector.selectHeaders(
                 arrayOf("", "   "),
@@ -191,7 +213,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("does not set Accept header for empty accepts")
+        @DisplayName("bhvHeaders004 does not set Accept header for empty accepts")
         fun doesNotSetAcceptForEmptyAccepts() {
             val headers = selector.selectHeaders(
                 arrayOf(),
@@ -202,7 +224,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("does not set Accept header for null accepts")
+        @DisplayName("bhvHeaders005 does not set Accept header for null accepts")
         fun doesNotSetAcceptForNullAccepts() {
             val headers = selector.selectHeaders(
                 null,
@@ -213,7 +235,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("multipart omits Content-Type")
+        @DisplayName("bhvHeaders007 multipart omits Content-Type")
         fun multipartOmitsContentType() {
             val headers = selector.selectHeaders(
                 arrayOf("application/json"),
@@ -224,7 +246,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("sets Content-Type when not multipart")
+        @DisplayName("bhvHeaders025 sets Content-Type when not multipart")
         fun setsContentTypeWhenNotMultipart() {
             val headers = selector.selectHeaders(
                 arrayOf("application/json"),
@@ -235,7 +257,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("defaults Content-Type to application/json when empty")
+        @DisplayName("bhvHeaders001 defaults Content-Type to application/json when empty")
         fun defaultsContentTypeToJsonWhenEmpty() {
             val headers = selector.selectHeaders(
                 arrayOf("application/json"),
@@ -246,7 +268,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("defaults Content-Type to application/json when null")
+        @DisplayName("bhvHeaders002 defaults Content-Type to application/json when null")
         fun defaultsContentTypeToJsonWhenNull() {
             val headers = selector.selectHeaders(
                 arrayOf("application/json"),
@@ -262,7 +284,7 @@ class HeaderSelectorTest {
     inner class DeclarationOrderJoin {
 
         @Test
-        @DisplayName("joins mixed types in declaration order without weights")
+        @DisplayName("bhvHeaders026 joins mixed types in declaration order without weights")
         fun joinsMixedTypesInDeclarationOrder() {
             val headers = selector.selectHeaders(
                 arrayOf("text/html", "application/vnd.api+json", "application/json"),
@@ -276,7 +298,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("does not prioritize vendor JSON over non-JSON")
+        @DisplayName("bhvHeaders018 does not prioritize vendor JSON over non-JSON")
         fun doesNotPrioritizeVendorJson() {
             val headers = selector.selectHeaders(
                 arrayOf("text/plain", "application/vnd.api+json"),

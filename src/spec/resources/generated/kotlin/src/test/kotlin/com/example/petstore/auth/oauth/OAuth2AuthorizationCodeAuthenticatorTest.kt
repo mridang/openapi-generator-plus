@@ -57,7 +57,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         )
 
     @Test
-    fun buildsAuthorizationUrlWithRequiredParams() {
+    fun bhvAuthoauthtwoauthcode006BuildsAuthorizationUrlWithRequiredParams() {
         val auth = createAuthenticator()
 
         val url = auth.buildAuthorizationUrl()
@@ -84,7 +84,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun authorizationUrlCarriesAPkceS256ChallengeAndNoNonce() {
+    fun bhvAuthoauthtwoauthcode023AuthorizationUrlCarriesAPkceS256ChallengeAndNoNonce() {
         val url = createAuthenticator().buildAuthorizationUrl("st")
 
         assertTrue(url.contains("&code_challenge_method=S256"), url)
@@ -93,7 +93,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun exchangeSendsTheVerifierOfTheAuthorizationUrl() {
+    fun bhvAuthoauthtwoauthcode008ExchangeSendsTheVerifierOfTheAuthorizationUrl() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
         val auth = createAuthenticator()
@@ -109,7 +109,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun everyAuthorizationUrlGetsANewVerifierAndTheLastOneIsExchanged() {
+    fun bhvAuthoauthtwoauthcode009EveryAuthorizationUrlGetsANewVerifierAndTheLastOneIsExchanged() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
         val auth = createAuthenticator()
@@ -127,7 +127,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun exchangeWithoutAnAuthorizationUrlSendsNoVerifierAndAUsedVerifierIsNotSentAgain() {
+    fun bhvAuthoauthtwoauthcode001ExchangeWithoutAnAuthorizationUrlSendsNoVerifierAndAUsedVerifierIsNotSentAgain() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -146,7 +146,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun invalidateAccessTokenKeepsTheRefreshTokenForTheNextCall() {
+    fun bhvAuthoauthtwoauthcode016InvalidateAccessTokenKeepsTheRefreshTokenForTheNextCall() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -163,7 +163,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun buildsAuthorizationUrlWithState() {
+    fun bhvAuthoauthtwoauthcode007BuildsAuthorizationUrlWithState() {
         val auth = createAuthenticator()
 
         val url = auth.buildAuthorizationUrl("csrf-state-123")
@@ -172,7 +172,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun emptyStateIsOmittedFromTheAuthorizationUrl() {
+    fun bhvAuthoauthtwoauthcode018EmptyStateIsOmittedFromTheAuthorizationUrl() {
         val auth = createAuthenticator()
 
         val url = auth.buildAuthorizationUrl("")
@@ -184,7 +184,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun exchangesCodeWithCorrectGrantType() {
+    fun bhvAuthoauthtwoauthcode012ExchangesCodeWithCorrectGrantType() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
 
@@ -201,7 +201,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun exchangeCodeRejectsEmptyCode() {
+    fun bhvAuthoauthtwoauthcode010ExchangeCodeRejectsEmptyCode() {
         // oauth-exchangecode-no-empty-code-guard: an empty code must be rejected
         // before the token POST, with no request sent.
         val client = FakeApiClient()
@@ -218,7 +218,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun exchangeCodeRejectsWhitespaceOnlyCode() {
+    fun bhvAuthoauthtwoauthcode011ExchangeCodeRejectsWhitespaceOnlyCode() {
         // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
         // distinct from the empty-string case and must also be rejected before
         // the token POST (isNotBlank guard), with no request sent.
@@ -234,7 +234,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun secondExchangeCodeSendsTheNewCode() {
+    fun bhvAuthoauthtwoauthcode021SecondExchangeCodeSendsTheNewCode() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
         client.enqueue("""{"access_token":"tok2","refresh_token":"ref2","expires_in":3600}""")
@@ -251,7 +251,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun secondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() {
+    fun bhvAuthoauthtwoauthcode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":0}""")
@@ -268,7 +268,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun failedExchangeKeepsThePreviousSession() {
+    fun bhvAuthoauthtwoauthcode013FailedExchangeKeepsThePreviousSession() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
         client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
@@ -285,7 +285,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun refreshCarriesClientCredentialsAndARejectedRefreshIsPostedOnce() {
+    fun bhvAuthoauthtwoauthcode026RefreshCarriesClientCredentialsAndARejectedRefreshIsPostedOnce() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
@@ -307,7 +307,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun includesRefreshTokenOnRefresh() {
+    fun bhvAuthoauthtwoauthcode015IncludesRefreshTokenOnRefresh() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -325,7 +325,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun throwsBeforeExchangeCodeCalled() {
+    fun bhvAuthoauthtwoauthcode027ThrowsBeforeExchangeCodeCalled() {
         val auth = createAuthenticator()
 
         assertThrowsExactly(IllegalStateException::class.java) {
@@ -334,14 +334,14 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun getHostReturnsConfiguredHost() {
+    fun bhvAuthoauthtwoauthcode014GetHostReturnsConfiguredHost() {
         val auth = createAuthenticator()
 
         assertEquals("https://api.example.com", auth.getHost())
     }
 
     @Test
-    fun authHeadersBeforeExchangeReturnsRecoverableError() {
+    fun bhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError() {
         val auth = createAuthenticator()
 
         // Calling getAuthHeaders before exchangeCode is a precondition
@@ -364,7 +364,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun authorizeUrlWithExistingQueryStringUsesAmpSeparator() {
+    fun bhvAuthoauthtwoauthcode005AuthorizeUrlWithExistingQueryStringUsesAmpSeparator() {
         // RFC 6749 §3.1: the authorization endpoint URI MAY already include
         // a query component (e.g. tenant-scoped Auth0 URLs). The builder
         // must preserve existing query items alongside the OAuth2 ones
@@ -388,7 +388,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun redactsSecret() {
+    fun bhvAuthoauthtwoauthcode019RedactsSecret() {
         val auth = createAuthenticator()
         val rendered = auth.toString()
         assertFalse(rendered.contains("my-client-secret"))
@@ -396,7 +396,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun redactedReprShowsExactlyTheNonSecretFields() {
+    fun bhvAuthoauthtwoauthcode025RedactedReprShowsExactlyTheNonSecretFields() {
         assertEquals(
             "OAuth2AuthorizationCodeAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
                 "clientSecret=***, authorizationUrl=https://auth.example.com/authorize, " +
@@ -407,7 +407,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun authorizationUrlKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+    fun bhvAuthoauthtwoauthcode004AuthorizationUrlKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
         val auth =
             OAuth2AuthorizationCodeAuthenticator(
                 host = "https://api.example.com",
@@ -427,7 +427,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun routesTheCodeExchangeToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
+    fun bhvAuthoauthtwoauthcode024RoutesTheCodeExchangeToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -453,7 +453,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperUsesItsSpecUrlsAndScopes() {
+    fun bhvAuthoauthtwoauthcode020GeneratedSchemeWrapperUsesItsSpecUrlsAndScopes() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")

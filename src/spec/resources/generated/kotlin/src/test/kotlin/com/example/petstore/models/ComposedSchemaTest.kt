@@ -27,7 +27,7 @@ class ComposedSchemaTest {
     @DisplayName("oneOf with discriminator - DryFood")
     inner class DryFoodTests {
         @Test
-        @DisplayName("deserializes DryFood from JSON")
+        @DisplayName("bhvUnions012 deserializes DryFood from JSON")
         fun testDeserializeDryFood() {
             val jsonString = """{"foodType":"dry","weightKg":2.5}"""
 
@@ -39,7 +39,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("deserializes WetFood from JSON")
+        @DisplayName("bhvUnions013 deserializes WetFood from JSON")
         fun testDeserializeWetFood() {
             val jsonString = """{"foodType":"wet","volumeMl":400}"""
 
@@ -51,7 +51,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("returns null for unknown discriminator value")
+        @DisplayName("bhvUnions016 returns null for unknown discriminator value")
         fun testUnknownDiscriminator() {
             val jsonString = """{"foodType":"raw","calories":300}"""
 
@@ -60,7 +60,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("fails to deserialize when discriminator field is missing")
+        @DisplayName("bhvUnions015 fails to deserialize when discriminator field is missing")
         fun testMissingDiscriminator() {
             val jsonString = """{"weightKg":2.5}"""
 
@@ -69,7 +69,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("fails to deserialize when discriminator value is empty")
+        @DisplayName("bhvUnions024 fails to deserialize when discriminator value is empty")
         fun testEmptyDiscriminator() {
             // An empty discriminator value matches no listed subtype and must
             // not be silently routed; kotlinx fails the decode (null here).
@@ -80,7 +80,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("unknown discriminator error names the offending value")
+        @DisplayName("bhvUnions026 unknown discriminator error names the offending value")
         fun testUnknownDiscriminatorErrorNamesValue() {
             // The hand-written discriminator serializer surfaces the offending
             // value in its message, unlike kotlinx's built-in polymorphic decode.
@@ -111,7 +111,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("serializes DryFood back to JSON")
+        @DisplayName("bhvUnions020 serializes DryFood back to JSON")
         fun testSerializeDryFood() {
             val encodingJson =
                 Json {
@@ -134,7 +134,7 @@ class ComposedSchemaTest {
     @DisplayName("anyOf - PetTreatment")
     inner class PetTreatmentTests {
         @Test
-        @DisplayName("deserializes a matching variant into actualInstance")
+        @DisplayName("bhvUnions003 deserializes a matching variant into actualInstance")
         fun testDeserialize() {
             // The wrapper now resolves the bare payload against each declared
             // variant and stores the concrete match in actualInstance, instead
@@ -149,7 +149,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("anyOf wrappers have value equality and a matching hash")
+        @DisplayName("bhvUnions011 anyOf wrappers have value equality and a matching hash")
         fun testAnyOfValueEquality() {
             val payload = """{"drugName":"Amoxicillin","dosage":"500mg"}"""
             val first = json.decodeFromString<PetTreatment>(payload)
@@ -163,7 +163,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("deserializes the surgery variant into actualInstance")
+        @DisplayName("bhvUnions006 deserializes the surgery variant into actualInstance")
         fun testDeserializeSurgery() {
             val jsonString = """{"procedureName":"Spay","durationMinutes":45}"""
 
@@ -193,7 +193,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("constructs PetTreatment with medication instance")
+        @DisplayName("bhvUnions014 constructs PetTreatment with medication instance")
         fun testConstructWithMedication() {
             val medication = Medication(drugName = "Amoxicillin", dosage = "500mg")
             val treatment = PetTreatment(actualInstance = medication)
@@ -213,7 +213,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("serializes round-trip for anyOf")
+        @DisplayName("bhvUnions008 serializes round-trip for anyOf")
         fun testSerializeRoundTrip() {
             // Round-trip the matched anyOf member: encode a Medication and
             // decode it back, asserting the payload survives intact.
@@ -226,7 +226,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("anyOf with no matching variant throws")
+        @DisplayName("bhvUnions007 anyOf with no matching variant throws")
         fun testNoMatchThrows() {
             // Neither Medication (requires drugName) nor Surgery (requires
             // procedureName) can decode this payload, so the wrapper fails loud
@@ -238,7 +238,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("anyOf retains all matching variants (medication and surgery) losslessly")
+        @DisplayName("bhvUnions009 anyOf retains all matching variants (medication and surgery) losslessly")
         fun testAnyOfRetainsAllMatchingVariantsLosslessly() {
             // PetTreatment is a non-discriminated anyOf documented as matching a
             // medication, a surgery, OR BOTH. A payload that satisfies BOTH
@@ -290,7 +290,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("shared-property collision keeps the last variant's value, emitted once")
+        @DisplayName("bhvUnions010 shared-property collision keeps the last variant's value, emitted once")
         fun testSharedPropertyCollisionLastWins() {
             // anyOf-collision-last-wins: both Medication and Surgery declare
             // `notes`. When a PetTreatment retains both members with DIFFERENT
@@ -320,7 +320,7 @@ class ComposedSchemaTest {
     @DisplayName("anyOf - TreatmentRecord (variants declared Surgery then Medication)")
     inner class TreatmentRecordTests {
         @Test
-        @DisplayName("retains the matching variants in declaration order, not alphabetical order")
+        @DisplayName("bhvUnions005 retains the matching variants in declaration order, not alphabetical order")
         fun testVariantsAreRetainedInDeclarationOrder() {
             val result =
                 json.decodeFromString<TreatmentRecord>(
@@ -335,7 +335,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a shared property keeps the later-declared variant's value, emitted once")
+        @DisplayName("bhvUnions002 a shared property keeps the later-declared variant's value, emitted once")
         fun testSharedPropertyKeepsTheLaterDeclaredVariant() {
             val result =
                 json.decodeFromString<TreatmentRecord>(
@@ -363,7 +363,7 @@ class ComposedSchemaTest {
     @DisplayName("allOf - PetWithOwner")
     inner class PetWithOwnerTests {
         @Test
-        @DisplayName("deserializes all properties from allOf composition")
+        @DisplayName("bhvUnions004 deserializes all properties from allOf composition")
         fun testDeserialize() {
             val jsonString =
                 """{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],""" +
@@ -378,7 +378,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("serializes PetWithOwner to JSON")
+        @DisplayName("bhvUnions021 serializes PetWithOwner to JSON")
         fun testSerialize() {
             val petWithOwner =
                 PetWithOwner(
@@ -410,7 +410,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("round-trip preserves all fields")
+        @DisplayName("bhvUnions017 round-trip preserves all fields")
         fun testRoundTrip() {
             val original =
                 PetWithOwner(
@@ -440,7 +440,7 @@ class ComposedSchemaTest {
         // on BOTH encode and decode -- this test pins that wire form.
 
         @Test
-        @DisplayName("setPetAvatarThumbnail byte oneOf round-trips through base64")
+        @DisplayName("bhvUnions023 setPetAvatarThumbnail byte oneOf round-trips through base64")
         fun testScalarByteVariantRoundTripsThroughBase64() {
             val raw = byteArrayOf(0x01, 0x02, 0x03, 0x04)
             val request = SetPetAvatarThumbnailRequest(actualInstance = raw)
@@ -462,7 +462,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("setPetAvatarThumbnail array byte oneOf round-trips through base64")
+        @DisplayName("bhvUnions022 setPetAvatarThumbnail array byte oneOf round-trips through base64")
         fun testArrayByteVariantRoundTripsThroughBase64() {
             val first = byteArrayOf(0x01)
             val second = byteArrayOf(0x02)
@@ -482,7 +482,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a base64 scalar string deserializes to the scalar variant, not a list")
+        @DisplayName("bhvUnions018 a base64 scalar string deserializes to the scalar variant, not a list")
         fun testScalarStringIsNotMisParsedAsList() {
             // Ordering guard: a lone base64 string must resolve to the scalar
             // ByteArray variant (one value), NOT be coerced element-by-element
@@ -495,7 +495,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("tries variants in declaration order: an empty array is the byte variant, not the list")
+        @DisplayName("bhvUnions025 tries variants in declaration order: an empty array is the byte variant, not the list")
         fun testVariantsAreTriedInDeclarationOrder() {
             val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>("[]")
 
@@ -526,7 +526,7 @@ class ComposedSchemaTest {
     @DisplayName("oneOf typed factories and accessors - ReserveStockResponse")
     inner class ReserveStockResponseAccessorTests {
         @Test
-        @DisplayName("a factory wraps its variant and only its is accessor answers true")
+        @DisplayName("bhvUnions001 a factory wraps its variant and only its is accessor answers true")
         fun testFactoryWrapsItsVariant() {
             val reservation = Reservation(reservationId = 31L, quantity = 4)
             val union = ReserveStockResponse.fromReservation(reservation)

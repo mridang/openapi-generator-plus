@@ -46,7 +46,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("User-Agent injection")
     inner class UserAgentInjection {
         @Test
-        @DisplayName("injects custom User-Agent header")
+        @DisplayName("bhvTransport041 injects custom User-Agent header")
         fun injectsCustomUserAgent() {
             var capturedUserAgent: String? = null
             val client =
@@ -66,7 +66,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("injects default User-Agent when not explicitly set")
+        @DisplayName("bhvTransport042 injects default User-Agent when not explicitly set")
         fun injectsDefaultUserAgent() {
             var capturedUserAgent: String? = null
             val client =
@@ -86,7 +86,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("X-Request-ID injection")
     inner class RequestIdInjection {
         @Test
-        @DisplayName("injects X-Request-ID when enabled")
+        @DisplayName("bhvTransport043 injects X-Request-ID when enabled")
         fun injectsRequestId() {
             var capturedRequestId: String? = null
             val client =
@@ -111,7 +111,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("does not inject X-Request-ID when disabled")
+        @DisplayName("bhvTransport036 does not inject X-Request-ID when disabled")
         fun doesNotInjectRequestIdWhenDisabled() {
             var capturedRequestId: String? = null
             val client =
@@ -131,7 +131,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("does not override caller-provided X-Request-ID")
+        @DisplayName("bhvOptions006 does not override caller-provided X-Request-ID")
         fun doesNotOverrideCallerRequestId() {
             var capturedRequestId: String? = null
             val client =
@@ -152,7 +152,29 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("generates unique X-Request-ID per request")
+        @DisplayName("bhvTransport007 generates unique request ids for each call")
+        fun generatesUniqueRequestIdsForEachCall() {
+            val ids = mutableListOf<String?>()
+            val client =
+                mockClient(requestCapture = { req ->
+                    ids.add(req.headers["X-Request-ID"])
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals(2, ids.size)
+            assertNotEquals(ids[0], ids[1])
+        }
+
+        @Test
+        @DisplayName("bhvTransport038 generates unique X-Request-ID per request")
         fun generatesUniqueRequestIds() {
             val ids = mutableListOf<String?>()
             val client =
@@ -178,7 +200,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("multipart filename directive")
     inner class MultipartFilenameDirective {
         @Test
-        @DisplayName("non-ASCII filename emits RFC 5987 filename* parameter")
+        @DisplayName("bhvSerializationwire044 non-ASCII filename emits RFC 5987 filename* parameter")
         fun multipartFilenameNonAsciiEmitsRFC5987() {
             val directive = buildFilenameDirective("日本.pdf")
             assertTrue(
@@ -196,7 +218,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("ASCII-only filename omits the filename* parameter")
+        @DisplayName("bhvSerializationwire041 ASCII-only filename omits the filename* parameter")
         fun multipartFilenameAsciiOnlyOmitsFilenameStar() {
             val directive = buildFilenameDirective("file.png")
             assertEquals("filename=\"file.png\"", directive)
@@ -207,7 +229,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("filename directive: per-code-point fallback and unreserved-only filename*")
+        @DisplayName("bhvSerializationwire028 filename directive: per-code-point fallback and unreserved-only filename*")
         fun filenameDirectiveTable() {
             val rows =
                 listOf(
@@ -223,7 +245,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("CRLF/NUL in filename throws IllegalArgumentException")
+        @DisplayName("bhvSerializationwire050 CRLF/NUL in filename throws IllegalArgumentException")
         fun multipartFilenameCRLFRejected() {
             for (bad in listOf("a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\u0000b.pdf")) {
                 assertThrows(IllegalArgumentException::class.java) {
@@ -239,25 +261,25 @@ class DefaultApiClientUnitTest {
     @DisplayName("per-part MIME sniffing")
     inner class MultipartMimeSniffing {
         @Test
-        @DisplayName(".png filename sets image/png")
+        @DisplayName("bhvSerializationwire039 .png filename sets image/png")
         fun pngFilenameSetsImagePng() {
             assertEquals("image/png", contentTypeForFilename("image.png").toString())
         }
 
         @Test
-        @DisplayName(".pdf filename sets application/pdf")
+        @DisplayName("bhvSerializationwire038 .pdf filename sets application/pdf")
         fun pdfFilenameSetsApplicationPdf() {
             assertEquals("application/pdf", contentTypeForFilename("doc.pdf").toString())
         }
 
         @Test
-        @DisplayName("filename without extension defaults to octet-stream")
+        @DisplayName("bhvSerializationwire040 filename without extension defaults to octet-stream")
         fun noExtensionDefaultsToOctetStream() {
             assertEquals("application/octet-stream", contentTypeForFilename("blob").toString())
         }
 
         @Test
-        @DisplayName("avatar.png file part Content-Type is image/png")
+        @DisplayName("bhvSerializationwire047 avatar.png file part Content-Type is image/png")
         fun avatarPngFileSetsImagePng() {
             // Parity rule 4: a multipart file part keyed by a name carrying an
             // extension sniffs the per-part Content-Type from that extension,
@@ -270,7 +292,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("multipart field name encoding")
     inner class MultipartFieldNameEncoding {
         @Test
-        @DisplayName("non-ASCII field name is preserved as raw UTF-8 on the wire")
+        @DisplayName("bhvSerializationwire046 non-ASCII field name is preserved as raw UTF-8 on the wire")
         fun nonAsciiFieldNamePreserved() {
             // Parity rule 5: a multipart field NAME containing non-ASCII
             // codepoints must be transmitted as raw UTF-8 in `name="..."`,
@@ -301,7 +323,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("raw-bytes part reuses field name as filename and defaults to octet-stream")
+        @DisplayName("bhvSerializationwire049 raw-bytes part reuses field name as filename and defaults to octet-stream")
         fun rawBytesPartReusesNameAsFilenameOctetStream() {
             // Cross-language contract: a multipart part carrying RAW BYTES with no
             // explicit filename reuses the FIELD NAME as the filename and guesses
@@ -338,7 +360,9 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("every part carries only Content-Disposition and Content-Type; field names are backslash-escaped")
+        @DisplayName(
+            "bhvSerializationwire042 every part carries only Content-Disposition and Content-Type; field names are backslash-escaped",
+        )
         fun partsCarryOnlyDispositionAndContentType() {
             var bodyBytes: ByteArray? = null
             var contentLength: Long? = null
@@ -382,7 +406,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("primitive parts are plain text in the stringify form; only an object is a JSON part")
+        @DisplayName("bhvSerializationwire048 primitive parts are plain text in the stringify form; only an object is a JSON part")
         fun primitivePartsArePlainTextAndObjectsAreJson() {
             var bodyBytes: ByteArray? = null
             val client =
@@ -432,7 +456,27 @@ class DefaultApiClientUnitTest {
     @DisplayName("default headers")
     inner class DefaultHeaders {
         @Test
-        @DisplayName("includes transport-level default headers")
+        @DisplayName("bhvTransport010 includes transport default headers")
+        fun includesTransportDefaultHeadersOnEveryCall() {
+            var capturedCustomHeader: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedCustomHeader = req.headers["X-Custom"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("X-Custom", "custom-value")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals("custom-value", capturedCustomHeader)
+        }
+
+        @Test
+        @DisplayName("bhvTransport039 includes transport-level default headers")
         fun includesTransportDefaultHeaders() {
             var capturedCustomHeader: String? = null
             val client =
@@ -452,7 +496,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("caller headers override transport default headers")
+        @DisplayName("bhvOptions005 caller headers override transport default headers")
         fun callerHeadersOverrideDefaults() {
             var capturedAccept: String? = null
             val client =
@@ -477,7 +521,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("default header layering")
     inner class DefaultHeaderLayering {
         @Test
-        @DisplayName("a caller header replaces a default header of another letter case")
+        @DisplayName("bhvTransport047 a caller header replaces a default header of another letter case")
         fun callerHeaderReplacesDefaultCaseInsensitively() {
             val seen = mutableListOf<List<String>>()
             val client =
@@ -514,7 +558,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("basic HTTP")
     inner class BasicHttp {
         @Test
-        @DisplayName("sends GET request and returns response")
+        @DisplayName("bhvTransport054 sends GET request and returns response")
         fun sendsGetRequestAndReturnsResponse() {
             val client = mockClient(body = "{\"method\":\"GET\"}")
             val apiClient = DefaultApiClient(client)
@@ -527,7 +571,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("sends POST with JSON body")
+        @DisplayName("bhvSerializationwire052 sends POST with JSON body")
         fun sendsPostWithJsonBody() {
             val client = mockClient(body = "{\"method\":\"POST\",\"body\":\"key\"}")
             val apiClient = DefaultApiClient(client)
@@ -547,7 +591,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("returns response headers")
+        @DisplayName("bhvTransport051 returns response headers")
         fun returnsResponseHeaders() {
             val engine =
                 MockEngine { _ ->
@@ -572,7 +616,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("returns non-2xx status code")
+        @DisplayName("bhvTransport050 returns non-2xx status code")
         fun returnsNon2xxStatusCode() {
             val client = mockClient(statusCode = HttpStatusCode.NotFound, body = "not found")
             val apiClient = DefaultApiClient(client)
@@ -585,7 +629,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("sends PUT request")
+        @DisplayName("bhvTransport055 sends PUT request")
         fun sendsPutRequest() {
             val client = mockClient(body = "{\"method\":\"PUT\"}")
             val apiClient = DefaultApiClient(client)
@@ -598,7 +642,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("sends DELETE request")
+        @DisplayName("bhvTransport053 sends DELETE request")
         fun sendsDeleteRequest() {
             val client = mockClient(body = "{\"method\":\"DELETE\"}")
             val apiClient = DefaultApiClient(client)
@@ -611,7 +655,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("returns JSON body for vendor JSON content type")
+        @DisplayName("bhvSerializationwire051 returns JSON body for vendor JSON content type")
         fun returnsJsonBodyForVendorJsonContentType() {
             val engine =
                 MockEngine { _ ->
@@ -632,7 +676,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("decodes response body with charset from Content-Type")
+        @DisplayName("bhvSerializationwire033 decodes response body with charset from Content-Type")
         fun decodesResponseBodyWithDeclaredCharset() {
             // 0xE9 is "é" in ISO-8859-1; in UTF-8 it would be a replacement char or mojibake.
             val engine =
@@ -652,7 +696,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("decodes BOM-less utf-16 response body as big-endian (RFC 2781)")
+        @DisplayName("bhvSerializationwire031 decodes BOM-less utf-16 response body as big-endian (RFC 2781)")
         fun decodesBomlessUtf16AsBigEndian() {
             // A response declaring charset=utf-16 with NO byte-order mark must
             // decode as UTF-16 BIG-ENDIAN per RFC 2781. The bytes 00 44 00 6F
@@ -688,7 +732,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("defaults to UTF-8 when Content-Type has no charset")
+        @DisplayName("bhvSerializationwire034 defaults to UTF-8 when Content-Type has no charset")
         fun defaultsToUtf8WhenNoCharset() {
             val engine =
                 MockEngine { _ ->
@@ -707,7 +751,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("falls back to UTF-8 for unknown charset without throwing")
+        @DisplayName("bhvSerializationwire035 falls back to UTF-8 for unknown charset without throwing")
         fun fallsBackToUtf8ForUnknownCharset() {
             val engine =
                 MockEngine { _ ->
@@ -726,7 +770,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("joins multi-value response headers")
+        @DisplayName("bhvTransport044 joins multi-value response headers")
         fun joinsMultiValueResponseHeaders() {
             val engine =
                 MockEngine { _ ->
@@ -760,7 +804,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("redirect guards")
     inner class RedirectGuards {
         @Test
-        @DisplayName("Gap 3.1: SENSITIVE_HEADER_NAMES includes static set")
+        @DisplayName("bhvTransport057 Gap 3.1: SENSITIVE_HEADER_NAMES includes static set")
         fun sensitiveHeaderNamesIncludesStaticSet() {
             // The constant must always contain the three RFC-standard sensitive
             // headers regardless of whether the spec declared any apiKey schemes.
@@ -771,7 +815,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.1: SENSITIVE_HEADER_NAMES includes API-key header names from spec")
+        @DisplayName("bhvTransport056 Gap 3.1: SENSITIVE_HEADER_NAMES includes API-key header names from spec")
         fun sensitiveHeaderNamesIncludesApiKeyNames() {
             val names = DefaultApiClient.SENSITIVE_HEADER_NAMES
             assertTrue(
@@ -785,7 +829,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.1: API-key header stripped on cross-origin redirect")
+        @DisplayName("bhvRedirects011 Gap 3.1: API-key header stripped on cross-origin redirect")
         fun apiKeyHeaderStrippedOnCrossOriginRedirect() {
             val apiKeyHeader = "X-API-Key"
             var hopHeaders: io.ktor.http.Headers? = null
@@ -821,7 +865,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.2: noRedirect=true returns the 307 verbatim")
+        @DisplayName("bhvRedirects021 Gap 3.2: noRedirect=true returns the 307 verbatim")
         fun noRedirectReturns307() {
             var hopCount = 0
             val engine =
@@ -853,7 +897,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.2: noRedirect=true returns the 308 verbatim")
+        @DisplayName("bhvRedirects022 Gap 3.2: noRedirect=true returns the 308 verbatim")
         fun noRedirectReturns308() {
             val engine =
                 MockEngine { _ ->
@@ -879,7 +923,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.2: noRedirect=true returns a 302 verbatim (no follow)")
+        @DisplayName("bhvRedirects015 Gap 3.2: noRedirect=true returns a 302 verbatim (no follow)")
         fun noRedirectReturns302() {
             var hopCount = 0
             val engine =
@@ -908,7 +952,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.1: cross-origin redirect strips sensitive headers")
+        @DisplayName("bhvRedirects012 Gap 3.1: cross-origin redirect strips sensitive headers")
         fun crossOriginRedirectStripsSensitiveHeaders() {
             var hopHeaders: io.ktor.http.Headers? = null
             var hopCount = 0
@@ -961,7 +1005,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a header whose name contains key, token or secret is stripped on a cross-origin redirect")
+        @DisplayName("bhvRedirects025 a header whose name contains key, token or secret is stripped on a cross-origin redirect")
         fun credentialLookingHeadersAreStrippedOnCrossOriginRedirect() {
             var hopHeaders: io.ktor.http.Headers? = null
             var hopCount = 0
@@ -1099,7 +1143,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("same-origin redirect keeps the sensitive headers")
+        @DisplayName("bhvRedirects024 same-origin redirect keeps the sensitive headers")
         fun sameOriginRedirectKeepsSensitiveHeaders() {
             var hopHeaders: io.ktor.http.Headers? = null
             var hopCount = 0
@@ -1133,7 +1177,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.2: noRedirect=false follows redirects normally")
+        @DisplayName("bhvRedirects014 Gap 3.2: noRedirect=false follows redirects normally")
         fun noRedirectFalseFollowsRedirects() {
             var hopCount = 0
             val engine =
@@ -1166,7 +1210,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("redirect to non-http(s) scheme throws ApiException")
+        @DisplayName("bhvRedirects020 redirect to non-http(s) scheme throws ApiException")
         fun redirectToNonHttpSchemeThrows() {
             val engine =
                 MockEngine { _ ->
@@ -1196,7 +1240,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.3: refuses to replay body on HTTPS->HTTP downgrade")
+        @DisplayName("bhvRetries017 Gap 3.3: refuses to replay body on HTTPS->HTTP downgrade")
         fun refusesBodyReplayOnHttpsToHttpDowngrade() {
             val engine =
                 MockEngine { _ ->
@@ -1226,7 +1270,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("refuses a body replay across HTTPS->HTTP with the canonical message and the response headers")
+        @DisplayName("bhvRetries020 refuses a body replay across HTTPS->HTTP with the canonical message and the response headers")
         fun downgradeRefusalHasCanonicalMessageAndHeaders() {
             val engine =
                 MockEngine { _ ->
@@ -1254,7 +1298,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a 3xx without a Location after the redirect budget is returned, never a too-many-redirects error")
+        @DisplayName("bhvRedirects023 a 3xx without a Location after the redirect budget is returned, never a too-many-redirects error")
         fun exhaustedBudgetWithoutLocationReturnsTheResponse() {
             var hop = 0
             val engine =
@@ -1300,7 +1344,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.3: HTTPS->HTTPS body replay allowed (no downgrade)")
+        @DisplayName("bhvRetries016 Gap 3.3: HTTPS->HTTPS body replay allowed (no downgrade)")
         fun httpsToHttpsBodyReplayAllowed() {
             // Both legs are HTTPS, so a 307 with a body replays the body and
             // completes — the downgrade guard fires only on HTTPS->HTTP.
@@ -1360,7 +1404,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("redirect-exhaustion-silent: throws when maxRedirects is exhausted")
+        @DisplayName("bhvRedirects018 redirect-exhaustion-silent: throws when maxRedirects is exhausted")
         fun throwsWhenRedirectBudgetExhausted() {
             // Server returns a 302 to itself on every hop. With maxRedirects=2
             // the budget is exhausted while the response is still a 3xx; the
@@ -1395,7 +1439,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("300 and 305 with a Location are returned as-is, never followed")
+        @DisplayName("bhvRedirects010 300 and 305 with a Location are returned as-is, never followed")
         fun nonRedirectThreeXxStatusesAreNotFollowed() {
             for (status in listOf(HttpStatusCode.MultipleChoices, HttpStatusCode.UseProxy)) {
                 var hopCount = 0
@@ -1431,7 +1475,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("response body read error")
     inner class ResponseBodyReadError {
         @Test
-        @DisplayName("response-body-read-error-not-wrapped: body-read failure is a NetworkException")
+        @DisplayName("bhvErrors043 response-body-read-error-not-wrapped: body-read failure is a NetworkException")
         fun bodyReadFailureWrappedInNetworkException() {
             // Headers are received (status 200) but the body channel is closed
             // with a failure cause, simulating a connection reset / truncated
@@ -1466,7 +1510,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("decoded response headers")
     inner class DecodedResponseHeaders {
         @Test
-        @DisplayName("D92: a decoded body drops Content-Encoding and Content-Length from the returned headers")
+        @DisplayName("bhvTransport027 D92: a decoded body drops Content-Encoding and Content-Length from the returned headers")
         fun decodedBodyDropsEncodingAndLength() {
             val gzipped =
                 java.io
@@ -1501,7 +1545,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("F1063: a Set-Cookie of one response is never replayed as a Cookie header")
+        @DisplayName("bhvRetries015 F1063: a Set-Cookie of one response is never replayed as a Cookie header")
         fun setCookieIsNeverReplayed() {
             val cookies = mutableListOf<String?>()
             val engine =
@@ -1528,7 +1572,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("Content-Encoding lie")
     inner class ContentEncodingLie {
         @Test
-        @DisplayName("Gap AL: Content-Encoding gzip on a non-gzip body surfaces ApiException")
+        @DisplayName("bhvTransport030 Gap AL: Content-Encoding gzip on a non-gzip body surfaces ApiException")
         fun lyingGzipContentEncodingWrappedInApiException() {
             // A hostile/misconfigured server claims `Content-Encoding: gzip` but
             // sends plaintext bytes. DefaultApiClient decodes the body itself
@@ -1559,7 +1603,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("unsupported Content-Encoding surfaces ApiException, never the still-encoded body")
+        @DisplayName("bhvErrors042 unsupported Content-Encoding surfaces ApiException, never the still-encoded body")
         fun unknownContentEncodingWrappedInApiException() {
             // An unrecognised Content-Encoding the client cannot decode must
             // surface a typed ApiException carrying the real status (200), never
@@ -1600,7 +1644,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("decodeContentEncoding passes identity and an empty value through and raises on any other value")
+        @DisplayName("bhvTransport033 decodeContentEncoding passes identity and an empty value through and raises on any other value")
         fun decodeContentEncodingPassesOnlyIdentityThrough() {
             val body = "payload".toByteArray()
             assertArrayEquals(body, decodeContentEncoding(body, "identity"))
@@ -1613,7 +1657,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap AL: empty body declared gzip passes through as empty, never raises")
+        @DisplayName("bhvTransport037 Gap AL: empty body declared gzip passes through as empty, never raises")
         fun emptyGzipBodyPassesThroughAsEmpty() {
             // A zero-byte body still advertising `Content-Encoding: gzip` has
             // nothing to inflate. The decompressor must return the empty body
@@ -1667,7 +1711,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a zlib-wrapped deflate response is decoded")
+        @DisplayName("bhvTransport035 a zlib-wrapped deflate response is decoded")
         fun decompressesDeflateResponse() {
             val response = encodedResponse(zlib("{\"ok\":true}", nowrap = false), "deflate")
             assertEquals(200, response.statusCode)
@@ -1675,7 +1719,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("raw headerless DEFLATE surfaces ApiException carrying the real status")
+        @DisplayName("bhvTransport049 raw headerless DEFLATE surfaces ApiException carrying the real status")
         fun rawDeflateIsRefused() {
             val engine =
                 MockEngine { _ ->
@@ -1695,7 +1739,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a gzip response is decoded")
+        @DisplayName("bhvTransport034 a gzip response is decoded")
         fun decompressesGzipResponse() {
             val out = java.io.ByteArrayOutputStream()
             java.util.zip
@@ -1705,7 +1749,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("without a caller value the client advertises gzip and deflate first")
+        @DisplayName("bhvSerializationwire029 without a caller value the client advertises gzip and deflate first")
         fun advertisesTheSupportedEncodingsByDefault() {
             var acceptEncoding: String? = null
             val client = mockClient(requestCapture = { req -> acceptEncoding = req.headers["Accept-Encoding"] })
@@ -1717,7 +1761,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a caller Accept-Encoding replaces the default")
+        @DisplayName("bhvTransport045 a caller Accept-Encoding replaces the default")
         fun callerAcceptEncodingWins() {
             var acceptEncoding: String? = null
             val client = mockClient(requestCapture = { req -> acceptEncoding = req.headers["Accept-Encoding"] })
@@ -1733,7 +1777,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a lower-case caller accept-encoding replaces the default instead of adding a second line")
+        @DisplayName("bhvTransport026 a lower-case caller accept-encoding replaces the default instead of adding a second line")
         fun lowerCaseCallerAcceptEncodingWins() {
             var values: List<String>? = null
             val client = mockClient(requestCapture = { req -> values = req.headers.getAll("Accept-Encoding") })
@@ -1753,7 +1797,9 @@ class DefaultApiClientUnitTest {
     @DisplayName("charsetFor")
     inner class CharsetParsing {
         @Test
-        @DisplayName("a charset parameter name is matched case-insensitively and may have spaces around the equals sign")
+        @DisplayName(
+            "bhvSerializationwire036 a charset parameter name is matched case-insensitively and may have spaces around the equals sign",
+        )
         fun matchesTheParameterNameLeniently() {
             assertEquals(Charsets.ISO_8859_1, charsetFor("text/plain; Charset=ISO-8859-1"))
             assertEquals(Charsets.ISO_8859_1, charsetFor("text/plain; CHARSET = \"ISO-8859-1\""))
@@ -1767,7 +1813,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a response declaring Charset=ISO-8859-1 is decoded with that charset")
+        @DisplayName("bhvSerializationwire032 a response declaring Charset=ISO-8859-1 is decoded with that charset")
         fun decodesAMixedCaseCharsetParameter() {
             val engine =
                 MockEngine { _ ->
@@ -1835,7 +1881,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("D74 (forced limit): with no TransportOptions.proxy the JVM default ProxySelector is consulted")
+        @DisplayName("bhvTransport046 D74 (forced limit): with no TransportOptions.proxy the JVM default ProxySelector is consulted")
         fun ambientProxySelectorIsConsultedWhenNoProxyIsConfigured() {
             val savedSelector = java.net.ProxySelector.getDefault()
             var selectorConsulted = false
@@ -1881,7 +1927,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("F827: a per-call timeout applies even when the client has no timeout of its own")
+        @DisplayName("bhvTransport028 F827: a per-call timeout applies even when the client has no timeout of its own")
         fun perCallTimeoutAppliesWithoutAClientTimeout() {
             withServer({ _ -> Thread.sleep(1500) }) { port ->
                 val apiClient =
@@ -1913,7 +1959,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("close lifecycle")
     inner class CloseLifecycle {
         @Test
-        @DisplayName("close-lifecycle-three-way: send after close throws IllegalStateException")
+        @DisplayName("bhvLifecycle023 close-lifecycle-three-way: send after close throws IllegalStateException")
         fun sendAfterCloseThrowsIllegalStateException() {
             // Using a client after close() is a wrong call order: the built-in
             // invalid-state error, not an SDK error.
@@ -1930,7 +1976,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("F1078: close lets a request already in flight finish and releases the transport after the last one")
+        @DisplayName("bhvLifecycle021 F1078: close lets a request already in flight finish and releases the transport after the last one")
         fun closeLetsAnInFlightRequestFinishThenReleasesTheTransport() {
             val engine =
                 MockEngine { _ ->
@@ -1982,7 +2028,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("CA certificate")
     inner class CaCertificate {
         @Test
-        @DisplayName("ca-cert-fail-fast: non-existent caCertPath fails at construction")
+        @DisplayName("bhvErrors041 ca-cert-fail-fast: non-existent caCertPath fails at construction")
         fun nonexistentCaCertPathFailsFast() {
             // An explicitly configured CA certificate path that cannot be read
             // or parsed must fail fast at construction rather than silently
@@ -2034,7 +2080,7 @@ class DefaultApiClientUnitTest {
     @DisplayName("network failures")
     inner class NetworkFailures {
         @Test
-        @DisplayName("connection refused raises NetworkException with status 0 and the cause kept")
+        @DisplayName("bhvTransport032 connection refused raises NetworkException with status 0 and the cause kept")
         fun connectionRefusedRaisesNetworkException() {
             val apiClient = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
             val ex =
@@ -2053,7 +2099,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Ktor request timeout raises NetworkTimeoutException")
+        @DisplayName("bhvTransport058 Ktor request timeout raises NetworkTimeoutException")
         fun requestTimeoutRaisesNetworkTimeoutException() {
             val engine =
                 MockEngine { _ ->
@@ -2077,7 +2123,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("F861: a network error message never carries the query of the request URL")
+        @DisplayName("bhvRedirects019 F861: a network error message never carries the query of the request URL")
         fun networkErrorMessageDropsTheQuery() {
             val engine =
                 MockEngine { _ ->
@@ -2104,7 +2150,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("connect and socket deadlines raise NetworkTimeoutException")
+        @DisplayName("bhvTransport031 connect and socket deadlines raise NetworkTimeoutException")
         fun connectAndSocketDeadlinesRaiseNetworkTimeoutException() {
             // The `timeout` option arms three Ktor deadlines from one budget —
             // request, connect and socket — so every one of them must classify
@@ -2269,7 +2315,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("maxRetries 0 sends the request once")
+        @DisplayName("bhvRetries018 maxRetries 0 sends the request once")
         fun maxRetriesZeroDisablesRetries() {
             val apiClient = retrying(listOf(503, 200), maxRetries = 0)
 
@@ -2281,7 +2327,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("maxRetries bounds the number of retries")
+        @DisplayName("bhvRetries014 maxRetries bounds the number of retries")
         fun maxRetriesBoundsTheNumberOfRetries() {
             val apiClient = retrying(listOf(503), maxRetries = 4)
 
@@ -2312,7 +2358,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a network error before a response is retried")
+        @DisplayName("bhvRetries013 a network error before a response is retried")
         fun aNetworkErrorIsRetried() {
             val apiClient = retrying(listOf(java.io.IOException("connection reset"), 200))
 
@@ -2378,7 +2424,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Retry-After is capped at 60 seconds")
+        @DisplayName("bhvRetries023 Retry-After is capped at 60 seconds")
         fun retryAfterIsCappedAtSixtySeconds() {
             val apiClient = retrying(listOf(503, 200), retryAfter = "3600")
 
@@ -2388,7 +2434,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Retry-After accepts an HTTP date and ignores one that is malformed")
+        @DisplayName("bhvRetries022 Retry-After accepts an HTTP date and ignores one that is malformed")
         fun retryAfterParsing() {
             val now = java.time.Instant.parse("2030-01-01T00:00:00Z")
             assertEquals(
@@ -2406,7 +2452,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("the retries never extend the end-to-end timeout")
+        @DisplayName("bhvRetries025 the retries never extend the end-to-end timeout")
         fun retriesStayInsideTheTimeoutBudget() {
             val apiClient = retrying(listOf(503, 200), timeout = 1000L, retryAfter = "5")
 
