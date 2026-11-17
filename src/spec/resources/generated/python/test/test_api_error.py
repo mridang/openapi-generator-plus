@@ -96,7 +96,7 @@ class TestApiErrorShape:
 
         assert str(err) == "Error message: the server returns an error"
 
-    def test_empty_message_renders_the_default_text(self) -> None:
+    def test_bhv_errors_064_empty_message_renders_the_default_text(self) -> None:
         err = ApiException(status_code=0, message="")
 
         assert str(err) == "Error message: the server returns an error"
@@ -121,6 +121,15 @@ class TestExceptionHierarchy:
         assert issubclass(BadRequestException, ClientException)
         assert issubclass(ClientException, ApiException)
         assert issubclass(ApiException, OpenAPIException)
+
+    def test_bhv_errors_061_a_bad_request_error_is_a_client_error_an_api_error_and_an_openapi_error(
+        self,
+    ) -> None:
+        err = BadRequestException(message="bad request")
+
+        assert isinstance(err, ClientException)
+        assert isinstance(err, ApiException)
+        assert isinstance(err, OpenAPIException)
 
     def test_bhv_errors_020_network_errors_inherit_through_to_api_exception(
         self,
@@ -236,6 +245,61 @@ class TestFromResponse:
 
         assert type(err) is ClientException
         assert err.status_code == 418
+
+    def test_bhv_errors_058_a_400_response_maps_to_the_bad_request_error(self) -> None:
+        err = ApiException.from_response(400, None, None)
+
+        assert type(err) is BadRequestException
+        assert err.status_code == 400
+
+    def test_bhv_errors_059_a_403_response_maps_to_the_forbidden_error(self) -> None:
+        err = ApiException.from_response(403, None, None)
+
+        assert type(err) is ForbiddenException
+        assert err.status_code == 403
+
+    def test_bhv_errors_060_a_404_response_maps_to_the_not_found_error(self) -> None:
+        err = ApiException.from_response(404, None, None)
+
+        assert type(err) is NotFoundException
+        assert err.status_code == 404
+
+    def test_bhv_errors_066_a_429_response_becomes_a_too_many_requests_error_that_is_a_client_error(
+        self,
+    ) -> None:
+        err = ApiException.from_response(429, None, None)
+
+        assert type(err) is TooManyRequestsException
+        assert isinstance(err, ClientException)
+        assert err.status_code == 429
+
+    def test_bhv_errors_067_a_409_response_becomes_a_conflict_error(self) -> None:
+        err = ApiException.from_response(409, None, None)
+
+        assert type(err) is ConflictException
+        assert err.status_code == 409
+
+    def test_bhv_errors_068_a_422_response_becomes_an_unprocessable_entity_error(
+        self,
+    ) -> None:
+        err = ApiException.from_response(422, None, None)
+
+        assert type(err) is UnprocessableEntityException
+        assert err.status_code == 422
+
+    def test_bhv_errors_069_a_500_response_becomes_an_internal_server_error(
+        self,
+    ) -> None:
+        err = ApiException.from_response(500, None, None)
+
+        assert type(err) is InternalServerErrorException
+        assert err.status_code == 500
+
+    def test_bhv_errors_070_a_502_response_becomes_a_server_error(self) -> None:
+        err = ApiException.from_response(502, None, None)
+
+        assert type(err) is ServerException
+        assert err.status_code == 502
 
     def test_status_at_or_above_600_is_not_a_server_error(self) -> None:
         # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
@@ -372,7 +436,9 @@ class TestApiErrorRendering:
 
         assert str(err) == "boom"
 
-    def test_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out(self) -> None:
+    def test_bhv_errors_065_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out(
+        self,
+    ) -> None:
         err = ApiException(
             status_code=502, message="bad gateway", response_body="a" * 3000
         )
@@ -597,3 +663,10 @@ class TestOAuth2ServerExceptionMessage:
 
         assert str(err) == expected
         assert err.raw_body == raw_body
+
+    def test_bhv_authoauthtwotokenmgr_047_an_oauth2_server_error_without_a_code_names_the_status_and_the_raw_body(
+        self,
+    ) -> None:
+        err = OAuth2ServerException(502, None, None, None, "Bad Gateway")
+
+        assert str(err) == "Token request failed with status 502: Bad Gateway"

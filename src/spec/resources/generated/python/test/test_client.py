@@ -16,7 +16,7 @@ from petstore_client.transport_options import TransportOptions
 
 
 class TestClient:
-    def test_bearer_rejects_crlf(self) -> None:
+    def test_bhv_authbearer_028_bearer_rejects_crlf(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator("/api/v3", "tok\r\nInjected: yes")
 
@@ -105,7 +105,7 @@ def _host(client: Client) -> str:
 class TestClientCredentials:
     """F862: an argument wins, then the environment variable read once at construction."""
 
-    def test_an_explicit_host_and_token_win_over_the_environment(
+    def test_bhv_lifecycle_028_an_explicit_host_and_token_win_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(
@@ -116,6 +116,15 @@ class TestClientCredentials:
         client = Client.with_token("https://arg.example.com", "arg-token")
 
         assert _host(client) == "https://arg.example.com"
+        assert _authorization(client) == "Bearer arg-token"
+
+    def test_bhv_lifecycle_032_a_token_passed_to_the_client_is_preferred_to_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "env-token")
+
+        client = Client.with_token("https://arg.example.com", "arg-token")
+
         assert _authorization(client) == "Bearer arg-token"
 
     def test_the_environment_fills_what_was_not_passed(
@@ -189,7 +198,9 @@ class TestClientCredentials:
 class TestClientSchemeCredentials:
     """F857: one optional credential per security scheme, named after the scheme."""
 
-    def test_a_client_built_with_no_credential_is_refused(self) -> None:
+    def test_bhv_lifecycle_026_a_client_built_with_no_credential_is_refused(
+        self,
+    ) -> None:
         with pytest.raises(ValueError, match="At least one credential is required"):
             Client()
 
@@ -313,7 +324,7 @@ class TestClientSchemeCredentials:
 
         assert _schemes(client) == {"ssoAuth": held}
 
-    def test_the_base_url_comes_from_the_first_credential_the_authenticator_first(
+    def test_bhv_lifecycle_030_the_base_url_comes_from_the_first_credential_the_authenticator_first(
         self,
     ) -> None:
         scheme = BearerAuthenticator("https://scheme.example.com", "tok")
@@ -466,7 +477,7 @@ class TestClientClose:
 
         assert pool.clears == 1
 
-    async def test_a_closed_client_rejects_a_new_request_with_the_client_closed_error(
+    async def test_bhv_lifecycle_035_a_closed_client_rejects_a_new_request_with_the_client_closed_error(
         self,
     ) -> None:
         pool = _SlowPool()
