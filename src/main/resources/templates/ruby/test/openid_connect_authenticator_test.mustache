@@ -336,7 +336,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(auth.build_authorization_url).must_include 'https://auth.example.com/authorize'
   end
 
-  it 'rejects a plain http discovered endpoint on a non-loopback host' do
+  it 'bhv_authoidc_005 rejects a plain http discovered endpoint on a non-loopback host' do
     client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize',
                                                         'token_endpoint' => 'http://auth.example.com/token' } }])
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(

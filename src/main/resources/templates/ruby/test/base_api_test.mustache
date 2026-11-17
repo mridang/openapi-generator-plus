@@ -1184,7 +1184,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_headers['Accept-Language']).must_equal 'en'
   end
 
-  it 'hands the timeout and retry count of the call to the transport' do
+  it 'bhv_retries_009 hands the timeout and retry count of the call to the transport' do
     client = RecordingDefaultApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)

@@ -367,7 +367,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).must_include 'client_secret=secret~%2A%21%27%28%29'
   end
 
-  it 'shows the host and client id but not the secret in inspect' do
+  it 'bhv_authoauthtwoauthcode_025 shows the host and client id but not the secret in inspect' do
     _(auth.inspect).must_equal(
       "#<#{auth.class.name} host=\"https://api.example.com\" client_id=\"my_client_id\" client_secret=\"***\">"
     )

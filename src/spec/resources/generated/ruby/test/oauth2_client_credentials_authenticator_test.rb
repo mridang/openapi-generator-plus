@@ -167,7 +167,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(decoded).must_equal 'id%2Bwith%2Fspecial:secret%26with%3Dstuff'
   end
 
-  it 'masks the client secret in inspect' do
+  it 'bhv_authoauthtwoclientcred_007 masks the client secret in inspect' do
     # client-secret-leak-in-default-repr: the default Object#inspect dumps
     # every instance variable, leaking @client_secret. The overridden
     # inspect must mask it.
@@ -228,7 +228,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(body_client.last_body).must_include 'client_secret=secret~%2A%21%27%28%29'
   end
 
-  it 'shows the host, client id, token URL, scopes and auth method but not the secret in inspect' do
+  it 'bhv_authoauthtwoclientcred_014 shows the host, client id, token URL, scopes and auth method but not the secret in inspect' do
     secret_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com', 'my_client_id', 'leaky_client_secret', 'https://auth.example.com/token', %w[read write]
     )

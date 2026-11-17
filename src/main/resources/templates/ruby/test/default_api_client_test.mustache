@@ -55,7 +55,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(err.cause).must_be_kind_of(Faraday::SSLError)
     end
 
-    it 'rejects a server certificate the configured CA did not sign' do
+    it 'bhv_transport_023 rejects a server certificate the configured CA did not sign' do
       key = OpenSSL::PKey::RSA.new(2048)
       other_ca = OpenSSL::X509::Certificate.new
       other_ca.version = 2
@@ -812,7 +812,7 @@ describe {{moduleName}}::DefaultApiClient do
       Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
     end
 
-    it 'sends the request through the supplied connection with the SDK user agent applied' do
+    it 'bhv_transport_040 sends the request through the supplied connection with the SDK user agent applied' do
       seen = [] # : Array[Hash[String, String]]
       transport = {{moduleName}}::TransportOptions.builder.connection(injected_connection(seen)).user_agent('sdk-ua/1').build
       client = {{moduleName}}::DefaultApiClient.new(transport)
@@ -823,7 +823,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(seen.first['User-Agent']).must_equal('sdk-ua/1')
     end
 
-    it 'does not close the supplied connection when the client is closed' do
+    it 'bhv_lifecycle_009 does not close the supplied connection when the client is closed' do
       conn = injected_connection([])
       closed = [] # : Array[bool]
       conn.define_singleton_method(:close) { closed << true }

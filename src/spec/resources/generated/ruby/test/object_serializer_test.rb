@@ -841,7 +841,7 @@ describe Petstore::Client::ObjectSerializer do
   # ── Gap V — NaN/Infinity rejection (RFC 8259 §6) ──
 
   describe 'NaN/Infinity rejection' do
-    it 'serialize raises on NaN' do
+    it 'bhv_serializationobject_153 serialize raises on NaN' do
       # ObjectSerializer wraps JSON::GeneratorError as SerializationError.
       assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.serialize({ 'val' => Float::NAN })
@@ -1593,7 +1593,7 @@ describe Petstore::Client::ObjectSerializer do
   # trailing .0 for whole numbers, so the deserializer must accept any
   # Numeric, not strictly a Ruby Float.
   describe 'double field accepts an integral JSON value' do
-    it 'coerces an integral JSON number into a Float' do
+    it 'bhv_serializationobject_071 coerces an integral JSON number into a Float' do
       loc = Petstore::Client::ObjectSerializer.deserialize('{"lat":5,"lng":-3}', 'PhotoMetadataLocation')
       _(loc).must_be_kind_of(Petstore::Client::Models::PhotoMetadataLocation)
       _(loc.lat).must_equal(5.0)

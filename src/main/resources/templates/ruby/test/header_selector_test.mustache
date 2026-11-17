@@ -60,6 +60,24 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_equal('application/json')
     end
 
+    it 'bhv_headers_006 does not set Accept header when all entries are blank' do
+      headers = @header_selector.select_headers(
+        ['', '   ', nil],
+        'application/json',
+        false
+      )
+      _(headers['Accept']).must_be_nil
+    end
+
+    it 'bhv_headers_009 filters out empty and blank entries' do
+      headers = @header_selector.select_headers(
+        ['', '   ', 'application/json'],
+        'application/json',
+        false
+      )
+      _(headers['Accept']).must_equal('application/json')
+    end
+
     it 'bhv_headers_004 does not set Accept header when accepts empty' do
       headers = @header_selector.select_headers(
         [],

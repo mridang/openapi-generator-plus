@@ -13,7 +13,7 @@ require 'petstore_client'
 describe Petstore::Client::Auth::ApiKeyAuthenticator do
   parallelize_me!
 
-  it 'valid header key is exposed via auth_headers' do
+  it 'bhv_authapikey_014 valid header key is exposed via auth_headers' do
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-API-Key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::HEADER
     )

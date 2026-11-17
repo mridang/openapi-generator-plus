@@ -8,7 +8,7 @@ require '{{gemName}}'
 describe {{moduleName}}::Auth::ApiKeyAuthenticator do
   parallelize_me!
 
-  it 'valid header key is exposed via auth_headers' do
+  it 'bhv_authapikey_014 valid header key is exposed via auth_headers' do
     auth = {{moduleName}}::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-API-Key', 'abc123', {{moduleName}}::Auth::ApiKeyLocation::HEADER
     )

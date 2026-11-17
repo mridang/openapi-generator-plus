@@ -136,7 +136,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(error.message).must_equal 'Bearer token must not be empty'
     end
 
-    it 'fails at construction when there is no token at all' do
+    it 'bhv_lifecycle_013 fails at construction when there is no token at all' do
       error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: {}) }).must_raise ArgumentError
 
       _(error.message).must_equal 'Bearer token must not be empty'

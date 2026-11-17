@@ -1527,7 +1527,7 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  it 'keeps content-encoding and content-length on an identity response' do
+  it 'bhv_transport_033 keeps content-encoding and content-length on an identity response' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/plain') do
         [200, { 'content-type' => 'application/json', 'content-encoding' => 'identity',
@@ -1683,7 +1683,7 @@ describe 'DefaultApiClientUnit' do
 
   # ── deflate ──
   # Content-Encoding: deflate is the zlib format (RFC 1950), not raw DEFLATE.
-  it 'decompresses a valid deflate-encoded body' do
+  it 'bhv_transport_035 decompresses a valid deflate-encoded body' do
     compressed = Zlib::Deflate.deflate('{"ok":true}')
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/deflate') do
@@ -1961,7 +1961,7 @@ describe 'DefaultApiClientUnit' do
     _(envs.length).must_equal 1
   end
 
-  it 'does not send a multipart body twice' do
+  it 'bhv_retries_003 does not send a multipart body twice' do
     outcome, envs, delays = run_retry_probe(verb: :post, body: { 'field' => 'value' }) { [503, {}, 'busy'] }
 
     _(outcome.status_code).must_equal 503
@@ -1984,7 +1984,7 @@ describe 'DefaultApiClientUnit' do
     _(delays).must_be_empty
   end
 
-  it 'raises the network error instead of waiting past the timeout budget' do
+  it 'bhv_retries_025 raises the network error instead of waiting past the timeout budget' do
     options = {{moduleName}}::TransportOptions.builder.timeout(100).build
     outcome, envs, delays = run_retry_probe(options: options) { raise Faraday::ConnectionFailed, 'down' }
 
@@ -1993,7 +1993,7 @@ describe 'DefaultApiClientUnit' do
     _(delays).must_be_empty
   end
 
-  it 'rebuilds the headers of a retry, authentication included' do
+  it 'bhv_retries_005 rebuilds the headers of a retry, authentication included' do
     renewed = -> { { 'Authorization' => 'Bearer new' } }
     _outcome, envs, = run_retry_probe(
       headers: { 'Authorization' => 'Bearer old' }, retry_headers: renewed, &ok_after(1, [503, {}, 'busy'])
