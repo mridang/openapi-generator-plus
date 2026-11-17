@@ -1539,6 +1539,15 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject024 an unknown inline enum value is rejected")
+        fun unknownInlineEnumValueIsRejected() {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"phase\":\"sold-out\"}")
+            }
+            assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
+        }
+
+        @Test
         @DisplayName(
             "bhvSerializationobject032 constraint keywords are not enforced: slug, " +
                 "nickname and quantity decode as given",
@@ -1555,6 +1564,16 @@ class ObjectSerializerTest {
             assertTrue(serializer.serialize(pet).contains("\"nickname\":\"ZZZZZZZZZZ\""))
             val order = serializer.deserialize<{{modelPackage}}.Order>("{\"quantity\":500}")
             assertEquals(500, order!!.quantity)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject010 a nickname longer than its declared maximum still decodes and round-trips")
+        fun overlongNicknameDecodesAndRoundTrips() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>(
+                "{\"name\":\"n\",\"photoUrls\":[\"u\"],\"nickname\":\"ZZZZZZZZZZ\"}"
+            )
+            assertEquals("ZZZZZZZZZZ", pet!!.nickname)
+            assertEquals("ZZZZZZZZZZ", serializer.deserialize<{{modelPackage}}.Pet>(serializer.serialize(pet))!!.nickname)
         }
 
         @Test
@@ -2211,6 +2230,20 @@ class ObjectSerializerTest {
             val withPassword =
                 serializer.deserialize<{{modelPackage}}.Account>("{\"id\":7,\"username\":\"u\",\"password\":\"p\"}")
             assertEquals("p", withPassword!!.password)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject014 a readOnly property is decoded from a response")
+        fun readOnlyPropertyIsDecoded() {
+            val decoded = serializer.deserialize<{{modelPackage}}.Account>("{\"id\":7,\"username\":\"u\"}")
+            assertEquals(7L, decoded!!.id)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject018 a writeOnly property is serialized on the wire")
+        fun writeOnlyPropertyIsSerialized() {
+            val json = serializer.serialize({{modelPackage}}.Account(username = "u", password = "p"))
+            assertTrue(json.contains("\"password\":\"p\""), json)
         }
 
         // A payload nested ~600 deep parses fine; ~1500 deep exceeds the 1000

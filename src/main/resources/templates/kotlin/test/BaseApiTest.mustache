@@ -228,7 +228,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("bhvRetries005 F855: a 401 drops the cached token and replays the request once with a fresh one")
+    @DisplayName("bhvRetries001 F855: a 401 drops the cached token and replays the request once with a fresh one")
     fun unauthorizedAnswerReplaysTheRequestOnceWithAFreshToken() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = RotatingOAuthAuthenticator()
@@ -286,6 +286,31 @@ class BaseApiTest {
 
         assertEquals(1, client.sentHeaders.size)
         assertEquals(1, auth.invalidations, "the cached token is still dropped")
+    }
+
+    @Test
+    @DisplayName("bhvRetries006 a multipart body is sent once and the 401 is reported, not replayed")
+    fun aMultipartBodyIsSentOnlyOnce() {
+        val client = ScriptedApiClient(listOf(401, 200))
+        val auth = RotatingOAuthAuthenticator()
+        val api = object : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+            suspend fun call() =
+                invokeApi(
+                    "POST",
+                    "/upload",
+                    mutableMapOf(),
+                    mutableMapOf(),
+                    mapOf("file" to "bytes".toByteArray()),
+                    arrayOf("application/json"),
+                    "multipart/form-data",
+                    auth,
+                )
+        }
+
+        assertThrowsExactly(UnauthorizedException::class.java) { runBlocking { api.call() } }
+
+        assertEquals(1, client.sentBodies.size, "the multipart body must not be sent a second time")
+        assertEquals(1, client.sentHeaders.size)
     }
 
     @Test
@@ -1524,6 +1549,22 @@ class BaseApiTest {
             }
             assertEquals("application/xml", client.capturedHeaders["Accept"],
                 "config default Accept must override the operation-negotiated application/json")
+        }
+
+        @Test
+        @DisplayName("bhvOperations008 config default headers Accept wins over every negotiated Accept value")
+        fun configDefaultHeadersAcceptWinsOverAllNegotiatedValues() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("Accept", "application/xml")
+                .build()
+            val testApi = TestableApiWithConfig(client, config)
+            runBlocking {
+                testApi.call("GET", "/test/echo", accepts = arrayOf("application/json", "text/plain"))
+            }
+            assertEquals("application/xml", client.capturedHeaders["Accept"],
+                "the configured Accept must replace the whole negotiated list")
         }
     }
 
