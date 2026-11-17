@@ -736,7 +736,7 @@ describe Petstore::Client::Api::PetApi do
       path = String(Object.const_source_location(Petstore::Client::Api::PetApi.name)&.first)
       source = File.read(path)
       _(source).must_include(%q(# Get a <plain> "text" summary & it's short))
-      _(source).must_include(%q(# Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done))
+      _(source).must_include(%q(# Returns '''plain''' text for <tt>/pets/#{id}</tt> and <b> & "c" it's done))
     end
 
     it 'shows the options parameter prose without literal escapes' do
