@@ -236,7 +236,7 @@ fn test_bhv_serializationobject_171_decimal_type_number_serializes_as_unquoted_n
 }
 
 #[test]
-fn test_naive_time_serde_round_trip() {
+fn test_bhv_serializationobject_064_naive_time_serde_round_trip() {
     use chrono::NaiveTime;
     use serde::{Deserialize, Serialize};
 
@@ -374,4 +374,130 @@ fn test_bhv_serializationobject_054_proto_duration_parses_fractional_seconds() {
         proto_duration::parse("2.000000001s").unwrap(),
         Duration::seconds(2) + Duration::nanoseconds(1)
     );
+}
+
+fn test_bhv_serializationobject_057_double_literal_overflowing_to_infinity_is_refused() {
+    use {{packageName}}::models::Pet;
+
+    let body = r#"{"name":"Rex","photoUrls":[],"weightKg":1e400}"#;
+    assert!(serde_json::from_str::<Pet>(body).is_err(), "1e400 must not decode to infinity");
+}
+
+#[test]
+fn test_bhv_serializationobject_070_deserializes_json_to_typed_model() {
+    use {{packageName}}::models::{Pet, PetStatusEnum};
+
+    let body = r#"{"id":7,"name":"Rex","photoUrls":["u"],"status":"sold"}"#;
+    let pet: Pet = serde_json::from_str(body).expect("failed to deserialize Pet");
+    assert_eq!(pet.id, Some(7));
+    assert_eq!(pet.name, "Rex");
+    assert_eq!(pet.status, Some(PetStatusEnum::Sold));
+}
+
+#[test]
+fn test_bhv_serializationobject_071_double_field_deserializes_from_integral_json_value() {
+    use {{packageName}}::models::Pet;
+
+    let pet: Pet = serde_json::from_str(r#"{"name":"Rex","photoUrls":[],"weightKg":2}"#)
+        .expect("an integral JSON number must deserialize into a double field");
+    assert_eq!(pet.weight_kg, Some(2.0));
+}
+
+#[test]
+fn test_bhv_serializationobject_074_edge_cases_slug_accepts_a_value_matching_its_pattern() {
+    use {{packageName}}::models::EdgeCases;
+
+    let body = r#"{"slug":"7/xyz"}"#;
+    let edge: EdgeCases = serde_json::from_str(body).expect("a matching slug must decode");
+    assert_eq!(edge.slug.as_deref(), Some("7/xyz"));
+    assert_eq!(serde_json::to_string(&edge).expect("failed to encode EdgeCases"), body);
+}
+
+#[test]
+fn test_bhv_serializationobject_079_format_byte_scalar_and_array_fields_round_trip_through_base64() {
+    use {{packageName}}::models::BinaryVault;
+
+    let mut vault = BinaryVault::new();
+    vault.seal = Some(vec![1, 2, 3]);
+    vault.shards = Some(vec![vec![4, 5], vec![6]]);
+    let json = serde_json::to_string(&vault).expect("failed to serialize BinaryVault");
+    assert!(json.contains(r#""seal":"AQID""#), "{json}");
+    assert!(json.contains(r#""shards":["BAU=","Bg=="]"#), "{json}");
+    let back: BinaryVault = serde_json::from_str(&json).expect("failed to deserialize BinaryVault");
+    assert_eq!(back, vault);
+}
+
+#[test]
+fn test_bhv_serializationobject_081_format_protobuf_duration_emits_whole_seconds() {
+    use {{packageName}}::models::EdgeCases;
+    use chrono::Duration;
+
+    let mut edge = EdgeCases::new();
+    edge.retry_after = Some(Duration::seconds(3600));
+    let json = serde_json::to_string(&edge).expect("failed to serialize EdgeCases");
+    assert!(json.contains(r#""retryAfter":"3600s""#), "{json}");
+
+    edge.retry_after = Some(Duration::seconds(45));
+    let json = serde_json::to_string(&edge).expect("failed to serialize EdgeCases");
+    assert!(json.contains(r#""retryAfter":"45s""#), "{json}");
+}
+
+#[test]
+fn test_bhv_serializationobject_083_from_json_throws_when_a_required_field_is_absent() {
+    use {{packageName}}::models::Pet;
+
+    let err = serde_json::from_str::<Pet>(r#"{"photoUrls":[]}"#)
+        .expect_err("a payload without the required name must be rejected");
+    assert!(err.to_string().contains("name"), "{err}");
+}
+
+#[test]
+fn test_bhv_serializationobject_086_null_on_a_required_non_nullable_field_throws() {
+    use {{packageName}}::models::Pet;
+
+    let result = serde_json::from_str::<Pet>(r#"{"name":null,"photoUrls":[]}"#);
+    assert!(result.is_err(), "a null required name must not decode");
+}
+
+#[test]
+fn test_bhv_serializationobject_090_equal_content_is_equal_though_every_array_is_distinct() {
+    use {{packageName}}::models::Pet;
+
+    fn pet(urls: &[&str]) -> Pet {
+        let mut pet = Pet::new("Rex".to_string(), urls.iter().map(|u| u.to_string()).collect());
+        pet.nickname = Some("r".to_string());
+        pet
+    }
+
+    assert_eq!(pet(&["a", "b"]), pet(&["b", "a"]));
+    assert_ne!(pet(&["a", "b"]), pet(&["a", "c"]));
+}
+
+#[test]
+fn test_bhv_serializationobject_094_invalid_base64_in_a_byte_field_is_rejected() {
+    use {{packageName}}::models::BinaryVault;
+
+    let result = serde_json::from_str::<BinaryVault>(r#"{"seal":"!!not base64!!"}"#);
+    assert!(result.is_err(), "invalid base64 must not decode into a byte field");
+}
+
+#[test]
+fn test_bhv_serializationobject_106_negative_fractional_duration_keeps_the_sign() {
+    use {{packageName}}::proto_duration;
+    use chrono::Duration;
+
+    let negative = -Duration::milliseconds(1500);
+    assert_eq!(proto_duration::format(&negative), "-1.500s");
+    assert_eq!(proto_duration::parse("-1.500s").unwrap(), negative);
+}
+
+#[test]
+fn test_bhv_serializationobject_109_non_lowercase_string_enum_keeps_wire_casing_on_round_trip() {
+    use {{packageName}}::models::{Availability, StockItem};
+
+    let body = r#"{"priority":1,"availability":"Sold"}"#;
+    let item: StockItem = serde_json::from_str(body).expect("failed to deserialize StockItem");
+    assert_eq!(item.availability, Some(Availability::Sold));
+    let json = serde_json::to_string(&item).expect("failed to serialize StockItem");
+    assert!(json.contains(r#""availability":"Sold""#), "{json}");
 }

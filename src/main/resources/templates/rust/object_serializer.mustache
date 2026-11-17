@@ -1258,7 +1258,7 @@ mod tests {
     /* -- Unknown fields tolerated on deserialize (no deny_unknown_fields) -- */
 
     #[test]
-    fn test_unknown_fields_tolerated_on_deserialize() {
+    fn test_bhv_serializationobject_082_unknown_fields_tolerated_on_deserialize() {
         /* By default the SDK accepts and ignores additional fields the server
          * includes that are not declared in the schema. Without this,
          * server-side additions break clients. */
@@ -1439,7 +1439,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_string_slice_tsv() {
+    fn test_bhv_serializationobject_101_to_query_value_string_slice_tsv() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_query_value(&items, "tsv");
         match result {
@@ -1449,11 +1449,38 @@ mod tests {
     }
 
     #[test]
-    fn test_to_query_value_string_slice_pipes() {
+    fn test_bhv_serializationobject_099_to_query_value_string_slice_pipes() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_query_value(&items, "pipes");
         match result {
             QueryValue::Single(s) => assert_eq!(s, "a|b|c"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_097_to_query_value_joins_with_comma_by_default() {
+        let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        match object_serializer::to_query_value(&items, "") {
+            QueryValue::Single(s) => assert_eq!(s, "a,b,c"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_098_to_query_value_joins_non_string_items_with_comma_for_csv() {
+        let items = vec![1, 2, 3];
+        match object_serializer::to_query_value(&items, "csv") {
+            QueryValue::Single(s) => assert_eq!(s, "1,2,3"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_100_to_query_value_joins_non_string_items_with_space_for_ssv() {
+        let items = vec![1, 2, 3];
+        match object_serializer::to_query_value(&items, "ssv") {
+            QueryValue::Single(s) => assert_eq!(s, "1 2 3"),
             _ => panic!("expected QueryValue::Single"),
         }
     }
@@ -1475,7 +1502,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_header_value_string_slice() {
+    fn test_bhv_serializationobject_096_to_header_value_string_slice() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_header_value(&items);
         assert_eq!(result, "a,b,c");
@@ -1580,6 +1607,12 @@ mod tests {
     fn test_bhv_serializationobject_159_stringify_string() {
         let result = object_serializer::stringify(&"hello".to_string());
         assert_eq!(result, "hello");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_078_stringify_float_returns_string_representation() {
+        assert_eq!(object_serializer::stringify(&1.5_f64), "1.5");
+        assert_eq!(object_serializer::stringify(&-2.25_f64), "-2.25");
     }
 
     #[test]
@@ -1795,7 +1828,7 @@ mod tests {
     {{/generateTests}}
     /* serialize of a None option emits the literal JSON null. */
     #[test]
-    fn test_serialize_none_emits_null() {
+    fn test_bhv_serializationobject_087_serialize_none_emits_null() {
         let json = object_serializer::serialize(&Option::<i32>::None)
             .expect("serialize must succeed");
         assert_eq!(json, "null");
