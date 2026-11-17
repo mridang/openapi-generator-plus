@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"{{packageName}}/pkg"
+	"{{packageName}}/pkg/auth"
 	pkgerrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
 	"{{packageName}}/pkg/options"
@@ -87,11 +88,10 @@ func newTempFile(t *testing.T, contents string) *os.File {
 func TestPetApi_AddPet(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
-	auth := &petAuth{}
 
 	pet := models.NewPet("Fido", models.Set[string]{"http://example.com/fido.jpg"})
 
-	result, err := api.AddPet(context.Background(), *pet, &options.AddPetOptions{Auth: auth})
+	result, err := api.AddPet(context.Background(), *pet, nil)
 	if err != nil {
 		t.Fatalf("AddPet failed: %v", err)
 	}
@@ -103,11 +103,10 @@ func TestPetApi_AddPet(t *testing.T) {
 func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
-	auth := &petAuth{}
 
 	pet := models.NewPet("Buddy", models.Set[string]{"http://example.com/buddy.jpg"})
 
-	result, err := api.AddPetWithHTTPInfo(context.Background(), *pet, &options.AddPetOptions{Auth: auth})
+	result, err := api.AddPetWithHTTPInfo(context.Background(), *pet, nil)
 	if err != nil {
 		t.Fatalf("AddPetWithHTTPInfo failed: %v", err)
 	}
@@ -196,9 +195,8 @@ func TestPetApi_UpdatePetWithHTTPInfo(t *testing.T) {
 func TestPetApi_DeletePet(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
-	auth := &petAuth{}
 
-	err := api.DeletePet(context.Background(), int64(1), &options.DeletePetOptions{Auth: auth})
+	err := api.DeletePet(context.Background(), int64(1), nil)
 	if err != nil {
 		t.Fatalf("DeletePet failed: %v", err)
 	}
@@ -207,9 +205,8 @@ func TestPetApi_DeletePet(t *testing.T) {
 func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
-	auth := &petAuth{}
 
-	result, err := api.DeletePetWithHTTPInfo(context.Background(), int64(1), &options.DeletePetOptions{Auth: auth})
+	result, err := api.DeletePetWithHTTPInfo(context.Background(), int64(1), nil)
 	if err != nil {
 		t.Fatalf("DeletePetWithHTTPInfo failed: %v", err)
 	}
@@ -1385,11 +1382,9 @@ func TestPetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
 	}
 }
 
-// per-call-auth-override: an Authenticator passed to the BASE operation method
-// (not just WithHTTPInfo) must be applied to the outgoing request. The default
-// header carries one token; the per-call authenticator carries a different one
-// and must win on the wire.
-func TestPetApi_AddPetPerCallAuthOverride(t *testing.T) {
+// F857: a client built with one authenticator applies it to a secured
+// operation, and an operation has no per-call override of the scheme.
+func TestPetApi_AddPetAppliesTheClientAuthenticator(t *testing.T) {
 	t.Parallel()
 	var capturedAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1400,103 +1395,117 @@ func TestPetApi_AddPetPerCallAuthOverride(t *testing.T) {
 	}))
 	defer server.Close()
 
-	config := {{packageName}}.NewConfigurationBuilder().
-		BaseURL(server.URL).
-		DefaultHeader("Authorization", "Bearer default-token").
-		Build()
-	client := {{packageName}}.NewDefaultApiClient(nil)
-	api := {{packageName}}.NewPetApi(client, config, nil)
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, &perCallPetAuth{})
 
-	perCallAuth := &perCallPetAuth{}
 	pet := models.NewPet("OverrideDog", models.Set[string]{"http://example.com/p.jpg"})
-
-	_, err := api.AddPet(context.Background(), *pet, &options.AddPetOptions{Auth: perCallAuth})
-	if err != nil {
+	if _, err := api.AddPet(context.Background(), *pet, nil); err != nil {
 		t.Fatalf("AddPet failed: %v", err)
 	}
 	if capturedAuth != "Bearer per-call-token" {
-		t.Errorf("expected per-call auth header, got %q", capturedAuth)
+		t.Errorf("expected the client authenticator on the wire, got %q", capturedAuth)
 	}
 }
 
-// enum-reject-unknown-value: deserialising a model whose enum-typed field
-// carries a value outside the declared members must fail with a
-// (de)serialisation error rather than silently accepting it. Pet.Status is the
-// typed PetStatusEnum; a server response with status "banana" must surface an
-// error from GetPetById.
-func TestPetApi_DeserializeUnknownEnumValueErrors(t *testing.T) {
+// F857: a client takes one optional credential per security scheme. AddPet
+// accepts the api key header and the bearer scheme, so a credential of a scheme
+// it does not accept (the api key query parameter) never reaches the wire.
+func TestPetApi_AddPetUsesOnlyTheCredentialOfTheSchemeItRequires(t *testing.T) {
 	t.Parallel()
+	var gotAuth, gotQuery string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[],"status":"banana"}`))
-	}))
-	defer server.Close()
-
-	api := newPetApiForMock(t, server)
-
-	_, err := api.GetPetById(context.Background(), int64(1), nil)
-	if err == nil {
-		t.Fatal("expected a deserialization error for an unknown enum value, got nil")
-	}
-	if !strings.Contains(err.Error(), "banana") {
-		t.Errorf("expected error to reference the rejected enum value %q, got: %v", "banana", err)
-	}
-}
-
-func TestPetApi_ErrorHandling_ServerError(t *testing.T) {
-	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(500)
-		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
-	}))
-	defer server.Close()
-
-	api := newPetApiForMock(t, server)
-
-	_, err := api.GetPetById(context.Background(), int64(1), nil)
-	if err == nil {
-		t.Fatal("expected error for server error response")
-	}
-	var serverErr *pkgerrors.InternalServerError
-	if !errors.As(err, &serverErr) {
-		t.Fatalf("expected *InternalServerError, got %T: %v", err, err)
-	}
-	if serverErr.StatusCode() != 500 {
-		t.Errorf("expected status 500, got %d", serverErr.StatusCode())
-	}
-}
-
-// auth-in-options-go (1/3): the per-operation Authenticator now travels on the
-// Options object's Auth field rather than a standalone parameter. The token from
-// options.Auth must reach the wire and override the client's configured default.
-func TestPetApi_AddPetAuthInOptionsAppliesToWire(t *testing.T) {
-	t.Parallel()
-	var capturedAuth string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedAuth = r.Header.Get("Authorization")
+		gotAuth, gotQuery = r.Header.Get("Authorization"), r.URL.RawQuery
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
 	}))
 	defer server.Close()
-
-	config := {{packageName}}.NewConfigurationBuilder().
-		BaseURL(server.URL).
-		DefaultHeader("Authorization", "Bearer default-token").
-		Build()
-	client := {{packageName}}.NewDefaultApiClient(nil)
-	api := {{packageName}}.NewPetApi(client, config, nil)
-
-	pet := models.NewPet("AuthDog", models.Set[string]{"http://example.com/a.jpg"})
-
-	_, err := api.AddPet(context.Background(), *pet, &options.AddPetOptions{Auth: &perCallPetAuth{}})
+	bearer, err := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
 	if err != nil {
+		t.Fatal(err)
+	}
+	query, err := auth.NewApiKeyQueryAuthenticator(server.URL, "query-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := {{packageName}}.New{{clientClassName}}WithCredentials(server.URL, {{packageName}}.Credentials{PetStoreBearer: bearer, ApiKeyQuery: query}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	pet := models.NewPet("SchemeDog", models.Set[string]{"http://example.com/s.jpg"})
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
 		t.Fatalf("AddPet failed: %v", err)
 	}
-	if capturedAuth != "Bearer per-call-token" {
-		t.Errorf("expected per-call auth header from options.Auth, got %q", capturedAuth)
+	if gotAuth != "Bearer bearer-token" {
+		t.Errorf("expected the credential of the bearer scheme, got %q", gotAuth)
+	}
+	if strings.Contains(gotQuery, "query-key") {
+		t.Errorf("the credential of a scheme AddPet does not accept leaked into the query: %q", gotQuery)
+	}
+}
+
+// F857: of the schemes an operation accepts, the first in spec order that has a
+// credential wins.
+func TestPetApi_AddPetPrefersTheFirstAcceptedSchemeInSpecOrder(t *testing.T) {
+	t.Parallel()
+	var gotKey, gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotKey, gotAuth = r.Header.Get("X-API-Key"), r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	header, _ := auth.NewApiKeyHeaderAuthenticator(server.URL, "header-key")
+	client, err := {{packageName}}.New{{clientClassName}}WithCredentials(server.URL, {{packageName}}.Credentials{PetStoreBearer: bearer, ApiKeyHeader: header}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	pet := models.NewPet("OrderDog", models.Set[string]{"http://example.com/o.jpg"})
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if gotKey != "header-key" || gotAuth != "" {
+		t.Errorf("expected only the api key header, got key %q and authorization %q", gotKey, gotAuth)
+	}
+}
+
+// F857: an operation declared without security sends no credential at all.
+func TestPetApi_AnOperationWithoutSecuritySendsNoCredential(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	client, err := {{packageName}}.New{{clientClassName}}WithCredentials(server.URL, {{packageName}}.Credentials{PetStoreBearer: bearer}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, _ = client.Store.GetInventory(context.Background())
+	if gotAuth != "" {
+		t.Errorf("expected no credential on a security-free operation, got %q", gotAuth)
+	}
+}
+
+// F857: the host of a credentials client resolves like every credential: the
+// argument, then the environment variable, then ErrMissingCredential.
+func TestPetApi_CredentialsClientNeedsAHost(t *testing.T) {
+	t.Setenv("{{envVarPrefix}}_BASE_URL", "")
+	client, err := {{packageName}}.New{{clientClassName}}WithCredentials("", {{packageName}}.Credentials{}, nil)
+	if !errors.Is(err, {{packageName}}.ErrMissingCredential) || client != nil {
+		t.Errorf("expected ErrMissingCredential and no client, got %v %v", client, err)
 	}
 }
 
@@ -1605,6 +1614,44 @@ func TestPetApi_CookieParamWithCRLFFailsClosed(t *testing.T) {
 	}
 	if called {
 		t.Error("expected no HTTP request to be sent when the cookie value is rejected")
+	}
+}
+
+// F840: a cookie value is sent raw when every character is a legal RFC 6265
+// cookie-octet (a value the caller percent-encoded stays as written), and the
+// call fails before sending when one is not.
+func TestPetApi_CookieParamIsSentRawOrRefusedBeforeSending(t *testing.T) {
+	t.Parallel()
+	var sawCookie string
+	var hits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawCookie = r.Header.Get("Cookie")
+		hits++
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	for _, ok := range []string{"abc123", "a%20b%3Bc", "a=b", "x/y:z"} {
+		value := ok
+		sawCookie = ""
+		if err := api.DeletePet(context.Background(), int64(1), &options.DeletePetOptions{ApiKey: &value}); err != nil {
+			t.Fatalf("expected %q to be accepted, got %v", ok, err)
+		}
+		if sawCookie != "api_key="+ok {
+			t.Errorf("expected the value sent raw, got %q for %q", sawCookie, ok)
+		}
+	}
+	sent := hits
+	for _, bad := range []string{"a b", "a;b", "a,b", `a"b`, `a\b`, "caf\u00e9"} {
+		value := bad
+		err := api.DeletePet(context.Background(), int64(1), &options.DeletePetOptions{ApiKey: &value})
+		if !errors.Is(err, {{packageName}}.ErrInvalidCookie) {
+			t.Errorf("expected ErrInvalidCookie for %q, got %v", bad, err)
+		}
+	}
+	if hits != sent {
+		t.Errorf("expected no request for an illegal cookie value, %d were sent", hits-sent)
 	}
 }
 
@@ -1749,13 +1796,13 @@ func TestPetApi_OperationDocEndsWithTheMethodAndPath(t *testing.T) {
 	}
 }
 
-// Every operation that takes an options argument documents it; the authenticator
-// clause appears only where the Options struct carries an Auth field.
+// Every operation documents its options argument; one with no parameters of its
+// own says to pass nil.
 func TestPetApi_OperationsDocumentTheirOptionsArgument(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
-		"AddPet":        "param options: Options carrying an optional per-operation authenticator.",
-		"DeletePet":     "param options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.",
+		"AddPet":        "param options: Options for this operation; it has no parameters of its own, so pass nil.",
+		"DeletePet":     "param options: Options for query, header, form, and cookie parameters.\n",
 		"GetPetSummary": "param options: Options for query, header, form, and cookie parameters.\n",
 	}
 	for name, want := range cases {

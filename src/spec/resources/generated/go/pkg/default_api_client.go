@@ -80,15 +80,11 @@ type DefaultApiClient struct {
 	/* owned is the transport this client created and therefore closes; nil
 	 * when the caller supplied the transport, which the caller owns. */
 	owned *http.Transport
-	/* baseCtx is the client's base context. Close cancels it, which aborts every
-	 * in-flight request; it is merged with each call's own context so either
-	 * one cancels the request. */
-	baseCtx context.Context
-	cancel  context.CancelFunc
 	/* closed is set by Close(). Once closed, any further SendRequest must fail
 	 * with a uniform SDK error rather than silently succeeding (or leaking a
 	 * foreign library error), matching the use-after-close contract of the
-	 * other SDKs. */
+	 * other SDKs. A request already in flight is not touched: it finishes, and
+	 * only its own context cancels it. */
 	closed atomic.Bool
 }
 
@@ -100,7 +96,6 @@ func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 	}
 
 	c := &DefaultApiClient{transportOptions: transportOptions}
-	c.baseCtx, c.cancel = context.WithCancel(context.Background())
 
 	/* A caller-supplied transport is wrapped, never replaced: the SDK keeps its
 	 * redirect policy, timeout, user agent and headers on top of it, and never
@@ -140,26 +135,11 @@ func (c *DefaultApiClient) retryPolicy() (int, time.Duration) {
 	return c.transportOptions.MaxRetries(), timeout
 }
 
-// mergeContexts returns a context cancelled when either the call context or
-// the client's base context is cancelled. The returned cancel function must be
-// called to release the link to the base context.
-func mergeContexts(call, base context.Context) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(call)
-	stop := context.AfterFunc(base, cancel)
-	return ctx, func() {
-		stop()
-		cancel()
-	}
-}
-
 // cancellationError reports a request aborted by context cancellation. It
 // wraps context.Canceled, so errors.Is(err, context.Canceled) holds, and it is
-// never a *NetworkTimeoutError. A cancellation caused by Close also wraps
-// ErrClientClosed.
+// never a *NetworkTimeoutError. Close does not cancel a request: cancellation is
+// the call context's alone.
 func (c *DefaultApiClient) cancellationError() error {
-	if c.closed.Load() {
-		return fmt.Errorf("request cancelled: %w: %w", ErrClientClosed, context.Canceled)
-	}
 	return fmt.Errorf("request cancelled: %w", context.Canceled)
 }
 
@@ -309,8 +289,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	if opts != nil && opts.Context != nil {
 		callCtx = opts.Context
 	}
-	ctx, release := mergeContexts(callCtx, c.baseCtx)
-	defer release()
+	ctx := callCtx
 	doer := c.doer
 	var callTimeout *time.Duration
 	if opts != nil {
@@ -452,15 +431,15 @@ func newTransportError(msg string, err error) error {
 	return errors_pkg.NewNetworkError(msg, err)
 }
 
-// Close releases any resources held by this client: the idle TCP/TLS
-// connections of the underlying http.Transport (connection pool, sockets).
-// Close also cancels the client's base context, which aborts every request
-// still in flight. A transport supplied by the caller is never closed: the
-// caller owns its lifecycle. After Close the client cannot be reused; a
-// further request returns ErrClientClosed.
+// Close marks the client closed and releases the idle connections of the
+// transport the SDK created. It is graceful and idempotent: a request already
+// in flight finishes (only its own context cancels it), and every request sent
+// afterwards returns ErrClientClosed. A transport supplied by the caller is
+// never closed: the caller owns its lifecycle.
 func (c *DefaultApiClient) Close() error {
-	c.closed.Store(true)
-	c.cancel()
+	if c.closed.Swap(true) {
+		return nil
+	}
 	if c.owned != nil {
 		c.owned.CloseIdleConnections()
 	}

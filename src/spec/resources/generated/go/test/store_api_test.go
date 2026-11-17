@@ -565,6 +565,23 @@ func TestStoreApi_GetDefaultsDecodesTheServersValues(t *testing.T) {
 	}
 }
 
+// F827: an operation with no parameter and no security has no options struct,
+// and still takes the per-call options like every other operation.
+func TestStoreApi_AnOperationWithoutAnOptionsStructTakesPerCallHeaders(t *testing.T) {
+	t.Parallel()
+	var sent string
+	server := jsonStoreServer(`{}`, func(r *http.Request) { sent = r.Header.Get("X-Call") })
+	defer server.Close()
+
+	_, err := newStoreApiForMock(t, server).GetDefaults(context.Background(), petstore.WithHeaders(map[string]string{"X-Call": "1"}))
+	if err != nil {
+		t.Fatalf("GetDefaults failed: %v", err)
+	}
+	if sent != "1" {
+		t.Errorf("expected the per-call header to reach the server, got %q", sent)
+	}
+}
+
 // An optional date-time query parameter is sent in the canonical date-time form.
 func TestStoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
 	t.Parallel()

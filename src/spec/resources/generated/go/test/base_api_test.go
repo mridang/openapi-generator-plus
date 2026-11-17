@@ -26,7 +26,6 @@ import (
 	"time"
 
 	petstore "petstore/pkg"
-	"petstore/pkg/auth"
 	"petstore/pkg/auth/oauth"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
@@ -290,15 +289,14 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
-
 	auth := &baseApiAuth{
 		headers: map[string]string{},
 		query:   map[string]string{},
 		cookies: map[string]string{"session": "abc123"},
 	}
+	api := petstore.NewPetApi(client, config, auth)
 
-	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: auth})
+	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -313,47 +311,19 @@ func TestBaseApi_SeveralAuthCookiesAreWrittenSortedByName(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
-
 	auth := &baseApiAuth{
 		headers: map[string]string{},
 		query:   map[string]string{},
 		cookies: map[string]string{"zeta": "3", "alpha": "1", "mid": "2"},
 	}
+	api := petstore.NewPetApi(client, config, auth)
 
-	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: auth})
+	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got, want := client.capturedHeaders["Cookie"], "alpha=1; mid=2; zeta=3"; got != want {
 		t.Errorf("Cookie header = %q, want %q", got, want)
-	}
-}
-
-// injectableAuth is a per-call authenticator that needs the transport, like the
-// OAuth2 and OpenID Connect authenticators do for their token requests.
-type injectableAuth struct {
-	baseApiAuth
-	injected auth.ApiClient
-}
-
-func (a *injectableAuth) SetApiClient(client auth.ApiClient) { a.injected = client }
-
-// F856: a per-call authenticator that needs the transport receives the API's
-// own client before its headers are asked for.
-func TestBaseApi_PerCallHttpAwareAuthenticatorIsInjected(t *testing.T) {
-	t.Parallel()
-	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
-	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
-	perCall := &injectableAuth{baseApiAuth: *newBaseApiAuth()}
-
-	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: perCall})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if perCall.injected == nil {
-		t.Error("expected the per-call authenticator to receive the API client")
 	}
 }
 
@@ -363,13 +333,13 @@ func TestBaseApi_InvalidCookieReturnsErrInvalidCookie(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil)
 	auth := &baseApiAuth{
 		headers: map[string]string{},
 		query:   map[string]string{},
 		cookies: map[string]string{"session": "a;b"},
 	}
-	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: auth})
+	api := petstore.NewPetApi(client, config, auth)
+	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
 	if !errors.Is(err, petstore.ErrInvalidCookie) {
 		t.Fatalf("expected ErrInvalidCookie, got %v", err)
 	}
@@ -1555,28 +1525,6 @@ func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 	_, _ = api.AddPet(context.Background(), pet, nil)
 	if got := client.headers["X-Client-Auth"]; got != "client-level-token" {
 		t.Errorf("expected client-level auth header to be used when per-call auth is nil, got %q", got)
-	}
-}
-
-func TestAuth_PerCallOverridesClientLevelAuthenticator(t *testing.T) {
-	t.Parallel()
-	client := &authHeaderCapturingClient{}
-	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	clientLevelAuth := &baseApiAuth{
-		headers: map[string]string{"X-Client-Auth": "client-level-token"},
-		query:   map[string]string{},
-		cookies: map[string]string{},
-	}
-	perCallAuth := &baseApiAuth{
-		headers: map[string]string{"X-Client-Auth": "per-call-token"},
-		query:   map[string]string{},
-		cookies: map[string]string{},
-	}
-	api := petstore.NewPetApi(client, config, clientLevelAuth)
-	pet := *models.NewPet("AuthTest", []string{})
-	_, _ = api.AddPet(context.Background(), pet, &options.AddPetOptions{Auth: perCallAuth})
-	if got := client.headers["X-Client-Auth"]; got != "per-call-token" {
-		t.Errorf("expected per-call auth header to override client-level auth, got %q", got)
 	}
 }
 

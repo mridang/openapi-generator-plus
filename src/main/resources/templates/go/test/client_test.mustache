@@ -167,8 +167,8 @@ func TestClient_WithTokenReadsTheEnvironmentWhenTheArgumentsAreEmpty(t *testing.
 		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
 	}))
 	defer server.Close()
-	t.Setenv("{{envPrefix}}_BASE_URL", server.URL)
-	t.Setenv("{{envPrefix}}_ACCESS_TOKEN", "env-token")
+	t.Setenv("{{envVarPrefix}}_BASE_URL", server.URL)
+	t.Setenv("{{envVarPrefix}}_TOKEN", "env-token")
 
 	client, err := {{packageName}}.New{{clientClassName}}WithToken("", "", nil)
 	if err != nil {
@@ -190,8 +190,8 @@ func TestClient_WithTokenPrefersTheArgumentsToTheEnvironment(t *testing.T) {
 		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
 	}))
 	defer server.Close()
-	t.Setenv("{{envPrefix}}_BASE_URL", "http://unused.invalid")
-	t.Setenv("{{envPrefix}}_ACCESS_TOKEN", "env-token")
+	t.Setenv("{{envVarPrefix}}_BASE_URL", "http://unused.invalid")
+	t.Setenv("{{envVarPrefix}}_TOKEN", "env-token")
 
 	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "arg-token", nil)
 	if err != nil {
@@ -206,8 +206,8 @@ func TestClient_WithTokenPrefersTheArgumentsToTheEnvironment(t *testing.T) {
 }
 
 func TestClient_WithTokenFailsWhenACredentialCannotBeResolved(t *testing.T) {
-	t.Setenv("{{envPrefix}}_BASE_URL", "")
-	t.Setenv("{{envPrefix}}_ACCESS_TOKEN", "")
+	t.Setenv("{{envVarPrefix}}_BASE_URL", "")
+	t.Setenv("{{envVarPrefix}}_TOKEN", "")
 
 	for name, build := range map[string]func() (*{{packageName}}.{{clientClassName}}, error){
 		"no host":  func() (*{{packageName}}.{{clientClassName}}, error) { return {{packageName}}.New{{clientClassName}}WithToken("", "token", nil) },
@@ -279,7 +279,7 @@ func TestClient_WithTokenProviderReportsAProviderFailureWithoutSendingARequest(t
 }
 
 func TestClient_WithTokenProviderRejectsANilProviderAndAMissingHost(t *testing.T) {
-	t.Setenv("{{envPrefix}}_BASE_URL", "")
+	t.Setenv("{{envVarPrefix}}_BASE_URL", "")
 
 	if _, err := {{packageName}}.New{{clientClassName}}WithTokenProvider("{{{basePath}}}", nil, nil); !errors.Is(err, auth.ErrInvalidBearerToken) {
 		t.Errorf("expected ErrInvalidBearerToken for a nil provider, got %v", err)

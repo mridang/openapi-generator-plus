@@ -127,10 +127,10 @@ var _ {{classname}}Interface = (*{{classname}})(nil)
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
 {{#vendorExtensions.op.hasOptionsParam}}
-// param options: Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.
+// param options: Options for query, header, form, and cookie parameters.
 {{/vendorExtensions.op.hasOptionsParam}}
 {{^vendorExtensions.op.hasOptionsParam}}
-// param options: Options carrying an optional per-operation authenticator.
+// param options: Options for this operation; it has no parameters of its own, so pass nil.
 {{/vendorExtensions.op.hasOptionsParam}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
@@ -179,14 +179,6 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 	if err != nil {
 		return nil, err
 	}
-{{#hasAuthMethods}}
-	/* Per-operation auth is sourced from the Options object's Auth field. A nil
-	 * options or a nil Auth falls back to the client's configured credentials. */
-	var auth Authenticator
-	if options != nil {
-		auth = options.Auth
-	}
-{{/hasAuthMethods}}
 {{#pathParams}}
 	if err := requirePathParam("{{paramName}}", {{paramName}}); err != nil {
 		return nil, fmt.Errorf("%w when calling {{classname}}.{{operationId}}", err)
@@ -549,7 +541,8 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		    NO authentication instead of falling back to the client-level
 		    authenticator and leaking its credential. A secured op passes the
 		    per-call override (or nil for no-override), unchanged. }}
-		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+		auth:         {{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{#hasAuthMethods}}nil{{/hasAuthMethods}},
+		schemes:      []string{ {{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}} },
 	})
 	if err != nil {
 		return nil, err

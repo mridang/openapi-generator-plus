@@ -172,8 +172,8 @@ func TestClient_WithTokenReadsTheEnvironmentWhenTheArgumentsAreEmpty(t *testing.
 		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
 	}))
 	defer server.Close()
-	t.Setenv("PETSTORE_BASE_URL", server.URL)
-	t.Setenv("PETSTORE_ACCESS_TOKEN", "env-token")
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", server.URL)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
 
 	client, err := petstore.NewClientWithToken("", "", nil)
 	if err != nil {
@@ -195,8 +195,8 @@ func TestClient_WithTokenPrefersTheArgumentsToTheEnvironment(t *testing.T) {
 		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
 	}))
 	defer server.Close()
-	t.Setenv("PETSTORE_BASE_URL", "http://unused.invalid")
-	t.Setenv("PETSTORE_ACCESS_TOKEN", "env-token")
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "http://unused.invalid")
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
 
 	client, err := petstore.NewClientWithToken(server.URL, "arg-token", nil)
 	if err != nil {
@@ -211,8 +211,8 @@ func TestClient_WithTokenPrefersTheArgumentsToTheEnvironment(t *testing.T) {
 }
 
 func TestClient_WithTokenFailsWhenACredentialCannotBeResolved(t *testing.T) {
-	t.Setenv("PETSTORE_BASE_URL", "")
-	t.Setenv("PETSTORE_ACCESS_TOKEN", "")
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "")
 
 	for name, build := range map[string]func() (*petstore.Client, error){
 		"no host":  func() (*petstore.Client, error) { return petstore.NewClientWithToken("", "token", nil) },
@@ -284,7 +284,7 @@ func TestClient_WithTokenProviderReportsAProviderFailureWithoutSendingARequest(t
 }
 
 func TestClient_WithTokenProviderRejectsANilProviderAndAMissingHost(t *testing.T) {
-	t.Setenv("PETSTORE_BASE_URL", "")
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
 
 	if _, err := petstore.NewClientWithTokenProvider("/api/v3", nil, nil); !errors.Is(err, auth.ErrInvalidBearerToken) {
 		t.Errorf("expected ErrInvalidBearerToken for a nil provider, got %v", err)

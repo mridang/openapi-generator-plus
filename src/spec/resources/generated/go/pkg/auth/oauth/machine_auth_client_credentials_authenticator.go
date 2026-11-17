@@ -2,6 +2,8 @@
 
 package oauth
 
+import "petstore/pkg/auth"
+
 type MachineAuthClientCredentialsAuthenticator struct {
 	*OAuth2ClientCredentialsAuthenticator
 }
@@ -18,9 +20,25 @@ func (a MachineAuthClientCredentialsAuthenticator) GoString() string {
 	return a.String()
 }
 
-func NewMachineAuthClientCredentialsAuthenticator(host string, clientId string, clientSecret string) *MachineAuthClientCredentialsAuthenticator {
+// NewMachineAuthClientCredentialsAuthenticator creates the authenticator for the machineAuth security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID for clientId
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET for clientSecret
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential, naming the variable.
+func NewMachineAuthClientCredentialsAuthenticator(host string, clientId string, clientSecret string) (*MachineAuthClientCredentialsAuthenticator, error) {
+	var err error
+	if clientId, err = auth.ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID", "clientId"); err != nil {
+		return nil, err
+	}
+	if clientSecret, err = auth.ResolveCredential(clientSecret, "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET", "clientSecret"); err != nil {
+		return nil, err
+	}
 	inner := NewOAuth2ClientCredentialsAuthenticator(host, clientId, clientSecret, "https://auth.example.com/oauth/token", []string{"pets:read", "pets:write"})
 	return &MachineAuthClientCredentialsAuthenticator{
 		OAuth2ClientCredentialsAuthenticator: inner,
-	}
+	}, nil
 }

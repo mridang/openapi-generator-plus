@@ -2,6 +2,8 @@
 
 package oauth
 
+import "petstore/pkg/auth"
+
 type SsoAuthAuthenticator struct {
 	*OpenIdConnectAuthenticator
 }
@@ -18,9 +20,29 @@ func (a SsoAuthAuthenticator) GoString() string {
 	return a.String()
 }
 
-func NewSsoAuthAuthenticator(host string, clientId string, clientSecret string, redirectUri string) *SsoAuthAuthenticator {
+// NewSsoAuthAuthenticator creates the authenticator for the ssoAuth security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID for clientId
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET for clientSecret
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI for redirectUri
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential, naming the variable.
+func NewSsoAuthAuthenticator(host string, clientId string, clientSecret string, redirectUri string) (*SsoAuthAuthenticator, error) {
+	var err error
+	if clientId, err = auth.ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID", "clientId"); err != nil {
+		return nil, err
+	}
+	if clientSecret, err = auth.ResolveCredential(clientSecret, "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET", "clientSecret"); err != nil {
+		return nil, err
+	}
+	if redirectUri, err = auth.ResolveCredential(redirectUri, "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI", "redirectUri"); err != nil {
+		return nil, err
+	}
 	inner := NewOpenIdConnectAuthenticator(host, "https://auth.example.com/.well-known/openid-configuration", clientId, clientSecret, redirectUri, nil)
 	return &SsoAuthAuthenticator{
 		OpenIdConnectAuthenticator: inner,
-	}
+	}, nil
 }

@@ -644,8 +644,11 @@ func TestOpenIdConnect_FailedRediscoveryKeepsUsingThePreviousDelegate(t *testing
 func TestSsoAuthWrapper_DiscoversFromTheDeclaredUrl(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{oidcDiscoveryResponse("")}}
-	authObj := oauth.NewSsoAuthAuthenticator(
+	authObj, err := oauth.NewSsoAuthAuthenticator(
 		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	authObj.SetApiClient(client)
 
 	if _, err := authObj.BuildAuthorizationURL(""); err != nil {

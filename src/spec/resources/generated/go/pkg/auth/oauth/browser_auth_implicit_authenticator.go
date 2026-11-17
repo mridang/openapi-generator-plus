@@ -2,6 +2,8 @@
 
 package oauth
 
+import "petstore/pkg/auth"
+
 type BrowserAuthImplicitAuthenticator struct {
 	*OAuth2ImplicitAuthenticator
 }
@@ -18,9 +20,21 @@ func (a BrowserAuthImplicitAuthenticator) GoString() string {
 	return a.String()
 }
 
-func NewBrowserAuthImplicitAuthenticator(host string, clientId string) *BrowserAuthImplicitAuthenticator {
+// NewBrowserAuthImplicitAuthenticator creates the authenticator for the browserAuth security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID for clientId
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential, naming the variable.
+func NewBrowserAuthImplicitAuthenticator(host string, clientId string) (*BrowserAuthImplicitAuthenticator, error) {
+	var err error
+	if clientId, err = auth.ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID", "clientId"); err != nil {
+		return nil, err
+	}
 	inner := NewOAuth2ImplicitAuthenticator(host, clientId, "https://auth.example.com/authorize", []string{"read"})
 	return &BrowserAuthImplicitAuthenticator{
 		OAuth2ImplicitAuthenticator: inner,
-	}
+	}, nil
 }

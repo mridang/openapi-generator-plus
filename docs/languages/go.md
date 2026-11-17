@@ -33,7 +33,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `object` with `additionalProperties` | `map[string]T` | |
 | free-form `object`, any type | `any` | |
 | nullable | `*T` | A required nullable property keeps its key in the output. |
-| `enum` | named string type with constants | Marshalling and unmarshalling reject values outside the enum. |
+| `enum` | named string type with constants | Marshalling and unmarshalling reject values outside the enum. A `$ref` to an enum with a `default` next to it starts at that member, whether the model is built with its `New` function or decoded without the key. |
 | `oneOf`, `anyOf` | struct holding an `any` value | Has `MarshalJSON` and `UnmarshalJSON`. Variants are tried in declaration order, or chosen by the discriminator when there is one. |
 
 ## Dependencies
@@ -60,12 +60,17 @@ HTTP is the standard library. Other requirements in the manifest are for the gen
 | `authors` | none | Comma-separated author names, written to the README. |
 | `documentationUrl` | none | Documentation URL, written to the README. |
 | `issueTrackerUrl` | none | Issue tracker URL, written to the README. |
+| `envVarPrefix` | the API title in upper snake case without a trailing `SDK`, else `API` | Prefix of the credential environment variables, see Idiom notes. The same option and default in every language. |
 
 ## Idiom notes
 
-- Every operation takes `ctx context.Context` as its first parameter. Cancelling it, or calling `Close()` on the client, cancels the call.
+- Every operation takes `ctx context.Context` as its first parameter. Cancelling it cancels the call. `Close()` on the client is graceful and idempotent: it marks the client closed and releases the connections the SDK created, a request already in flight finishes, a later request returns `ErrClientClosed`, and a transport you supplied is never closed.
 - Errors are values. Caller mistakes are exported sentinels you match with `errors.Is` (for example `ErrMissingRequiredParameter`, `ErrInvalidTimeout`, `ErrTransportConflict`, `ErrClientClosed`). SDK errors implement `Unwrap` and `As`. Error strings start in lower case, as `staticcheck` requires.
-- Optional operation parameters live in an `opts.<Operation>Options` struct. Per-call settings (`WithTimeout`, `WithHeaders`, `WithMaxRetries`, `WithRequestContentType`) are trailing variadic `RequestOption` values.
+- Optional operation parameters live in an `opts.<Operation>Options` struct. Per-call settings (`WithTimeout`, `WithHeaders`, `WithMaxRetries`, `WithRequestContentType`) are trailing variadic `RequestOption` values. Every operation takes them, including one with no parameters and no security, which has no options struct at all; Go does not generate an empty one, because the variadic tail already carries `timeout`, `headers` and `maxRetries`.
+- Credentials come from an argument, then the environment. The constructor of each per-scheme authenticator (for example `auth.NewPetStoreBasicAuthenticator`) takes its credentials as strings; an empty string is read once, when the authenticator is built, from the variable of that scheme, and an empty variable counts as unset. A credential found in neither place returns an error that matches `auth.ErrMissingCredential` (the root package re-exports it as `ErrMissingCredential`) and names the variable, so every per-scheme constructor returns `(T, error)`. A Bearer scheme also has `New<Scheme>AuthenticatorWithProvider(host, provider)`, which calls a `func(ctx) (string, error)` for every request and reads no variable. The variable is `{PREFIX}_{FIELD}` in upper snake case (`ACME_TOKEN`, `ACME_CLIENT_SECRET`), or `{PREFIX}_{SCHEME}_{FIELD}` when two schemes have a field of the same name; the generated README lists them. The host is not read from a per-scheme variable. `New<Client>WithToken(host, accessToken, ...)` reads `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN` the same way.
+- One client can hold a credential for every security scheme: `New<Client>WithCredentials(host, Credentials{...}, transport)` takes a `Credentials` struct with one optional `Authenticator` field per scheme, named after the scheme (`PetStoreBearer`, `ApiKeyHeader`). Each operation uses the scheme its spec requires: the first scheme it accepts, in spec order, that has a credential, so a credential is never sent to an operation that does not accept its scheme. An operation declared without security sends none. There is no per-call override of the scheme, so an Options struct has no auth field. `New<Client>(authenticator, transport)` keeps a single authenticator for every secured operation.
+- A cookie parameter is sent as you give it when every character is a legal RFC 6265 cookie-octet, so percent-encode a value yourself first; a value with an illegal character (space, `;`, `,`, `"`, `\`, a control character or non-ASCII) fails with `ErrInvalidCookie` before anything is sent.
+- Building a model never validates: `New<Model>` and the `With` methods accept any value, including an unknown enum member. Validation, and the loud failure on an unknown enum value, happen only when a payload is decoded.
 - Configuration is built with `NewConfigurationBuilder()` and `NewTransportOptionsBuilder()`.
 - You can supply your own HTTP stack with `TransportOptionsBuilder.HttpClient` (anything with `Do(*http.Request)`) or `RoundTripper`. Combining that with the SDK's own proxy, TLS or pool settings fails `Build()` with `ErrTransportConflict`, and the SDK never closes a client you supplied.
 - Initialisms are upper case (`URL`, `ID`, `HTTP`).

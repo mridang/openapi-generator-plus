@@ -18,9 +18,25 @@ func (a PetStoreBasicAuthenticator) GoString() string {
 	return a.String()
 }
 
-// NewPetStoreBasicAuthenticator returns the BasicAuthenticator constructor's error when the
-// credentials are invalid. Match it with errors.Is.
+// NewPetStoreBasicAuthenticator creates the authenticator for the petStoreBasic security scheme.
+//
+// A credential you pass wins. An empty one is read once, here, from its
+// environment variable, and an empty variable counts as unset:
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME for username
+//   - SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD for password
+//
+// A credential found in neither place returns an error that matches
+// ErrMissingCredential, naming the variable.
+// Any other error comes from the BasicAuthenticator constructor, when a credential is
+// invalid. Match it with errors.Is.
 func NewPetStoreBasicAuthenticator(host string, username string, password string) (*PetStoreBasicAuthenticator, error) {
+	var err error
+	if username, err = ResolveCredential(username, "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME", "username"); err != nil {
+		return nil, err
+	}
+	if password, err = ResolveCredential(password, "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD", "password"); err != nil {
+		return nil, err
+	}
 	inner, err := NewBasicAuthenticator(host, username, password)
 	if err != nil {
 		return nil, err

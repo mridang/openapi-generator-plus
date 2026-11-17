@@ -255,7 +255,7 @@ var _ PetApiInterface = (*PetApi)(nil)
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param pet: Create a new pet in the store
-// param options: Options carrying an optional per-operation authenticator.
+// param options: Options for this operation; it has no parameters of its own, so pass nil.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 //
 // POST /pet
@@ -279,12 +279,6 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 	if err != nil {
 		return nil, err
 	}
-	/* Per-operation auth is sourced from the Options object's Auth field. A nil
-	 * options or a nil Auth falls back to the client's configured credentials. */
-	var auth Authenticator
-	if options != nil {
-		auth = options.Auth
-	}
 
 	path := "/pet"
 
@@ -306,7 +300,8 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
-		auth:         auth,
+		auth:         nil,
+		schemes:      []string{"apiKeyHeader", "petStoreBearer"},
 	})
 	if err != nil {
 		return nil, err
@@ -444,6 +439,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 		contentType:  "multipart/form-data",
 		returnType:   "[]Photo",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -514,7 +510,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 // AddPetTreatment Record a treatment for a pet
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
-// param options: Options carrying an optional per-operation authenticator.
+// param options: Options for this operation; it has no parameters of its own, so pass nil.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 //
 // POST /pet/{petId}/treatment
@@ -537,12 +533,6 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
-	}
-	/* Per-operation auth is sourced from the Options object's Auth field. A nil
-	 * options or a nil Auth falls back to the client's configured credentials. */
-	var auth Authenticator
-	if options != nil {
-		auth = options.Auth
 	}
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.AddPetTreatment", err)
@@ -573,7 +563,8 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "PetTreatment",
-		auth:         auth,
+		auth:         nil,
+		schemes:      []string{"petStoreBasic", "petStoreBearer"},
 	})
 	if err != nil {
 		return nil, err
@@ -645,7 +636,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param petId: Pet id to delete
-// param options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+// param options: Options for query, header, form, and cookie parameters.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 //
 // DELETE /pet/{petId}
@@ -663,12 +654,6 @@ func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
-	}
-	/* Per-operation auth is sourced from the Options object's Auth field. A nil
-	 * options or a nil Auth falls back to the client's configured credentials. */
-	var auth Authenticator
-	if options != nil {
-		auth = options.Auth
 	}
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.DeletePet", err)
@@ -714,7 +699,8 @@ func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options
 		accepts:      []string{},
 		contentType:  "application/json",
 		returnType:   "",
-		auth:         auth,
+		auth:         nil,
+		schemes:      []string{"adminBasic", "machineAuth"},
 	})
 	if err != nil {
 		return nil, err
@@ -794,6 +780,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 		contentType:  "application/json",
 		returnType:   "[]byte",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -915,6 +902,7 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 		contentType:  "application/json",
 		returnType:   "[]Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1061,6 +1049,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 		contentType:  "application/json",
 		returnType:   "[]Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1190,6 +1179,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1319,6 +1309,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1444,6 +1435,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 		contentType:  "application/json",
 		returnType:   "[]byte",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1569,6 +1561,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 		contentType:  "application/json",
 		returnType:   "[]byte",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1706,6 +1699,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1844,6 +1838,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1968,6 +1963,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 		contentType:  "application/json",
 		returnType:   "PetPassport",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2101,6 +2097,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 		contentType:  "application/json",
 		returnType:   "[]byte",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2260,6 +2257,7 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 		contentType:  "application/json",
 		returnType:   "string",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2429,6 +2427,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2558,6 +2557,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2711,6 +2711,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body
 		returnType:   "",
 		rawBody:      true,
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2776,6 +2777,7 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 		contentType:  "application/json",
 		returnType:   "",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2869,6 +2871,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 		contentType:  "application/x-www-form-urlencoded",
 		returnType:   "ApiResponse",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2994,6 +2997,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -3129,6 +3133,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 		contentType:  "multipart/form-data",
 		returnType:   "ApiResponse",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
@@ -3324,6 +3329,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 		contentType:  requestContentTypeValue,
 		returnType:   "ApiResponse",
 		auth:         nil,
+		schemes:      []string{},
 	})
 	if err != nil {
 		return nil, err
