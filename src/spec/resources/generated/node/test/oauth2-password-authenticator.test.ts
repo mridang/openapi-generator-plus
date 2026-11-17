@@ -177,7 +177,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(util.inspect(authenticator)).toContain("***");
   });
 
-  it("redacts the secret in inspect and JSON output", () => {
+  it("redacts secret", () => {
     expect(util.inspect(authenticator)).not.toContain("my-client-secret");
     expect(util.inspect(authenticator)).not.toContain("testpass");
     expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");

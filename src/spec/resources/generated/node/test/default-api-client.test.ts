@@ -499,7 +499,7 @@ describe("DefaultApiClient", () => {
     },
   );
 
-  test("303 switches to GET and drops body (Gap T3)", async () => {
+  test("redirect 303 switches to GET and drops body", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;
 
     const transport = TransportOptions.builder()
@@ -742,21 +742,18 @@ describe("DefaultApiClient", () => {
   });
 
   const zstdAvailable = typeof zlib.zstdDecompress === "function";
-  (zstdAvailable ? test : test.skip)(
-    "decompresses zstd response when the runtime supports it",
-    async () => {
-      const client = new DefaultApiClient();
-      const response = await client.sendRequest(
-        "GET",
-        compressedUrl("zstd"),
-        { "Accept-Encoding": "zstd" },
-        null,
-      );
+  (zstdAvailable ? test : test.skip)("decompresses zstd response", async () => {
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest(
+      "GET",
+      compressedUrl("zstd"),
+      { "Accept-Encoding": "zstd" },
+      null,
+    );
 
-      expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.body)).toEqual(fixtureBody);
-    },
-  );
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual(fixtureBody);
+  });
 
   /*
    * Regression: POST/PUT/PATCH with body == null must emit an
