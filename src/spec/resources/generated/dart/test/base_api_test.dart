@@ -141,6 +141,23 @@ class _RecordingApi extends BaseApi {
   }
 }
 
+/// A [BaseApi] whose client is closed during the first wait, as a caller that
+/// gives up on the call does.
+class _ClosingApi extends BaseApi {
+  _ClosingApi(this._client, String baseUrl)
+    : super(
+        apiClient: _client,
+        config: ConfigurationBuilder().baseUrl(baseUrl).build(),
+      );
+
+  final DefaultApiClient _client;
+
+  @override
+  Future<void> sleepBeforeRetry(Duration delay) async {
+    _client.close();
+  }
+}
+
 /// An OAuth2-like authenticator: a new token generation after every
 /// invalidation, optionally failing to produce one.
 class _RotatingAuth extends BaseAuthenticator
@@ -893,7 +910,7 @@ void main() {
       expect(resp.body, isEmpty);
     });
 
-    test('handles nil body', () async {
+    test('bhv serializationobject 183 handles nil body', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
@@ -1567,45 +1584,48 @@ void main() {
     /* form-array-repeated-keys: an array form field (`tags`) must serialize
      * as repeated keys `tags=a&tags=b`, NOT a single `tags=[a, b]` from
      * List.toString(). */
-    test('form array field serializes as repeated keys', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String receivedBody = '';
-      server.listen((request) async {
-        receivedBody = await utf8.decoder.bind(request).join();
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"code":200,"type":"","message":"ok"}')
-          ..close();
-      });
+    test(
+      'bhv serializationwire 053 form array field serializes as repeated keys',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String receivedBody = '';
+        server.listen((request) async {
+          receivedBody = await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"code":200,"type":"","message":"ok"}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.setPetPreferences(
-          1,
-          const SetPetPreferencesOptions(
-            nickname: 'Rex',
-            tags: ['red', 'blue'],
-          ),
-        );
+          await api.setPetPreferences(
+            1,
+            const SetPetPreferencesOptions(
+              nickname: 'Rex',
+              tags: ['red', 'blue'],
+            ),
+          );
 
-        expect(receivedBody, contains('tags=red'));
-        expect(receivedBody, contains('tags=blue'));
-        expect(
-          receivedBody,
-          isNot(contains('%5B')),
-          reason:
-              'array must not be encoded as a `[...]` literal, got: $receivedBody',
-        );
-        expect(receivedBody, contains('nickname=Rex'));
-      } finally {
-        await server.close();
-      }
-    });
+          expect(receivedBody, contains('tags=red'));
+          expect(receivedBody, contains('tags=blue'));
+          expect(
+            receivedBody,
+            isNot(contains('%5B')),
+            reason:
+                'array must not be encoded as a `[...]` literal, got: $receivedBody',
+          );
+          expect(receivedBody, contains('nickname=Rex'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* form-optional-null-omitted: an optional form field left null
      * (`note`) must be omitted from the body entirely, not sent as
@@ -2172,17 +2192,20 @@ void main() {
      * throw (the SDK surfaces the failure) rather than silently mapping it
      * to a default or an `unknown` sentinel — matching the throw-on-unknown
      * behaviour of the other SDKs. */
-    test('unknown enum value on deserialize throws', () {
-      expect(
-        () => PetStatusEnum.fromJson('not-a-real-status'),
-        throwsA(isA<ArgumentError>()),
-      );
-      // A known value still deserializes correctly.
-      expect(
-        PetStatusEnum.fromJson('available'),
-        equals(PetStatusEnum.available),
-      );
-    });
+    test(
+      'bhv serializationobject 182 unknown enum value on deserialize throws',
+      () {
+        expect(
+          () => PetStatusEnum.fromJson('not-a-real-status'),
+          throwsA(isA<ArgumentError>()),
+        );
+        // A known value still deserializes correctly.
+        expect(
+          PetStatusEnum.fromJson('available'),
+          equals(PetStatusEnum.available),
+        );
+      },
+    );
 
     test('bhv operations 014 passes binary body as-is', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3207,7 +3230,59 @@ void main() {
       expect(client.sentHeaders, hasLength(1));
     });
 
-    test('Retry-After in seconds sets the wait', () async {
+    test(
+      'bhv retries 027 backoff doubles from half a second to eight seconds with quarter jitter',
+      () async {
+        final client = _ScriptedApiClient(<Object>[
+          for (var i = 0; i < 6; i++) _reply(503),
+          _reply(200),
+        ], maxRetries: 6);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(method: 'GET', path: '/x');
+
+        final ceilings = [500, 1000, 2000, 4000, 8000, 8000];
+        expect(api.waits, hasLength(ceilings.length));
+        for (var i = 0; i < ceilings.length; i++) {
+          expect(
+            api.waits[i].inMilliseconds,
+            inInclusiveRange((ceilings[i] * 0.75).round(), ceilings[i]),
+            reason: 'retry ${i + 1}',
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv retries 028 closing the client during the wait stops the retrying',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          request.response
+            ..statusCode = 503
+            ..close();
+        });
+
+        try {
+          final api = _ClosingApi(
+            DefaultApiClient(),
+            'http://localhost:${server.port}',
+          );
+
+          await expectLater(
+            api.invokeApi(method: 'GET', path: '/x'),
+            throwsA(isA<StateError>()),
+          );
+          expect(requests, equals(1));
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test('bhv retries 026 Retry-After in seconds sets the wait', () async {
       final client = _ScriptedApiClient([
         _reply(429, headers: {'retry-after': '3'}),
         _reply(200),

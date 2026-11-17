@@ -255,6 +255,16 @@ void main() {
       expect(identical(builder.server(server), builder), isTrue);
     });
 
+    test('bhv config 017 configuration is immutable once built', () {
+      final builder = ConfigurationBuilder().defaultHeader('X-Key', 'value');
+      final config = builder.build();
+
+      builder.defaultHeader('X-Later', 'later');
+      config.defaultHeaders['X-Mutated'] = 'mutated';
+
+      expect(config.defaultHeaders, equals({'X-Key': 'value'}));
+    });
+
     test('bhv config 006 builder produces independent instances', () {
       final builder = ConfigurationBuilder().baseUrl('https://example.com');
       final first = builder.build();

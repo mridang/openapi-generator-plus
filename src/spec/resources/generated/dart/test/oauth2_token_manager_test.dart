@@ -674,24 +674,27 @@ void main() {
       },
     );
 
-    test('a JSON array token response is not a JSON object', () async {
-      final client = _FakeApiClient();
-      client.enqueue('[1]');
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-      await expectLater(
-        () => manager.getAccessToken('https://auth.example.com/token', {
-          'grant_type': 'client_credentials',
-        }),
-        throwsA(
-          isA<OAuth2TokenException>().having(
-            (e) => e.message,
-            'message',
-            'Token response is not a JSON object',
+    test(
+      'bhv authoauthtwotokenmgr 041 a JSON array token response is not a JSON object',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('[1]');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+        await expectLater(
+          () => manager.getAccessToken('https://auth.example.com/token', {
+            'grant_type': 'client_credentials',
+          }),
+          throwsA(
+            isA<OAuth2TokenException>().having(
+              (e) => e.message,
+              'message',
+              'Token response is not a JSON object',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwotokenmgr 001 a 2xx token response that is not JSON throws OAuth2TokenException',

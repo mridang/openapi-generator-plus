@@ -124,3 +124,4 @@ swift | transport020 | the test needs a URLProtocol stub, which FoundationNetwor
 swift | transport040 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | transport046 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | options034 | the Apple-platform variant of the proxy test; on Linux the SDK rejects a proxy with a configuration error, which the Linux variant testSettingProxyRaisesOnLinux covers (it carries no catalogue id)
+dart | operations125 | Dart types the required category as a non-nullable String, so a nil value cannot be passed to GetPetByNameOptions; an empty string is refused with the canonical message by bhv operations 049

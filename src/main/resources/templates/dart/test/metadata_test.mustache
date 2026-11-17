@@ -153,7 +153,7 @@ void main() {
   });
 
   group('README.md', () {
-    test('names the builder setter that rejects a SOCKS proxy', () {
+    test('bhv options 044 names the builder setter that rejects a SOCKS proxy', () {
       final readme =
           File('${Directory.current.path}/README.md').readAsStringSync();
       expect(
@@ -358,7 +358,7 @@ void main() {
       expect(first.hashCode, equals(second.hashCode));
     });
 
-    test('toString dumps the fields and the additionalProperties map', () {
+    test('bhv models 012 toString dumps the fields and the additionalProperties map', () {
       final metadata = Metadata(
         createdAt: DateTime.utc(2024, 1, 15, 10, 30),
         additionalProperties: const {'tags': ['a', 'b']},

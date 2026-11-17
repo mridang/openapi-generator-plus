@@ -117,6 +117,18 @@ void main() {
       );
     });
 
+    test('bhv authapikey 018 rejects CR in a header key at construction', () {
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\rdef',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test('bhv authapikey 009 the query location accepts a non-ASCII key', () {
       final queryAuth = ApiKeyAuthenticator(
         host: '{{{basePath}}}',
@@ -313,6 +325,20 @@ void main() {
       expect(auth.cookieParams(), equals({'SESSION_ID': 'k1'}));
       expect(auth.authHeaders(), isEmpty);
       expect(auth.queryParams(), isEmpty);
+    });
+
+    test('bhv authapikey 019 wrappers reject an empty key at construction', () {
+      for (final build in builders.values) {
+        expect(() => build(''), throwsArgumentError);
+      }
+    });
+
+    test('bhv authapikey 020 every API-key wrapper validates eagerly and redacts the key', () {
+      for (final entry in builders.entries) {
+        expect(() => entry.value(''), throwsArgumentError, reason: entry.key);
+        expect(entry.value('abc123').toString(), isNot(contains('abc123')),
+            reason: entry.key);
+      }
     });
 
     builders.forEach((name, build) {

@@ -47,6 +47,19 @@ void main() {
       },
     );
 
+    test('bhv authbasic 012 an empty variable counts as unset', () {
+      expect(
+        () => BasicAuthenticator(
+          host: 'https://api.example.com',
+          environment: {
+            BasicAuthenticator.defaultUsernameVariable: '',
+            BasicAuthenticator.defaultPasswordVariable: 'pw1',
+          },
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test(
       'bhv authbasic 003 missing or empty credentials fail at construction',
       () {
