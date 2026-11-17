@@ -1363,6 +1363,22 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationwire053 form array field serializes as repeated keys")
+        fun formArrayFieldSerializesAsRepeatedKeys() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call(
+                    "POST",
+                    "/test/echo",
+                    body = mapOf("nickname" to "Rex", "tags" to listOf("fast", "loyal")),
+                    contentType = "application/x-www-form-urlencoded",
+                )
+            }
+            assertEquals("nickname=Rex&tags=fast&tags=loyal", client.capturedBody.toString())
+        }
+
+        @Test
         @DisplayName("bhvSerializationwire014 form-urlencoded body rejects a nested object field instead of sending its toString")
         fun formUrlencodedBodyRejectsNestedObject() {
             val client = CapturingApiClient()

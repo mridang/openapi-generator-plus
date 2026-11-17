@@ -1200,7 +1200,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("required-nested-param-validation: missing required query param fails loud")
+        @DisplayName("bhvOperations125 required-nested-param-validation: missing required query param fails loud")
         fun testGetPetByNameMissingRequiredQueryFailsLoud() {
             // required-nested-param-validation: `category` is a REQUIRED query
             // param carried in options. A null value (e.g. arriving via Java

@@ -141,7 +141,7 @@ class BasicAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: an empty variable counts as unset and fails naming the variable")
+    @DisplayName("bhvAuthbasic012 an empty variable counts as unset and fails naming the variable")
     fun emptyUsernameVariableFails() {
         val ex =
             withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "", "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "x")) {

@@ -91,7 +91,7 @@ class HeaderSelectorTest {
     @DisplayName("selectAcceptHeader")
     inner class SelectAcceptHeaderTests {
         @Test
-        @DisplayName("returns empty string for empty accept list")
+        @DisplayName("bhvHeaders027 returns empty string for empty accept list")
         fun returnsEmptyStringForEmptyAccepts() {
             assertEquals("", selector.selectAcceptHeader(arrayOf()))
         }

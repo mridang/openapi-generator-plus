@@ -57,6 +57,13 @@ class MetadataTest {
     }
 
     @Test
+    fun bhvModels012ToStringDumpsTheFieldsAndTheAdditionalPropertiesMap() {
+        val metadata = Metadata()
+        metadata.additionalProperties["customField"] = "hello"
+        assertEquals("Metadata(createdAt=null, additionalProperties={customField=hello})", metadata.toString())
+    }
+
+    @Test
     @DisplayName("the additionalProperties bucket can be supplied at construction and copy() carries it")
     fun testAdditionalPropertiesConstructorParameterAndCopy() {
         val metadata = Metadata(additionalProperties = mutableMapOf<String, Any?>("k" to "v"))

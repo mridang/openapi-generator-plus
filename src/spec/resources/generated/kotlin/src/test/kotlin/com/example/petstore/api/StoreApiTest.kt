@@ -219,6 +219,18 @@ class StoreApiTest {
         }
 
         @Test
+        @DisplayName("bhvOperations126 place order without an argument sends no body")
+        fun testPlaceOrderWithoutAnArgumentSendsNoBody() {
+            var sent: String? = null
+            val api = capturingStoreApi("""{"id":1}""", capture = { _, text -> sent = text })
+
+            val placed = runBlocking { api.placeOrder() }
+
+            assertEquals(1L, placed.id)
+            assertEquals("", sent)
+        }
+
+        @Test
         @DisplayName("bhvOperations100 deleteOrderNotFound")
         fun testDeleteOrderNotFound() {
             val engine =

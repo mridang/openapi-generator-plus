@@ -165,7 +165,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("CR/LF in header key throws at construction")
+    @DisplayName("bhvAuthapikey018 CR/LF in header key throws at construction")
     fun crlfInHeaderKeyThrowsAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             ApiKeyAuthenticator(
@@ -305,7 +305,7 @@ class ApiKeyAuthenticatorTest {
         }
 
     @Test
-    fun generatedSchemeWrappersValidateEagerlyAndMaskTheKey() {
+    fun bhvAuthapikey020GeneratedSchemeWrappersValidateEagerlyAndMaskTheKey() {
         assertThrows(IllegalArgumentException::class.java) {
             ApiKeyQueryAuthenticator("https://api.example.com", "")
         }
@@ -316,6 +316,25 @@ class ApiKeyAuthenticatorTest {
             "SessionCookieAuthenticator(host=https://api.example.com, keyParamName=SESSION_ID, apiKey=***, location=COOKIE)",
             SessionCookieAuthenticator("https://api.example.com", "k4").toString(),
         )
+        assertFalse(ApiKeyHeaderAuthenticator("https://api.example.com", "k1").toString().contains("k1"))
+        assertFalse(InternalApiKeyAuthenticator("https://api.example.com", "k2").toString().contains("k2"))
+        assertFalse(ApiKeyQueryAuthenticator("https://api.example.com", "k3").toString().contains("k3"))
+    }
+
+    @Test
+    fun bhvAuthapikey019WrappersRejectAnEmptyKeyAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyHeaderAuthenticator("https://api.example.com", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            InternalApiKeyAuthenticator("https://api.example.com", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyQueryAuthenticator("https://api.example.com", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SessionCookieAuthenticator("https://api.example.com", "")
+        }
     }
 
     private fun <T> withEnvironment(
