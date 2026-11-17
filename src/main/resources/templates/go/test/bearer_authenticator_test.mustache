@@ -231,6 +231,20 @@ func TestBhvAuthbearer012_BearerAuthenticator_RejectsCrLfAndNonAscii(t *testing.
 	}
 }
 
+// TestBhvAuthbearer028 pins that a token holding a carriage return and line feed is
+// rejected when the authenticator is built, so no request is ever sent with it.
+func TestBhvAuthbearer028_BearerAuthenticator_CrLfTokenIsRejectedAtConstruction(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewBearerAuthenticator("https://api.example.com", "tok\r\nX-Injected: yes")
+
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
+	}
+	if a != nil {
+		t.Error("expected a nil authenticator")
+	}
+}
+
 // The token provider is asked again for every request, not once at construction.
 func TestBhvAuthbearer014_BearerAuthenticator_TokenProviderIsCalledForEveryRequest(t *testing.T) {
 	t.Parallel()

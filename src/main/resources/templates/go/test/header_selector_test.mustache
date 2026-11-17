@@ -151,6 +151,15 @@ func TestBhvHeaders027_HeaderSelector_SelectAcceptHeaderOfAnEmptyArrayIsEmptyStr
 	}
 }
 
+// TestBhvHeaders029 pins that the Accept header is empty when every entry is blank,
+// whether empty or made only of whitespace.
+func TestBhvHeaders029_HeaderSelector_SelectAcceptHeaderIsEmptyWhenEveryEntryIsBlank(t *testing.T) {
+	t.Parallel()
+	if accept := newHeaderSelector().selectAcceptHeader([]string{"", "   ", ""}); accept != "" {
+		t.Errorf("expected an empty Accept header, got %q", accept)
+	}
+}
+
 func TestBhvHeaders005_HeaderSelector_SelectAcceptHeaderEmptyWhenNothingRemains(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
