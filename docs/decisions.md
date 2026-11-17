@@ -34,11 +34,31 @@ When an operation declares more than one 2xx response with different schemas, it
 
 ## Unions are built with typed constructors where the language allows it
 
-A `oneOf` or `anyOf` model is built from a variant, not from an untyped value, in most languages: `ofVariant` in Java, `FromVariant` in C#, `fromVariant` in Swift, `fromX` in PHP, `from_<variant>` in Ruby, a named constructor per variant in Dart, a sum type in Rust, a union type in TypeScript and module functions in Elixir. In Go, Kotlin and Python the union is a wrapper that holds the decoded value (`actualInstance` or `actual_instance`) and has no constructor per variant yet; making these consistent is covered by issue #104 and by the review of union types in the language pages.
+A `oneOf` or `anyOf` model is built from a variant, not from an untyped value, and read back through a per-variant test and accessor, wherever the language allows: `ofVariant`, `isVariant` and `asVariant` in Java, `FromVariant` in C#, `fromVariant` in Kotlin, Swift and PHP, `from_<variant>` in Ruby, a constructor per variant such as `NewDryFoodPetFood` in Go, a named constructor per variant in Dart, a sum type in Rust, a union type in TypeScript and module functions in Elixir. In Python the union is a pydantic wrapper that takes the variant as its one argument and rejects anything that is not a declared variant, so you read it with `isinstance` on `actual_instance`. A model that uses `allOf` with a discriminator is a different shape and is still open (issue #104).
 
 ## Credentials come from an argument, then the environment
 
-An authenticator takes its credential as an argument. When you pass none, most SDKs read an environment variable once, when the client or authenticator is built, and an empty value counts as unset. An argument always wins over the environment. A credential that is found in neither place fails at construction time, not on the first request. A bearer token or an API key that rotates can instead come from a provider function that is called for every request. The variable names differ by language and by generated package, so they are listed on each language page. The Java SDK takes its credentials as constructor arguments only today and does not read the environment or accept a provider.
+An authenticator takes its credential as an argument. When you pass none, most SDKs read an environment variable once, when the client or authenticator is built, and an empty value counts as unset. An argument always wins over the environment. A credential that is found in neither place fails at construction time, not on the first request. A bearer token or an API key that rotates can instead come from a provider function that is called for every request. The variable names differ by language and by generated package, so they are listed on each language page. The OAuth 2 and OpenID Connect authenticators of Dart and PHP do not read the environment yet; that is issue #119.
+
+## Errors say which request failed
+
+An API error carries the HTTP method and the path of the request, without the query string and the fragment because a query may hold a credential, and the message shows them: `API returned status code 404 for GET /items/7`. The same fields exist on a network error and on a timeout, so a log line from a failed call tells you which call it was.
+
+## Closing a client finishes what is running
+
+Closing a client is safe to do twice. A request that is already in flight finishes, a request that starts afterwards fails with the error for a closed client, and an HTTP client that you supplied is never closed by the SDK. To stop one request, cancel that request (see the options for a single call above), not the client.
+
+## Configuration and transport options are separate
+
+`Configuration` says what the API is (the base URL, the default headers and the server). `TransportOptions` says how bytes travel (proxy, TLS, timeout, retries and redirects). They overlap a little on purpose, because merging them would be a larger break than the overlap costs. The README of each SDK says which setting goes where.
+
+## Optional and nullable are not told apart on the way out
+
+A property that is optional and nullable is the language's own optional type, and an absent value and an explicit `null` are sent the same way, as absent, in every language except TypeScript. A property that is required and nullable is always written, as `null` when it has no value. A three-state type for PATCH-style APIs may come later.
+
+## Models are not validated when you build them
+
+Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
 
 ## Language version floors
 
@@ -69,16 +89,18 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **Typed values for `additionalProperties` (#103).** The extra-properties bucket is an untyped map in every language and its values are not checked on decode. Typing it changes the public model API, so it has to land in all twelve together.
 * **Validating the `id_token` and sending a nonce in the OIDC authenticator (#110).** PKCE is in place for the authorization-code flow, but replay of an `id_token` is not detected by the client.
 * **A maximum response size (#112).** No transport limits how much it reads or decompresses, so a hostile server can make a client read a very large body. The option and its default must be the same in all twelve.
-* **An end-to-end timeout that holds while the body is read, and a per-call timeout (#116).** The default is a 10 second budget for the whole call. Python and Ruby still apply the timeout per socket read, which needs a streaming reader, and the issue records the per-call option still to be added in every SDK.
+* **An end-to-end timeout that holds while the body is read (#116).** The default is a 10 second budget for the whole call, and a per-call timeout is in the options for a single call. Python and Ruby still apply the timeout per socket read, which needs a streaming reader, so a server that trickles a body can hold a call past the budget.
 * **A typed error from Rust operations (#113).** Every Rust operation returns `Box<dyn Error>`. A concrete error type is a public API break for that SDK alone.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
-* **Object-valued query and header parameters (#109), enum defaults on a `$ref` property (#106), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
+* **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
+* **Header parameters named `Accept`, `Content-Type` or `Authorization` (#125).** OpenAPI says to ignore them; the SDKs treat them as an override today, and the rule has to be chosen once for all twelve.
+* **A date type for Go (#126), keep-alive connections in the Ruby client (#127) and escaping of reserved property names in Swift and Elixir (#128).** Each is one language and waits for an owner decision on the shape.
 
 ### Settled differences between languages
 
-* **Cookie parameters (F840).** A value is sent as given when every character is allowed in a cookie, and an illegal character fails before the request is sent. Nothing is percent-encoded for you, because the shared parameter model cannot tell an explicit `style: form` from the default.
-* **One credential per security scheme (F857).** Where a client takes one credential per scheme, an operation uses the credential of the first scheme it lists that you set. A per-call override of the scheme is deferred, and Rust has no such override.
-* **Test TLS keys (F1085).** The generated tests use the key files copied from the shared fixtures, because the shared test server mounts a fixed server key. Generating the keys when the tests start is a change to that shared harness, and it is not done yet. The Dart and Swift standard libraries cannot create X.509 certificates, so once the harness generates the material the SDKs only read it.
+* **Cookie parameters.** A value is sent as given when every character is allowed in a cookie, and an illegal character fails before the request is sent. Nothing is percent-encoded for you, because the shared parameter model cannot tell an explicit `style: form` from the default.
+* **One credential per security scheme.** Where a client takes one credential per scheme, an operation uses the credential of the first scheme it lists that you set. A per-call override of the scheme is deferred, and Rust has no such override.
+* **Test TLS keys.** No private key is committed. The test CA and the server key are generated once per test run by the shared harness and mounted into the containers that run the generated tests. The Dart and Swift standard libraries cannot create X.509 certificates, so the generated SDK tests only read the material and do not create it.
 
 ## Under review
 
@@ -87,7 +109,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#103](https://github.com/mridang/openapi-generator-plus/issues/103): type the values of `additionalProperties` instead of exposing an untyped map.
 * [#104](https://github.com/mridang/openapi-generator-plus/issues/104): support classic `allOf` inheritance with a discriminator in every SDK.
 * [#105](https://github.com/mridang/openapi-generator-plus/issues/105): run a vulnerability and unused-dependency audit on every generated SDK.
-* [#106](https://github.com/mridang/openapi-generator-plus/issues/106): honour a default on a property that references an enum.
 * [#107](https://github.com/mridang/openapi-generator-plus/issues/107): decode Go models in a single pass.
 * [#108](https://github.com/mridang/openapi-generator-plus/issues/108): add optional tracer and meter providers to the Go client.
 * [#109](https://github.com/mridang/openapi-generator-plus/issues/109): serialize object-valued query and header parameters per the OpenAPI style rules.
@@ -99,3 +120,14 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#115](https://github.com/mridang/openapi-generator-plus/issues/115): cover the Dart browser client and derive the keyword lists from the toolchains.
 * [#116](https://github.com/mridang/openapi-generator-plus/issues/116): add a per-call timeout and make the end-to-end timeout hold while the body is read.
 * [#117](https://github.com/mridang/openapi-generator-plus/issues/117): decode error bodies against the operation's declared error schema.
+* [#118](https://github.com/mridang/openapi-generator-plus/issues/118) and [#121](https://github.com/mridang/openapi-generator-plus/issues/121): compare the generated test suites of the twelve languages and close the gaps.
+* [#119](https://github.com/mridang/openapi-generator-plus/issues/119): read OAuth credentials from the environment in the Dart and PHP authenticators.
+* [#120](https://github.com/mridang/openapi-generator-plus/issues/120): build the generated documentation in every language as part of the specs.
+* [#122](https://github.com/mridang/openapi-generator-plus/issues/122): guard the public API surface of every SDK and stop internals from leaking.
+* [#123](https://github.com/mridang/openapi-generator-plus/issues/123): generate a typed error hierarchy per status and per declared error schema.
+* [#124](https://github.com/mridang/openapi-generator-plus/issues/124): sweep the build, lint, format, test and docs logs of every SDK for warnings.
+* [#125](https://github.com/mridang/openapi-generator-plus/issues/125): ignore header parameters named Accept, Content-Type or Authorization and decide how a per-call Accept is set.
+* [#126](https://github.com/mridang/openapi-generator-plus/issues/126): type `format: date` values in the Go SDK.
+* [#127](https://github.com/mridang/openapi-generator-plus/issues/127): keep connections alive in the Ruby client.
+* [#128](https://github.com/mridang/openapi-generator-plus/issues/128): stop escaping reserved property names that need no escape in the Swift and Elixir SDKs.
+* [#129](https://github.com/mridang/openapi-generator-plus/issues/129): re-check the audit leads that were deferred without an issue.

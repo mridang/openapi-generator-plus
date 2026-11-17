@@ -72,9 +72,9 @@ Every language's test fixture checks `CHASM_HTTP_URL` and `PROXY_URL`. When both
 
 No private key is committed, in the repository or in a generated SDK. `TestCertificates` generates a throwaway CA and one server certificate (names `chasm`, `wiremock`, `localhost`, `host.docker.internal` and `127.0.0.1`) with the JDK's `keytool` once per Maven run, into a temporary directory that is deleted on exit. `SharedHelperContainers` gives the server certificate and key to the shared Chasm, and `SharedRuntimeContainer` mounts the directory read-only into each language container at the path that language's tests read `ca.pem`, `server.pem` and `server-key.pem` from. The generated SDK does not contain them. `NoCommittedPrivateKeysTest` fails the build if a private key appears under `src/main` or `src/spec/resources`.
 
-### The API surface check
+### The public API shape
 
-`etc/api-surface.py` reads the non-test source of all twelve goldens and extracts each SDK's public surface: its types, members, parameter names and order, optional parameters, return types and enum cases. It folds away idiom before it compares, such as naming case, the `Exception` and `Error` suffix, a getter against a property, an `Async` suffix or an overloaded method set, and then reports every remaining difference. `etc/api-surface.py check` must not get worse with a change. A difference that is genuine idiom is recorded in `etc/api-surface-allow.json` with a reason that names the language feature forcing it. The canonical result is written to `API_SURFACE.md`.
+A script that compared the public surfaces of the twelve SDKs was removed, so nothing in the build tells you yet when a public signature changes or leaks an internal type. The replacement is a set of Java specs that keep a reviewed snapshot of each surface, check that every public type is exported and that no public signature exposes a third-party type, and it is tracked in [#122](https://github.com/mridang/openapi-generator-plus/issues/122). Until it lands, the rule is that a public member is added to all twelve in the same change and that a difference between two languages needs a named language feature behind it.
 
 ### The test parity check
 
@@ -84,11 +84,9 @@ A key is `group::test`. The group is the unit under test, read from the class, m
 
 Every gap is a decision, recorded with a reason in `src/spec/resources/test-parity-allow.json`: `missingGroups`, `extraGroups` and `missingTests` per language, and `partialGroups` for groups only some languages have. A key ending in `*` covers a prefix. Entries marked `tracked in #118` are real differences waiting for an owner; the rest name the language feature that forces them. The classes live in `src/spec/java/io/github/mridang/codegen/spec/parity/` and their unit tests mirror them under `src/test`.
 
-### The parity ledger
+### How work and decisions are tracked
 
-`PARITY_FINDINGS.json` is the only list of open work. It is maintained only through `etc/parity-findings.py`, which reports the open count and is the one progress number. Reviews, audits and the parity guard report into it, and a finding that is not written there with an id is lost. The ledger tracks work; settled decisions live in `AGENTS.md` and are summarised in [decisions](decisions.md), so a reviewer does not reopen them.
-
-The default way to fix findings is in direct batches of fifteen to twenty grouped by the kind of bug: edit the templates, regenerate, run the API surface check and the quick gate, commit once per batch, and push once per round. Every fix needs a test or a golden that fails without it, in all twelve languages when the bug could exist in all twelve. Standing read-only audits (OpenAPI feature coverage, test parity and developer experience against reference SDKs) rerun at any time and write into the ledger.
+Open work is a GitHub issue in the milestone "Rebuild: harmonised SDKs", and the list is in [decisions](decisions.md#under-review). Settled decisions live in the `AGENTS.md` files, with the reason, so that review does not reopen them, and in [decisions](decisions.md) for people who use the SDKs. Work is done in direct batches grouped by the kind of bug: edit the templates, regenerate, run the quick gate, commit once per batch and push once per round. Every fix needs a test or a golden that fails without it, in all twelve languages when the bug could exist in all twelve.
 
 ## The standard every SDK follows
 

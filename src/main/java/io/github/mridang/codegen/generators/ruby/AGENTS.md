@@ -1,6 +1,6 @@
 # Ruby SDK generator
 
-This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an OpenAPI document: a `Client` entry class, `Configuration` and `TransportOptions` builders, one API class per tag with an Options object per operation, dry-struct models, an authenticator per security scheme, the error hierarchy, and the minitest suite, README, SKILLS.md, RBS signatures and lint/type-check config that ship with it. HTTP goes through Faraday 2 (`DefaultApiClient` on top, following redirects itself); models use `dry-struct` and `dry-types`; `format: time` uses `tod`, `format: duration` uses `iso8601`; `brotli` and `zstd-ruby` are an optional gem group. Tests run with minitest (`bundle exec rake test`), style with RuboCop (`rubocop-minitest`, `rubocop-rake`), types with Steep over hand-generated `.rbs` files. The floor is Ruby 3.2, the oldest release that still receives security fixes (F1087: `ruby '>= 3.2'`, `required_ruby_version >= 3.2`, `TargetRubyVersion: 3.2`, test image `ruby:3.2-alpine`, formatter image `ruby:3.2`).
+This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an OpenAPI document: a `Client` entry class, `Configuration` and `TransportOptions` builders, one API class per tag with an Options object per operation, dry-struct models, an authenticator per security scheme, the error hierarchy, and the minitest suite, README, SKILLS.md, RBS signatures and lint/type-check config that ship with it. HTTP goes through Faraday 2 (`DefaultApiClient` on top, following redirects itself); models use `dry-struct` and `dry-types`; `format: time` uses `tod`, `format: duration` uses `iso8601`; `brotli` and `zstd-ruby` are an optional gem group. Tests run with minitest (`bundle exec rake test`), style with RuboCop (`rubocop-minitest`, `rubocop-rake`), types with Steep over hand-generated `.rbs` files. The floor is Ruby 3.2, the oldest release that still receives security fixes (: `ruby '>= 3.2'`, `required_ruby_version >= 3.2`, `TargetRubyVersion: 3.2`, test image `ruby:3.2-alpine`, formatter image `ruby:3.2`).
 
 ## Read first
 
@@ -8,9 +8,8 @@ This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an Open
 - Repository root: [../../../../../../../../../AGENTS.md](../../../../../../../../../AGENTS.md)
 - Codegen class: [BetterRubyCodegen.java](BetterRubyCodegen.java)
 - Templates: [../../../../../../../resources/templates/ruby/](../../../../../../../resources/templates/ruby/)
-- Spec classes: [../../../../../../../spec/java/io/github/mridang/codegen/spec/ruby/](../../../../../../../spec/java/io/github/mridang/codegen/spec/ruby/) (`RubySpec` is the shared interface; `RubyClientSpec` runs `rake test`, `RubyLintingSpec` RuboCop, `RubyFormattingSpec` Layout cops, `RubyTypeCheckSpec` Steep, `RubyReservedWordsSpec` the keyword list)
-- Golden: [../../../../../../../spec/resources/generated/ruby/](../../../../../../../spec/resources/generated/ruby/) (never hand-edit; regenerate)
-- API-surface allow rules for ruby: `etc/api-surface-allow.json` (each states its reason); canonical surface: `API_SURFACE.md`
+- Spec classes: [../../../../../../../spec/java/io/github/mridang/codegen/spec/ruby/](../../../../../../../../spec/java/io/github/mridang/codegen/spec/ruby/) (`RubySpec` is the shared interface; `RubyClientSpec` runs `rake test`, `RubyLintingSpec` RuboCop, `RubyFormattingSpec` Layout cops, `RubyTypeCheckSpec` Steep, `RubyReservedWordsSpec` the keyword list)
+- Golden: [../../../../../../../spec/resources/generated/ruby/](../../../../../../../../spec/resources/generated/ruby/) (never hand-edit; regenerate)
 
 ## Layout
 
@@ -34,24 +33,24 @@ This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an Open
 | Topic | What ruby does | Why |
 |---|---|---|
 | Models | `dry-struct` classes with `Types::*` attributes; enums are constant classes with `VALUES`/`validate!` | Ruby has no typed fields; dry-types is the library integration point |
-| oneOf/anyOf | Module functions `actual_instance(value)` and `matched_instances(value)`, a `build` returning the variant or a `*Composite` struct; no wrapper object | dry-struct has no wrapper to hold a variant; allow rules in `etc/api-surface-allow.json` |
+| oneOf/anyOf | Module functions `actual_instance(value)` and `matched_instances(value)`, a `build` returning the variant or a `*Composite` struct; no wrapper object | dry-struct has no wrapper to hold a variant |
 | One constant per file | `ServerVariable` is its own file, and the golden test `declares exactly the constant each lib file path names` enforces path-to-constant | Zeitwerk-style autoloading (the same rule as java and php); see root AGENTS.md "Forced divergences" |
 | Compact module form | Every file opens `module A::B` | Nested form re-indents and changes constant lookup, the failure the constant-resolution regression covers |
 | Auth host mixin | `HttpAwareAuthenticator` is a mixin module beside the `Authenticator` superclass | A module cannot inherit the class's methods |
 | Visibility | `BaseApi::NO_AUTH`, `OAuth2AuthorizationCodeAuthenticator#token_manager`, `OAuth2TokenManager#mark_exchanged` and `BaseApi#config` are public | Ruby has no package-private or cross-file protected visibility |
 | Cause | `ApiError`, `NetworkError`, `NetworkTimeoutError` take no `cause` argument | Ruby records it with the built-in `Exception#cause` |
 | Builders | Setter parameter is named `val`; `Configuration` and `TransportOptions` keyword constructors take every value, defaults come from the builder | Positional setter style; the builder supplies defaults |
-| Entry class | `Petstore::Client::Client` (a class may share its namespace's name) | API_SURFACE D05 |
+| Entry class | `Petstore::Client::Client` (a class may share its namespace's name) | Ruby lets a class share its namespace's name |
 | Servers list | `Servers::ALL` | Constant naming |
-| Numbers | `format: number` is `Float`; `Integer` is arbitrary precision so int64 is exact | Ruby JSON parsing yields `Float` (see D83, F075) |
-| Binary responses | `File`/`StringIO` stream | Matches java/csharp stream typing (F332) |
+| Numbers | `format: number` is `Float`; `Integer` is arbitrary precision so int64 is exact | Ruby JSON parsing yields `Float` (see D83) |
+| Binary responses | `File`/`StringIO` stream | Matches java/csharp stream typing |
 | Case of names | snake_case operations, variables and files; enum constants upper case | Ruby convention |
-| Client credentials | `Client.new(authenticator = nil, transport_options = nil, <scheme>: nil, ...)`, one keyword per security scheme in snake case | Ruby has named arguments, so the credential of each scheme is a keyword named after it (F857) |
+| Client credentials | `Client.new(authenticator = nil, transport_options = nil, <scheme>: nil, ...)`, one keyword per security scheme in snake case | Ruby has named arguments, so the credential of each scheme is a keyword named after it |
 | Server argument | `server:` is a keyword argument after `options` | A Ruby keyword argument follows every positional one; the call site names it |
 
 ## Settled decisions (do not re-open in review)
 
-Ids D01-D94 are from `PARITY_DECISIONS.md`; Fnnn are ledger findings; S1-S16 are the 2026-11-16 session decisions; "Forced" and "Resolved" entries come from the root `AGENTS.md`. The shared rule is written once in `../AGENTS.md`; each entry here is how ruby realises it.
+Ids D01-D94 are the numbered decisions of the shared file; an Fnnn names an owner decision there or a decision written out next to it; S1-S16 are the 2026-11-16 session decisions; "Forced" and "Resolved" entries come from the shared file. The shared rule is written once in `../AGENTS.md`; each entry here is how ruby realises it.
 
 ### Cancellation: no new parameter (S7, 2026-11-16)
 Rule: Ruby has no cancellation API of its own; a deadline is the only bound and it raises `NetworkTimeoutError`.
@@ -59,49 +58,49 @@ Why: Ruby's native mechanisms (`Timeout`, thread kill) are not a per-call handle
 Where: `readme.mustache` ("Per-call cancellation"), `default_api_client.mustache`.
 Test: `default_api_client_test`, `default_api_client_unit_test`.
 
-### Parameter order (S8, F803, 2026-11-16, owner confirmation pending)
+### Parameter order (S8, 2026-11-16, owner confirmation pending)
 Rule: required parameters, then server, then the Options object, always, whether or not the operation has security.
 Why: adding security must never move an argument.
 Where: `api/api.mustache`, `api/api_rbs.mustache`, `api/options.mustache`.
 Test: `test/api/` and the golden RBS under Steep.
 
-### Injected transport is a Faraday connection (S9, F405, 2026-11-16)
+### Injected transport is a Faraday connection (S9, 2026-11-16)
 Rule: `TransportOptions.builder.connection(conn)` takes a `Faraday::Connection`, keeps the SDK defaults applied, never closes it, and rejects a non-connection with `ArgumentError`.
 Why: Faraday is the ecosystem's standard client; the other SDKs' standard client object is accepted the same way.
 Where: `transport_options.mustache` (`connection`, line about `respond_to?(:run_request)`), `default_api_client.mustache`.
 Test: `transport_options_test.mustache`, `default_api_client_test.mustache`.
 
-### Content parameters use the SDK serializer (S2, D80, D50, F054)
+### Content parameters use the SDK serializer (S2, D80, D50)
 Rule: `content: application/json` parameters in query, header, path and cookie go through `::<Module>::ObjectSerializer.serialize`, not `JSON.generate`.
 Why: one byte-identical encoder in all twelve (wire names, `.SSS+00:00` date-times, null fields omitted, NaN rejected).
 Where: `base_api.mustache`, `object_serializer.mustache`.
 Test: `base_api_test.mustache`, `object_serializer_test.mustache`.
 
-### Strict containers (S1, F006, D54)
+### Strict containers (S1, D54)
 Rule: an array or map of primitives is checked element by element in `convert_to_type`; an integer leaf must be an integer token inside the int32 or int64 range, a fractional, quoted or out-of-range value raises `Errors::SerializationError`.
 Why: a container is decoded exactly like a single primitive in all twelve.
 Where: `object_serializer.mustache`, `models/model.mustache` (the dry attribute is constrained for construction).
 Test: `object_serializer_test.mustache`.
 
-### Schema constraints are not enforced (S3, D55, F056)
+### Schema constraints are not enforced (S3, D55)
 Rule: pattern, minLength, maxLength, minimum, maximum, multipleOf, minItems, maxItems and `dependentRequired`/`dependentSchemas` are not checked by the client; the server owns validation. The README says so under "Numeric / string constraint validation".
 Why: only python enforces them natively and cheaply (pydantic); Ruby's dry-types could, but the decision is uniform.
 Where: `readme.mustache`, `models/model.mustache`.
 Test: `readme_test.mustache`.
 
-### allOf with a discriminator uses inheritance (S4, F057, F802)
+### allOf with a discriminator uses inheritance (S4)
 Rule: the allOf+discriminator parent is a base class and subtypes inherit; a model reused in two unions is not re-parented, unions use modules.
 Why: Ruby has single inheritance, so inheritance is reserved for the one parent.
 Where: `models/model.mustache`, `BetterRubyCodegen.setsDiscriminatorDefaultOnChildren` and `formatDiscriminatorDefaultValue`.
 Test: `composed_schema_test.mustache`, `metadata_test.mustache`.
 
-### Required plus nullable (S5, D66, F215)
+### Required plus nullable (S5, D66)
 Rule: the key must be present on decode (absent raises), an explicit `nil` is kept, and encode always writes the key (`null` when unset); the attribute is `Types::X.optional` with the key required.
 Why: the one uniform rule in all twelve.
 Where: `models/model.mustache`, `object_serializer.mustache`.
 Test: `object_serializer_test.mustache`, `metadata_test.mustache`.
 
-### uniqueItems order is unspecified (S6, F319, D69)
+### uniqueItems order is unspecified (S6, D69)
 Rule: a `Set` is sent in its own iteration order; the SDK does not sort, and `Set` parameters expand like arrays (`value.to_a` at entry).
 Why: decided not to sort; the READMEs document it. Supersedes the sorted-scalars proposal in D69.
 Where: `base_api.mustache`, `getUniqueItemsSetType` in the codegen (`Set<`).
@@ -137,7 +136,7 @@ Why: Faraday would otherwise decode the query into a Hash, sort and re-encode it
 Where: `default_api_client.mustache`, `base_api.mustache`, `faraday_rbs.mustache`.
 Test: `default_api_client_test`, `base_api_test`.
 
-### Ambient proxy settings are ignored (D74, F090)
+### Ambient proxy settings are ignored (D74)
 Rule: the proxy is exactly `TransportOptions.proxy`; Faraday's `proxy` is assigned unconditionally (nil when unset) and `http.proxy_from_env = false` in the adapter block.
 Why: one policy in all twelve.
 Where: `default_api_client.mustache`.
@@ -161,7 +160,7 @@ Why: ruby is a sync-only language (root AGENTS.md: auth-header method shape trac
 Where: `authenticator.mustache`, `auth/*.mustache`.
 Test: `*_authenticator_test`.
 
-### Error contract tests and ApiError details (D13, D14, D27, F325)
+### Error contract tests and ApiError details (D13, D14, D27)
 Rule: an unusable response attaches `response.headers.to_h` to the `ApiError`; `api_error_test.rb` carries the empty-headers, empty-body and `OAuth2ServerError` rows; `ApiResult#headers` is `headers.dup.freeze`.
 Why: the transport-failure signal (`nil` headers means no response) must stay distinct from an empty map.
 Where: `errors/api_error.mustache`, `api_result.mustache`.
@@ -221,7 +220,7 @@ Why: documented and consistent with the seven native-float languages. Making it 
 Where: `typeMapping` in the codegen, `readme.mustache`.
 Test: `object_serializer_test`, `readme_test`.
 
-### Forced: free-form null retention (F314, Second parity-audit tail)
+### Forced: free-form null retention (Second parity-audit tail)
 Rule: ruby strips `null` entries nested in free-form model values, as kotlin does; node and the others differ.
 Why: reachable only through a petstore free-form fixture edge; aligning needs per-field metadata the schema does not carry.
 Where: `object_serializer.mustache`.
@@ -251,11 +250,9 @@ Why: that is how the Ruby constant-resolution bug was caught.
 Where: `RubySpec.getCodegenProperties`, `test/client_test.mustache`.
 Test: `RubyClientSpec`.
 
-### API surface allow rules (etc/api-surface-allow.json)
+### Idiom differences from the other eleven
 Rule: the ruby entries are idiom only: `Types` module and the Faraday params encoder, `*Composite` structs, the `HttpAwareAuthenticator` mixin, no `actual_instance` wrapper, `Servers::ALL`, `resolve_oneof/anyof` inside model code, nested `Client`, public `NO_AUTH`/`token_manager`/`mark_exchanged`/`config`, ctor without `cause`, positional `val` setters, `Configuration`/`TransportOptions` keyword constructors.
 Why: each states the Ruby feature that forces it in its `reason`.
-Where: `etc/api-surface-allow.json`.
-Test: `python3 etc/api-surface.py check`.
 
 ## Known limitations and out of scope
 
@@ -264,10 +261,10 @@ Test: `python3 etc/api-surface.py check`.
 - Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11, closed issues #53, #70, #78, #88, #90); the README says so.
 - OpenAPI 3.2 and 3.1 loading is tracked in epics #49 and #96, 3.2 documents in #50.
 - `format: number` precision is lossy (Float); lossless parsing is undecided.
-- Connection reuse is open for ruby: Faraday's default `net_http` adapter opens a connection per request (F229); keep-alive would need `net_http_persistent`, an owner decision. The misleading code comment was removed.
-- `ruby` models do no type or enum validation on construction beyond dry-types `Any` for untyped fields (F316, parked).
-- An overflowing double literal such as `1e400` decodes to Infinity (F390, parked).
-- Docs build (`yard --fail-on-warning`) is shipped in the Makefile but run by no spec (F191, deferred).
+- Connection reuse is open for ruby: Faraday's default `net_http` adapter opens a connection per request; keep-alive would need `net_http_persistent`, an owner decision. The misleading code comment was removed.
+- `ruby` models do no type or enum validation on construction beyond dry-types `Any` for untyped fields (parked).
+- An overflowing double literal such as `1e400` decodes to Infinity (parked).
+- Docs build (`yard --fail-on-warning`) is shipped in the Makefile but run by no spec (deferred).
 - No `LICENSE` file is generated.
 - Reserved-word narrowing (D44) is conditional on Steep/RBS passing; otherwise it is recorded as forced.
 
@@ -289,10 +286,9 @@ Test: `python3 etc/api-surface.py check`.
 - `etc/ci-local.sh check Ruby` (add `--quick` on a clean tree for the main session)
 - `mvn verify -Dgroups=ruby` for the language end to end
 - Regenerate the golden: `mvn test -Dtest='Generate*ClientTest,FixtureVocabularyLeakTest' -DforkCount=0 -Djacoco.skip=true -DfailIfNoTests=false`, then commit all twelve goldens current
-- `python3 etc/api-surface.py check` must not get worse after a change
 - Inside a generated tree: `bundle exec rake test`, `bundle exec rubocop`, `bundle exec steep check`, `bundle exec yard doc --fail-on-warning`
 
-### Batch 5 fixes (F824, F831, F832, F833, F839)
+### Batch 5 fixes
 Rule: `Client#close` closes the `DefaultApiClient` the SDK built (a supplied Faraday connection is never closed; a closed client raises the existing closed `RuntimeError`); `Errors::TooManyRequestsError` (429, a `ClientError`) is selected in `ApiError.from_response`; the unexpected-Content-Type `SerializationError` names `Class.operation` through the `operation_id:` keyword of `invoke_api_for_result`; a `content:` cookie is percent-encoded by `ValueSerializer.encode_content_cookie` (only A-Z a-z 0-9 - . _ ~ literal); on 301/302 only POST becomes GET, on 303 every method but HEAD becomes GET, 307/308 never change the method.
 Where: `client.mustache`, `errors/too_many_requests_error.mustache`, `base_api.mustache`, `value_serializer.mustache`, `default_api_client.mustache`, `infrastructure_rbs.mustache`.
 Test: `client_test`, `api_error_test`, `base_api_test`, `value_serializer_test`, `default_api_client_test`.
@@ -301,27 +297,27 @@ Test: `client_test`, `api_error_test`, `base_api_test`, `value_serializer_test`,
 
 Each follows the audit's own proposal unless noted.
 
-### Redirect, header and message wording (F916, F921, F922, F924, F925, F927, F928, F931)
+### Redirect, header and message wording
 Rule: the too-many-redirects error is raised only when the exhausted budget leaves a 3xx that still has a `Location` (a terminal 3xx is returned); the three redirect messages are the D16 text exactly; `ApiError#message` renders `Response headers: ` as `JSON.generate(headers.sort.to_h)`; `Builder#timeout` accepts only a positive number (`Invalid timeout: must be a positive number of milliseconds (got N)`, so `0` is rejected); `exchange_code('')` raises `Authorization code must not be empty`.
 Where: `default_api_client.mustache`, `errors/api_error.mustache`, `transport_options.mustache`, `auth/oauth/oauth2_auth_code_authenticator.mustache`.
 Test: `default_api_client_unit_test`, `api_error_test`, `transport_options_test`, `oauth2_auth_code_authenticator_test`, `api/pet_api_test` (the messages are asserted byte for byte).
 
-### OAuth2 token expiry (F854, F910, F911, F863)
+### OAuth2 token expiry
 Rule: the real expiry (`now + expires_in`) is stored and one margin, `min(60, expires_in / 2)` seconds, is applied when it is read, so a 60 s token is reused for 30 s; a response without `expires_in` clears the previous expiry (no `expires_in` means no expiry); a `token_type` other than `bearer` (any case) or missing raises `OAuth2TokenError` with `Unsupported token_type in token response`, never echoing the value.
 Where: `auth/oauth/oauth2_token_manager.mustache`.
 Test: `oauth2_token_manager_test`.
 
-### Shared transport for credentials, and discovery (F856, F859)
-Rule: `Client#initialize` hands its own `ApiClient` to every `HttpAwareAuthenticator` it holds, the default `authenticator` and each scheme credential (F857 removed the per-call authenticator `BaseApi` used to hand it to); an OIDC discovery document with an `issuer` that differs (trailing slash ignored) from the discovery URL minus `/.well-known/openid-configuration` raises `SerializationError`, and a discovered `authorization_endpoint` or `token_endpoint` must be https unless the host is loopback. An absent `issuer` is accepted (partial: the spec requires it).
+### Shared transport for credentials, and discovery
+Rule: `Client#initialize` hands its own `ApiClient` to every `HttpAwareAuthenticator` it holds, the default `authenticator` and each scheme credential (removed the per-call authenticator `BaseApi` used to hand it to); an OIDC discovery document with an `issuer` that differs (trailing slash ignored) from the discovery URL minus `/.well-known/openid-configuration` raises `SerializationError`, and a discovered `authorization_endpoint` or `token_endpoint` must be https unless the host is loopback. An absent `issuer` is accepted (partial: the spec requires it).
 Where: `client.mustache`, `auth/oauth/openid_connect_authenticator.mustache`.
 Test: `client_test` (the shared transport reaches every credential), `openid_connect_authenticator_test`.
 
-### Custom HTTP verbs and header merge (F838, F860 partial)
+### Custom HTTP verbs and header merge (partial)
 Rule: verbs Faraday's `run_request` accepts go through it; any other (QUERY, custom) is built with `build_request` and `builder.build_response`; transport default headers lose to a caller header of the same name in any case.
 Where: `default_api_client.mustache` (`dispatch`), `infrastructure_rbs.mustache`.
 Test: `default_api_client_unit_test`.
 
-### Docs (F883, F884, F885, F887, F888, F889, F890, F894 partial)
+### Docs (partial)
 Rule: the README opens with consumer Installation and Usage, then Configuration (timeout unit, proxy, request id), Custom HTTP client, Raw responses and Cancellation; Not supported lists webhooks, XML bodies and `nodeType`, Link Objects, mutual TLS and automatic retries before the ruby-specific items; build, test and lint moved to a final Development section; the `uniqueItems` text now says the order is unspecified (S6); SKILLS builds the sample model from its required attributes and documents timeouts, request id, cancellation and `*_with_http_info`; a binary response is documented as a `StringIO`.
 Where: `readme.mustache`, `skills.mustache`.
 Test: `readme_test`, `skills_test`.
@@ -330,27 +326,27 @@ Test: `readme_test`, `skills_test`.
 
 Each follows the audit's own proposal unless noted.
 
-### Object-valued parameters are expanded by style (D47, F1143, F1158)
+### Object-valued parameters are expanded by style (D47)
 Rule: a model or Hash value of a styled parameter is reduced to its wire-named fields (`JSON.parse(ObjectSerializer.serialize(v))`) and expanded by style and explode: an exploded form query value becomes one `name=value` entry per property (`ValueSerializer.query_entries`, which the generated API methods call for every styled query parameter); `form` non-exploded, `simple`, `matrix`, `label`, `spaceDelimited` and `pipeDelimited` render through `ValueSerializer.serialize_object`. Before this batch the value went through `to_s`.
 Where: `value_serializer.mustache`, `api/api.mustache`, `infrastructure_rbs.mustache`.
 Test: `value_serializer_test` (object values), `api/pet_api_test` (wire bytes of `getPetTag`).
 
-### Returned headers describe the decoded body (D92, F1165)
+### Returned headers describe the decoded body (D92)
 Rule: when a response body was decoded (a non-identity `Content-Encoding` and a non-empty body) `Content-Encoding` and `Content-Length` are dropped from `ApiHttpResponse#headers`; identity and empty bodies keep them.
 Where: `default_api_client.mustache`.
 Test: `default_api_client_unit_test`, `default_api_client_test` (gzip, br, zstd).
 
-### Rendered ApiError is bounded and redacted (F1080)
+### Rendered ApiError is bounded and redacted
 Rule: `ApiError#message` renders at most 1 KiB of the body (`... (N more bytes)` suffix, control characters escaped as `\n`, `\r`, `\t`, `\xNN`) and redacts the headers with the S15 list plus `Set-Cookie`. `response_body` and `response_headers` keep the full values.
 Where: `errors/api_error.mustache`, `infrastructure_rbs.mustache`.
 Test: `api_error_test`.
 
-### Proxy errors mask the userinfo; redirects strip every credential-like header (F1086, F1093)
+### Proxy errors mask the userinfo; redirects strip every credential-like header
 Rule: every `Invalid proxy URL` message replaces the userinfo of any URL in it with `***@` (`TransportOptions.mask_userinfo`, D79). A cross-origin redirect hop also drops every transport default header and every header whose name contains `auth` or matches the S15 name pattern (key, token, secret), besides the fixed list and the spec's apiKey names.
 Where: `transport_options.mustache`, `default_api_client.mustache`.
 Test: `transport_options_test`, `default_api_client_unit_test`.
 
-### `format: password` is masked in `inspect` (F867)
+### `format: password` is masked in `inspect`
 Rule: the field stays a plain value and is still sent and decoded; `Model#inspect` prints it as `***` (`PASSWORD_ATTRIBUTES`, a private constant); a model without password fields keeps the default `inspect`.
 Where: `models/model.mustache`, `models/model_rbs.mustache`.
 Test: `object_serializer_test` (Account).
@@ -360,84 +356,79 @@ Rule: a protobuf-JSON duration is accepted up to +-315 576 000 000 s (nanosecond
 Where: `object_serializer.mustache`.
 Test: `object_serializer_test`.
 
-### SKILLS.md names the whole error tree (F1084)
+### SKILLS.md names the whole error tree
 Rule: the Error Handling section names the root type (`apiErrorParent`), `SerializationError`, `OAuth2ServerError` and `OAuth2TokenError`, and its example ends with a rescue of `SerializationError` and of the root.
 Where: `skills.mustache`.
 Test: `skills_test`.
 
 ### Not done in batch 7 (needs shared Java, another language, or an owner decision)
 - F860 (token and discovery requests still merge transport default headers): needs a change to the `ApiClient#send_request` contract in all twelve.
-- F865 (a typed `additionalProperties` schema does not check the extra values): the model never receives `additionalPropertiesType`, which the shared Java has to supply; the extras are captured and round-tripped untyped.
-- F866 (sibling `default` on a `$ref` property is dropped before the template sees it), F1062 (several 2xx schemas), F1055 (a parameter named like an injected argument), F1058 (Encoding Object), F1060 (one OAuth2 flow per scheme): the loss is in `AbstractBetterCodegen`.
-- F855 (401 invalidation and replay), F857 (per-scheme credentials), F858 (PKCE), F840 (form-style cookies), F229 (keep-alive), F912 (end-to-end timeout), F1100 (pagination): design decisions that are not taken.
+- F865 (a typed `additionalProperties` schema does not check the extra values): the model never receives `additionalPropertiesType`, which the shared Java has to supply; the extras are captured and round-tripped untyped (#103).
 - F1152, F1153, F1174, F1161: gates and fixtures outside the ruby tree.
 
 ## Decisions taken in batch 9
 
-### A 401 on an OAuth2 call renews the token and replays once (F855)
+### A 401 on an OAuth2 call renews the token and replays once
 Rule: `invalidate_access_token` is public on the client-credentials, password, authorization-code and OpenID Connect authenticators (the OIDC one does nothing before its first discovery); it drops the cached access token and keeps the refresh token. `BaseApi#invoke_api_for_result` calls it when the response is 401 and the authenticator responds to it, rebuilds the headers and sends the request once more; a second 401 is the usual `UnauthorizedError`, a failed renewal (any SDK error) leaves the first 401, a multipart or stream body (anything but `nil` or a `String`) is not replayed, and API key, basic, bearer, implicit and `NO_AUTH` never replay.
 Why: a revoked or rotated token otherwise keeps failing until it expires.
 Where: `auth/oauth/*.mustache`, `base_api.mustache`, `infrastructure_rbs.mustache`.
 Test: `base_api_test` (`ReplayApiClient`), `oauth2_auth_code_authenticator_test`, `openid_connect_authenticator_test`.
 
-### PKCE S256 on the authorization code flow (F858)
+### PKCE S256 on the authorization code flow
 Rule: every `build_authorization_url` makes a new 43-character verifier (`SecureRandom.urlsafe_base64(32)`), keeps it in the authenticator (`pkce_verifier`, `@api private`) and adds `code_challenge` (SHA-256, base64url without padding) and `code_challenge_method=S256`; `exchange_code` sends `code_verifier` while one is held and forgets it after a successful exchange. The OIDC delegate rebuilt on rediscovery is handed the previous verifier (`pkce_verifier:`). No `nonce`. The Steep targets list the stdlib `digest`.
 Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`, `auth/oauth/openid_connect_authenticator.mustache`, `steepfile.mustache`.
 Test: `oauth2_auth_code_authenticator_test`, `openid_connect_authenticator_test` (verifier survives a rediscovery).
 
-### Automatic retries with backoff (F823)
+### Automatic retries with backoff
 Rule: `TransportOptions.builder.max_retries(n)` (default 2, `0` disables, a negative or non-integer raises `ArgumentError`; the keyword constructor takes an optional `max_retries: 2`). `DefaultApiClient#send_request` sends again after a network error that came before any response and after 408, 409, 429 and 5xx except 501; a TLS failure is not retried (another try cannot fix a certificate). The wait is 0.5 s doubling to 8 s with up to 25% jitter, or `Retry-After` (seconds or HTTP date, capped at 60 s). The deadline of the single `timeout` budget is shared by every attempt: a retry whose wait would end past it is not started and the last response or network error is returned. A body that is not `nil` or a `String` (multipart Hash, stream) is never retried. Each retry is a fresh `transmit`: the transport merges its headers again (new `X-Request-ID`), and `BaseApi` passes `retry_headers:` (a lambda rebuilding authentication and trace headers) to the SDK's own `DefaultApiClient`; a custom `ApiClient` is called as before and does its own retrying. A failed header rebuild (an SDK error) ends the retrying. Ruby has no cancellation handle (S7), so there is nothing else to honour. The README moved "Automatic retries" from Not supported to Configuration.
 Why: the decided Stainless-style default.
 Where: `default_api_client.mustache` (`transmit_with_retries`, `pause` is overridden by tests), `transport_options.mustache`, `base_api.mustache`, `readme.mustache`, `skills.mustache`.
 Test: `default_api_client_unit_test` (retry count, statuses, `Retry-After`, budget, no retry on 4xx, `max_retries` 0, headers rebuilt), `transport_options_test`, `readme_test`, `skills_test`. Tests that expect one failing request build their client with `max_retries(0)`.
 
-### Rendered ApiError masks the challenge headers too (F1080)
+### Rendered ApiError masks the challenge headers too
 Rule: already in place since batch 7 (1 KiB body cap with `... (N more bytes)`, control characters escaped, credential headers masked). The masked set now also holds `WWW-Authenticate` and `Proxy-Authenticate` (with `Set-Cookie`); `response_headers` and `response_body` keep the full values.
 Where: `errors/api_error.mustache`.
 Test: `api_error_test`.
 
-### Skipped: F825
-Rust only.
-
 ## Decisions taken in batch 10
 
-### Transport default headers stay off the identity provider (F860)
+### Transport default headers stay off the identity provider
 Rule: `DefaultApiClient#send_request` takes `no_default_headers: false`; when true the transport's `default_headers` are not merged into that request (the SDK headers, `User-Agent` and `X-Request-ID` still are). The OAuth2 token POST and the OIDC discovery GET pass it when the injected client is a `DefaultApiClient`; a custom `ApiClient` is called as before (its signature is unchanged, as with `retry_headers:`).
 Why: an `Authorization` or API-key default header meant for the API must not reach another origin.
 Where: `default_api_client.mustache`, `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_authenticator.mustache`, `infrastructure_rbs.mustache`.
 Test: `default_api_client_unit_test`, `oauth2_token_manager_test`, `openid_connect_authenticator_test`.
 
-### Wording, lists and one-pass substitution (F1101, F1102, F1104, F1118)
+### Wording, lists and one-pass substitution
 Rule: `Must call exchange_code() before making API requests` (with the parentheses); a failed parse or decode reads `Failed to deserialize JSON: <detail>` (the target type is no longer in the stem); lists in the server-variable and content-type messages render `[a, b, c]` (no quotes); a server URL is substituted in one pass (`gsub` over `{name}` with a lookup), so a placeholder introduced by a value is never expanded, in `ServerConfiguration#url` and in the per-operation server classes.
 Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`, `object_serializer.mustache`, `server_configuration.mustache`, `api/api.mustache`.
 Test: `oauth2_auth_code_authenticator_test`, `object_serializer_test`, `server_configuration_test`, `api/pet_api_test`.
 
-### anyOf variants are tried in declaration order (D64, F1129)
+### anyOf variants are tried in declaration order (D64)
 Rule: `openapi_any_of` is rendered from `composedSchemas.anyOf` (declaration order, `AnyType` kept, duplicates removed with `uniq`) instead of the alphabetically sorted `anyOf` name set, as `openapi_one_of` already was. Before this a `TreatmentRecord` kept Medication first.
 Where: `models/model.mustache`.
 Test: `composed_schema_test` (TreatmentRecord).
 
-### `format: date` parameters drop the time of day (F1083)
+### `format: date` parameters drop the time of day
 Rule: `ValueSerializer.serialize_styled` turns a `DateTime` or `Time` into a `Date` (an array element too) when the parameter type is `Date` or `Array<Date>`; a `DateTime` is a `Date` in Ruby, so the type check did not stop it.
 Where: `value_serializer.mustache`, `infrastructure_rbs.mustache`.
 Test: `value_serializer_test`.
 
-### A parameter named like an injected argument is suffixed (F1055)
+### A parameter named like an injected argument is suffixed
 Rule: `BetterRubyCodegen#getInjectedArgumentNames` lists the names the operation method binds (`options`, `server`, `request_content_type`, `path`, `server_url`, `query_params`, `header_params`, `cookie_parts`, `cookie_value`, `request_body`, `declared_consumes`, `resolved_content_type`, `result`) and the suffix is `_param`; the wire name stays in `baseName`.
 Where: `BetterRubyCodegen.java`.
 Test: `BetterRubyCodegenTest`.
 
-### Examples are attributed to their parameter (F893, F1071)
+### Examples are attributed to their parameter
 Rule: a named example reads `# Example for +<param>+ — <summary>: <value>` under the parameter in the API class, and the same line is written for each optional parameter in its options file (it was dropped there). The old three-line summary/description/value block is gone.
 Where: `api/api.mustache`, `api/options.mustache`, `BetterRubyCodegen.generateOptionsFileContent`.
 Test: `RubyFormattingSpec` (`pluralExamplesShouldBeAttributedToParameter`, `pluralExamplesOfAnOptionalParameterShouldBeAttributedToParameter`).
 
-### The redirect middleware gem is gone (F1098)
+### The redirect middleware gem is gone
 Rule: `faraday-follow_redirects` is no longer a dependency or a `require`; the SDK follows redirects itself so it can strip credentials per origin.
 Where: `gemspec.mustache`, `gemfile.mustache`, `default_api_client.mustache`.
 Test: `default_api_client_unit_test` (the middleware is not loaded, the gemspec does not declare it).
 
-### SKILLS.md Configuration order (F890)
+### SKILLS.md Configuration order
 Rule: `### Custom Transport Options`, `### Custom HTTP client` (was Custom Faraday Connection), `### Retries`, `### Cancellation`, then `### Timeouts` and `### Request id`.
 Where: `skills.mustache`.
 Test: `skills_test`.
@@ -445,13 +436,10 @@ Test: `skills_test`.
 ### Tests added for behaviour already in place
 F926 (token error sentences), F933 (depth and serialize sentences), F1065 (IPv6 proxy), F1073 and F1074 (bearer), F1112 (BinaryVault equality), F1124 (nickname, slug), F1137 (jpg, jpeg, gif, json parts), F1161 (response headers, empty body, typed status routes), F1167 (default User-Agent), F1170 (no body, no `Content-Type`).
 
-### Skipped in batch 10
-- F229: keep-alive needs a new adapter dependency (an owner decision); only the false code comment was corrected.
+### Not done in ruby, with the reason
+- F229: keep-alive needs a new adapter dependency (#127); only the false code comment was corrected.
 - F912: Faraday's `net_http` read timeout bounds one read; an end-to-end deadline over a trickled body needs a streaming reader.
 - F1140: Faraday buffers each hop and `net_http` finishes the exchange, so an intermediate 3xx holds no connection to release.
-- F1145: finished in wave 2 (see "Decisions taken in wave 2").
-- F831: the `retry_after` accessor shape is a cross-language decision not yet taken (the 429 type exists).
-- F858 nonce, F840, F857, F862, F843, F1081, F1087, F894, F1077: cross-language decisions not yet taken. F866, F1056, F1061, F1085, F1157, F1172: shared Java, fixtures or gates.
 - F855 and F1180 are conforming since batch 9 (public `invalidate_access_token`, replay in `base_api.mustache`).
 
 ## Decisions taken in wave 2
@@ -470,7 +458,7 @@ Every item of the wave-2 work list and of the owner decisions of 2026-11-17, wit
 - **F862, credentials (reworked in the adoption of the shared generator, see "Adopting the shared generator").** The first version read one `<PREFIX>_TOKEN` for every bearer scheme; it is superseded by a variable per scheme and field.
 - **F390, non-finite doubles.** A `Float` that decodes to Infinity (`1e400`) raises `SerializationError` (`Expected a finite number`). Test: `object_serializer_test` (`PhotoMetadataLocation.lat`).
 - **F1145, `format: time` milliseconds.** `Tod::TimeOfDay` holds whole seconds, so `ObjectSerializer.parse_time_of_day` keeps the fraction (cut to the millisecond) in an instance variable of the value and `format_time_of_day` writes `.SSS` when it is not zero. A `Tod::TimeOfDay` built by hand carries no fraction. Test: `object_serializer_test` (`EdgeCases.cutoff`).
-- **F889 and the README notes (F828, F834, F835, F836, F837).** The README documents per-call options, `Configuration` against `TransportOptions` (they stay two objects), error request context, response compression, logging (none; use a Faraday middleware), streaming (not supported; inject a connection), versioning and the Ruby floor policy, credentials, optional against nullable, unknown enum and discriminator failures, joined repeated headers, and several 2xx responses. Test: `readme_test`.
+- **F889 and the README notes.** The README documents per-call options, `Configuration` against `TransportOptions` (they stay two objects), error request context, response compression, logging (none; use a Faraday middleware), streaming (not supported; inject a connection), versioning and the Ruby floor policy, credentials, optional against nullable, unknown enum and discriminator failures, joined repeated headers, and several 2xx responses. Test: `readme_test`.
 - **G5 in `basic_authenticator_test`.** The template opened with a blanket `# rubocop:disable all`; it is gone and the file is clean under every cop.
 
 ### Already satisfied
@@ -481,26 +469,20 @@ Every item of the wave-2 work list and of the owner decisions of 2026-11-17, wit
 
 - **F1154 (S8 server before options).** The server is the keyword argument `server:`, after the Options object by Ruby's own rule for optional keywords; there is no positional order to assert. The apiKey-name escaping test exists (`BetterRubyCodegenTest`).
 - **F1140 (intermediate 3xx released).** Faraday buffers each hop and `net_http` finishes the exchange before returning it, so there is no response object left to close.
-- **F229 (connection reuse).** The `net_http` adapter opens a socket per request. Keep-alive needs `faraday-net_http_persistent` and its pool, a new dependency whose timeout, TLS and `close` behaviour cannot be verified without a dedicated gate; the false comment was corrected in batch 10. Open for an owner decision.
+- **F229 (connection reuse).** The `net_http` adapter opens a socket per request. Keep-alive needs `faraday-net_http_persistent` and its pool, a new dependency whose timeout, TLS and `close` behaviour cannot be verified without a dedicated gate; the false comment was corrected in batch 10. Open: #127.
 
-### Needs the shared generator, the spec or `etc/` (not done here)
 
-- **F1060** (several OAuth2 flows), **F1061** (other http schemes: the warning text), **F1153** (rule tests), **F1157** (the `petstore_auth` requirement in the spec), **F1172** (one shared spec that scans every golden for blanket disables) and **F1174** (`api-surface.py check` in `etc/ci-local.sh` and the workflows).
-- **F827 for operations without an Options object** and **F866** are done: see "Adopting the shared generator".
-- **API surface.** `etc/api-surface-allow.json` carries rules for the new ruby members (`with`, the per-call options, `request_method`, `request_path`, the union accessors, the time helpers); the `request_*` and `with` rules are temporary and go when the other languages' wave branches are merged and `API_SURFACE.md` names them.
 
-## Adopting the shared generator (F827, F862, F866)
+## Adopting the shared generator
 
-- **F827, an Options object for every operation.** `BetterRubyCodegen.mintsOptionsForEveryOperation()` returns `true`, so the shared generator writes `<Operation>Options` (and its RBS) for every operation and puts the `options` argument in every signature. An operation with no parameter and no security has an Options object that carries only `timeout:`, `headers:` and `max_retries:`, with no `auth` member (F857 removed it from every Options object). `api.mustache` always passes `request_options: options` to `invoke_api_for_result`, and documents the argument as the per-call options. Test: `store_api_test` (`get_inventory`: the members, the header on the wire, an invalid timeout and retry count, still callable with no argument), `pet_api_test` (the doc block), `BetterRubyCodegenTest`.
+- **F827, an Options object for every operation.** `BetterRubyCodegen.mintsOptionsForEveryOperation()` returns `true`, so the shared generator writes `<Operation>Options` (and its RBS) for every operation and puts the `options` argument in every signature. An operation with no parameter and no security has an Options object that carries only `timeout:`, `headers:` and `max_retries:`, with no `auth` member (removed it from every Options object). `api.mustache` always passes `request_options: options` to `invoke_api_for_result`, and documents the argument as the per-call options. Test: `store_api_test` (`get_inventory`: the members, the header on the wire, an invalid timeout and retry count, still callable with no argument), `pet_api_test` (the doc block), `BetterRubyCodegenTest`.
 - **F862, a variable per scheme and field.** The shared generator names the variable of every credential field of every scheme (`securitySchemeEnvVars`, `envVarPrefix`; `<PREFIX>_<FIELD>`, or `<PREFIX>_<SCHEME>_<FIELD>` when two schemes share a field). `scheme_authenticator.mustache` gives each wrapper a constructor with optional credentials and `env: ENV`. A bearer, basic or API-key wrapper hands its names to the base (`token_env:`, `username_env:`, `password_env:`, `api_key_env:`); an OAuth wrapper resolves each credential itself through `BaseAuthenticator#require_credential` and raises `ArgumentError` when it is missing. The generic bases keep the defaults `<PREFIX>_TOKEN`, `_USERNAME`, `_PASSWORD` and `_API_KEY` (`BaseAuthenticator::ENV_PREFIX` is now `envVarPrefix`, the API title, not the gem name), which `Client.with_token` uses. Order: the value given, then the variable (read once, an empty value counting as unset), then the `token_provider:` callback. The earlier order put the provider before the variable; it is now after it. Test: `scheme_authenticator_test` (built from its own variables alone, missing, empty, given value wins, read once, provider after the variable, driven by `schemeEnvironmentEntries`), `bearer_authenticator_test`, `basic_authenticator_test`, `api_key_authenticator_test`, `client_test`, `readme_test`, `skills_test`.
 - **F866, a `$ref` with a sibling default.** `models/model.mustache` adds `.default(<Enum>::<MEMBER>)` from `vendorExtensions.siblingDefaultIsEnum`, `siblingDefaultEnumType` and `siblingDefaultEnumVar` when the property has no `defaultValue` of its own. Only a referenced enum is rendered; a sibling default on a `$ref` to anything else is not read yet. Test: `object_serializer_test` (`StockItem.availability`: built without it, decoded without it, a given value kept).
-- **API surface.** The F862 constructor rule in `etc/api-surface-allow.json` keeps only the `env:` and `*_env:` keywords (a Ruby seam, see the rule); the `token_provider:` part and the F827 rules are gone because the other languages have them.
 
 - **F857, one credential per security scheme.** `AbstractBetterCodegen` supplies `clientSchemes` (`schemeId`, `paramName`, `className`) and, per operation, `vendorExtensions.op.securitySchemeOrder` (the operation's own order, only schemes the client holds a credential for), `hasSecuritySchemes` and `securityNone`. `BetterRubyCodegen.processOpenAPI` adds `argName` to each client scheme: the snake-case scheme name, suffixed `_credential` (then a number) when it is a Ruby keyword, `authenticator`, `transport_options` or an earlier credential's name (`nameCredentialArguments`, `BetterRubyCodegenTest`). `client.mustache` emits `initialize(authenticator = nil, transport_options = nil, <scheme>: nil, ...)`, collects the credentials in a `schemes` hash keyed by the spec's scheme name, takes the base URL from the first credential (`authenticator` first), raises `ArgumentError` when it has none, and passes `(api_client, config, authenticator, schemes)` to each API class. `BaseApi#scheme_authenticator(names)` returns the credential of the first name held, else `nil`, which `invoke_api_for_result` resolves to the default `authenticator` (and to no credential without one); a `security: []` operation passes `NO_AUTH`. `api.mustache` calls `scheme_authenticator([...])` with the operation's own order. The Options objects have no `auth` member. A client without schemes keeps the plain `initialize(authenticator, transport_options = nil)`. Test: `base_api_test` (`security scheme credentials`: first held wins, unheld skipped, fallback, no credential, `security: []`), `client_test` (the keyword names, base URL, no credential, shared transport), `api/pet_api_test` (the credential on the wire, no `auth` member, the docs).
 - **F840, cookie parameters.** The operation sends the value raw when every character is an RFC 6265 cookie-octet and raises `ArgumentError` ("Cookie value for 'x' contains characters forbidden by RFC 6265") before any request otherwise; `api.mustache` and `BaseApi#authenticated_headers` use the same pattern. Test: `api/pet_api_test` (`operation cookie parameter`: space, quote, comma, semicolon, backslash, non-ASCII and control characters fail, legal values go out untouched).
 - **F1078, graceful close.** `DefaultApiClient#send_request` counts the request in flight (`enter_request`/`leave_request` under a mutex) and runs `perform_request`; `close` marks the client closed and releases the SDK-built connection at once when nothing is in flight, otherwise the last request to finish does (`release_connection`). A request after `close` raises the one `RuntimeError` "ApiClient has been closed and can no longer send requests"; a second `close` changes nothing; a connection from `TransportOptions` is never closed. Test: `default_api_client_unit_test` (in-flight finishes, second close, closed rejects, caller-supplied untouched), `client_test`.
 - **F316, no validation at construction.** An inline enum property is now `Types::Any` like every other (it was `Types::String.enum`, which raised at `new`), and its `OPENAPI_TYPES` entry names the enum class (`Pet::StatusEnum`), so `ObjectSerializer.convert_to_type` checks `VALUES` on decode and the decode fails with `SerializationError`. A missing required value still raises at construction. Test: `object_serializer_test` (`enum unknown value detection`: construction with an unknown enum string and with wrong types does not raise, decode of the same fails and names the enum).
-- **API surface.** The F827 allow rules are gone; the F857 rules (API-class constructors, the removed `auth` member of three Options objects) stay until the other eleven SDKs land the decision; the `server:` keyword follows `options` (a Ruby keyword argument cannot come first); the union variant accessors are covered by the F878 rules.
 
 ## Gate lessons (what broke the gate and how to avoid it)
 

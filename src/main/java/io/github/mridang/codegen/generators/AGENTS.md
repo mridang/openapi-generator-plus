@@ -1,6 +1,6 @@
 # Shared SDK generator rules (all twelve languages)
 
-This repository generates one SDK in twelve languages (java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir) from the same petstore-derived spec. This file is the canonical home of every cross-language rule: the error contract, the wire contract, the test layout, the fixture rules, the parity workflow, the session decisions S1-S16, the decisions D01-D94 of the former PARITY_DECISIONS.md, the forced divergences and a cross-language idiom matrix. Each rule is written once here; a language's own AGENTS.md says only how that language realises it. A difference between two languages is a defect until a named language feature forces it. Decision ids: `S<n>` session decisions (2026-11-16, owner approved), `D<nn>` PARITY_DECISIONS.md, `FD-<n>` forced divergence, `RF-<n>` resolved cross-language fix, `KT-<n>` known-thin gate, `TL-<n>` closed audit tail, `G<n>` client guardrail, `AS-D<nn>` API_SURFACE.md canonical decision (a different numbering from D<nn>).
+This repository generates one SDK in twelve languages (java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir) from the same petstore-derived spec. This file is the canonical home of every cross-language rule: the error contract, the wire contract, the test layout, the fixture rules, the working method, the session decisions S1-S16, the owner decisions of 2026-11-17, the numbered decisions D01-D94, the forced divergences and a cross-language idiom matrix. Each rule is written once here; a language's own AGENTS.md says only how that language realises it. A difference between two languages is a defect until a named language feature forces it. Decision ids: `S<n>` session decisions (2026-11-16, owner approved), `D<nn>` numbered decision, `FD-<n>` forced divergence, `RF-<n>` resolved cross-language fix, `KT-<n>` known-thin gate, `TL-<n>` closed audit tail, `G<n>` client guardrail. A finding id such as `F857` names an owner decision in the section below and stays only where the decision is written out next to it. Open work is a GitHub issue in the milestone "Rebuild: harmonised SDKs"; nothing is tracked in a file. The parity ledger, the decision list, the API surface table and its Python checker with the allow list were removed when the ledger was closed; they stay in git history at commit `fdc22dab4` as input for the Java guard in #122.
 
 ## Read first
 
@@ -9,7 +9,7 @@ This repository generates one SDK in twelve languages (java, kotlin, csharp, php
 - Shared code in this folder: [AbstractBetterCodegen.java](AbstractBetterCodegen.java), [DockerFormatter.java](DockerFormatter.java), [NamingConvention.java](NamingConvention.java), [BarrelFileEmitter.java](BarrelFileEmitter.java), [WithTypeSignatureSupport.java](WithTypeSignatureSupport.java).
 - Per-language canonical files: `<lang>/AGENTS.md` in this folder (the template folders `../../../../../../resources/templates/<lang>/AGENTS.md` only point back to them).
 - Specs: `src/spec/java/io/github/mridang/codegen/spec/<lang>/`; goldens: `src/spec/resources/generated/<lang>/`; the fixture spec `src/spec/resources/specs/petstore/openapi.yaml`.
-- Tooling and ledgers: `etc/ci-local.sh`, `etc/api-surface.py`, `etc/api-surface-allow.json`, `etc/parity-findings.py`, `PARITY_FINDINGS.json`, `API_SURFACE.md` (generated; owns the per-element surface table and `AS-D` decisions).
+- Tooling: `etc/ci-local.sh` (the one definition of green). The public API guard does not exist yet; it is #122.
 
 ## Gate lessons: working with the generators (read before editing a template)
 
@@ -29,7 +29,7 @@ Ordered by how much they cost in past sessions. Each rule: what to do, an exampl
 - Mustache: never write `{{` in a test template's prose (it is parsed as a tag); never put `}}` or a `{{tag}}` inside a `{{! }}` comment (jmustache ends the comment at the first `}}` and leaks the rest); avoid tag-like text in doc comments (`{{#apiKeyHeaderNames}}` in a comment became a real section, and two section tags on one line break standalone-line stripping). Use `{{{x}}}` where HTML escaping would corrupt `"` or a backtick. Check: regenerate one language right after editing; a pure refactor must give a zero golden diff.
 - Banned in generated code: `//` comments in php and csharp (and the other `//`-banned languages; use block or `###` comments), any HTML entity (`&quot;`, `&#x60;`; use `&#38;`), inline lint suppressions and whole-tool disables. Check: `grep -rnE '^\s*//|&quot;|&#x60;|&lt;' src/main/resources/templates/<lang>` and `grep -rE 'disable all|detekt:all|noqa|nolint|@SuppressWarnings|rubocop:disable' src/spec/resources/generated`.
 - Never weaken or globally relax a linter, type or format rule to get green: fix the code or template. Example: a blanket `detekt:all` hid 76 files of real findings. A rule needs a named single suppression with a reason in the shipped config.
-- API surface: new public API needs an `etc/api-surface-allow.json` rule with a `reason` naming the forcing language feature; an allow rule is only for genuine idiom. The extractor now reads wrapped class headers (a header split across lines is no longer missed). Report checker changes separately from template changes: loosening the checker once made a surface count look better by about 100. Check: `python3 etc/api-surface.py check`.
+- API surface: new public API is added to all twelve in the same change, and a difference between two languages needs a named language feature that forces it (the idiom matrix below). There is no automatic guard until #122 lands, so compare the public members of the twelve by hand before a change that adds, renames or reorders one.
 - Secrets scanners: never assign a literal to a `password`-like name in a test (GitGuardian Generic Password fires on `s3cret-value`); build such values at runtime (concatenate or generate). The RFC 7636 appendix B PKCE vector is a known false positive for Generic High Entropy Secret; avoid the literal. Hits stay in history until a human dismisses them. Check: the GitGuardian row of `gh pr checks` after every push.
 - Tests with tokens and OAuth: to get a stale token use `expires_in` 0, not a small margin (time margins failed in C#, Ruby, Node). Exact authorize-URL assertions must ignore the random PKCE `code_challenge`. When a new test fails, check the test first (fake headers, expected format) before blaming the code.
 - A test must fail without its fix: revert the fix once to prove it. Every behaviour fix needs a test in all twelve test templates; assert the exact canonical string, not `.contains(".123")`.
@@ -37,7 +37,7 @@ Ordered by how much they cost in past sessions. Each rule: what to do, an exampl
 ### Editing templates
 - Templates are the only durable source: edit the Mustache template, regenerate, never hand-edit a golden. A stale `target/classes` template gives a false "fix not applied": run `process-resources` first.
 - A bug in one language usually exists in all twelve: grep the other eleven templates for the same pattern (Options imports, escapes, NullAway, `//` comments) and fix every site. Language-forced differences are not defects; classify before fixing.
-- Do not change shared behaviour in `AbstractBetterCodegen.java` for all languages without an opt-in flag (discriminator-parent broke Python: `setsDiscriminatorParent()`); language agents never edit shared files (`AbstractBetterCodegen.java`, `etc/api-surface.py`, the allow list); the integrator does.
+- Do not change shared behaviour in `AbstractBetterCodegen.java` for all languages without an opt-in flag (discriminator-parent broke Python: `setsDiscriminatorParent()`); a shared change is made once, for all twelve, and the goldens of all twelve are regenerated with it.
 - Void responses are never deserialized; base-URL joins trim a trailing slash; inherited-global security emits `null`, not `NO_AUTH`. Each is one test per SDK.
 - Test every template shape against a fixture that triggers it: add the shape to `src/spec/resources/specs/probe/openapi.yaml` and regenerate the twelve goldens. YAML `off`/`on`/`yes`/`no` are booleans; use `type: [string, "null"]` for nullable in OAS 3.1.
 - Wording and rule-bearing comments are spec-enforced: before deleting "cruft" comments, grep the specs (FormattingSpec).
@@ -53,7 +53,7 @@ Ordered by how much they cost in past sessions. Each rule: what to do, an exampl
 - Kill-and-restart hazards: kill the surefire/failsafe JVMs before pruning containers; a killed regen leaves goldens half-formatted (`git checkout -- <goldens>`, then a clean regen; 100+ differing files means a missing Docker formatter, not your change); stop stale watchers with `TaskStop`; do not start a second verify while one runs. If `docker ps` hangs the Docker VMM is wedged: stop and report instead of looping.
 - Commit before a context cut: uncommitted work at a boundary once left 179 dirty files. Commit per logical unit and check `git status` and `git branch --show-current` at the start of every turn. Never write rules only in chat: record them in the right `AGENTS.md` at once.
 - No stray files: `git add` explicit paths, never `git add -A` at the repo root (wheels were committed once); check `git status --porcelain | grep '^??'` before a push, since untracked new templates with their goldens must be committed together. Keep logs and scripts under private names, not shared ones like `regen.sh`.
-- Update the ledger (`PARITY_FINDINGS.json`) and the relevant `AGENTS.md` with each batch; a finding that is not written to a file with an id is lost at the next context cut.
+- Write each decision into the relevant `AGENTS.md` with the batch that makes it, and file a GitHub issue for work that is deferred; a finding that is written nowhere is lost at the next context cut.
 - Do not say "starting" or "running" without a live process: confirm with `ps` and log growth, and never end a turn on intent.
 
 ## Process lessons (read before running agents or pushing)
@@ -67,14 +67,10 @@ These came out of the long parity session and each one cost at least a CI round.
 
 ### Gate and push
 - A gate result counts only when all four steps print `ok` on a clean committed tree. The PHP gate once passed on uncommitted edits from another instance and CI then failed. Run `git status --short` before and after the gate, and quote the sha it ran on.
-- Never push when `python3 etc/api-surface.py check` or the quick gate fails, and never push a failure without saying so. Run `etc/ci-local.sh check --quick` on the merged head before every push, because a clean branch and a clean integration branch can still fail together.
+- Never push when the quick gate fails, and never push a failure without saying so. Run `etc/ci-local.sh check --quick` on the merged head before every push, because a clean branch and a clean integration branch can still fail together.
 - A full gate takes about 5 minutes now that Chasm and Squid are shared; plan batches around that and not around the old 2 minutes per language.
 - A timing test waits for an observable condition (the server's hit count, a callback), never a fixed sleep. Example: a retry test that slept 200 ms flaked on a loaded runner; waiting for the second request did not.
 - A test that pins a default must not depend on which language class is used once every language overrides the hook. Example: the default options hook is pinned with a subclass, not with a particular language's generator.
-
-### Merging language branches into the integration branch
-- `etc/api-surface-allow.json` conflicts on every merge. Resolve it by merging the rule lists, never by taking one side: union the rules added since the merge base and subtract the rules removed. A short script that loads the three versions (base, ours, theirs) and writes the sorted result is the safe way; check the result with `python3 etc/api-surface.py check`.
-- A transitional allow rule must say "delete when X" in its reason, and is deleted in the change that lands X. Example: a rule that exists only until a language adopts the shared hook.
 
 ### Secrets and fixtures
 - GitGuardian: never write a base64 Basic-auth literal or a password literal in a test template. Build the value at runtime (concatenate or generate it). A finding on a history commit stays until a human ignores it in GitGuardian, so say so in the PR.
@@ -110,13 +106,13 @@ A mustache `{{! comment }}` must never contain a literal `{{tag}}` (jmustache en
 
 ## Idioms (deliberate differences from the other eleven)
 
-The cross-language matrix. Every cell is a genuine idiom or a forced difference; anything else is a defect. `etc/api-surface-allow.json` holds the machine-readable form (129 rules, each with a reason); a rule is added only for genuine idiom and states the forcing feature in its `reason`. Rows with an id are decisions below.
+The cross-language matrix. Every cell is a genuine idiom or a forced difference; anything else is a defect. A cell is added only for genuine idiom and names the forcing language feature. Rows with an id are decisions below.
 
 | Topic | java | kotlin | csharp | php | python | ruby | node | dart | go | rust | swift | elixir |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Error suffix | Exception | Exception | Exception | Exception | Exception | Error | Error | Exception | Error | Error | Error | Error |
 | Injected transport (S9) | java.net.http.HttpClient | Ktor HttpClient | HttpClient | PSR-18 client | httpx | Faraday | fetch + fetchOptions | http.Client | interface with Do, RoundTripper wrapping | reqwest::Client | URLSession | Req options |
-| Cancellation (S7) | interrupt becomes CancellationException | coroutine cancellation | trailing `CancellationToken cancellationToken = default` + builder token | native | asyncio task cancel, `close()` cancels in flight | native | trailing options `{ signal?: AbortSignal }` + client signal | native | `ctx context.Context` FIRST parameter + client base context cancelled by `Close()` | native (drop the future) | native Task cancellation | native |
+| Cancellation (S7) | interrupt becomes CancellationException | coroutine cancellation | trailing `CancellationToken cancellationToken = default` + builder token | native | asyncio task cancel; `close()` is graceful | native | trailing options `{ signal?: AbortSignal }` + client signal | native | `ctx context.Context` FIRST parameter + client base context cancelled by `Close()` | native (drop the future) | native Task cancellation | native |
 | Configuration build | builder | builder | builder | `ConfigurationBuilder.php` (PSR-4: one class per file) | frozen dataclass plus public `__init__`, builder | builder | builder + one options object | builder | package-level `NewConfigurationBuilder()` | builder, `Default` | builder, `default()` | `new/1` keyword list, no builder (immutable data) |
 | Auth headers shape | sync `getAuthHeaders` | `suspend` (sync and async folded) | sync plus `...Async` (TAP) | sync | sync | sync | sync plus `...Async` | sync plus `Future` variant | sync `AuthHeaders` plus `AuthHeadersOrError` (no exceptions) | `async fn` plus `try_auth_headers`, `as_http_aware_mut` (no RTTI) | `async throws` | sync |
 | `NO_AUTH` sentinel | constant | constant | constant | own file (PSR-4) | constant | frozen object | constant | concrete const class | constant | pointer identity | constant | unique atom |
@@ -143,7 +139,7 @@ Further idioms that hold in all twelve and need no row: the entry class is `Clie
 
 ## Settled decisions (do not re-open in review)
 
-Defaults for every row below unless a row says otherwise. Where: `AbstractBetterCodegen.java` plus the twelve `templates/<lang>/` trees (the owning template is named in the language file). Test: the per-language test template named for the area (ObjectSerializer, ValueSerializer, BaseApi, ApiError, OAuth2TokenManager, authenticator tests) and the petstore golden that compiles and lints it; a fix lands with a table row there, never a new test file. Where a decision names a fixture operation, that operation is in PARITY_FIXTURES (below).
+Defaults for every row below unless a row says otherwise. Where: `AbstractBetterCodegen.java` plus the twelve `templates/<lang>/` trees (the owning template is named in the language file). Test: the per-language test template named for the area (ObjectSerializer, ValueSerializer, BaseApi, ApiError, OAuth2TokenManager, authenticator tests) and the petstore golden that compiles and lints it; a fix lands with a table row there, never a new test file. Where a decision names a fixture operation, that operation is described in the fixture rules below.
 
 ### The error contract
 
@@ -169,43 +165,43 @@ The twelve SDKs produce identical bytes for identical calls and accept and rejec
 
 ### Test layout (repository rule; wins over the global default)
 
-Rule: do not add new test files; extend the test templates that exist (a new file drifts from the other eleven immediately). A fix must make the petstore tests catch that bug class in all twelve; if a bug only appears under a real client's configuration, change the petstore configuration so it reproduces (that is how the Ruby constant-resolution bug was caught). Assert the exact type; a broad `Exception` expectation is not a contract test. No skipped tests except a genuine platform limit, with the reason in the skip message. A language's report must count every test its runner ran. Spec gates assert the runner's exit code, not a count above zero (KT-5). Do not let any layer of the twelve differ in test names or structure beyond idiom; `.claude/agents/test-parity-auditor.md` audits that. Unit/spec split for the generator itself (`src/test/java`, the `Generate*ClientTest` regenerators, `FixtureVocabularyLeakTest`, `*ReservedWordsSpec`, `FormattingSpec`) follows the mirror-the-source-file rule.
+Rule: do not add new test files; extend the test templates that exist (a new file drifts from the other eleven immediately). A fix must make the petstore tests catch that bug class in all twelve; if a bug only appears under a real client's configuration, change the petstore configuration so it reproduces (that is how the Ruby constant-resolution bug was caught). Assert the exact type; a broad `Exception` expectation is not a contract test. No skipped tests except a genuine platform limit, with the reason in the skip message. A language's report must count every test its runner ran. Spec gates assert the runner's exit code, not a count above zero (KT-5). Do not let any layer of the twelve differ in test names or structure beyond idiom; the test comparison across the twelve is #118 and #121. Unit/spec split for the generator itself (`src/test/java`, the `Generate*ClientTest` regenerators, `FixtureVocabularyLeakTest`, `*ReservedWordsSpec`, `FormattingSpec`) follows the mirror-the-source-file rule.
 
-### Fixture rules (PARITY_FIXTURES, folded)
+### Fixture rules
 
-Rule: every parity fixture lives only in `src/spec/resources/specs/petstore/openapi.yaml` (also served by chasm to every SDK's generated tests); nothing is removed or renamed; every new operation answers from the spec alone (example or schema). `x-internal` operations (the `/test/redirect/*` mocks) are dropped from SDK generation by `DropInternalOperationsRule`. `FixtureVocabularyLeakTest` fails on petstore vocabulary in any generated SDK (names that spell "pet", multi-word camelCase properties such as `weightKg`, `petstore`, `swatch`, `fido`, `doggie`, `zitadel`, and the fixture names `pageCount`, `lastError`, `trackingId`, `asOf`): templates and generated-test sample data use neutral names, the fixture names only in petstore-derived goldens. `remindAt` is not a fixture (ruby template already contains it); the D39 form field is `reminder`. Fixture map: `getPetSummary` (D32, F070, F218, F219: required cookie `session`, matrix path `asOf`, `days` dates), `getOrderByTrackingId` (D67), `createAccount`/`Account` (D56, F046), `searchStore` (D80, D50, D81, D82), `testRedirectNoLocation`/`MalformedLocation` (D71), `testRedirectChain1-3` with 500 ms delays (D76: `timeout(1200)` fails, `timeout(5000)` passes), `PetCriteria` on `getPetTag` (D47) plus `fingerprint`/`X-Fingerprint` byte params (D51), `TreatmentRecord` (D64), `RequiredNullable` (D66), `Separator` and `EdgeCases.'2fa'` (D43), `Error`/`Result` (D45), `reserveStock`/`Reservation`/`ReservationReceipt` (F1062: 200 and 201 carry different schemas, so the operation returns the synthesised `ReserveStockResponse` union and decodes by the actual status; `MultipleSuccessResponsesRule` + `vendorExtensions.op.successResponses`), required header `X-Correlation-Id` on `getPetByName` (D28), `Mirror` server variant and the hostile global server (D40, D42), `Defaults.*` and `Availability` values (D40, D46, D60, D61), `Order.quantity` bounds and `Pet.nickname` pattern (D55), `EdgeCases.phase`/`slug`/`cutoff` (F024, F027, D81). Hostile text in `info.description` and the pet tag (D41) is the point: metadata tests assert the manifest description equals `info.description` verbatim. Known gaps: no path or form `format: byte` parameter (D51 title promises them), no `multipleOf`/`minItems`/`maxItems` fixture (D55), `getBySwatch` may now pick up the component default `green`.
+Rule: every fixture lives only in `src/spec/resources/specs/petstore/openapi.yaml` (also served by chasm to every SDK's generated tests); nothing is removed or renamed; every new operation answers from the spec alone (example or schema). `x-internal` operations (the `/test/redirect/*` mocks) are dropped from SDK generation by `DropInternalOperationsRule`. `FixtureVocabularyLeakTest` fails on petstore vocabulary in any generated SDK (names that spell "pet", multi-word camelCase properties such as `weightKg`, `petstore`, `swatch`, `fido`, `doggie`, `zitadel`, and the fixture names `pageCount`, `lastError`, `trackingId`, `asOf`): templates and generated-test sample data use neutral names, the fixture names only in petstore-derived goldens. `remindAt` is not a fixture (ruby template already contains it); the D39 form field is `reminder`. Fixture map: `getPetSummary` (D32: required cookie `session`, matrix path `asOf`, `days` dates), `getOrderByTrackingId` (D67), `createAccount`/`Account` (D56), `searchStore` (D80, D50, D81, D82), `testRedirectNoLocation`/`MalformedLocation` (D71), `testRedirectChain1-3` with 500 ms delays (D76: `timeout(1200)` fails, `timeout(5000)` passes), `PetCriteria` on `getPetTag` (D47) plus `fingerprint`/`X-Fingerprint` byte params (D51), `TreatmentRecord` (D64), `RequiredNullable` (D66), `Separator` and `EdgeCases.'2fa'` (D43), `Error`/`Result` (D45), `reserveStock`/`Reservation`/`ReservationReceipt` (200 and 201 carry different schemas, so the operation returns the synthesised `ReserveStockResponse` union and decodes by the actual status; `MultipleSuccessResponsesRule` + `vendorExtensions.op.successResponses`), required header `X-Correlation-Id` on `getPetByName` (D28), `Mirror` server variant and the hostile global server (D40, D42), `Defaults.*` and `Availability` values (D40, D46, D60, D61), `Order.quantity` bounds and `Pet.nickname` pattern (D55), `EdgeCases.phase`/`slug`/`cutoff` (D81). Hostile text in `info.description` and the pet tag (D41) is the point: metadata tests assert the manifest description equals `info.description` verbatim. Known gaps: no path or form `format: byte` parameter (D51 title promises them), no `multipleOf`/`minItems`/`maxItems` fixture (D55), `getBySwatch` may now pick up the component default `green`.
 
-### Parity workflow (pointers)
+### Working method (pointers)
 
-Rule: default is fixing in direct batches of 15-20 ledger items grouped by bug class: edit templates and codegen, regenerate with `etc/ci-local.sh mvn -B test`, run `python3 etc/api-surface.py check` (must not get worse) and `etc/ci-local.sh check --quick` on a clean tree, one commit per batch, push once per round of 30-50 edits, let CI (about 30 minutes) decide. Every fix needs a test or golden that fails without it. The agent workflow (`/parity-fix`, `.claude/workflows/parity-fix.js`, owner agents `.claude/agents/sdk-<lang>.md`, `parity-guard`, `idiom-<lang>`) is for a hard item spanning all twelve and costs about 650k tokens per landed item; the standing read-only auditors are `oas-conformance-auditor` and `test-parity-auditor`. One ledger: `PARITY_FINDINGS.json` through `etc/parity-findings.py` (`count`, `set`, `show`, `render`, `tokens`); never edit the rendered `.md`. Hooks (`commit-guard.sh`, `docker-guard.sh`, `ownership-guard.sh`) hold agents to the rules; `parity-halt` in the git common dir blocks commits and pushes after a CI failure that a local pass missed. Do not touch `.github` workflows from this repo (S13). Review the cumulative diff and every added allow rule before a PR leaves draft; harmonised means the same behaviour in each language's own idiom, never a pattern bolted on from another language.
+Rule: fix in direct batches of 15-20 items grouped by bug class: edit templates and codegen, regenerate with `etc/ci-local.sh mvn -B test`, run `etc/ci-local.sh check --quick` on a clean tree, one commit per batch, push once per round of 30-50 edits, let CI (about 30 minutes) decide. Every fix needs a test or golden that fails without it. Open work is a GitHub issue in the milestone "Rebuild: harmonised SDKs"; the hooks in `.claude/hooks` (`commit-guard.sh`, `docker-guard.sh`) hold agents to the rules, and `etc/ci-local.sh` is the one definition of green. Do not touch `.github` workflows from this repo (S13). Review the cumulative diff before a PR leaves draft; harmonised means the same behaviour in each language's own idiom, never a pattern bolted on from another language. The public API guard that compares the twelve surfaces is not built yet (#122), and the tests are compared across the twelve by #118 and #121.
 
 ### Session decisions of 2026-11-16 (S1-S16, owner approved)
 
-### S1 Strict containers (F006)
+### S1 Strict containers
 Rule: a response that is a container of primitives is checked element by element like a single primitive, in all twelve. Why: D54 covered model fields and top-level values; containers leaked coercion. Test: ObjectSerializer table rows with a fractional, quoted and out-of-range element.
 
-### S2 Content parameters (F054)
+### S2 Content parameters
 Rule: `content:` parameters are encoded through the SDK's own object serializer in every location (query, header, path, cookie), identical bytes in all twelve. Why: extends D50/D80; they are the same rule. Test: `searchStore.q` and the content header.
 
-### S3 Schema constraints (F056)
+### S3 Schema constraints
 Rule: the client does not promise to enforce pattern, minLength, maxLength, minimum, maximum, multipleOf, minItems or maxItems; the server owns validation. Enforce only where the language's model layer does it natively and cheaply (python via pydantic). Every README documents it in the section "Schema constraints". Why: supersedes D55's python clause (python no longer strips the Field constraints).
 
-### S4 allOf with a discriminator (F057, F802)
+### S4 allOf with a discriminator
 Rule: inheritance in java, csharp, node, python, ruby, php, dart; kotlin a sealed interface plus flattened data classes (a data class cannot be open); go an embedded shared base struct and decode through an interface plus a function that reads the discriminator; rust an internally tagged enum whose subtype structs list the common fields, omit the discriminator field and avoid serde flatten; swift a protocol for the common surface plus an enum with associated values and a hand-written decoder reading the discriminator; elixir flattens into each struct with a dispatch function on the base module and a behaviour for shared accessors. A class has one parent, so a model reused in two unions is never re-parented: inheritance only for the allOf+discriminator parent; unions use interfaces or sealed types.
 
-### S5 Required + nullable (F215, D66)
+### S5 Required + nullable (D66)
 Rule: the key must be present on decode (missing is an error), an explicit null is a legal value and is kept, and encode always writes the key (null when unset). Fixture: `RequiredNullable.note`.
 
-### S6 uniqueItems order (F319)
+### S6 uniqueItems order
 Rule: left unspecified; sets go out in the language's natural collection order, documented in the READMEs. Do not sort. Why: supersedes D69 (sorted scalars), which is not implemented.
 
-### S7 Cancellation (F228)
-Rule: go takes `ctx context.Context` as the first parameter of every operation (the one deliberate shape difference) plus a client base context cancelled by `Close()`, merged with the call context; csharp takes a trailing `CancellationToken cancellationToken = default` on every operation plus a builder token linked with it (Azure SDK guideline); node takes a trailing per-call options object `{ signal?: AbortSignal }` (like OpenAI and Stripe) plus an optional client signal; python adds no parameter (asyncio cancellation aborts the request, `close()` cancels in-flight requests); the others use their native mechanism. Cancellation raises the language's cancellation error, never the timeout error. Why not a shared `RequestOptions` everywhere: the native handle is what each ecosystem's callers already pass, and a wrapper is less natural in all of them.
+### S7 Cancellation
+Rule: go takes `ctx context.Context` as the first parameter of every operation (the one deliberate shape difference) plus a client base context cancelled by `Close()`, merged with the call context; csharp takes a trailing `CancellationToken cancellationToken = default` on every operation plus a builder token linked with it (Azure SDK guideline); node takes a trailing per-call options object `{ signal?: AbortSignal }` (like OpenAI and Stripe) plus an optional client signal; python adds no parameter (asyncio cancellation aborts the request; `close()` is graceful and cancels nothing); the others use their native mechanism. Cancellation raises the language's cancellation error, never the timeout error. Why not a shared `RequestOptions` everywhere: the native handle is what each ecosystem's callers already pass, and a wrapper is less natural in all of them.
 
-### S8 Parameter order (F803)
+### S8 Parameter order
 Rule: required parameters, then server, then the optional-parameters object, then the per-call cancellation handle where the language has one; always, with or without security. Adding security never moves an argument. Owner confirmation pending (see Known limitations).
 
-### S9 Injected transport (F405)
+### S9 Injected transport
 Rule: every client builder accepts the language's standard HTTP client object (see matrix), keeps the SDK defaults applied, never closes a caller-supplied client, and fails fast on conflicts with the SDK's own proxy/TLS/pool settings. Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client.
 
 ### S10 Dependencies
@@ -228,6 +224,34 @@ Rule: the string forms of `Configuration` and `TransportOptions` redact the prox
 
 ### S16 Timeouts and redirects
 Rule: one end-to-end timeout budget across redirect hops (D76); a caller-supplied stream or file handle is never closed by the SDK; proxy URL validation happens in `build()`, not in the builder setter; `caCertPath` is validated even when `verifySsl` is false (D73).
+
+### Owner decisions of 2026-11-17
+
+Decided by the owner and implemented in the generated output of all twelve SDKs (language idiom aside); the finding id is the stable name of the decision. The user-facing wording is in `docs/decisions.md`; how each language realises a decision is in its own file.
+
+- **F823 retries are on by default.** Two retries with exponential backoff, jitter and `Retry-After`, after a network error before any response and after 408, 409, 429 and 5xx except 501; the end-to-end timeout covers all attempts, and `maxRetries` 0 turns them off. Why: the reference SDKs (OpenAI, Anthropic, Stainless, Speakeasy) retry by default, and a caller who wants none says so once.
+- **F827 per-call options.** Every operation takes `timeout`, `headers` and `maxRetries` on its Options object (go, node and rust extend their existing per-call option types), including an operation with no optional parameter, so adding a parameter later never moves an argument. The per-call timeout that also bounds the body read is #116.
+- **F828 `Configuration` and `TransportOptions` stay separate.** One says what the API is (base URL, default headers, server), the other how bytes travel (proxy, TLS, timeouts, retries); each README says which setting goes where. Why: merging them is a larger break than the overlap costs.
+- **F830 request method and path on errors.** `ApiError` and every subclass carry `requestMethod` and `requestPath` (the path without query string or fragment, so no secret in a URL reaches a log) and render them (`API returned status code 404 for GET /items/7`).
+- **F834 optional and nullable use the native idiom.** No generator-owned wrapper type; absent and null collapse on encode in every language except TypeScript, and each README says so. A three-state opt-in for PATCH-style APIs is a later addition. Why: industry research found no wrapper that fits every language.
+- **F835 an unknown enum or discriminator value fails loudly** with the SDK's `SerializationError` naming the value; it is never mapped to a default or passed through. Why: an out-of-date specification should fail where it can be seen.
+- **F836 repeated response headers are joined.** One value per name, lines joined with `, ` in the order received, names lower-cased. Why: typed response headers (#77) would be a break, and the `Set-Cookie` caveat is documented.
+- **F837 streaming is deferred** past the first release (#114). The injected transport is the escape hatch, and each README lists streaming under "Not supported".
+- **F857 one optional credential per security scheme.** The client takes one argument per distinct scheme, named after it; an operation uses the credential of the first scheme in its own requirement order that the client holds. A per-call override of the scheme is deferred, and rust has none.
+- **F862 credential resolution order.** The explicit argument, then an environment variable read once when the authenticator is built (empty counts as unset), then a token provider where the language has one; a credential found nowhere fails at construction and names the variable. The names come from the shared `securitySchemeEnvVars` and `envVarPrefix`. The dart and php OAuth authenticators do not read the environment yet (#119).
+- **F840 cookies are sent raw and validated.** A cookie value is written as given when every character is an RFC 6265 cookie-octet, otherwise the call fails before any request with a message that says to percent-encode it; a `content:` cookie is percent-encoded JSON. Why: the shared parameter model cannot tell an explicit `style: form` from the default, and percent-encoding the default would change the bytes of every cookie.
+- **F1078 `close()` is graceful and idempotent.** A request in flight finishes, a request sent afterwards fails with the closed-client error (D29), a transport the caller supplied is never closed; cancellation is per request.
+- **F316 nothing validates at model construction.** The wrong-value failures happen at the wire boundary: an unknown enum string, a missing required key or a malformed `format: uri` fails on decode. Open question for the owner: java keeps the required-property check in `build()`.
+- **F868 models are immutable with a copy method.** Java `toBuilder()`, C# `with` on a record, Dart `copyWith`, Python frozen with `model_copy`, Ruby `with(**attrs)` on a frozen struct, PHP `readonly` with `withX()`, Node `readonly` with `with(patch)`, Swift `copy(...)`, Rust `with_<field>`, Go `With<Property>`, Kotlin `copy(...)`, Elixir struct update. Copies are shallow.
+- **F1062 several 2xx schemas decode by status.** The operation returns the synthesised union and the body is decoded as the schema of the status that arrived, never by the shape of the body.
+- **F878 typed union factories and accessors.** A oneOf or anyOf model is built from a variant and read through a per-variant test and accessor wherever the language allows (`ofVariant`/`as...` in java, `NewXxxVariant`/`AsVariant`/`IsVariant` in go, `fromVariant` in swift and so on); the untyped wrapper constructor stays for decoding.
+- **F879 go has a per-group interface.** `<Group>ApiInterface` lists every operation and its `WithHTTPInfo` variant with a compile-time assertion, so a caller can substitute a fake.
+- **F877 go returns values, not pointers,** for slices, maps, strings and byte slices; the pointer bought the caller a dereference and nothing else.
+- **F894 one package metadata block.** The options `repositoryUrl`, `homepageUrl`, `authors`, `documentationUrl`, `issueTrackerUrl` and `licenseId` feed each manifest and the README Package section, so install instructions carry no placeholder.
+- **F1087 runtime floors are the oldest non-end-of-life release,** written in each manifest and explained once on the language page. Documented exceptions: java 21 (`HttpClient.close()`), kotlin JVM 17, swift tools 6.0 (Swift has no end-of-life policy), dart (only the current stable is supported). The C# floor follows the oldest supported .NET, and net8.0 left support on 2026-11-10, so moving it is the owner's call.
+- **F1178 java sets extra properties through the builder.** `putAdditionalProperty` and `additionalProperties(map)` on the builder, no public setter on the model, and the read accessor is unmodifiable.
+- **F1082 node `format: date` is a `YYYY-MM-DD` string.** The type of a date parameter and model field is a validated string that is sent unchanged; a `Date` is still accepted and read as its UTC date, so pass a string to be independent of the time zone. Why: reading the UTC fields of a local-time `Date` sent the previous day in every zone east of UTC.
+- **F1085 no committed test keys.** `TestCertificates` generates the test CA and server key once per Maven run (see "Shared helper containers"), and `NoCommittedPrivateKeysTest` guards `src/main` and `src/spec/resources`.
 
 ### OAuth and OIDC (D01-D12)
 Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the rule; Why is the RFC or the bug it closes.
@@ -328,7 +352,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D65 | A null element in an array or map of models is rejected unless the element schema is nullable. | Dynamic languages cannot see nullability and always reject. |
 | D66 | Required + nullable: see S5. | go: required+nullable becomes a pointer without omitempty. |
 | D67 | `format: uuid` is written lowercase hyphenated, validated both directions; string-typed languages reject malformed values before dispatch. | RFC 9562. |
-| D68 | A model missing required properties cannot be built or sent (java no public no-arg constructor, node validate step, rust builder). | go zero values are forced. Needs-user flag set in the ledger; see limitations. |
+| D68 | A model missing required properties cannot be built or sent (java no public no-arg constructor, node validate step, rust builder). | go zero values are forced. Open owner question; see limitations. |
 | D69 | Superseded by S6: scalar `uniqueItems` arrays are not sorted. | |
 | D83 | Bare `type: number` is exact in java, kotlin, csharp and node (plain notation, no exponent); python decodes exact and widens to float on encode (forced); the seven native-float languages are documented lossy, each README carrying a "Decimal / `format: number` precision" caveat. | FD-8. |
 
@@ -364,9 +388,9 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 
 ### Forced divergences (FD): do not align these away
 
-Each is required by a named language feature; collapsing it reintroduces a bug. Where: the language template and the allow rule named in `etc/api-surface-allow.json`.
+Each is required by a named language feature; collapsing it reintroduces a bug. Where: the language template named in the language file.
 
-- **FD-1 php defaulted non-nullable fields (typed-property rule).** php types a defaulted, schema-non-nullable field (`Defaults::$retries`, `Order::$status`) as non-nullable and rejects null; the other eleven accept null. It is spec-faithful (nullable versus optional). A property without a default stays `?type = null`. Allow rule: `defaults.*`, `order.status`, `edgecases.freeformany` prop-optional.
+- **FD-1 php defaulted non-nullable fields (typed-property rule).** php types a defaulted, schema-non-nullable field (`Defaults::$retries`, `Order::$status`) as non-nullable and rejects null; the other eleven accept null. It is spec-faithful (nullable versus optional). A property without a default stays `?type = null`.
 - **FD-2 swift `retryAfter` is a `TimeInterval`.** Foundation has no protobuf or ISO-8601 duration; the wire `"3600s"` still round-trips.
 - **FD-3 codec sets track stdlib availability.** dart advertises only gzip and deflate (no stdlib br/zstd; on web fetch owns it); swift advertises nothing (URLSession negotiates); csharp advertises `br` but not `zstd`.
 - **FD-4 php composer package name carries a vendor segment** (`openapi/...`), because composer requires `vendor/package`; the segment after it is spec-derived.
@@ -405,17 +429,18 @@ Each is required by a named language feature; collapsing it reintroduces a bug. 
 - **RF-11** The `security: []` comment is emitted only on genuinely unauthenticated operations in php, rust, elixir.
 - **RF-12** The https-to-http replay guard anchors on the current hop in all twelve; the cross-origin header strip still uses the original URL (do not conflate).
 - **RF-13** swift's additionalProperties memberwise init includes the declared optional fields; swift's refresh without `expires_in` keeps the prior expiry.
-- **RF-14** Basic and ApiKey authenticator reprs are aligned (host, location); the OAuth2 reprs are not harmonised (F285).
+- **RF-14** Basic and ApiKey authenticator reprs are aligned (host, location); the OAuth2 reprs are not harmonised.
 - **RF-15** A deprecated operation carries its marker on every public variant (java's single marker before the auth split is correct; adding a second is a compile error).
 - **RF-16** A required string parameter must not be empty in any location (`allowEmptyValue: true` on a query param is the one exception); the empty-response-body message is `Expected a response body for <op> but received none` (go lowercase).
-- **RF-17** ruby model doc comments use `unescapeDocComment`; the lambda is applied in model templates only, so whether operation docs leak `\"` is open (F370).
+- **RF-17** ruby model doc comments use `unescapeDocComment`; the lambda is applied in model templates only, so whether operation docs leak `\"` is open.
 - **RF-18** README `Version`/`Name` use the populated variables (`artifactVersion`, `npmName`); java's README decimal caveat is scoped to float and double.
 - **RF-19** OAuth2 percent-encoding keeps `-._~` literal and encodes `*!'()` in token body, Basic header and authorize URL (swift excepted, FD-20).
 - **RF-20** elixir decodes only zlib-wrapped deflate; elixir flags deprecated fields in `@moduledoc`.
-- **RF-21** Per-model oneOf/anyOf no-match strings differ per language (six wordings plus the central `No oneOf/anyOf variant matched the JSON`); not harmonised (F396).
+- **RF-21** Per-model oneOf/anyOf no-match strings differ per language (six wordings plus the central `No oneOf/anyOf variant matched the JSON`); not harmonised.
 - **RF-22** `FixtureVocabularyLeakTest` guards vocabulary; `TESTCONTAINERS_RYUK_DISABLED=true` is set on the shared runtime container; the python test image is pinned `python:3.14-alpine` (the floating tag resolved to 3.15 without a `zstandard` wheel).
 - **RF-23** go's golangci-lint is not a live gate (KT-1); kotlin `allWarningsAsErrors` stays deferred, dart's strict analyzer is armed.
 - **RF-24** Authorize-URL and token-body encoders share the D52 set; swift excepted.
+- **RF-25** A `format: byte` map value (`additionalProperties: {type: string, format: byte}`) is a base64 string on the wire and native bytes in memory in all twelve, like a scalar or array; the map path was broken in rust (int arrays), dart and elixir (raw bytes) and ruby, node and php (undecoded). Do not revert any adapter to a plain map copy.
 
 ### Known-thin gates (KT, WONTFIX: do not over-strengthen)
 
@@ -423,7 +448,7 @@ Each is required by a named language feature; collapsing it reintroduces a bug. 
 - **KT-2** python ruff runs default rules (E4/E7/E9, F); mypy is non-strict.
 - **KT-3** ruby Steep `:lib` is full strength; `:test` disables core diagnostics (no minitest sigs).
 - **KT-4** swift `.swiftlint.yml` is committed but not run in CI (no Linux binary); `swift-format lint --strict` and `-warnings-as-errors` gate.
-- **KT-5** Spec gates are not byte-identical to client Makefile targets (elixir plain `mix compile`, php `phpcbf || true`, swift `make analyse` run by no spec); test-run specs assert exit code, not count (F382).
+- **KT-5** Spec gates are not byte-identical to client Makefile targets (elixir plain `mix compile`, php `phpcbf || true`, swift `make analyse` run by no spec); test-run specs assert exit code, not count.
 - **KT-6** kotlin `allWarningsAsErrors` is deferred (R8-F4: a required-param null-check and a Kotlin 2.2 `equals()` warning need cleanup first); `-Xwarning-level=...:disabled` flags replaced the deprecated `-Xsuppress-warning`.
 
 ### Closed audit tail (TL): do not re-open without new evidence
@@ -433,7 +458,7 @@ Each is required by a named language feature; collapsing it reintroduces a bug. 
 - **TL-3** multipart filename: go, ruby, php send real filenames via file-handle Options types; aligning the other nine to field name breaks the published ruby and php Options APIs.
 - **TL-4** kotlin multipart test depth is structural (Ktor body is opaque).
 - **TL-5** swift's duplicate multipart builder in `BaseApi` and `DefaultApiClient` stays (visibility and test-repoint tangle, no wire impact).
-- **TL-6** date-time strictness: python is strict; swift is lenient through the `yyyy-MM-dd` fallback at `ObjectSerializer.swift:81` (swift maps `format: date` to String); the fallback is not forced and could go (F307).
+- **TL-6** date-time strictness: python is strict; swift is lenient through the `yyyy-MM-dd` fallback at `ObjectSerializer.swift:81` (swift maps `format: date` to String); the fallback is not forced and could go.
 
 ### Client guardrails (G): regressions that bit real clients
 
@@ -446,20 +471,21 @@ A change passes `mvn verify` on the golden but can break a real client whose CI 
 - **G5** Generated files may not disable a whole tool or rule set (`rubocop:disable all`, `@file:Suppress("detekt:all")`, blanket `ruff: noqa`, `phpcs:ignoreFile`); name the single rule in the shipped config with a one-line reason.
 - A fix for generated code belongs here, never in a client; a dependency added to a generated test must be in every client's keep-listed manifest.
 
-### API surface decisions (AS-D01..AS-D82)
+### The public API shape (guard pending, #122)
 
-`API_SURFACE.md` is generated by `etc/api-surface.py` and owns its 82 canonical decisions; do not copy them. The families a reviewer meets: internal helpers (`ValueSerializer`, `HeaderSelector`, parts of `ObjectSerializer`) are hidden or marked internal; `ApiError(statusCode, message, responseHeaders, responseBody, errorBody, cause)` and `fromResponse(statusCode, responseHeaders, responseBody)`; authenticator constructors end with optional `refreshUrl`/`clientAuthMethod`; builder setters take the property name, not `val`; composed schemas expose `actualInstance` and (anyOf) `matchedInstances`; `Servers.ALL`; per-operation server variants expose public variables; `additionalProperties` is a non-null map; discriminators are required; named inline enums `<Model><Prop>Enum`; initialisms are word-cased in camel/Pascal SDKs (`WithHttpInfo`, `clientId`), go and swift converging on word-casing; swift `ConfigurationError` cases match rust's. A mismatch is a defect unless an allow rule names the forcing language feature.
+The checker that compared the twelve public surfaces, its allow list and the generated per-element table were removed; the guard is rebuilt as Java specs in #122. Until then these families are the shape a reviewer holds every language to: internal helpers (`ValueSerializer`, `HeaderSelector`, parts of `ObjectSerializer`) are hidden or marked internal; `ApiError(statusCode, message, responseHeaders, responseBody, errorBody, cause)` and `fromResponse(statusCode, responseHeaders, responseBody)`; authenticator constructors end with optional `refreshUrl`/`clientAuthMethod`; builder setters take the property name, not `val`; composed schemas expose `actualInstance` and (anyOf) `matchedInstances`; `Servers.ALL`; per-operation server variants expose public variables; `additionalProperties` is a non-null map; discriminators are required; named inline enums `<Model><Prop>Enum`; initialisms are word-cased in camel/Pascal SDKs (`WithHttpInfo`, `clientId`), go and swift converging on word-casing; swift `ConfigurationError` cases match rust's. A mismatch is a defect unless the idiom matrix or a language file names the forcing language feature. The old surface table and its allow rules are in git history at `fdc22dab4`.
 
 ## Known limitations and out of scope
 
 - Out of scope (S11): callbacks and webhooks (#53), XML bodies and `nodeType` (#70), Link Objects (#78), mutual TLS (#90), and the item closed as #88; the READMEs say so. OpenAPI 3.2 and 3.1 are epics #49 and #96; loading 3.2 documents is #50.
 - S8 (parameter order) awaits owner confirmation.
-- D68 (a model missing required properties cannot be built) carries a "needs user" flag in the ledger; java, node and rust have not been confirmed to reject before dispatch.
-- D61 (numeric default literals) and D83 python/node precision are partly implemented; making python (`parse_float=Decimal`) and node (reviver using `context.source`) lossless is open (F075, F133, F202, F221, F224), as is rust, dart and elixir adopting a decimal package.
+- Open work is tracked as GitHub issues in the milestone "Rebuild: harmonised SDKs": additionalProperties typing (#103), classic allOf with a discriminator (#104), dependency audit (#105), Go single-pass decode (#107) and tracer and meter providers (#108), object-valued parameters (#109), id_token nonce and validation (#110), compiled README fences and minimum runtimes (#111), response size cap (#112), Rust error type (#113), streaming and binary uploads (#114, which also holds the PHP binary body type), Dart browser tests and keyword lists (#115), per-call timeout (#116), declared error bodies (#117) and hierarchy (#123), test comparison and harmonisation (#118, #121), docs build (#120), the API surface guard (#122), warning sweep (#124), header parameters named Accept, Content-Type or Authorization (#125), the Go date type (#126), Ruby keep-alive (#127), reserved-word escaping in swift and elixir (#128) and the unverified audit leads (#129). #106 (a default on a `$ref` enum) is already done in the goldens of all twelve.
+- D68 (a model missing required properties cannot be built) is an open owner question (see #129): java keeps the required-property check in `build()`, and node and rust have not been confirmed to reject before dispatch.
+- D61 (numeric default literals) and D83 python/node precision are partly implemented; making python (`parse_float=Decimal`) and node (reviver using `context.source`) lossless is open, as is rust, dart and elixir adopting a decimal package.
 - D52: dart still diverges on the percent-encoding set and nine languages lack a lock test. D23: php `__toString` is not added; kotlin omits the transient bucket, go prints pointers for optional fields. D12 and D26 have the go, rust and dart exceptions above.
-- Partly implemented ledger-tracked: D01/D12 (go and rust sync accessor), D04, D08, D38, D44, D49/D78, D72, D84-D91 residuals.
+- Partly implemented: D01/D12 (go and rust sync accessor), D04, D08, D38, D44, D49/D78, D72, D84-D91 residuals.
 - Kotlin `allWarningsAsErrors` and go golangci-lint on generated code are deferred (KT-1, KT-6). rust compiles only on CI (amd64), so rust changes are CI-validated.
-- Not harmonised: OAuth2 authenticator reprs (F285), per-model no-match strings (F396), operation-doc `\"` leakage (F370), oneOf equality in some languages (D24 rollout), the unused `getBySwatch` default question.
+- Not harmonised: OAuth2 authenticator reprs, per-model no-match strings, operation-doc `\"` leakage, oneOf equality in some languages (D24 rollout), the unused `getBySwatch` default question.
 - Local golden regeneration is flaky (network-dependent Docker formatters; spurious php and swift drift): commit all twelve goldens current, never a subset.
 
 ## Build-breaking rules
@@ -469,7 +495,6 @@ A change passes `mvn verify` on the golden but can break a real client whose CI 
 - Every language's lint and type check runs in check mode over sources and tests, with no `|| true`; a golden that fails it fails the build.
 - Structure and layout of generated files belong in Mustache templates; no `StringBuilder` file content, no `vendorExtensions.x-*` in templates; a mustache comment never contains a `{{tag}}`.
 - `FixtureVocabularyLeakTest` fails on petstore vocabulary in templates or generated-test sample data; `*ReservedWordsSpec` enforces the reserved-word lists (java literals, kotlin `file`).
-- `etc/api-surface.py check` must not get worse; an allow rule is added only for genuine idiom, with a `reason`.
 - `.github` workflows are not edited from this repo; never pipe a maven build into `tail` (save to a file and grep it); regenerate goldens, never hand-edit.
 - Goldens are committed all twelve current; a `ContainerLaunchException`, `404 exec` or exit 137 is infrastructure, re-run that language once before concluding.
 
@@ -478,11 +503,9 @@ A change passes `mvn verify` on the golden but can break a real client whose CI 
 ```bash
 devbox run -- mvn test -Dtest='Generate*ClientTest,FixtureVocabularyLeakTest' -DforkCount=0 -Djacoco.skip=true -DfailIfNoTests=false   # regenerate all goldens
 etc/ci-local.sh mvn -B test                    # regenerate plus unit tests, the one definition of green
-python3 etc/api-surface.py check              # surface parity; must not get worse
 etc/ci-local.sh check --quick                 # clean-tree gate before a push
 etc/ci-local.sh check <Lang...>               # one or more languages end to end (about 2 minutes each)
 devbox run -- mvn verify -Dgroups=<lang>      # java kotlin csharp php python ruby node dart go rust swift elixir
-python3 etc/parity-findings.py count          # the single progress number
 ```
 
 Before a Docker run stop leaked fixtures: `docker ps -q --filter ancestor=mridang/chasm:1.3.0 --filter ancestor=ubuntu/squid:6.10-24.10_beta | xargs -r docker stop`; start hand-run containers only with `docker run --rm --label parity.guard=1`. After a change that alters generated code, regenerate a real client (Zitadel: java, dotnet, php, python, ruby, node) and run its own CI gates.

@@ -70,55 +70,55 @@ Why: one policy for all twelve; see D73, D79.
 Where: `transport_options.mustache`, `configuration.mustache`, `http_client_factory_jvm.mustache`.
 Test: generated `TransportOptionsTest`, `ConfigurationTest`.
 
-### Strict containers (S1, F006, 2026-11-16) - implemented
+### Strict containers (S1, 2026-11-16) - implemented
 Rule: a response that is a container of primitives (`Map<String, Int>`, `List<List<Int>>`) is checked element by element like a single primitive.
 Why: container leaves had bypassed the strict primitive checks in six SDKs. Kotlin walks `serializer<T>().descriptor` against the parsed element before decoding and throws a `SerializationException`; annotating type arguments with `@Serializable(with = ...)` was rejected as fragile with reified serializers. This is D54.
 Where: `object_serializer.mustache` (`deserialize`, the `Strict*Serializer` objects).
 Test: generated `ObjectSerializerTest` (`getInventory` and `getMatrix` rows).
 
-### Content parameters use the SDK serializer in every location (S2, F054, D80, 2026-11-16) - implemented
+### Content parameters use the SDK serializer in every location (S2, D80, 2026-11-16) - implemented
 Rule: `content:` parameters are encoded through `objectSerializer.serialize` in query, header, path and cookie, with identical bytes in all twelve.
 Why: twelve different JSON encoders were in use. Query, header, path and cookie all go through `ValueSerializer.serializeContent`, which calls the SDK serializer. See also D50.
 Where: `api/api.mustache`, `object_serializer.mustache`.
 Test: generated `ValueSerializerTest` (`serializeContent` rows for header, path and cookie).
 
-### Schema constraints are not enforced (S3, F056, D55, 2026-11-16) - implemented
+### Schema constraints are not enforced (S3, D55, 2026-11-16) - implemented
 Rule: the client does not promise to enforce pattern, minLength, maxLength, minimum, maximum, multipleOf, minItems or maxItems, and kotlin adds no enforcement.
 Why: the server owns validation; only python enforces, because pydantic does it natively and cheaply. The README section is titled "Schema constraints" and sits under Caveats; `dependentRequired` stays under Not supported.
 Where: `readme.mustache`.
 Test: none (absence); the petstore declares no such keyword.
 
-### allOf with a discriminator is a sealed interface plus flattened data classes (S4, F057, F802, 2026-11-16) - implemented
+### allOf with a discriminator is a sealed interface plus flattened data classes (S4, 2026-11-16) - implemented
 Rule: the discriminated parent becomes a sealed interface, each subtype is a flattened data class that lists the common fields, and the subtype carries the discriminator. A model reused in two unions must not be re-parented: inheritance (here, the sealed interface) is only for the allOf-with-discriminator parent, and plain unions use interfaces or sealed types.
 Why: an `open data class` does not compile, which is why kotlin cannot inherit like java, csharp, node, python, ruby, php and dart. `model.mustache` renders the discriminated parent (`isDiscriminatedBase`) as a sealed interface with a discriminator-reading serializer, and each subtype lists the common fields and implements it. Discriminated oneOf keeps its hand-written wrapper (`actualInstance` plus a serializer reading the discriminator).
 Where: `models/model.mustache`.
 Test: the discriminated fixtures in the petstore (`DryFood`, `WetFood`, `PetFood`) through `ComposedSchemaTest` and `ObjectSerializerTest`.
 
-### Required and nullable (S5, F215, D66, 2026-11-16) - implemented
+### Required and nullable (S5, D66, 2026-11-16) - implemented
 Rule: a required nullable property is `T?` with no default; the key must be present on decode (missing is an error), an explicit null is legal and kept, and encode always writes the key as null when unset.
 Why: kotlin's `explicitNulls` and `encodeDefaults` are Json-wide, so the behaviour comes from the property having no default plus the Json configuration in `createDefaultJson`, not from a per-property annotation.
 Where: `models/model.mustache` (constructor property line), `object_serializer.mustache`.
-Test: `ObjectSerializerTest.requiredNullablePropertyKeepsItsKey`. The API surface check reads the `?` as optional, which `etc/api-surface-allow.json` allows for `requirednullable.note` on kotlin.
+Test: `ObjectSerializerTest.requiredNullablePropertyKeepsItsKey`.
 
-### uniqueItems order is unspecified; do not sort (S6, F319, F871, 2026-11-16) - implemented
+### uniqueItems order is unspecified; do not sort (S6, 2026-11-16) - implemented
 Rule: sets go on the wire in the language's natural collection order (`LinkedHashSet` insertion order), documented in the README. Kotlin must not sort them.
 Why: this supersedes D69, which proposed ascending scalar order. The sort (`sortScalarSets`, `SCALAR_ORDER`) is removed from `object_serializer.mustache`; the README says the order is unspecified.
 Where: `object_serializer.mustache`, `BetterKotlinCodegen.getUniqueItemsSetType`.
 Test: generated `ObjectSerializerTest` (`scalarSetKeepsItsInsertionOrderOnTheWire`).
 
-### Cancellation is coroutine cancellation (S7, F228, F885, 2026-11-16) - implemented
+### Cancellation is coroutine cancellation (S7, 2026-11-16) - implemented
 Rule: no new parameter. Cancelling the calling coroutine aborts the request and raises `CancellationException`, never the timeout error; `NetworkTimeoutException` is only for the SDK's timeout.
 Why: structured concurrency is what Kotlin callers already use (`withTimeout`, scope cancellation); a wrapper options object would be less natural. The transport rethrows `kotlinx.coroutines.CancellationException` untouched. The README has a top-level Cancellation section naming coroutine cancellation and `withTimeout`, and SKILLS has the same under Configuration.
 Where: `default_api_client.mustache` (the catch that rethrows cancellation), `readme.mustache`, `skills.mustache`.
 Test: generated `DefaultApiClientTest`.
 
-### Parameter order (S8, F803, 2026-11-16, owner confirmation pending) - implemented
+### Parameter order (S8, 2026-11-16, owner confirmation pending) - implemented
 Rule: required parameters, then server, then the optional-parameters Options object; kotlin has no per-call cancellation handle because the coroutine context carries it. Adding security never moves an argument.
 Why: adding a security scheme must not break existing server-only call sites.
 Where: `api/api.mustache`, `api/options.mustache`.
 Test: generated `PetApiTest`.
 
-### Injected transport (S9, F405, 2026-11-16) - implemented
+### Injected transport (S9, 2026-11-16) - implemented
 Rule: the client builder accepts a Ktor `HttpClient`, keeps the SDK defaults applied, never closes a caller-supplied client, and fails fast on conflicts with the SDK's own proxy, TLS or pool settings.
 Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client. `TransportOptions.builder().httpClient(...)` is the public path, `build()` rejects the conflicting settings, and `Client` is `AutoCloseable` and closes only a transport it created.
 Where: `client.mustache`, `configuration.mustache`, `default_api_client.mustache`, `http_client_factory_jvm.mustache`.
@@ -136,7 +136,7 @@ Why: the CI test job is CPU-bound; workflow issues are filed in mridang/action-r
 Where: `KotlinSpec.java`.
 Test: the spec run itself.
 
-### Multipart parts carry only Content-Disposition and Content-Type (D89, F252)
+### Multipart parts carry only Content-Disposition and Content-Type (D89)
 Rule: no `Content-Transfer-Encoding` and no per-part `Content-Length`; the field name is `name="..."` with `\` and `"` backslash-escaped; filename directive follows the one rule of D90 and iterates code points.
 Why: Ktor's `formData()` and `FormBuilder.append` inject a per-part Content-Length, so kotlin writes the body itself in `MultipartWriter` and buffers it so the request has one Content-Length. This replaces the earlier D38 plan to declare the Content-Length forced; it is not a forced divergence any more.
 Where: `default_api_client.mustache` (`MultipartWriter`, `buildFilenameDirective`).
@@ -178,11 +178,9 @@ Why: the session must not be discarded by a cache refresh, and one wording acros
 Where: `auth/oauth/*.mustache`.
 Test: generated `OAuth2TokenManagerTest`, `OAuth2AuthCodeAuthenticatorTest`, `OAuth2ImplicitAuthenticatorTest`, `OpenIdConnectAuthenticatorTest`.
 
-### OAuth2 surface differences that are allowed (api-surface-allow)
+### OAuth2 surface differences that are allowed
 Rule: the token manager is internal support code, so `oauth2tokenmanager.exchanged` is internal and `oauth2tokenmanager.setapiclient` is an internal property; `OAuth2TokenError` constructors take an optional cause; `sendRequest` gets its per-request redirect option by inheriting the interface default (`noRedirect: Boolean = false`); `objectserializer`, `valueserializer` and `headerselector` are `internal`; `apierror.gettypederrorbody` takes a reified type parameter with no value argument; `serializationerror.cause` is the platform `Throwable.cause`.
-Why: each is the idiomatic kotlin spelling of the same behaviour; the surface check reads them as differences otherwise.
-Where: `etc/api-surface-allow.json`.
-Test: the API surface check (`API_SURFACE.md`).
+Why: each is the idiomatic kotlin spelling of the same behaviour.
 
 ### Escaping and literals (D40, D41, D46, D45, D43)
 Rule: spec strings written into code literals go through one escaper (`escapeKotlinString`: backslash, quote, `$`, newline, carriage return, tab); enum literals add the `$` to `\$` rule through `getEnumStringEscapes`; KDoc prose goes through `escapeKdoc`, which neutralises both `*/` and `/*` because Kotlin block comments nest; long literals are chunked to 80 columns by `kotlinChunked` without splitting an escape; the Gradle description uses `lambda.kotlinDollar`; colliding model names get the Model prefix from the kotlin reserved set.
@@ -208,9 +206,9 @@ Why: one decode contract.
 Where: `object_serializer.mustache`, `models/model.mustache`.
 Test: generated `ObjectSerializerTest`.
 
-### Equality and string form of models (D23, D24, F321, F455)
+### Equality and string form of models (D23, D24)
 Rule: models with a `ByteArray`, `Array`, `List<ByteArray>`, `Map<String, ByteArray>` or `BigDecimal` property, or an additionalProperties bucket, get a hand-written `equals`/`hashCode` (`contentEquals`, per-key comparison for maps, numeric comparison for `BigDecimal`, the `@Transient` bucket folded in); such models also get a field-dumping `toString` that is element-wise for byte arrays and appends the bucket; union wrappers get `equals`/`hashCode` too.
-Why: the synthesized data-class `equals` compares arrays by identity and excludes the `@Transient` bucket (which is now a constructor parameter, see batch 6, so `copy()` carries it). `List<BigDecimal>` and `Map<String, BigDecimal>` fields still compare scale-sensitively because `eqDecimal` covers only a direct `BigDecimal` property; that is open (F455, needs a spec), see Known limitations.
+Why: the synthesized data-class `equals` compares arrays by identity and excludes the `@Transient` bucket (which is now a constructor parameter, see batch 6, so `copy()` carries it). `List<BigDecimal>` and `Map<String, BigDecimal>` fields still compare scale-sensitively because `eqDecimal` covers only a direct `BigDecimal` property; that is open (needs a spec), see Known limitations.
 Where: `BetterKotlinCodegen.postProcessModels`, `models/model.mustache`.
 Test: generated `ObjectSerializerTest` and the model tests.
 
@@ -250,7 +248,7 @@ Why: repository policy is to escape every Kotlin keyword, soft included; the rou
 Where: `src/main/resources/reserved-words/kotlin.txt`.
 Test: `KotlinReservedWordsSpec`.
 
-### Free-form null retention is not aligned (F314, closed audit item)
+### Free-form null retention is not aligned (closed audit item)
 Rule: kotlin and ruby strip null entries nested inside free-form model values while java retains them; this is closed as forced, not a defect.
 Why: aligning needs per-field metadata the schema does not carry, and it is reachable only through a petstore free-form-map edge.
 Where: `object_serializer.mustache`.
@@ -268,7 +266,7 @@ Why: it is the one compiled-SDK gate still missing; dart armed its analyzer stri
 Where: `build_gradle.mustache` (the NOTE near line 50).
 Test: `KotlinBuildSpec`.
 
-### Inline comments are allowed in kotlin (F195, deferred)
+### Inline comments are allowed in kotlin (deferred)
 Rule: `KotlinFormattingSpec.getInlineCommentPattern()` returns null, so the shared inline-comment ban is off for kotlin; doc comments are separated from line comments in the templates.
 Why: not forced, but deferred; do not flag the absence of the ban.
 Where: `KotlinFormattingSpec.java`.
@@ -278,27 +276,25 @@ Test: `KotlinFormattingSpec`.
 
 Each follows the audit's own proposal, because the owner had not decided; reopen only with new evidence.
 
-- **Redirect edge cases (F904, F902, F861).** A 3xx without a usable `Location` is returned unchanged even when the redirect budget is spent (the too-many-redirects error needs a followable `Location`); `maxRedirects` must not be negative (`Invalid maxRedirects: must not be negative (got N)`); the HTTPS-to-HTTP refusal carries the response headers; URLs in refusal messages drop their query and fragment, so a query-parameter API key never reaches a message (`redactUrl`).
-- **Timeout (D77, F924).** `timeout` must be null or greater than zero: `Invalid timeout: must be a positive number of milliseconds (got N)`. Zero is no longer accepted.
-- **Header and charset parsing (F905, F906, F901).** `Accept-Encoding` presence is case-insensitive like User-Agent; the response charset is read from a parameter named `charset` in any letter case with optional spaces around `=`, never from a name that only ends in it; a literal `+` in proxy userinfo is kept (`%2B` before `URLDecoder`).
-- **OAuth tokens (F854, F895, F863).** One expiry margin of min(60 s, expires_in / 2) is applied when the expiry is stored and none when it is read, so a token valid for 60 s is reused for 30 s and one valid for 90 s for 45 s; `expires_in` 0 is the way to get an already-stale token (batch 7). A `token_type` other than `Bearer` (any letter case) is refused with `Unsupported token_type in token response`; a missing or null one is accepted. The empty-code message is `Authorization code must not be empty` (blank is still rejected).
-- **Per-call authenticators (F856).** `BaseApi.invokeApi` hands the API's own transport to an `HttpAwareAuthenticator` passed per call, so a per-call OAuth2 or OpenID Connect authenticator no longer fails with the not-injected error. It does so on every call, which is idempotent.
-- **Models (F864, F867, F869).** `additionalProperties` is a `@Transient` constructor parameter (default empty), so a caller can supply it and `copy()` carries it (the copy shares the same map instance); a `format: password` property prints as `***` in `toString` (such a model gets the hand-written `equals`/`hashCode`/`toString`); every enum's `toString()` is its wire value.
-- **Names (F173).** `getModelNameCollisionPrefix` is `Model`, so a schema named `String`, `Any`, `Int` and the other language primitives becomes `ModelString` and so on.
-- **Docs (F883, F884, F885, F887, F888, F889, F890).** README has Installation and Usage, then Cancellation, Custom HTTP client and Raw responses/timeouts/request ids, then Caveats (decimal precision, Schema constraints) and Not supported (webhooks and callbacks, XML bodies, Link Objects, mutualTLS, automatic retries, `dependentRequired`, SOCKS, LICENSE, URI normalization). SKILLS has the Custom HTTP client and Cancellation sections, a model sample that sets its required properties, and the min(60 s, half-lifetime) token margin.
+- **Redirect edge cases.** A 3xx without a usable `Location` is returned unchanged even when the redirect budget is spent (the too-many-redirects error needs a followable `Location`); `maxRedirects` must not be negative (`Invalid maxRedirects: must not be negative (got N)`); the HTTPS-to-HTTP refusal carries the response headers; URLs in refusal messages drop their query and fragment, so a query-parameter API key never reaches a message (`redactUrl`).
+- **Timeout (D77).** `timeout` must be null or greater than zero: `Invalid timeout: must be a positive number of milliseconds (got N)`. Zero is no longer accepted.
+- **Header and charset parsing.** `Accept-Encoding` presence is case-insensitive like User-Agent; the response charset is read from a parameter named `charset` in any letter case with optional spaces around `=`, never from a name that only ends in it; a literal `+` in proxy userinfo is kept (`%2B` before `URLDecoder`).
+- **OAuth tokens.** One expiry margin of min(60 s, expires_in / 2) is applied when the expiry is stored and none when it is read, so a token valid for 60 s is reused for 30 s and one valid for 90 s for 45 s; `expires_in` 0 is the way to get an already-stale token (batch 7). A `token_type` other than `Bearer` (any letter case) is refused with `Unsupported token_type in token response`; a missing or null one is accepted. The empty-code message is `Authorization code must not be empty` (blank is still rejected).
+- **Per-call authenticators.** `BaseApi.invokeApi` hands the API's own transport to an `HttpAwareAuthenticator` passed per call, so a per-call OAuth2 or OpenID Connect authenticator no longer fails with the not-injected error. It does so on every call, which is idempotent.
+- **Models.** `additionalProperties` is a `@Transient` constructor parameter (default empty), so a caller can supply it and `copy()` carries it (the copy shares the same map instance); a `format: password` property prints as `***` in `toString` (such a model gets the hand-written `equals`/`hashCode`/`toString`); every enum's `toString()` is its wire value.
+- **Names.** `getModelNameCollisionPrefix` is `Model`, so a schema named `String`, `Any`, `Int` and the other language primitives becomes `ModelString` and so on.
+- **Docs.** README has Installation and Usage, then Cancellation, Custom HTTP client and Raw responses/timeouts/request ids, then Caveats (decimal precision, Schema constraints) and Not supported (webhooks and callbacks, XML bodies, Link Objects, mutualTLS, automatic retries, `dependentRequired`, SOCKS, LICENSE, URI normalization). SKILLS has the Custom HTTP client and Cancellation sections, a model sample that sets its required properties, and the min(60 s, half-lifetime) token margin.
 - **Not applicable to kotlin.** F929: the token-flow authenticators are `suspend`-only, so there is no sync accessor to guard. F149, F832, F839, F054, F057, F803: already conforming (the code and tests existed; only this file was stale).
 
 ## Known limitations and out of scope
 
 - **Ambient proxy (D74) is a forced divergence on the JVM.** Ktor's CIO engine falls back to `ProxySelector.getDefault()` (the `http.proxyHost` and `https.proxyHost` JVM properties, and the OS proxy) whenever `TransportOptions.proxy` is null, and `HttpClientEngineConfig` has no way to switch that off per client (a `DIRECT` proxy is rejected by `CIOEngine`). The SDK therefore cannot ignore ambient proxy settings; a test that sets the properties and expects a direct connection fails, so none is generated.
-- `List<BigDecimal>` and `Map<String, BigDecimal>` fields compare scale-sensitively (F455): the petstore declares no such field, so no test can lock a fix. Needs `weightHistory: {type: array, items: {type: number}}` and `weightByDate: {type: object, additionalProperties: {type: number}}` on Pet, then `eqListDecimal`/`eqMapDecimal` in `postProcessModels` and the model template.
-- Skipped in batch 6 because they need a cross-language decision or a shared-Java change: automatic retries (F823), per-call request options (F827), one configuration object (F828), request context on errors (F830), a `retryAfter` accessor on `TooManyRequestsException` (F831), tri-state optional nullable fields (F834), open enums and unions (F835), multi-value headers (F836), the streaming transport contract (F837), shared method classification (F838), form-style cookie encoding (F840), the 3.1 fallback wrappers (F843), 401 token invalidation (F855), per-scheme authenticators (F857), PKCE and nonce (F858), OIDC issuer and https checks (F859), default headers on token requests (F860), credential providers (F862), typed additionalProperties (F865), the `$ref` sibling default (F866), the binary request type (F826), the response size cap (F908), package metadata (F894), parameter example docs (F893), environment proxies (F090).
 - Strict-key `unevaluatedProperties` is not on the production deserialize path (second audit tail).
 - Multipart tests are structural, not byte-level, because Ktor's body is opaque to the test.
-- Overflowing double literals such as `1e400` decode to Infinity in kotlin (F390, parked: the stated no-non-finite contract is unmet in java, kotlin, python, node, ruby, php, dart).
+- Overflowing double literals such as `1e400` decode to Infinity in kotlin (parked: the stated no-non-finite contract is unmet in java, kotlin, python, node, ruby, php, dart).
 - OAuth percent-encoding of `~ * ! ' ( )` in the token body, the Basic header and the authorize URL still follows the stdlib encoder in kotlin (D52 covers query and form bodies only); that is a latent, deferred item.
-- The per-model oneOf/anyOf no-match message for kotlin is `No anyOf variant of <X> matched the response body`; it differs from the other eleven and is documented, not harmonised (F396).
-- The debug string field sets of the OAuth2 authenticators differ per language (F285), not harmonised.
+- The per-model oneOf/anyOf no-match message for kotlin is `No anyOf variant of <X> matched the response body`; it differs from the other eleven and is documented, not harmonised.
+- The debug string field sets of the OAuth2 authenticators differ per language, not harmonised.
 - OpenAPI 3.1 and 3.2 features follow the epics #96 (3.1) and #49 (3.2); loading 3.2 documents is #50 because the pinned swagger-parser rejects it. SOCKS proxies are not supported (the README says so).
 - F287 (constructor shape drift, `refreshUrl` position) is done for kotlin; F332 (binary responses stream-typed) is done for kotlin.
 - Redirect refusals, the too-many-redirects message, `Invalid timeout` and the serializer messages now use the D16, D77 and D15 wording.
@@ -328,12 +324,12 @@ Each follows the audit's own proposal, because the owner had not decided; reopen
 - **F1156.** `api_info.mustache` renders the info description through `unescapeDocComment`; `MetadataTest` asserts no generated header line holds a backslash-escaped quote.
 - **F1086.** Proxy URL configuration errors print the URL with its user-info replaced by `***@` (D79); `TransportOptionsTest` pins it.
 - **F1079.** Already conforming: `timeout(0)` is refused with the D77 message.
-- **Test parity added (F1144, F1146, F1113/F1114, F1148, F1162, F1127, F1069).** `ObjectSerializerTest` pins the hostile Availability members, the EdgeCases.phase wire values, keyword and digit-leading wire keys, literal U+2028/2029/DEL, and exact plain-notation decimals; `StoreApiTest` pins the lowercase uuid path; `PetApiTest` pins the header and cookie guards.
+- **Test parity added (/).** `ObjectSerializerTest` pins the hostile Availability members, the EdgeCases.phase wire values, keyword and digit-leading wire keys, literal U+2028/2029/DEL, and exact plain-notation decimals; `StoreApiTest` pins the lowercase uuid path; `PetApiTest` pins the header and cookie guards.
 - **F864.** Already conforming since batch 6: `additionalProperties` is a constructor parameter, so `copy()` carries it.
 - **F859.** OIDC discovery must carry an `issuer` equal to the discovery URL (minus `/.well-known/openid-configuration`, trailing slash ignored) and, unless the discovery URL is itself `http`, https endpoints.
 - **F855.** A 401 answer calls `HttpAwareAuthenticator.invalidateAccessToken()` (default no-op, overridden by the OAuth2 and OIDC authenticators), so a revoked token is dropped; there is no automatic retry.
 - **F860.** A `noRedirect` request (the token POST) does not receive `TransportOptions.defaultHeaders`; header layering is case-insensitive, the later layer replaces the earlier one. The OIDC discovery GET still receives them.
-- **D92 (F1165).** A decoded response body drops `Content-Encoding` and `Content-Length` from the returned headers.
+- **D92.** A decoded response body drops `Content-Encoding` and `Content-Length` from the returned headers.
 - **F861.** `NetworkException` and `NetworkTimeoutException` messages drop the query and fragment of any URL in the Ktor message (`redactUrlsInMessage`).
 - **F1084.** SKILLS.md lists `{{errorPrefix}}Exception` with its `SerializationException`, `OAuth2ServerException` and `OAuth2TokenException` siblings.
 
@@ -360,12 +356,11 @@ Each follows the audit's own proposal, because the owner had not decided; reopen
 - **Tests added.** F1073 and F1074 (`BearerAuthenticatorTest`), F926 (`OAuth2TokenManagerTest`), F1119 (`TransportOptionsTest`), F1123 and the module name (`ClientTest`), F1170 (`BaseApiTest.sendsNoBodyWhenNull` now asserts the transport saw no body), F1124 (slug, nickname, quantity 500 in `ObjectSerializerTest`; the third global server in `ServerConfigurationTest`), F1129 (`ComposedSchemaTest.TreatmentRecordTests`), F1141 (`getStockItem` in `StoreApiTest`), F1161 (`getOrderById` against the typed status routes in `StoreApiTest`; `/test/response-headers` in `DefaultApiClientTest`), F1093 (`DefaultApiClientUnitTest`).
 - **F1107.** The 25 snake_case test functions are camelCase now.
 - **Already conforming.** F325 and F1160 (`BaseApi.invokeApiForResult` copies the headers with `toMap()`; `BaseApiTest.resultHeadersAreACopy`), F1080 (batch 9, `ApiExceptionTest`), F1146 (`ObjectSerializerTest.inlineEnumWireValuesRoundTrip`), F823 (batch 9).
-- **Skipped.** F455 (needs a spec change: `weightHistory` and `weightByDate` on the pet schema); F831 `retryAfter` accessor, F860 discovery default headers, F858 nonce, F862, F865, F866, F908, F894, F1077, F1081 (cross-language decisions not taken); F1056, F1061 (shared Java in `AbstractBetterCodegen`); F1085, F1157, F1172 (shared fixtures, spec and gates); F1092 (whether Ktor CIO copies `Proxy-Authorization` onto the CONNECT request or only the tunnelled request needs a live proxy run, and dropping the header for https would break proxy authentication); F1140 (Ktor's intermediate response release is not observable from `MockEngine`); F1151 (kotlin has no stream upload type, every upload body is a `ByteArray`); F1166 (forced divergence, see Known limitations).
 
 ## Decisions taken in wave 2
 
 - **F830 (request context on errors).** `ApiException` and every subclass have `requestMethod` and `requestPath` (query and fragment stripped; the path of the URL, `/` when empty). `ApiException.fromResponse(status, headers, body, requestMethod, requestPath)` and the full constructor and every status subclass take them as trailing optional arguments; `BaseApi.invokeApi` passes them where it builds the error and also sets them (internal setter) on an exception the transport raised, so `NetworkException` and `NetworkTimeoutException` carry them too. `toString()` writes one `Request: GET /pet/3` line between the status line and the headers; `message` is unchanged. The OIDC discovery failure reports `GET <discovery path>`. Tested in `ApiExceptionTest` and `BaseApiTest.RequestContextAndPerCallSettings`.
-- **F827 (per-call options).** Every generated Options class has `timeout` (Long, milliseconds, one end-to-end budget), `headers` (Map) and `maxRetries` (Int, `0` disables) (an `auth` field no longer exists, see F857); the three names are injected-argument names, so a spec parameter called `timeout`, `headers` or `maxRetries` becomes `...Param`. `BaseApi.invokeApi` and `invokeApiForResult` take them as `callTimeout`, `callHeaders`, `callMaxRetries`: the headers replace a header of the same name (any case) as the last layer, and the timeout and retry count travel to `DefaultApiClient` in the coroutine context as `CallSettings`, so the `ApiClient` interface is unchanged (another implementation keeps its own settings). The Ktor `HttpTimeout` plugin is always installed so a per-call timeout works when the client has none. An invalid value is an `IllegalArgumentException` before anything is sent. LIMIT: only operations that already have an Options object (an optional query, header, form or cookie parameter, or a security requirement) have the slot; giving every operation one is a change to `AbstractBetterCodegen` (`generateOptionsFilesForOps`, `computeSignatureArgs`) and is listed as a shared need.
+- **F827 (per-call options).** Every generated Options class has `timeout` (Long, milliseconds, one end-to-end budget), `headers` (Map) and `maxRetries` (Int, `0` disables) (an `auth` field no longer exists, see); the three names are injected-argument names, so a spec parameter called `timeout`, `headers` or `maxRetries` becomes `...Param`. `BaseApi.invokeApi` and `invokeApiForResult` take them as `callTimeout`, `callHeaders`, `callMaxRetries`: the headers replace a header of the same name (any case) as the last layer, and the timeout and retry count travel to `DefaultApiClient` in the coroutine context as `CallSettings`, so the `ApiClient` interface is unchanged (another implementation keeps its own settings). The Ktor `HttpTimeout` plugin is always installed so a per-call timeout works when the client has none. An invalid value is an `IllegalArgumentException` before anything is sent. LIMIT: only operations that already have an Options object (an optional query, header, form or cookie parameter, or a security requirement) have the slot; giving every operation one is a change to `AbstractBetterCodegen` (`generateOptionsFilesForOps`, `computeSignatureArgs`) and is listed as a shared need.
 - **F1062 (several 2xx responses).** For an operation with `hasMultiple2xx`, `api.mustache` passes `decodeSuccess` to `invokeApiForResult`: the body is decoded as the variant of the status the server sent (`200 -> Union(deserialize<A>)`, a `2XX` range last), and an undeclared 2xx falls back to the union's own try-each decoding. A body that does not fit its status is a `SerializationException`. Fixture: `reserveStock`; tested in `StoreApiTest`.
 - **F325, F1160 (`ApiResult.headers`).** `BaseApi` hands the result `Collections.unmodifiableMap(LinkedHashMap(headers))`, so it is a read-only copy; `BaseApiTest.resultHeadersAreACopy` mutates the source and tries to mutate the result. The `ApiResult` constructor stays a plain data class (a data class parameter cannot be transformed), so a caller who builds one keeps their own map.
 - **F860.** The OIDC discovery GET is sent as a no-redirect request, so it carries no `TransportOptions.defaultHeaders` and follows no redirect, like the token POST. Tested in `OpenIdConnectAuthenticatorTest`.
@@ -383,7 +378,6 @@ Each follows the audit's own proposal, because the owner had not decided; reopen
 - **F1092 (forced).** Ktor CIO builds the CONNECT request of an https tunnel from the request's own `Proxy-Authorization` header (`UtilsKt.startTunnel` in ktor-client-cio 3.5.0 reads it), and has no other place for proxy credentials, so dropping the header for https targets would remove proxy authentication; the first hop keeps it. Redirect hops already omit it for https.
 - **F1140 (skipped).** Ktor's release of an intermediate response is not observable from `MockEngine`.
 - **F1087.** The floor stays JVM 17, the version the README, the build and the detekt target are written for. The rule says to keep a floor unless it is newer than the oldest non-EOL release, and JDK 17 is newer than the oldest still-supported JDK 8 and 11, so the owner has to say whether kotlin should drop to a lower target (that changes the toolchain and the pinned plugins, not a template line); nothing was changed.
-- **Shared, not done here.** F1153 (rule unit tests), F1172 (blanket-disable scan), F1060 and F1061 (warnings in `AbstractBetterCodegen`), F1174 (`etc/ci-local.sh`), F1157 (spec scheme), F1085 (not decided).
 
 ## Gate lessons (what broke the gate and how to avoid it)
 

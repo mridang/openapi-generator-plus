@@ -3699,7 +3699,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * so the value is stashed on the flat {@code vendorExtensions} map here (the
      * only per-object channel) and surfaced onto the {@code param} decorator by
      * {@link #populateParameterDecorators}. This is a generator-computed
-     * extension, not a spec-sourced {@code x-*} — see CLAUDE.md.
+     * extension, not a spec-sourced {@code x-*}; see "Template and generated-prose rules" in
+     * the root AGENTS.md.
      */
     @Override
     public CodegenParameter fromParameter(Parameter parameter, Set<String> imports) {
