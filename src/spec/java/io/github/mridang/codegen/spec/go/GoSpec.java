@@ -47,7 +47,16 @@ interface GoSpec extends LanguageSpec, DockerImageSpec {
                 "for i in 1 2 3 4 5; do apk add --no-cache make && break;"
                         + " echo \"apk attempt $i failed; retrying\" >&2; sleep 3; done;"
                         + " command -v make > /dev/null"
-                        + " || { echo \"make missing after retries\" >&2; exit 1; }");
+                        + " || { echo \"make missing after retries\" >&2; exit 1; }",
+                /* The docs target runs gomarkdoc by name, and the Makefile's own
+                 * go install would leave it under $GOPATH/bin, which is not on PATH.
+                 * Install the pinned version into /usr/local/bin once, with retries,
+                 * so the target finds it. */
+                "for i in 1 2 3 4 5; do GOBIN=/usr/local/bin"
+                        + " go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0 && break;"
+                        + " echo \"gomarkdoc install attempt $i failed; retrying\" >&2; sleep 3; done;"
+                        + " command -v gomarkdoc > /dev/null"
+                        + " || { echo \"gomarkdoc missing after retries\" >&2; exit 1; }");
     }
 
     @Override

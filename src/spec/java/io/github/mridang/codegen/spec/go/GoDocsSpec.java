@@ -15,9 +15,7 @@ public class GoDocsSpec extends AbstractDocsSpec implements GoSpec {
 
   @Override
   protected String[] getDocsCommands() {
-    /* The Makefile installs the pinned gomarkdoc into $GOPATH/bin, which the
-     * shared container moves under the cache directory and so is not on PATH. */
-    return new String[] {"PATH=\"$GOPATH/bin:$PATH\" make docs"};
+    return new String[] {"make docs"};
   }
 
   @Override
