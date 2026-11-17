@@ -1,0 +1,85 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+
+/** Guards that the claims and examples in SKILLS.md match the SDK. */
+class SkillsTest {
+
+    private static String skills() throws IOException {
+        return Files.readString(Path.of("SKILLS.md"));
+    }
+
+    private static String section(String from, String until) throws IOException {
+        String skills = skills();
+        int start = skills.indexOf("\n" + from + "\n");
+        assertTrue(start >= 0, "expected SKILLS.md to contain " + from);
+        int end = skills.indexOf("\n" + until + "\n", start + 1);
+        return end < 0 ? skills.substring(start) : skills.substring(start, end);
+    }
+
+    @Test
+    void errorHandlingNamesTheRootAndTheSiblingsOfApiException() throws IOException {
+        String section = section("## Error Handling", "## Configuration");
+        assertTrue(section.contains("`{{errorPrefix}}Exception` (root)"));
+        assertTrue(section.contains("`SerializationException`"));
+        assertTrue(section.contains("`ApiException`"));
+    }
+
+    @Test
+    void errorHandlingExampleEndsWithTheApiExceptionArm() throws IOException {
+        String section = section("## Error Handling", "## Configuration");
+        int example = section.indexOf("```java");
+        assertTrue(example >= 0, "expected a java example in the Error Handling section");
+        String code = section.substring(example, section.indexOf("```", example + 7));
+        assertTrue(code.contains("catch (ApiException e)"));
+        assertTrue(
+                code.indexOf("catch (ClientException e)") < code.indexOf("catch (ApiException e)"),
+                "the more specific arms must come before the ApiException arm");
+        assertFalse(code.contains("(request)"));
+    }
+
+    @Test
+    void configurationDocumentsTheRetries() throws IOException {
+        String section = section("## Configuration", "## API Methods");
+        assertTrue(section.contains("### Retries"));
+        assertTrue(section.contains("`maxRetries`"));
+        assertTrue(section.contains("`Retry-After`"));
+    }
+
+    @Test
+    void configurationHasTheSharedSubsectionsInTheSharedOrder() throws IOException {
+        String skills = skills();
+        int position = -1;
+        for (String heading : new String[] {
+                "### Custom Transport Options", "### Retries", "### Custom HTTP client",
+                "### Cancellation", "### Raw responses, timeouts and the request id"}) {
+            int next = skills.indexOf("\n" + heading + "\n");
+            assertTrue(next >= 0, "expected SKILLS.md to contain the heading " + heading);
+            assertTrue(next > position, "expected the heading " + heading + " after the previous one");
+            position = next;
+        }
+    }
+{{#hasSecuritySchemeEnvVars}}
+
+    @Test
+    void documentsTheEnvironmentVariableOfEveryCredential() throws IOException {
+        String skills = skills();
+        String[] rows = {
+{{#securitySchemeEnvVars}}
+            "| `{{schemeId}}` | `{{field}}` | `{{envName}}` |",
+{{/securitySchemeEnvVars}}
+        };
+        for (String row : rows) {
+            assertTrue(skills.contains(row), "expected SKILLS.md to contain " + row);
+        }
+    }
+{{/hasSecuritySchemeEnvVars}}
+}

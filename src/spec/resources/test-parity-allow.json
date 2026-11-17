@@ -285,17 +285,6 @@
         }
       ]
     },
-    "java": {
-      "missingTests": [
-        {
-          "reason": "tracked in #118",
-          "keys": [
-            "baseapi::apirequestusesresolvedserverurl",
-            "baseapi::nullbodypostdoesnotsendcontenttype"
-          ]
-        }
-      ]
-    },
     "kotlin": {
       "missingTests": [
         {
