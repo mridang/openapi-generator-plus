@@ -361,7 +361,7 @@ describe("ApiError", () => {
       "OAuth2TokenError",
     ];
 
-    test("every error lives in src/errors and the package root exports it", () => {
+    test("bhv errors 044 every error lives in src/errors and the package root exports it", () => {
       for (const name of tree) {
         const fromErrors = (errors as Record<string, unknown>)[name];
         expect(typeof fromErrors).toBe("function");

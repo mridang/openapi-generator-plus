@@ -759,7 +759,7 @@ describe("PetApi form-urlencoded body serialization", () => {
 
   // #1 — an array form field is emitted as repeated keys (tags=a&tags=b),
   // never a single comma-joined value (tags=a%2Cb).
-  test("#1 array form field emits repeated keys", async () => {
+  test("bhv serializationwire 053 an array form field emits repeated keys", async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = {
@@ -1441,6 +1441,21 @@ describe("PetApi against a recording client", () => {
     expect((error as Error).constructor).toBe(TypeError);
     expect((error as Error).message).toBe(
       "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test("bhv operations 125 a required query param that is null sends no request", async () => {
+    const error = await recordingApi
+      .getPetByName("x", {
+        category: null,
+        xCorrelationId: "sample-correlation",
+      } as never)
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'category' when calling PetApi.getPetByName",
     );
     expect(recorded).toHaveLength(0);
   });

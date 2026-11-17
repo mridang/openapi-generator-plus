@@ -90,6 +90,12 @@ describe("OAuth2ImplicitAuthenticator", () => {
     );
   });
 
+  test("bhv authoauthtwoimplicit 014 rejects a non-ASCII access token with the RFC 7230 message", () => {
+    expect(() => authenticator.setAccessToken("tök")).toThrow(
+      "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    );
+  });
+
   test("bhv authoauthtwoimplicit 012 throws when access token not set", () => {
     let caught: unknown;
     try {

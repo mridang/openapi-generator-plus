@@ -59,7 +59,7 @@ describe("HeaderSelector", () => {
   });
 
   describe("selectAcceptHeader", () => {
-    test("returns empty string for empty accept array", () => {
+    test("bhv headers 027 returns empty string for empty accept array", () => {
       const select = (
         headerSelector as unknown as {
           selectAcceptHeader(accept: string[] | null): string;

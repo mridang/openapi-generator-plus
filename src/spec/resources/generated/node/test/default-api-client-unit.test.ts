@@ -758,7 +758,7 @@ describe("DefaultApiClient.decodeBody charset handling", () => {
     expect(new TextDecoder("utf-16le").decode(buf)).not.toBe("Log");
   });
 
-  it("decodes a little-endian BOM utf-16 body as little-endian", () => {
+  it("bhv serializationwire 054 decodes a little-endian BOM utf-16 body as little-endian", () => {
     // FF FE then "AB" little-endian: a bare utf-16 label must honour the BOM.
     const buf = Buffer.from([0xff, 0xfe, 0x41, 0x00, 0x42, 0x00]);
     expect(DefaultApiClient.decodeBody(buf, "text/plain; charset=utf-16")).toBe(
@@ -2848,7 +2848,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(calls).toHaveLength(5);
   });
 
-  it("backs off from 0.5 s doubling to 8 s with up to 25% jitter taken off", async () => {
+  it("bhv retries 027 backs off from 0.5 s doubling to 8 s with up to 25% jitter taken off", async () => {
     await send(
       clientPlaying([reply(500)], (builder) =>
         builder.maxRetries(6).timeout(null),
@@ -2864,7 +2864,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(Math.max(...delays)).toBeLessThanOrEqual(8000);
   });
 
-  it("waits for a Retry-After given in seconds", async () => {
+  it("bhv retries 026 waits for a Retry-After given in seconds", async () => {
     await send(clientPlaying([reply(429, { "Retry-After": "3" }), reply(200)]));
 
     expect(delays).toEqual([3000]);
@@ -2995,7 +2995,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
 });
 
 describe("automatic retries and cancellation", () => {
-  it("a caller signal that fires while waiting to retry stops the call with its own reason", async () => {
+  it("bhv retries 028 a caller signal that fires while waiting to retry stops the call with its own reason", async () => {
     const controller = new AbortController();
     let calls = 0;
     const scripted = (async () => {
