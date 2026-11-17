@@ -251,9 +251,20 @@ class ApiExceptionTest {
                 409 to {{invokerPackage}}.errors.ConflictException::class.java,
                 422 to {{invokerPackage}}.errors.UnprocessableEntityException::class.java,
                 429 to {{invokerPackage}}.errors.TooManyRequestsException::class.java,
+                402 to {{invokerPackage}}.errors.PaymentRequiredException::class.java,
+                405 to {{invokerPackage}}.errors.MethodNotAllowedException::class.java,
+                408 to {{invokerPackage}}.errors.RequestTimeoutException::class.java,
+                410 to {{invokerPackage}}.errors.GoneException::class.java,
+                413 to {{invokerPackage}}.errors.PayloadTooLargeException::class.java,
+                415 to {{invokerPackage}}.errors.UnsupportedMediaTypeException::class.java,
+                423 to {{invokerPackage}}.errors.LockedException::class.java,
+                501 to {{invokerPackage}}.errors.NotImplementedException::class.java,
+                502 to {{invokerPackage}}.errors.BadGatewayException::class.java,
+                503 to {{invokerPackage}}.errors.ServiceUnavailableException::class.java,
+                504 to {{invokerPackage}}.errors.GatewayTimeoutException::class.java,
                 418 to {{invokerPackage}}.errors.ClientException::class.java,
                 500 to {{invokerPackage}}.errors.InternalServerErrorException::class.java,
-                503 to {{invokerPackage}}.errors.ServerException::class.java,
+                599 to {{invokerPackage}}.errors.ServerException::class.java,
                 // 302 is below the client range and 600 above the server range:
                 // neither is a ClientException or a ServerException, both are
                 // the base type.
@@ -276,7 +287,7 @@ class ApiExceptionTest {
 
     @Test
     fun bhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
-        val ex = ApiException.fromResponse(502, emptyMap(), "<html>bad gateway</html>")
+        val ex = ApiException.fromResponse(599, emptyMap(), "<html>bad gateway</html>")
 
         assertEquals({{invokerPackage}}.errors.ServerException::class.java, ex.javaClass)
         assertEquals("<html>bad gateway</html>", ex.responseBody)
@@ -308,6 +319,17 @@ class ApiExceptionTest {
                 {{invokerPackage}}.errors.ConflictException::class.java,
                 {{invokerPackage}}.errors.UnprocessableEntityException::class.java,
                 {{invokerPackage}}.errors.TooManyRequestsException::class.java,
+                {{invokerPackage}}.errors.PaymentRequiredException::class.java,
+                {{invokerPackage}}.errors.MethodNotAllowedException::class.java,
+                {{invokerPackage}}.errors.RequestTimeoutException::class.java,
+                {{invokerPackage}}.errors.GoneException::class.java,
+                {{invokerPackage}}.errors.PayloadTooLargeException::class.java,
+                {{invokerPackage}}.errors.UnsupportedMediaTypeException::class.java,
+                {{invokerPackage}}.errors.LockedException::class.java,
+                {{invokerPackage}}.errors.NotImplementedException::class.java,
+                {{invokerPackage}}.errors.BadGatewayException::class.java,
+                {{invokerPackage}}.errors.ServiceUnavailableException::class.java,
+                {{invokerPackage}}.errors.GatewayTimeoutException::class.java,
                 {{invokerPackage}}.errors.InternalServerErrorException::class.java,
                 {{invokerPackage}}.errors.NetworkException::class.java,
                 {{invokerPackage}}.errors.NetworkTimeoutException::class.java,
@@ -429,6 +451,17 @@ class ApiExceptionTest {
         val cause = IllegalStateException("root")
         assertSame(cause, BadRequestException("bad", cause = cause).cause)
         assertSame(cause, NotFoundException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.PaymentRequiredException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.MethodNotAllowedException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.RequestTimeoutException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.GoneException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.PayloadTooLargeException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.UnsupportedMediaTypeException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.LockedException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.NotImplementedException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.BadGatewayException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.ServiceUnavailableException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.GatewayTimeoutException("gone", cause = cause).cause)
         assertSame(cause, ClientException(418, "teapot", cause = cause).cause)
         assertSame(cause, ServerException(503, "down", cause = cause).cause)
         assertNull(NotFoundException("gone").cause)

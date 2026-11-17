@@ -1,0 +1,27 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+import { ServerError } from './server-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 501 Not Implemented.
+ */
+export class NotImplementedError<T = unknown> extends ServerError<T> {
+  constructor(
+    message: string = '',
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: T | null = null,
+    options?: ApiErrorOptions
+  ) {
+    super(501, message, responseHeaders, responseBody, errorBody, options);
+    this.name = 'NotImplementedError';
+  }
+}
+
+ApiError.registerStatusError(
+  501,
+  (_statusCode, message, headers, body, errorBody, options) =>
+    new NotImplementedError(message, headers, body, errorBody, options)
+);

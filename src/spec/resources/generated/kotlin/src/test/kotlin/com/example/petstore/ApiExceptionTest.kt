@@ -270,9 +270,20 @@ class ApiExceptionTest {
                 409 to com.example.petstore.errors.ConflictException::class.java,
                 422 to com.example.petstore.errors.UnprocessableEntityException::class.java,
                 429 to com.example.petstore.errors.TooManyRequestsException::class.java,
+                402 to com.example.petstore.errors.PaymentRequiredException::class.java,
+                405 to com.example.petstore.errors.MethodNotAllowedException::class.java,
+                408 to com.example.petstore.errors.RequestTimeoutException::class.java,
+                410 to com.example.petstore.errors.GoneException::class.java,
+                413 to com.example.petstore.errors.PayloadTooLargeException::class.java,
+                415 to com.example.petstore.errors.UnsupportedMediaTypeException::class.java,
+                423 to com.example.petstore.errors.LockedException::class.java,
+                501 to com.example.petstore.errors.NotImplementedException::class.java,
+                502 to com.example.petstore.errors.BadGatewayException::class.java,
+                503 to com.example.petstore.errors.ServiceUnavailableException::class.java,
+                504 to com.example.petstore.errors.GatewayTimeoutException::class.java,
                 418 to com.example.petstore.errors.ClientException::class.java,
                 500 to com.example.petstore.errors.InternalServerErrorException::class.java,
-                503 to com.example.petstore.errors.ServerException::class.java,
+                599 to com.example.petstore.errors.ServerException::class.java,
                 // 302 is below the client range and 600 above the server range:
                 // neither is a ClientException or a ServerException, both are
                 // the base type.
@@ -296,7 +307,7 @@ class ApiExceptionTest {
 
     @Test
     fun bhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
-        val ex = ApiException.fromResponse(502, emptyMap(), "<html>bad gateway</html>")
+        val ex = ApiException.fromResponse(599, emptyMap(), "<html>bad gateway</html>")
 
         assertEquals(com.example.petstore.errors.ServerException::class.java, ex.javaClass)
         assertEquals("<html>bad gateway</html>", ex.responseBody)
@@ -329,6 +340,17 @@ class ApiExceptionTest {
                 com.example.petstore.errors.ConflictException::class.java,
                 com.example.petstore.errors.UnprocessableEntityException::class.java,
                 com.example.petstore.errors.TooManyRequestsException::class.java,
+                com.example.petstore.errors.PaymentRequiredException::class.java,
+                com.example.petstore.errors.MethodNotAllowedException::class.java,
+                com.example.petstore.errors.RequestTimeoutException::class.java,
+                com.example.petstore.errors.GoneException::class.java,
+                com.example.petstore.errors.PayloadTooLargeException::class.java,
+                com.example.petstore.errors.UnsupportedMediaTypeException::class.java,
+                com.example.petstore.errors.LockedException::class.java,
+                com.example.petstore.errors.NotImplementedException::class.java,
+                com.example.petstore.errors.BadGatewayException::class.java,
+                com.example.petstore.errors.ServiceUnavailableException::class.java,
+                com.example.petstore.errors.GatewayTimeoutException::class.java,
                 com.example.petstore.errors.InternalServerErrorException::class.java,
                 com.example.petstore.errors.NetworkException::class.java,
                 com.example.petstore.errors.NetworkTimeoutException::class.java,
@@ -451,6 +473,72 @@ class ApiExceptionTest {
         val cause = IllegalStateException("root")
         assertSame(cause, BadRequestException("bad", cause = cause).cause)
         assertSame(cause, NotFoundException("gone", cause = cause).cause)
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .PaymentRequiredException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .MethodNotAllowedException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .RequestTimeoutException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .GoneException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .PayloadTooLargeException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .UnsupportedMediaTypeException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .LockedException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .NotImplementedException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .BadGatewayException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .ServiceUnavailableException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .GatewayTimeoutException("gone", cause = cause)
+                .cause,
+        )
         assertSame(cause, ClientException(418, "teapot", cause = cause).cause)
         assertSame(cause, ServerException(503, "down", cause = cause).cause)
         assertNull(NotFoundException("gone").cause)

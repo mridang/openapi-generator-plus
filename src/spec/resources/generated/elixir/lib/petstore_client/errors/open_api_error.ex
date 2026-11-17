@@ -68,6 +68,17 @@ defmodule PetstoreClient.Errors.OpenAPIError do
     PetstoreClient.Errors.ConflictError,
     PetstoreClient.Errors.UnprocessableEntityError,
     PetstoreClient.Errors.TooManyRequestsError,
+    PetstoreClient.Errors.PaymentRequiredError,
+    PetstoreClient.Errors.MethodNotAllowedError,
+    PetstoreClient.Errors.RequestTimeoutError,
+    PetstoreClient.Errors.GoneError,
+    PetstoreClient.Errors.PayloadTooLargeError,
+    PetstoreClient.Errors.UnsupportedMediaTypeError,
+    PetstoreClient.Errors.LockedError,
+    PetstoreClient.Errors.NotImplementedError,
+    PetstoreClient.Errors.BadGatewayError,
+    PetstoreClient.Errors.ServiceUnavailableError,
+    PetstoreClient.Errors.GatewayTimeoutError,
     PetstoreClient.Errors.InternalServerError,
     PetstoreClient.Errors.NetworkError,
     PetstoreClient.Errors.NetworkTimeoutError,
@@ -87,6 +98,17 @@ defmodule PetstoreClient.Errors.OpenAPIError do
           | PetstoreClient.Errors.ConflictError.t()
           | PetstoreClient.Errors.UnprocessableEntityError.t()
           | PetstoreClient.Errors.TooManyRequestsError.t()
+          | PetstoreClient.Errors.PaymentRequiredError.t()
+          | PetstoreClient.Errors.MethodNotAllowedError.t()
+          | PetstoreClient.Errors.RequestTimeoutError.t()
+          | PetstoreClient.Errors.GoneError.t()
+          | PetstoreClient.Errors.PayloadTooLargeError.t()
+          | PetstoreClient.Errors.UnsupportedMediaTypeError.t()
+          | PetstoreClient.Errors.LockedError.t()
+          | PetstoreClient.Errors.NotImplementedError.t()
+          | PetstoreClient.Errors.BadGatewayError.t()
+          | PetstoreClient.Errors.ServiceUnavailableError.t()
+          | PetstoreClient.Errors.GatewayTimeoutError.t()
           | PetstoreClient.Errors.InternalServerError.t()
           | PetstoreClient.Errors.NetworkError.t()
           | PetstoreClient.Errors.NetworkTimeoutError.t()

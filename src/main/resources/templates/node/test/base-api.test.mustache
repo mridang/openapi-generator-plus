@@ -8,6 +8,7 @@ import type { Authenticator } from '../src/auth/authenticator{{importFileExtensi
 import { ApiError } from '../src/errors/api-error{{importFileExtension}}';
 import { ClientError } from '../src/errors/client-error{{importFileExtension}}';
 import { ServerError } from '../src/errors/server-error{{importFileExtension}}';
+import { BadGatewayError } from '../src/errors/bad-gateway-error{{importFileExtension}}';
 import { BadRequestError } from '../src/errors/bad-request-error{{importFileExtension}}';
 import { UnauthorizedError } from '../src/errors/unauthorized-error{{importFileExtension}}';
 import { ForbiddenError } from '../src/errors/forbidden-error{{importFileExtension}}';
@@ -140,7 +141,7 @@ describe('BaseApi', () => {
     [429, TooManyRequestsError],
     [418, ClientError],
     [500, InternalServerError],
-    [502, ServerError]
+    [502, BadGatewayError]
   ];
 
   test.each(cases)('bhv errors 037 status %i throws correct exception', async (status, ErrorClass) => {

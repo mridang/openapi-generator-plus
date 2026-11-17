@@ -168,6 +168,50 @@ module Petstore::Client
       def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
     end
 
+    class PaymentRequiredError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class MethodNotAllowedError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class RequestTimeoutError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class GoneError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class PayloadTooLargeError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class UnsupportedMediaTypeError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class LockedError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class NotImplementedError < ServerError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class BadGatewayError < ServerError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class ServiceUnavailableError < ServerError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class GatewayTimeoutError < ServerError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
     class UnprocessableEntityError < ClientError
       def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
     end

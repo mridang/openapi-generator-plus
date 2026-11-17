@@ -175,7 +175,9 @@ describe {{moduleName}}::Errors::ApiError do
     %w[
       {{apiErrorParentSimpleName}} ApiError ClientError ServerError BadRequestError UnauthorizedError
       ForbiddenError NotFoundError ConflictError UnprocessableEntityError TooManyRequestsError
-      InternalServerError NetworkError NetworkTimeoutError SerializationError
+      PaymentRequiredError MethodNotAllowedError RequestTimeoutError GoneError PayloadTooLargeError
+      UnsupportedMediaTypeError LockedError NotImplementedError BadGatewayError ServiceUnavailableError
+      GatewayTimeoutError InternalServerError NetworkError NetworkTimeoutError SerializationError
       OAuth2ServerError OAuth2TokenError
     ].each do |name|
       klass = {{moduleName}}::Errors.const_get(name, false)
@@ -192,9 +194,20 @@ describe {{moduleName}}::Errors::ApiError do
     409 => {{moduleName}}::Errors::ConflictError,
     422 => {{moduleName}}::Errors::UnprocessableEntityError,
     429 => {{moduleName}}::Errors::TooManyRequestsError,
+    402 => {{moduleName}}::Errors::PaymentRequiredError,
+    405 => {{moduleName}}::Errors::MethodNotAllowedError,
+    408 => {{moduleName}}::Errors::RequestTimeoutError,
+    410 => {{moduleName}}::Errors::GoneError,
+    413 => {{moduleName}}::Errors::PayloadTooLargeError,
+    415 => {{moduleName}}::Errors::UnsupportedMediaTypeError,
+    423 => {{moduleName}}::Errors::LockedError,
+    501 => {{moduleName}}::Errors::NotImplementedError,
+    502 => {{moduleName}}::Errors::BadGatewayError,
+    503 => {{moduleName}}::Errors::ServiceUnavailableError,
+    504 => {{moduleName}}::Errors::GatewayTimeoutError,
     418 => {{moduleName}}::Errors::ClientError,
     500 => {{moduleName}}::Errors::InternalServerError,
-    503 => {{moduleName}}::Errors::ServerError,
+    599 => {{moduleName}}::Errors::ServerError,
     302 => {{moduleName}}::Errors::ApiError
   }.each do |status, expected|
     it "bhv_errors_006 from_response maps #{status} to #{expected.name.split('::').last}" do

@@ -13,6 +13,17 @@ use crate::errors::not_found_error::NotFoundError;
 use crate::errors::serialization_error::SerializationError;
 use crate::errors::server_error::ServerError;
 use crate::errors::too_many_requests_error::TooManyRequestsError;
+use crate::errors::payment_required_error::PaymentRequiredError;
+use crate::errors::method_not_allowed_error::MethodNotAllowedError;
+use crate::errors::request_timeout_error::RequestTimeoutError;
+use crate::errors::gone_error::GoneError;
+use crate::errors::payload_too_large_error::PayloadTooLargeError;
+use crate::errors::unsupported_media_type_error::UnsupportedMediaTypeError;
+use crate::errors::locked_error::LockedError;
+use crate::errors::not_implemented_error::NotImplementedError;
+use crate::errors::bad_gateway_error::BadGatewayError;
+use crate::errors::service_unavailable_error::ServiceUnavailableError;
+use crate::errors::gateway_timeout_error::GatewayTimeoutError;
 use crate::errors::unauthorized_error::UnauthorizedError;
 use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
 use crate::json_value::JsonValue;
@@ -186,9 +197,10 @@ impl ApiError {
 
     /// Maps an HTTP response that was not a success to the error for its status.
     ///
-    /// 400, 401, 403, 404, 409 and 422 map to their named [`ClientError`]
-    /// wrappers and any other 4xx to [`ClientError`]; 500 maps to
-    /// [`InternalServerError`] and any other 5xx to [`ServerError`]; any other
+    /// 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map
+    /// to their named [`ClientError`] wrappers and any other 4xx to
+    /// [`ClientError`]; 500, 501, 502, 503 and 504 map to their named
+    /// [`ServerError`] wrappers and any other 5xx to [`ServerError`]; any other
     /// status maps to a plain `ApiError`. A JSON body is decoded and exposed
     /// internally as the error body; a body that is not JSON leaves the error
     /// body `None`. Every generated operation and the OpenID Connect discovery
@@ -239,6 +251,13 @@ impl ApiError {
                 404 => NotFoundError::try_from(client_err).map(|e| Box::new(e) as Boxed),
                 409 => ConflictError::try_from(client_err).map(|e| Box::new(e) as Boxed),
                 429 => TooManyRequestsError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                402 => PaymentRequiredError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                405 => MethodNotAllowedError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                408 => RequestTimeoutError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                410 => GoneError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                413 => PayloadTooLargeError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                415 => UnsupportedMediaTypeError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                423 => LockedError::try_from(client_err).map(|e| Box::new(e) as Boxed),
                 422 => UnprocessableEntityError::try_from(client_err).map(|e| Box::new(e) as Boxed),
                 _ => Err(client_err),
             };
@@ -252,6 +271,10 @@ impl ApiError {
             };
             let named: Result<Boxed, ServerError> = match status_code {
                 500 => InternalServerError::try_from(server_err).map(|e| Box::new(e) as Boxed),
+                501 => NotImplementedError::try_from(server_err).map(|e| Box::new(e) as Boxed),
+                502 => BadGatewayError::try_from(server_err).map(|e| Box::new(e) as Boxed),
+                503 => ServiceUnavailableError::try_from(server_err).map(|e| Box::new(e) as Boxed),
+                504 => GatewayTimeoutError::try_from(server_err).map(|e| Box::new(e) as Boxed),
                 _ => Err(server_err),
             };
             return named.unwrap_or_else(|server_err| Box::new(server_err));
@@ -572,6 +595,28 @@ pub enum ApiErrorKind {
     UnprocessableEntity(ApiErrorFields),
     /// HTTP 429 Too Many Requests.
     TooManyRequests(ApiErrorFields),
+    /// HTTP 402 Payment Required.
+    PaymentRequired(ApiErrorFields),
+    /// HTTP 405 Method Not Allowed.
+    MethodNotAllowed(ApiErrorFields),
+    /// HTTP 408 Request Timeout.
+    RequestTimeout(ApiErrorFields),
+    /// HTTP 410 Gone.
+    Gone(ApiErrorFields),
+    /// HTTP 413 Payload Too Large.
+    PayloadTooLarge(ApiErrorFields),
+    /// HTTP 415 Unsupported Media Type.
+    UnsupportedMediaType(ApiErrorFields),
+    /// HTTP 423 Locked.
+    Locked(ApiErrorFields),
+    /// HTTP 501 Not Implemented.
+    NotImplemented(ApiErrorFields),
+    /// HTTP 502 Bad Gateway.
+    BadGateway(ApiErrorFields),
+    /// HTTP 503 Service Unavailable.
+    ServiceUnavailable(ApiErrorFields),
+    /// HTTP 504 Gateway Timeout.
+    GatewayTimeout(ApiErrorFields),
     /// HTTP 500 Internal Server Error.
     InternalServerError(ApiErrorFields),
     /// Any other client-side (4xx) status with no dedicated variant.
@@ -598,6 +643,17 @@ impl ApiErrorKind {
             | Self::Conflict(f)
             | Self::UnprocessableEntity(f)
             | Self::TooManyRequests(f)
+            | Self::PaymentRequired(f)
+            | Self::MethodNotAllowed(f)
+            | Self::RequestTimeout(f)
+            | Self::Gone(f)
+            | Self::PayloadTooLarge(f)
+            | Self::UnsupportedMediaType(f)
+            | Self::Locked(f)
+            | Self::NotImplemented(f)
+            | Self::BadGateway(f)
+            | Self::ServiceUnavailable(f)
+            | Self::GatewayTimeout(f)
             | Self::InternalServerError(f)
             | Self::ClientError(f)
             | Self::ServerError(f)
@@ -635,6 +691,17 @@ impl From<ApiError> for ApiErrorKind {
             409 => Self::Conflict(f),
             422 => Self::UnprocessableEntity(f),
             429 => Self::TooManyRequests(f),
+            402 => Self::PaymentRequired(f),
+            405 => Self::MethodNotAllowed(f),
+            408 => Self::RequestTimeout(f),
+            410 => Self::Gone(f),
+            413 => Self::PayloadTooLarge(f),
+            415 => Self::UnsupportedMediaType(f),
+            423 => Self::Locked(f),
+            501 => Self::NotImplemented(f),
+            502 => Self::BadGateway(f),
+            503 => Self::ServiceUnavailable(f),
+            504 => Self::GatewayTimeout(f),
             500 => Self::InternalServerError(f),
             c if (400..500).contains(&c) => Self::ClientError(f),
             c if (500..600).contains(&c) => Self::ServerError(f),

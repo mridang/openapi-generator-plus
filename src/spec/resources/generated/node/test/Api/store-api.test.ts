@@ -26,6 +26,7 @@ import {
   TreeNode,
 } from "../../src/models/index.js";
 import {
+  BadGatewayError,
   BadRequestError,
   ClientError,
   ConflictError,
@@ -33,7 +34,6 @@ import {
   InternalServerError,
   NotFoundError,
   SerializationError,
-  ServerError,
   UnauthorizedError,
   UnprocessableEntityError,
 } from "../../src/errors/index.js";
@@ -678,7 +678,7 @@ describe("StoreApi error dispatch through the typed status routes", () => {
     [418, ClientError],
     [422, UnprocessableEntityError],
     [500, InternalServerError],
-    [502, ServerError],
+    [502, BadGatewayError],
   ])(
     "bhv operations 110 getOrderById picks the status-specific error for status %i",
     async (status, expected) => {

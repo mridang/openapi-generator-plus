@@ -235,6 +235,17 @@ import Testing
         #expect(ConflictError(message: "x").statusCode == 409)
         #expect(UnprocessableEntityError(message: "x").statusCode == 422)
         #expect(TooManyRequestsError(message: "x").statusCode == 429)
+        #expect(PaymentRequiredError(message: "x").statusCode == 402)
+        #expect(MethodNotAllowedError(message: "x").statusCode == 405)
+        #expect(RequestTimeoutError(message: "x").statusCode == 408)
+        #expect(GoneError(message: "x").statusCode == 410)
+        #expect(PayloadTooLargeError(message: "x").statusCode == 413)
+        #expect(UnsupportedMediaTypeError(message: "x").statusCode == 415)
+        #expect(LockedError(message: "x").statusCode == 423)
+        #expect(NotImplementedError(message: "x").statusCode == 501)
+        #expect(BadGatewayError(message: "x").statusCode == 502)
+        #expect(ServiceUnavailableError(message: "x").statusCode == 503)
+        #expect(GatewayTimeoutError(message: "x").statusCode == 504)
         #expect(InternalServerError(message: "x").statusCode == 500)
         #expect(NotFoundError().statusCode == 404)
         let err = NotFoundError(message: "gone", responseBody: "{}", responseHeaders: ["a": "b"])
@@ -458,6 +469,17 @@ import Testing
             ConflictError(underlyingError: cause),
             UnprocessableEntityError(underlyingError: cause),
             TooManyRequestsError(underlyingError: cause),
+            PaymentRequiredError(underlyingError: cause),
+            MethodNotAllowedError(underlyingError: cause),
+            RequestTimeoutError(underlyingError: cause),
+            GoneError(underlyingError: cause),
+            PayloadTooLargeError(underlyingError: cause),
+            UnsupportedMediaTypeError(underlyingError: cause),
+            LockedError(underlyingError: cause),
+            NotImplementedError(underlyingError: cause),
+            BadGatewayError(underlyingError: cause),
+            ServiceUnavailableError(underlyingError: cause),
+            GatewayTimeoutError(underlyingError: cause),
             InternalServerError(underlyingError: cause),
         ]
         for error in errors {

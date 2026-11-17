@@ -210,8 +210,18 @@ void main() {
         409: ConflictException,
         422: UnprocessableEntityException,
         429: TooManyRequestsException,
+        402: PaymentRequiredException,
+        405: MethodNotAllowedException,
+        408: RequestTimeoutException,
+        410: GoneException,
+        413: PayloadTooLargeException,
+        415: UnsupportedMediaTypeException,
+        423: LockedException,
+        501: NotImplementedException,
+        503: ServiceUnavailableException,
+        504: GatewayTimeoutException,
         500: InternalServerErrorException,
-        502: ServerException,
+        502: BadGatewayException,
       };
 
       for (final entry in testCases.entries) {

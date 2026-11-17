@@ -63,7 +63,14 @@ defmodule PetstoreClient.Errors.ClientError do
     PetstoreClient.Errors.NotFoundError,
     PetstoreClient.Errors.ConflictError,
     PetstoreClient.Errors.UnprocessableEntityError,
-    PetstoreClient.Errors.TooManyRequestsError
+    PetstoreClient.Errors.TooManyRequestsError,
+    PetstoreClient.Errors.PaymentRequiredError,
+    PetstoreClient.Errors.MethodNotAllowedError,
+    PetstoreClient.Errors.RequestTimeoutError,
+    PetstoreClient.Errors.GoneError,
+    PetstoreClient.Errors.PayloadTooLargeError,
+    PetstoreClient.Errors.UnsupportedMediaTypeError,
+    PetstoreClient.Errors.LockedError
   ]
 
   @doc """

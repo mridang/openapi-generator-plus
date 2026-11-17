@@ -23,6 +23,7 @@ use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ConflictException;
 use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Errors\TooManyRequestsException;
+use PetstoreClient\Errors\BadGatewayException;
 use PetstoreClient\Errors\InternalServerErrorException;
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiHttpResponse;
@@ -70,7 +71,7 @@ test('bhv errors 037 throws correct exception', function (int $status, string $e
     [429, TooManyRequestsException::class],
     [418, ClientException::class],
     [500, InternalServerErrorException::class],
-    [502, ServerException::class],
+    [502, BadGatewayException::class],
 ]);
 
 test('bhv errors 029 get typed error body deserializes into given class', function (): void {

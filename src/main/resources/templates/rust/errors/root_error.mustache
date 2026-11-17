@@ -65,6 +65,17 @@ impl {{errorPrefix}}Error for NotFoundError {}
 impl {{errorPrefix}}Error for ConflictError {}
 impl {{errorPrefix}}Error for UnprocessableEntityError {}
 impl {{errorPrefix}}Error for TooManyRequestsError {}
+impl {{errorPrefix}}Error for PaymentRequiredError {}
+impl {{errorPrefix}}Error for MethodNotAllowedError {}
+impl {{errorPrefix}}Error for RequestTimeoutError {}
+impl {{errorPrefix}}Error for GoneError {}
+impl {{errorPrefix}}Error for PayloadTooLargeError {}
+impl {{errorPrefix}}Error for UnsupportedMediaTypeError {}
+impl {{errorPrefix}}Error for LockedError {}
+impl {{errorPrefix}}Error for NotImplementedError {}
+impl {{errorPrefix}}Error for BadGatewayError {}
+impl {{errorPrefix}}Error for ServiceUnavailableError {}
+impl {{errorPrefix}}Error for GatewayTimeoutError {}
 impl {{errorPrefix}}Error for InternalServerError {}
 impl {{errorPrefix}}Error for NetworkError {}
 impl {{errorPrefix}}Error for NetworkTimeoutError {}
@@ -141,6 +152,39 @@ impl {{errorPrefix}}ErrorExt for dyn std::error::Error + Send + Sync + 'static {
         }
         if let Some(e) = self.downcast_ref::<TooManyRequestsError>() {
             return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<PaymentRequiredError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<MethodNotAllowedError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<RequestTimeoutError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<GoneError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<PayloadTooLargeError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<UnsupportedMediaTypeError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<LockedError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<NotImplementedError>() {
+            return Some(e.server_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<BadGatewayError>() {
+            return Some(e.server_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<ServiceUnavailableError>() {
+            return Some(e.server_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<GatewayTimeoutError>() {
+            return Some(e.server_error().api_error());
         }
         if let Some(e) = self.downcast_ref::<InternalServerError>() {
             return Some(e.server_error().api_error());

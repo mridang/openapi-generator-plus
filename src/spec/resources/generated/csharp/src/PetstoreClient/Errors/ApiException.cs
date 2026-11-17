@@ -89,10 +89,10 @@ public class ApiException : OpenAPIException
 
     /// <summary>
     /// Maps an HTTP response that was not a success to the exception for its
-    /// status: 400, 401, 403, 404, 409, 422 and 429 map to their named
+    /// status: 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named
     /// <see cref="ClientException"/> subclasses and any other 4xx to
-    /// <see cref="ClientException"/>; 500 maps to
-    /// <see cref="InternalServerErrorException"/> and any other 5xx to
+    /// <see cref="ClientException"/>; 500, 501, 502, 503 and 504
+    /// map to their named <see cref="ServerException"/> subclasses and any other 5xx to
     /// <see cref="ServerException"/>; any other status maps to
     /// <see cref="ApiException"/> itself. A JSON body is parsed into
     /// <see cref="ErrorBody"/>; a body that is not JSON leaves it null.
@@ -152,6 +152,13 @@ public class ApiException : OpenAPIException
             409 => new ConflictException(message, headers, responseBody, errorBody),
             422 => new UnprocessableEntityException(message, headers, responseBody, errorBody),
             429 => new TooManyRequestsException(message, headers, responseBody, errorBody),
+            402 => new PaymentRequiredException(message, headers, responseBody, errorBody),
+            405 => new MethodNotAllowedException(message, headers, responseBody, errorBody),
+            408 => new RequestTimeoutException(message, headers, responseBody, errorBody),
+            410 => new GoneException(message, headers, responseBody, errorBody),
+            413 => new PayloadTooLargeException(message, headers, responseBody, errorBody),
+            415 => new UnsupportedMediaTypeException(message, headers, responseBody, errorBody),
+            423 => new LockedException(message, headers, responseBody, errorBody),
             >= 400 and < 500 => new ClientException(
                 statusCode,
                 message,
@@ -160,6 +167,10 @@ public class ApiException : OpenAPIException
                 errorBody
             ),
             500 => new InternalServerErrorException(message, headers, responseBody, errorBody),
+            501 => new NotImplementedStatusException(message, headers, responseBody, errorBody),
+            502 => new BadGatewayException(message, headers, responseBody, errorBody),
+            503 => new ServiceUnavailableException(message, headers, responseBody, errorBody),
+            504 => new GatewayTimeoutException(message, headers, responseBody, errorBody),
             >= 500 and < 600 => new ServerException(
                 statusCode,
                 message,

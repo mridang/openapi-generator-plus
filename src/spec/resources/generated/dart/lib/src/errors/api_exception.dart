@@ -8,19 +8,30 @@
 import 'dart:convert';
 
 import '../object_serializer.dart';
+import 'bad_gateway_exception.dart';
 import 'bad_request_exception.dart';
 import 'client_exception.dart';
 import 'conflict_exception.dart';
 import 'forbidden_exception.dart';
+import 'gateway_timeout_exception.dart';
+import 'gone_exception.dart';
 import 'internal_server_error_exception.dart';
+import 'locked_exception.dart';
+import 'method_not_allowed_exception.dart';
 import 'network_exception.dart';
 import 'network_timeout_exception.dart';
 import 'not_found_exception.dart';
+import 'not_implemented_exception.dart';
 import 'open_api_exception.dart';
+import 'payload_too_large_exception.dart';
+import 'payment_required_exception.dart';
+import 'request_timeout_exception.dart';
 import 'server_exception.dart';
+import 'service_unavailable_exception.dart';
 import 'too_many_requests_exception.dart';
 import 'unauthorized_exception.dart';
 import 'unprocessable_entity_exception.dart';
+import 'unsupported_media_type_exception.dart';
 
 /// Exception thrown when an API call fails.
 ///
@@ -180,8 +191,107 @@ class ApiException extends OpenAPIException {
           requestMethod: requestMethod,
           requestPath: path,
         );
+      case 402:
+        return PaymentRequiredException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 405:
+        return MethodNotAllowedException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 408:
+        return RequestTimeoutException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 410:
+        return GoneException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 413:
+        return PayloadTooLargeException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 415:
+        return UnsupportedMediaTypeException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 423:
+        return LockedException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
       case 500:
         return InternalServerErrorException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 501:
+        return NotImplementedException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 502:
+        return BadGatewayException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 503:
+        return ServiceUnavailableException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 504:
+        return GatewayTimeoutException(
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,

@@ -1,0 +1,15 @@
+{{>api_info}}
+import 'server_exception.dart';
+
+/// Exception for HTTP 502 Bad Gateway.
+class BadGatewayException extends ServerException {
+  const BadGatewayException({
+    super.message = '',
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  }) : super(statusCode: 502);
+}

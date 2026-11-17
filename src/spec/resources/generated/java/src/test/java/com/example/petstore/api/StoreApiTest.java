@@ -457,7 +457,7 @@ class StoreApiTest {
       {418, com.example.petstore.errors.ClientException.class},
       {422, com.example.petstore.errors.UnprocessableEntityException.class},
       {500, com.example.petstore.errors.InternalServerErrorException.class},
-      {502, com.example.petstore.errors.ServerException.class},
+      {502, com.example.petstore.errors.BadGatewayException.class},
     };
     for (Object[] row : table) {
       StoreApi routed =

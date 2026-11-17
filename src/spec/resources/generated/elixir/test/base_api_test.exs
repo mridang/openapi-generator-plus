@@ -217,7 +217,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 500
   end
 
-  test "raises ServerError for status 502", %{state: state} do
+  test "raises BadGatewayError for status 502", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -231,7 +231,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
                nil
              )
 
-    assert %PetstoreClient.Errors.ServerError{} = error
+    assert %PetstoreClient.Errors.BadGatewayError{} = error
     assert error.status_code == 502
   end
 

@@ -577,6 +577,28 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec(
                         "errors/conflict_error.mustache", "src/errors", "conflict_error.rs"),
                 new SupportingFileSpec(
+                        "errors/payment_required_error.mustache", "src/errors", "payment_required_error.rs"),
+                new SupportingFileSpec(
+                        "errors/method_not_allowed_error.mustache", "src/errors", "method_not_allowed_error.rs"),
+                new SupportingFileSpec(
+                        "errors/request_timeout_error.mustache", "src/errors", "request_timeout_error.rs"),
+                new SupportingFileSpec(
+                        "errors/gone_error.mustache", "src/errors", "gone_error.rs"),
+                new SupportingFileSpec(
+                        "errors/payload_too_large_error.mustache", "src/errors", "payload_too_large_error.rs"),
+                new SupportingFileSpec(
+                        "errors/unsupported_media_type_error.mustache", "src/errors", "unsupported_media_type_error.rs"),
+                new SupportingFileSpec(
+                        "errors/locked_error.mustache", "src/errors", "locked_error.rs"),
+                new SupportingFileSpec(
+                        "errors/not_implemented_error.mustache", "src/errors", "not_implemented_error.rs"),
+                new SupportingFileSpec(
+                        "errors/bad_gateway_error.mustache", "src/errors", "bad_gateway_error.rs"),
+                new SupportingFileSpec(
+                        "errors/service_unavailable_error.mustache", "src/errors", "service_unavailable_error.rs"),
+                new SupportingFileSpec(
+                        "errors/gateway_timeout_error.mustache", "src/errors", "gateway_timeout_error.rs"),
+                new SupportingFileSpec(
                         "errors/unprocessable_entity_error.mustache",
                         "src/errors",
                         "unprocessable_entity_error.rs"),

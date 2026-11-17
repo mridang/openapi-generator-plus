@@ -146,11 +146,11 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert error.status_code == 500
   end
 
-  test "raises ServerError for status 502", %{state: state} do
+  test "raises BadGatewayError for status 502", %{state: state} do
     assert {:error, error} =
              {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/status/502", %{}, %{}, nil, ["application/json"], "application/json", nil)
 
-    assert %{{moduleName}}.Errors.ServerError{} = error
+    assert %{{moduleName}}.Errors.BadGatewayError{} = error
     assert error.status_code == 502
   end
 

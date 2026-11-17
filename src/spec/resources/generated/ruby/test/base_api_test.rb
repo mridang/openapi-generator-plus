@@ -159,7 +159,7 @@ describe Petstore::Client::Api::BaseApi do
     429 => Petstore::Client::Errors::TooManyRequestsError,
     418 => Petstore::Client::Errors::ClientError,
     500 => Petstore::Client::Errors::InternalServerError,
-    502 => Petstore::Client::Errors::ServerError
+    502 => Petstore::Client::Errors::BadGatewayError
   }.each do |status, error_class|
     it "bhv_errors_037 raises #{error_class} for status #{status}" do
       err = assert_raises(error_class) do
@@ -186,11 +186,11 @@ describe Petstore::Client::Api::BaseApi do
     '/test/status/418/pet/1' => Petstore::Client::Errors::ClientError,
     '/test/status/422/pet/1' => Petstore::Client::Errors::UnprocessableEntityError,
     '/test/status/500/pet/1' => Petstore::Client::Errors::InternalServerError,
-    '/test/status/502/pet/1' => Petstore::Client::Errors::ServerError,
+    '/test/status/502/pet/1' => Petstore::Client::Errors::BadGatewayError,
     '/test/status/404/store/order/1' => Petstore::Client::Errors::NotFoundError,
     '/test/status/422/store/order/1' => Petstore::Client::Errors::UnprocessableEntityError,
     '/test/status/500/store/order/1' => Petstore::Client::Errors::InternalServerError,
-    '/test/status/502/store/order/1' => Petstore::Client::Errors::ServerError
+    '/test/status/502/store/order/1' => Petstore::Client::Errors::BadGatewayError
   }.each do |path, error_class|
     it "bhv_errors_027 maps #{path} to #{error_class}" do
       err = assert_raises(error_class) do

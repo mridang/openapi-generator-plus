@@ -159,7 +159,7 @@ describe {{moduleName}}::Api::BaseApi do
     429 => {{moduleName}}::Errors::TooManyRequestsError,
     418 => {{moduleName}}::Errors::ClientError,
     500 => {{moduleName}}::Errors::InternalServerError,
-    502 => {{moduleName}}::Errors::ServerError
+    502 => {{moduleName}}::Errors::BadGatewayError
   }.each do |status, error_class|
     it "bhv_errors_037 raises #{error_class} for status #{status}" do
       err = assert_raises(error_class) do
@@ -186,11 +186,11 @@ describe {{moduleName}}::Api::BaseApi do
     '/test/status/418/pet/1' => {{moduleName}}::Errors::ClientError,
     '/test/status/422/pet/1' => {{moduleName}}::Errors::UnprocessableEntityError,
     '/test/status/500/pet/1' => {{moduleName}}::Errors::InternalServerError,
-    '/test/status/502/pet/1' => {{moduleName}}::Errors::ServerError,
+    '/test/status/502/pet/1' => {{moduleName}}::Errors::BadGatewayError,
     '/test/status/404/store/order/1' => {{moduleName}}::Errors::NotFoundError,
     '/test/status/422/store/order/1' => {{moduleName}}::Errors::UnprocessableEntityError,
     '/test/status/500/store/order/1' => {{moduleName}}::Errors::InternalServerError,
-    '/test/status/502/store/order/1' => {{moduleName}}::Errors::ServerError
+    '/test/status/502/store/order/1' => {{moduleName}}::Errors::BadGatewayError
   }.each do |path, error_class|
     it "bhv_errors_027 maps #{path} to #{error_class}" do
       err = assert_raises(error_class) do

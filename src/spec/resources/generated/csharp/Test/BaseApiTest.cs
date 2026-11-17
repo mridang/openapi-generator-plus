@@ -418,7 +418,7 @@ public class BaseApiTest
             { 429, typeof(TooManyRequestsException) },
             { 418, typeof(ClientException) },
             { 500, typeof(InternalServerErrorException) },
-            { 502, typeof(ServerException) },
+            { 502, typeof(BadGatewayException) },
         };
 
     [Theory]

@@ -1,0 +1,24 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors
+
+/**
+ * Exception for HTTP 413 Payload Too Large.
+ *
+ * @param message the error message
+ * @param responseHeaders the HTTP response headers, if available
+ * @param responseBody the raw HTTP response body, if available
+ * @param errorBody the deserialized error body, if available
+ * @param cause the underlying failure, if any
+ * @param requestMethod the HTTP method of the request that failed, if known
+ * @param requestPath the path of the request that failed, without its query string, if known
+ */
+class PayloadTooLargeException(
+    message: String = "",
+    responseHeaders: Map<String, String>? = null,
+    responseBody: String? = null,
+    errorBody: Any? = null,
+    cause: Throwable? = null,
+    requestMethod: String? = null,
+    requestPath: String? = null
+) : ClientException(413, message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)

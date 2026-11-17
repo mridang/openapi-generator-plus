@@ -29,6 +29,7 @@ import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.BadGatewayException;
 import com.example.petstore.errors.BadRequestException;
 import com.example.petstore.errors.ClientException;
 import com.example.petstore.errors.ConflictException;
@@ -424,7 +425,7 @@ class BaseApiTest {
           Arguments.of(429, TooManyRequestsException.class),
           Arguments.of(418, ClientException.class),
           Arguments.of(500, InternalServerErrorException.class),
-          Arguments.of(502, ServerException.class));
+          Arguments.of(502, BadGatewayException.class));
     }
 
     @ParameterizedTest

@@ -182,9 +182,10 @@ public class ApiException extends {{errorPrefix}}Exception {
     /**
      * Map an HTTP response that was not a success to the exception for its status.
      *
-     * <p>400, 401, 403, 404, 409 and 422 map to their named {@link ClientException}
-     * subclasses and any other 4xx to {@link ClientException}; 500 maps to
-     * {@link InternalServerErrorException} and any other 5xx to {@link ServerException};
+     * <p>400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to
+     * their named {@link ClientException} subclasses and any other 4xx to
+     * {@link ClientException}; 500, 501, 502, 503 and 504 map to their named
+     * {@link ServerException} subclasses and any other 5xx to {@link ServerException};
      * any other status maps to {@code ApiException} itself. A JSON body is decoded
      * and exposed through {@link #getErrorBody()}; a body that is not JSON leaves
      * the error body {@code null}.
@@ -322,6 +323,62 @@ public class ApiException extends {{errorPrefix}}Exception {
                         null,
                         requestMethod,
                         requestPath);
+                case 402 -> new PaymentRequiredException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 405 -> new MethodNotAllowedException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 408 -> new RequestTimeoutException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 410 -> new GoneException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 413 -> new PayloadTooLargeException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 415 -> new UnsupportedMediaTypeException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 423 -> new LockedException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
                 default -> new ClientException(
                         statusCode,
                         message,
@@ -334,24 +391,57 @@ public class ApiException extends {{errorPrefix}}Exception {
             };
         }
         if (statusCode >= 500 && statusCode < 600) {
-            return statusCode == 500
-                    ? new InternalServerErrorException(
-                            message,
-                            responseHeaders,
-                            responseBody,
-                            errorBody,
-                            null,
-                            requestMethod,
-                            requestPath)
-                    : new ServerException(
-                            statusCode,
-                            message,
-                            responseHeaders,
-                            responseBody,
-                            errorBody,
-                            null,
-                            requestMethod,
-                            requestPath);
+            return switch (statusCode) {
+                case 500 -> new InternalServerErrorException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 501 -> new NotImplementedException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 502 -> new BadGatewayException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 503 -> new ServiceUnavailableException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                case 504 -> new GatewayTimeoutException(
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+                default -> new ServerException(
+                        statusCode,
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath);
+            };
         }
         return new ApiException(
                 statusCode,

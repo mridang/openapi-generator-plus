@@ -16,6 +16,7 @@ import type { Authenticator } from "../src/auth/authenticator.js";
 import { ApiError } from "../src/errors/api-error.js";
 import { ClientError } from "../src/errors/client-error.js";
 import { ServerError } from "../src/errors/server-error.js";
+import { BadGatewayError } from "../src/errors/bad-gateway-error.js";
 import { BadRequestError } from "../src/errors/bad-request-error.js";
 import { UnauthorizedError } from "../src/errors/unauthorized-error.js";
 import { ForbiddenError } from "../src/errors/forbidden-error.js";
@@ -202,7 +203,7 @@ describe("BaseApi", () => {
     [429, TooManyRequestsError],
     [418, ClientError],
     [500, InternalServerError],
-    [502, ServerError],
+    [502, BadGatewayError],
   ];
 
   test.each(cases)(

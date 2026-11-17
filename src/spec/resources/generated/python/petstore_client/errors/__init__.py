@@ -188,6 +188,17 @@ class ApiException(OpenAPIException):
             409: ConflictException,
             422: UnprocessableEntityException,
             429: TooManyRequestsException,
+            402: PaymentRequiredException,
+            405: MethodNotAllowedException,
+            408: RequestTimeoutException,
+            410: GoneException,
+            413: PayloadTooLargeException,
+            415: UnsupportedMediaTypeException,
+            423: LockedException,
+            501: NotImplementedException,
+            502: BadGatewayException,
+            503: ServiceUnavailableException,
+            504: GatewayTimeoutException,
             500: InternalServerErrorException,
         }
         specific = by_status.get(status_code)
@@ -294,6 +305,23 @@ from petstore_client.errors.unprocessable_entity_exception import (
     UnprocessableEntityException,
 )
 from petstore_client.errors.too_many_requests_exception import TooManyRequestsException
+from petstore_client.errors.payment_required_exception import PaymentRequiredException
+from petstore_client.errors.method_not_allowed_exception import (
+    MethodNotAllowedException,
+)
+from petstore_client.errors.request_timeout_exception import RequestTimeoutException
+from petstore_client.errors.gone_exception import GoneException
+from petstore_client.errors.payload_too_large_exception import PayloadTooLargeException
+from petstore_client.errors.unsupported_media_type_exception import (
+    UnsupportedMediaTypeException,
+)
+from petstore_client.errors.locked_exception import LockedException
+from petstore_client.errors.not_implemented_exception import NotImplementedException
+from petstore_client.errors.bad_gateway_exception import BadGatewayException
+from petstore_client.errors.service_unavailable_exception import (
+    ServiceUnavailableException,
+)
+from petstore_client.errors.gateway_timeout_exception import GatewayTimeoutException
 from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
@@ -315,6 +343,17 @@ __all__ = [
     "ConflictException",
     "UnprocessableEntityException",
     "TooManyRequestsException",
+    "PaymentRequiredException",
+    "MethodNotAllowedException",
+    "RequestTimeoutException",
+    "GoneException",
+    "PayloadTooLargeException",
+    "UnsupportedMediaTypeException",
+    "LockedException",
+    "NotImplementedException",
+    "BadGatewayException",
+    "ServiceUnavailableException",
+    "GatewayTimeoutException",
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",

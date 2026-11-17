@@ -157,6 +157,14 @@ class OperationDecoratorTest {
         assertEquals("Error", ((AbstractBetterCodegen) new io.github.mridang.codegen.generators.ruby.BetterRubyCodegen()).errorSuffix());
     }
 
+    @Test
+    void csharpNamesTheNotImplementedStatusClassAwayFromTheSystemOne() {
+        final AbstractBetterCodegen csharp = new io.github.mridang.codegen.generators.csharp.BetterCSharpCodegen();
+        assertEquals("NotImplementedStatusException", csharp.statusClassName("NotImplemented"));
+        assertEquals("NotFoundException", csharp.statusClassName("NotFound"));
+        assertEquals("NotImplementedException", ((AbstractBetterCodegen) new BetterJavaCodegen()).statusClassName("NotImplemented"));
+    }
+
     private static org.openapitools.codegen.CodegenResponse response(String code, String dataType, boolean model) {
         final org.openapitools.codegen.CodegenResponse r = new org.openapitools.codegen.CodegenResponse();
         r.code = code;

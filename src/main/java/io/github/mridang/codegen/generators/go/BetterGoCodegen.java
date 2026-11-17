@@ -612,6 +612,28 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec(
                         "errors/conflict_error.mustache", "pkg/errors", "conflict_error.go"),
                 new SupportingFileSpec(
+                        "errors/payment_required_error.mustache", "pkg/errors", "payment_required_error.go"),
+                new SupportingFileSpec(
+                        "errors/method_not_allowed_error.mustache", "pkg/errors", "method_not_allowed_error.go"),
+                new SupportingFileSpec(
+                        "errors/request_timeout_error.mustache", "pkg/errors", "request_timeout_error.go"),
+                new SupportingFileSpec(
+                        "errors/gone_error.mustache", "pkg/errors", "gone_error.go"),
+                new SupportingFileSpec(
+                        "errors/payload_too_large_error.mustache", "pkg/errors", "payload_too_large_error.go"),
+                new SupportingFileSpec(
+                        "errors/unsupported_media_type_error.mustache", "pkg/errors", "unsupported_media_type_error.go"),
+                new SupportingFileSpec(
+                        "errors/locked_error.mustache", "pkg/errors", "locked_error.go"),
+                new SupportingFileSpec(
+                        "errors/not_implemented_error.mustache", "pkg/errors", "not_implemented_error.go"),
+                new SupportingFileSpec(
+                        "errors/bad_gateway_error.mustache", "pkg/errors", "bad_gateway_error.go"),
+                new SupportingFileSpec(
+                        "errors/service_unavailable_error.mustache", "pkg/errors", "service_unavailable_error.go"),
+                new SupportingFileSpec(
+                        "errors/gateway_timeout_error.mustache", "pkg/errors", "gateway_timeout_error.go"),
+                new SupportingFileSpec(
                         "errors/unprocessable_entity_error.mustache",
                         "pkg/errors",
                         "unprocessable_entity_error.go"),

@@ -30,6 +30,17 @@ __all__ = [
     "ConflictException",
     "UnprocessableEntityException",
     "TooManyRequestsException",
+    "PaymentRequiredException",
+    "MethodNotAllowedException",
+    "RequestTimeoutException",
+    "GoneException",
+    "PayloadTooLargeException",
+    "UnsupportedMediaTypeException",
+    "LockedException",
+    "NotImplementedException",
+    "BadGatewayException",
+    "ServiceUnavailableException",
+    "GatewayTimeoutException",
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",
@@ -113,6 +124,23 @@ from petstore_client.errors import (
     UnprocessableEntityException as UnprocessableEntityException,
 )
 from petstore_client.errors import TooManyRequestsException as TooManyRequestsException
+from petstore_client.errors import PaymentRequiredException as PaymentRequiredException
+from petstore_client.errors import (
+    MethodNotAllowedException as MethodNotAllowedException,
+)
+from petstore_client.errors import RequestTimeoutException as RequestTimeoutException
+from petstore_client.errors import GoneException as GoneException
+from petstore_client.errors import PayloadTooLargeException as PayloadTooLargeException
+from petstore_client.errors import (
+    UnsupportedMediaTypeException as UnsupportedMediaTypeException,
+)
+from petstore_client.errors import LockedException as LockedException
+from petstore_client.errors import NotImplementedException as NotImplementedException
+from petstore_client.errors import BadGatewayException as BadGatewayException
+from petstore_client.errors import (
+    ServiceUnavailableException as ServiceUnavailableException,
+)
+from petstore_client.errors import GatewayTimeoutException as GatewayTimeoutException
 from petstore_client.errors import (
     InternalServerErrorException as InternalServerErrorException,
 )

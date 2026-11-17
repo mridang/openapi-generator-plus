@@ -22,6 +22,17 @@ defmodule PetstoreClient.Errors.ApiError do
   alias PetstoreClient.Errors.NotFoundError
   alias PetstoreClient.Errors.ServerError
   alias PetstoreClient.Errors.TooManyRequestsError
+  alias PetstoreClient.Errors.PaymentRequiredError
+  alias PetstoreClient.Errors.MethodNotAllowedError
+  alias PetstoreClient.Errors.RequestTimeoutError
+  alias PetstoreClient.Errors.GoneError
+  alias PetstoreClient.Errors.PayloadTooLargeError
+  alias PetstoreClient.Errors.UnsupportedMediaTypeError
+  alias PetstoreClient.Errors.LockedError
+  alias PetstoreClient.Errors.NotImplementedError
+  alias PetstoreClient.Errors.BadGatewayError
+  alias PetstoreClient.Errors.ServiceUnavailableError
+  alias PetstoreClient.Errors.GatewayTimeoutError
   alias PetstoreClient.Errors.UnauthorizedError
   alias PetstoreClient.Errors.UnprocessableEntityError
 
@@ -35,6 +46,17 @@ defmodule PetstoreClient.Errors.ApiError do
     409 => ConflictError,
     422 => UnprocessableEntityError,
     429 => TooManyRequestsError,
+    402 => PaymentRequiredError,
+    405 => MethodNotAllowedError,
+    408 => RequestTimeoutError,
+    410 => GoneError,
+    413 => PayloadTooLargeError,
+    415 => UnsupportedMediaTypeError,
+    423 => LockedError,
+    501 => NotImplementedError,
+    502 => BadGatewayError,
+    503 => ServiceUnavailableError,
+    504 => GatewayTimeoutError,
     500 => InternalServerError
   }
 
@@ -174,10 +196,10 @@ defmodule PetstoreClient.Errors.ApiError do
   @doc """
   Map an HTTP response that was not a success to the error for its status.
 
-  400, 401, 403, 404, 409, 422 and 429 map to their named
+  400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named
   `PetstoreClient.Errors.ClientError` specialisations and any other 4xx to
-  `PetstoreClient.Errors.ClientError`; 500 maps to
-  `PetstoreClient.Errors.InternalServerError` and any other 5xx to
+  `PetstoreClient.Errors.ClientError`; 500, 501, 502, 503 and 504 map to their named
+  `PetstoreClient.Errors.ServerError` specialisations and any other 5xx to
   `PetstoreClient.Errors.ServerError`; any other status maps to `ApiError`
   itself. A JSON body is decoded and exposed through `error_body`; a body that
   is not JSON leaves `error_body` as `nil`.
@@ -269,6 +291,17 @@ defmodule PetstoreClient.Errors.ApiError do
     PetstoreClient.Errors.ConflictError,
     PetstoreClient.Errors.UnprocessableEntityError,
     PetstoreClient.Errors.TooManyRequestsError,
+    PetstoreClient.Errors.PaymentRequiredError,
+    PetstoreClient.Errors.MethodNotAllowedError,
+    PetstoreClient.Errors.RequestTimeoutError,
+    PetstoreClient.Errors.GoneError,
+    PetstoreClient.Errors.PayloadTooLargeError,
+    PetstoreClient.Errors.UnsupportedMediaTypeError,
+    PetstoreClient.Errors.LockedError,
+    PetstoreClient.Errors.NotImplementedError,
+    PetstoreClient.Errors.BadGatewayError,
+    PetstoreClient.Errors.ServiceUnavailableError,
+    PetstoreClient.Errors.GatewayTimeoutError,
     PetstoreClient.Errors.ServerError,
     PetstoreClient.Errors.InternalServerError,
     PetstoreClient.Errors.NetworkError,

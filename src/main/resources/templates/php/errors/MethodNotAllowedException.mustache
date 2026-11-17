@@ -1,0 +1,31 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+use Throwable;
+
+/**
+ * Exception for HTTP 405 Method Not Allowed.
+ */
+class MethodNotAllowedException extends ClientException
+{
+    public function __construct(
+        string $message = "",
+        ?array $responseHeaders = null,
+        ?string $responseBody = null,
+        mixed $errorBody = null,
+        ?Throwable $previous = null,
+        ?string $requestMethod = null,
+        ?string $requestPath = null
+    ) {
+        parent::__construct(
+            405,
+            $message,
+            $responseHeaders,
+            $responseBody,
+            $errorBody,
+            $previous,
+            $requestMethod,
+            $requestPath
+        );
+    }
+}

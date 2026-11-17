@@ -349,6 +349,20 @@ func FromResponse(statusCode int, headers map[string]string, body string) error 
 			return &UnprocessableEntityError{ClientError: clientErr}
 		case 429:
 			return &TooManyRequestsError{ClientError: clientErr}
+		case 402:
+			return &PaymentRequiredError{ClientError: clientErr}
+		case 405:
+			return &MethodNotAllowedError{ClientError: clientErr}
+		case 408:
+			return &RequestTimeoutError{ClientError: clientErr}
+		case 410:
+			return &GoneError{ClientError: clientErr}
+		case 413:
+			return &PayloadTooLargeError{ClientError: clientErr}
+		case 415:
+			return &UnsupportedMediaTypeError{ClientError: clientErr}
+		case 423:
+			return &LockedError{ClientError: clientErr}
 		default:
 			return &clientErr
 		}
@@ -359,6 +373,14 @@ func FromResponse(statusCode int, headers map[string]string, body string) error 
 		switch statusCode {
 		case 500:
 			return &InternalServerError{ServerError: serverErr}
+		case 501:
+			return &NotImplementedError{ServerError: serverErr}
+		case 502:
+			return &BadGatewayError{ServerError: serverErr}
+		case 503:
+			return &ServiceUnavailableError{ServerError: serverErr}
+		case 504:
+			return &GatewayTimeoutError{ServerError: serverErr}
 		default:
 			return &serverErr
 		}

@@ -38,6 +38,7 @@ from petstore_client.api_client import ApiClient
 from petstore_client.auth.authenticator import Authenticator
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
 from petstore_client.errors import ApiException, NetworkException, OpenAPIException
+from petstore_client.errors.bad_gateway_exception import BadGatewayException
 from petstore_client.errors.client_exception import ClientException
 from petstore_client.errors.server_exception import ServerException
 from petstore_client.errors.bad_request_exception import BadRequestException
@@ -186,7 +187,7 @@ class TestExceptionDispatch:
             (429, TooManyRequestsException),
             (418, ClientException),
             (500, InternalServerErrorException),
-            (502, ServerException),
+            (502, BadGatewayException),
         ],
     )
     async def test_bhv_errors_037_throws_correct_exception(

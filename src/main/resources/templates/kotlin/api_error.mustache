@@ -150,9 +150,9 @@ open class ApiException : {{errorPrefix}}Exception {
         /**
          * Map an HTTP response that was not a success to the exception for its status.
          *
-         * 400, 401, 403, 404, 409, 422 and 429 map to their named [ClientException]
-         * subclasses and any other 4xx to [ClientException]; 500 maps to
-         * [InternalServerErrorException] and any other 5xx to [ServerException];
+         * 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named [ClientException]
+         * subclasses and any other 4xx to [ClientException]; 500, 501, 502, 503 and 504
+         * map to their named [ServerException] subclasses and any other 5xx to [ServerException];
          * any other status maps to `ApiException` itself. A JSON body is decoded
          * and exposed through [errorBody]; a body that is not JSON leaves
          * the error body `null`.
@@ -200,8 +200,19 @@ open class ApiException : {{errorPrefix}}Exception {
                 409 -> ConflictException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
                 422 -> UnprocessableEntityException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
                 429 -> TooManyRequestsException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                402 -> PaymentRequiredException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                405 -> MethodNotAllowedException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                408 -> RequestTimeoutException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                410 -> GoneException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                413 -> PayloadTooLargeException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                415 -> UnsupportedMediaTypeException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                423 -> LockedException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
                 in 400..499 -> ClientException(statusCode, message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
                 500 -> InternalServerErrorException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                501 -> NotImplementedException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                502 -> BadGatewayException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                503 -> ServiceUnavailableException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                504 -> GatewayTimeoutException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
                 in 500..599 -> ServerException(statusCode, message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
                 else -> ApiException(statusCode, message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
             }

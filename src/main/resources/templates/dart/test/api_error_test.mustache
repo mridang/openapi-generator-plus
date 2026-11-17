@@ -186,6 +186,28 @@ void main() {
       expect(const UnprocessableEntityException(message: 'x').statusCode, equals(422));
       expect(const TooManyRequestsException(message: 'x').statusCode, equals(429));
       expect(const TooManyRequestsException(message: 'x'), isA<ClientException>());
+      expect(const PaymentRequiredException(message: 'x').statusCode, equals(402));
+      expect(const PaymentRequiredException(message: 'x'), isA<ClientException>());
+      expect(const MethodNotAllowedException(message: 'x').statusCode, equals(405));
+      expect(const MethodNotAllowedException(message: 'x'), isA<ClientException>());
+      expect(const RequestTimeoutException(message: 'x').statusCode, equals(408));
+      expect(const RequestTimeoutException(message: 'x'), isA<ClientException>());
+      expect(const GoneException(message: 'x').statusCode, equals(410));
+      expect(const GoneException(message: 'x'), isA<ClientException>());
+      expect(const PayloadTooLargeException(message: 'x').statusCode, equals(413));
+      expect(const PayloadTooLargeException(message: 'x'), isA<ClientException>());
+      expect(const UnsupportedMediaTypeException(message: 'x').statusCode, equals(415));
+      expect(const UnsupportedMediaTypeException(message: 'x'), isA<ClientException>());
+      expect(const LockedException(message: 'x').statusCode, equals(423));
+      expect(const LockedException(message: 'x'), isA<ClientException>());
+      expect(const NotImplementedException(message: 'x').statusCode, equals(501));
+      expect(const NotImplementedException(message: 'x'), isA<ServerException>());
+      expect(const BadGatewayException(message: 'x').statusCode, equals(502));
+      expect(const BadGatewayException(message: 'x'), isA<ServerException>());
+      expect(const ServiceUnavailableException(message: 'x').statusCode, equals(503));
+      expect(const ServiceUnavailableException(message: 'x'), isA<ServerException>());
+      expect(const GatewayTimeoutException(message: 'x').statusCode, equals(504));
+      expect(const GatewayTimeoutException(message: 'x'), isA<ServerException>());
       expect(const InternalServerErrorException(message: 'x').statusCode, equals(500));
     });
 
@@ -210,6 +232,17 @@ void main() {
         ConflictException(cause: cause),
         UnprocessableEntityException(cause: cause),
         TooManyRequestsException(cause: cause),
+        PaymentRequiredException(cause: cause),
+        MethodNotAllowedException(cause: cause),
+        RequestTimeoutException(cause: cause),
+        GoneException(cause: cause),
+        PayloadTooLargeException(cause: cause),
+        UnsupportedMediaTypeException(cause: cause),
+        LockedException(cause: cause),
+        NotImplementedException(cause: cause),
+        BadGatewayException(cause: cause),
+        ServiceUnavailableException(cause: cause),
+        GatewayTimeoutException(cause: cause),
         InternalServerErrorException(cause: cause),
         ClientException(statusCode: 418, message: 'x', cause: cause),
         ServerException(statusCode: 503, message: 'x', cause: cause),
@@ -251,9 +284,20 @@ void main() {
         409: ConflictException,
         422: UnprocessableEntityException,
         429: TooManyRequestsException,
+        402: PaymentRequiredException,
+        405: MethodNotAllowedException,
+        408: RequestTimeoutException,
+        410: GoneException,
+        413: PayloadTooLargeException,
+        415: UnsupportedMediaTypeException,
+        423: LockedException,
+        501: NotImplementedException,
+        502: BadGatewayException,
+        503: ServiceUnavailableException,
+        504: GatewayTimeoutException,
         418: ClientException,
         500: InternalServerErrorException,
-        503: ServerException,
+        599: ServerException,
         302: ApiException,
       };
 

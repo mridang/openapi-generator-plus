@@ -2167,7 +2167,7 @@ public class PetApiTest
     [InlineData(409, typeof(ConflictException))]
     [InlineData(418, typeof(ClientException))]
     [InlineData(422, typeof(UnprocessableEntityException))]
-    [InlineData(502, typeof(ServerException))]
+    [InlineData(502, typeof(BadGatewayException))]
     public async Task GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes(
         int status,
         Type expected

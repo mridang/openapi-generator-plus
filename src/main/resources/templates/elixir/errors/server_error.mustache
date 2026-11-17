@@ -50,7 +50,11 @@ defmodule {{moduleName}}.Errors.ServerError do
 
   @family [
     {{moduleName}}.Errors.ServerError,
-    {{moduleName}}.Errors.InternalServerError
+    {{moduleName}}.Errors.InternalServerError,
+    {{moduleName}}.Errors.NotImplementedError,
+    {{moduleName}}.Errors.BadGatewayError,
+    {{moduleName}}.Errors.ServiceUnavailableError,
+    {{moduleName}}.Errors.GatewayTimeoutError
   ]
 
   @doc """

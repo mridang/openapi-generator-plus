@@ -43,6 +43,19 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
+    /**
+     * The 501 type is not named {@code NotImplementedException}: that name is
+     * {@code System.NotImplementedException}, which every file importing both
+     * namespaces would see as ambiguous.
+     */
+    @Override
+    protected String statusClassName(String stem) {
+        if ("NotImplemented".equals(stem)) {
+            return "NotImplementedStatusException";
+        }
+        return super.statusClassName(stem);
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterCSharpCodegen.class);
 
     /** One entry per per-scheme authenticator, read by {@code SchemeAuthenticatorTest}. */
@@ -415,6 +428,17 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.cs"),
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.cs"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.cs"),
+            new SupportingFileSpec("errors/PaymentRequiredException.mustache", errorsFolder, "PaymentRequiredException.cs"),
+            new SupportingFileSpec("errors/MethodNotAllowedException.mustache", errorsFolder, "MethodNotAllowedException.cs"),
+            new SupportingFileSpec("errors/RequestTimeoutException.mustache", errorsFolder, "RequestTimeoutException.cs"),
+            new SupportingFileSpec("errors/GoneException.mustache", errorsFolder, "GoneException.cs"),
+            new SupportingFileSpec("errors/PayloadTooLargeException.mustache", errorsFolder, "PayloadTooLargeException.cs"),
+            new SupportingFileSpec("errors/UnsupportedMediaTypeException.mustache", errorsFolder, "UnsupportedMediaTypeException.cs"),
+            new SupportingFileSpec("errors/LockedException.mustache", errorsFolder, "LockedException.cs"),
+            new SupportingFileSpec("errors/NotImplementedStatusException.mustache", errorsFolder, "NotImplementedStatusException.cs"),
+            new SupportingFileSpec("errors/BadGatewayException.mustache", errorsFolder, "BadGatewayException.cs"),
+            new SupportingFileSpec("errors/ServiceUnavailableException.mustache", errorsFolder, "ServiceUnavailableException.cs"),
+            new SupportingFileSpec("errors/GatewayTimeoutException.mustache", errorsFolder, "GatewayTimeoutException.cs"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.cs"),
             new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.cs"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.cs"),

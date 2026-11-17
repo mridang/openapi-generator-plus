@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -232,6 +233,21 @@ public final class ErrorResponses {
      */
     public static List<Map<String, Object>> operationRows(
             List<Declared> declared, String suffix) {
+        return operationRows(declared, suffix, stem -> statusClassName(stem, suffix));
+    }
+
+    /**
+     * As {@link #operationRows(List, String)} with the status class names chosen by the
+     * language, for the one that cannot use a stem as it is (C# has its own
+     * {@code NotImplementedException}).
+     *
+     * @param declared the non-success responses the operation declares
+     * @param suffix the language's error suffix
+     * @param statusNamer maps a status class stem to the language's class name
+     * @return one row per distinct status
+     */
+    public static List<Map<String, Object>> operationRows(
+            List<Declared> declared, String suffix, Function<String, String> statusNamer) {
         final Map<String, Declared> byStatus = new LinkedHashMap<>();
         Declared defaultResponse = null;
         for (final Declared d : declared) {
@@ -251,7 +267,7 @@ public final class ErrorResponses {
         }
         final List<Map<String, Object>> rows = new ArrayList<>();
         for (final Declared d : byStatus.values()) {
-            rows.add(rowOf(d, suffix));
+            rows.add(rowOf(d, suffix, statusNamer));
         }
         for (int i = 0; i < rows.size(); i++) {
             rows.get(i).put("isFirst", i == 0);
@@ -266,12 +282,13 @@ public final class ErrorResponses {
      * {@code schemaClassName}, {@code hasSchema}, {@code isDefault} and
      * {@code isRange}.
      */
-    private static Map<String, Object> rowOf(Declared d, String suffix) {
+    private static Map<String, Object> rowOf(
+            Declared d, String suffix, Function<String, String> statusNamer) {
         final String stem = statusStem(d.status);
         final Map<String, Object> row = new LinkedHashMap<>();
         row.put("status", d.status);
         row.put("statusClass", stem);
-        row.put("statusClassName", statusClassName(stem, suffix));
+        row.put("statusClassName", statusNamer.apply(stem));
         row.put("schemaName", d.modelName);
         row.put("schemaClassName", d.modelName == null ? null : schemaClassName(d.modelName, suffix));
         row.put("hasSchema", d.modelName != null);
@@ -292,6 +309,22 @@ public final class ErrorResponses {
      */
     public static List<Map<String, Object>> distinctSchemas(
             List<List<Map<String, Object>>> operations, String suffix) {
+        return distinctSchemas(operations, suffix, stem -> statusClassName(stem, suffix));
+    }
+
+    /**
+     * As {@link #distinctSchemas(List, String)} with the status class names chosen by the
+     * language.
+     *
+     * @param operations the rows of every operation
+     * @param suffix the language's error suffix
+     * @param statusNamer maps a status class stem to the language's class name
+     * @return the distinct error schemas
+     */
+    public static List<Map<String, Object>> distinctSchemas(
+            List<List<Map<String, Object>>> operations,
+            String suffix,
+            Function<String, String> statusNamer) {
         final Map<String, Set<String>> statuses = new LinkedHashMap<>();
         for (final List<Map<String, Object>> rows : operations) {
             for (final Map<String, Object> row : rows) {
@@ -313,7 +346,7 @@ public final class ErrorResponses {
             schema.put("schemaName", e.getKey());
             schema.put("className", schemaClassName(e.getKey(), suffix));
             schema.put("parentStem", parent);
-            schema.put("parentClassName", statusClassName(parent, suffix));
+            schema.put("parentClassName", statusNamer.apply(parent));
             schema.put("statuses", new ArrayList<>(e.getValue()));
             schema.put("hasMultipleStatuses", e.getValue().size() > 1);
             schemas.add(schema);

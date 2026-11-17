@@ -21,6 +21,7 @@ use PetstoreClient\Errors\ForbiddenException;
 use PetstoreClient\Errors\UnauthorizedException;
 use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\BadGatewayException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Order;
@@ -275,7 +276,7 @@ test('bhv operations 110 get order by id picks the status specific error class',
     [409, ConflictException::class],
     [418, ClientException::class],
     [422, UnprocessableEntityException::class],
-    [502, ServerException::class],
+    [502, BadGatewayException::class],
 ]);
 
 test('bhv operations 120 an operation with several 2xx responses decodes the body as the schema of the actual status', function (

@@ -24,6 +24,17 @@ import {
   ServerError,
   UnauthorizedError,
   TooManyRequestsError,
+  PaymentRequiredError,
+  MethodNotAllowedError,
+  RequestTimeoutError,
+  GoneError,
+  PayloadTooLargeError,
+  UnsupportedMediaTypeError,
+  LockedError,
+  NotImplementedError,
+  BadGatewayError,
+  ServiceUnavailableError,
+  GatewayTimeoutError,
   UnprocessableEntityError,
 } from "../src/errors/index.js";
 import { Category } from "../src/models/index.js";
@@ -101,6 +112,48 @@ describe("ApiError", () => {
       [
         "TooManyRequestsError",
         (o: object) => new TooManyRequestsError("boom", null, null, null, o),
+      ],
+      [
+        "PaymentRequiredError",
+        (o: object) => new PaymentRequiredError("boom", null, null, null, o),
+      ],
+      [
+        "MethodNotAllowedError",
+        (o: object) => new MethodNotAllowedError("boom", null, null, null, o),
+      ],
+      [
+        "RequestTimeoutError",
+        (o: object) => new RequestTimeoutError("boom", null, null, null, o),
+      ],
+      ["GoneError", (o: object) => new GoneError("boom", null, null, null, o)],
+      [
+        "PayloadTooLargeError",
+        (o: object) => new PayloadTooLargeError("boom", null, null, null, o),
+      ],
+      [
+        "UnsupportedMediaTypeError",
+        (o: object) =>
+          new UnsupportedMediaTypeError("boom", null, null, null, o),
+      ],
+      [
+        "LockedError",
+        (o: object) => new LockedError("boom", null, null, null, o),
+      ],
+      [
+        "NotImplementedError",
+        (o: object) => new NotImplementedError("boom", null, null, null, o),
+      ],
+      [
+        "BadGatewayError",
+        (o: object) => new BadGatewayError("boom", null, null, null, o),
+      ],
+      [
+        "ServiceUnavailableError",
+        (o: object) => new ServiceUnavailableError("boom", null, null, null, o),
+      ],
+      [
+        "GatewayTimeoutError",
+        (o: object) => new GatewayTimeoutError("boom", null, null, null, o),
       ],
       [
         "InternalServerError",
@@ -195,8 +248,19 @@ describe("ApiError", () => {
       [409, ConflictError],
       [422, UnprocessableEntityError],
       [429, TooManyRequestsError],
+      [402, PaymentRequiredError],
+      [405, MethodNotAllowedError],
+      [408, RequestTimeoutError],
+      [410, GoneError],
+      [413, PayloadTooLargeError],
+      [415, UnsupportedMediaTypeError],
+      [423, LockedError],
+      [501, NotImplementedError],
+      [502, BadGatewayError],
+      [503, ServiceUnavailableError],
+      [504, GatewayTimeoutError],
       [500, InternalServerError],
-      [503, ServerError],
+      [599, ServerError],
       [418, ClientError],
       [302, ApiError],
     ])(
@@ -258,6 +322,69 @@ describe("ApiError", () => {
         (c: Error) =>
           new TooManyRequestsError("m", null, null, null, { cause: c }),
         429,
+      ],
+      [
+        "PaymentRequiredError",
+        (c: Error) =>
+          new PaymentRequiredError("m", null, null, null, { cause: c }),
+        402,
+      ],
+      [
+        "MethodNotAllowedError",
+        (c: Error) =>
+          new MethodNotAllowedError("m", null, null, null, { cause: c }),
+        405,
+      ],
+      [
+        "RequestTimeoutError",
+        (c: Error) =>
+          new RequestTimeoutError("m", null, null, null, { cause: c }),
+        408,
+      ],
+      [
+        "GoneError",
+        (c: Error) => new GoneError("m", null, null, null, { cause: c }),
+        410,
+      ],
+      [
+        "PayloadTooLargeError",
+        (c: Error) =>
+          new PayloadTooLargeError("m", null, null, null, { cause: c }),
+        413,
+      ],
+      [
+        "UnsupportedMediaTypeError",
+        (c: Error) =>
+          new UnsupportedMediaTypeError("m", null, null, null, { cause: c }),
+        415,
+      ],
+      [
+        "LockedError",
+        (c: Error) => new LockedError("m", null, null, null, { cause: c }),
+        423,
+      ],
+      [
+        "NotImplementedError",
+        (c: Error) =>
+          new NotImplementedError("m", null, null, null, { cause: c }),
+        501,
+      ],
+      [
+        "BadGatewayError",
+        (c: Error) => new BadGatewayError("m", null, null, null, { cause: c }),
+        502,
+      ],
+      [
+        "ServiceUnavailableError",
+        (c: Error) =>
+          new ServiceUnavailableError("m", null, null, null, { cause: c }),
+        503,
+      ],
+      [
+        "GatewayTimeoutError",
+        (c: Error) =>
+          new GatewayTimeoutError("m", null, null, null, { cause: c }),
+        504,
       ],
       [
         "InternalServerError",
@@ -353,6 +480,17 @@ describe("ApiError", () => {
       "ConflictError",
       "UnprocessableEntityError",
       "TooManyRequestsError",
+      "PaymentRequiredError",
+      "MethodNotAllowedError",
+      "RequestTimeoutError",
+      "GoneError",
+      "PayloadTooLargeError",
+      "UnsupportedMediaTypeError",
+      "LockedError",
+      "NotImplementedError",
+      "BadGatewayError",
+      "ServiceUnavailableError",
+      "GatewayTimeoutError",
       "InternalServerError",
       "NetworkError",
       "NetworkTimeoutError",
@@ -460,9 +598,20 @@ describe("ApiError", () => {
       [409, ConflictError],
       [422, UnprocessableEntityError],
       [429, TooManyRequestsError],
+      [402, PaymentRequiredError],
+      [405, MethodNotAllowedError],
+      [408, RequestTimeoutError],
+      [410, GoneError],
+      [413, PayloadTooLargeError],
+      [415, UnsupportedMediaTypeError],
+      [423, LockedError],
+      [501, NotImplementedError],
+      [502, BadGatewayError],
+      [503, ServiceUnavailableError],
+      [504, GatewayTimeoutError],
       [418, ClientError],
       [500, InternalServerError],
-      [503, ServerError],
+      [599, ServerError],
       [302, ApiError],
     ])("maps %i to its error", (status, expected) => {
       const err = ApiError.fromResponse(
@@ -526,7 +675,7 @@ describe("ApiError", () => {
 
     test.each([
       [418, ClientError],
-      [502, ServerError],
+      [599, ServerError],
       [200, ApiError],
     ])(
       "fromResponse records the request on the %i fallback error",

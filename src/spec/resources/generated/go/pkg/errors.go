@@ -31,6 +31,28 @@ type (
 	NotFoundError = errors_pkg.NotFoundError
 	// ConflictError is an HTTP 409 failure.
 	ConflictError = errors_pkg.ConflictError
+	// PaymentRequiredError is an HTTP 402 failure.
+	PaymentRequiredError = errors_pkg.PaymentRequiredError
+	// MethodNotAllowedError is an HTTP 405 failure.
+	MethodNotAllowedError = errors_pkg.MethodNotAllowedError
+	// RequestTimeoutError is an HTTP 408 failure.
+	RequestTimeoutError = errors_pkg.RequestTimeoutError
+	// GoneError is an HTTP 410 failure.
+	GoneError = errors_pkg.GoneError
+	// PayloadTooLargeError is an HTTP 413 failure.
+	PayloadTooLargeError = errors_pkg.PayloadTooLargeError
+	// UnsupportedMediaTypeError is an HTTP 415 failure.
+	UnsupportedMediaTypeError = errors_pkg.UnsupportedMediaTypeError
+	// LockedError is an HTTP 423 failure.
+	LockedError = errors_pkg.LockedError
+	// NotImplementedError is an HTTP 501 failure.
+	NotImplementedError = errors_pkg.NotImplementedError
+	// BadGatewayError is an HTTP 502 failure.
+	BadGatewayError = errors_pkg.BadGatewayError
+	// ServiceUnavailableError is an HTTP 503 failure.
+	ServiceUnavailableError = errors_pkg.ServiceUnavailableError
+	// GatewayTimeoutError is an HTTP 504 failure.
+	GatewayTimeoutError = errors_pkg.GatewayTimeoutError
 	// UnprocessableEntityError is an HTTP 422 failure.
 	UnprocessableEntityError = errors_pkg.UnprocessableEntityError
 	// TooManyRequestsError is an HTTP 429 failure.

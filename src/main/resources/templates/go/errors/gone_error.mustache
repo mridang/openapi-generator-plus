@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// GoneError is the error for HTTP 410 Gone.
+type GoneError struct {
+	ClientError
+}

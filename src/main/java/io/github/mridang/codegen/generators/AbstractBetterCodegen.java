@@ -3442,6 +3442,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return "Exception";
     }
 
+    /**
+     * The class name of a status class in this language. A language overrides it
+     * only when a stem collides with a type its standard library already has.
+     *
+     * @param stem a status class stem such as {@code NotFound}
+     * @return the class name, such as {@code NotFoundException}
+     */
+    protected String statusClassName(String stem) {
+        return ErrorResponses.statusClassName(stem, errorSuffix());
+    }
+
     /** Rows of declared error responses per operation, keyed by operation, in generation order. */
     private final Map<String, List<Map<String, Object>>> declaredErrorsByOperation =
             new java.util.LinkedHashMap<>();
@@ -3469,7 +3480,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         final String suffix = errorSuffix();
-        final List<Map<String, Object>> rows = ErrorResponses.operationRows(declared, suffix);
+        final List<Map<String, Object>> rows = ErrorResponses.operationRows(declared, suffix, this::statusClassName);
         final List<Map<String, Object>> withSchema = new ArrayList<>();
         for (final Map<String, Object> row : rows) {
             if (Boolean.TRUE.equals(row.get("hasSchema"))) {
@@ -3482,7 +3493,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put("hasErrorSchemaResponses", !withSchema.isEmpty());
         declaredErrorsByOperation.put(op.httpMethod + " " + op.path, rows);
         final List<Map<String, Object>> schemas =
-                ErrorResponses.distinctSchemas(new ArrayList<>(declaredErrorsByOperation.values()), suffix);
+                ErrorResponses.distinctSchemas(
+                        new ArrayList<>(declaredErrorsByOperation.values()), suffix, this::statusClassName);
         additionalProperties.put("errorSchemas", schemas);
         additionalProperties.put("hasErrorSchemas", !schemas.isEmpty());
     }

@@ -102,10 +102,10 @@ class ApiException extends {{errorPrefix}}Exception
 
     /**
      * Map an HTTP response that was not a success to the exception for its
-     * status: 400, 401, 403, 404, 409, 422 and 429 map to their named
+     * status: 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named
      * {@see ClientException} subclasses and any other 4xx to
-     * {@see ClientException}; 500 maps to {@see InternalServerErrorException}
-     * and any other 5xx to {@see ServerException}; any other status maps to
+     * {@see ClientException}; 500, 501, 502, 503 and 504 map to their named
+     * {@see ServerException} subclasses and any other 5xx to {@see ServerException}; any other status maps to
      * ApiException itself. A JSON body is decoded into the error body; a body
      * that is not JSON leaves the error body null. The caller throws the
      * returned exception.
@@ -199,6 +199,62 @@ class ApiException extends {{errorPrefix}}Exception
                 null,
                 ...$context
             ),
+            $statusCode === 402 => new PaymentRequiredException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 405 => new MethodNotAllowedException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 408 => new RequestTimeoutException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 410 => new GoneException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 413 => new PayloadTooLargeException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 415 => new UnsupportedMediaTypeException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 423 => new LockedException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
             $statusCode >= 400 && $statusCode < 500 => new ClientException(
                 $statusCode,
                 $message,
@@ -209,6 +265,38 @@ class ApiException extends {{errorPrefix}}Exception
                 ...$context
             ),
             $statusCode === 500 => new InternalServerErrorException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 501 => new NotImplementedException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 502 => new BadGatewayException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 503 => new ServiceUnavailableException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody,
+                null,
+                ...$context
+            ),
+            $statusCode === 504 => new GatewayTimeoutException(
                 $message,
                 $responseHeaders,
                 $responseBody,

@@ -38,6 +38,17 @@ var (
 	_ apierrors.OpenAPIError = (*apierrors.ConflictError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.UnprocessableEntityError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.TooManyRequestsError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.PaymentRequiredError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.MethodNotAllowedError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.RequestTimeoutError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.GoneError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.PayloadTooLargeError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.UnsupportedMediaTypeError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.LockedError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.NotImplementedError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.BadGatewayError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.ServiceUnavailableError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.GatewayTimeoutError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.InternalServerError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.NetworkError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.NetworkTimeoutError)(nil)
@@ -358,9 +369,20 @@ func TestBhvErrors006_ApiError_FromResponse_MapsEveryStatusToItsType(t *testing.
 		{409, "*errors.ConflictError"},
 		{422, "*errors.UnprocessableEntityError"},
 		{429, "*errors.TooManyRequestsError"},
+		{402, "*errors.PaymentRequiredError"},
+		{405, "*errors.MethodNotAllowedError"},
+		{408, "*errors.RequestTimeoutError"},
+		{410, "*errors.GoneError"},
+		{413, "*errors.PayloadTooLargeError"},
+		{415, "*errors.UnsupportedMediaTypeError"},
+		{423, "*errors.LockedError"},
+		{501, "*errors.NotImplementedError"},
+		{502, "*errors.BadGatewayError"},
+		{503, "*errors.ServiceUnavailableError"},
+		{504, "*errors.GatewayTimeoutError"},
 		{418, "*errors.ClientError"},
 		{500, "*errors.InternalServerError"},
-		{503, "*errors.ServerError"},
+		{599, "*errors.ServerError"},
 		{302, "*errors.ApiError"},
 		/* A status outside 400-599 is not a ClientError or a ServerError: the
 		 * 5xx arm stops at 599, so 600 yields the base *ApiError. */
@@ -409,6 +431,17 @@ func TestApiError_PackageRoot_ReexportsTheErrorTree(t *testing.T) {
 		_ petstore.OpenAPIError = (*petstore.ConflictError)(nil)
 		_ petstore.OpenAPIError = (*petstore.UnprocessableEntityError)(nil)
 		_ petstore.OpenAPIError = (*petstore.TooManyRequestsError)(nil)
+		_ petstore.OpenAPIError = (*petstore.PaymentRequiredError)(nil)
+		_ petstore.OpenAPIError = (*petstore.MethodNotAllowedError)(nil)
+		_ petstore.OpenAPIError = (*petstore.RequestTimeoutError)(nil)
+		_ petstore.OpenAPIError = (*petstore.GoneError)(nil)
+		_ petstore.OpenAPIError = (*petstore.PayloadTooLargeError)(nil)
+		_ petstore.OpenAPIError = (*petstore.UnsupportedMediaTypeError)(nil)
+		_ petstore.OpenAPIError = (*petstore.LockedError)(nil)
+		_ petstore.OpenAPIError = (*petstore.NotImplementedError)(nil)
+		_ petstore.OpenAPIError = (*petstore.BadGatewayError)(nil)
+		_ petstore.OpenAPIError = (*petstore.ServiceUnavailableError)(nil)
+		_ petstore.OpenAPIError = (*petstore.GatewayTimeoutError)(nil)
 		_ petstore.OpenAPIError = (*petstore.ServerError)(nil)
 		_ petstore.OpenAPIError = (*petstore.InternalServerError)(nil)
 		_ petstore.OpenAPIError = (*petstore.NetworkError)(nil)
@@ -513,16 +546,27 @@ func TestBhvErrors003_ApiError_EveryStatusSpecificErrorKeepsAnOptionalCause(t *t
 	cause := errors.New("connection reset by peer")
 	base := *apierrors.NewApiError(500, "boom", "", nil, nil, cause)
 	typed := map[string]error{
-		"ClientError":              &apierrors.ClientError{ApiError: base},
-		"BadRequestError":          &apierrors.BadRequestError{ClientError: apierrors.ClientError{ApiError: base}},
-		"UnauthorizedError":        &apierrors.UnauthorizedError{ClientError: apierrors.ClientError{ApiError: base}},
-		"ForbiddenError":           &apierrors.ForbiddenError{ClientError: apierrors.ClientError{ApiError: base}},
-		"NotFoundError":            &apierrors.NotFoundError{ClientError: apierrors.ClientError{ApiError: base}},
-		"ConflictError":            &apierrors.ConflictError{ClientError: apierrors.ClientError{ApiError: base}},
-		"UnprocessableEntityError": &apierrors.UnprocessableEntityError{ClientError: apierrors.ClientError{ApiError: base}},
-		"TooManyRequestsError":     &apierrors.TooManyRequestsError{ClientError: apierrors.ClientError{ApiError: base}},
-		"ServerError":              &apierrors.ServerError{ApiError: base},
-		"InternalServerError":      &apierrors.InternalServerError{ServerError: apierrors.ServerError{ApiError: base}},
+		"ClientError":               &apierrors.ClientError{ApiError: base},
+		"BadRequestError":           &apierrors.BadRequestError{ClientError: apierrors.ClientError{ApiError: base}},
+		"UnauthorizedError":         &apierrors.UnauthorizedError{ClientError: apierrors.ClientError{ApiError: base}},
+		"ForbiddenError":            &apierrors.ForbiddenError{ClientError: apierrors.ClientError{ApiError: base}},
+		"NotFoundError":             &apierrors.NotFoundError{ClientError: apierrors.ClientError{ApiError: base}},
+		"ConflictError":             &apierrors.ConflictError{ClientError: apierrors.ClientError{ApiError: base}},
+		"UnprocessableEntityError":  &apierrors.UnprocessableEntityError{ClientError: apierrors.ClientError{ApiError: base}},
+		"TooManyRequestsError":      &apierrors.TooManyRequestsError{ClientError: apierrors.ClientError{ApiError: base}},
+		"PaymentRequiredError":      &apierrors.PaymentRequiredError{ClientError: apierrors.ClientError{ApiError: base}},
+		"MethodNotAllowedError":     &apierrors.MethodNotAllowedError{ClientError: apierrors.ClientError{ApiError: base}},
+		"RequestTimeoutError":       &apierrors.RequestTimeoutError{ClientError: apierrors.ClientError{ApiError: base}},
+		"GoneError":                 &apierrors.GoneError{ClientError: apierrors.ClientError{ApiError: base}},
+		"PayloadTooLargeError":      &apierrors.PayloadTooLargeError{ClientError: apierrors.ClientError{ApiError: base}},
+		"UnsupportedMediaTypeError": &apierrors.UnsupportedMediaTypeError{ClientError: apierrors.ClientError{ApiError: base}},
+		"LockedError":               &apierrors.LockedError{ClientError: apierrors.ClientError{ApiError: base}},
+		"ServerError":               &apierrors.ServerError{ApiError: base},
+		"InternalServerError":       &apierrors.InternalServerError{ServerError: apierrors.ServerError{ApiError: base}},
+		"NotImplementedError":       &apierrors.NotImplementedError{ServerError: apierrors.ServerError{ApiError: base}},
+		"BadGatewayError":           &apierrors.BadGatewayError{ServerError: apierrors.ServerError{ApiError: base}},
+		"ServiceUnavailableError":   &apierrors.ServiceUnavailableError{ServerError: apierrors.ServerError{ApiError: base}},
+		"GatewayTimeoutError":       &apierrors.GatewayTimeoutError{ServerError: apierrors.ServerError{ApiError: base}},
 	}
 	for name, err := range typed {
 		c, ok := err.(causer)

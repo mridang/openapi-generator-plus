@@ -10,9 +10,11 @@
 use std::collections::HashMap;
 
 use petstore::errors::{
-    BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NetworkError,
-    NetworkTimeoutError, NotFoundError, ServerError, TooManyRequestsError, UnauthorizedError,
-    UnprocessableEntityError,
+    BadGatewayError, BadRequestError, ClientError, ConflictError, ForbiddenError,
+    GatewayTimeoutError, GoneError, InternalServerError, LockedError, MethodNotAllowedError,
+    NetworkError, NetworkTimeoutError, NotFoundError, NotImplementedError, PayloadTooLargeError,
+    PaymentRequiredError, RequestTimeoutError, ServerError, ServiceUnavailableError,
+    TooManyRequestsError, UnauthorizedError, UnprocessableEntityError, UnsupportedMediaTypeError,
 };
 use petstore::models::Category;
 use petstore::ApiError;
@@ -824,7 +826,7 @@ type IsExpectedType = fn(&(dyn std::error::Error + 'static)) -> bool;
 fn test_bhv_errors_006_from_response_maps_every_status_to_its_type() {
     let mut headers = HashMap::new();
     headers.insert("x-request-id".to_string(), "abc".to_string());
-    let cases: [(u16, IsExpectedType); 12] = [
+    let cases: [(u16, IsExpectedType); 23] = [
         (400, |e| e.is::<BadRequestError>()),
         (401, |e| e.is::<UnauthorizedError>()),
         (403, |e| e.is::<ForbiddenError>()),
@@ -832,9 +834,20 @@ fn test_bhv_errors_006_from_response_maps_every_status_to_its_type() {
         (409, |e| e.is::<ConflictError>()),
         (422, |e| e.is::<UnprocessableEntityError>()),
         (429, |e| e.is::<TooManyRequestsError>()),
+        (402, |e| e.is::<PaymentRequiredError>()),
+        (405, |e| e.is::<MethodNotAllowedError>()),
+        (408, |e| e.is::<RequestTimeoutError>()),
+        (410, |e| e.is::<GoneError>()),
+        (413, |e| e.is::<PayloadTooLargeError>()),
+        (415, |e| e.is::<UnsupportedMediaTypeError>()),
+        (423, |e| e.is::<LockedError>()),
+        (501, |e| e.is::<NotImplementedError>()),
+        (502, |e| e.is::<BadGatewayError>()),
+        (503, |e| e.is::<ServiceUnavailableError>()),
+        (504, |e| e.is::<GatewayTimeoutError>()),
         (418, |e| e.is::<ClientError>()),
         (500, |e| e.is::<InternalServerError>()),
-        (503, |e| e.is::<ServerError>()),
+        (599, |e| e.is::<ServerError>()),
         (302, |e| e.is::<ApiError>()),
         /* A status outside 400-599 is neither a ClientError nor a
          * ServerError: the 5xx arm stops at 599, so 600 is a plain ApiError. */
@@ -949,6 +962,17 @@ fn test_package_root_exports_the_whole_error_tree() {
     assert_type_is_open_api_error::<petstore::ConflictError>();
     assert_type_is_open_api_error::<petstore::UnprocessableEntityError>();
     assert_type_is_open_api_error::<petstore::TooManyRequestsError>();
+    assert_type_is_open_api_error::<petstore::PaymentRequiredError>();
+    assert_type_is_open_api_error::<petstore::MethodNotAllowedError>();
+    assert_type_is_open_api_error::<petstore::RequestTimeoutError>();
+    assert_type_is_open_api_error::<petstore::GoneError>();
+    assert_type_is_open_api_error::<petstore::PayloadTooLargeError>();
+    assert_type_is_open_api_error::<petstore::UnsupportedMediaTypeError>();
+    assert_type_is_open_api_error::<petstore::LockedError>();
+    assert_type_is_open_api_error::<petstore::NotImplementedError>();
+    assert_type_is_open_api_error::<petstore::BadGatewayError>();
+    assert_type_is_open_api_error::<petstore::ServiceUnavailableError>();
+    assert_type_is_open_api_error::<petstore::GatewayTimeoutError>();
     assert_type_is_open_api_error::<petstore::ServerError>();
     assert_type_is_open_api_error::<petstore::InternalServerError>();
     assert_type_is_open_api_error::<petstore::NetworkError>();
