@@ -327,3 +327,131 @@ test('bhv authapikey 015 valid query key is exposed in query params', function (
     $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
     expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
 });
+
+/**
+ * Runs $body with each variable of $values set (null unsets it), then restores the previous values.
+ *
+ * @param array<string, ?string> $values
+ */
+function withApiKeyEnvValues(array $values, callable $body): void
+{
+    $previous = [];
+    foreach ($values as $name => $value) {
+        $previous[$name] = getenv($name);
+        putenv($value === null ? $name : $name . '=' . $value);
+    }
+    try {
+        $body();
+    } finally {
+        foreach ($previous as $name => $value) {
+            putenv($value === false ? $name : $name . '=' . $value);
+        }
+    }
+}
+
+/**
+ * Every key an authenticator sends, at whichever location its scheme puts it.
+ *
+ * @return list<string>
+ */
+function apiKeysSentBy(ApiKeyAuthenticator $auth): array
+{
+    return array_values(array_merge($auth->getAuthHeaders(), $auth->getQueryParams(), $auth->getCookieParams()));
+}
+
+/**
+ * Checks every generated api key wrapper that emits its key at $where (header, query or cookie): with its
+ * environment variable empty, construction fails and the message names that variable.
+ */
+function assertApiKeyWrappersRefuseEmptyVariable(string $where): void
+{
+    $matched = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $probe = new $class('https://api.example.com', 'probe-key');
+        $emitted = match ($where) {
+            'header' => $probe->getAuthHeaders(),
+            'query' => $probe->getQueryParams(),
+            default => $probe->getCookieParams(),
+        };
+        if ($emitted === []) {
+            continue;
+        }
+        $matched++;
+        $variable = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'))[0];
+        withApiKeyEnvValues([$variable => ''], function () use ($class, $variable): void {
+            expect(fn () => new $class('https://api.example.com'))
+                ->toThrow(\InvalidArgumentException::class, $variable);
+        });
+    }
+    expect($matched)->toBeGreaterThan(0);
+}
+
+test('bhv authapikey 021 an api key is read from the environment when none is passed and a passed key wins', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $variable = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'))[0];
+        withApiKeyEnvValues([$variable => 'from-environment'], function () use ($class): void {
+            expect(apiKeysSentBy(new $class('https://api.example.com')))->toBe(['from-environment']);
+            expect(apiKeysSentBy(new $class('https://api.example.com', 'explicit')))->toBe(['explicit']);
+        });
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authapikey 022 an api key is emitted only at its own location and not at the other two', function (ApiKeyLocation $location): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', $location);
+
+    expect($auth->getAuthHeaders() !== [])->toBe($location === ApiKeyLocation::HEADER);
+    expect($auth->getQueryParams() !== [])->toBe($location === ApiKeyLocation::QUERY);
+    expect($auth->getCookieParams() !== [])->toBe($location === ApiKeyLocation::COOKIE);
+})->with([
+    'header' => [ApiKeyLocation::HEADER],
+    'query' => [ApiKeyLocation::QUERY],
+    'cookie' => [ApiKeyLocation::COOKIE],
+]);
+
+test('bhv authapikey 023 a cookie key accepts a non ascii value and is emitted only as a cookie', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'session', 'kéy', ApiKeyLocation::COOKIE);
+
+    expect($auth->getCookieParams())->toBe(['session' => 'kéy']);
+    expect($auth->getAuthHeaders())->toBe([]);
+    expect($auth->getQueryParams())->toBe([]);
+});
+
+test('bhv authapikey 025 generated api key scheme wrappers mask the key in their debug output', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $auth = new $class('https://api.example.com', 'wrapper-key-3');
+
+        expect(print_r($auth, true))->toContain('***');
+        expect(print_r($auth, true))->not->toContain('wrapper-key-3');
+        expect(json_encode($auth))->not->toContain('wrapper-key-3');
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authscheme 005 an api key header scheme authenticator treats an empty environment variable as unset and names it', function (): void {
+    assertApiKeyWrappersRefuseEmptyVariable('header');
+});
+
+test('bhv authscheme 006 an api key query scheme authenticator treats an empty environment variable as unset and names it', function (): void {
+    assertApiKeyWrappersRefuseEmptyVariable('query');
+});
+
+test('bhv authscheme 007 a session cookie scheme authenticator treats an empty environment variable as unset and names it', function (): void {
+    assertApiKeyWrappersRefuseEmptyVariable('cookie');
+});

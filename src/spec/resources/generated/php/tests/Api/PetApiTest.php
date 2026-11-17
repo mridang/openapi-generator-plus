@@ -1551,7 +1551,7 @@ test('bearer authenticator masks token in debug output', function (): void {
     expect($dump)->toContain('***');
 });
 
-test('api key authenticator masks key in debug output', function (): void {
+test('bhv authapikey 026 does not leak its key in default debug output', function (): void {
     $dump = dumpForRedaction(
         new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'super-secret-key', ApiKeyLocation::HEADER)
     );

@@ -1051,7 +1051,7 @@ authapikey022 | An API key is emitted only at its own location and not at the ot
 authapikey023 | A cookie key accepts a non-ASCII value
 authapikey025 | Generated API key scheme wrappers mask the key in their debug output
 authscheme003 | A scheme authenticator fails at construction naming the variable when its environment variable is empty
-authbearer019 | An empty environment value for the token or host counts as unset and fails construction naming the variable
+authbearer019 | An empty environment value for the token counts as unset and fails construction naming the variable
 authapikey026 | An API key authenticator does not leak its key in its default debug output
 authbasic018 | A basic password may contain a colon
 authbasic019 | Generated basic scheme wrappers emit the same Basic header as the base authenticator
