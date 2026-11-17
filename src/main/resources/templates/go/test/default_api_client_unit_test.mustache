@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"{{packageName}}/pkg/auth/oauth"
 	pkgerrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
 	"bytes"
@@ -2618,5 +2619,50 @@ func TestBhvSerializationwire047_DefaultApiClientUnit_MultipartPngFileGetsImageP
 	}
 	if !strings.Contains(wireBody, `filename="picture.png"`) || !strings.Contains(wireBody, "Content-Type: image/png") {
 		t.Errorf("expected a picture.png part with Content-Type image/png, got: %q", wireBody)
+	}
+}
+
+func TestBhvAuthoidc008_DefaultApiClientUnit_DiscoveryDoesNotSendTheTransportDefaultHeaders(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case seen <- r.Header.Clone():
+		default:
+		}
+		base := "http://" + r.Host
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"issuer":%q,"authorization_endpoint":%q,"token_endpoint":%q}`, base, base+"/authorize", base+"/token")
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().DefaultHeader("X-Default-Header", "transport-default").Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+
+	authenticator := oauth.NewOpenIdConnectAuthenticator(
+		"https://api.example.com",
+		server.URL+"/.well-known/openid-configuration",
+		"client-id",
+		"client-secret",
+		"http://127.0.0.1/callback",
+		[]string{"openid"},
+	)
+	authenticator.SetApiClient(&authApiClientAdapter{inner: client})
+	if _, err := authenticator.BuildAuthorizationURL("state"); err != nil {
+		t.Fatalf("unexpected error from discovery: %v", err)
+	}
+
+	var headers http.Header
+	select {
+	case headers = <-seen:
+	default:
+		t.Fatal("expected the discovery request to reach the server")
+	}
+	if got := headers.Get("X-Default-Header"); got != "" {
+		t.Errorf("expected no transport default header on the discovery request, got %q", got)
 	}
 }

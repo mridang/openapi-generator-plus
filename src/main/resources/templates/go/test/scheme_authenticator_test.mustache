@@ -130,7 +130,7 @@ func requireScheme{{className}}Credentials(t *testing.T, a *{{package}}.{{classN
 {{/isOAuth}}
 }
 
-func Test{{#firstBasic}}BhvAuthbasic001_{{/firstBasic}}SchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func Test{{#firstBasic}}BhvAuthbasic001_{{/firstBasic}}{{#firstEnvScheme}}BhvAuthscheme001_{{/firstEnvScheme}}SchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
