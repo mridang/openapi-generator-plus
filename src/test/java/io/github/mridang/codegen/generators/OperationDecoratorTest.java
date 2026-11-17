@@ -153,7 +153,14 @@ class OperationDecoratorTest {
     @SuppressWarnings("unchecked")
     void operationWithoutOptionsFieldsGetsNoOptionsObjectByDefault() {
         final CodegenOperation op = bareOperation();
-        ((AbstractBetterCodegen) new BetterJavaCodegen()).populateOperationDecorators(op);
+        final AbstractBetterCodegen defaultHook =
+                new BetterJavaCodegen() {
+                    @Override
+                    protected boolean mintsOptionsForEveryOperation() {
+                        return false;
+                    }
+                };
+        defaultHook.populateOperationDecorators(op);
 
         final Map<String, Object> deco = decorator(op);
         assertEquals(true, deco.get("optionsCallSettingsOnly"));
