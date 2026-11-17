@@ -37,6 +37,18 @@ func (o SetPetAvatarRequest) Equal(other SetPetAvatarRequest) bool {
 	return string(a) == string(b)
 }
 
+// WithData returns a copy of the model with Data replaced; the receiver is unchanged.
+func (o SetPetAvatarRequest) WithData(value []byte) SetPetAvatarRequest {
+	o.Data = value
+	return o
+}
+
+// WithMimeType returns a copy of the model with MimeType replaced; the receiver is unchanged.
+func (o SetPetAvatarRequest) WithMimeType(value string) SetPetAvatarRequest {
+	o.MimeType = value
+	return o
+}
+
 // NewSetPetAvatarRequest creates a new SetPetAvatarRequest instance.
 func NewSetPetAvatarRequest(data []byte, mimeType string) *SetPetAvatarRequest {
 	return &SetPetAvatarRequest{

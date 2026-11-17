@@ -35,6 +35,24 @@ func (o TreeNode) Equal(other TreeNode) bool {
 	return string(a) == string(b)
 }
 
+// WithValue returns a copy of the model with Value replaced; the receiver is unchanged.
+func (o TreeNode) WithValue(value string) TreeNode {
+	o.Value = value
+	return o
+}
+
+// WithChild returns a copy of the model with Child replaced; the receiver is unchanged.
+func (o TreeNode) WithChild(value TreeNode) TreeNode {
+	o.Child = &value
+	return o
+}
+
+// WithoutChild returns a copy of the model with Child left unset; the receiver is unchanged.
+func (o TreeNode) WithoutChild() TreeNode {
+	o.Child = nil
+	return o
+}
+
 // NewTreeNode creates a new TreeNode instance.
 func NewTreeNode(value string) *TreeNode {
 	return &TreeNode{

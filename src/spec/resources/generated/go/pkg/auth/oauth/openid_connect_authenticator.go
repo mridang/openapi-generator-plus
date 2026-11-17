@@ -10,6 +10,7 @@
 package oauth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -165,11 +166,18 @@ func (a *OpenIdConnectAuthenticator) ExchangeCode(code string) error {
 // token-endpoint failure. base_api prefers this method, so the real error
 // surfaces instead of an unauthenticated request.
 func (a *OpenIdConnectAuthenticator) AuthHeadersOrError() (map[string]string, error) {
-	delegate, err := a.resolveDelegate()
+	return a.AuthHeadersOrErrorContext(context.Background())
+}
+
+// AuthHeadersOrErrorContext is AuthHeadersOrError for a request that belongs to
+// an API call: cancelling ctx aborts the discovery request and the token
+// request made for it.
+func (a *OpenIdConnectAuthenticator) AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error) {
+	delegate, err := a.resolveDelegateContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return delegate.AuthHeadersOrError()
+	return delegate.AuthHeadersOrErrorContext(ctx)
 }
 
 // AuthHeaders returns the Bearer authentication header, or an empty map when
@@ -192,6 +200,12 @@ func (a *OpenIdConnectAuthenticator) AuthHeaders() map[string]string {
 // endpoint does not fail API calls whose cached endpoints and tokens are still
 // valid. The first discovery has nothing to fall back on and returns its error.
 func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCodeAuthenticator, error) {
+	return a.resolveDelegateContext(context.Background())
+}
+
+// resolveDelegateContext is resolveDelegate for a request that belongs to an
+// API call: ctx cancels the discovery request.
+func (a *OpenIdConnectAuthenticator) resolveDelegateContext(ctx context.Context) (*OAuth2AuthorizationCodeAuthenticator, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -199,7 +213,7 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		return a.delegate, nil
 	}
 
-	delegate, err := a.discover()
+	delegate, err := a.discover(ctx)
 	if err != nil && a.delegate != nil {
 		a.discoveryExpiry = time.Now().Add(discoveryRetryDelay)
 		return a.delegate, nil
@@ -213,7 +227,7 @@ const discoveryRetryDelay = 30 * time.Second
 
 // discover fetches the discovery document and replaces the delegate. The caller
 // holds a.mu.
-func (a *OpenIdConnectAuthenticator) discover() (*OAuth2AuthorizationCodeAuthenticator, error) {
+func (a *OpenIdConnectAuthenticator) discover(ctx context.Context) (*OAuth2AuthorizationCodeAuthenticator, error) {
 	client := a.apiClient
 	if client == nil {
 		return nil, ErrApiClientNotInjected
@@ -226,7 +240,7 @@ func (a *OpenIdConnectAuthenticator) discover() (*OAuth2AuthorizationCodeAuthent
 	/* Discovery is an HTTP call like any other: a transport failure is
 	 * already a *NetworkError or *NetworkTimeoutError and is returned
 	 * unchanged. */
-	resp, err := client.SendRequest("GET", a.openIDConnectURL, headers, nil)
+	resp, err := client.SendRequestWithOptions("GET", a.openIDConnectURL, headers, nil, &auth.RequestOptions{Context: ctx})
 	if err != nil {
 		return nil, err
 	}

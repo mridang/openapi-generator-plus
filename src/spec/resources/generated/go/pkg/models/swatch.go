@@ -35,6 +35,16 @@ func AllSwatchValues() []Swatch {
 	}
 }
 
+// IsValid reports whether the value is one of the allowed values of Swatch.
+func (v Swatch) IsValid() bool {
+	for _, allowed := range AllSwatchValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
+}
+
 // String returns the declared wire value of the enum.
 //
 // A parameter passed as *Swatch (the shape optional query/header params

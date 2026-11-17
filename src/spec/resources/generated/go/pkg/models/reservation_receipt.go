@@ -37,6 +37,18 @@ func (o ReservationReceipt) Equal(other ReservationReceipt) bool {
 	return string(a) == string(b)
 }
 
+// WithReceiptCode returns a copy of the model with ReceiptCode replaced; the receiver is unchanged.
+func (o ReservationReceipt) WithReceiptCode(value string) ReservationReceipt {
+	o.ReceiptCode = value
+	return o
+}
+
+// WithExpiresAt returns a copy of the model with ExpiresAt replaced; the receiver is unchanged.
+func (o ReservationReceipt) WithExpiresAt(value DateTime) ReservationReceipt {
+	o.ExpiresAt = value
+	return o
+}
+
 // NewReservationReceipt creates a new ReservationReceipt instance.
 func NewReservationReceipt(receiptCode string, expiresAt DateTime) *ReservationReceipt {
 	return &ReservationReceipt{

@@ -2,12 +2,27 @@
 
 package options
 
+// FindPetsByStatusStatus is the typed enum of the Status parameter of FindPetsByStatus.
+type FindPetsByStatusStatus string
+
+const (
+	FindPetsByStatusStatusAvailable FindPetsByStatusStatus = "available"
+	FindPetsByStatusStatusPending   FindPetsByStatusStatus = "pending"
+	FindPetsByStatusStatusSold      FindPetsByStatusStatus = "sold"
+)
+
+// String returns the declared wire value of the enum, so a value passed as a
+// pointer still reaches the wire as its declared value.
+func (v FindPetsByStatusStatus) String() string {
+	return string(v)
+}
+
 // FindPetsByStatusOptions carries the parameters for the FindPetsByStatus operation.
 type FindPetsByStatusOptions struct {
 	/* Status Status values that need to be considered for filter */
 	//
 	// Deprecated: This parameter is deprecated.
-	Status *string
+	Status *FindPetsByStatusStatus
 	/* Filter Filter criteria as key-value pairs */
 	Filter *map[string]string
 	/* BornAfter Only return pets born on or after this date */

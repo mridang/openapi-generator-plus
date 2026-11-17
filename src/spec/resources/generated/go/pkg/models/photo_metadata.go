@@ -36,6 +36,54 @@ func (o PhotoMetadata) Equal(other PhotoMetadata) bool {
 	return string(a) == string(b)
 }
 
+// WithCaption returns a copy of the model with Caption replaced; the receiver is unchanged.
+func (o PhotoMetadata) WithCaption(value string) PhotoMetadata {
+	o.Caption = &value
+	return o
+}
+
+// WithoutCaption returns a copy of the model with Caption left unset; the receiver is unchanged.
+func (o PhotoMetadata) WithoutCaption() PhotoMetadata {
+	o.Caption = nil
+	return o
+}
+
+// WithIsPrimary returns a copy of the model with IsPrimary replaced; the receiver is unchanged.
+func (o PhotoMetadata) WithIsPrimary(value bool) PhotoMetadata {
+	o.IsPrimary = &value
+	return o
+}
+
+// WithoutIsPrimary returns a copy of the model with IsPrimary left unset; the receiver is unchanged.
+func (o PhotoMetadata) WithoutIsPrimary() PhotoMetadata {
+	o.IsPrimary = nil
+	return o
+}
+
+// WithTakenAt returns a copy of the model with TakenAt replaced; the receiver is unchanged.
+func (o PhotoMetadata) WithTakenAt(value DateTime) PhotoMetadata {
+	o.TakenAt = &value
+	return o
+}
+
+// WithoutTakenAt returns a copy of the model with TakenAt left unset; the receiver is unchanged.
+func (o PhotoMetadata) WithoutTakenAt() PhotoMetadata {
+	o.TakenAt = nil
+	return o
+}
+
+// WithLocation returns a copy of the model with Location replaced; the receiver is unchanged.
+func (o PhotoMetadata) WithLocation(value PhotoMetadataLocation) PhotoMetadata {
+	o.Location = &value
+	return o
+}
+
+// WithoutLocation returns a copy of the model with Location left unset; the receiver is unchanged.
+func (o PhotoMetadata) WithoutLocation() PhotoMetadata {
+	o.Location = nil
+	return o
+}
+
 // NewPhotoMetadata creates a new PhotoMetadata instance.
 func NewPhotoMetadata() *PhotoMetadata {
 	return &PhotoMetadata{}

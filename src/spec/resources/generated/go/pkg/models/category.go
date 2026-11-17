@@ -38,6 +38,30 @@ func (o Category) Equal(other Category) bool {
 	return string(a) == string(b)
 }
 
+// WithId returns a copy of the model with Id replaced; the receiver is unchanged.
+func (o Category) WithId(value int64) Category {
+	o.Id = &value
+	return o
+}
+
+// WithoutId returns a copy of the model with Id left unset; the receiver is unchanged.
+func (o Category) WithoutId() Category {
+	o.Id = nil
+	return o
+}
+
+// WithName returns a copy of the model with Name replaced; the receiver is unchanged.
+func (o Category) WithName(value string) Category {
+	o.Name = &value
+	return o
+}
+
+// WithoutName returns a copy of the model with Name left unset; the receiver is unchanged.
+func (o Category) WithoutName() Category {
+	o.Name = nil
+	return o
+}
+
 // NewCategory creates a new Category instance.
 func NewCategory() *Category {
 	return &Category{}

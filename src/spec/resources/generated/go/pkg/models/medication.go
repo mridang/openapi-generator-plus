@@ -36,6 +36,36 @@ func (o Medication) Equal(other Medication) bool {
 	return string(a) == string(b)
 }
 
+// WithDrugName returns a copy of the model with DrugName replaced; the receiver is unchanged.
+func (o Medication) WithDrugName(value string) Medication {
+	o.DrugName = value
+	return o
+}
+
+// WithDosage returns a copy of the model with Dosage replaced; the receiver is unchanged.
+func (o Medication) WithDosage(value string) Medication {
+	o.Dosage = &value
+	return o
+}
+
+// WithoutDosage returns a copy of the model with Dosage left unset; the receiver is unchanged.
+func (o Medication) WithoutDosage() Medication {
+	o.Dosage = nil
+	return o
+}
+
+// WithNotes returns a copy of the model with Notes replaced; the receiver is unchanged.
+func (o Medication) WithNotes(value string) Medication {
+	o.Notes = &value
+	return o
+}
+
+// WithoutNotes returns a copy of the model with Notes left unset; the receiver is unchanged.
+func (o Medication) WithoutNotes() Medication {
+	o.Notes = nil
+	return o
+}
+
 // NewMedication creates a new Medication instance.
 func NewMedication(drugName string) *Medication {
 	return &Medication{

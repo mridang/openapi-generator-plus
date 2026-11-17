@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.generators.go;
 
+import com.google.common.base.Splitter;
 import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
@@ -51,6 +52,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      * {@code []}, {@code *} and {@code map[...]} compositions.
      */
     private static final Pattern WRAPPER_TYPE = Pattern.compile("\\b(DateTime|Duration)\\b");
+
+    private static final String OPTION_REPOSITORY_URL = "repositoryUrl";
+    private static final String OPTION_HOMEPAGE_URL = "homepageUrl";
+    private static final String OPTION_AUTHORS = "authors";
+    private static final String OPTION_DOCUMENTATION_URL = "documentationUrl";
+    private static final String OPTION_ISSUE_TRACKER_URL = "issueTrackerUrl";
 
     protected String packageName = "openapiclient";
     protected String packageVersion = "1.0.0";
@@ -142,6 +149,30 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 CodegenConstants.PACKAGE_NAME_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated Go module (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString(OPTION_REPOSITORY_URL,
+                "Source repository URL, written to the README."));
+        cliOptions.add(CliOption.newString(OPTION_HOMEPAGE_URL,
+                "Project homepage URL, written to the README."));
+        cliOptions.add(CliOption.newString(OPTION_AUTHORS,
+                "Comma-separated author names, written to the README."));
+        cliOptions.add(CliOption.newString(OPTION_DOCUMENTATION_URL,
+                "Documentation URL, written to the README (optional)."));
+        cliOptions.add(CliOption.newString(OPTION_ISSUE_TRACKER_URL,
+                "Issue tracker URL, written to the README (optional)."));
+    }
+
+    /**
+     * The names an operation adds to its own signature or declares as locals or
+     * imports, which a path or body parameter must not reuse: the duplicate or
+     * shadowing declaration would not compile (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "a", "ctx", "options", "server", "callOptions", "path", "queryParams",
+                "headerParams", "formBody", "requestBody", "response", "data", "dataPtr",
+                "result", "err", "auth", "cookieParts", "settings", "opts", "fmt", "strings",
+                "io", "context", "uuid", "declaredConsumes", "requestContentTypeValue");
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -322,6 +353,45 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         additionalProperties.put("packageName", packageName);
         additionalProperties.put("userAgentDefault", packageName + "/" + packageVersion + " (go)");
 
+        /* The environment-variable prefix of the credentials the client reads once at
+         * construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL): the last element of the
+         * module path in upper snake case. */
+        final String moduleLeaf = packageName.substring(packageName.lastIndexOf('/') + 1);
+        additionalProperties.put(
+                "envPrefix",
+                NamingConvention.SNAKE_CASE
+                        .apply(moduleLeaf.replaceAll("[^A-Za-z0-9]+", "_"))
+                        .toUpperCase(Locale.ROOT));
+
+        /* Package metadata options: the README shows only the ones that were given. */
+        final List<Map<String, String>> authorsList = new ArrayList<>();
+        final Object authorsOption = additionalProperties.get(OPTION_AUTHORS);
+        if (authorsOption != null) {
+            for (final String author : Splitter.on(',').split(String.valueOf(authorsOption))) {
+                if (!author.trim().isEmpty()) {
+                    authorsList.add(Map.of("name", author.trim()));
+                }
+            }
+        }
+        additionalProperties.put("authorsList", authorsList);
+        additionalProperties.put("hasAuthors", !authorsList.isEmpty());
+        boolean hasProjectUrls = false;
+        for (final String urlOption :
+                new String[] {
+                    OPTION_REPOSITORY_URL,
+                    OPTION_HOMEPAGE_URL,
+                    OPTION_DOCUMENTATION_URL,
+                    OPTION_ISSUE_TRACKER_URL
+                }) {
+            final Object value = additionalProperties.get(urlOption);
+            if (value != null && !String.valueOf(value).trim().isEmpty()) {
+                hasProjectUrls = true;
+            } else {
+                additionalProperties.remove(urlOption);
+            }
+        }
+        additionalProperties.put("hasProjectUrls", hasProjectUrls);
+
         additionalProperties.put(
                 "pascalcase",
                 (Mustache.Lambda)
@@ -378,6 +448,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             }
                             writer.write(clean);
                         });
+
+        additionalProperties.put(
+                "goVariantName",
+                (Mustache.Lambda)
+                        (fragment, writer) -> writer.write(variantName(fragment.execute())));
 
         setModelPackage("");
         setApiPackage("");
@@ -495,6 +570,16 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/default_api_client_unit_test.mustache",
                             "pkg",
                             "default_api_client_unit_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/base_api_unit_test.mustache",
+                            "pkg",
+                            "base_api_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/request_option_test.mustache",
+                            "pkg",
+                            "request_option_test.go"));
         }
     }
 
@@ -575,6 +660,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec(
                         "default_api_client.mustache", "pkg", "default_api_client.go"),
                 new SupportingFileSpec("base_api.mustache", "pkg", "base_api.go"),
+                new SupportingFileSpec("request_option.mustache", "pkg", "request_option.go"),
                 new SupportingFileSpec("path_utils.mustache", "pkg", "path_utils.go"),
                 new SupportingFileSpec("authenticator.mustache", "pkg", "authenticator.go"),
                 new SupportingFileSpec("go_mod.mustache", "", "go.mod"),
@@ -665,7 +751,67 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         if (name == null || name.replace("_", "").isEmpty()) {
             return super.toEnumVarName("", datatype);
         }
+        if (name.startsWith("NUMBER_")) {
+            return pascalFromUpperSnake(name);
+        }
         return name;
+    }
+
+    /**
+     * Turns the shared integer-enum member name ({@code NUMBER_1},
+     * {@code NUMBER_MINUS_1}) into the PascalCase Go uses for every other enum
+     * member ({@code Number1}, {@code NumberMinus1}) (F308).
+     *
+     * @param name the upper snake case name
+     * @return the PascalCase name
+     */
+    static String pascalFromUpperSnake(final String name) {
+        final StringBuilder out = new StringBuilder();
+        for (final String part : Splitter.on('_').split(name)) {
+            if (part.isEmpty()) {
+                continue;
+            }
+            out.append(Character.toUpperCase(part.charAt(0)))
+                    .append(part.substring(1).toLowerCase(Locale.ROOT));
+        }
+        return out.toString();
+    }
+
+    /**
+     * The name a oneOf or anyOf variant of the given Go type carries in the
+     * typed constructor and accessors ({@code []Pet} becomes {@code PetSlice},
+     * {@code map[string]int32} becomes {@code Int32Map}, {@code uuid.UUID}
+     * becomes {@code UUID}) (F878).
+     *
+     * @param goType the Go type of the variant
+     * @return a PascalCase identifier part
+     */
+    static String variantName(final String goType) {
+        String clean = goType.trim().replace("*", "");
+        final StringBuilder suffix = new StringBuilder();
+        boolean more = true;
+        while (more) {
+            more = false;
+            if (clean.startsWith("[]")) {
+                clean = clean.substring(2);
+                suffix.insert(0, "Slice");
+                more = true;
+            } else if (clean.startsWith("map[")) {
+                final int close = clean.indexOf(']');
+                clean = clean.substring(close + 1);
+                suffix.insert(0, "Map");
+                more = true;
+            }
+        }
+        final int dot = clean.lastIndexOf('.');
+        if (dot >= 0) {
+            clean = clean.substring(dot + 1);
+        }
+        clean = clean.replaceAll("[^A-Za-z0-9_]", "");
+        if (clean.isEmpty()) {
+            clean = "Value";
+        }
+        return Character.toUpperCase(clean.charAt(0)) + clean.substring(1) + suffix;
     }
 
     /**
@@ -748,6 +894,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         boolean hasModelImport = false;
         boolean hasIoImport = false;
         boolean hasUuidImport = false;
+        boolean hasIntEnum = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
@@ -763,6 +910,46 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
+            }
+            /* An inline enum parameter is a named type with a constant per allowed
+             * value, like an inline enum on a model (F876). */
+            final boolean inlineEnum =
+                    p.isEnum
+                            && !p.isContainer
+                            && p._enum != null
+                            && !p._enum.isEmpty()
+                            && (p.isString || p.isInteger || p.isLong);
+            if (inlineEnum) {
+                final String optionsBase =
+                        className.endsWith("Options")
+                                ? className.substring(0, className.length() - "Options".length())
+                                : className;
+                final String enumType = optionsBase + optionsFieldName(p.paramName);
+                final String enumBase = p.isInteger ? "int32" : p.isLong ? "int64" : "string";
+                final List<Map<String, String>> enumValues = new ArrayList<>();
+                final Set<String> usedNames = new HashSet<>();
+                for (final String value : p._enum) {
+                    String constName = enumType + toEnumVarName(value, enumBase);
+                    while (!usedNames.add(constName)) {
+                        constName = constName + "2";
+                    }
+                    enumValues.add(
+                            Map.of(
+                                    "constName",
+                                    constName,
+                                    "literal",
+                                    "string".equals(enumBase)
+                                            ? "\"" + goStringBody(value) + "\""
+                                            : value));
+                }
+                param.put("enumTypeName", enumType);
+                param.put("enumBase", enumBase);
+                param.put("isStringEnum", "string".equals(enumBase));
+                param.put("enumValues", enumValues);
+                param.put("dataType", enumType);
+                if (!"string".equals(enumBase)) {
+                    hasIntEnum = true;
+                }
             }
             params.add(param);
             // A date-time / duration options param emits the generated
@@ -796,6 +983,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         context.put("packageName", "options");
         context.put("operationId", op.operationId);
         context.put("params", params);
+        context.put("hasIntEnum", hasIntEnum);
         context.put("moduleName", packageName);
         // Per-operation auth folded into the Options object. The optional `Auth`
         // field carries the generic Authenticator. Go uses structural typing, so
@@ -1128,6 +1316,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     // operation has any required param that is carried on the Options
                     // object (path and body params are passed as plain arguments and
                     // are validated separately, so they are deliberately excluded).
+                    /* A slice, map, string or byte slice is returned by value (F877):
+                     * its zero value already means "nothing", so a pointer to it adds
+                     * nothing but a second nil to check. */
+                    op.vendorExtensions.put("returnByValue", returnsByValue(op.returnType));
                     stampOptionsFieldNames(op);
                     final boolean hasRequiredOptionsParam =
                             anyRequiredOptionsParam(op);
@@ -1158,6 +1350,20 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
         reorderServerBeforeOptions(processed);
         return processed;
+    }
+
+    /**
+     * Whether an operation returning this Go type hands it back by value: a
+     * slice (byte slices included), a map or a string (F877).
+     *
+     * @param returnType the Go return type, or null for a void operation
+     * @return true when the type is returned by value
+     */
+    static boolean returnsByValue(@Nullable final String returnType) {
+        return returnType != null
+                && (returnType.startsWith("[]")
+                        || returnType.startsWith("map[")
+                        || "string".equals(returnType));
     }
 
     /**

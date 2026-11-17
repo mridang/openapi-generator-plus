@@ -32,12 +32,64 @@ func NewPetTreatment(matchedInstances ...any) PetTreatment {
 	return PetTreatment{matchedInstances: append([]any(nil), matchedInstances...)}
 }
 
+// NewMedicationPetTreatment builds the union from a Medication variant.
+func NewMedicationPetTreatment(value Medication) PetTreatment {
+	return PetTreatment{matchedInstances: []any{value}}
+}
+
+// AsMedication returns the first retained Medication variant, and false when the union holds none.
+func (o PetTreatment) AsMedication() (Medication, bool) {
+	for _, instance := range o.matchedInstances {
+		if value, ok := instance.(Medication); ok {
+			return value, true
+		}
+	}
+	var none Medication
+	return none, false
+}
+
+// IsMedication reports whether the union holds a Medication variant.
+func (o PetTreatment) IsMedication() bool {
+	_, ok := o.AsMedication()
+	return ok
+}
+
+// NewSurgeryPetTreatment builds the union from a Surgery variant.
+func NewSurgeryPetTreatment(value Surgery) PetTreatment {
+	return PetTreatment{matchedInstances: []any{value}}
+}
+
+// AsSurgery returns the first retained Surgery variant, and false when the union holds none.
+func (o PetTreatment) AsSurgery() (Surgery, bool) {
+	for _, instance := range o.matchedInstances {
+		if value, ok := instance.(Surgery); ok {
+			return value, true
+		}
+	}
+	var none Surgery
+	return none, false
+}
+
+// IsSurgery reports whether the union holds a Surgery variant.
+func (o PetTreatment) IsSurgery() bool {
+	_, ok := o.AsSurgery()
+	return ok
+}
+
 // MarshalJSON implements the json.Marshaler interface. A single retained
 // variant is marshalled directly; several are merged into one JSON object so
 // that co-satisfied data round-trips losslessly. Earlier variants are merged
 // first; a key present in a later variant overrides the same key from an
-// earlier one.
+// earlier one. A value that is not one of the declared variants is rejected
+// rather than sent.
 func (o PetTreatment) MarshalJSON() ([]byte, error) {
+	for _, instance := range o.matchedInstances {
+		switch instance.(type) {
+		case Medication, Surgery:
+		default:
+			return nil, fmt.Errorf("%T is not a variant of PetTreatment", instance)
+		}
+	}
 	if len(o.matchedInstances) == 1 {
 		return marshalJSON(o.matchedInstances[0])
 	}

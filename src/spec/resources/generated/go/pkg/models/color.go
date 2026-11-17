@@ -35,6 +35,16 @@ func AllColorValues() []Color {
 	}
 }
 
+// IsValid reports whether the value is one of the allowed values of Color.
+func (v Color) IsValid() bool {
+	for _, allowed := range AllColorValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
+}
+
 // String returns the declared wire value of the enum.
 //
 // A parameter passed as *Color (the shape optional query/header params

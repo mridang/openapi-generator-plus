@@ -36,6 +36,36 @@ func (o Surgery) Equal(other Surgery) bool {
 	return string(a) == string(b)
 }
 
+// WithProcedureName returns a copy of the model with ProcedureName replaced; the receiver is unchanged.
+func (o Surgery) WithProcedureName(value string) Surgery {
+	o.ProcedureName = value
+	return o
+}
+
+// WithDurationMinutes returns a copy of the model with DurationMinutes replaced; the receiver is unchanged.
+func (o Surgery) WithDurationMinutes(value int32) Surgery {
+	o.DurationMinutes = &value
+	return o
+}
+
+// WithoutDurationMinutes returns a copy of the model with DurationMinutes left unset; the receiver is unchanged.
+func (o Surgery) WithoutDurationMinutes() Surgery {
+	o.DurationMinutes = nil
+	return o
+}
+
+// WithNotes returns a copy of the model with Notes replaced; the receiver is unchanged.
+func (o Surgery) WithNotes(value string) Surgery {
+	o.Notes = &value
+	return o
+}
+
+// WithoutNotes returns a copy of the model with Notes left unset; the receiver is unchanged.
+func (o Surgery) WithoutNotes() Surgery {
+	o.Notes = nil
+	return o
+}
+
 // NewSurgery creates a new Surgery instance.
 func NewSurgery(procedureName string) *Surgery {
 	return &Surgery{

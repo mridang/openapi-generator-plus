@@ -34,6 +34,18 @@ func (o RequiredNullable) Equal(other RequiredNullable) bool {
 	return string(a) == string(b)
 }
 
+// WithNote returns a copy of the model with Note replaced; the receiver is unchanged.
+func (o RequiredNullable) WithNote(value string) RequiredNullable {
+	o.Note = &value
+	return o
+}
+
+// WithoutNote returns a copy of the model with Note set to null; the receiver is unchanged.
+func (o RequiredNullable) WithoutNote() RequiredNullable {
+	o.Note = nil
+	return o
+}
+
 // NewRequiredNullable creates a new RequiredNullable instance.
 func NewRequiredNullable(note *string) *RequiredNullable {
 	return &RequiredNullable{

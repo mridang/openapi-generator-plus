@@ -35,6 +35,24 @@ func (o Employee) Equal(other Employee) bool {
 	return string(a) == string(b)
 }
 
+// WithName returns a copy of the model with Name replaced; the receiver is unchanged.
+func (o Employee) WithName(value string) Employee {
+	o.Name = value
+	return o
+}
+
+// WithDepartment returns a copy of the model with Department replaced; the receiver is unchanged.
+func (o Employee) WithDepartment(value Department) Employee {
+	o.Department = &value
+	return o
+}
+
+// WithoutDepartment returns a copy of the model with Department left unset; the receiver is unchanged.
+func (o Employee) WithoutDepartment() Employee {
+	o.Department = nil
+	return o
+}
+
 // NewEmployee creates a new Employee instance.
 func NewEmployee(name string) *Employee {
 	return &Employee{

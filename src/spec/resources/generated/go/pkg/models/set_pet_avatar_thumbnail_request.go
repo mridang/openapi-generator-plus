@@ -37,9 +37,48 @@ func NewSetPetAvatarThumbnailRequest(actualInstance any) SetPetAvatarThumbnailRe
 	return SetPetAvatarThumbnailRequest{value: actualInstance}
 }
 
-// MarshalJSON implements the json.Marshaler interface.
+// NewByteSliceSliceSetPetAvatarThumbnailRequest builds the union from a [][]byte variant.
+func NewByteSliceSliceSetPetAvatarThumbnailRequest(value [][]byte) SetPetAvatarThumbnailRequest {
+	return SetPetAvatarThumbnailRequest{value: value}
+}
+
+// AsByteSliceSlice returns the [][]byte variant, and false when the union holds another one.
+func (o SetPetAvatarThumbnailRequest) AsByteSliceSlice() ([][]byte, bool) {
+	value, ok := o.value.([][]byte)
+	return value, ok
+}
+
+// IsByteSliceSlice reports whether the union holds a [][]byte variant.
+func (o SetPetAvatarThumbnailRequest) IsByteSliceSlice() bool {
+	_, ok := o.value.([][]byte)
+	return ok
+}
+
+// NewByteSliceSetPetAvatarThumbnailRequest builds the union from a []byte variant.
+func NewByteSliceSetPetAvatarThumbnailRequest(value []byte) SetPetAvatarThumbnailRequest {
+	return SetPetAvatarThumbnailRequest{value: value}
+}
+
+// AsByteSlice returns the []byte variant, and false when the union holds another one.
+func (o SetPetAvatarThumbnailRequest) AsByteSlice() ([]byte, bool) {
+	value, ok := o.value.([]byte)
+	return value, ok
+}
+
+// IsByteSlice reports whether the union holds a []byte variant.
+func (o SetPetAvatarThumbnailRequest) IsByteSlice() bool {
+	_, ok := o.value.([]byte)
+	return ok
+}
+
+// MarshalJSON implements the json.Marshaler interface. A value that is not one
+// of the declared variants is rejected rather than sent.
 func (o SetPetAvatarThumbnailRequest) MarshalJSON() ([]byte, error) {
-	return marshalJSON(o.value)
+	switch o.value.(type) {
+	case [][]byte, []byte:
+		return marshalJSON(o.value)
+	}
+	return nil, fmt.Errorf("%T is not a variant of SetPetAvatarThumbnailRequest", o.value)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

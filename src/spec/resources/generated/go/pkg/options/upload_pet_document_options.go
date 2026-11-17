@@ -7,10 +7,25 @@ import (
 	. "petstore/pkg/models"
 )
 
+// UploadPetDocumentDocumentType is the typed enum of the DocumentType parameter of UploadPetDocument.
+type UploadPetDocumentDocumentType string
+
+const (
+	UploadPetDocumentDocumentTypeHealthCertificate UploadPetDocumentDocumentType = "health_certificate"
+	UploadPetDocumentDocumentTypeVaccinationRecord UploadPetDocumentDocumentType = "vaccination_record"
+	UploadPetDocumentDocumentTypeMicrochipRecord   UploadPetDocumentDocumentType = "microchip_record"
+)
+
+// String returns the declared wire value of the enum, so a value passed as a
+// pointer still reaches the wire as its declared value.
+func (v UploadPetDocumentDocumentType) String() string {
+	return string(v)
+}
+
 // UploadPetDocumentOptions carries the parameters for the UploadPetDocument operation.
 type UploadPetDocumentOptions struct {
 	File         io.Reader
-	DocumentType *string
+	DocumentType *UploadPetDocumentDocumentType
 	Notes        *string
 	IsPrimary    *bool
 	PageCount    *int64

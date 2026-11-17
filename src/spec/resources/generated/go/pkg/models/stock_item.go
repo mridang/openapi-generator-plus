@@ -37,6 +37,36 @@ func (o StockItem) Equal(other StockItem) bool {
 	return string(a) == string(b)
 }
 
+// WithPriority returns a copy of the model with Priority replaced; the receiver is unchanged.
+func (o StockItem) WithPriority(value Priority) StockItem {
+	o.Priority = value
+	return o
+}
+
+// WithAvailability returns a copy of the model with Availability replaced; the receiver is unchanged.
+func (o StockItem) WithAvailability(value Availability) StockItem {
+	o.Availability = &value
+	return o
+}
+
+// WithoutAvailability returns a copy of the model with Availability left unset; the receiver is unchanged.
+func (o StockItem) WithoutAvailability() StockItem {
+	o.Availability = nil
+	return o
+}
+
+// WithMatrix returns a copy of the model with Matrix replaced; the receiver is unchanged.
+func (o StockItem) WithMatrix(value [][]int32) StockItem {
+	o.Matrix = &value
+	return o
+}
+
+// WithoutMatrix returns a copy of the model with Matrix left unset; the receiver is unchanged.
+func (o StockItem) WithoutMatrix() StockItem {
+	o.Matrix = nil
+	return o
+}
+
 // NewStockItem creates a new StockItem instance.
 func NewStockItem(priority Priority) *StockItem {
 	return &StockItem{

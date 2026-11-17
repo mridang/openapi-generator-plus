@@ -41,6 +41,66 @@ func (o PetPassport) Equal(other PetPassport) bool {
 	return string(a) == string(b)
 }
 
+// WithPet returns a copy of the model with Pet replaced; the receiver is unchanged.
+func (o PetPassport) WithPet(value Pet) PetPassport {
+	o.Pet = &value
+	return o
+}
+
+// WithoutPet returns a copy of the model with Pet left unset; the receiver is unchanged.
+func (o PetPassport) WithoutPet() PetPassport {
+	o.Pet = nil
+	return o
+}
+
+// WithThumbnail returns a copy of the model with Thumbnail replaced; the receiver is unchanged.
+func (o PetPassport) WithThumbnail(value []byte) PetPassport {
+	o.Thumbnail = &value
+	return o
+}
+
+// WithoutThumbnail returns a copy of the model with Thumbnail left unset; the receiver is unchanged.
+func (o PetPassport) WithoutThumbnail() PetPassport {
+	o.Thumbnail = nil
+	return o
+}
+
+// WithScans returns a copy of the model with Scans replaced; the receiver is unchanged.
+func (o PetPassport) WithScans(value [][]byte) PetPassport {
+	o.Scans = &value
+	return o
+}
+
+// WithoutScans returns a copy of the model with Scans left unset; the receiver is unchanged.
+func (o PetPassport) WithoutScans() PetPassport {
+	o.Scans = nil
+	return o
+}
+
+// WithIssuedAt returns a copy of the model with IssuedAt replaced; the receiver is unchanged.
+func (o PetPassport) WithIssuedAt(value DateTime) PetPassport {
+	o.IssuedAt = &value
+	return o
+}
+
+// WithoutIssuedAt returns a copy of the model with IssuedAt left unset; the receiver is unchanged.
+func (o PetPassport) WithoutIssuedAt() PetPassport {
+	o.IssuedAt = nil
+	return o
+}
+
+// WithBiometricChip returns a copy of the model with BiometricChip replaced; the receiver is unchanged.
+func (o PetPassport) WithBiometricChip(value []byte) PetPassport {
+	o.BiometricChip = &value
+	return o
+}
+
+// WithoutBiometricChip returns a copy of the model with BiometricChip left unset; the receiver is unchanged.
+func (o PetPassport) WithoutBiometricChip() PetPassport {
+	o.BiometricChip = nil
+	return o
+}
+
 // NewPetPassport creates a new PetPassport instance.
 func NewPetPassport() *PetPassport {
 	return &PetPassport{}

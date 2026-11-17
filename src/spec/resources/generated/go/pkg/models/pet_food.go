@@ -37,9 +37,48 @@ func NewPetFood(actualInstance any) PetFood {
 	return PetFood{value: actualInstance}
 }
 
-// MarshalJSON implements the json.Marshaler interface.
+// NewDryFoodPetFood builds the union from a DryFood variant.
+func NewDryFoodPetFood(value DryFood) PetFood {
+	return PetFood{value: value}
+}
+
+// AsDryFood returns the DryFood variant, and false when the union holds another one.
+func (o PetFood) AsDryFood() (DryFood, bool) {
+	value, ok := o.value.(DryFood)
+	return value, ok
+}
+
+// IsDryFood reports whether the union holds a DryFood variant.
+func (o PetFood) IsDryFood() bool {
+	_, ok := o.value.(DryFood)
+	return ok
+}
+
+// NewWetFoodPetFood builds the union from a WetFood variant.
+func NewWetFoodPetFood(value WetFood) PetFood {
+	return PetFood{value: value}
+}
+
+// AsWetFood returns the WetFood variant, and false when the union holds another one.
+func (o PetFood) AsWetFood() (WetFood, bool) {
+	value, ok := o.value.(WetFood)
+	return value, ok
+}
+
+// IsWetFood reports whether the union holds a WetFood variant.
+func (o PetFood) IsWetFood() bool {
+	_, ok := o.value.(WetFood)
+	return ok
+}
+
+// MarshalJSON implements the json.Marshaler interface. A value that is not one
+// of the declared variants is rejected rather than sent.
 func (o PetFood) MarshalJSON() ([]byte, error) {
-	return marshalJSON(o.value)
+	switch o.value.(type) {
+	case DryFood, WetFood:
+		return marshalJSON(o.value)
+	}
+	return nil, fmt.Errorf("%T is not a variant of PetFood", o.value)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

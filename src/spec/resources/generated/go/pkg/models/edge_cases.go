@@ -24,13 +24,23 @@ const (
 	EdgeCasesPhaseEnumOUTOFSTOCK EdgeCasesPhaseEnum = "OUT_OF_STOCK"
 )
 
-// allEdgeCasesPhaseEnumValues returns all allowed values.
-func allEdgeCasesPhaseEnumValues() []EdgeCasesPhaseEnum {
+// AllEdgeCasesPhaseEnumValues returns all allowed values.
+func AllEdgeCasesPhaseEnumValues() []EdgeCasesPhaseEnum {
 	return []EdgeCasesPhaseEnum{
 		EdgeCasesPhaseEnumInStock,
 		EdgeCasesPhaseEnumOnHold,
 		EdgeCasesPhaseEnumOUTOFSTOCK,
 	}
+}
+
+// IsValid reports whether the value is one of the allowed values.
+func (v EdgeCasesPhaseEnum) IsValid() bool {
+	for _, allowed := range AllEdgeCasesPhaseEnumValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
 }
 
 // String returns the declared wire value of the enum, so the shared stringify
@@ -47,7 +57,7 @@ func (v *EdgeCasesPhaseEnum) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := EdgeCasesPhaseEnum(raw)
-	for _, allowed := range allEdgeCasesPhaseEnumValues() {
+	for _, allowed := range AllEdgeCasesPhaseEnumValues() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -59,7 +69,7 @@ func (v *EdgeCasesPhaseEnum) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v EdgeCasesPhaseEnum) MarshalJSON() ([]byte, error) {
-	for _, allowed := range allEdgeCasesPhaseEnumValues() {
+	for _, allowed := range AllEdgeCasesPhaseEnumValues() {
 		if allowed == v {
 			return marshalJSON(string(v))
 		}
@@ -106,6 +116,246 @@ func (o EdgeCases) Equal(other EdgeCases) bool {
 		return false
 	}
 	return string(a) == string(b)
+}
+
+// WithFreeFormAny returns a copy of the model with FreeFormAny replaced; the receiver is unchanged.
+func (o EdgeCases) WithFreeFormAny(value any) EdgeCases {
+	o.FreeFormAny = &value
+	return o
+}
+
+// WithoutFreeFormAny returns a copy of the model with FreeFormAny left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutFreeFormAny() EdgeCases {
+	o.FreeFormAny = nil
+	return o
+}
+
+// WithFavoriteColor returns a copy of the model with FavoriteColor replaced; the receiver is unchanged.
+func (o EdgeCases) WithFavoriteColor(value Color) EdgeCases {
+	o.FavoriteColor = &value
+	return o
+}
+
+// WithoutFavoriteColor returns a copy of the model with FavoriteColor left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutFavoriteColor() EdgeCases {
+	o.FavoriteColor = nil
+	return o
+}
+
+// WithPermissionsNote returns a copy of the model with PermissionsNote replaced; the receiver is unchanged.
+func (o EdgeCases) WithPermissionsNote(value string) EdgeCases {
+	o.PermissionsNote = &value
+	return o
+}
+
+// WithoutPermissionsNote returns a copy of the model with PermissionsNote left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutPermissionsNote() EdgeCases {
+	o.PermissionsNote = nil
+	return o
+}
+
+// WithAnd returns a copy of the model with And replaced; the receiver is unchanged.
+func (o EdgeCases) WithAnd(value bool) EdgeCases {
+	o.And = &value
+	return o
+}
+
+// WithoutAnd returns a copy of the model with And left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutAnd() EdgeCases {
+	o.And = nil
+	return o
+}
+
+// WithOr returns a copy of the model with Or replaced; the receiver is unchanged.
+func (o EdgeCases) WithOr(value bool) EdgeCases {
+	o.Or = &value
+	return o
+}
+
+// WithoutOr returns a copy of the model with Or left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutOr() EdgeCases {
+	o.Or = nil
+	return o
+}
+
+// WithNot returns a copy of the model with Not replaced; the receiver is unchanged.
+func (o EdgeCases) WithNot(value bool) EdgeCases {
+	o.Not = &value
+	return o
+}
+
+// WithoutNot returns a copy of the model with Not left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutNot() EdgeCases {
+	o.Not = nil
+	return o
+}
+
+// WithClass returns a copy of the model with Class replaced; the receiver is unchanged.
+func (o EdgeCases) WithClass(value string) EdgeCases {
+	o.Class = &value
+	return o
+}
+
+// WithoutClass returns a copy of the model with Class left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutClass() EdgeCases {
+	o.Class = nil
+	return o
+}
+
+// WithReturn returns a copy of the model with Return replaced; the receiver is unchanged.
+func (o EdgeCases) WithReturn(value string) EdgeCases {
+	o.Return = &value
+	return o
+}
+
+// WithoutReturn returns a copy of the model with Return left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutReturn() EdgeCases {
+	o.Return = nil
+	return o
+}
+
+// WithRetryAfter returns a copy of the model with RetryAfter replaced; the receiver is unchanged.
+func (o EdgeCases) WithRetryAfter(value Duration) EdgeCases {
+	o.RetryAfter = &value
+	return o
+}
+
+// WithoutRetryAfter returns a copy of the model with RetryAfter left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutRetryAfter() EdgeCases {
+	o.RetryAfter = nil
+	return o
+}
+
+// WithExpiresAt returns a copy of the model with ExpiresAt replaced; the receiver is unchanged.
+func (o EdgeCases) WithExpiresAt(value DateTime) EdgeCases {
+	o.ExpiresAt = &value
+	return o
+}
+
+// WithoutExpiresAt returns a copy of the model with ExpiresAt left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutExpiresAt() EdgeCases {
+	o.ExpiresAt = nil
+	return o
+}
+
+// WithN2fa returns a copy of the model with N2fa replaced; the receiver is unchanged.
+func (o EdgeCases) WithN2fa(value bool) EdgeCases {
+	o.N2fa = &value
+	return o
+}
+
+// WithoutN2fa returns a copy of the model with N2fa left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutN2fa() EdgeCases {
+	o.N2fa = nil
+	return o
+}
+
+// WithSeparator returns a copy of the model with Separator replaced; the receiver is unchanged.
+func (o EdgeCases) WithSeparator(value Separator) EdgeCases {
+	o.Separator = &value
+	return o
+}
+
+// WithoutSeparator returns a copy of the model with Separator left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutSeparator() EdgeCases {
+	o.Separator = nil
+	return o
+}
+
+// WithNull returns a copy of the model with Null replaced; the receiver is unchanged.
+func (o EdgeCases) WithNull(value string) EdgeCases {
+	o.Null = &value
+	return o
+}
+
+// WithoutNull returns a copy of the model with Null left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutNull() EdgeCases {
+	o.Null = nil
+	return o
+}
+
+// WithTrue returns a copy of the model with True replaced; the receiver is unchanged.
+func (o EdgeCases) WithTrue(value bool) EdgeCases {
+	o.True = &value
+	return o
+}
+
+// WithoutTrue returns a copy of the model with True left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutTrue() EdgeCases {
+	o.True = nil
+	return o
+}
+
+// WithFalse returns a copy of the model with False replaced; the receiver is unchanged.
+func (o EdgeCases) WithFalse(value bool) EdgeCases {
+	o.False = &value
+	return o
+}
+
+// WithoutFalse returns a copy of the model with False left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutFalse() EdgeCases {
+	o.False = nil
+	return o
+}
+
+// WithLastError returns a copy of the model with LastError replaced; the receiver is unchanged.
+func (o EdgeCases) WithLastError(value Error) EdgeCases {
+	o.LastError = &value
+	return o
+}
+
+// WithoutLastError returns a copy of the model with LastError left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutLastError() EdgeCases {
+	o.LastError = nil
+	return o
+}
+
+// WithOutcome returns a copy of the model with Outcome replaced; the receiver is unchanged.
+func (o EdgeCases) WithOutcome(value Result) EdgeCases {
+	o.Outcome = &value
+	return o
+}
+
+// WithoutOutcome returns a copy of the model with Outcome left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutOutcome() EdgeCases {
+	o.Outcome = nil
+	return o
+}
+
+// WithCutoff returns a copy of the model with Cutoff replaced; the receiver is unchanged.
+func (o EdgeCases) WithCutoff(value string) EdgeCases {
+	o.Cutoff = &value
+	return o
+}
+
+// WithoutCutoff returns a copy of the model with Cutoff left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutCutoff() EdgeCases {
+	o.Cutoff = nil
+	return o
+}
+
+// WithPhase returns a copy of the model with Phase replaced; the receiver is unchanged.
+func (o EdgeCases) WithPhase(value EdgeCasesPhaseEnum) EdgeCases {
+	o.Phase = &value
+	return o
+}
+
+// WithoutPhase returns a copy of the model with Phase left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutPhase() EdgeCases {
+	o.Phase = nil
+	return o
+}
+
+// WithSlug returns a copy of the model with Slug replaced; the receiver is unchanged.
+func (o EdgeCases) WithSlug(value string) EdgeCases {
+	o.Slug = &value
+	return o
+}
+
+// WithoutSlug returns a copy of the model with Slug left unset; the receiver is unchanged.
+func (o EdgeCases) WithoutSlug() EdgeCases {
+	o.Slug = nil
+	return o
 }
 
 // NewEdgeCases creates a new EdgeCases instance.

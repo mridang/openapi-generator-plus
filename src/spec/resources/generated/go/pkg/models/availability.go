@@ -47,6 +47,16 @@ func AllAvailabilityValues() []Availability {
 	}
 }
 
+// IsValid reports whether the value is one of the allowed values of Availability.
+func (v Availability) IsValid() bool {
+	for _, allowed := range AllAvailabilityValues() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
+}
+
 // String returns the declared wire value of the enum.
 //
 // A parameter passed as *Availability (the shape optional query/header params

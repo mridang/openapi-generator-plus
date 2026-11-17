@@ -4,6 +4,7 @@ package {{packageName}}
 import (
 	"context"
 	"net/http"
+	"time"
 )
 
 // HttpDoer is the minimal HTTP abstraction the SDK can send requests through:
@@ -35,6 +36,11 @@ type RequestOptions struct {
 	 * *NetworkTimeoutError. A nil Context means context.Background(). It is
 	 * merged with the client's base context, which Close cancels. */
 	Context context.Context
+
+	/* Timeout, when set, is the end-to-end timeout of this request and
+	 * replaces the transport's own timeout for it. It comes from the
+	 * WithTimeout call option. A nil Timeout keeps the transport's. */
+	Timeout *time.Duration
 }
 
 // ApiClient is the interface for API HTTP transport.

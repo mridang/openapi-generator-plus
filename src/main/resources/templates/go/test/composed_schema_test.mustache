@@ -621,3 +621,108 @@ func TestDryFood_NullDiscriminatorPropertyIsStillRejected(t *testing.T) {
 		t.Fatal("expected an explicit null foodType to be rejected")
 	}
 }
+
+// ── Typed variant constructors and accessors ──
+
+func TestPetFood_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
+	t.Parallel()
+	food := models.NewDryFoodPetFood(*models.NewDryFood(2.5))
+
+	if !food.IsDryFood() || food.IsWetFood() {
+		t.Fatal("expected the union to hold a DryFood and not a WetFood")
+	}
+	dry, ok := food.AsDryFood()
+	if !ok || dry.WeightKg != 2.5 {
+		t.Errorf("expected the DryFood back, got %+v (ok=%v)", dry, ok)
+	}
+	if _, ok := food.AsWetFood(); ok {
+		t.Error("expected AsWetFood to report false")
+	}
+	data, err := json.Marshal(food)
+	if err != nil {
+		t.Fatalf("failed to serialize PetFood: %v", err)
+	}
+	if string(data) != `{"foodType":"dry","weightKg":2.5}` {
+		t.Errorf("unexpected wire form %s", string(data))
+	}
+}
+
+func TestPetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
+	t.Parallel()
+	for name, food := range map[string]models.PetFood{
+		"foreign value": models.NewPetFood("kibble"),
+		"zero union":    {},
+	} {
+		if _, err := json.Marshal(food); err == nil || !strings.Contains(err.Error(), "is not a variant of PetFood") {
+			t.Errorf("%s: expected a not-a-variant error, got %v", name, err)
+		}
+	}
+}
+
+func TestPetTreatment_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
+	t.Parallel()
+	drug := "Amoxicillin"
+	treatment := models.NewMedicationPetTreatment(models.Medication{DrugName: drug})
+
+	if !treatment.IsMedication() || treatment.IsSurgery() {
+		t.Fatal("expected the union to hold a Medication and not a Surgery")
+	}
+	medication, ok := treatment.AsMedication()
+	if !ok || medication.DrugName != drug {
+		t.Errorf("expected the Medication back, got %+v (ok=%v)", medication, ok)
+	}
+	if _, ok := treatment.AsSurgery(); ok {
+		t.Error("expected AsSurgery to report false")
+	}
+}
+
+func TestPetTreatment_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
+	t.Parallel()
+	treatment := models.NewPetTreatment("rest")
+	if _, err := json.Marshal(treatment); err == nil || !strings.Contains(err.Error(), "is not a variant of PetTreatment") {
+		t.Errorf("expected a not-a-variant error, got %v", err)
+	}
+}
+
+func TestSetPetAvatarThumbnailRequest_TypedConstructorsNameTheirVariants(t *testing.T) {
+	t.Parallel()
+	scalar := models.NewByteSliceSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
+	if !scalar.IsByteSlice() || scalar.IsByteSliceSlice() {
+		t.Fatal("expected the scalar variant")
+	}
+	rows := models.NewByteSliceSliceSetPetAvatarThumbnailRequest([][]byte{ {0x01} })
+	if got, ok := rows.AsByteSliceSlice(); !ok || len(got) != 1 {
+		t.Errorf("expected the array variant back, got %v (ok=%v)", got, ok)
+	}
+}
+
+// ── Models are immutable: a With method returns a copy ──
+
+func TestModel_WithReturnsACopyAndLeavesTheReceiverAlone(t *testing.T) {
+	t.Parallel()
+	original := models.DryFood{FoodType: "dry", WeightKg: 2.5}
+	changed := original.WithWeightKg(3)
+
+	if original.WeightKg != 2.5 {
+		t.Errorf("expected the receiver to keep 2.5, got %v", original.WeightKg)
+	}
+	if changed.WeightKg != 3 || changed.FoodType != "dry" {
+		t.Errorf("expected the copy to carry 3 and keep the rest, got %+v", changed)
+	}
+}
+
+func TestModel_WithAndWithoutSetAndClearAnOptionalField(t *testing.T) {
+	t.Parallel()
+	original := models.Medication{DrugName: "Amoxicillin"}
+	with := original.WithDosage("250mg")
+
+	if original.Dosage != nil {
+		t.Errorf("expected the receiver to stay unset, got %v", *original.Dosage)
+	}
+	if with.Dosage == nil || *with.Dosage != "250mg" {
+		t.Fatalf("expected the copy to carry the dosage, got %v", with.Dosage)
+	}
+	if without := with.WithoutDosage(); without.Dosage != nil || with.Dosage == nil {
+		t.Error("expected WithoutDosage to clear the copy only")
+	}
+}

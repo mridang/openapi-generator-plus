@@ -35,6 +35,42 @@ func (o ApiResponse) Equal(other ApiResponse) bool {
 	return string(a) == string(b)
 }
 
+// WithCode returns a copy of the model with Code replaced; the receiver is unchanged.
+func (o ApiResponse) WithCode(value int32) ApiResponse {
+	o.Code = &value
+	return o
+}
+
+// WithoutCode returns a copy of the model with Code left unset; the receiver is unchanged.
+func (o ApiResponse) WithoutCode() ApiResponse {
+	o.Code = nil
+	return o
+}
+
+// WithType returns a copy of the model with Type replaced; the receiver is unchanged.
+func (o ApiResponse) WithType(value string) ApiResponse {
+	o.Type = &value
+	return o
+}
+
+// WithoutType returns a copy of the model with Type left unset; the receiver is unchanged.
+func (o ApiResponse) WithoutType() ApiResponse {
+	o.Type = nil
+	return o
+}
+
+// WithMessage returns a copy of the model with Message replaced; the receiver is unchanged.
+func (o ApiResponse) WithMessage(value string) ApiResponse {
+	o.Message = &value
+	return o
+}
+
+// WithoutMessage returns a copy of the model with Message left unset; the receiver is unchanged.
+func (o ApiResponse) WithoutMessage() ApiResponse {
+	o.Message = nil
+	return o
+}
+
 // NewApiResponse creates a new ApiResponse instance.
 func NewApiResponse() *ApiResponse {
 	return &ApiResponse{}

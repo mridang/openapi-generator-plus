@@ -32,9 +32,9 @@ class GenerateGoClientTest {
    * deprecation doc comment ({@code // Deprecated:}), mirroring the operation
    * (api.mustache) and model-property (model.mustache) deprecation idioms.
    *
-   * <p>The type is intentionally left untouched ({@code *string}): {@code status}
-   * has {@code allowEmptyValue: true} and must still accept an empty value — only
-   * the deprecation marker is added.
+   * <p>The type is the named enum of the inline parameter enum (F876), a string
+   * type that still accepts an empty value, since {@code status} has {@code
+   * allowEmptyValue: true}.
    *
    * <p>Asserts against the committed golden tree (the same output the {@code
    * generate} test rewrites). A READ lock on the shared resource orders it after
@@ -51,7 +51,7 @@ class GenerateGoClientTest {
     assertThat(options)
         .as("deprecated query param `status` must be marked deprecated in the Options struct")
         .contains("// Deprecated: This parameter is deprecated.")
-        .contains("Status *string");
+        .contains("Status *FindPetsByStatusStatus");
   }
 
   /**

@@ -90,6 +90,17 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 		baseApi: newBaseApi(apiClient, config, authenticator),
 	}
 }
+
+// {{classname}}Interface is the set of operations {{classname}} provides. Depend
+// on it instead of the struct to substitute a fake in your own tests.
+type {{classname}}Interface interface {
+{{#operation}}
+	{{operationId}}(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) ({{#returnType}}{{^vendorExtensions.returnByValue}}*{{/vendorExtensions.returnByValue}}{{{.}}}, {{/returnType}}error)
+	{{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error)
+{{/operation}}
+}
+
+var _ {{classname}}Interface = (*{{classname}})(nil)
 {{#operation}}
 
 {{#summary}}
@@ -101,12 +112,18 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 {{#externalDocs}}
 // See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/externalDocs}}
+//
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
-{{#allParams}}
+{{#pathParams}}
 {{#description}}
 // param {{paramName}}: {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/description}}
-{{/allParams}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+// param {{paramName}}: {{#goLineComment}}{{{description}}}{{/goLineComment}}
+{{/description}}
+{{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
 {{#vendorExtensions.op.hasOptionsParam}}
@@ -117,28 +134,34 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 {{/vendorExtensions.op.hasOptionsParam}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries{{#vendorExtensions.hasMultipleConsumes}} and WithRequestContentType{{/vendorExtensions.hasMultipleConsumes}}.
 {{#allParams}}
 {{#vendorExtensions.pluralExamples}}
 // Example for `{{paramName}}` — {{{summary}}}: {{{value}}}
 {{/vendorExtensions.pluralExamples}}
 {{/allParams}}
+//
+// {{httpMethod}} {{{path}}}
 {{#isDeprecated}}
 //
 // Deprecated: This operation is deprecated.
 {{/isDeprecated}}
-func (a *{{classname}}) {{operationId}}(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
-	result, err := a.{{operationId}}WithHTTPInfo(ctx, {{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType...{{/vendorExtensions.hasMultipleConsumes}})
+func (a *{{classname}}) {{operationId}}(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) ({{#returnType}}{{^vendorExtensions.returnByValue}}*{{/vendorExtensions.returnByValue}}{{{.}}}, {{/returnType}}error) {
+{{#vendorExtensions.returnByValue}}
+	var empty {{{returnType}}}
+{{/vendorExtensions.returnByValue}}
+	result, err := a.{{operationId}}WithHTTPInfo(ctx, {{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}callOptions...)
 	if err != nil {
-		return {{#returnType}}nil, {{/returnType}}err
+		return {{#returnType}}{{#vendorExtensions.returnByValue}}empty{{/vendorExtensions.returnByValue}}{{^vendorExtensions.returnByValue}}nil{{/vendorExtensions.returnByValue}}, {{/returnType}}err
 	}
 {{#returnType}}
 	/* A body-returning operation that receives no decodable body must surface
 	 * a typed ApiError rather than hand back a silent nil / zero-value,
 	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
-		return nil, newEmptyBodyError("{{operationId}}", result.StatusCode, result.RawBody, result.Headers)
+		return {{#vendorExtensions.returnByValue}}empty{{/vendorExtensions.returnByValue}}{{^vendorExtensions.returnByValue}}nil{{/vendorExtensions.returnByValue}}, newEmptyBodyError("{{operationId}}", result.StatusCode, result.RawBody, result.Headers)
 	}
-	return result.Data, nil
+	return {{#vendorExtensions.returnByValue}}*{{/vendorExtensions.returnByValue}}result.Data, nil
 {{/returnType}}
 {{^returnType}}
 	_ = result
@@ -151,7 +174,11 @@ func (a *{{classname}}) {{operationId}}(ctx context.Context, {{#vendorExtensions
 //
 // Deprecated: This operation is deprecated.
 {{/isDeprecated}}
-func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
+func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
 {{#hasAuthMethods}}
 	/* Per-operation auth is sourced from the Options object's Auth field. A nil
 	 * options or a nil Auth falls back to the client's configured credentials. */
@@ -448,7 +475,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 {{/hasFormParams}}
 {{#vendorExtensions.hasMultipleConsumes}}
 	/* This operation declares more than one request Content-Type. The optional
-	 * trailing requestContentType selector lets the caller choose among the
+	 * WithRequestContentType call option lets the caller choose among the
 	 * declared types; when omitted it defaults to the first declared type,
 	 * preserving the historical behaviour of always sending
 	 * "{{vendorExtensions.op.effectiveConsumes}}". An unrecognised selector is
@@ -465,14 +492,11 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 	 */
 	declaredConsumes := []string{ {{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}} }
 	requestContentTypeValue := declaredConsumes[0]
-	if len(requestContentType) > 1 {
-		return nil, fmt.Errorf("at most one request content-type may be given to {{operationId}}, got %d", len(requestContentType))
-	}
-	if len(requestContentType) > 0 {
+	if settings.contentType != nil {
 		matched := false
 		for _, declared := range declaredConsumes {
-			if declared == requestContentType[0] {
-				requestContentTypeValue = requestContentType[0]
+			if declared == *settings.contentType {
+				requestContentTypeValue = *settings.contentType
 				matched = true
 				break
 			}
@@ -480,7 +504,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		if !matched {
 			return nil, fmt.Errorf(
 				"unsupported request content-type %q for {{operationId}}; declared types are %s",
-				requestContentType[0], bracketedList(declaredConsumes))
+				*settings.contentType, bracketedList(declaredConsumes))
 		}
 	}
 {{#hasFormParams}}
@@ -503,6 +527,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
+		settings:     settings,
 		order:        []string{ {{#queryParams}}"{{baseName}}", {{/queryParams}}{{#formParams}}"{{baseName}}", {{/formParams}}},
 		method:       "{{httpMethod}}",
 		path:         path,
@@ -532,6 +557,40 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 
 {{#returnType}}
 	var data {{{.}}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+	/* The operation declares several success responses with different schemas:
+	 * the body is decoded as the schema of the status the server answered with,
+	 * never guessed from its shape, and wrapped in the union. A success status
+	 * the spec does not declare falls back to the union's own decode. */
+	decodeSuccess := func(status int, body []byte, target *{{{returnType}}}) error {
+		switch status {
+{{#vendorExtensions.op.successResponses}}
+{{^isRange}}
+		case {{statusCode}}:
+			var variant {{{returnType}}}
+			if err := deserialize(body, &variant); err != nil {
+				return err
+			}
+			*target = New{{#goVariantName}}{{{returnType}}}{{/goVariantName}}{{{vendorExtensions.op.successUnionType}}}(variant)
+			return nil
+{{/isRange}}
+{{/vendorExtensions.op.successResponses}}
+		}
+{{#vendorExtensions.op.successResponses}}
+{{#isRange}}
+		if status >= 200 && status < 300 {
+			var variant {{{returnType}}}
+			if err := deserialize(body, &variant); err != nil {
+				return err
+			}
+			*target = New{{#goVariantName}}{{{returnType}}}{{/goVariantName}}{{{vendorExtensions.op.successUnionType}}}(variant)
+			return nil
+		}
+{{/isRange}}
+{{/vendorExtensions.op.successResponses}}
+		return deserialize(body, target)
+	}
+{{/vendorExtensions.op.hasMultiple2xx}}
 	/* dataPtr stays nil when the response carried no body, so the convenience
 	 * method can distinguish "no content" from a zero-valued struct and raise
 	 * the typed empty-body ApiError (convenience-empty-body-handling). */
@@ -560,7 +619,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 				/* A binary operation answered with a JSON document (content
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
-			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+			} else if err := {{#vendorExtensions.op.hasMultiple2xx}}decodeSuccess(response.StatusCode, []byte(response.Body), &data){{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}deserialize([]byte(response.Body), &data){{/vendorExtensions.op.hasMultiple2xx}}; err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {

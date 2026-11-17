@@ -257,7 +257,7 @@ func TestPetApi_FindPetsByStatus(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	status := "available"
+	status := options.FindPetsByStatusStatusAvailable
 	result, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if err != nil {
 		t.Fatalf("FindPetsByStatus failed: %v", err)
@@ -271,7 +271,7 @@ func TestPetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	status := "available"
+	status := options.FindPetsByStatusStatusAvailable
 	result, err := api.FindPetsByStatusWithHTTPInfo(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if err != nil {
 		t.Fatalf("FindPetsByStatusWithHTTPInfo failed: %v", err)
@@ -313,7 +313,7 @@ func TestPetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T) {
 
 	// (b) explicit empty value: the bare key "status=" must appear.
 	capturedQuery = ""
-	empty := ""
+	empty := options.FindPetsByStatusStatus("")
 	if _, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &empty}); err != nil {
 		t.Fatalf("FindPetsByStatus with explicit empty status failed: %v", err)
 	}
@@ -361,7 +361,7 @@ func TestPetApi_GetPetSummaryReturnsTheTextPlainBodyVerbatim(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPetSummary failed: %v", err)
 	}
-	if result == nil || *result != "hello world" {
+	if result != "hello world" {
 		t.Errorf("expected the text body %q, got %v", "hello world", result)
 	}
 }
@@ -414,7 +414,7 @@ func TestPetApi_SetPetAvatarRejectsUnknownContentType(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
-	err := api.SetPetAvatar(context.Background(), int64(1), f, "application/unknown-type")
+	err := api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithRequestContentType("application/unknown-type"))
 	if err == nil {
 		t.Fatal("expected an error for an undeclared request content-type, got nil")
 	}
@@ -431,7 +431,7 @@ func TestPetApi_UploadPetDocumentRejectsUnknownContentType(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-document-data")
 
-	_, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: f}, "application/unknown-type")
+	_, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: f}, petstore.WithRequestContentType("application/unknown-type"))
 	if err == nil {
 		t.Fatal("expected an error for an undeclared request content-type, got nil")
 	}
@@ -441,19 +441,15 @@ func TestPetApi_UploadPetDocumentRejectsUnknownContentType(t *testing.T) {
 	}
 }
 
-// The selector is a single optional value; extra ones are rejected rather than
-// silently dropped.
-func TestPetApi_SetPetAvatarRejectsMoreThanOneContentType(t *testing.T) {
+// An invalid per-call option is reported before any request is built.
+func TestPetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
-	err := api.SetPetAvatar(context.Background(), int64(1), f, "image/jpeg", "image/png")
-	if err == nil {
-		t.Fatal("expected an error for two request content-types, got nil")
-	}
-	if err.Error() != "at most one request content-type may be given to SetPetAvatar, got 2" {
-		t.Errorf("unexpected error: %v", err)
+	err := api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithTimeout(0))
+	if !errors.Is(err, petstore.ErrInvalidTimeout) {
+		t.Errorf("expected ErrInvalidTimeout, got %v", err)
 	}
 }
 
@@ -512,11 +508,11 @@ func TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType(t *testing.T)
 // TestPetApi_SetPetAvatarHonoursSelectedRequestContentType is the canonical
 // optional-content-type-selector regression. setPetAvatar declares the request
 // content-types image/jpeg, image/png and application/json. The generated method
-// takes an OPTIONAL trailing requestContentType selector:
+// takes an OPTIONAL WithRequestContentType call option:
 //
-//	(1) Calling SetPetAvatar WITHOUT a selector sends the FIRST declared
+//	(1) Calling SetPetAvatar WITHOUT the option sends the FIRST declared
 //	    content-type (image/jpeg) — backward compatible with prior call sites.
-//	(2) Calling SetPetAvatar with the selector set to "image/png" and the same
+//	(2) Calling SetPetAvatar with the option set to "image/png" and the same
 //	    raw bytes sends Content-Type: image/png (NOT image/jpeg).
 func TestPetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
 	t.Parallel()
@@ -562,7 +558,7 @@ func TestPetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
 
 	// (2) Selector "image/png" -> Content-Type: image/png (NOT image/jpeg).
 	capturedContentType = ""
-	if err := api.SetPetAvatar(context.Background(), int64(1), makeFile(), "image/png"); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), makeFile(), petstore.WithRequestContentType("image/png")); err != nil {
 		t.Fatalf("SetPetAvatar (image/png selector) failed: %v", err)
 	}
 	if capturedContentType != "image/png" {
@@ -589,7 +585,7 @@ func TestPetApi_SetPetAvatarSendsBinaryBytesVerbatimUnderTheJsonSelector(t *test
 	api := newPetApiForMock(t, server)
 	f := newTempFile(t, string(payload))
 
-	if err := api.SetPetAvatar(context.Background(), int64(1), f, "application/json"); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithRequestContentType("application/json")); err != nil {
 		t.Fatalf("SetPetAvatar (application/json selector) failed: %v", err)
 	}
 	if !bytes.Equal(capturedBody, payload) {
@@ -672,7 +668,7 @@ func TestPetApi_UploadPetDocument(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "document-content")
-	docType := "vaccination_record"
+	docType := options.UploadPetDocumentDocumentTypeVaccinationRecord
 	notes := "Annual checkup"
 
 	result, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{
@@ -746,7 +742,7 @@ func TestPetApi_UploadPetDocumentSendsTypedScalarsAsTextParts(t *testing.T) {
 // TestPetApi_UploadPetDocumentOctetStreamSendsRawBytes is the canonical
 // multi-content-type request-body regression. uploadPetDocument declares BOTH
 // multipart/form-data AND application/octet-stream as request content types. The
-// generated method takes an OPTIONAL trailing requestContentType selector:
+// generated method takes an OPTIONAL WithRequestContentType call option:
 //
 //	(1) Selecting application/octet-stream must put the file's RAW BYTES on the
 //	    wire under Content-Type: application/octet-stream — NOT a multipart/form-data
@@ -774,7 +770,7 @@ func TestPetApi_UploadPetDocumentOctetStreamSendsRawBytes(t *testing.T) {
 	api := newPetApiForMock(t, server)
 	f := newTempFile(t, string(payload))
 
-	if _, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: f}, "application/octet-stream"); err != nil {
+	if _, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: f}, petstore.WithRequestContentType("application/octet-stream")); err != nil {
 		t.Fatalf("UploadPetDocument (octet-stream) failed: %v", err)
 	}
 
@@ -1726,17 +1722,41 @@ func TestPetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
 }
 
 // Spec prose reaches the doc comment as written: no HTML entity for a quote,
-// an apostrophe, an ampersand or an angle bracket.
+// an apostrophe, an ampersand or an angle bracket. A positional parameter is
+// documented on the operation; a header, query, form or cookie parameter lives
+// on its Options struct and is documented there only.
 func TestPetApi_ParameterDocsKeepTheSpecProseVerbatim(t *testing.T) {
 	t.Parallel()
 	doc := declDoc(t, "../pkg/pet_api.go", "GetPetSummary")
-	want := `param session: Session token: \"a<b>\" & it's required`
-	if !strings.Contains(doc, want) {
+	if want := "param asOf: Summary date, sent as a matrix-style path segment"; !strings.Contains(doc, want) {
 		t.Errorf("expected the GetPetSummary doc to contain %q, got %q", want, doc)
 	}
+	if strings.Contains(doc, "param session") || strings.Contains(doc, "param days") {
+		t.Errorf("expected the options-struct parameters to be documented on the struct only, got %q", doc)
+	}
+	options := readSourceFile(t, "../pkg/options/get_pet_summary_options.go")
+	want := `Session token: \"a<b>\" & it's required`
+	if !strings.Contains(options, want) {
+		t.Errorf("expected the options struct to contain %q, got %q", want, options)
+	}
 	for _, name := range []string{"#39;", "quot;", "amp;", "lt;", "gt;"} {
-		if entity := "&" + name; strings.Contains(doc, entity) {
-			t.Errorf("expected no %s in the GetPetSummary doc, got %q", entity, doc)
+		if entity := "&" + name; strings.Contains(doc, entity) || strings.Contains(options, entity) {
+			t.Errorf("expected no %s in the GetPetSummary doc or its options, got %q and %q", entity, doc, options)
+		}
+	}
+}
+
+// An operation comment ends with the HTTP method and path, in a paragraph of
+// its own, after the parameter lines.
+func TestPetApi_OperationDocEndsWithTheMethodAndPath(t *testing.T) {
+	t.Parallel()
+	for name, want := range map[string]string{
+		"GetPetById": "\n\nGET /pet/{petId}",
+		"AddPet":     "\n\nPOST /pet",
+	} {
+		doc := declDoc(t, "../pkg/pet_api.go", name)
+		if !strings.Contains(doc, want) {
+			t.Errorf("expected the %s doc to contain the paragraph %q, got %q", name, want, doc)
 		}
 	}
 }

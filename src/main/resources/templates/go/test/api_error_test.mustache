@@ -618,3 +618,53 @@ func TestFromResponse_ParsesScalarAndBomPrefixedBodies(t *testing.T) {
 		}
 	}
 }
+
+// An error that knows its request names it on its own line between the message
+// and the status; the path is shown without a query string or fragment.
+func TestApiError_ErrorNamesTheRequestItAnswers(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(404, "gone", "nope", nil, nil, nil)
+	err.AttachRequest("GET", "/items/7?token=secret#top")
+
+	if got, want := err.Error(), "gone\nRequest: GET /items/7\nHTTP status code: 404\nResponse body: nope"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+	if err.RequestMethod() != "GET" || err.RequestPath() != "/items/7" {
+		t.Errorf("expected GET /items/7, got %s %s", err.RequestMethod(), err.RequestPath())
+	}
+}
+
+func TestApiError_AttachRequestKeepsTheFirstRequestAndIgnoresAnIncompleteOne(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(500, "boom", "", nil, nil, nil)
+	err.AttachRequest("", "/missing-method")
+	err.AttachRequest("GET", "")
+	if err.RequestMethod() != "" || err.RequestPath() != "" {
+		t.Fatalf("expected an incomplete request to be ignored, got %s %s", err.RequestMethod(), err.RequestPath())
+	}
+	err.AttachRequest("PUT", "/first")
+	err.AttachRequest("DELETE", "/second")
+	if err.RequestMethod() != "PUT" || err.RequestPath() != "/first" {
+		t.Errorf("expected the first request to stay, got %s %s", err.RequestMethod(), err.RequestPath())
+	}
+}
+
+func TestApiError_EverySubclassCarriesTheRequest(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{400, 401, 403, 404, 409, 422, 429, 500, 502, 302} {
+		failure := apierrors.FromResponse(status, nil, "")
+		var apiErr *apierrors.ApiError
+		if !errors.As(failure, &apiErr) {
+			t.Fatalf("status %d: expected an *ApiError, got %T", status, failure)
+		}
+		apiErr.AttachRequest("POST", "/items")
+		if !strings.Contains(failure.Error(), "\nRequest: POST /items\n") {
+			t.Errorf("status %d: expected the request in the message, got %q", status, failure.Error())
+		}
+	}
+	network := apierrors.NewNetworkTimeoutError("timed out", nil)
+	network.AttachRequest("GET", "/slow")
+	if !strings.Contains(network.Error(), "\nRequest: GET /slow") {
+		t.Errorf("expected the request on a timeout error, got %q", network.Error())
+	}
+}

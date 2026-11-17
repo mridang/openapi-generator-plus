@@ -2262,6 +2262,132 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra  (With*",
+   "reason": "go copies a model with a value-receiver With<Property> (and Without<Property> for an optional or nullable one), F868: a struct has no builder or copy constructor, and a value receiver is how Go makes a changed copy; client.WithTokenProvider and NewBearerAuthenticatorWithProvider are separate constructors because go has no default arguments or overloads"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra  (As*",
+   "reason": "go has no sum types: a oneOf or anyOf wrapper holds an any, so each variant gets a typed accessor As<Variant>() (v, ok), F878"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra  (Is*",
+   "reason": "go has no sum types: a oneOf or anyOf wrapper holds an any, so each variant gets a typed test Is<Variant>(), F878"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra  (New*",
+   "reason": "go has no sum types and no overloads: the typed factory of a oneOf or anyOf variant is the package-level New<Variant><Union>(v), F878"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra  (All*Values)",
+   "reason": "go cannot enumerate the constants of a named type: the allowed values of an inline enum are listed by an exported All<Enum>Values(), as for a top-level enum, F881"
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "F830 request context: canonical in every SDK, allowed until the other eleven land it in the same pass"
+  },
+  {
+   "element": "apierror.attachrequest",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "go's ApiError fields are unexported and its constructors have a fixed argument list, so the request method and path are recorded by AttachRequest where baseApi builds the error, F830"
+  },
+  {
+   "element": "requestoptions.timeout",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "RequestOptions is go's per-request transport struct; the WithTimeout call option (F827) reaches the transport through its Timeout field"
+  },
+  {
+   "element": [
+    "*.authheadersorerrorcontext",
+    "oauth2tokenmanager.getaccesstokenwithrefreshcontext"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has no exceptions or async: the call context reaches the token request through the context-taking variant of AuthHeadersOrError, which the client prefers (F874, F1053)"
+  },
+  {
+   "element": "*",
+   "aspect": "params",
+   "languages": [
+    "go"
+   ],
+   "value": "*calloptions)",
+   "reason": "go has no optional parameters: per-call options (timeout, headers, retries, request content type) are a trailing variadic RequestOption on every operation, F827 and F842, where the other languages carry them on the per-operation Options object"
+  },
+  {
+   "element": [
+    "petapiinterface",
+    "storeapiinterface"
+   ],
+   "aspect": "type",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has structural interfaces and no mocking framework: each API group also exports an interface with a compile-time assertion that the struct implements it, F879"
+  },
+  {
+   "element": [
+    "requestoption",
+    "tokenprovider",
+    "contextauthenticator"
+   ],
+   "aspect": "type",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has no optional arguments or overloads: a function type carries each per-call option (RequestOption) and the token provider (TokenProvider), and a small interface carries the context-aware authenticator (ContextAuthenticator)"
+  },
+  {
+   "element": [
+    "findpetsbystatusstatus",
+    "uploadpetdocumentdocumenttype"
+   ],
+   "aspect": "type",
+   "languages": [
+    "go"
+   ],
+   "reason": "go types an inline enum query or form parameter as a named type in the options package with a constant per value, as it does for an inline model enum, F876"
   }
  ]
 }

@@ -9,6 +9,8 @@
 
 package auth
 
+import "context"
+
 // ApiHttpResponse represents an HTTP API response.
 //
 // Mirrors the main package's ApiHttpResponse to avoid circular imports.
@@ -33,6 +35,11 @@ type RequestOptions struct {
 	 * 307 / 308 cannot replay the form-encoded `client_secret` /
 	 * `refresh_token` onto an attacker-controlled host. */
 	NoRedirect bool
+
+	/* Context is the context of the API call the request belongs to.
+	 * Cancelling it aborts the request. A nil Context means
+	 * context.Background(). */
+	Context context.Context
 }
 
 // ApiClient is the interface for API HTTP transport, as used by authentication
@@ -102,4 +109,17 @@ type AccessTokenInvalidator interface {
 	 * token, so the next call fetches a new token, with a refresh grant first
 	 * when a refresh token is held. */
 	InvalidateAccessToken()
+}
+
+// ContextAuthenticator is implemented by the authenticators that make HTTP
+// requests to produce their headers (the OAuth2 and OpenID Connect
+// authenticators). The client calls AuthHeadersOrErrorContext with the context
+// of the API call, so cancelling that context also aborts the token request or
+// the discovery request made for it. An authenticator that does not implement
+// it is asked through AuthHeadersOrError, which has no context.
+type ContextAuthenticator interface {
+	/* AuthHeadersOrErrorContext returns the authentication headers, or the
+	 * error that prevented them. The ctx argument is the context of the API
+	 * call. */
+	AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error)
 }

@@ -1725,7 +1725,7 @@ func TestResolveAnyOf_ThrowsOnNoMatch(t *testing.T) {
 
 func TestPriorityEnum_SerializesAsJSONNumber(t *testing.T) {
 	t.Parallel()
-	data, err := serialize(models.PriorityNUMBER_2)
+	data, err := serialize(models.PriorityNumber2)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1743,8 +1743,8 @@ func TestPriorityEnum_DeserializesFromJSONNumber(t *testing.T) {
 	if err := deserialize([]byte("2"), &p); err != nil {
 		t.Fatalf("unexpected error deserializing integer enum: %v", err)
 	}
-	if p != models.PriorityNUMBER_2 {
-		t.Errorf("expected PriorityNUMBER_2, got %v", p)
+	if p != models.PriorityNumber2 {
+		t.Errorf("expected PriorityNumber2, got %v", p)
 	}
 }
 

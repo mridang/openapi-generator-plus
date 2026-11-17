@@ -34,6 +34,30 @@ func (o Error) Equal(other Error) bool {
 	return string(a) == string(b)
 }
 
+// WithCode returns a copy of the model with Code replaced; the receiver is unchanged.
+func (o Error) WithCode(value int32) Error {
+	o.Code = &value
+	return o
+}
+
+// WithoutCode returns a copy of the model with Code left unset; the receiver is unchanged.
+func (o Error) WithoutCode() Error {
+	o.Code = nil
+	return o
+}
+
+// WithMessage returns a copy of the model with Message replaced; the receiver is unchanged.
+func (o Error) WithMessage(value string) Error {
+	o.Message = &value
+	return o
+}
+
+// WithoutMessage returns a copy of the model with Message left unset; the receiver is unchanged.
+func (o Error) WithoutMessage() Error {
+	o.Message = nil
+	return o
+}
+
 // NewError creates a new Error instance.
 func NewError() *Error {
 	return &Error{}
