@@ -119,8 +119,6 @@ describe {{moduleName}}::TransportOptions do
     _({{moduleName}}::TransportOptions.sensitive_header?('Accept')).must_equal false
   end
 
-  it 'a negative timeout raises ArgumentError' do
-
   it 'bhv_options_033 rejects a non-positive timeout with the canonical message' do
     assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-1) }
     err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-5) }
