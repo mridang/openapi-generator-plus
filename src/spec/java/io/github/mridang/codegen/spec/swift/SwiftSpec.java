@@ -28,12 +28,14 @@ interface SwiftSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default List<String> getSetupCommands() {
-    /* The SDK's own docs target runs through make, which the swift image may not ship.
-     * Installed once with the shared container, with retries because the package mirror
-     * is flaky on CI runners. */
+    /* The SDK's own docs target runs through make, which the swift image (Ubuntu noble) does
+     * not ship. Installed once with the shared container at the pinned noble version, with
+     * retries because the package mirror is flaky on CI runners. The DocC tool itself ships
+     * in the image at /usr/bin/docc. */
     return List.of(
         "command -v make > /dev/null || for i in 1 2 3 4 5; do"
-            + " (apt-get update -qq && apt-get install -y -qq make) > /dev/null 2>&1 && break;"
+            + " (apt-get update -qq && apt-get install -y -qq make=4.3-4.1build2) > /dev/null 2>&1"
+            + " && break;"
             + " echo \"apt attempt $i failed; retrying\" >&2; sleep 3; done;"
             + " command -v make > /dev/null || { echo \"make missing after retries\" >&2; exit 1; }",
         "swift package resolve");
