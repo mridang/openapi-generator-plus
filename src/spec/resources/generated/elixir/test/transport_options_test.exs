@@ -11,6 +11,20 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.ca_cert_path == nil
   end
 
+  test "bhv options 052 a proxy URL carrying credentials is accepted" do
+    credentials = "user:" <> "pass"
+    proxy = "http://" <> credentials <> "@proxy.example.com:8080"
+
+    opts = PetstoreClient.TransportOptions.new(proxy: proxy)
+
+    assert opts.proxy == proxy
+
+    assert PetstoreClient.DefaultApiClient.proxy_auth_header(
+             PetstoreClient.DefaultApiClient.new(opts)
+           ) ==
+             "Basic " <> Base.encode64(credentials)
+  end
+
   test "bhv options 032 proxy defaults to null" do
     opts = PetstoreClient.TransportOptions.new()
     assert opts.proxy == nil

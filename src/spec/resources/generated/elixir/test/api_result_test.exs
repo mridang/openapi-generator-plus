@@ -18,6 +18,18 @@ defmodule PetstoreClient.ApiResultTest do
       assert result.headers == %{"content-type" => "application/json"}
     end
 
+    test "bhv results 004 exposes the deserialized data" do
+      result = %ApiResult{status_code: 200, data: %{"id" => 1}}
+
+      assert result.data == %{"id" => 1}
+    end
+
+    test "bhv results 005 exposes the raw response body" do
+      result = %ApiResult{status_code: 200, raw_body: ~s({"id":1})}
+
+      assert result.raw_body == ~s({"id":1})
+    end
+
     test "bhv results 002 exposes the response headers" do
       result = %ApiResult{status_code: 200, headers: %{"content-type" => "application/json"}}
 
