@@ -121,6 +121,16 @@ func (o *EdgeCases) Equal(other *EdgeCases) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o EdgeCases) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "EdgeCases{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithFreeFormAny returns a copy of the model with FreeFormAny replaced; the receiver is unchanged.
 func (o EdgeCases) WithFreeFormAny(value any) EdgeCases {
 	o.FreeFormAny = &value

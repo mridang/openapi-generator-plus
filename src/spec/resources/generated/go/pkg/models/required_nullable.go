@@ -37,6 +37,16 @@ func (o *RequiredNullable) Equal(other *RequiredNullable) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o RequiredNullable) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "RequiredNullable{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithNote returns a copy of the model with Note replaced; the receiver is unchanged.
 func (o RequiredNullable) WithNote(value string) RequiredNullable {
 	o.Note = &value

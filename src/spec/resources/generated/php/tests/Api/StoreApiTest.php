@@ -70,7 +70,7 @@ function newHeaderCapturingStoreApi(): array
     /** @var array<string, string> $headers */
     $headers = [];
     $captured->headers = $headers;
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }
@@ -93,7 +93,7 @@ function newHeaderCapturingStoreApi(): array
 test('bhv operations 148 an operation that inherits the root security uses the first scheme the client holds', function (): void {
     /** @var \ArrayObject<string, mixed> $captured */
     $captured = new \ArrayObject(['headers' => []]);
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
         /** @param \ArrayObject<string, mixed> $captured */
         public function __construct(private \ArrayObject $captured)
         {
@@ -217,7 +217,7 @@ test('bhv operations 126 place order without an argument sends no body', functio
     /** @var \ArrayObject<string, mixed> $captured */
     $captured = new \ArrayObject(['body' => 'unset', 'headers' => []]);
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
         /** @param \ArrayObject<string, mixed> $captured */
         public function __construct(private \ArrayObject $captured)
         {
@@ -669,7 +669,7 @@ test('bhv misc 003 an all optional operation runs with no arguments and sends no
     /** @var \ArrayObject<string, mixed> $captured */
     $captured = new \ArrayObject(['url' => '']);
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
         /** @param \ArrayObject<string, mixed> $captured */
         public function __construct(private \ArrayObject $captured)
         {

@@ -34,8 +34,7 @@ final class StubPsr18Client implements ClientInterface
         $this->requests[] = $request;
         if ($this->responses === []) {
             throw new class ('no stubbed response remaining') extends \RuntimeException implements
-                ClientExceptionInterface
-            {
+                ClientExceptionInterface {
             };
         }
 

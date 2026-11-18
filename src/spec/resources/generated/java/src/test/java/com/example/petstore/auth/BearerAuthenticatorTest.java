@@ -317,4 +317,10 @@ class BearerAuthenticatorTest {
                     .getAuthHeaders());
     assertSame(boom, thrown);
   }
+
+  @Test
+  void bhvMisc190PrintedBearerAuthenticatorHidesTheToken() {
+    String text = new BearerAuthenticator("http://localhost", "super-secret-token").toString();
+    assertFalse(text.contains("super-secret-token"), text);
+  }
 }

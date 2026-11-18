@@ -879,3 +879,19 @@ test('bhv errors 097 an unrecognised 4xx status raises the generic client error'
 
     expect($ex::class)->toBe(\PetstoreClient\Errors\ClientException::class);
 });
+
+test('bhv misc 284 a status with a typed error raises that typed error', function (): void {
+    $cases = [
+        400 => \PetstoreClient\Errors\BadRequestException::class,
+        403 => \PetstoreClient\Errors\ForbiddenException::class,
+        404 => \PetstoreClient\Errors\NotFoundException::class,
+        409 => \PetstoreClient\Errors\ConflictException::class,
+        422 => \PetstoreClient\Errors\UnprocessableEntityException::class,
+        429 => \PetstoreClient\Errors\TooManyRequestsException::class,
+        500 => \PetstoreClient\Errors\InternalServerErrorException::class,
+        502 => \PetstoreClient\Errors\BadGatewayException::class,
+    ];
+    foreach ($cases as $status => $class) {
+        expect(ApiException::fromResponse($status, [], ''))->toBeInstanceOf($class);
+    }
+});

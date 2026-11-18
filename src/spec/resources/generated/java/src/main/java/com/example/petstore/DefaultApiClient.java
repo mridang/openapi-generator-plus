@@ -409,6 +409,16 @@ public final class DefaultApiClient implements ApiClient {
   }
 
   /**
+   * Sends a token-endpoint request: it never follows a redirect, sends no default headers, and is
+   * never retried, so the credentials in the body are sent once.
+   */
+  @Override
+  public ApiHttpResponse sendTokenRequest(
+      String method, String url, Map<String, String> headers, @Nullable Object body) {
+    return send(method, url, headers, body, true, true, null, 0);
+  }
+
+  /**
    * Extended {@code sendRequest} that lets the caller keep the transport's default headers off this
    * single request. OpenID Connect discovery goes to the identity provider, a different origin, so
    * it carries only the SDK's own headers and never the caller's default headers (which may hold
@@ -812,7 +822,9 @@ public final class DefaultApiClient implements ApiClient {
    * HttpRequest} built from the original, so it carries the same headers, authentication included.
    * The wait and the retry draw from the one end-to-end deadline: when the remaining budget cannot
    * cover the wait, the last outcome is returned (or thrown) unchanged, so retrying never extends
-   * the timeout. A timeout, a TLS handshake failure and an interrupt are never retried.
+   * the timeout. A dropped connection is retried only for an idempotent method (RFC 9110 section
+   * 9.2.2), since the server may already have acted on a POST or PATCH. A timeout, a TLS or
+   * certificate failure and an interrupt are never retried.
    */
   private HttpResponse<byte[]> sendWithBackoff(
       HttpRequest request, long deadlineNanos, boolean replayable, int configuredRetries)
@@ -825,10 +837,10 @@ public final class DefaultApiClient implements ApiClient {
       HttpResponse<byte[]> response;
       try {
         response = sendWithRetry(current, deadlineNanos);
-      } catch (HttpTimeoutException | javax.net.ssl.SSLHandshakeException notRetried) {
+      } catch (HttpTimeoutException | javax.net.ssl.SSLException notRetried) {
         throw notRetried;
       } catch (IOException e) {
-        if (attempt >= maxRetries) {
+        if (attempt >= maxRetries || !isIdempotentMethod(current.method())) {
           throw e;
         }
         HttpRequest next =
@@ -1180,11 +1192,24 @@ public final class DefaultApiClient implements ApiClient {
     if (!hasBody) {
       return false;
     }
-    if (statusCode != 307 && statusCode != 308) {
+    if (statusCode == 303) {
       return false;
     }
     return "https".equalsIgnoreCase(originalUri.getScheme())
         && "http".equalsIgnoreCase(redirectUri.getScheme());
+  }
+
+  /**
+   * Whether a dropped connection may be retried for this method: GET, HEAD, OPTIONS, TRACE, PUT,
+   * DELETE and QUERY are safe to send again, while POST and PATCH are not.
+   */
+  static boolean isIdempotentMethod(String method) {
+    switch (method.toUpperCase(java.util.Locale.ROOT)) {
+      case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY":
+        return true;
+      default:
+        return false;
+    }
   }
 
   private static final Pattern CHARSET_PATTERN =

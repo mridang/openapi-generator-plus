@@ -16,6 +16,16 @@ import 'package:petstore_client/src/object_serializer.dart' show stringify;
 void main() {
   group('ValueSerializer', () {
     test(
+      'bhv misc 250 array items containing a comma keep the literal comma in the path style',
+      () {
+        expect(
+          serializeValue(['a,b', 'c'], 'path', 'array', 'csv'),
+          equals('a,b,c'),
+        );
+      },
+    );
+
+    test(
       'bhv misc 232 a string path parameter in the simple style percent-encodes slashes',
       () {
         expect(serializeValue('a/b', 'path', 'string', ''), equals('a%2Fb'));
@@ -1600,6 +1610,36 @@ void main() {
         expect(
           serializeValue('hello world', 'path', 'string', ''),
           equals('hello%20world'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 109 a string path parameter is percent-encoded exactly once',
+      () {
+        expect(serializeValue('a%b', 'path', 'string', ''), equals('a%25b'));
+      },
+    );
+
+    test(
+      'bhv serialization 110 an absent value is sent as an empty path value and as null in the query',
+      () {
+        expect(serializeValue(null, 'path', 'string', ''), equals(''));
+        expect(serializeValue(null, 'query', 'string', ''), isNull);
+      },
+    );
+
+    test(
+      'bhv serialization 118 a date-time query parameter keeps its full time and offset',
+      () {
+        expect(
+          serializeValue(
+            DateTime.utc(2024, 1, 15, 13, 45, 30),
+            'query',
+            'string',
+            '',
+          ),
+          equals('2024-01-15T13:45:30.000+00:00'),
         );
       },
     );
