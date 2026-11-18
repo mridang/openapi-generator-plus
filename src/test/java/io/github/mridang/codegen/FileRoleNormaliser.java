@@ -126,6 +126,7 @@ final class FileRoleNormaliser {
     ALIASES.put("ruby", rubyAliases);
     Map<String, String> csharpAliases = new LinkedHashMap<>();
     csharpAliases.put("notimplementedstatus", "notimplemented");
+    csharpAliases.put("notimplementedstatusexception", "notimplementedexception");
     ALIASES.put("csharp", csharpAliases);
 
     Map<String, String> shared = new LinkedHashMap<>();
