@@ -2590,13 +2590,42 @@ void main() {
       },
     );
 
-    test('an int64 above 2^53 keeps every digit', () {
-      final order = deserialize<Order>(
-        '{"id":9007199254740993}',
-        Order.fromJson,
-      );
+    test(
+      'bhv serializationobject 191 an int64 above 2^53 keeps every digit',
+      () {
+        final order = deserialize<Order>(
+          '{"id":9007199254740993}',
+          Order.fromJson,
+        );
 
-      expect(order!.id.toString(), equals('9007199254740993'));
-    });
+        expect(order!.id.toString(), equals('9007199254740993'));
+      },
+    );
+
+    test(
+      'bhv serializationobject 190 a long is stringified to its exact decimal digits',
+      () {
+        expect(stringify(9007199254740993), equals('9007199254740993'));
+      },
+    );
+
+    test(
+      'bhv serializationobject 192 an unknown enum string fails at decode',
+      () {
+        expect(
+          () => deserialize<StockItem>(
+            '{"priority":1,"availability":"NotAStatus"}',
+            StockItem.fromJson,
+          ),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              contains('NotAStatus'),
+            ),
+          ),
+        );
+      },
+    );
   });
 }

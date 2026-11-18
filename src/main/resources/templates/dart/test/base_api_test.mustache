@@ -87,6 +87,7 @@ class _ScriptedApiClient implements RetryingApiClient {
 
   final List<Object> script;
   final List<Map<String, String>> sentHeaders = [];
+  final List<Object?> sentBodies = [];
   final List<int?> sentTimeouts = [];
 
   @override
@@ -106,6 +107,7 @@ class _ScriptedApiClient implements RetryingApiClient {
     bool noDefaultHeaders = false,
   }) async {
     sentHeaders.add(Map<String, String>.from(headers));
+    sentBodies.add(body);
     sentTimeouts.add(timeout);
     final next = script.removeAt(0);
     if (next is ApiHttpResponse) {
@@ -2823,6 +2825,17 @@ void main() {
       expect(auth.invalidations, equals(0));
     });
 
+    test('bhv errors 071 a 401 response surfaces as an unauthorized error', () async {
+      final client = _ScriptedApiClient([_reply(401)]);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+    });
+
     test('bhv retries 007 a 403 is not replayed and keeps the token', () async {
       final auth = _RotatingAuth();
       final client = _ScriptedApiClient([_reply(403), _reply(200)]);
@@ -3056,7 +3069,7 @@ void main() {
       expect(client.sentHeaders, hasLength(2));
     });
 
-    test('a network error is reported once the retries are used up', () async {
+    test('bhv retries 033 the last network error is reported once the retries are used up', () async {
       final client = _ScriptedApiClient([
         const NetworkException(message: 'a'),
         const NetworkException(message: 'b'),
@@ -3148,6 +3161,76 @@ void main() {
         expect(requests, equals(1));
       } finally {
         await server.close();
+      }
+    });
+
+    test('bhv retries 030 the backoff jitter takes at most a quarter off the delay', () async {
+      final client = _ScriptedApiClient([_reply(503), _reply(200)], maxRetries: 1);
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
+    });
+
+    test('bhv retries 034 a string body is sent again unchanged on every retry', () async {
+      final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(
+        method: 'POST',
+        path: '/x',
+        body: 'payload',
+        rawBody: true,
+      );
+
+      expect(
+        client.sentBodies.map((b) => utf8.decode(b as Uint8List)),
+        equals(['payload', 'payload']),
+      );
+    });
+
+    test('bhv retries 038 a 503 is sent again until it succeeds', () async {
+      final client = _ScriptedApiClient([_reply(503), _reply(503), _reply(200)]);
+      final api = _RecordingApi(client);
+
+      final response = await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(response.statusCode, equals(200));
+      expect(client.sentHeaders, hasLength(3));
+    });
+
+    test('bhv retries 039 every retry is a fresh request that carries the same authentication headers again', () async {
+      final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+      final api = _RecordingApi(
+        client,
+        authenticator: _BaseApiAuth(headers: {'Authorization': 'Bearer abc'}),
+      );
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(client.sentHeaders, hasLength(2));
+      expect(client.sentHeaders.map((h) => h['Authorization']),
+          equals(['Bearer abc', 'Bearer abc']));
+    });
+
+    test('bhv retries 041 the retry backoff starts at 0.5 s, doubles up to 8 s and has up to 25% jitter taken off', () async {
+      final client = _ScriptedApiClient(
+        <Object>[for (var i = 0; i < 6; i++) _reply(503), _reply(200)],
+        maxRetries: 6,
+      );
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      final bases = [500, 1000, 2000, 4000, 8000, 8000];
+      expect(api.waits, hasLength(bases.length));
+      for (var i = 0; i < bases.length; i++) {
+        expect(
+          api.waits[i].inMilliseconds,
+          inInclusiveRange((bases[i] * 0.75).round(), bases[i]),
+          reason: 'retry ${i + 1}',
+        );
       }
     });
 

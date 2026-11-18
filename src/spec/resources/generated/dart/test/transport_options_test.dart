@@ -314,6 +314,15 @@ void main() {
       },
     );
 
+    test('bhv options 052 a proxy URL carrying credentials is accepted', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('http://user:pass@proxy.test:3128')
+          .build();
+
+      expect(opts.proxy, isNotNull);
+      expect(opts.proxy!.userInfo, equals('user:pass'));
+    });
+
     test('bhv options 024 invalid proxy URL throws exception', () {
       expect(
         () => TransportOptionsBuilder().proxy('not a valid url').build(),

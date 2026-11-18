@@ -41,6 +41,29 @@ void main() {
       expect(result.headers, isEmpty);
     });
 
+    test('bhv results 004 exposes the deserialized data', () {
+      final data = {'id': 1, 'name': 'example'};
+      final result = ApiResult<Map<String, Object?>>(
+        statusCode: 200,
+        data: data,
+        rawBody: '{"id":1,"name":"example"}',
+        headers: {},
+      );
+
+      expect(result.data, equals(data));
+    });
+
+    test('bhv results 005 exposes the raw response body', () {
+      final result = ApiResult<String>(
+        statusCode: 200,
+        data: 'payload',
+        rawBody: '{"value":"payload"}',
+        headers: {},
+      );
+
+      expect(result.rawBody, equals('{"value":"payload"}'));
+    });
+
     test('ApiHttpResponse headers are an unmodifiable copy', () {
       final source = {'content-type': 'text/plain'};
       final response = ApiHttpResponse(
