@@ -85,6 +85,12 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - An optional nullable property cannot tell "absent" from "null" on the way out: both are left out of the request body.
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope. OpenAPI 3.1 support is tracked in epic #96, and 3.2 in epic #49 (the pinned swagger-parser rejects 3.2 documents, #50).
 
+## Comparison with Orval
+
+Orval generates code for application frameworks: query hooks for React, Vue, Svelte, Solid and Angular, Zod and Valibot schemas, and MSW and faker mocks. This project generates a framework-free client that runs in Node.js and in the browser, with no dependency on a UI framework, a schema library or a mock server.
+
+Most of Orval's framework-specific output has no consumer in a client SDK, so it is declined. The feature-by-feature verdicts are in [the Orval comparison](../comparisons/orval.md).
+
 ## Under review
 
 These are ideas from a review of the type mapping against current Node and TypeScript. None is decided, and none changes what the SDK does today.

@@ -123,6 +123,10 @@ Constructors and `Default` never validate. A wrong value or an unknown enum stri
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
 
+## Comparison
+
+A comparison with progenitor, the Rust OpenAPI generator, is tracked in issue [#134](https://github.com/mridang/openapi-generator-plus/issues/134). It has not been done yet, so this page records no verdict on progenitor. The result will be added here when the comparison is written.
+
 ## Under review
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.

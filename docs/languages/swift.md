@@ -99,6 +99,10 @@ Response bodies are decoded by `URLSession`, with a bundled inflater for gzip an
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
 
+## Comparison
+
+A comparison with swift-openapi-generator is tracked in issue [#153](https://github.com/mridang/openapi-generator-plus/issues/153). It has not been done yet, so this page records no verdict on swift-openapi-generator. The result will be added here when the comparison is written.
+
 ## Under review
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.

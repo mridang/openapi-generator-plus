@@ -87,6 +87,14 @@ HTTP is the standard library. Other requirements in the manifest are for the gen
 - SOCKS proxies are not supported.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
 
+## Comparison with ogen
+
+ogen is a Go OpenAPI v3 generator that produces a typed client and a typed server. This project generates client SDKs only, so it has no server, no router and no webhook support, because a client SDK does not need them.
+
+We differ from ogen on purpose in three ways. A declared error response is returned as a typed error, never as a value with a nil error, so one `err != nil` check sees every failed call. Names come from the generator's fixed rules, so an operation has the same name in all twelve SDKs. Go has no generator options of its own, so every option is the same in all twelve SDKs.
+
+The full feature-by-feature comparison, with the evidence from running ogen, is in [the ogen comparison](../comparisons/ogen.md).
+
 ## Under review
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
