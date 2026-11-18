@@ -6528,4 +6528,167 @@ public sealed class MultipartShadeConverter
         public override void Write(byte[] buffer, int offset, int count) =>
             throw new NotSupportedException();
     }
+
+    [Fact]
+    public async Task BhvSerialization120AMultipartFileWithAnUnknownExtensionIsOctetStream()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "file.xyzzy", new byte[] { 0x01, 0x02 } },
+        };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "Content-Type: application/octet-stream",
+            wireText,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvSerialization121AModelPartUsesItsWireNamesAndTheDateTimeFormat()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            {
+                "meta",
+                new EdgeCases { ExpiresAt = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero) }
+            },
+        };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "\"expiresAt\":\"2026-01-02T03:04:05.000+00:00\"",
+            wireText,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("Content-Type: application/json", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization123AFieldNameWithANulCharacterIsRejectedBeforeAnyRequest()
+    {
+        var handler = new SequenceHandler(_ => Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "a\0b", "value" } };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("http://example.com/resource/1/files"),
+                new Dictionary<string, string>(),
+                formData
+            )
+        );
+
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public void BhvSerialization124ANonAsciiFilenameKeepsAnRfc5987Form()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("naïve.txt");
+        Assert.Contains("filename*=UTF-8''na%C3%AFve.txt", directive, StringComparison.Ordinal);
+        Assert.StartsWith("filename=\"na_ve.txt\"", directive, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization126ANonAsciiMultipartFieldNameIsUtf8InThePartHeader()
+    {
+        byte[]? wireBytes = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireBytes = await req.Content!.ReadAsByteArrayAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "nomé", new byte[] { 0x78 } } };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireBytes);
+        Assert.Contains(
+            "name=\"nomé\"",
+            Encoding.UTF8.GetString(wireBytes!),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvSerialization127APrimitiveMultipartPartIsPlainTextInCanonicalForm()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "count", 3 } };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains("\r\n\r\n3\r\n", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization119ABodyDecodesWithItsDeclaredCharsetAndFallsBackToUtf8()
+    {
+        Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+        async Task<string?> Decode(byte[] bytes, string contentType)
+        {
+            var handler = new RawByteHandler(HttpStatusCode.OK, bytes, contentType);
+            var client = new DefaultApiClient(new HttpClient(handler));
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/charset"),
+                new Dictionary<string, string>(),
+                null
+            );
+            return response.Body;
+        }
+
+        Assert.Equal("é", await Decode(new byte[] { 0xE9 }, "text/plain; charset=ISO-8859-1"));
+        Assert.Equal("héllo", await Decode(Encoding.UTF8.GetBytes("héllo"), "text/plain"));
+        Assert.Equal(
+            "héllo",
+            await Decode(Encoding.UTF8.GetBytes("héllo"), "text/plain; charset=not-a-real-charset")
+        );
+    }
 }

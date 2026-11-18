@@ -3715,4 +3715,158 @@ public static class ObjectSerializerTest
         }
     }
 
+    public class WireDecodingAndEncodingTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void BhvSerialization095AnExplicitNullOnTheWireReplacesTheDefault()
+        {
+            var decoded = _serializer.Deserialize<Defaults>("{\"label\":null}");
+            Assert.NotNull(decoded);
+            Assert.Null(decoded!.Label);
+        }
+
+        [Fact]
+        public void BhvSerialization096AnAbsentFieldDecodesToItsDeclaredDefault()
+        {
+            var decoded = _serializer.Deserialize<Defaults>("{}");
+            Assert.NotNull(decoded);
+            Assert.Equal(3, decoded!.Retries);
+        }
+
+        [Fact]
+        public void BhvSerialization097AnEnumDefaultIsWrittenWhenTheFieldIsSerialized()
+        {
+            var order = _serializer.Deserialize<Order>("{\"id\":10,\"petId\":198772}")!;
+            using var document = System.Text.Json.JsonDocument.Parse(_serializer.Serialize(order));
+            Assert.Equal("placed", document.RootElement.GetProperty("status").GetString());
+        }
+
+        [Fact]
+        public void BhvSerialization098AnUnsetOptionalFieldIsOmittedAtDepth()
+        {
+            var json = _serializer.Serialize(new Dictionary<string, object?>
+            {
+                ["current"] = new Category { Name = "Dogs" },
+            });
+            using var document = System.Text.Json.JsonDocument.Parse(json);
+            var current = document.RootElement.GetProperty("current");
+            Assert.False(current.TryGetProperty("id", out _));
+            Assert.Equal("Dogs", current.GetProperty("name").GetString());
+        }
+
+        [Fact]
+        public void BhvSerialization099AStrictModelRejectsAnUndeclaredKeyAndAPlainModelDropsIt()
+        {
+            const string json = "{\"id\":1,\"name\":\"x\",\"unexpected\":true}";
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<StrictTag>(json));
+            Assert.Equal(1L, _serializer.Deserialize<Category>(json)!.Id);
+        }
+
+        [Fact]
+        public void BhvSerialization100EveryDeclaredFieldOfAValidPayloadDecodes()
+        {
+            var order = _serializer.Deserialize<Order>(
+                "{\"id\":1,\"petId\":2,\"quantity\":3,\"status\":\"placed\"}")!;
+            Assert.Equal(1L, order.Id);
+            Assert.Equal(2L, order.PetId);
+            Assert.Equal(3, order.Quantity);
+            Assert.Equal(Order.StatusEnum.Placed, order.Status);
+        }
+
+        [Fact]
+        public void BhvSerialization101AnIntegerEnumIsWrittenAsANumberAndDecodesBack()
+        {
+            Assert.Equal("2", _serializer.Serialize(Priority.Number2));
+            Assert.Equal(Priority.Number2, _serializer.Deserialize<Priority>("2"));
+        }
+
+        [Fact]
+        public void BhvSerialization102ADateTimeKeepsItsOffsetAndAZuluTimestampDecodesToTheSameInstant()
+        {
+            var zulu = _serializer.Deserialize<Metadata>("{\"createdAt\":\"2024-01-01T00:00:00Z\"}");
+            Assert.Equal(new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), zulu!.CreatedAt);
+
+            var offset = _serializer.Deserialize<Metadata>("{\"createdAt\":\"2024-01-01T02:00:00+02:00\"}");
+            Assert.Equal(TimeSpan.FromHours(2), offset!.CreatedAt!.Value.Offset);
+            Assert.Contains("+02:00", _serializer.Serialize(offset), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerialization103AMalformedBodyErrorDescribesTheDocument()
+        {
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{\"a\":"));
+            Assert.False(string.IsNullOrWhiteSpace(ex.Message));
+        }
+
+        [Fact]
+        public void BhvSerialization104AnUpperCaseUuidDecodesAndIsWrittenLowercase()
+        {
+            var order = _serializer.Deserialize<Order>("{\"trackingId\":\"3F2504E0-4F89-11D3-9A0C-0305E82C3301\"}")!;
+            Assert.Equal(Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3301"), order.TrackingId);
+            Assert.Contains("3f2504e0-4f89-11d3-9a0c-0305e82c3301", _serializer.Serialize(order), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerialization105AnEnumValueWithTheWrongCaseRaises()
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Order>("{\"status\":\"PLACED\"}"));
+        }
+
+        [Fact]
+        public void BhvSerialization112APasswordIsMaskedInPrintableFormsButNotOnTheWire()
+        {
+            var account = new Account { Password = "p-secret-value" };
+            Assert.DoesNotContain("p-secret-value", account.ToString(), StringComparison.Ordinal);
+            Assert.Contains("\"password\":\"p-secret-value\"", _serializer.Serialize(account), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerialization113AStringPassesThroughWithoutNormalisingItsForm()
+        {
+            Assert.Equal("é", ObjectSerializer.Stringify("é"));
+        }
+
+        [Fact]
+        public void BhvSerialization114NumericValuesKeepEveryDigitWhenSerialized()
+        {
+            Assert.Contains("9223372036854775807", _serializer.Serialize(new Order { Id = long.MaxValue }), StringComparison.Ordinal);
+            Assert.Contains("0.1234567890123456789", _serializer.Serialize(new Defaults { Ratio = 0.1234567890123456789m }), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerialization115AnIntegralJsonNumberDecodesIntoAFloatingPointField()
+        {
+            var food = _serializer.Deserialize<DryFood>("{\"foodType\":\"dry\",\"weightKg\":5}")!;
+            Assert.Equal(5.0, food.WeightKg);
+        }
+
+        [Fact]
+        public void BhvSerialization116AKeywordPropertyKeepsItsExactWireKey()
+        {
+            var edge = _serializer.Deserialize<EdgeCases>("{\"and\":true,\"class\":\"economy\"}")!;
+            Assert.True(edge.And);
+            Assert.Equal("economy", edge.Class);
+            var json = _serializer.Serialize(edge);
+            Assert.Contains("\"and\":true", json, StringComparison.Ordinal);
+            Assert.Contains("\"class\":\"economy\"", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerialization117AProtobufDurationDecodesAsAPropertyAndAsAStandaloneValue()
+        {
+            var edge = _serializer.Deserialize<EdgeCases>("{\"retryAfter\":\"3600s\"}")!;
+            Assert.Equal(TimeSpan.FromHours(1), edge.RetryAfter);
+            Assert.Equal(TimeSpan.FromHours(1), ObjectSerializer.Parse("3600s"));
+        }
+
+        [Fact]
+        public void BhvSerialization130AFailedSerializeReportsTheCanonicalPrefix()
+        {
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Serialize(double.NaN));
+            Assert.StartsWith("Failed to serialize object to JSON: ", ex.Message, StringComparison.Ordinal);
+        }
+    }
+
 }
