@@ -516,6 +516,15 @@ class StoreApiTest {
   }
 
   @Test
+  void bhvMisc048ASuccessStatusNoRowNamesDecodesAsTheUnionReturnType() throws Exception {
+    String both =
+        "{\"reservationId\":1,\"quantity\":2,\"receiptCode\":\"rcpt-1\","
+            + "\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+
+    assertThat(newStoreApiForMock(202, "application/json", both).reserveStock()).isNotNull();
+  }
+
+  @Test
   void bhvOperations126PlaceOrderWithoutAnArgumentSendsNoBody() throws Exception {
     Object[] capturedBody = new Object[] {"unset"};
     ApiClient recording =
