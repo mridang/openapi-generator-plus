@@ -337,6 +337,27 @@ class TestMachineAuthWrapper:
         )
         assert auth.get_host() == "https://api.example.com"
 
+    def test_bhv_misc_063_the_token_request_goes_to_the_declared_token_url(
+        self,
+    ) -> None:
+        from petstore_client.auth.oauth.machine_auth_client_credentials_authenticator import (
+            MachineAuthClientCredentialsAuthenticator,
+        )
+
+        auth = MachineAuthClientCredentialsAuthenticator(
+            "https://api.example.com", "cid", "sec"
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = _reply_token()
+        auth.set_api_client(mock_client)
+
+        auth.get_auth_headers()
+
+        assert (
+            mock_client.send_request.call_args[0][1]
+            == "https://auth.example.com/oauth/token"
+        )
+
 
 class TestClientCredentialsRedactedRepr:
     def test_bhv_authoauthtwoclientcred_014_repr_lists_the_non_secret_fields_and_masks_the_secret(

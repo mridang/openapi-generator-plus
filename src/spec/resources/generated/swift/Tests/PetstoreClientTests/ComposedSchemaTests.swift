@@ -635,4 +635,28 @@ import Testing
     let json = try ObjectSerializer.serialize(DryFood(foodType: "custom", weightKg: 1))
     #expect(json.contains("\"foodType\":\"custom\""))
   }
+
+  /* A payload that fails its variant's schema, by a missing field or a wrong type, is not accepted as that variant. */
+  @Test(arguments: [
+    "{\"foodType\":\"dry\"}",
+    "{\"foodType\":\"dry\",\"weightKg\":\"heavy\"}",
+  ])
+  func testBhvMisc045AVariantPayloadThatFailsItsSchemaIsRejected(json: String) {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: PetFood.self)
+    }
+  }
+
+  /* Union values holding equal content compare and hash equal; different content compares unequal. */
+  @Test func testBhvMisc046EqualContentComparesEqualAndDifferentContentDoesNot() throws {
+    let first = try JSONDecoder().decode(
+      PetTreatment.self, from: Data("{\"drugName\":\"Amoxicillin\"}".utf8))
+    let second = try JSONDecoder().decode(
+      PetTreatment.self, from: Data("{\"drugName\":\"Amoxicillin\"}".utf8))
+    let other = try #require(
+      PetTreatment([Surgery(procedureName: "Spay", notes: "from-surgery")]))
+    #expect(first == second)
+    #expect(first.hashValue == second.hashValue)
+    #expect(first != other)
+  }
 }

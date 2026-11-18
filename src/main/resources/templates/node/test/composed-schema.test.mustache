@@ -428,6 +428,13 @@ describe('Composed Schema', () => {
     expect(a.equals(b)).toBe(true);
     expect(a.equals(other)).toBe(false);
   });
+  test('bhv misc 046 oneOf: wrappers with equal content are equal and different content is unequal', () => {
+    const a = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
+    const b = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
+    const c = ObjectSerializer.deserialize({ foodType: 'wet', volumeMl: 400 }, PetFood)!;
+    expect(a.equals(b)).toBe(true);
+    expect(a.equals(c)).toBe(false);
+  });
   test('bhv unions 034 oneOf: a wrapper typed accessor returns the held variant and nothing for the other', () => {
     const food = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
 

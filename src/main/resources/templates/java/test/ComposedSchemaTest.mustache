@@ -94,6 +94,33 @@ class ComposedSchemaTest {
     }
 
     @Test
+    void bhvMisc045APayloadFailingAVariantSchemaIsNotAcceptedAsThatVariant() {
+        for (String json : java.util.List.of(
+                "{\"foodType\":3,\"weightKg\":2.5}",
+                "{\"FoodType\":\"dry\",\"weightKg\":2.5}",
+                "{\"foodType\":\"fish\",\"weightKg\":2.5}",
+                "{\"foodType\":\"dry\"}")) {
+            assertThrows(SerializationException.class, () -> serializer.deserialize(json, PET_FOOD_TYPE));
+        }
+    }
+
+    @Test
+    void bhvMisc046UnionsWithEqualContentAreEqualAndHashEqually() {
+        {{modelPackage}}.Medication aspirin = Objects.requireNonNull(
+                serializer.deserialize("{\"drugName\":\"aspirin\"}", {{modelPackage}}.Medication.class));
+        {{modelPackage}}.Medication otherAspirin = Objects.requireNonNull(
+                serializer.deserialize("{\"drugName\":\"aspirin\"}", {{modelPackage}}.Medication.class));
+        {{modelPackage}}.Medication ibuprofen = Objects.requireNonNull(
+                serializer.deserialize("{\"drugName\":\"ibuprofen\"}", {{modelPackage}}.Medication.class));
+        {{modelPackage}}.PetTreatment first = {{modelPackage}}.PetTreatment.ofMedication(aspirin);
+        {{modelPackage}}.PetTreatment second = {{modelPackage}}.PetTreatment.ofMedication(otherAspirin);
+        {{modelPackage}}.PetTreatment other = {{modelPackage}}.PetTreatment.ofMedication(ibuprofen);
+        assertThat(second).isEqualTo(first);
+        assertThat(second.hashCode()).isEqualTo(first.hashCode());
+        assertThat(other).isNotEqualTo(first);
+    }
+
+    @Test
     void bhvUnions038UndecodableUnionBodyRaisesTheSerializationError() {
         assertThrows(SerializationException.class,
                 () -> serializer.deserialize("[1, 2]", PET_TREATMENT_TYPE));
