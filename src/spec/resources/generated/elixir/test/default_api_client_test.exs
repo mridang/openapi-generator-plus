@@ -636,6 +636,60 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert json["body"] == ""
   end
 
+  test "bhv misc 173 a streamed body is replayed across an https to http redirect only when it is empty" do
+    https = "https://example.com/x"
+    http = "http://example.com/x"
+
+    assert PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, "payload")
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, "")
+  end
+
+  test "bhv misc 226 with redirect following enabled a 302 is followed to its target and the final 200 is returned" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/redirect/302",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+  end
+
+  test "bhv misc 223 a redirect that turns the follow-up into a GET drops the body and its Content-Length" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true, max_redirects: 5)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{chasm_url}/test/redirect/303",
+        %{"Content-Type" => "application/json"},
+        "hello-body"
+      )
+
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
+    assert json["body"] == ""
+    refute Map.has_key?(json["headers"], "content-length")
+  end
+
+  test "bhv misc 237 an ISO-8859-1 error body decodes to UTF-8 text" do
+    assert PetstoreClient.DefaultApiClient.decode_text_body(
+             <<0xE9>>,
+             "text/plain; charset=ISO-8859-1"
+           ) == "é"
+  end
+
   # Gap N1 (canonical 302 case): a 302 carrying a body over an https->http hop
   # must PROCEED, never be refused — RFC 7231 §6.4.3 switches the follow-up to
   # GET and drops the body, so there is nothing to leak in cleartext. node was

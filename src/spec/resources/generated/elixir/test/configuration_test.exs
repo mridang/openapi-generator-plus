@@ -215,6 +215,17 @@ defmodule PetstoreClient.ConfigurationTest do
     end
   end
 
+  test "bhv misc 180 the inspect form shows the values of default headers whose names are not sensitive" do
+    config =
+      PetstoreClient.Configuration.new(
+        default_headers: %{"X-Trace-Mode" => "verbose", "Authorization" => "Bearer hide-me"}
+      )
+
+    shown = inspect(config)
+    assert shown =~ "verbose"
+    refute shown =~ "hide-me"
+  end
+
   test "bhv config 015 inspect masks sensitive default headers" do
     config =
       PetstoreClient.Configuration.new(

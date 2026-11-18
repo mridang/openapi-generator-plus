@@ -113,6 +113,10 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert result == "2024-01-01T12:30:45.000+00:00"
     end
 
+    test "bhv misc 245 a time of day in a plain object is serialized as a JSON string" do
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:11:12]) == "10:11:12"
+    end
+
     test "bhv serializationobject 044 date-only serializes as ISO 8601 date without time component" do
       d = ~D[2024-01-01]
       result = PetstoreClient.ObjectSerializer.stringify(d)
