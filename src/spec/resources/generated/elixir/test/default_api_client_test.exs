@@ -22,6 +22,29 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert json["method"] == "GET"
   end
 
+  test "bhv transport 082 a client built with default configuration or only a timeout completes the request" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    for transport <- [
+          PetstoreClient.TransportOptions.new(),
+          PetstoreClient.TransportOptions.new(timeout: 5_000)
+        ] do
+      client = PetstoreClient.DefaultApiClient.new(transport)
+
+      response =
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{chasm_url}/test/echo",
+          %{},
+          nil
+        )
+
+      assert response.status_code == 200
+      assert Jason.decode!(response.body)["method"] == "GET"
+    end
+  end
+
   test "bhv transport 017 makes HTTPS request with custom CA cert" do
     chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
     ca_cert_path = System.fetch_env!("CA_CERT_PATH")

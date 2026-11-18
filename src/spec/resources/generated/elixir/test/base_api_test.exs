@@ -3381,6 +3381,30 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert {:ok, %PetstoreClient.Models.Tag{}} = decode_as(return_type, 201)
   end
 
+  test "bhv unions 036 the status code selects the variant, and a body that does not fit it raises a serialization error" do
+    return_type = {"Tag", [{"200", "Category"}, {"201", "Tag"}]}
+    Process.put(:two_success_answer, {201, "{"})
+
+    state = %{
+      config: PetstoreClient.Configuration.new(base_url: "http://localhost"),
+      api_client: TwoSuccessApiClient
+    }
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/things",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        return_type
+      )
+    end
+  end
+
   test "bhv retries 007 a status outside the retry set is not replayed" do
     for status <- [200, 301, 400, 401, 404, 422, 501, 600] do
       refute PetstoreClient.Api.BaseApi.retryable_status?(status)
