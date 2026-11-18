@@ -71,7 +71,7 @@ import javax.annotation.Nullable;
  * spelling here, because the accessor is public API and every other SDK
  * spells it the same way. */
 @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
-public final class {{clientClassName}} implements AutoCloseable {
+public final class {{clientClassName}} implements {{clientClassName}}Interface {
 
     private final ApiClient apiClient;
 
@@ -213,6 +213,23 @@ public final class {{clientClassName}} implements AutoCloseable {
         }
     }
 
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /**
+     * Returns the API operations of the {{classname}} group, the interface form of the
+     * {@link #{{clientPropertyName}}} field.
+     *
+     * @return the group
+     */
+    @Override
+    public {{classname}} get{{clientAccessorSuffix}}() {
+        return {{clientPropertyName}};
+    }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
     /**
      * Closes the client gracefully. The first call marks it closed and returns at once; requests
      * already in flight finish, and the HTTP stack the SDK built is released when the last of

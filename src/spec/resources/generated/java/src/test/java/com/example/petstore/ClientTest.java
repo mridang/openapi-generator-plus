@@ -11,6 +11,7 @@ package com.example.petstore;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -271,5 +272,222 @@ class ClientTest {
     for (String token : new String[] {"abc\r\ndef", "töken"}) {
       assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator("/api/v3", token));
     }
+  }
+
+  @Test
+  void bhvMocking001EveryGroupHasAnInterfaceTheClassImplements() {
+    assertTrue(
+        com.example.petstore.api.PetApiInterface.class.isAssignableFrom(
+            com.example.petstore.api.PetApi.class));
+    java.util.Set<String> petListed = new java.util.HashSet<>();
+    for (java.lang.reflect.Method method :
+        com.example.petstore.api.PetApiInterface.class.getMethods()) {
+      petListed.add(method.getName());
+    }
+    assertTrue(petListed.contains("addPet"));
+    assertTrue(petListed.contains("addPetWithHttpInfo"));
+    assertTrue(petListed.contains("addPetPhotos"));
+    assertTrue(petListed.contains("addPetPhotosWithHttpInfo"));
+    assertTrue(petListed.contains("addPetTreatment"));
+    assertTrue(petListed.contains("addPetTreatmentWithHttpInfo"));
+    assertTrue(petListed.contains("deletePet"));
+    assertTrue(petListed.contains("deletePetWithHttpInfo"));
+    assertTrue(petListed.contains("downloadPetDocument"));
+    assertTrue(petListed.contains("downloadPetDocumentWithHttpInfo"));
+    assertTrue(petListed.contains("findPetsBornOn"));
+    assertTrue(petListed.contains("findPetsBornOnWithHttpInfo"));
+    assertTrue(petListed.contains("findPetsByStatus"));
+    assertTrue(petListed.contains("findPetsByStatusWithHttpInfo"));
+    assertTrue(petListed.contains("getExternalPetInfo"));
+    assertTrue(petListed.contains("getExternalPetInfoWithHttpInfo"));
+    assertTrue(petListed.contains("getMultiServerPetInfo"));
+    assertTrue(petListed.contains("getMultiServerPetInfoWithHttpInfo"));
+    assertTrue(petListed.contains("getPetAvatar"));
+    assertTrue(petListed.contains("getPetAvatarWithHttpInfo"));
+    assertTrue(petListed.contains("getPetAvatarThumbnail"));
+    assertTrue(petListed.contains("getPetAvatarThumbnailWithHttpInfo"));
+    assertTrue(petListed.contains("getPetById"));
+    assertTrue(petListed.contains("getPetByIdWithHttpInfo"));
+    assertTrue(petListed.contains("getPetByName"));
+    assertTrue(petListed.contains("getPetByNameWithHttpInfo"));
+    assertTrue(petListed.contains("getPetPassport"));
+    assertTrue(petListed.contains("getPetPassportWithHttpInfo"));
+    assertTrue(petListed.contains("getPetPhoto"));
+    assertTrue(petListed.contains("getPetPhotoWithHttpInfo"));
+    assertTrue(petListed.contains("getPetSummary"));
+    assertTrue(petListed.contains("getPetSummaryWithHttpInfo"));
+    assertTrue(petListed.contains("getPetTag"));
+    assertTrue(petListed.contains("getPetTagWithHttpInfo"));
+    assertTrue(petListed.contains("getStagingPetInfo"));
+    assertTrue(petListed.contains("getStagingPetInfoWithHttpInfo"));
+    assertTrue(petListed.contains("setPetAvatar"));
+    assertTrue(petListed.contains("setPetAvatarWithHttpInfo"));
+    assertTrue(petListed.contains("setPetAvatarThumbnail"));
+    assertTrue(petListed.contains("setPetAvatarThumbnailWithHttpInfo"));
+    assertTrue(petListed.contains("setPetPreferences"));
+    assertTrue(petListed.contains("setPetPreferencesWithHttpInfo"));
+    assertTrue(petListed.contains("updatePet"));
+    assertTrue(petListed.contains("updatePetWithHttpInfo"));
+    assertTrue(petListed.contains("uploadPetCertificate"));
+    assertTrue(petListed.contains("uploadPetCertificateWithHttpInfo"));
+    assertTrue(petListed.contains("uploadPetDocument"));
+    assertTrue(petListed.contains("uploadPetDocumentWithHttpInfo"));
+    assertTrue(
+        com.example.petstore.api.ProblemsApiInterface.class.isAssignableFrom(
+            com.example.petstore.api.ProblemsApi.class));
+    java.util.Set<String> problemsListed = new java.util.HashSet<>();
+    for (java.lang.reflect.Method method :
+        com.example.petstore.api.ProblemsApiInterface.class.getMethods()) {
+      problemsListed.add(method.getName());
+    }
+    assertTrue(problemsListed.contains("getFallback"));
+    assertTrue(problemsListed.contains("getFallbackWithHttpInfo"));
+    assertTrue(problemsListed.contains("getMember"));
+    assertTrue(problemsListed.contains("getMemberWithHttpInfo"));
+    assertTrue(problemsListed.contains("getProject"));
+    assertTrue(problemsListed.contains("getProjectWithHttpInfo"));
+    assertTrue(problemsListed.contains("getRange"));
+    assertTrue(problemsListed.contains("getRangeWithHttpInfo"));
+    assertTrue(problemsListed.contains("getUpstream"));
+    assertTrue(problemsListed.contains("getUpstreamWithHttpInfo"));
+    assertTrue(problemsListed.contains("takeLock"));
+    assertTrue(problemsListed.contains("takeLockWithHttpInfo"));
+    assertTrue(
+        com.example.petstore.api.StoreApiInterface.class.isAssignableFrom(
+            com.example.petstore.api.StoreApi.class));
+    java.util.Set<String> storeListed = new java.util.HashSet<>();
+    for (java.lang.reflect.Method method :
+        com.example.petstore.api.StoreApiInterface.class.getMethods()) {
+      storeListed.add(method.getName());
+    }
+    assertTrue(storeListed.contains("createAccount"));
+    assertTrue(storeListed.contains("createAccountWithHttpInfo"));
+    assertTrue(storeListed.contains("deleteOrder"));
+    assertTrue(storeListed.contains("deleteOrderWithHttpInfo"));
+    assertTrue(storeListed.contains("getBySwatch"));
+    assertTrue(storeListed.contains("getBySwatchWithHttpInfo"));
+    assertTrue(storeListed.contains("getDefaults"));
+    assertTrue(storeListed.contains("getDefaultsWithHttpInfo"));
+    assertTrue(storeListed.contains("getDepartment"));
+    assertTrue(storeListed.contains("getDepartmentWithHttpInfo"));
+    assertTrue(storeListed.contains("getGroupedCategories"));
+    assertTrue(storeListed.contains("getGroupedCategoriesWithHttpInfo"));
+    assertTrue(storeListed.contains("getInventory"));
+    assertTrue(storeListed.contains("getInventoryWithHttpInfo"));
+    assertTrue(storeListed.contains("getMatrix"));
+    assertTrue(storeListed.contains("getMatrixWithHttpInfo"));
+    assertTrue(storeListed.contains("getOrderById"));
+    assertTrue(storeListed.contains("getOrderByIdWithHttpInfo"));
+    assertTrue(storeListed.contains("getOrderByTrackingId"));
+    assertTrue(storeListed.contains("getOrderByTrackingIdWithHttpInfo"));
+    assertTrue(storeListed.contains("getStockItem"));
+    assertTrue(storeListed.contains("getStockItemWithHttpInfo"));
+    assertTrue(storeListed.contains("getSwatch"));
+    assertTrue(storeListed.contains("getSwatchWithHttpInfo"));
+    assertTrue(storeListed.contains("getSwatchGroups"));
+    assertTrue(storeListed.contains("getSwatchGroupsWithHttpInfo"));
+    assertTrue(storeListed.contains("getTimestampGroups"));
+    assertTrue(storeListed.contains("getTimestampGroupsWithHttpInfo"));
+    assertTrue(storeListed.contains("getTree"));
+    assertTrue(storeListed.contains("getTreeWithHttpInfo"));
+    assertTrue(storeListed.contains("placeOrder"));
+    assertTrue(storeListed.contains("placeOrderWithHttpInfo"));
+    assertTrue(storeListed.contains("reserveStock"));
+    assertTrue(storeListed.contains("reserveStockWithHttpInfo"));
+    assertTrue(storeListed.contains("searchStore"));
+    assertTrue(storeListed.contains("searchStoreWithHttpInfo"));
+  }
+
+  @Test
+  void bhvMocking002GroupInterfaceListsExactlyThePublicOperationsOfTheClass() {
+    assertEquals(
+        publicMethodNames(com.example.petstore.api.PetApi.class.getDeclaredMethods()),
+        publicMethodNames(com.example.petstore.api.PetApiInterface.class.getMethods()));
+    assertEquals(
+        publicMethodNames(com.example.petstore.api.ProblemsApi.class.getDeclaredMethods()),
+        publicMethodNames(com.example.petstore.api.ProblemsApiInterface.class.getMethods()));
+    assertEquals(
+        publicMethodNames(com.example.petstore.api.StoreApi.class.getDeclaredMethods()),
+        publicMethodNames(com.example.petstore.api.StoreApiInterface.class.getMethods()));
+  }
+
+  private static java.util.Set<String> publicMethodNames(java.lang.reflect.Method[] methods) {
+    java.util.Set<String> names = new java.util.TreeSet<>();
+    for (java.lang.reflect.Method method : methods) {
+      if (java.lang.reflect.Modifier.isPublic(method.getModifiers()) && !method.isSynthetic()) {
+        names.add(method.getName());
+      }
+    }
+    return names;
+  }
+
+  @Test
+  void bhvMocking007ClientInterfaceExposesEveryGroupTypedAsItsInterfaceAndClose() throws Exception {
+    Client client = new Client(authenticator);
+    ClientInterface viaInterface = client;
+
+    assertEquals(
+        com.example.petstore.api.PetApiInterface.class,
+        ClientInterface.class.getMethod("getPet").getReturnType());
+    assertSame(client.pet, viaInterface.getPet());
+    assertEquals(
+        com.example.petstore.api.ProblemsApiInterface.class,
+        ClientInterface.class.getMethod("getProblems").getReturnType());
+    assertSame(client.problems, viaInterface.getProblems());
+    assertEquals(
+        com.example.petstore.api.StoreApiInterface.class,
+        ClientInterface.class.getMethod("getStore").getReturnType());
+    assertSame(client.store, viaInterface.getStore());
+    viaInterface.close();
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+  }
+
+  @Test
+  void bhvMocking008ClientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+    int[] closed = {0};
+    ClientInterface fake =
+        new ClientInterface() {
+          @Override
+          public com.example.petstore.api.PetApiInterface getPet() {
+            return (com.example.petstore.api.PetApiInterface)
+                java.lang.reflect.Proxy.newProxyInstance(
+                    com.example.petstore.api.PetApiInterface.class.getClassLoader(),
+                    new Class<?>[] {com.example.petstore.api.PetApiInterface.class},
+                    (proxy, method, args) -> null);
+          }
+
+          @Override
+          public com.example.petstore.api.ProblemsApiInterface getProblems() {
+            return (com.example.petstore.api.ProblemsApiInterface)
+                java.lang.reflect.Proxy.newProxyInstance(
+                    com.example.petstore.api.ProblemsApiInterface.class.getClassLoader(),
+                    new Class<?>[] {com.example.petstore.api.ProblemsApiInterface.class},
+                    (proxy, method, args) -> null);
+          }
+
+          @Override
+          public com.example.petstore.api.StoreApiInterface getStore() {
+            return (com.example.petstore.api.StoreApiInterface)
+                java.lang.reflect.Proxy.newProxyInstance(
+                    com.example.petstore.api.StoreApiInterface.class.getClassLoader(),
+                    new Class<?>[] {com.example.petstore.api.StoreApiInterface.class},
+                    (proxy, method, args) -> null);
+          }
+
+          @Override
+          public void close() {
+            closed[0]++;
+          }
+        };
+
+    assertNotNull(fake.getPet());
+    assertNotNull(fake.getProblems());
+    assertNotNull(fake.getStore());
+    fake.close();
+    fake.close();
+    assertEquals(2, closed[0]);
   }
 }

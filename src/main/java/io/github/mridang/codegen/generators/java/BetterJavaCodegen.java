@@ -62,6 +62,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
 
         modelTemplateFiles.put("models/model.mustache", ".java");
         apiTemplateFiles.put("api/api.mustache", ".java");
+        apiTemplateFiles.put("api/api_interface.mustache", "Interface.java");
 
         typeMapping.put("array", "List");
         typeMapping.put("map", "Map");
@@ -781,6 +782,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "client_interface.mustache",
+                        invokerFolder,
+                        clientClassName + "Interface.java"));
 
         if (emitUnitTests()) {
             final String testFolder =

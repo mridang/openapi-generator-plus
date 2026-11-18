@@ -50,7 +50,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 /** StoreApi provides methods for the Store API group. Access to Petstore orders */
-public class StoreApi extends BaseApi {
+public class StoreApi extends BaseApi implements StoreApiInterface {
 
   private static final java.lang.reflect.Type createAccountTypeRef =
       new TypeReference<Account>() {}.getType();
@@ -159,6 +159,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Account}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Account createAccount(Account account) {
     return createAccount(account, null);
   }
@@ -174,6 +175,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Account}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Account> createAccountWithHttpInfo(Account account) {
     return createAccountWithHttpInfo(account, null);
   }
@@ -186,6 +188,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Account}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Account createAccount(Account account, @Nullable CreateAccountOptions options) {
     return requireBody(createAccountWithHttpInfo(account, options), "createAccount");
   }
@@ -198,6 +201,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Account}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Account> createAccountWithHttpInfo(
       Account account, @Nullable CreateAccountOptions options) {
     if (account == null) {
@@ -242,6 +246,7 @@ public class StoreApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public void deleteOrder(Long orderId) {
     deleteOrder(orderId, null);
   }
@@ -259,6 +264,7 @@ public class StoreApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) {
     return deleteOrderWithHttpInfo(orderId, null);
   }
@@ -272,6 +278,7 @@ public class StoreApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public void deleteOrder(Long orderId, @Nullable DeleteOrderOptions options) {
     deleteOrderWithHttpInfo(orderId, options);
   }
@@ -286,6 +293,7 @@ public class StoreApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Void> deleteOrderWithHttpInfo(
       Long orderId, @Nullable DeleteOrderOptions options) {
     if (orderId == null) {
@@ -335,6 +343,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Category}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Category getBySwatch(Swatch pathSwatch) {
     return getBySwatch(pathSwatch, null);
   }
@@ -350,6 +359,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Category}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Category> getBySwatchWithHttpInfo(Swatch pathSwatch) {
     return getBySwatchWithHttpInfo(pathSwatch, null);
   }
@@ -362,6 +372,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Category}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Category getBySwatch(Swatch pathSwatch, @Nullable GetBySwatchOptions options) {
     return requireBody(getBySwatchWithHttpInfo(pathSwatch, options), "getBySwatch");
   }
@@ -374,6 +385,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Category}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Category> getBySwatchWithHttpInfo(
       Swatch pathSwatch, @Nullable GetBySwatchOptions options) {
     if (pathSwatch == null) {
@@ -443,6 +455,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Defaults}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Defaults getDefaults() {
     return getDefaults(null);
   }
@@ -457,6 +470,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Defaults}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Defaults> getDefaultsWithHttpInfo() {
     return getDefaultsWithHttpInfo(null);
   }
@@ -468,6 +482,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Defaults}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Defaults getDefaults(@Nullable GetDefaultsOptions options) {
     return requireBody(getDefaultsWithHttpInfo(options), "getDefaults");
   }
@@ -479,6 +494,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Defaults}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Defaults> getDefaultsWithHttpInfo(@Nullable GetDefaultsOptions options) {
     String path = "/store/defaults";
     Map<String, Object> queryParams = new LinkedHashMap<>();
@@ -516,6 +532,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Department}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Department getDepartment() {
     return getDepartment(null);
   }
@@ -530,6 +547,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Department}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Department> getDepartmentWithHttpInfo() {
     return getDepartmentWithHttpInfo(null);
   }
@@ -541,6 +559,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Department}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Department getDepartment(@Nullable GetDepartmentOptions options) {
     return requireBody(getDepartmentWithHttpInfo(options), "getDepartment");
   }
@@ -552,6 +571,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Department}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Department> getDepartmentWithHttpInfo(@Nullable GetDepartmentOptions options) {
     String path = "/store/department";
     Map<String, Object> queryParams = new LinkedHashMap<>();
@@ -589,6 +609,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<Map<String, Category>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Map<String, Category>> getGroupedCategories() {
     return getGroupedCategories(null);
   }
@@ -603,6 +624,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<Map<String, Category>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Map<String, Category>>> getGroupedCategoriesWithHttpInfo() {
     return getGroupedCategoriesWithHttpInfo(null);
   }
@@ -614,6 +636,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<Map<String, Category>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Map<String, Category>> getGroupedCategories(
       @Nullable GetGroupedCategoriesOptions options) {
     return requireBody(getGroupedCategoriesWithHttpInfo(options), "getGroupedCategories");
@@ -626,6 +649,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<Map<String, Category>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Map<String, Category>>> getGroupedCategoriesWithHttpInfo(
       @Nullable GetGroupedCategoriesOptions options) {
     String path = "/store/grouped-categories";
@@ -664,6 +688,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Map<String, Integer> getInventory() {
     return getInventory(null);
   }
@@ -678,6 +703,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() {
     return getInventoryWithHttpInfo(null);
   }
@@ -689,6 +715,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Map<String, Integer> getInventory(@Nullable GetInventoryOptions options) {
     return requireBody(getInventoryWithHttpInfo(options), "getInventory");
   }
@@ -700,6 +727,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo(
       @Nullable GetInventoryOptions options) {
     String path = "/store/inventory";
@@ -738,6 +766,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<List<Integer>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<List<Integer>> getMatrix() {
     return getMatrix(null);
   }
@@ -752,6 +781,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<List<Integer>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<List<Integer>>> getMatrixWithHttpInfo() {
     return getMatrixWithHttpInfo(null);
   }
@@ -763,6 +793,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<List<Integer>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<List<Integer>> getMatrix(@Nullable GetMatrixOptions options) {
     return requireBody(getMatrixWithHttpInfo(options), "getMatrix");
   }
@@ -774,6 +805,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<List<Integer>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<List<Integer>>> getMatrixWithHttpInfo(@Nullable GetMatrixOptions options) {
     String path = "/store/matrix";
     Map<String, Object> queryParams = new LinkedHashMap<>();
@@ -814,6 +846,7 @@ public class StoreApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public Order getOrderById(Long orderId) {
     return getOrderById(orderId, null);
   }
@@ -831,6 +864,7 @@ public class StoreApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) {
     return getOrderByIdWithHttpInfo(orderId, null);
   }
@@ -845,6 +879,7 @@ public class StoreApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public Order getOrderById(Long orderId, @Nullable GetOrderByIdOptions options) {
     return requireBody(getOrderByIdWithHttpInfo(orderId, options), "getOrderById");
   }
@@ -859,6 +894,7 @@ public class StoreApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Order> getOrderByIdWithHttpInfo(
       Long orderId, @Nullable GetOrderByIdOptions options) {
     if (orderId == null) {
@@ -908,6 +944,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Order getOrderByTrackingId(UUID trackingId) {
     return getOrderByTrackingId(trackingId, null);
   }
@@ -923,6 +960,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Order> getOrderByTrackingIdWithHttpInfo(UUID trackingId) {
     return getOrderByTrackingIdWithHttpInfo(trackingId, null);
   }
@@ -935,6 +973,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Order getOrderByTrackingId(
       UUID trackingId, @Nullable GetOrderByTrackingIdOptions options) {
     return requireBody(
@@ -949,6 +988,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Order> getOrderByTrackingIdWithHttpInfo(
       UUID trackingId, @Nullable GetOrderByTrackingIdOptions options) {
     if (trackingId == null) {
@@ -997,6 +1037,7 @@ public class StoreApi extends BaseApi {
    * @return {@code StockItem}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public StockItem getStockItem() {
     return getStockItem(null);
   }
@@ -1011,6 +1052,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code StockItem}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<StockItem> getStockItemWithHttpInfo() {
     return getStockItemWithHttpInfo(null);
   }
@@ -1022,6 +1064,7 @@ public class StoreApi extends BaseApi {
    * @return {@code StockItem}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public StockItem getStockItem(@Nullable GetStockItemOptions options) {
     return requireBody(getStockItemWithHttpInfo(options), "getStockItem");
   }
@@ -1033,6 +1076,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code StockItem}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<StockItem> getStockItemWithHttpInfo(@Nullable GetStockItemOptions options) {
     String path = "/store/stock-item";
     Map<String, Object> queryParams = new LinkedHashMap<>();
@@ -1078,6 +1122,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Swatch}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Swatch getSwatch() {
     return getSwatch(null);
   }
@@ -1092,6 +1137,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Swatch}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Swatch> getSwatchWithHttpInfo() {
     return getSwatchWithHttpInfo(null);
   }
@@ -1103,6 +1149,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Swatch}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Swatch getSwatch(@Nullable GetSwatchOptions options) {
     return requireBody(getSwatchWithHttpInfo(options), "getSwatch");
   }
@@ -1114,6 +1161,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Swatch}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Swatch> getSwatchWithHttpInfo(@Nullable GetSwatchOptions options) {
     String path = "/store/swatch";
     Map<String, Object> queryParams = new LinkedHashMap<>();
@@ -1151,6 +1199,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<Map<String, Swatch>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Map<String, Swatch>> getSwatchGroups() {
     return getSwatchGroups(null);
   }
@@ -1165,6 +1214,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<Map<String, Swatch>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Map<String, Swatch>>> getSwatchGroupsWithHttpInfo() {
     return getSwatchGroupsWithHttpInfo(null);
   }
@@ -1176,6 +1226,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<Map<String, Swatch>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Map<String, Swatch>> getSwatchGroups(@Nullable GetSwatchGroupsOptions options) {
     return requireBody(getSwatchGroupsWithHttpInfo(options), "getSwatchGroups");
   }
@@ -1187,6 +1238,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<Map<String, Swatch>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Map<String, Swatch>>> getSwatchGroupsWithHttpInfo(
       @Nullable GetSwatchGroupsOptions options) {
     String path = "/store/swatch-groups";
@@ -1225,6 +1277,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<Map<String, OffsetDateTime>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Map<String, OffsetDateTime>> getTimestampGroups() {
     return getTimestampGroups(null);
   }
@@ -1239,6 +1292,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<Map<String, OffsetDateTime>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Map<String, OffsetDateTime>>> getTimestampGroupsWithHttpInfo() {
     return getTimestampGroupsWithHttpInfo(null);
   }
@@ -1250,6 +1304,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<Map<String, OffsetDateTime>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Map<String, OffsetDateTime>> getTimestampGroups(
       @Nullable GetTimestampGroupsOptions options) {
     return requireBody(getTimestampGroupsWithHttpInfo(options), "getTimestampGroups");
@@ -1262,6 +1317,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<Map<String, OffsetDateTime>>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Map<String, OffsetDateTime>>> getTimestampGroupsWithHttpInfo(
       @Nullable GetTimestampGroupsOptions options) {
     String path = "/store/timestamp-groups";
@@ -1300,6 +1356,7 @@ public class StoreApi extends BaseApi {
    * @return {@code TreeNode}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public TreeNode getTree() {
     return getTree(null);
   }
@@ -1314,6 +1371,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code TreeNode}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<TreeNode> getTreeWithHttpInfo() {
     return getTreeWithHttpInfo(null);
   }
@@ -1325,6 +1383,7 @@ public class StoreApi extends BaseApi {
    * @return {@code TreeNode}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public TreeNode getTree(@Nullable GetTreeOptions options) {
     return requireBody(getTreeWithHttpInfo(options), "getTree");
   }
@@ -1336,6 +1395,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code TreeNode}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<TreeNode> getTreeWithHttpInfo(@Nullable GetTreeOptions options) {
     String path = "/store/tree";
     Map<String, Object> queryParams = new LinkedHashMap<>();
@@ -1375,6 +1435,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public Order placeOrder(@Nullable Order order) {
     return placeOrder(order, null);
   }
@@ -1391,6 +1452,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) {
     return placeOrderWithHttpInfo(order, null);
   }
@@ -1404,6 +1466,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public Order placeOrder() {
     return placeOrder(null);
   }
@@ -1417,6 +1480,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<Order> placeOrderWithHttpInfo() {
     return placeOrderWithHttpInfo(null);
   }
@@ -1430,6 +1494,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public Order placeOrder(@Nullable Order order, @Nullable PlaceOrderOptions options) {
     return requireBody(placeOrderWithHttpInfo(order, options), "placeOrder");
   }
@@ -1443,6 +1508,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<Order> placeOrderWithHttpInfo(
       @Nullable Order order, @Nullable PlaceOrderOptions options) {
     String path = "/store/order";
@@ -1482,6 +1548,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ReserveStockResponse reserveStock() {
     return reserveStock(null);
   }
@@ -1497,6 +1564,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<ReserveStockResponse> reserveStockWithHttpInfo() {
     return reserveStockWithHttpInfo(null);
   }
@@ -1511,6 +1579,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ReserveStockResponse reserveStock(@Nullable ReserveStockOptions options) {
     return requireBody(reserveStockWithHttpInfo(options), "reserveStock");
   }
@@ -1525,6 +1594,7 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<ReserveStockResponse> reserveStockWithHttpInfo(
       @Nullable ReserveStockOptions options) {
     String path = "/store/reservation";
@@ -1578,6 +1648,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<Order>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Order> searchStore() {
     return searchStore(null);
   }
@@ -1592,6 +1663,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<Order>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Order>> searchStoreWithHttpInfo() {
     return searchStoreWithHttpInfo(null);
   }
@@ -1603,6 +1675,7 @@ public class StoreApi extends BaseApi {
    * @return {@code List<Order>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Order> searchStore(@Nullable SearchStoreOptions options) {
     return requireBody(searchStoreWithHttpInfo(options), "searchStore");
   }
@@ -1614,6 +1687,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code List<Order>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Order>> searchStoreWithHttpInfo(@Nullable SearchStoreOptions options) {
     String path = "/store/search";
     Map<String, Object> queryParams = new LinkedHashMap<>();

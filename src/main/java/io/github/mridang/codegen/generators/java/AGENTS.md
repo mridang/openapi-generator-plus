@@ -236,6 +236,9 @@ Why: a client that declares an unused dependency fails `mvn dependency:analyze`.
 Where: `dev_dependencies.mustache`, `templates/java/test/**`.
 Test: a real client's CI gates; the golden does not run them.
 
+### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
+Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `<Group>ApiInterface` (a `...Interface.java` file per group, registered in `BetterJavaCodegen` with the suffix `Interface.java`) and `ClientInterface extends AutoCloseable` with `get<Group>()` accessors beside the public fields. The convenience overloads are `default` methods that delegate to the full form, so a fake implements one form per operation; every class method carries `@Override` because Error Prone's `MissingOverride` is an error at `failOnWarning`. Tests: ClientTest.mustache (001, 002, 007, 008), api/PetApiTest.mustache (003 to 006, a `Proxy` fake that runs default methods with `InvocationHandler.invokeDefault`), ReadmeTest.mustache (009). Where: the templates named above, `BetterJavaCodegen`, the README template (`Testing your code`), `docs/languages/java.md`.
+
 ## Known limitations and out of scope
 
 Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50).

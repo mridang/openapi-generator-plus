@@ -109,6 +109,63 @@ client; you own its lifecycle. Because the client carries its own proxy and TLS
 settings, combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails
 at `build()`, as does a client whose redirect policy is not `Redirect.NEVER`.
 
+### Testing your code
+
+Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```java
+import com.example.petstore.api.PetApiInterface;
+import com.example.petstore.ClientInterface;
+import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class FakeExample {
+    // Code under test takes the group interface, never the generated class.
+    static void use(PetApiInterface api) {}
+
+    // A fake is any implementation of the interface; this one records every call it receives.
+    static <T> T fake(Class<T> type, List<String> calls) {
+        return type.cast(Proxy.newProxyInstance(
+                type.getClassLoader(),
+                new Class<?>[] {type},
+                (proxy, method, arguments) -> {
+                    calls.add(method.getName());
+                    return null;
+                }));
+    }
+
+    public static void main(String[] args) {
+        List<String> calls = new ArrayList<>();
+        use(fake(PetApiInterface.class, calls));
+
+        ClientInterface client = new ClientInterface() {
+            @Override
+            public PetApiInterface getPet() {
+                return fake(PetApiInterface.class, calls);
+            }
+
+            @Override
+            public ProblemsApiInterface getProblems() {
+                return fake(ProblemsApiInterface.class, calls);
+            }
+
+            @Override
+            public StoreApiInterface getStore() {
+                return fake(StoreApiInterface.class, calls);
+            }
+
+            @Override
+            public void close() {}
+        };
+        client.close();
+        System.out.println(calls);
+    }
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; delegate to a base fake or use a proxy like this one, so only the operation you fake is written.
+
 ### Per-call options
 
 Every operation takes an optional trailing options object named after it

@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
  * ProblemsApi provides methods for the Problems API group. Operations that declare typed error
  * responses
  */
-public class ProblemsApi extends BaseApi {
+public class ProblemsApi extends BaseApi implements ProblemsApiInterface {
 
   private static final java.lang.reflect.Type getFallbackTypeRef =
       new TypeReference<Result>() {}.getType();
@@ -108,6 +108,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
    *     UnexpectedFailure} body
    */
+  @Override
   public Result getFallback(String fallbackId) {
     return getFallback(fallbackId, null);
   }
@@ -125,6 +126,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
    *     UnexpectedFailure} body
    */
+  @Override
   public ApiResult<Result> getFallbackWithHttpInfo(String fallbackId) {
     return getFallbackWithHttpInfo(fallbackId, null);
   }
@@ -139,6 +141,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
    *     UnexpectedFailure} body
    */
+  @Override
   public Result getFallback(String fallbackId, @Nullable GetFallbackOptions options) {
     return requireBody(getFallbackWithHttpInfo(fallbackId, options), "getFallback");
   }
@@ -153,6 +156,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
    *     UnexpectedFailure} body
    */
+  @Override
   public ApiResult<Result> getFallbackWithHttpInfo(
       String fallbackId, @Nullable GetFallbackOptions options) {
     if (fallbackId == null || fallbackId.isEmpty()) {
@@ -208,6 +212,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
    *     MemberNotFound} body
    */
+  @Override
   public Result getMember(String memberId) {
     return getMember(memberId, null);
   }
@@ -225,6 +230,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
    *     MemberNotFound} body
    */
+  @Override
   public ApiResult<Result> getMemberWithHttpInfo(String memberId) {
     return getMemberWithHttpInfo(memberId, null);
   }
@@ -239,6 +245,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
    *     MemberNotFound} body
    */
+  @Override
   public Result getMember(String memberId, @Nullable GetMemberOptions options) {
     return requireBody(getMemberWithHttpInfo(memberId, options), "getMember");
   }
@@ -253,6 +260,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
    *     MemberNotFound} body
    */
+  @Override
   public ApiResult<Result> getMemberWithHttpInfo(
       String memberId, @Nullable GetMemberOptions options) {
     if (memberId == null || memberId.isEmpty()) {
@@ -308,6 +316,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
    *     ProjectNotFound} body
    */
+  @Override
   public Result getProject(String projectId) {
     return getProject(projectId, null);
   }
@@ -325,6 +334,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
    *     ProjectNotFound} body
    */
+  @Override
   public ApiResult<Result> getProjectWithHttpInfo(String projectId) {
     return getProjectWithHttpInfo(projectId, null);
   }
@@ -339,6 +349,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
    *     ProjectNotFound} body
    */
+  @Override
   public Result getProject(String projectId, @Nullable GetProjectOptions options) {
     return requireBody(getProjectWithHttpInfo(projectId, options), "getProject");
   }
@@ -353,6 +364,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
    *     ProjectNotFound} body
    */
+  @Override
   public ApiResult<Result> getProjectWithHttpInfo(
       String projectId, @Nullable GetProjectOptions options) {
     if (projectId == null || projectId.isEmpty()) {
@@ -408,6 +420,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
    *     RejectedRequest} body
    */
+  @Override
   public Result getRange(String rangeId) {
     return getRange(rangeId, null);
   }
@@ -425,6 +438,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
    *     RejectedRequest} body
    */
+  @Override
   public ApiResult<Result> getRangeWithHttpInfo(String rangeId) {
     return getRangeWithHttpInfo(rangeId, null);
   }
@@ -439,6 +453,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
    *     RejectedRequest} body
    */
+  @Override
   public Result getRange(String rangeId, @Nullable GetRangeOptions options) {
     return requireBody(getRangeWithHttpInfo(rangeId, options), "getRange");
   }
@@ -453,6 +468,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
    *     RejectedRequest} body
    */
+  @Override
   public ApiResult<Result> getRangeWithHttpInfo(String rangeId, @Nullable GetRangeOptions options) {
     if (rangeId == null || rangeId.isEmpty()) {
       throw new IllegalArgumentException(
@@ -507,6 +523,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
    *     UpstreamFailure} body
    */
+  @Override
   public Result getUpstream(String upstreamId) {
     return getUpstream(upstreamId, null);
   }
@@ -524,6 +541,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
    *     UpstreamFailure} body
    */
+  @Override
   public ApiResult<Result> getUpstreamWithHttpInfo(String upstreamId) {
     return getUpstreamWithHttpInfo(upstreamId, null);
   }
@@ -538,6 +556,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
    *     UpstreamFailure} body
    */
+  @Override
   public Result getUpstream(String upstreamId, @Nullable GetUpstreamOptions options) {
     return requireBody(getUpstreamWithHttpInfo(upstreamId, options), "getUpstream");
   }
@@ -552,6 +571,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
    *     UpstreamFailure} body
    */
+  @Override
   public ApiResult<Result> getUpstreamWithHttpInfo(
       String upstreamId, @Nullable GetUpstreamOptions options) {
     if (upstreamId == null || upstreamId.isEmpty()) {
@@ -609,6 +629,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
    *     StateConflict} body
    */
+  @Override
   public Result takeLock(String lockId) {
     return takeLock(lockId, null);
   }
@@ -628,6 +649,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
    *     StateConflict} body
    */
+  @Override
   public ApiResult<Result> takeLockWithHttpInfo(String lockId) {
     return takeLockWithHttpInfo(lockId, null);
   }
@@ -644,6 +666,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
    *     StateConflict} body
    */
+  @Override
   public Result takeLock(String lockId, @Nullable TakeLockOptions options) {
     return requireBody(takeLockWithHttpInfo(lockId, options), "takeLock");
   }
@@ -660,6 +683,7 @@ public class ProblemsApi extends BaseApi {
    * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
    *     StateConflict} body
    */
+  @Override
   public ApiResult<Result> takeLockWithHttpInfo(String lockId, @Nullable TakeLockOptions options) {
     if (lockId == null || lockId.isEmpty()) {
       throw new IllegalArgumentException(

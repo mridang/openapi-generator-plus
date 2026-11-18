@@ -42,6 +42,7 @@ class ReadmeTest {
           "### Request id",
           "### Cancellation",
           "### Custom HTTP client",
+          "### Testing your code",
           "## Build",
           "## Test",
           "## Caveats",
@@ -91,6 +92,18 @@ class ReadmeTest {
     assertTrue(readme.contains("### Per-call options"));
     assertTrue(readme.contains("Every operation takes an optional trailing options object"));
     assertTrue(readme.contains("An options object carries no authenticator"));
+  }
+
+  @Test
+  void bhvMocking009TestingYourCodeNamesTheGroupInterfaceAndTheClientInterface()
+      throws IOException {
+    String readme = readme();
+    int start = readme.indexOf("\n### Testing your code\n");
+    assertTrue(start >= 0, "expected the README to contain the heading ### Testing your code");
+    int end = readme.indexOf("\n### ", start + 4);
+    String section = end < 0 ? readme.substring(start) : readme.substring(start, end);
+    assertTrue(section.contains("PetApiInterface"));
+    assertTrue(section.contains("ClientInterface"));
   }
 
   @Test

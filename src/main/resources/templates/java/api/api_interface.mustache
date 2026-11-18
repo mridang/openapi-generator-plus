@@ -1,0 +1,104 @@
+{{>api_info}}
+
+package {{package}};
+
+import {{invokerPackage}}.ApiResult;
+{{#imports}}import {{import}};
+{{/imports}}
+{{#optionsImports}}
+import {{package}}.options.{{optionsClassName}};
+{{/optionsImports}}
+import javax.annotation.Nullable;
+
+{{#operations}}
+/**
+ * {{classname}}Interface is the contract of {@link {{classname}}}: every operation of the
+ * {{baseName}} API group and its {@code WithHttpInfo} variant. Depend on it instead of the
+ * class to substitute a hand-written fake in your own tests. A fake implements the full form of
+ * each operation; the convenience overloads are default methods that delegate to it.
+ */
+public interface {{classname}}Interface {
+{{#operation}}
+
+{{#servers}}{{#-first}}
+    /** The {@code {{operationId}}} operation, using the server declared in the spec. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    default {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});{{/returnType}}
+    }
+
+    /** The {@code {{operationId}}} operation with its HTTP details, using the server declared in the spec. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    default ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});
+    }
+{{/-first}}{{/servers}}
+{{#vendorExtensions.op.optionsArgOptional}}
+
+    /** The {@code {{operationId}}} operation without the optional per-call options. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    default {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}
+    }
+
+    /** The {@code {{operationId}}} operation with its HTTP details, without the optional per-call options. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    default ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});
+    }
+{{/vendorExtensions.op.optionsArgOptional}}
+{{#vendorExtensions.hasOptionalBodyOnly}}
+
+    /** The {@code {{operationId}}} operation without the optional request body. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    default {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}() {
+        {{#returnType}}return {{operationId}}(null);{{/returnType}}{{^returnType}}{{operationId}}(null);{{/returnType}}
+    }
+
+    /** The {@code {{operationId}}} operation with its HTTP details, without the optional request body. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    default ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo() {
+        return {{operationId}}WithHttpInfo(null);
+    }
+{{/vendorExtensions.hasOptionalBodyOnly}}
+
+    /** The {@code {{operationId}}} operation. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}});
+{{#vendorExtensions.hasMultipleConsumes}}
+
+    /** The {@code {{operationId}}} operation with the request content type chosen by the caller. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType);
+
+    /** The {@code {{operationId}}} operation with its HTTP details and the request content type chosen by the caller. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType);
+{{/vendorExtensions.hasMultipleConsumes}}
+
+    /** The {@code {{operationId}}} operation with its HTTP details. */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}});
+{{/operation}}
+}
+{{/operations}}

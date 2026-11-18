@@ -92,7 +92,7 @@ import javax.annotation.Nullable;
  * spelling here, because the accessor is public API and every other SDK
  * spells it the same way. */
 @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
-public final class Client implements AutoCloseable {
+public final class Client implements ClientInterface {
 
   private final ApiClient apiClient;
 
@@ -343,6 +343,38 @@ public final class Client implements AutoCloseable {
       }
       return this;
     }
+  }
+
+  /**
+   * Returns the API operations of the PetApi group, the interface form of the {@link #pet} field.
+   *
+   * @return the group
+   */
+  @Override
+  public PetApi getPet() {
+    return pet;
+  }
+
+  /**
+   * Returns the API operations of the ProblemsApi group, the interface form of the {@link
+   * #problems} field.
+   *
+   * @return the group
+   */
+  @Override
+  public ProblemsApi getProblems() {
+    return problems;
+  }
+
+  /**
+   * Returns the API operations of the StoreApi group, the interface form of the {@link #store}
+   * field.
+   *
+   * @return the group
+   */
+  @Override
+  public StoreApi getStore() {
+    return store;
   }
 
   /**
