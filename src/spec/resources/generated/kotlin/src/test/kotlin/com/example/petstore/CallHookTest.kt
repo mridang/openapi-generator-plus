@@ -44,8 +44,8 @@ class CallHookTest {
     }
 
     @Test
-    @DisplayName("a failing observer in a chain does not stop the others from finishing")
-    fun aFailingObserverDoesNotStopTheChain() {
+    @DisplayName("bhvLangkotlin010 a failing observer in a chain does not stop the others from finishing")
+    fun bhvLangkotlin010AFailingObserverDoesNotStopTheChain() {
         val log = mutableListOf<String>()
         val failing = CallHook { _, _ -> CallObserver { throw IllegalStateException("observer") } }
 
@@ -58,8 +58,8 @@ class CallHookTest {
     }
 
     @Test
-    @DisplayName("every hook of a chain sees the edits of the hooks before it")
-    fun hooksSeeTheEditsBeforeThem() {
+    @DisplayName("bhvLangkotlin011 every hook of a chain sees the edits of the hooks before it")
+    fun bhvLangkotlin011HooksSeeTheEditsBeforeThem() {
         val first =
             CallHook { _, headers ->
                 headers["X-Step"] = "one"

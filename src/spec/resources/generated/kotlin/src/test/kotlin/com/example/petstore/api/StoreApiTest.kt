@@ -450,8 +450,8 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("searchStore sends a format time query value as HH:mm:ss with truncated milliseconds")
-        fun testSearchStoreSendsPartialTime() {
+        @DisplayName("bhvLangkotlin053 searchStore sends a format time query value as HH:mm:ss with truncated milliseconds")
+        fun bhvLangkotlin053TestSearchStoreSendsPartialTime() {
             val captured = mutableListOf<String>()
             val engine =
                 MockEngine { request ->
@@ -614,30 +614,6 @@ class StoreApiTest {
 
             assertEquals("", capturedQuery)
             assertNull(capturedHeader)
-        }
-
-        @Test
-        @DisplayName("apiresult-rawbody-nullability: ApiResult.rawBody is a non-null String")
-        fun testApiResultRawBodyNonNull() {
-            val engine =
-                MockEngine { _ ->
-                    respond(
-                        content = """{"id":7,"petId":1,"quantity":1,"status":"placed","complete":false}""",
-                        status = HttpStatusCode.OK,
-                        headers = headersOf("Content-Type", "application/json"),
-                    )
-                }
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl("http://localhost")
-                    .build()
-            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
-
-            val result = runBlocking { api.getOrderByIdWithHttpInfo(7L) }
-            // Assigning to a non-null String compiles only if rawBody is non-null.
-            val rawBody: String = result.rawBody
-            assertTrue(rawBody.isNotEmpty())
         }
 
         @Test

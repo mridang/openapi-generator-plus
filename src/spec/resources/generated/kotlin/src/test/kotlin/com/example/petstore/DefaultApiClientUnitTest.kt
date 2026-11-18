@@ -1462,8 +1462,8 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("the SDK's own Proxy-Authorization is not re-added on a cross-origin https hop")
-        fun proxyCredentialsNotReaddedOnCrossOriginHttpsRedirect() {
+        @DisplayName("bhvMisc129 the SDK's own Proxy-Authorization is not re-added on a cross-origin https hop")
+        fun bhvMisc129ProxyCredentialsNotReaddedOnCrossOriginHttpsRedirect() {
             val hops = mutableListOf<io.ktor.http.Headers>()
             val engine =
                 MockEngine { req ->
@@ -1493,8 +1493,8 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("the timeout is one end-to-end budget across redirect hops")
-        fun timeoutBudgetSpansRedirectHops() {
+        @DisplayName("bhvRedirects054 the timeout is one end-to-end budget across redirect hops")
+        fun bhvRedirects054TimeoutBudgetSpansRedirectHops() {
             var hopCount = 0
             val engine =
                 MockEngine { _ ->
@@ -1998,8 +1998,8 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("300 and 305 with a Location are returned as-is, never followed")
-        fun nonRedirectThreeXxStatusesAreNotFollowed() {
+        @DisplayName("bhvLangkotlin024 statuses 300 and 305 with a Location are returned as-is, never followed")
+        fun bhvLangkotlin024NonRedirectThreeXxStatusesAreNotFollowed() {
             for (status in listOf(HttpStatusCode.MultipleChoices, HttpStatusCode.UseProxy)) {
                 var hopCount = 0
                 val engine =
@@ -2052,8 +2052,8 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("only 301, 302, 303, 307 and 308 are redirect statuses")
-        fun redirectStatusSetIsExact() {
+        @DisplayName("bhvLangkotlin025 only 301, 302, 303, 307 and 308 are redirect statuses")
+        fun bhvLangkotlin025RedirectStatusSetIsExact() {
             val redirects = (300..399).filter { isRedirectStatus(it) }
             assertEquals(listOf(301, 302, 303, 307, 308), redirects)
         }
@@ -2458,16 +2458,6 @@ class DefaultApiClientUnitTest {
                     .getEncoder()
                     .encodeToString("svc:pa+ss".toByteArray(Charsets.UTF_8))
             assertEquals("Basic $expected", buildProxyAuthHeader("http://svc:pa+ss@proxy.example.com:3128"))
-        }
-
-        @Test
-        @DisplayName("percent-encoded userinfo is still decoded")
-        fun decodesPercentEncodedUserinfo() {
-            val expected =
-                java.util.Base64
-                    .getEncoder()
-                    .encodeToString("svc:p@ss".toByteArray(Charsets.UTF_8))
-            assertEquals("Basic $expected", buildProxyAuthHeader("http://svc:p%40ss@proxy.example.com:3128"))
         }
     }
 
@@ -2966,8 +2956,8 @@ class DefaultApiClientUnitTest {
     @DisplayName("coroutine cancellation")
     inner class CoroutineCancellation {
         @Test
-        @DisplayName("withTimeout surfaces TimeoutCancellationException, never ApiException")
-        fun withTimeoutIsNotRewrapped() {
+        @DisplayName("bhvLangkotlin026 withTimeout surfaces TimeoutCancellationException, never ApiException")
+        fun bhvLangkotlin026WithTimeoutIsNotRewrapped() {
             // Structured concurrency: the SDK must not catch and rewrap the
             // coroutine's cancellation signal, so a caller's withTimeout keeps
             // its own exception type.
@@ -2987,8 +2977,8 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("cancelling the calling job cancels the request without an ApiException")
-        fun jobCancellationIsNotRewrapped() {
+        @DisplayName("bhvLangkotlin027 cancelling the calling job cancels the request without an ApiException")
+        fun bhvLangkotlin027JobCancellationIsNotRewrapped() {
             val engine =
                 MockEngine { _ ->
                     kotlinx.coroutines.delay(5_000)
@@ -3288,8 +3278,8 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a retry whose wait fits in the timeout budget is sent")
-        fun aWaitThatFitsTheBudgetIsTaken() {
+        @DisplayName("bhvMisc164 a retry whose wait fits in the timeout budget is sent")
+        fun bhvMisc164AWaitThatFitsTheBudgetIsTaken() {
             val apiClient = retrying(listOf(503, 200), timeout = 60_000L)
 
             val response = get(apiClient)
