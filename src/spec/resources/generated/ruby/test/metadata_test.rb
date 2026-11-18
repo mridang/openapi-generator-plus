@@ -116,6 +116,30 @@ describe 'Metadata', 'round-trip and constants' do
   end
 end
 
+describe 'Department', 'value equality' do
+  parallelize_me!
+
+  build = lambda do |lead_name|
+    Petstore::Client::Models::Department.new(
+      name: 'Ops',
+      lead: Petstore::Client::Models::Employee.new(name: lead_name)
+    )
+  end
+
+  it 'bhv_equality_001 two models built from the same values are equal, and a change in any nested value makes them unequal' do
+    first = build.call('Ann')
+    same = build.call('Ann')
+    _(first).must_equal(same)
+    _(first.eql?(same)).must_equal(true)
+    _(first.hash).must_equal(same.hash)
+    _(first).wont_equal(build.call('Bob'))
+    _(first.eql?(build.call('Bob'))).must_equal(false)
+    _(first).wont_equal(Petstore::Client::Models::Employee.new(name: 'Ops'))
+    _(first).wont_equal(nil)
+    _(first == nil).must_equal(false)
+  end
+end
+
 describe 'generated file header' do
   parallelize_me!
 

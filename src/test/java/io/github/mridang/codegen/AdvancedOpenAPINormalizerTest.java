@@ -66,4 +66,25 @@ class AdvancedOpenAPINormalizerTest {
         org.junit.jupiter.api.Assertions.assertNull(java.util.Objects.requireNonNull(
             java.util.Objects.requireNonNull(openAPI.getPaths()).get("/a")).getPost());
     }
+
+    @Test
+    @DisplayName("Keeps a dangling $ref lenient by default and fails it when strictSpec is set")
+    void strictSpecFlagControlsDanglingRefs() {
+        OpenAPI openAPI = new OpenAPI().path("/pets", new PathItem().get(new Operation()
+            .responses(new io.swagger.v3.oas.models.responses.ApiResponses().addApiResponse("200",
+                new io.swagger.v3.oas.models.responses.ApiResponse().content(
+                    new io.swagger.v3.oas.models.media.Content().addMediaType("application/json",
+                        new io.swagger.v3.oas.models.media.MediaType().schema(
+                            new io.swagger.v3.oas.models.media.Schema<>().$ref("#/components/schemas/Missing"))))))));
+
+        new AdvancedOpenAPINormalizer(openAPI, Map.of()).normalize();
+
+        try {
+            System.setProperty(SpecWarnings.STRICT_PROPERTY, "true");
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> new AdvancedOpenAPINormalizer(openAPI, Map.of()).normalize());
+        } finally {
+            System.clearProperty(SpecWarnings.STRICT_PROPERTY);
+        }
+    }
 }

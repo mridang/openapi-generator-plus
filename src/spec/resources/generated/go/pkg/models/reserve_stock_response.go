@@ -106,7 +106,10 @@ func (o ReserveStockResponse) ActualInstance() any {
 // Equal reports whether this ReserveStockResponse is value-equal to other, comparing
 // the canonical JSON encodings so a union holding a slice variant compares
 // without the panic the built-in `==` raises on such values.
-func (o ReserveStockResponse) Equal(other ReserveStockResponse) bool {
+func (o *ReserveStockResponse) Equal(other *ReserveStockResponse) bool {
+	if o == nil || other == nil {
+		return o == other
+	}
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
 	if errA != nil || errB != nil {

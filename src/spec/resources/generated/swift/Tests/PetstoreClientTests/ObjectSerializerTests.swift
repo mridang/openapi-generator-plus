@@ -580,6 +580,31 @@ import Testing
     #expect(set.contains(PetstoreClient.Category(id: 7, name: "Birds")))
   }
 
+  // Structural equality over nested models and arrays, with nil handled and
+  // distinct model types never equal even when their fields match.
+  @Test func testBhvEquality001SameValuesAreEqualAndNestedChangeIsUnequal() {
+    let tag = PetstoreClient.Tag(id: 3, name: "Birds")
+    let category = PetstoreClient.Category(id: 7, name: "Birds")
+    let a = PetstoreClient.Pet(name: "Rex", photoUrls: ["a"], category: category, tags: [tag])
+    let b = PetstoreClient.Pet(name: "Rex", photoUrls: ["a"], category: category, tags: [tag])
+    #expect(a == b)
+    let renamedTag = PetstoreClient.Tag(id: 3, name: "Cats")
+    let changedTag = PetstoreClient.Pet(
+      name: "Rex", photoUrls: ["a"], category: category, tags: [renamedTag])
+    #expect(a != changedTag)
+    let renamedCategory = PetstoreClient.Category(id: 7, name: "Cats")
+    let changedCategory = PetstoreClient.Pet(
+      name: "Rex", photoUrls: ["a"], category: renamedCategory, tags: [tag])
+    #expect(a != changedCategory)
+    let withoutCategory = PetstoreClient.Pet(
+      name: "Rex", photoUrls: ["a"], category: nil, tags: [tag])
+    let alsoWithoutCategory = PetstoreClient.Pet(
+      name: "Rex", photoUrls: ["a"], category: nil, tags: [tag])
+    #expect(withoutCategory == alsoWithoutCategory)
+    #expect(withoutCategory != a)
+    #expect(AnyHashable(tag) != AnyHashable(PetstoreClient.Category(id: 3, name: "Birds")))
+  }
+
   @Test func testBhvSerializationobject088SerializeIncludesFieldsSetToDefaultValues() throws {
     let category = PetstoreClient.Category(id: 0, name: "")
     let json = try ObjectSerializer.serialize(category)

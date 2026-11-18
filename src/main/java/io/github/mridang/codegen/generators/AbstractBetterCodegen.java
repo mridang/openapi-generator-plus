@@ -658,6 +658,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     public void processOpenAPI(OpenAPI openAPI) {
         super.processOpenAPI(openAPI);
         generating = true;
+        // Before any normalisation rule synthesises a oneOf: the warning is about
+        // the spec as written, not about the unions the generator adds itself.
+        warnAmbiguousOneOfs(openAPI);
         additionalProperties.put(
                 "appNameBase",
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
@@ -1298,6 +1301,106 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         return "Unsupported security scheme type " + scheme.getType() + " for '" + schemeName
                 + "': no authenticator is generated";
+    }
+
+    /**
+     * Logs one warning per ambiguous oneOf of the spec as loaded. Runs once per
+     * generation, before the normalisation rules, and never changes the order of
+     * the variants (declaration order is the decode order, D64).
+     */
+    private void warnAmbiguousOneOfs(final OpenAPI openAPI) {
+        for (final String message : ambiguousOneOfMessages(openAPI)) {
+            LOGGER.warn("{}", message);
+        }
+    }
+
+    /**
+     * The warnings for each component schema, and each of its direct property
+     * schemas, that is a oneOf without a discriminator whose variants share a
+     * JSON type: a payload of that type matches more than one variant.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    static List<String> ambiguousOneOfMessages(final OpenAPI openAPI) {
+        final List<String> messages = new ArrayList<>();
+        if (openAPI == null || openAPI.getComponents() == null
+                || openAPI.getComponents().getSchemas() == null) {
+            return messages;
+        }
+        openAPI.getComponents().getSchemas().forEach((name, schema) -> {
+            addAmbiguousOneOfMessage(openAPI, name, schema, messages);
+            if (schema != null && schema.getProperties() != null) {
+                schema.getProperties().forEach((property, propertySchema) ->
+                        addAmbiguousOneOfMessage(openAPI, name + "." + property,
+                                (Schema<?>) propertySchema, messages));
+            }
+        });
+        return messages;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void addAmbiguousOneOfMessage(
+            final OpenAPI openAPI, final String name, final Schema<?> schema,
+            final List<String> messages) {
+        if (schema == null || schema.get$ref() != null || schema.getDiscriminator() != null
+                || schema.getOneOf() == null || schema.getOneOf().isEmpty()) {
+            return;
+        }
+        final Map<String, List<String>> variantsByType = new LinkedHashMap<>();
+        final List<Schema> variants = schema.getOneOf();
+        for (int index = 0; index < variants.size(); index++) {
+            final Schema<?> variant = variants.get(index);
+            final String type = jsonTypeOf(openAPI, variant);
+            if (type != null) {
+                variantsByType.computeIfAbsent(type, key -> new ArrayList<>())
+                        .add(variantLabel(variant, index));
+            }
+        }
+        final List<String> clashes = new ArrayList<>();
+        for (final Map.Entry<String, List<String>> entry : variantsByType.entrySet()) {
+            if (entry.getValue().size() > 1) {
+                clashes.add(joinNames(entry.getValue()) + " both accept a JSON "
+                        + entry.getKey());
+            }
+        }
+        if (!clashes.isEmpty()) {
+            messages.add("Ambiguous oneOf '" + name + "' has no discriminator: "
+                    + String.join("; ", clashes)
+                    + ". A payload that matches several variants decodes as the first"
+                    + " declared one");
+        }
+    }
+
+    /** The JSON type a variant accepts, or null when it cannot be told from the spec. */
+    @Nullable
+    private static String jsonTypeOf(final OpenAPI openAPI, final Schema<?> schema) {
+        Schema<?> resolved = schema;
+        if (schema.get$ref() != null) {
+            resolved = ModelUtils.getSchema(openAPI, ModelUtils.getSimpleRef(schema.get$ref()));
+            if (resolved == null) {
+                return null;
+            }
+        }
+        if (resolved.getType() != null) {
+            return "integer".equals(resolved.getType()) ? "number" : resolved.getType();
+        }
+        if (resolved.getProperties() != null || resolved.getAdditionalProperties() != null) {
+            return "object";
+        }
+        return resolved.getItems() != null ? "array" : null;
+    }
+
+    private static String variantLabel(final Schema<?> variant, final int index) {
+        return variant.get$ref() != null
+                ? ModelUtils.getSimpleRef(variant.get$ref())
+                : "inline variant " + (index + 1);
+    }
+
+    private static String joinNames(final List<String> names) {
+        if (names.size() == 1) {
+            return names.get(0);
+        }
+        return String.join(", ", names.subList(0, names.size() - 1))
+                + " and " + names.get(names.size() - 1);
     }
 
     @Nullable

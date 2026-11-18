@@ -38,6 +38,8 @@ Some rules need no configuration because the generator applies them to every doc
 
 The `x-internal` rule is how the shared test specification works: transport-test endpoints (echo, delay, compression, redirects, error statuses) live in the same file that the mock server serves, and are removed before generation so they do not become SDK methods.
 
+Every run also has a warning pass over the specification, after the stock normalisation and before the rules above. It logs each `$ref` that does not resolve inside the document (a dangling reference, or a reference that is not a local JSON pointer) and each construct the generators ignore (callbacks, webhooks, Link Objects and the `xml` object), with the JSON pointer of the place where it was found, such as `#/paths/~1pets/get/responses/200`. By default the run stays lenient and carries on. Pass `-DstrictSpec=true` to the JVM and any warning fails the run after all of them have been logged.
+
 ### The shared generator
 
 `AbstractBetterCodegen` is about six thousand lines and holds everything the twelve have in common, so changing it changes every SDK. It escapes literals and enum values, normalises doc comments, decides which model names collide with reserved words, adds per-operation server information, renders each operation's Options class, detects the security schemes in the document and exposes them to the templates, and prepares the data the templates need. Each language adds a thin `Better<Lang>Codegen` class with only what is its own: its type mappings, its reserved words, its identifier casing and its file layout.
@@ -146,7 +148,7 @@ An `ApiError` carries the status code, the response headers and body, and the re
 
 ### Models and serialisation
 
-Each schema becomes a model, each enum a typed enum, each `oneOf` and `anyOf` a union (see [types](types.md)). The wire rules are the same everywhere: object keys are written in declaration order with `additionalProperties` after them; strings are written literally; a request body is never decoded and re-encoded when it is binary; a space is `%20` in a query string and `+` in a form body; and unknown enum values, discriminators that match nothing and malformed values are a `SerializationError`. Void responses are never decoded. The client does not enforce schema constraints such as `pattern` or `minimum`; the server owns validation.
+Each schema becomes a model, each enum a typed enum, each `oneOf` and `anyOf` a union (see [types](types.md)). A `oneOf` with no discriminator whose variants accept the same JSON type logs one generation-time warning naming the schema and the variants, and its variants keep their declaration order. The wire rules are the same everywhere: object keys are written in declaration order with `additionalProperties` after them; strings are written literally; a request body is never decoded and re-encoded when it is binary; a space is `%20` in a query string and `+` in a form body; and unknown enum values, discriminators that match nothing and malformed values are a `SerializationError`. Void responses are never decoded. The client does not enforce schema constraints such as `pattern` or `minimum`; the server owns validation.
 
 Out of scope for every SDK: callbacks and webhooks, XML bodies, Link Objects and mutual TLS. OpenAPI 3.1 and 3.2 support is tracked as separate epics, and the public API shape is fixed now so that those features are additive.
 

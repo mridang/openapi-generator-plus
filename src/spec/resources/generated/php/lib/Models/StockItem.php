@@ -80,4 +80,16 @@ class StockItem
             matrix: $matrix,
         );
     }
+
+    /**
+     * Whether $other holds the same content: every property is compared structurally, so nested
+     * models, lists, maps and date-times are compared by value. A value of another class, or null,
+     * is never equal.
+     */
+    public function equals(?self $other): bool
+    {
+        return $other instanceof \PetstoreClient\Models\StockItem
+            && $other::class === static::class
+            && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
+    }
 }

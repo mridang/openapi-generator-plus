@@ -723,10 +723,10 @@ func TestBhvUnions022_ComposedSchema_SetPetAvatarThumbnailRequest_EqualComparesB
 	a := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
 	b := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
 	c := models.NewSetPetAvatarThumbnailRequest([]byte{0x03})
-	if !a.Equal(b) {
+	if !a.Equal(&b) {
 		t.Errorf("expected unions holding the same bytes to be equal")
 	}
-	if a.Equal(c) {
+	if a.Equal(&c) {
 		t.Errorf("expected unions holding different bytes to differ")
 	}
 }
@@ -764,10 +764,10 @@ func TestBhvUnions011_ComposedSchema_PetTreatment_EqualComparesByValue(t *testin
 	a := models.NewPetTreatment(models.Medication{DrugName: "Amoxicillin"})
 	b := models.NewPetTreatment(models.Medication{DrugName: "Amoxicillin"})
 	c := models.NewPetTreatment(models.Medication{DrugName: "Other"})
-	if !a.Equal(b) {
+	if !a.Equal(&b) {
 		t.Errorf("expected treatments with the same variant to be equal")
 	}
-	if a.Equal(c) {
+	if a.Equal(&c) {
 		t.Errorf("expected treatments with different variants to differ")
 	}
 }

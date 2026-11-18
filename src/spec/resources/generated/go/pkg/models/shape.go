@@ -121,7 +121,10 @@ func (o Shape) ActualInstance() any {
 // Equal reports whether this Shape is value-equal to other, comparing
 // the canonical JSON encodings so a union holding a slice variant compares
 // without the panic the built-in `==` raises on such values.
-func (o Shape) Equal(other Shape) bool {
+func (o *Shape) Equal(other *Shape) bool {
+	if o == nil || other == nil {
+		return o == other
+	}
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
 	if errA != nil || errB != nil {

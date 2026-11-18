@@ -335,6 +335,33 @@ public class MetadataTest
     }
 
     [Fact]
+    public void BhvEquality001SameValuesAreEqualAndANestedChangeIsNot()
+    {
+        var created = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
+        var left = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "hello" },
+        };
+        var right = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "hello" },
+        };
+        var nestedChange = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "world" },
+        };
+
+        Assert.Equal(left, right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        Assert.NotEqual(left, nestedChange);
+        Assert.False(left.Equals(new Tag()));
+        Assert.False(left.Equals((object?)null));
+    }
+
+    [Fact]
     public void BhvModels012ToStringRendersAdditionalPropertiesEntries()
     {
         var metadata = new Metadata
