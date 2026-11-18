@@ -631,7 +631,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ContentTypeErrorNamesTheOperationNotTheType()
+    public async Task BhvErrors054ContentTypeErrorNamesTheOperationNotTheType()
     {
         var textApi = new TestableApi(new TextPlainApiClient(), "http://localhost");
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
