@@ -1226,6 +1226,30 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvHeaders030ADefaultHeaderInAnotherCaseReplacesTheNegotiatedOne()
+    {
+        /* Header names are case-insensitive, so a default spelled "accept" replaces
+           the negotiated "Accept" instead of being sent beside it. */
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("accept", "application/vnd.x+json")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        var accepts = client.CapturedHeaders.Keys
+            .Where(key => key.Equals("Accept", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.Single(accepts);
+        Assert.Equal("application/vnd.x+json", client.CapturedHeaders[accepts[0]]);
+    }
+
+    [Fact]
     public async Task BhvOptions001ConfigDefaultCustomHeaderPropagatesToRequest()
     {
         var client = new CapturingApiClient();
@@ -1460,6 +1484,24 @@ public class BaseApiTest
 
     [Fact]
     public async Task BhvTransport059AuthenticatingProxyRefusesARequestWithoutCredentials()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.AuthProxyUrl)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(407, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvTransport063ProxyThatRequiresCredentialsAnswers407WhenNoneAreSent()
     {
         var transport = TransportOptions.Builder()
             .Proxy(_fixture.AuthProxyUrl)

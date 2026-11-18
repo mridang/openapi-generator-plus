@@ -55,6 +55,15 @@ public class ServerVariableTest
     }
 
     [Fact]
+    public void BhvServers024EnumValuesCannotBeMutated()
+    {
+        var variable = new ServerVariable("v3", null, ["v2", "v3"]);
+
+        var values = Assert.IsAssignableFrom<IList<string>>(variable.EnumValues);
+        Assert.Throws<NotSupportedException>(() => values.Add("dev"));
+    }
+
+    [Fact]
     public void RecordEqualityComparesByValue()
     {
         var first = new ServerVariable("v3", "API version", ["v2", "v3"]);
