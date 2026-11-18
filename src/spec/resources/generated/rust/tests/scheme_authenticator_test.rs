@@ -8,6 +8,7 @@
  */
 
 use petstore::auth::Authenticator;
+use petstore::auth::BearerAuthenticator;
 use petstore::ConfigurationError;
 
 /* F862: every per-scheme authenticator reads its credentials from the
@@ -45,6 +46,15 @@ fn invalid_argument_text<T>(result: Result<T, ConfigurationError>) -> String {
         Err(other) => panic!("expected InvalidArgument, got {:?}", other),
         Ok(_) => panic!("expected InvalidArgument, got an authenticator"),
     }
+}
+#[test]
+fn test_bhv_auth_007_a_generic_authenticator_built_without_credentials_reads_no_environment() {
+    with_variables(
+        &[("AUTH_UNREAD_TOKEN", Some("value-that-must-not-be-read"))],
+        || {
+            assert!(BearerAuthenticator::new("https://api.example.com", "").is_err());
+        },
+    );
 }
 
 mod pet_store_basic_authenticator {
@@ -128,6 +138,27 @@ mod pet_store_basic_authenticator {
                 Some("explicit-password")
             )
             .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_auth_003_an_empty_environment_value_counts_as_unset_and_the_next_source_is_used() {
+        with_variables(&empty_all(), || {
+            assert!(PetStoreBasicAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-username"),
+                Some("explicit-password")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_auth_004_built_with_no_argument_and_no_environment_is_refused() {
+        with_variables(&unset_all(), || {
+            assert!(
+                PetStoreBasicAuthenticator::new("https://api.example.com", None, None).is_err()
+            );
         });
     }
 
@@ -578,7 +609,7 @@ mod pet_store_bearer_authenticator {
     }
 
     #[test]
-    fn test_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment() {
+    fn test_bhv_auth_023_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment() {
         with_variables(&set_all(), || {
             let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
                 "https://api.example.com",

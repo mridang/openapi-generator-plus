@@ -1255,7 +1255,7 @@ async fn test_bhv_authoauthtwotokenmgr_020_non_string_refresh_token_is_ignored()
 /// The token body keeps `-._~` literal, writes a space as `+` and
 /// percent-encodes everything else, including `*`, `!`, `'`, `(` and `)`.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_body_percent_encodes_everything_but_the_unreserved_set() {
+async fn test_bhv_auth_017_token_body_writes_a_space_as_plus_and_encodes_reserved_punctuation() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"t1","expires_in":3600}"#, 200);
     let manager = OAuth2TokenManager::new();
@@ -1522,4 +1522,129 @@ async fn test_bhv_authoauthtwotokenmgr_046_a_string_expires_in_outside_the_decim
         assert_eq!("second", second, "expires_in {raw:?}");
         assert_eq!(2, client.requests().len(), "expires_in {raw:?}");
     }
+}
+
+/// A refresh and the fallback grant that both fail give the caller the fallback grant's error, with its status.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_026_a_refresh_and_fallback_that_both_fail_return_the_fallback_error() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#, 200);
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    client.enqueue(r#"{"error":"invalid_client","error_description":"unknown client"}"#, 401);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+
+    manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("the fallback grant is rejected too");
+
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .unwrap_or_else(|| panic!("expected OAuth2ServerError, got: {}", err));
+    assert!(server_err.to_string().contains("status 401"), "{}", server_err);
+    assert_eq!(3, client.requests().len());
+}
+
+/// Answers its first request with a token that is stale at once, then never answers, and records
+/// through `dropped` whether a stalled request was dropped.
+struct AnswerOnceThenStall {
+    sends: Arc<Mutex<usize>>,
+    dropped: Arc<std::sync::atomic::AtomicBool>,
+}
+
+struct StallDropFlag(Arc<std::sync::atomic::AtomicBool>);
+
+impl Drop for StallDropFlag {
+    fn drop(&mut self) {
+        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl ApiClient for AnswerOnceThenStall {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&RequestBody>,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, BoxError>> + Send + '_>> {
+        let sent = {
+            let mut sends = self.sends.lock().unwrap();
+            *sends += 1;
+            *sends
+        };
+        let flag = StallDropFlag(self.dropped.clone());
+        Box::pin(async move {
+            let _flag = flag;
+            if sent == 1 {
+                return Ok(ApiHttpResponse::new(
+                    200,
+                    r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#.to_string(),
+                    HashMap::new(),
+                ));
+            }
+            let never: Result<ApiHttpResponse, BoxError> = std::future::pending().await;
+            never
+        })
+    }
+}
+
+/// A refresh cancelled while it waits for the token endpoint is dropped, and the fallback grant never runs.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_027_a_cancelled_refresh_does_not_run_the_fallback_grant() {
+    let dropped = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let sends = Arc::new(Mutex::new(0usize));
+    let client = Arc::new(AnswerOnceThenStall { sends: sends.clone(), dropped: dropped.clone() });
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let params = authorization_code_params();
+
+    manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_millis(100),
+        manager.get_access_token("https://auth.example.com/token", &params),
+    )
+    .await;
+
+    assert!(outcome.is_err(), "the refresh is still waiting for the token endpoint");
+    assert!(dropped.load(std::sync::atomic::Ordering::SeqCst), "the refresh request must be dropped");
+    assert_eq!(2, *sends.lock().unwrap(), "no fallback grant may be sent after the cancellation");
+}
+
+/// Answers each request with a head capture: the token request is sent without the transport's default headers.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_010_token_request_leaves_the_transport_default_headers_out() {
+    use std::io::Read;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("a local address");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if let Some(Ok(mut stream)) = listener.incoming().next() {
+            let mut buf = [0u8; 4096];
+            let n_read = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n_read]).to_string());
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    let transport = {{packageName}}::TransportOptionsBuilder::new()
+        .default_header("X-Default", "kept")
+        .build()
+        .expect("valid transport options");
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(Arc::new({{packageName}}::DefaultApiClient::new(Some(transport))));
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    // The capture answers with an empty body, so the token request fails; only the head matters.
+    let _ = manager.get_access_token(&format!("http://{}/token", addr), &params).await;
+
+    let head = rx.recv_timeout(std::time::Duration::from_secs(5)).expect("a captured request");
+    let has_default = head
+        .lines()
+        .any(|line| line.to_lowercase().starts_with("x-default:"));
+    assert!(!has_default, "the token request carried a default header: {}", head);
 }

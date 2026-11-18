@@ -378,3 +378,38 @@ fn test_bhv_authapikey_015_valid_query_key_is_exposed_in_query_params() {
 fn test_bhv_authapikey_017_whitespace_only_key_throws_at_construction() {
     assert!(refusal_reason("   ", ApiKeyLocation::Cookie).contains("must not be empty"));
 }
+
+/// A key sent in a header is emitted under the header name the spec declares, and under no other name.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_006_an_api_key_header_is_sent_under_the_declared_name() {
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-Declared-Key",
+        "abc123",
+        ApiKeyLocation::Header,
+    )
+    .unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("X-Declared-Key").map(|s| s.as_str()),
+        Some("abc123")
+    );
+    assert!(!headers.contains_key("X-API-Key"));
+}
+
+/// A refused key is never echoed back: the error's debug form does not show the key text.
+#[test]
+fn test_bhv_auth_018_a_refused_key_is_never_echoed_in_its_error() {
+    match ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "abc\r\nSECRETKEYVALUE",
+        ApiKeyLocation::Header,
+    ) {
+        Err(err) => {
+            let text = format!("{:?}", err);
+            assert!(!text.contains("SECRETKEYVALUE"), "{}", text);
+        }
+        Ok(_) => panic!("a key with CR/LF must be refused"),
+    }
+}

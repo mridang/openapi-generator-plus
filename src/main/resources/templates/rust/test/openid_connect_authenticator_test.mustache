@@ -950,3 +950,36 @@ async fn test_bhv_authoidc_033_a_failed_discovery_request_names_its_method_and_p
         internal.server_error().api_error().message()
     );
 }
+
+/// A discovery response without a usable max-age is cached for the default lifetime, so repeated use does not fetch it again.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_011_discovery_without_a_usable_max_age_is_cached_for_the_default_lifetime() {
+    for cache_control in ["no-cache", "public, max-age=soon"] {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue_cached(DISCOVERY, cache_control);
+        let mut auth = create_authenticator();
+        auth.set_api_client(client.clone());
+
+        auth.build_authorization_url("").await.expect("should succeed");
+        auth.build_authorization_url("").await.expect("should succeed");
+
+        assert_eq!(1, client.get_count(), "Cache-Control: {}", cache_control);
+    }
+}
+
+/// Once the cached discovery document's max-age has elapsed, later calls use the endpoints of the new document.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_029_after_the_cached_discovery_expires_later_calls_use_the_new_endpoints() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "max-age=1");
+    client.enqueue_cached(REDISCOVERY, "max-age=3600");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let first = auth.build_authorization_url("").await.expect("should succeed");
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let second = auth.build_authorization_url("").await.expect("should succeed");
+
+    assert!(first.starts_with("https://auth.example.com/authorize?"), "{}", first);
+    assert!(second.starts_with("https://auth.example.com/authorize-v2?"), "{}", second);
+}

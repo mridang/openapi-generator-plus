@@ -324,3 +324,42 @@ fn test_bhv_lifecycle_006_bearer_rejects_crlf_and_non_ascii() {
         }
     }
 }
+
+/// A token provider is asked again on every request, so the token it returns can change between calls.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_005_a_provided_token_is_read_again_for_each_request() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let calls = std::sync::Arc::new(AtomicUsize::new(0));
+    let counter = calls.clone();
+    let auth = BearerAuthenticator::with_token_provider(
+        "https://api.example.com",
+        std::sync::Arc::new(move || {
+            format!("token-{}", counter.fetch_add(1, Ordering::SeqCst) + 1)
+        }),
+    );
+    for expected in ["Bearer token-1", "Bearer token-2", "Bearer token-3"] {
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some(expected)
+        );
+    }
+    assert_eq!(3, calls.load(Ordering::SeqCst));
+}
+
+/// Each refused bearer token states why it was refused.
+#[test]
+fn test_bhv_auth_012_each_refused_token_states_why() {
+    for (token, reason) in [
+        ("", "must not be empty"),
+        ("   ", "must not be empty"),
+        ("ñoño", "printable ASCII"),
+    ] {
+        match BearerAuthenticator::new("https://api.example.com", token) {
+            Err(ConfigurationError::InvalidArgument(text)) => {
+                assert!(text.contains(reason), "{:?}: {}", token, text)
+            }
+            other => panic!("expected InvalidArgument for {:?}, got {:?}", token, other),
+        }
+    }
+}
