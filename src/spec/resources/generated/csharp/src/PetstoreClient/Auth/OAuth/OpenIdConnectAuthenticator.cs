@@ -107,6 +107,13 @@ public partial class OpenIdConnectAuthenticator
         Task<OAuth2AuthorizationCodeAuthenticator> pending;
         lock (_discoveryLock)
         {
+            /* A caller that arrives after the first discovery finished and cleared
+               the shared task must see its result, not start a second request. */
+            if (_delegate is not null && DateTimeOffset.UtcNow < _discoveryExpiry)
+            {
+                return _delegate;
+            }
+
             _discovery ??= DiscoverAsync();
             pending = _discovery;
         }
