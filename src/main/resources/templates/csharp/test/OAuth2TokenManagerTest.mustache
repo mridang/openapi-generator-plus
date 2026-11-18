@@ -664,7 +664,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ConcurrentReadersNeverSeeATokenOtherThanOneThatWasSet()
+    public async Task BhvMisc001ConcurrentReadersNeverSeeATokenOtherThanOneThatWasSet()
     {
         // F909: the token and its expiry are published as one snapshot, so a
         // reader racing a writer sees one complete token or the other.

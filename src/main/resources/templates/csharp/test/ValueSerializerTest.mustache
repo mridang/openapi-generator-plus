@@ -31,7 +31,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void EnumStringifySerializesWireValue()
+    public void BhvSerialization001EnumStringifySerializesWireValue()
     {
         Assert.Equal("red", ObjectSerializer.Stringify(TestHue.Red));
     }
@@ -671,7 +671,7 @@ public class ValueSerializerTest
     [InlineData("-")]
     [InlineData(".")]
     [InlineData("_")]
-    public void PathSegmentKeepsEachSubDelimiterAndUnreservedCharacterLiteral(string character)
+    public void BhvSerialization005PathSegmentKeepsEachSubDelimiterAndUnreservedCharacterLiteral(string character)
     {
         string value = "a" + character + "b";
         Assert.Equal(value, ValueSerializer.Serialize(value, "path", "string"));

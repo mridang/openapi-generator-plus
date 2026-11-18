@@ -174,7 +174,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseKeepsAModeratelyNestedBody()
+    public void BhvErrors073FromResponseKeepsAModeratelyNestedBody()
     {
         string nested = new string('[', 100) + new string(']', 100);
 
@@ -222,7 +222,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void ToStringOmitsTheStatusWhenNoResponseArrived()
+    public void BhvErrors074ToStringOmitsTheStatusWhenNoResponseArrived()
     {
         var ex = new ApiException(0, "connection refused", null, null);
 
@@ -256,7 +256,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyToleratesALeadingByteOrderMark()
+    public void BhvErrors072GetTypedErrorBodyToleratesALeadingByteOrderMark()
     {
         var ex = ApiException.FromResponse(
             400, new Dictionary<string, string>(), "\uFEFF{\"id\":7,\"name\":\"Dogs\"}");
