@@ -30,7 +30,7 @@ import Testing
     #expect(val is WetFood)
   }
 
-  @Test func testPetFoodDeserializeUnknownDiscriminator() throws {
+  @Test func testBhvUnions035PetFoodDeserializeUnknownDiscriminator() throws {
     let jsonData = Data("{\"foodType\":\"raw\",\"calories\":300}".utf8)
 
     #expect(throws: (any Error).self) { try JSONDecoder().decode(PetFood.self, from: jsonData) }
@@ -56,7 +56,7 @@ import Testing
     }
   }
 
-  @Test func testDryFoodFillsAbsentRequiredDiscriminatorWithItsDefault() throws {
+  @Test func testBhvUnions030DryFoodFillsAbsentRequiredDiscriminatorWithItsDefault() throws {
     let jsonData = Data("{\"weightKg\":2.5}".utf8)
     let food = try JSONDecoder().decode(DryFood.self, from: jsonData)
     #expect(food.foodType == "dry")
@@ -137,7 +137,7 @@ import Testing
 
   /* A oneOf union can be built in code from one of its variants, and the
      wrapped value is what goes on the wire. */
-  @Test func testPetFoodConstructedFromVariantSerializesThatVariant() throws {
+  @Test func testBhvUnions032PetFoodConstructedFromVariantSerializesThatVariant() throws {
     let food = PetFood(DryFood(weightKg: 2.5))
     #expect(food.actualInstance() is DryFood)
     #expect(food.actualInstance(as: DryFood.self)?.weightKg == 2.5)
@@ -146,6 +146,30 @@ import Testing
     let wet = PetFood(WetFood(volumeMl: 400))
     #expect(wet.actualInstance() is WetFood)
     #expect(try ObjectSerializer.serialize(wet) == "{\"foodType\":\"wet\",\"volumeMl\":400}")
+  }
+
+  /* A oneOf wrapper's typed accessor returns the variant it holds and nothing for the other one. */
+  @Test func testBhvUnions034OneOfTypedAccessorReturnsTheHeldVariantOnly() {
+    let dry = PetFood.fromDryFood(DryFood(weightKg: 2.5))
+    #expect(dry.asDryFood?.weightKg == 2.5)
+    #expect(dry.asWetFood == nil)
+
+    let wet = PetFood.fromWetFood(WetFood(volumeMl: 400))
+    #expect(wet.asWetFood?.volumeMl == 400)
+    #expect(wet.asDryFood == nil)
+  }
+
+  /* An unknown, missing or empty discriminator is refused by the SDK serializer as a SerializationError. */
+  @Test(arguments: [
+    "{\"foodType\":\"raw\",\"calories\":300}",
+    "{\"weightKg\":2.5}",
+    "{\"foodType\":\"\",\"weightKg\":2.5}",
+  ])
+  func testBhvUnions033BadDiscriminatorSurfacesAsSerializationError(json: String) {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: PetFood.self)
+    }
+    #expect(error?.cause != nil)
   }
 
   /* The primitive-union variants are accepted by the same initializer. */
@@ -307,6 +331,15 @@ import Testing
     let dry = PetFood(DryFood(weightKg: 2.5))
     #expect(dry == PetFood(DryFood(weightKg: 2.5)))
     #expect(dry != PetFood(DryFood(weightKg: 3.5)))
+  }
+
+  /// Two oneOf wrappers holding equal variants compare and hash alike; a different variant does not.
+  @Test func testBhvUnions029OneOfWrappersHaveValueEquality() {
+    let dry = PetFood(DryFood(weightKg: 2.5))
+    #expect(dry == PetFood(DryFood(weightKg: 2.5)))
+    #expect(dry.hashValue == PetFood(DryFood(weightKg: 2.5)).hashValue)
+    #expect(dry != PetFood(DryFood(weightKg: 3.5)))
+    #expect(dry != PetFood(WetFood(volumeMl: 400)))
   }
 
   /// An anyOf wrapper built from no variants is refused, because reading it would trap.

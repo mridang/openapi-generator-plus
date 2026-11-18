@@ -1195,7 +1195,7 @@ import Testing
     #expect(calls == 2)
   }
 
-  @Test func testTimeoutIsNotRetried() async throws {
+  @Test func testBhvRetries042TimeoutIsNotRetried() async throws {
     var calls = 0
     let client = try retryClient { _ in
       calls += 1
@@ -1269,6 +1269,16 @@ import Testing
       method: "POST", url: "http://localhost/stream", headers: [:], body: stream)
     #expect(response.statusCode == 503)
     #expect(calls == 1)
+  }
+
+  /* A caller-supplied stream is sent as the body and is left open for its owner to close. */
+  @Test func testBhvTransport061CallerSuppliedStreamIsLeftOpenAfterTheBodyIsSent() async throws {
+    let client = makeClient { _ in (Data("{}".utf8), 200, [:]) }
+    let stream = InputStream(data: Data("payload".utf8))
+    let response = try await client.sendRequest(
+      method: "POST", url: "http://localhost/upload", headers: [:], body: stream)
+    #expect(response.statusCode == 200)
+    #expect(stream.streamStatus != .closed)
   }
 
   @Test func testTokenRequestsAreNeverRetried() async throws {
@@ -1465,6 +1475,27 @@ import Testing
         DefaultApiClient.sameOrigin(a, b) == expected,
         "sameOrigin(\(left), \(right)) should be \(expected)")
     }
+  }
+
+  /* A 302 to the same origin spelled with its scheme's default port is still the same origin,
+   * so the Authorization header reaches the second hop. */
+  @Test func testBhvRedirects037RedirectToExplicitDefaultPortKeepsAuthorization() async throws {
+    let transport = try TransportOptionsBuilder().followRedirects(true).build()
+    var hops = 0
+    var followUp: [String: String]?
+    let client = makeClient(transport: transport) { req in
+      hops += 1
+      if hops == 1 {
+        return (Data(), 302, ["Location": "https://example.com:443/landing"])
+      }
+      followUp = req.allHTTPHeaderFields ?? [:]
+      return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+    }
+    let resp = try await client.sendRequest(
+      method: "GET", url: "https://example.com/start",
+      headers: ["Authorization": "Bearer secret-token"], body: nil)
+    #expect(resp.statusCode == 200)
+    #expect(followUp?["Authorization"] == "Bearer secret-token")
   }
 
   // MARK: - Accept-Encoding
