@@ -17,6 +17,27 @@ defmodule PetstoreClient.ApiErrorTest do
     assert err.error_body == nil
   end
 
+  test "bhv misc 284 a generated call that receives a typed status raises that typed error" do
+    for {status, name} <- [
+          {400, :BadRequestError},
+          {403, :ForbiddenError},
+          {404, :NotFoundError},
+          {409, :ConflictError},
+          {422, :UnprocessableEntityError},
+          {429, :TooManyRequestsError},
+          {500, :InternalServerError},
+          {502, :BadGatewayError}
+        ] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, "")
+      assert error.__struct__ == Module.concat(PetstoreClient.Errors, name)
+    end
+  end
+
+  test "bhv misc 283 the package root module re-exports every error type in the error tree" do
+    assert PetstoreClient.errors() == PetstoreClient.Errors.OpenAPIError.exceptions()
+    assert Enum.all?(PetstoreClient.errors(), &Code.ensure_loaded?/1)
+  end
+
   test "bhv misc 281 headers from a received response are copied onto the error raised for that response" do
     error = PetstoreClient.Errors.ApiError.from_response(500, %{"x-trace-id" => "abc123"}, "boom")
 

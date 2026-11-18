@@ -619,6 +619,30 @@ class TestApiErrorRendering:
         assert "more bytes" in str(err)
         assert len(str(err)) < 1500
 
+    def test_bhv_misc_280_a_truncated_body_states_how_many_bytes_were_left_out(
+        self,
+    ) -> None:
+        err = ApiException(
+            status_code=502, message="bad gateway", response_body="a" * 3000
+        )
+
+        assert "1976 more bytes" in str(err)
+
+    def test_bhv_misc_281_headers_from_the_response_are_copied_onto_the_error(
+        self,
+    ) -> None:
+        err = ApiException.from_response(503, {"retry-after": "5"}, "{}")
+
+        assert err.response_headers["retry-after"] == "5"
+
+    def test_bhv_misc_286_an_oauth_error_message_names_its_status_and_error_code(
+        self,
+    ) -> None:
+        err = OAuth2ServerException(401, "invalid_client", None, None, "{}")
+
+        assert "401" in str(err)
+        assert "invalid_client" in str(err)
+
     def test_bhv_errors_065_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out(
         self,
     ) -> None:

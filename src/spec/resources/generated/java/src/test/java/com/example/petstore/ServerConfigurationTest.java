@@ -11,6 +11,7 @@ package com.example.petstore;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -276,5 +277,71 @@ class ServerConfigurationTest {
             Map.of("env", new ServerVariable("api", null, List.of())));
 
     assertEquals("https://$1$&$$.api.example.com", config.getUrl(Map.of("env", "$1$&$$")));
+  }
+
+  @Test
+  void bhvMisc154EditingTheReturnedVariablesMapLeavesTheConfigurationUnchanged() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            Map.of("env", new ServerVariable("prod", null, List.of("prod", "staging"))));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> config.getVariables().put("extra", new ServerVariable("x", null, List.of())));
+    assertEquals(List.of("env"), List.copyOf(config.getVariables().keySet()));
+    assertEquals("https://prod.example.com", config.getUrl());
+  }
+
+  @Test
+  void bhvMisc155AnUnsetEnumVariableIsRefusedNamingItsValues() {
+    IllegalArgumentException thrown =
+        assertThrowsExactly(
+            IllegalArgumentException.class,
+            () ->
+                new ServerConfiguration(
+                        "https://{env}.example.com",
+                        null,
+                        Map.of("env", new ServerVariable("prod", null, List.of("api", "staging"))))
+                    .getUrl());
+    assertEquals(
+        "Invalid value 'prod' for server variable 'env'. Allowed values: [api, staging]",
+        thrown.getMessage());
+  }
+
+  @Test
+  void bhvMisc156TheListOfAllServersKeepsTheDeclaredOrder() throws Exception {
+    List<ServerConfiguration> declared = new java.util.ArrayList<>();
+    for (int index = 0; ; index++) {
+      try {
+        declared.add((ServerConfiguration) Servers.class.getField("SERVER_" + index).get(null));
+      } catch (NoSuchFieldException absent) {
+        break;
+      }
+    }
+    assertEquals(declared, Servers.ALL);
+  }
+
+  @Test
+  void bhvMisc157ExplicitVariableValuesAreResolvedIntoTheUrl() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{env}.api.example.com/v{version}",
+            null,
+            Map.of(
+                "env",
+                new ServerVariable("prod", null, List.of("prod", "staging")),
+                "version",
+                new ServerVariable("1", null, List.of())));
+    assertEquals(
+        "https://staging.api.example.com/v2",
+        config.getUrl(Map.of("env", "staging", "version", "2")));
+  }
+
+  @Test
+  void bhvMisc158AFixedUrlIsReportedExactlyAsGiven() {
+    assertEquals(
+        "https://example.com/api/v1",
+        new ServerConfiguration("https://example.com/api/v1").getUrl());
   }
 }

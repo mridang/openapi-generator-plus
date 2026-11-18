@@ -933,6 +933,73 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert expiry > before + 31_536_000 * 1000 - 5_000
     end
 
+    test "bhv misc 199 discovery runs again once the cached document's max-age has elapsed and the rediscovered endpoints are used" do
+      discovery = %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        headers: %{"Cache-Control" => "max-age=1"},
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+
+      fake_client = FakeApiClient.new([discovery, discovery])
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      Process.sleep(1_100)
+      url = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+      assert FakeApiClient.get_count(fake_client) == 2
+      assert url =~ "https://auth.example.com/authorize"
+    end
+
+    test "bhv misc 200 a discovery document whose issuer names another server is rejected" do
+      discovery = %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://evil.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+
+      fake_client = FakeApiClient.new([discovery])
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      assert_raise PetstoreClient.Errors.SerializationError, ~r/'issuer' does not match/, fn ->
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      end
+    end
+
+    test "bhv misc 201 a failed discovery request reports its request path without the query string" do
+      fake_client =
+        FakeApiClient.new([%PetstoreClient.ApiHttpResponse{status_code: 404, body: "missing"}])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+          create_authenticator(),
+          fake_client
+        )
+
+      error =
+        assert_raise PetstoreClient.Errors.NotFoundError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end
+
+      assert error.request_path == "/.well-known/openid-configuration"
+      refute error.request_path =~ "?"
+    end
+
     test "bhv authoidc 030 max-age=0 makes every use fetch the discovery document again" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,

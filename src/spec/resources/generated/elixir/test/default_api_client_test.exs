@@ -165,6 +165,24 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert err.status_code == 0
   end
 
+  test "bhv transport 093 a server whose certificate is signed by a CA other than the configured one is rejected with a network error" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+    client = PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new())
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{chasm_url}/test/echo",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 0
+  end
+
   test "bhv misc 269 a self-signed endpoint is reached when verification is off and rejected when it is on" do
     chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
 
@@ -379,6 +397,27 @@ defmodule PetstoreClient.DefaultApiClientTest do
 
     assert PetstoreClient.DefaultApiClient.send_request(roomy, :get, chain, %{}, nil).status_code ==
              200
+  end
+
+  test "bhv transport 086 a request that exceeds its timeout fails with the network timeout error within the time budget" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 200))
+
+    started = System.monotonic_time(:millisecond)
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/redirect/chain/1",
+        %{},
+        nil
+      )
+    end
+
+    assert System.monotonic_time(:millisecond) - started < 1_000
   end
 
   test "bhv misc 263 a per-call timeout longer than the client's timeout lets a slow response complete" do
@@ -724,6 +763,60 @@ defmodule PetstoreClient.DefaultApiClientTest do
     json = Jason.decode!(response.body)
     assert json["method"] == "GET"
     assert json["body"] == ""
+  end
+
+  test "bhv misc 173 a streamed body is replayed across an https to http redirect only when it is empty" do
+    https = "https://example.com/x"
+    http = "http://example.com/x"
+
+    assert PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, "payload")
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, "")
+  end
+
+  test "bhv misc 226 with redirect following enabled a 302 is followed to its target and the final 200 is returned" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/redirect/302",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+  end
+
+  test "bhv misc 223 a redirect that turns the follow-up into a GET drops the body and its Content-Length" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true, max_redirects: 5)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{chasm_url}/test/redirect/303",
+        %{"Content-Type" => "application/json"},
+        "hello-body"
+      )
+
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
+    assert json["body"] == ""
+    refute Map.has_key?(json["headers"], "content-length")
+  end
+
+  test "bhv misc 237 an ISO-8859-1 error body decodes to UTF-8 text" do
+    assert PetstoreClient.DefaultApiClient.decode_text_body(
+             <<0xE9>>,
+             "text/plain; charset=ISO-8859-1"
+           ) == "é"
   end
 
   # Gap N1 (canonical 302 case): a 302 carrying a body over an https->http hop

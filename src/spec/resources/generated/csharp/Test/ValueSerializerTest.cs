@@ -635,6 +635,22 @@ public class ValueSerializerTest
     // -- serializeStyled: spaceDelimited style --
 
     [Fact]
+    public void BhvMisc213AnOptionalArrayQueryParameterUsesItsDeclaredStyleWithoutBracketsOrCommas()
+    {
+        var rendered = ValueSerializer.SerializeStyled(
+            "color",
+            new List<object> { "blue", "black" },
+            "query",
+            "array",
+            null,
+            "pipeDelimited",
+            false
+        );
+
+        Assert.Equal("blue|black", rendered);
+    }
+
+    [Fact]
     public void BhvSerializationparam093SpaceDelimitedArrayJoinsWithSpace()
     {
         Assert.Equal(
@@ -1520,6 +1536,55 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
         };
         Assert.Throws<SerializationException>(() =>
             ValueSerializer.SerializeStyled("c", nested, "query", "object", null, "matrix", true)
+        );
+    }
+
+    [Fact]
+    public void BhvSerialization107AnExplodedArrayQueryParameterRepeatsItsKeyPerElement()
+    {
+        Assert.Equal(
+            new List<string> { "a", "b" },
+            ValueSerializer.SerializeStyled(
+                "ids",
+                new List<string> { "a", "b" },
+                "query",
+                "array",
+                null,
+                "form",
+                true
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvSerialization108APathValueWithoutAStyleMatchesTheSimpleStyle()
+    {
+        Assert.Equal("hello%20world", ValueSerializer.Serialize("hello world", "path", "string"));
+    }
+
+    [Fact]
+    public void BhvSerialization110AnAbsentPathValueIsEmptyAndAnAbsentQueryValueIsNull()
+    {
+        Assert.Equal("", ValueSerializer.Serialize(null, "path", "string"));
+        Assert.Null(ValueSerializer.Serialize(null, "query", "string"));
+    }
+
+    [Fact]
+    public void BhvSerialization111OnlyUnreservedCharactersStayLiteralAndOthersAreUtf8Encoded()
+    {
+        Assert.Equal("a~b-._z%20%C3%A9", ValueSerializer.Serialize("a~b-._z é", "path", "string"));
+    }
+
+    [Fact]
+    public void BhvSerialization118ADateTimeQueryValueKeepsItsTimeAndOffset()
+    {
+        var moment = new DateTimeOffset(2024, 1, 15, 13, 45, 30, TimeSpan.Zero);
+        var rendered = Assert.IsType<string>(ValueSerializer.Serialize(moment, "query", "string"));
+        Assert.Contains("T13:45:30", rendered, StringComparison.Ordinal);
+        Assert.True(
+            rendered.EndsWith("+00:00", StringComparison.Ordinal)
+                || rendered.EndsWith("Z", StringComparison.Ordinal)
+                || rendered.EndsWith("%2B00:00", StringComparison.Ordinal)
         );
     }
 }

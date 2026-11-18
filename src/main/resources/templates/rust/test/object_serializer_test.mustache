@@ -1360,3 +1360,110 @@ fn test_bhv_misc_094_a_free_form_json_object_is_written_with_its_members_unchang
     let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
     assert_eq!(parsed, serde_json::json!({"ownerId": 198772, "at": "2024-01-15T10:30:00Z"}));
 }
+
+use {{packageName}}::json_value::JsonValue;
+use {{packageName}}::models::{BinaryVault, Category, Counters, Defaults, Metadata, Rank, StrictTag};
+
+#[test]
+fn test_bhv_misc_102_a_binary_field_keeps_the_bytes_it_was_given_through_copying() {
+    let vault = BinaryVault { seal: Some(vec![0x00, 0xff, 0x10, 0x42]), ..Default::default() };
+    assert_eq!(vault.clone().seal, Some(vec![0x00, 0xff, 0x10, 0x42]));
+}
+
+#[test]
+fn test_bhv_misc_103_rejecting_undeclared_keys_on_one_strict_model_leaves_other_models_accepting_them() {
+    assert!(serde_json::from_str::<StrictTag>(r#"{"rogue":"x"}"#).is_err());
+    assert!(serde_json::from_str::<Metadata>(r#"{"rogue":"x"}"#).is_ok());
+}
+
+#[test]
+fn test_bhv_misc_105_copying_a_model_never_validates_the_values_it_is_given() {
+    let counters = Counters { label: None, additional_properties: std::collections::HashMap::from([("x".to_string(), i32::MIN)]) };
+    assert_eq!(counters.clone().additional_properties.get("x"), Some(&i32::MIN));
+}
+
+#[test]
+fn test_bhv_misc_106_a_null_array_element_keeps_its_position() {
+    assert_eq!(serde_json::to_string(&vec![Some(1), None, Some(2)]).expect("serializes"), "[1,null,2]");
+}
+
+#[test]
+fn test_bhv_misc_108_a_model_built_with_an_integer_enum_member_keeps_its_wire_value() {
+    assert_eq!(serde_json::to_string(&Rank::LOW).expect("serializes"), "1");
+}
+
+#[test]
+fn test_bhv_misc_110_a_list_of_dates_with_a_non_date_element_is_refused() {
+    assert!(serde_json::from_str::<Vec<chrono::NaiveDate>>(r#"["2024-01-01","not-a-date"]"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_113_the_string_form_shows_the_contents_of_list_map_and_bytes() {
+    let vault = BinaryVault { seal: Some(vec![1, 2, 3]), shards: Some(vec![vec![4, 5]]), ..Default::default() };
+    let text = format!("{:?}", vault);
+    assert!(text.contains("[1, 2, 3]"), "bytes shown: {}", text);
+    assert!(text.contains("[[4, 5]]"), "nested bytes shown: {}", text);
+}
+
+#[test]
+fn test_bhv_misc_115_a_bare_string_is_a_quoted_json_string() {
+    assert_eq!(serde_json::to_string("hello").expect("serializes"), r#""hello""#);
+}
+
+#[test]
+fn test_bhv_misc_116_an_int32_value_accepts_its_range_and_refuses_overflow_and_fractions() {
+    assert!(serde_json::from_str::<Counters>(r#"{"a":2147483647}"#).is_ok());
+    assert!(serde_json::from_str::<Counters>(r#"{"a":2147483648}"#).is_err());
+    assert!(serde_json::from_str::<Counters>(r#"{"a":1.5}"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_117_an_absent_value_writes_the_json_null_literal() {
+    assert_eq!(serde_json::to_string(&None::<String>).expect("serializes"), "null");
+}
+
+#[test]
+fn test_bhv_misc_118_the_exact_case_value_is_the_one_decoded() {
+    let category: Category = serde_json::from_str(r#"{"NAME":"Other","name":"Exact"}"#).expect("decodes");
+    assert_eq!(category.name.as_deref(), Some("Exact"));
+}
+
+#[test]
+fn test_bhv_misc_121_an_object_with_no_declared_schema_is_written_as_a_json_object() {
+    let value = JsonValue::new(serde_json::json!({"a": 1, "b": "x"}));
+    let parsed: serde_json::Value = serde_json::from_str(&serde_json::to_string(&value).expect("serializes")).expect("valid JSON");
+    assert_eq!(parsed, serde_json::json!({"a": 1, "b": "x"}));
+}
+
+#[test]
+fn test_bhv_misc_122_a_string_default_is_applied_as_the_exact_literal() {
+    let filled: Defaults = serde_json::from_str("{}").expect("decodes");
+    assert_eq!(filled.greeting.as_deref(), Some("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"));
+}
+
+#[test]
+fn test_bhv_misc_104_an_email_format_string_is_a_plain_string_not_validated() {
+    #[derive(serde::Deserialize)]
+    struct Contact {
+        email: String,
+    }
+    let contact: Contact = serde_json::from_str(r#"{"email":"not-an-email"}"#).expect("decodes");
+    assert_eq!(contact.email, "not-an-email");
+}
+
+#[test]
+fn test_bhv_misc_109_a_nested_object_is_validated_with_the_outer_rules_at_decode() {
+    use {{packageName}}::models::EdgeCases;
+    assert!(serde_json::from_str::<EdgeCases>(r#"{"lastError":{"code":"three"}}"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_112_a_repeated_element_of_a_unique_array_keeps_one_copy() {
+    #[derive(serde::Deserialize)]
+    struct UniqueTags {
+        values: std::collections::HashSet<String>,
+    }
+    let decoded: UniqueTags = serde_json::from_str(r#"{"values":["a","a","b"]}"#).expect("decodes");
+    assert_eq!(decoded.values.len(), 2);
+    assert!(decoded.values.contains("a") && decoded.values.contains("b"));
+}
