@@ -3130,4 +3130,28 @@ class DefaultApiClientUnitTest {
             assertEquals(io.ktor.http.HttpMethod.Post, seen[1].method)
         }
     }
+
+    @Test
+    @DisplayName("bhvRetries043 an unauthorized response is returned to the caller after one request when no authenticator can refresh")
+    fun unauthorizedIsNotReplayedWithoutFreshCredentials() {
+        var requests = 0
+        val client =
+            mockClient(
+                statusCode = HttpStatusCode.Unauthorized,
+                requestCapture = { requests++ },
+            )
+        val apiClient = DefaultApiClient(client, TransportOptions.builder().maxRetries(3).build())
+        assertThrows({{invokerPackage}}.errors.UnauthorizedException::class.java) {
+            runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+        }
+        assertEquals(1, requests)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle036 closing a client a second time raises no error and releases nothing further")
+    fun closingTwiceRaisesNoError() {
+        val apiClient = DefaultApiClient(mockClient(), TransportOptions.builder().build())
+        apiClient.close()
+        assertDoesNotThrow { apiClient.close() }
+    }
 }
