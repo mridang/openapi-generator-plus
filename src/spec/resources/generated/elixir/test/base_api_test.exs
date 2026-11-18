@@ -714,6 +714,254 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 3
   end
 
+  test "bhv misc 161 a non-idempotent request is sent exactly once when the connection drops, and QUERY is retried" do
+    for method <- [:post, :patch] do
+      state = retry_state([{:transport_error, :econnrefused}, 200], max_retries: 2)
+
+      assert {:error, %PetstoreClient.Errors.NetworkError{}} =
+               PetstoreClient.Api.BaseApi.invoke_api(
+                 state,
+                 method,
+                 "/things",
+                 %{},
+                 %{},
+                 nil,
+                 ["application/json"],
+                 "application/json",
+                 nil
+               )
+
+      assert length(attempts()) == 1, "#{method} must not be sent again"
+    end
+
+    state = retry_state([{:transport_error, :econnrefused}, 200], max_retries: 1)
+
+    assert {:ok, _} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :query,
+               "/things",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
+
+    assert length(attempts()) == 2
+  end
+
+  test "bhv misc 166 a call that disables its deadline is not cut short while it waits to retry" do
+    state = retry_state([{503, [{"retry-after", "1"}]}, 200], timeout: nil)
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+  end
+
+  test "bhv misc 170 a TLS or certificate failure is a network error and is never retried" do
+    state =
+      retry_state([{:transport_error, {:tls_alert, {:unknown_ca, ~c"unknown ca"}}}, 200],
+        max_retries: 2
+      )
+
+    assert {:error, %PetstoreClient.Errors.NetworkError{}} = get_thing(state)
+    assert length(attempts()) == 1
+  end
+
+  test "bhv misc 216 a binary response is returned as decoded bytes while the raw body keeps the encoded text" do
+    state =
+      answering_state(
+        Req.Response.new(status: 200, headers: [{"content-type", "image/png"}], body: "aGVsbG8=")
+      )
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               state,
+               :get,
+               "/things",
+               %{},
+               %{},
+               nil,
+               ["image/png"],
+               "application/json",
+               "binary()"
+             )
+
+    assert result.data == "hello"
+    assert result.raw_body == "aGVsbG8="
+  end
+
+  test "bhv misc 220 a call returning the full response keeps the status code and decodes the body by that status" do
+    state =
+      answering_state(
+        Req.Response.new(
+          status: 201,
+          headers: [{"content-type", "application/json"}],
+          body: ~s({"id":1,"name":"x"})
+        )
+      )
+
+    return_type = {"Tag", [{"200", "Category"}, {"201", "Tag"}, {"2XX", "Category"}]}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               state,
+               :post,
+               "/things",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               return_type
+             )
+
+    assert result.status_code == 201
+    assert %PetstoreClient.Models.Tag{} = result.data
+  end
+
+  test "bhv serialization 122 a form-urlencoded body repeats the key for each array element in order" do
+    PetstoreClient.Api.BaseApi.invoke_api(
+      capture_state(),
+      :post,
+      "/things",
+      %{},
+      %{},
+      [{"tags", ["a", "b"]}, {"n", "1"}],
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      nil
+    )
+
+    assert captured_body() == "tags=a&tags=b&n=1"
+  end
+
+  test "bhv serialization 125 form-urlencoded keys and values percent-encode reserved characters and a literal plus as %2B" do
+    PetstoreClient.Api.BaseApi.invoke_api(
+      capture_state(),
+      :post,
+      "/things",
+      %{},
+      %{},
+      %{"q" => "a+b/c"},
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      nil
+    )
+
+    assert captured_body() == "q=a%2Bb%2Fc"
+  end
+
+  test "bhv serialization 128 a response whose declared type is string is returned unchanged whatever its content type" do
+    state =
+      answering_state(
+        Req.Response.new(
+          status: 200,
+          headers: [{"content-type", "application/json"}],
+          body: ~s({"a":1})
+        )
+      )
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               state,
+               :get,
+               "/things",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "String"
+             )
+
+    assert result.data == ~s({"a":1})
+  end
+
+  test "bhv transport 086 a request that exceeds its timeout fails with the network timeout error" do
+    state = retry_state([{:transport_error, :timeout}, 200], timeout: 50)
+
+    assert {:error, %PetstoreClient.Errors.NetworkTimeoutError{}} = get_thing(state)
+    assert length(attempts()) == 1
+  end
+
+  test "bhv transport 087 a connection that cannot be established raises the SDK network error" do
+    state = retry_state([{:transport_error, :econnrefused}], max_retries: 0)
+
+    assert {:error, %PetstoreClient.Errors.NetworkError{}} = get_thing(state)
+  end
+
+  test "bhv transport 088 a validly gzip-encoded response body is decoded before it is returned" do
+    state =
+      answering_state(
+        Req.Response.new(
+          status: 200,
+          headers: [{"content-encoding", "gzip"}, {"content-type", "text/plain"}],
+          body: :zlib.gzip("hello")
+        )
+      )
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               state,
+               :get,
+               "/things",
+               %{},
+               %{},
+               nil,
+               ["text/plain"],
+               "text/plain",
+               "String"
+             )
+
+    assert result.data == "hello"
+  end
+
+  test "bhv transport 089 a response whose declared Content-Encoding does not match its body raises the API error" do
+    state =
+      answering_state(
+        Req.Response.new(
+          status: 200,
+          headers: [{"content-encoding", "gzip"}, {"content-type", "text/plain"}],
+          body: "not gzip"
+        )
+      )
+
+    assert {:error, %PetstoreClient.Errors.ApiError{}} = get_thing(state)
+  end
+
+  test "bhv transport 090 response headers repeated on the wire are returned with every value present" do
+    state =
+      answering_state(
+        Req.Response.new(status: 200, headers: [{"x-multi", "a"}, {"x-multi", "b"}], body: "{}")
+      )
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               state,
+               :get,
+               "/things",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
+
+    assert result.headers["x-multi"] == ["a", "b"]
+  end
+
+  test "bhv transport 093 a server whose certificate is signed by a CA other than the configured one is rejected with a network error" do
+    state =
+      retry_state([{:transport_error, {:tls_alert, {:unknown_ca, ~c"unknown ca"}}}],
+        max_retries: 0
+      )
+
+    assert {:error, %PetstoreClient.Errors.NetworkError{}} = get_thing(state)
+  end
+
   test "bhv misc 228 an unparseable Retry-After header is ignored and the retry uses the normal backoff" do
     state = retry_state([{429, [{"retry-after", "soon"}]}, 200])
 
@@ -4054,6 +4302,43 @@ defmodule PetstoreClient.Api.BaseApiTest do
       api_client: PetstoreClient.DefaultApiClient.new(transport),
       authenticator: authenticator
     }
+  end
+
+  defp answering_state(response) do
+    adapter = fn request -> {request, response} end
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+
+    %{
+      config: PetstoreClient.Configuration.new(base_url: "http://retry.invalid"),
+      api_client: PetstoreClient.DefaultApiClient.new(transport),
+      authenticator: nil
+    }
+  end
+
+  defp capture_state do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:captured, request})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    %{
+      config: PetstoreClient.Configuration.new(base_url: "http://retry.invalid"),
+      api_client:
+        PetstoreClient.DefaultApiClient.new(
+          PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+        ),
+      authenticator: nil
+    }
+  end
+
+  defp captured_body do
+    receive do
+      {:captured, request} -> request.body
+    after
+      0 -> nil
+    end
   end
 
   defp adapter_answer({:transport_error, reason}), do: %Req.TransportError{reason: reason}
