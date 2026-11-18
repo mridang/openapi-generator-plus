@@ -1338,7 +1338,7 @@ func TestBhvOperations155_BaseApi_QueryParamsKeepTheDeclaredOrder(t *testing.T) 
 	if colorsAt < 0 || sizesAt < 0 || filterAt < 0 {
 		t.Fatalf("expected colors, sizes and filter in the URL, got %q", client.capturedURL)
 	}
-	if !(colorsAt < sizesAt && sizesAt < filterAt) {
+	if colorsAt >= sizesAt || sizesAt >= filterAt {
 		t.Errorf("expected colors, sizes, filter in declared order, got %q", client.capturedURL)
 	}
 }

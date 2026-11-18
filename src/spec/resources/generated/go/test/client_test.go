@@ -207,7 +207,7 @@ func TestBhvLifecycle028_Client_ExplicitHostAndTokenWinOverTheEnvironment(t *tes
 	explicitServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
 	}))
 	defer explicitServer.Close()
 	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", envServer.URL)
@@ -218,7 +218,7 @@ func TestBhvLifecycle028_Client_ExplicitHostAndTokenWinOverTheEnvironment(t *tes
 		t.Fatalf("unexpected error: %v", err)
 	}
 	defer func() { _ = client.Close() }()
-	_, _ = client.Store.GetInventory(context.Background())
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
 
 	if seen != "Bearer arg-token" {
 		t.Errorf("expected the explicit token, got %q", seen)

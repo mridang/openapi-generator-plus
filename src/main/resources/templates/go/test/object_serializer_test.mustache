@@ -219,7 +219,7 @@ func TestBhvSerialization063_ObjectSerializer_RawBytesWriteAsPaddedBase64(t *tes
 	if !strings.Contains(string(prop), `"seal":"AAEC/w=="`) {
 		t.Errorf("expected the property base64 on the wire, got %s", string(prop))
 	}
-	shards := [][]byte{{0x00, 0x01}}
+	shards := [][]byte{ {0x00, 0x01} }
 	list, err := serialize(&models.BinaryVault{Shards: &shards})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
