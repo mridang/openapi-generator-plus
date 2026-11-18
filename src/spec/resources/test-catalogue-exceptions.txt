@@ -742,3 +742,6 @@ elixir | misc153 | Elixir has no cancel signal for a call or the client: a call 
 elixir | transport091 | Elixir has no caller-supplied stream: a file or upload part is an in-memory binary the SDK never opens, so there is no handle for it to leave open (the same reason as transport061)
 csharp | misc135 | the C# client has no client-level cancellation handle: cancellation is a CancellationToken passed to each call, and ConfigurationBuilder has no setter for one
 dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
+
+kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
+||||||| c38bbe25c
