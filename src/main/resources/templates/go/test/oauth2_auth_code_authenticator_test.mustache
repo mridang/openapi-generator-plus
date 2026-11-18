@@ -89,7 +89,7 @@ func TestBhvAuthoauthtwoauthcode006_OAuth2AuthorizationCodeAuthenticator_BuildsA
 }
 
 // The per-scheme wrapper requests the scopes its security scheme declares.
-func TestOAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
+func TestBhvLanggo059_OAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
 	t.Parallel()
 	auth, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(
 		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
@@ -118,7 +118,7 @@ func TestBhvAuthoauthtwoauthcode007_OAuth2AuthorizationCodeAuthenticator_BuildsA
 // ExchangeCode runs on a callback goroutine while requests read the exchanged
 // flag on others. Run under the race detector (make test), this fails when the
 // flag is a plain bool.
-func TestOAuth2AuthorizationCodeAuthenticator_ExchangeCodeIsSafeAgainstConcurrentRequests(t *testing.T) {
+func TestBhvLanggo060_OAuth2AuthorizationCodeAuthenticator_ExchangeCodeIsSafeAgainstConcurrentRequests(t *testing.T) {
 	t.Parallel()
 	client := &fakeAuthCodeClient{
 		responses: []fakeAuthCodeResponse{
