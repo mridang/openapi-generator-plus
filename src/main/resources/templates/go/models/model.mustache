@@ -6,6 +6,9 @@ import (
 {{#hasFmtImport}}
 	"fmt"
 {{/hasFmtImport}}
+{{#hasNetipImport}}
+	"net/netip"
+{{/hasNetipImport}}
 {{#hasUuidImport}}
 
 	"github.com/google/uuid"
@@ -395,6 +398,16 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/isUri}}
+{{#vendorExtensions.isIpv4}}
+	if err := checkIPField(data, "{{baseName}}", false); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+	if err := checkIPField(data, "{{baseName}}", true); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv6}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -484,6 +497,16 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/isUri}}
+{{#vendorExtensions.isIpv4}}
+	if err := checkIPField(data, "{{baseName}}", false); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+	if err := checkIPField(data, "{{baseName}}", true); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv6}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -568,6 +591,16 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/isUri}}
+{{#vendorExtensions.isIpv4}}
+	if err := checkIPField(data, "{{baseName}}", false); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+	if err := checkIPField(data, "{{baseName}}", true); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv6}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -653,6 +686,16 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/isUri}}
+{{#vendorExtensions.isIpv4}}
+	if err := checkIPField(data, "{{baseName}}", false); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+	if err := checkIPField(data, "{{baseName}}", true); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv6}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
