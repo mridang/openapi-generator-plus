@@ -2406,13 +2406,17 @@ langphp051 | The printable form of a bearer authenticator never shows its token.
 langphp052 | An operation with no security sends no API key even when one is configured.
 langphp053 | A typed error is caught by a catch of the SDK base exception class.
 langphp054 | A bare path or query-only target reduces to the path.
-<<<<<<< HEAD
 langnode101 | The builder stores the supplied fetch and fetchOptions
 ||||||| 17ee7351c
-=======
 langphp055 | An injected API client is shared by every API group of a client.
 langphp056 | A client that has not been closed still sends requests.
 langphp057 | A call hook given to the client is passed to every API group.
->>>>>>> origin/test/fail-on-untagged
 langnode102 | A plain request is performed via the global fetch
 langnode103 | Plain requests are still honoured when maxRedirects is set
+||||||| b0a0768a4
+langphp058 | A composite authenticator applies the headers, query parameters and cookies of every member.
+langphp059 | A composite authenticator takes its host from its first member.
+langphp060 | A composite authenticator with no members is refused.
+langphp061 | An anyOf variant with only numeric additional properties serializes as an object.
+langphp062 | The composer manifest declares a valid package name.
+langphp063 | A result carries its payload, headers and status together.
