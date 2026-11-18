@@ -714,7 +714,7 @@ describe Petstore::Client::ValueSerializer do
       _(result).must_equal({ 'csv_params' => 'breed,lab,min_age,3' })
     end
 
-    it 'keeps a scalar under its own name' do
+    it 'bhv_misc_107 keeps a scalar under its own name' do
       result = Petstore::Client::ValueSerializer.query_entries('filter', 'x', 'String', nil, 'form', true, false)
       _(result).must_equal({ 'filter' => 'x' })
     end

@@ -487,7 +487,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).must_equal('Token request failed with status 400: invalid_grant')
   end
 
-  it 'OAuth2ServerError names the status, the error code and the description' do
+  it 'bhv_misc_286 OAuth2ServerError names the status, the error code and the description' do
     err = Petstore::Client::Errors::OAuth2ServerError.new(400, 'invalid_grant', 'refresh token expired', nil, '{}')
 
     _(err.message).must_equal('Token request failed with status 400: invalid_grant -- refresh token expired')
