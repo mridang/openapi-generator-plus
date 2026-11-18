@@ -794,6 +794,11 @@ describe('ObjectSerializer', () => {
   });
 
   describe('DeserializeDiscardsExtraneousFields', () => {
+    test('bhv misc 092 a property is read only under its wire name, never its attribute name', () => {
+      const decoded = ObjectSerializer.deserialize({ n2fa: true }, EdgeCases)!;
+      expect(decoded.n2fa).toBeUndefined();
+    });
+
     test('bhv serialization 050 a property whose name begins with a digit reads and writes under its exact wire name', () => {
       const decoded = ObjectSerializer.deserialize({ '2fa': true }, EdgeCases)!;
       expect(decoded.n2fa).toBe(true);

@@ -372,6 +372,16 @@ end
 describe 'Metadata', 'copies and equality' do
   parallelize_me!
 
+  it 'bhv_misc_139 a collection passed into a model is copied so later changes to the source do not reach it' do
+    source = { 'owner' => 'team-a' }
+    item = Petstore::Client::Models::Metadata.new(additional_properties: source)
+    source['owner'] = 'team-b'
+    source['extra'] = 'added'
+
+    _(item.additional_properties).must_equal('owner' => 'team-a')
+    _ { item.additional_properties['owner'] = 'x' }.must_raise FrozenError
+  end
+
   it 'bhv_misc_143 a copy keeps the additional properties and compares equal to the original' do
     original = Petstore::Client::Models::Metadata.new(additional_properties: { 'customField' => 'a' })
     copy = original.with

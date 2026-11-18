@@ -10,6 +10,10 @@ from petstore_client.errors import OpenAPIException
 from petstore_client.errors import SerializationException
 from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.category import Category
+from petstore_client.models.defaults import Defaults, DefaultsModeEnum
+from petstore_client.models.department import Department
+from petstore_client.models.employee import Employee
+from petstore_client.models.metadata import Metadata
 from petstore_client.models.native_values import NativeValues
 from petstore_client.models.order import Order, OrderStatusEnum
 from petstore_client.models.pet import Pet
@@ -3875,4 +3879,95 @@ class TestEnumMemberNames:
             .deserialize(r'{"name":"First","\u006eame":"Last"}', "Category")
             .name
             == "Last"
+        )
+
+
+class TestStringDefaultAndCollectionCopy:
+    def test_bhv_misc_122_a_string_default_is_applied_as_the_exact_literal(
+        self,
+    ) -> None:
+        from petstore_client.models.defaults import Defaults
+
+        filled = ObjectSerializer().deserialize("{}", Defaults)
+        assert filled.greeting == 'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b'
+
+    def test_bhv_misc_139_a_collection_passed_into_a_model_is_copied(self) -> None:
+        from petstore_client.models.binary_vault import BinaryVault
+
+        source = [b"\x04\x05"]
+        vault = BinaryVault(seal=b"\x01", shards=source)
+        source.append(b"\x06")
+        assert vault.shards == [b"\x04\x05"]
+
+
+class TestModelRequiredCopyAndEquality:
+    def test_bhv_misc_140_building_a_model_without_a_required_property_names_it(
+        self,
+    ) -> None:
+        with pytest.raises(TypeError, match="'name'"):
+            Employee()
+
+    def test_bhv_misc_141_a_model_built_without_a_defaulted_property_holds_the_default(
+        self,
+    ) -> None:
+        model = Defaults()
+        assert model.retries == 3
+        assert model.mode == DefaultsModeEnum.MEDIUM
+
+    def test_bhv_misc_142_additional_properties_are_returned_unchanged_by_key(
+        self,
+    ) -> None:
+        meta = ObjectSerializer().deserialize('{"note":"x","owner":"ann"}', Metadata)
+        assert meta.additional_properties["note"] == "x"
+        assert list(meta.additional_properties) == ["note", "owner"]
+
+    def test_bhv_misc_143_a_copy_keeps_the_additional_properties_and_compares_equal(
+        self,
+    ) -> None:
+        original = Metadata(additional_properties={"customField": "a"})
+        copy = original.model_copy()
+        assert copy.additional_properties == {"customField": "a"}
+        assert copy == original
+
+    def test_bhv_misc_144_validating_a_model_refuses_a_string_for_a_numeric_field(
+        self,
+    ) -> None:
+        with pytest.raises(ValidationError):
+            Defaults.model_validate({"retries": "3"})
+
+    def test_bhv_misc_146_a_copy_with_no_changes_is_a_new_equal_instance(self) -> None:
+        original = Department(name="Ops")
+        copy = original.model_copy()
+        assert copy is not original
+        assert copy == original
+
+    def test_bhv_misc_147_a_copy_holds_the_same_nested_object_as_the_original(
+        self,
+    ) -> None:
+        original = Department(name="Ops", lead=Employee(name="Ann"))
+        copy = original.model_copy(update={"name": "Eng"})
+        assert copy.lead is original.lead
+
+    def test_bhv_misc_148_a_copy_serializes_to_the_wire_form_with_its_changes_applied(
+        self,
+    ) -> None:
+        original = Department(name="Ops", lead=Employee(name="Ann"))
+        copy = original.model_copy(update={"name": "Eng"})
+        expected = Department(name="Eng", lead=Employee(name="Ann"))
+        assert json.loads(ObjectSerializer().serialize(copy)) == json.loads(
+            ObjectSerializer().serialize(expected)
+        )
+
+    def test_bhv_misc_150_models_with_equal_fields_compare_equal_and_differing_ones_do_not(
+        self,
+    ) -> None:
+        assert Employee(name="Ann") == Employee(name="Ann")
+        assert Employee(name="Ann") != Employee(name="Bo")
+
+    def test_bhv_misc_151_a_model_holding_a_map_compares_by_its_entries(self) -> None:
+        assert Metadata(additional_properties={"a": "1", "b": "2"}) == Metadata(
+            additional_properties={"a": "1", "b": "2"}
+        )
+        assert Metadata(additional_properties={"a": "1", "b": "2"}) != Metadata(
+            additional_properties={"a": "1", "b": "3"}
         )

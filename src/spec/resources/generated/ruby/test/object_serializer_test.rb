@@ -2768,4 +2768,16 @@ describe Petstore::Client::ObjectSerializer, 'schema defaults, nullable values, 
     _(meta.additional_properties['note']).must_equal 'x'
     _(meta.additional_properties.keys).must_equal %w[note owner]
   end
+
+  it 'bhv_misc_144 validating a model refuses a string given for a numeric field' do
+    _ { Petstore::Client::ObjectSerializer.deserialize('{"retries":"3"}', 'TestDefaultsModel') }
+      .must_raise Petstore::Client::Errors::SerializationError
+  end
+
+  it 'bhv_misc_145 reading the undeclared keys returns a copy, so changing it leaves the instance unchanged' do
+    meta = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","note":"x"}', 'Metadata')
+    copy = meta.additional_properties.dup
+    copy['note'] = 'changed'
+    _(meta.additional_properties['note']).must_equal 'x'
+  end
 end

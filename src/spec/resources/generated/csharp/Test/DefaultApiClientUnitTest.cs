@@ -2755,6 +2755,211 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc123APreEncodedCookieValueReachesTheWireUnchanged()
+    {
+        var handler = new ScriptedRedirectHandler([]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/x"),
+            new Dictionary<string, string> { { "Cookie", "api_key=a%20b" } },
+            null
+        );
+
+        Assert.True(handler.Requests[0].Headers.TryGetValues("Cookie", out var values));
+        Assert.Equal("api_key=a%20b", string.Join(";", values));
+    }
+
+    [Fact]
+    public async Task BhvMisc124APostBodyIsNotReplayedAcross301HttpsToHttp()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.MovedPermanently,
+            location: new Uri("http://downgraded.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("https://secure.example.com/start"),
+                new Dictionary<string, string>(),
+                new byte[] { 1, 2, 3 }
+            )
+        );
+
+        Assert.Single(handler.Requests);
+    }
+
+    [Theory]
+    [InlineData("https://secure.example.com/start")]
+    [InlineData("http://plain.example.com/start")]
+    public async Task BhvMisc125A307StayingOnOneSchemeOrUpgradingIsNotRefusedAsABodyReplay(
+        string start
+    )
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("https://secure.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(start),
+            new Dictionary<string, string>(),
+            "payload"
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc126AHeadRequestRedirectedWith303IsFollowedAsHead()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.SeeOther,
+            location: new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "HEAD",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal("HEAD", handler.Requests[1].Method.Method);
+    }
+
+    [Fact]
+    public async Task BhvMisc127AQueryOnlyLocationKeepsThePathAndReplacesTheQuery()
+    {
+        var handler = new ScriptedRedirectHandler([
+            (HttpStatusCode.Found, new Uri("?page=2", UriKind.Relative)),
+        ]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("https://h.example.com/v1/items/1?x=1"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(
+            new Uri("https://h.example.com/v1/items/1?page=2"),
+            handler.Requests[1].RequestUri
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc128AProxyCredentialSurvivesACrossOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var transport = TransportOptions.Builder().Proxy("http://user:pass@127.0.0.1:3128").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal("Basic dXNlcjpwYXNz", client.ProxyAuthorizationHeader);
+    }
+
+    [Fact]
+    public async Task BhvMisc129AProxyCredentialIsNotSentAgainOnAnHttpsCrossOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("https://other.example.com/landed")
+        );
+        var transport = TransportOptions.Builder().Proxy("http://user:pass@127.0.0.1:3128").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("https://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("Proxy-Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvMisc131ACallerSuppliedClientStillDropsCredentialsOnACrossOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.Found,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { { "Authorization", "Bearer caller-secret" } },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvMisc132APerCallHeaderIsDroppedOnACrossOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { { "X-Tenant-Token", "tenant-secret" } },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("X-Tenant-Token"));
+    }
+
+    [Theory]
+    [InlineData(300)]
+    [InlineData(305)]
+    public async Task BhvMisc133AMultipleChoicesOrUseProxyResponseIsReturnedAsIs(int status)
+    {
+        var handler = new ScriptedRedirectHandler([
+            ((HttpStatusCode)status, new Uri("http://origin.example.com/landed")),
+        ]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(status, response.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvRedirects039AllowsBodylessGetOnHttpsToHttpDowngrade()
     {
         // GET without a body has nothing to replay — the downgrade
@@ -5409,5 +5614,51 @@ public sealed class MultipartShadeConverter
         _ = release.TrySetResult(true);
         var response = await pending;
         Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc101AnUnreadableBodySourceFailsTheCall()
+    {
+        var handler = new CapturingHandler(async req =>
+        {
+            await req.Content!.ReadAsByteArrayAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "upload.bin", new UnreadableSource() } };
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("http://example.com/upload"),
+                new Dictionary<string, string>(),
+                formData
+            )
+        );
+    }
+
+    private sealed class UnreadableSource : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new IOException("source is gone");
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
     }
 }
