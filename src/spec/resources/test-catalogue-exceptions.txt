@@ -703,3 +703,4 @@ kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema fo
 ||||||| 7b31d005e
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
+kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
