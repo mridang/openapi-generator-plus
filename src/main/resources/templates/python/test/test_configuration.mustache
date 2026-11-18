@@ -296,6 +296,18 @@ class TestConfigurationRepr:
         assert "base_url='https://api.example.com'" in repr(config)
         assert "'Accept': 'text/plain'" in repr(config)
 
+    def test_bhv_misc_136_the_debug_text_shows_the_base_url_and_non_sensitive_headers(self) -> None:
+        config = (
+            Configuration.builder()
+            .base_url('https://api.example.com')
+            .default_header('Accept', 'text/plain')
+            .build()
+        )
+
+        text = repr(config)
+        assert "https://api.example.com" in text
+        assert "'Accept': 'text/plain'" in text
+
 
 class _Hook:
     def start(self, info: CallInfo, headers: dict[str, str]) -> Optional[CallObserver]:

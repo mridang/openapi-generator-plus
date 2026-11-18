@@ -1460,3 +1460,120 @@ fn test_bhv_enums_011_a_hostile_description_stays_a_comment() {
         "    /// The largest tier. Ends with */ and #{x} and $x.\n    #[serde(rename = \"l\")]"
     ));
 }
+/// serialization077: a duration written to its wire string and decoded back is the same duration, across zero, negative, sub-second, multi-day and extreme values.
+#[test]
+fn test_bhv_serializationobject_077_durations_round_trip_through_their_wire_string() {
+    use chrono::Duration;
+    use petstore::proto_duration;
+
+    for d in [
+        Duration::zero(),
+        -Duration::seconds(90),
+        Duration::milliseconds(250),
+        Duration::days(3),
+        Duration::seconds(315_576_000_000),
+    ] {
+        let wire = proto_duration::format(&d);
+        assert_eq!(proto_duration::parse(&wire).expect("parse"), d, "{}", wire);
+    }
+}
+
+/// serialization078: a time of day is written as zero-padded HH:MM:SS, with a fraction only when it has a sub-second value.
+#[test]
+fn test_bhv_serializationobject_078_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second(
+) {
+    use chrono::NaiveTime;
+
+    let whole = NaiveTime::from_hms_opt(9, 5, 3).expect("a valid time");
+    assert_eq!(
+        serde_json::to_string(&whole).expect("serialize"),
+        "\"09:05:03\""
+    );
+    let fractional = NaiveTime::from_hms_milli_opt(9, 5, 3, 250).expect("a valid time");
+    assert_eq!(
+        serde_json::to_string(&fractional).expect("serialize"),
+        "\"09:05:03.250\""
+    );
+}
+
+/// serialization080: protobuf durations are accepted across the full range, and a value one second past the upper bound is rejected.
+#[test]
+fn test_bhv_serializationobject_080_protobuf_durations_accept_the_full_range_and_reject_one_past() {
+    use petstore::proto_duration;
+
+    assert!(proto_duration::parse("315576000000s").is_ok());
+    assert!(proto_duration::parse("-315576000000s").is_ok());
+    assert!(proto_duration::parse("315576000001s").is_err());
+}
+
+#[test]
+fn test_bhv_misc_087_a_decimal_field_in_a_loose_body_is_a_bare_json_number() {
+    use petstore::models::Pet;
+
+    let mut pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    pet.weight_kg = Some(1.5);
+    let json = serde_json::to_string(&pet).expect("serialize");
+    assert!(json.contains(r#""weightKg":1.5"#), "got: {}", json);
+    assert!(!json.contains(r#""weightKg":"1.5""#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_misc_089_a_date_time_is_canonical_inside_a_list() {
+    use petstore::date_time::DateTime;
+
+    let at =
+        DateTime::new(chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45Z").expect("valid"));
+    assert_eq!(
+        serde_json::to_string(&vec![at]).expect("serialize"),
+        "[\"2024-01-01T12:30:45.000+00:00\"]"
+    );
+}
+
+#[test]
+fn test_bhv_misc_090_a_record_duration_writes_its_fraction_in_the_wire_form() {
+    use chrono::TimeDelta as Duration;
+    use petstore::models::EdgeCases;
+
+    let edge = EdgeCases {
+        retry_after: Some(Duration::milliseconds(1500)),
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&edge).expect("serialize");
+    assert!(json.contains(r#""retryAfter":"1.500s""#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_misc_092_properties_are_matched_only_by_their_wire_name() {
+    use petstore::models::EdgeCases;
+
+    let edge: EdgeCases = serde_json::from_str(r#"{"retry_after":"5s"}"#).expect("decode");
+    assert!(edge.retry_after.is_none());
+}
+
+#[test]
+fn test_bhv_misc_093_additional_properties_with_numeric_names_are_object_members() {
+    use petstore::json_value::JsonValue;
+    use petstore::models::Freeform;
+
+    let mut freeform = Freeform::default();
+    freeform
+        .additional_properties
+        .insert("404".to_string(), JsonValue::new(serde_json::json!(true)));
+    let json = serde_json::to_string(&freeform).expect("serialize");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+    assert_eq!(parsed, serde_json::json!({"404": true}));
+}
+
+#[test]
+fn test_bhv_misc_094_a_free_form_json_object_is_written_with_its_members_unchanged() {
+    use petstore::json_value::JsonValue;
+
+    let value =
+        JsonValue::new(serde_json::json!({"ownerId": 198772, "at": "2024-01-15T10:30:00Z"}));
+    let json = serde_json::to_string(&value).expect("serialize");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+    assert_eq!(
+        parsed,
+        serde_json::json!({"ownerId": 198772, "at": "2024-01-15T10:30:00Z"})
+    );
+}

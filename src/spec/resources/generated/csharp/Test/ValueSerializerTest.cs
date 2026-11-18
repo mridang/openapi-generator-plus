@@ -338,6 +338,18 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void BhvMisc120AbsentDeepObjectValuesAreLeftOut()
+    {
+        var result = ValueSerializer.SerializeDeepObject(
+            "filter",
+            new Dictionary<string, object?> { { "type", "alpha" }, { "status", null } }
+        );
+
+        Assert.False(result.ContainsKey("filter[status]"));
+        Assert.Equal("alpha", result["filter[type]"]);
+    }
+
+    [Fact]
     public void BhvSerializationparam117SetInFormStyleWithoutExplodeJoinsLikeAnArray()
     {
         Assert.Equal(

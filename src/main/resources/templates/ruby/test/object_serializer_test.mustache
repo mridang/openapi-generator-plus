@@ -2779,4 +2779,16 @@ describe {{moduleName}}::ObjectSerializer, 'schema defaults, nullable values, du
     _(meta.additional_properties.keys).must_equal %w[note owner]
   end
 
+  it 'bhv_misc_144 validating a model refuses a string given for a numeric field' do
+    _ { {{moduleName}}::ObjectSerializer.deserialize('{"retries":"3"}', 'TestDefaultsModel') }
+      .must_raise {{moduleName}}::Errors::SerializationError
+  end
+
+  it 'bhv_misc_145 reading the undeclared keys returns a copy, so changing it leaves the instance unchanged' do
+    meta = {{moduleName}}::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","note":"x"}', 'Metadata')
+    copy = meta.additional_properties.dup
+    copy['note'] = 'changed'
+    _(meta.additional_properties['note']).must_equal 'x'
+  end
+
 end
