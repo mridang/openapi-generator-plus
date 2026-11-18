@@ -94,7 +94,7 @@ func TestBhvSerializationobject184_Iso8601_UnmarshalDurationProtoJSON_RejectsISO
 	}
 }
 
-func TestIso8601_UnmarshalDurationProtoJSON_RejectsMalformed(t *testing.T) {
+func TestBhvSerialization045_Iso8601_UnmarshalDurationProtoJSON_RejectsMalformed(t *testing.T) {
 	t.Parallel()
 	cases := []string{"", "3600", "s", "1.2345678901s", "1,5s", "PT1H"}
 	for _, c := range cases {
@@ -120,8 +120,15 @@ func TestIso8601_UnmarshalDurationProtoJSON_RejectsOverflow(t *testing.T) {
 	}
 }
 
-func TestIso8601_Duration_RoundTripsTheExtremes(t *testing.T) {
+func TestBhvSerialization047_Iso8601_Duration_RoundTripsTheExtremes(t *testing.T) {
 	t.Parallel()
+	for _, wire := range []string{"9223372037s", "-9223372037s"} {
+		_, err := petstore.UnmarshalDurationProtoJSON(wire)
+		var serErr *petstore.SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("expected *SerializationError for out-of-range %q, got %T: %v", wire, err, err)
+		}
+	}
 	for _, orig := range []time.Duration{math.MaxInt64, -math.MaxInt64} {
 		wire := petstore.MarshalDurationProtoJSON(orig)
 		got, err := petstore.UnmarshalDurationProtoJSON(wire)
@@ -163,12 +170,13 @@ func TestIso8601_Duration_RoundTrip(t *testing.T) {
 // (e.g. 0.000050s), never in scientific/exponential notation (no '5e-05s'),
 // because protobuf-JSON duration is fixed-point seconds. The negative case is
 // also asserted to keep the sign on a tiny magnitude.
-func TestIso8601_MarshalDurationProtoJSON_SubMilliNoScientificNotation(t *testing.T) {
+func TestBhvSerialization046_Iso8601_MarshalDurationProtoJSON_SubMilliNoScientificNotation(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		d    time.Duration
 		want string
 	}{
+		{1500 * time.Millisecond, "1.500s"},
 		{50 * time.Microsecond, "0.000050s"},
 		{-(50 * time.Microsecond), "-0.000050s"},
 		{time.Nanosecond, "0.000000001s"},
@@ -194,7 +202,7 @@ func TestIso8601_MarshalDurationProtoJSON_SubMilliNoScientificNotation(t *testin
 
 // format:time ↔ time-of-day helpers.
 
-func TestIso8601_FormatTimeOfDay_Basic(t *testing.T) {
+func TestBhvSerialization043_Iso8601_FormatTimeOfDay_Basic(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 15, 12, 30, 45, 0, time.UTC)
 	if got := petstore.FormatTimeOfDay(ts); got != "12:30:45" {
@@ -210,7 +218,7 @@ func TestIso8601_FormatTimeOfDay_Midnight(t *testing.T) {
 	}
 }
 
-func TestIso8601_ParseTimeOfDay_Basic(t *testing.T) {
+func TestBhvSerialization041_Iso8601_ParseTimeOfDay_Basic(t *testing.T) {
 	t.Parallel()
 	got, err := petstore.ParseTimeOfDay("09:15:30")
 	if err != nil {
@@ -234,8 +242,10 @@ func TestIso8601_ParseTimeOfDay_WithFraction(t *testing.T) {
 
 func TestIso8601_ParseTimeOfDay_Invalid(t *testing.T) {
 	t.Parallel()
-	if _, err := petstore.ParseTimeOfDay("not a time"); err == nil {
-		t.Fatal("expected error for invalid time string")
+	_, err := petstore.ParseTimeOfDay("not a time")
+	var serErr *petstore.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError for invalid time string, got %T: %v", err, err)
 	}
 }
 

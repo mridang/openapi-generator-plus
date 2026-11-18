@@ -230,7 +230,7 @@ func TestBhvSerializationobject015_ObjectSerializer_Serialize_SetScalarsAreSorte
 	}
 }
 
-func TestObjectSerializer_Deserialize_JSONToMap(t *testing.T) {
+func TestBhvSerialization026_ObjectSerializer_Deserialize_JSONToMap(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"name":"Fido","age":3}`)
 
@@ -241,6 +241,14 @@ func TestObjectSerializer_Deserialize_JSONToMap(t *testing.T) {
 	}
 	if result["name"] != "Fido" {
 		t.Errorf("expected name 'Fido', got %v", result["name"])
+	}
+
+	var empty map[string]any
+	if err := deserialize([]byte(`{}`), &empty); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if empty == nil || len(empty) != 0 {
+		t.Errorf("expected an empty map for an empty object, got %v", empty)
 	}
 }
 
@@ -1010,11 +1018,15 @@ func TestBhvSerializationobject179_ObjectSerializer_DateTimeOffset_WholeSecondsR
 	}
 }
 
-func TestObjectSerializer_DateTimeOffset_SubMillisecondTruncatedToThreeDigits(t *testing.T) {
+func TestBhvSerialization038_ObjectSerializer_DateTimeOffset_SubMillisecondTruncatedToThreeDigits(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 123456789, time.UTC)
 	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.123+00:00" {
 		t.Errorf("expected '2024-01-01T12:30:45.123+00:00', got %q", got)
+	}
+	nearlyNextSecond := time.Date(2024, 1, 1, 12, 30, 45, 999999999, time.UTC)
+	if got := stringify(models.DateTime(nearlyNextSecond)); got != "2024-01-01T12:30:45.999+00:00" {
+		t.Errorf("expected truncation, never rounding up, to .999, got %q", got)
 	}
 }
 
@@ -1065,7 +1077,7 @@ func TestBhvSerializationobject151_ObjectSerializer_DateTimeJSON_CanonicalInEver
 }
 
 // Reading is lenient: Z or a numeric offset, and a 0/3/6/9-digit fraction.
-func TestObjectSerializer_DateTimeJSON_UnmarshalIsLenient(t *testing.T) {
+func TestBhvSerialization039_ObjectSerializer_DateTimeJSON_UnmarshalIsLenient(t *testing.T) {
 	t.Parallel()
 	inputs := []string{
 		"2024-01-01T12:30:45Z",
@@ -1765,7 +1777,7 @@ func TestBhvSerializationobject082_ObjectSerializer_Deserialize_IgnoresUnknownFi
 	}
 }
 
-func TestObjectSerializer_FormatFloat_WholeValuesKeepTheFractionMarker(t *testing.T) {
+func TestBhvSerialization036_ObjectSerializer_FormatFloat_WholeValuesKeepTheFractionMarker(t *testing.T) {
 	t.Parallel()
 	cases := map[float64]string{
 		1.0:   "1.0",
@@ -3624,5 +3636,147 @@ func TestBhvSerialization054_ObjectSerializer_FreeFormValueKeepsItsJsonType(t *t
 	var nothing any = "set"
 	if err := deserialize([]byte("null"), &nothing); err != nil || nothing != nil {
 		t.Errorf("expected null to stay null, got %#v (error %v)", nothing, err)
+	}
+}
+
+// A schema default is applied by the model constructor, so an unset optional field
+// is written with its default.
+func TestBhvSerialization020_ObjectSerializer_Serialize_UnsetFieldIsWrittenWithItsSchemaDefault(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(*models.NewOrder())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"status":"placed"`) {
+		t.Errorf("expected the schema default status=placed, got %s", data)
+	}
+}
+
+// Brackets inside a JSON string do not count toward the nesting depth limit, while real
+// nesting past the limit is refused.
+func TestBhvSerialization024_ObjectSerializer_Deserialize_BracketsInsideStringsDoNotCountTowardTheDepthLimit(t *testing.T) {
+	t.Parallel()
+	inString := []byte(`{"a":"` + strings.Repeat("[", 2000) + `"}`)
+	var fromString map[string]any
+	if err := deserialize(inString, &fromString); err != nil {
+		t.Fatalf("brackets inside a string must not count toward the depth limit, got %v", err)
+	}
+
+	beyond := []byte(strings.Repeat("[", 1001) + strings.Repeat("]", 1001))
+	var deep any
+	var serErr *SerializationError
+	if err := deserialize(beyond, &deep); !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for nesting past the limit, got %T: %v", err, err)
+	}
+}
+
+// A date-time field accepts only a JSON string; any other JSON kind is refused.
+func TestBhvSerialization030_ObjectSerializer_Deserialize_DateTimeAcceptsOnlyAString(t *testing.T) {
+	t.Parallel()
+	for _, wire := range []string{`123`, `true`, `[]`} {
+		var got models.DateTime
+		var serErr *SerializationError
+		if err := deserialize([]byte(wire), &got); !errors.As(err, &serErr) {
+			t.Errorf("expected *SerializationError for %s, got %T: %v", wire, err, err)
+		}
+	}
+}
+
+// Each leaf of an integer map or nested integer array must be a plain integer in range.
+func TestBhvSerialization033_ObjectSerializer_Deserialize_IntegerLeavesMustBePlainIntegersInRange(t *testing.T) {
+	t.Parallel()
+	var serErr *SerializationError
+	var fraction map[string]int32
+	if err := deserialize([]byte(`{"a":1.5}`), &fraction); !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a fractional leaf, got %T: %v", err, err)
+	}
+	var overflow map[string]int32
+	if err := deserialize([]byte(`{"a":3000000000}`), &overflow); !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for an out-of-range leaf, got %T: %v", err, err)
+	}
+	var nested [][]int32
+	if err := deserialize([]byte(`[[1,"x"]]`), &nested); !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a non-integer nested leaf, got %T: %v", err, err)
+	}
+}
+
+// A float is written with every significant digit, not rounded to a fixed precision.
+func TestBhvSerialization037_ObjectSerializer_Stringify_FloatKeepsEverySignificantDigit(t *testing.T) {
+	t.Parallel()
+	first, second := 0.1, 0.2
+	if got := stringify(first + second); got != "0.30000000000000004" {
+		t.Errorf("expected 0.30000000000000004, got %q", got)
+	}
+}
+
+// A form value writes each date-time, duration, number, integer and boolean in its canonical text.
+func TestBhvSerialization040_ObjectSerializer_ToFormValue_CanonicalWireText(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		value any
+		want  string
+	}{
+		{models.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)), "2024-01-02T03:04:05.000+00:00"},
+		{models.Duration(90 * time.Second), "90s"},
+		{2.5, "2.5"},
+		{int64(42), "42"},
+		{true, "true"},
+	}
+	for _, tc := range cases {
+		if got := toFormValue(tc.value); got != tc.want {
+			t.Errorf("toFormValue(%v) = %q, want %q", tc.value, got, tc.want)
+		}
+	}
+}
+
+// A date-only or time string is passed through exactly as it was given.
+func TestBhvSerialization042_ObjectSerializer_StringifyDate_DateOnlyOrTimeStringPassesThroughExactly(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{"2024-1-5", "07:08:09Z"} {
+		if got := stringifyDate(in); got != in {
+			t.Errorf("expected %q unchanged, got %q", in, got)
+		}
+	}
+}
+
+// A date-time given for a date parameter is written as its calendar date only, with no time or offset.
+func TestBhvSerialization044_ObjectSerializer_StringifyDate_DateTimeWritesCalendarDateOnly(t *testing.T) {
+	t.Parallel()
+	local := time.Date(2024, 3, 9, 23, 30, 0, 0, time.FixedZone("minus five", -5*60*60))
+	if got := stringifyDate(local); got != "2024-03-09" {
+		t.Errorf("expected 2024-03-09, got %q", got)
+	}
+}
+
+// A duration outside a model, as a header value, is written as its protobuf-JSON seconds string.
+func TestBhvSerialization048_ObjectSerializer_ToHeaderValue_DurationIsProtobufSeconds(t *testing.T) {
+	t.Parallel()
+	if got := toHeaderValue(models.Duration(90*time.Second + 500*time.Millisecond)); got != "90.500s" {
+		t.Errorf("expected 90.500s, got %q", got)
+	}
+}
+
+// A typed leaf nested in an array or a map decodes to its own typed value, including
+// an enum member and a model.
+func TestBhvSerialization025_ObjectSerializer_Deserialize_TypedLeavesDecodeToTheirOwnTypes(t *testing.T) {
+	t.Parallel()
+	var members []models.EdgeCasesPhaseEnum
+	if err := deserialize([]byte(`["on-hold","OUT_OF_STOCK"]`), &members); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(members) != 2 || members[0] != models.EdgeCasesPhaseEnumOnHold || members[1] != models.EdgeCasesPhaseEnumOUTOFSTOCK {
+		t.Errorf("expected typed enum members, got %v", members)
+	}
+
+	var byKey map[string]models.EdgeCases
+	if err := deserialize([]byte(`{"a":{"phase":"on-hold","retryAfter":"3600s"}}`), &byKey); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	entry, ok := byKey["a"]
+	if !ok || entry.Phase == nil || *entry.Phase != models.EdgeCasesPhaseEnumOnHold {
+		t.Errorf("expected the nested model's enum member, got %+v", entry)
+	}
+	if entry.RetryAfter == nil || time.Duration(*entry.RetryAfter) != time.Hour {
+		t.Errorf("expected the nested model's typed duration, got %v", entry.RetryAfter)
 	}
 }
