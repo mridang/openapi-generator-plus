@@ -255,6 +255,9 @@ Test: `RubyClientSpec`.
 Rule: the ruby entries are idiom only: `Types` module and the Faraday params encoder, `*Composite` structs, the `HttpAwareAuthenticator` mixin, no `actual_instance` wrapper, `Servers::ALL`, `resolve_oneof/anyof` inside model code, nested `Client`, public `NO_AUTH`/`token_manager`/`mark_exchanged`/`config`, ctor without `cause`, positional `val` setters, `Configuration`/`TransportOptions` keyword constructors.
 Why: each states the Ruby feature that forces it in its `reason`.
 
+### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
+Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `interface _<Group>ApiInterface` in each group's `.rbs` and `interface _<Client>Interface` in `sig/infrastructure.rbs`; no runtime module (duck typing needs none, and Steep's `:test` target has core diagnostics off). The tests read the signature files and compare the interface members with `public_instance_methods(false)`. Tests: test/client_test.mustache (001, 002, 007, 008), test/api/pet_api_test.mustache (003 to 006), test/readme_test.mustache (009). Where: the templates named above, `BetterRubyCodegen`, the README template (`Testing your code`), `docs/languages/ruby.md`.
+
 ## Known limitations and out of scope
 
 - No per-call cancellation handle; a timeout is the only bound (S7 realisation above).

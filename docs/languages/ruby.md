@@ -75,6 +75,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - `close` is graceful and idempotent. It marks the client closed at once, a request already in flight finishes, and the connection the SDK built is released when the last in-flight request completes (at once when none is running). A request started after it raises a `RuntimeError` ("ApiClient has been closed and can no longer send requests"), a second `close` does nothing, and a connection supplied through `TransportOptions` is never closed.
 - A cookie parameter is sent raw when every character of its value is a legal RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash). Any other value raises `ArgumentError` before the request is sent, so the caller pre-encodes it.
 - A property that is a `$ref` with a `default` written beside it (an OpenAPI 3.1 sibling keyword) starts at that default: a referenced enum becomes the matching constant, so `StockItem.new(priority: 1).availability` is `Availability::ON_HOLD`, and a decoded body that leaves the property out gets it too.
+- Testing your code: `interface _<Group>ApiInterface` in each group's `.rbs` and `interface _<Client>Interface` in `sig/infrastructure.rbs`; no runtime module (duck typing needs none, and Steep's `:test` target has core diagnostics off). The tests read the signature files and compare the interface members with `public_instance_methods(false)`.
 
 ## Known limits
 
