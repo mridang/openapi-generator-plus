@@ -3205,3 +3205,32 @@ func TestBhvMisc299_DefaultApiClient_PerCallHeaderOverridesTheTransportDefaultOf
 		t.Errorf("expected the caller's User-Agent on the wire, got %q", got)
 	}
 }
+
+// A 301 from HTTPS to plain HTTP that would replay a request body fails, and nothing reaches the plain target.
+func TestBhvMisc124_DefaultApiClient_A301HttpsToHttpWithBodyFailsWithoutReplay(t *testing.T) {
+	t.Parallel()
+	var plainHits atomic.Int32
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		plainHits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer plainTarget.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/moved")
+		w.WriteHeader(301)
+	}))
+	defer origin.Close()
+	transport, err := NewTransportOptionsBuilder().VerifySsl(false).FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	_, err = client.SendRequest("POST", origin.URL+"/start", map[string]string{"Content-Type": "text/plain"}, []byte("payload"))
+	if err == nil {
+		t.Fatal("expected the 301 HTTPS-to-HTTP body replay to fail, got nil")
+	}
+	if plainHits.Load() != 0 {
+		t.Errorf("expected no request to reach the plaintext target, got %d", plainHits.Load())
+	}
+}

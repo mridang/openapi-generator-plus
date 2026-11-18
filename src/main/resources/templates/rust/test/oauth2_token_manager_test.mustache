@@ -1773,3 +1773,25 @@ async fn test_bhv_auth_056_expires_in_is_honoured_only_as_a_plain_decimal() {
     }
 }
 
+
+#[tokio::test]
+async fn test_bhv_misc_018_a_non_json_token_error_keeps_the_status_and_the_raw_body() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("plain text failure", 400);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a 400 with a non-JSON body must fail");
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .expect("expected OAuth2ServerError");
+    assert_eq!(400, server_err.status_code());
+    assert_eq!(None, server_err.code());
+    assert!(err.to_string().contains("plain text failure"), "{}", err);
+}

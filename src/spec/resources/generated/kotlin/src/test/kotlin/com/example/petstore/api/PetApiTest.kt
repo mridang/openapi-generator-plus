@@ -115,6 +115,17 @@ class PetApiTest {
     inner class IntegrationTests {
         private val api: PetApi get() = sharedApi
 
+        private fun statusPetApi(
+            status: HttpStatusCode,
+            baseUrl: String = "http://localhost",
+        ): PetApi {
+            val engine =
+                MockEngine { _ ->
+                    respond(content = "{}", status = status, headers = headersOf("Content-Type", "application/json"))
+                }
+            return PetApi(DefaultApiClient(HttpClient(engine)), Configuration.builder().baseUrl(baseUrl).build())
+        }
+
         @Test
         @DisplayName("bhvMisc003 an operation whose parameters are all optional sends no omitted parameter")
         fun bhvMisc003AllOptionalOperationSendsNoOmittedParameter() {
@@ -211,6 +222,90 @@ class PetApiTest {
             }
 
             assertEquals("session=abc123", cookie)
+        }
+
+        @Test
+        @DisplayName("bhvMisc009 an operation called without an options object sends none of the per-call headers")
+        fun bhvMisc009CallWithoutOptionsSendsNoPerCallHeaders() =
+            runBlocking<Unit> {
+                var perCall: String? = "unset"
+                val api =
+                    capturingPetApi("{\"id\":1,\"name\":\"Rex\",\"photoUrls\":[]}") { request, _ ->
+                        perCall = request.headers["X-Per-Call"]
+                    }
+
+                api.getPetById(1L)
+
+                assertNull(perCall)
+            }
+
+        @Test
+        @DisplayName("bhvMisc012 a nil required argument is named in the argument error and nothing is sent")
+        fun bhvMisc012NilRequiredArgumentIsNamedAndNothingIsSent() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
+                }
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), Configuration.builder().baseUrl("http://localhost").build())
+
+            val ex = assertThrows(IllegalArgumentException::class.java) { runBlocking { api.addPet(forceNull()) } }
+
+            assertTrue(ex.message.orEmpty().contains("pet"))
+            assertEquals(0, requests)
+        }
+
+        @Test
+        @DisplayName("bhvMisc014 a null success body for an operation that returns a body raises the API error")
+        fun bhvMisc014NullSuccessBodyRaisesTheApiError() {
+            val api = capturingPetApi("null") { _, _ -> }
+
+            assertThrows(ApiException::class.java) { runBlocking { api.getPetById(1L) } }
+        }
+
+        @Test
+        @DisplayName("bhvMisc019 a request target shown in an error is reduced to its path")
+        fun bhvMisc019RequestTargetInErrorIsReducedToItsPath() {
+            val api = statusPetApi(HttpStatusCode.NotFound)
+
+            val ex = assertThrows(com.example.petstore.errors.NotFoundException::class.java) { runBlocking { api.getPetById(99999L) } }
+
+            assertEquals("/pet/99999", ex.requestPath)
+        }
+
+        @Test
+        @DisplayName("bhvMisc021 the error path keeps the path prefix of a relative base URL")
+        fun bhvMisc021ErrorPathKeepsTheBaseUrlPrefix() {
+            val api = statusPetApi(HttpStatusCode.NotFound, "http://localhost/v1")
+
+            val ex = assertThrows(com.example.petstore.errors.NotFoundException::class.java) { runBlocking { api.getPetById(1L) } }
+
+            assertEquals("/v1/pet/1", ex.requestPath)
+        }
+
+        @Test
+        @DisplayName("bhvMisc024 a transport failure keeps the underlying error reachable as its cause")
+        fun bhvMisc024TransportFailureKeepsTheUnderlyingErrorAsCause() {
+            val engine = MockEngine { throw java.io.IOException("refused") }
+            val transport =
+                com.example.petstore.TransportOptions
+                    .builder()
+                    .maxRetries(0)
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine), transport), Configuration.builder().baseUrl("http://localhost").build())
+
+            val ex = assertThrows(com.example.petstore.errors.NetworkException::class.java) { runBlocking { api.getPetById(1L) } }
+
+            assertNotNull(ex.cause)
+        }
+
+        @Test
+        @DisplayName("bhvMisc025 a typed operation call fails when the server answers with a client error status")
+        fun bhvMisc025TypedCallFailsOnClientErrorStatus() {
+            val api = statusPetApi(HttpStatusCode.NotFound)
+
+            assertThrows(com.example.petstore.errors.NotFoundException::class.java) { runBlocking { api.getPetById(1L) } }
         }
 
         @Test
