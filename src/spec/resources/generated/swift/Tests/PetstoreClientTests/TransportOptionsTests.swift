@@ -126,6 +126,15 @@ import Testing
     }
   }
 
+  /* A supplied session refused with the SDK's own redirect setting fails with a configuration error. */
+  @Test func testBhvLifecycle041SuppliedSessionConflictsWithRedirectSettings() throws {
+    let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
+    builder.followRedirects(true)
+    #expect(throws: ConfigurationError.self) {
+      _ = try builder.build()
+    }
+  }
+
   /* A supplied session cannot be combined with the SDK's own proxy, TLS or
      redirect settings: build() fails fast. */
   @Test(arguments: ["proxy", "caCertPath", "verifySsl", "followRedirects", "maxRedirects"])

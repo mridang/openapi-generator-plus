@@ -843,7 +843,7 @@ import FoundationNetworking
     }
 
     /* close() never invalidates a session the caller supplied. */
-    @Test func testCloseLeavesSuppliedSessionUsable() async throws {
+    @Test func testBhvLifecycle045CloseLeavesSuppliedSessionUsable() async throws {
         let session = StubURLProtocol.session { _ in (Data("ok".utf8), 200, [:]) }
         let transport = try TransportOptionsBuilder().session(session).build()
         let client = try DefaultApiClient(transportOptions: transport)

@@ -73,6 +73,28 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(tasks.isEmpty)
     }
 
+    /* A client built on a caller-supplied session sends its requests through that session. */
+    @Test func testBhvLifecycle042ASuppliedSessionCarriesTheClientsRequests() async throws {
+        let host = "https://supplied-042.example.com"
+        let client = try schemeClient(host: host)
+        defer { client.close() }
+
+        _ = try? await client.store.getInventory()
+
+        #expect(ClientStubProtocol.lastRequest(host: "supplied-042.example.com") != nil)
+    }
+
+    /* A request after close never reaches the network. */
+    @Test func testBhvLifecycle043ARequestAfterCloseNeverReachesTheNetwork() async throws {
+        let host = "https://closed-043.example.com"
+        let client = try schemeClient(host: host)
+        client.close()
+
+        _ = try? await client.store.getInventory()
+
+        #expect(ClientStubProtocol.lastRequest(host: "closed-043.example.com") == nil)
+    }
+
     /* Closing the client never invalidates a session the caller supplied. */
     @Test func testBhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
         let probe = InvalidationProbe()

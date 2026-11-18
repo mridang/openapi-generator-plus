@@ -774,7 +774,7 @@ final class PetApiTests {
     // instead of raw "\(value)" substitution. This regression-guards that the
     // simple-style integer path param is still substituted + encoded
     // correctly into the URL after the routing change.
-    @Test func testPathParamRoutedThroughSerializerStyling() async throws {
+    @Test func testBhvOperations165PathParamRoutedThroughSerializerStyling() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 200
         mockClient.responseBody = "{\"id\":7,\"name\":\"Fido\",\"photoUrls\":[]}"

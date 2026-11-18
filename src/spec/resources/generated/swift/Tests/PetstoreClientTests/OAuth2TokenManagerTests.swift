@@ -535,7 +535,7 @@ import Testing
     #expect(formFields(client.requests[2].body) == authorizationCodeGrant)
   }
 
-  @Test func testMalformedRefreshResponseFallsBackToTheOriginalGrant() async throws {
+  @Test func testBhvAuth057MalformedRefreshResponseFallsBackToTheOriginalGrant() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
