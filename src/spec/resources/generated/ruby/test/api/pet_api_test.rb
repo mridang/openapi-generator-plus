@@ -974,11 +974,11 @@ describe Petstore::Client::Api::PetApi do
     end
 
     it 'bhv_mocking_004 a fake raises the typed error and the caller handles it like the real client' do
-      fake = FakePetApi.new(fail_with: Petstore::Client::Errors::NotFoundError.new(message: 'missing'))
+      fake = new_fake_pet_api(fail_with: Petstore::Client::Errors::NotFoundError.new(message: 'missing'))
       real, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
       begin
         _(classify { look_up(fake, 1) }).must_equal 'not found'
-        _(classify { look_up(real, 1) }).must_equal classify { look_up(fake, 1) }
+        _(classify { look_up(real, 1) }).must_equal(classify { look_up(fake, 1) })
         _(-> { look_up(fake, 1) }).must_raise Petstore::Client::Errors::ApiError
       ensure
         server.close
@@ -1775,20 +1775,17 @@ describe Petstore::Client::Api::PetApi do
   end
 
   # A hand-written fake of the group: it fakes one operation and records the call.
-  class FakePetApi
-    attr_reader :calls
-
-    def initialize(fail_with: nil)
-      @calls = []
-      @fail_with = fail_with
-    end
-
-    def get_pet_by_id(pet_id, options = nil, server: nil)
-      @calls << [pet_id, options, server]
-      raise @fail_with if @fail_with
+  def new_fake_pet_api(fail_with: nil)
+    calls = []
+    fake = Object.new
+    fake.define_singleton_method(:calls) { calls }
+    fake.define_singleton_method(:get_pet_by_id) do |pet_id, options = nil, server: nil|
+      calls << [pet_id, options, server]
+      raise fail_with if fail_with
 
       Petstore::Client::Models::Pet.new(name: 'fake', photo_urls: Set.new)
     end
+    fake
   end
 
   # Code under test: it takes the group interface, never the generated class.
@@ -1806,7 +1803,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   it 'bhv_mocking_003 a fake is accepted where the interface is accepted and receives the arguments' do
-    fake = FakePetApi.new
+    fake = new_fake_pet_api
 
     pet = look_up(fake, 42)
 
@@ -1826,7 +1823,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   it 'bhv_mocking_006 a call without options reaches the full signature with none set' do
-    fake = FakePetApi.new
+    fake = new_fake_pet_api
 
     look_up(fake, 7)
 

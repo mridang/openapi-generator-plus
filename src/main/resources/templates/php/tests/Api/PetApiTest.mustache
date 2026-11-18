@@ -1791,18 +1791,16 @@ function fakePet(): \{{invokerPackage}}\Models\Pet
 
 test('bhv mocking 003 a fake is accepted where the interface is accepted and receives the arguments', function (): void {
     $fake = fakeGroup(\{{invokerPackage}}\Api\PetApiInterface::class, null, fakePet());
-    assert($fake instanceof \{{invokerPackage}}\Api\PetApiInterface);
 
     $pet = lookUpPet($fake, 42);
 
     expect($pet->name)->toBe('fake');
-    expect($fake->calls)->toHaveCount(1);
-    expect($fake->calls[0][1][0])->toBe(42);
+    expect(fakeCalls($fake))->toHaveCount(1);
+    expect(fakeCalls($fake)[0][1][0])->toBe(42);
 });
 
 test('bhv mocking 004 a fake raises the typed error and the caller handles it like the real clients', function (): void {
     $fake = fakeGroup(\{{invokerPackage}}\Api\PetApiInterface::class, new NotFoundException('missing'));
-    assert($fake instanceof \{{invokerPackage}}\Api\PetApiInterface);
     $real = newPetApiForMock(404, 'application/json', '{"message":"Pet not found"}');
 
     expect(classifyLookupError(fn () => lookUpPet($fake, 1)))->toBe('not found');
@@ -1813,7 +1811,6 @@ test('bhv mocking 004 a fake raises the typed error and the caller handles it li
 test('bhv mocking 005 an operation called through the interface sends the same request as the class call', function (): void {
     $api = $this->api;
     $viaInterface = $api;
-    assert($viaInterface instanceof \{{invokerPackage}}\Api\PetApiInterface);
 
     $direct = $api->getPetByIdWithHttpInfo(1);
     $through = $viaInterface->getPetByIdWithHttpInfo(1);
@@ -1825,10 +1822,9 @@ test('bhv mocking 005 an operation called through the interface sends the same r
 
 test('bhv mocking 006 a call without the per-call options reaches the full signature with none set', function (): void {
     $fake = fakeGroup(\{{invokerPackage}}\Api\PetApiInterface::class, null, fakePet());
-    assert($fake instanceof \{{invokerPackage}}\Api\PetApiInterface);
 
     lookUpPet($fake, 7);
 
-    expect($fake->calls)->toHaveCount(1);
-    expect($fake->calls[0][1])->toBe([7, null, null]);
+    expect(fakeCalls($fake))->toHaveCount(1);
+    expect(fakeCalls($fake)[0][1])->toBe([7, null, null]);
 });

@@ -1133,7 +1133,7 @@ private final class ClientStubProtocol: URLProtocol, @unchecked Sendable {
 
 /* A hand-written fake of the PetApi group: it implements every operation, records each
  * call as "operation(path arguments)" and fails with the typed not-found error. */
-final class FakePetApi: PetApiProtocol, @unchecked Sendable {
+private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   private let lock = NSLock()
   private var recorded: [String] = []
 
@@ -1673,7 +1673,7 @@ final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
 /* A hand-written fake of the ProblemsApi group: it implements every operation, records each
  * call as "operation(path arguments)" and fails with the typed not-found error. */
-final class FakeProblemsApi: ProblemsApiProtocol, @unchecked Sendable {
+private final class FakeProblemsApi: ProblemsApiProtocol, @unchecked Sendable {
   private let lock = NSLock()
   private var recorded: [String] = []
 
@@ -1817,7 +1817,7 @@ final class FakeProblemsApi: ProblemsApiProtocol, @unchecked Sendable {
 
 /* A hand-written fake of the StoreApi group: it implements every operation, records each
  * call as "operation(path arguments)" and fails with the typed not-found error. */
-final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
+private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
   private let lock = NSLock()
   private var recorded: [String] = []
 
@@ -2169,7 +2169,7 @@ final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
   }
 }
 
-final class FakeClient: ClientProtocol, @unchecked Sendable {
+private final class FakeClient: ClientProtocol, @unchecked Sendable {
   private let lock = NSLock()
   private var count = 0
   let pet = FakePetApi()

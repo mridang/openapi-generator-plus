@@ -2953,16 +2953,14 @@ async fn test_bhv_mocking_004_pet_api_fake_raises_the_typed_error_the_caller_han
 
 #[tokio::test]
 async fn test_bhv_mocking_005_pet_api_trait_call_sends_the_same_request_as_the_struct_call() {
-    let (api, _) = new_pet_api_for_mock(
-        200,
-        "application/json",
-        r#"{"id":1,"name":"x","photoUrls":[]}"#,
-    );
+    let body = r#"{"id":1,"name":"x","photoUrls":[]}"#;
+    let (direct_api, _) = new_pet_api_for_mock(200, "application/json", body);
+    let (trait_api, _) = new_pet_api_for_mock(200, "application/json", body);
 
-    let direct = PetApi::get_pet_by_id_with_http_info(&api, 1, None, None)
+    let direct = PetApi::get_pet_by_id_with_http_info(&direct_api, 1, None, None)
         .await
         .expect("direct call");
-    let through = PetApiTrait::get_pet_by_id_with_http_info(&api, 1, None, None)
+    let through = PetApiTrait::get_pet_by_id_with_http_info(&trait_api, 1, None, None)
         .await
         .expect("trait call");
 

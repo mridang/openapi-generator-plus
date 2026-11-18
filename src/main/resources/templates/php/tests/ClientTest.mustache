@@ -412,10 +412,7 @@ test('bhv mocking 008 a client built from fakes never connects and closes withou
 {{#operations}}
         public function get{{clientAccessorSuffix}}(): \{{apiPackage}}\{{classname}}Interface
         {
-            $group = fakeGroup(\{{apiPackage}}\{{classname}}Interface::class);
-            assert($group instanceof \{{apiPackage}}\{{classname}}Interface);
-
-            return $group;
+            return fakeGroup(\{{apiPackage}}\{{classname}}Interface::class);
         }
 
 {{/operations}}

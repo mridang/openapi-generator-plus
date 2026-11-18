@@ -378,7 +378,7 @@ describe 'Client' do
 
   it 'bhv_mocking_008 a client built from fakes never connects and closes without error' do
     closed = 0
-    fake = Struct.new(:{{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}}, {{/operations}}{{/apis}}{{/apiInfo}}:closer) do
+    fake = Struct.new({{#apiInfo}}{{#apis}}{{#operations}}:{{clientPropertyName}}, {{/operations}}{{/apis}}{{/apiInfo}}:closer) do
       define_method(:close) { closer.call }
     end.new({{#apiInfo}}{{#apis}}{{#operations}}Object.new, {{/operations}}{{/apis}}{{/apiInfo}}-> { closed += 1 })
 

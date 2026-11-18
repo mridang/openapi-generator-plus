@@ -549,7 +549,7 @@ describe 'Client' do
 
   it 'bhv_mocking_008 a client built from fakes never connects and closes without error' do
     closed = 0
-    fake = Struct.new(:pet, problems, store, :closer) do
+    fake = Struct.new(:pet, :problems, :store, :closer) do
       define_method(:close) { closer.call }
     end.new(Object.new, Object.new, Object.new, -> { closed += 1 })
 

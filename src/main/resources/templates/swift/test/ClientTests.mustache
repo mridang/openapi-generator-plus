@@ -498,7 +498,7 @@ private final class ClientStubProtocol: URLProtocol, @unchecked Sendable {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
-final class FakeClient: {{clientClassName}}Protocol, @unchecked Sendable {
+private final class FakeClient: {{clientClassName}}Protocol, @unchecked Sendable {
     private let lock = NSLock()
     private var count = 0
 {{#apiInfo}}

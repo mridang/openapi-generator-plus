@@ -1627,7 +1627,7 @@ private struct MockExternalPetInfoServer: GetExternalPetInfoServer {
 
 /* A hand-written fake of the PetApi group: it implements every operation, records each
  * call as "operation(path arguments)" and fails with the typed not-found error. */
-final class FakePetApi: PetApiProtocol, @unchecked Sendable {
+private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   private let lock = NSLock()
   private var recorded: [String] = []
 

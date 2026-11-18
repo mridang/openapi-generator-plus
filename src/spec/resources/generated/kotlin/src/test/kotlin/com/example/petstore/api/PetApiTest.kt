@@ -2140,13 +2140,11 @@ class PetApiTest {
 
     // The handler a caller writes once for the typed error.
     private fun classify(block: suspend () -> Unit): String =
-        try {
-            runBlocking { block() }
-            "none"
-        } catch (e: com.example.petstore.errors.NotFoundException) {
-            "not found"
-        } catch (e: ApiException) {
-            "api error"
+        when (runCatching { runBlocking { block() } }.exceptionOrNull()) {
+            null -> "none"
+            is com.example.petstore.errors.NotFoundException -> "not found"
+            is ApiException -> "api error"
+            else -> "other"
         }
 
     @Test
@@ -2176,7 +2174,8 @@ class PetApiTest {
                     headers = headersOf("Content-Type", "application/json"),
                 )
             }
-        val real = PetApi(DefaultApiClient(HttpClient(engine)), Configuration.builder().baseUrl("http://localhost").build())
+        val config = Configuration.builder().baseUrl("http://localhost").build()
+        val real = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
         val fromFake = classify { lookUp(fake.asInterface(), 1L) }
         val fromReal = classify { lookUp(real, 1L) }

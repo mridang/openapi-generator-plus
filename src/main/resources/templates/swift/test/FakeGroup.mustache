@@ -1,6 +1,6 @@
 /* A hand-written fake of the {{classname}} group: it implements every operation, records each
  * call as "operation(path arguments)" and fails with the typed not-found error. */
-final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendable {
+private final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendable {
     private let lock = NSLock()
     private var recorded: [String] = []
 

@@ -45,7 +45,9 @@ function exposingContainer(string $image): GenericContainer
  * raises `$failWith` when given, and otherwise returns `$result`. It is generated from the
  * interface with eval only so that one helper serves every API group; it needs no mocking library.
  *
- * @param class-string $interface
+ * @template T of object
+ * @param class-string<T> $interface
+ * @return T
  */
 function fakeGroup(string $interface, ?\Throwable $failWith = null, mixed $result = null): object
 {
@@ -75,10 +77,26 @@ function fakeGroup(string $interface, ?\Throwable $failWith = null, mixed $resul
         . ' return $this->result; }'
         . $methods . '};';
 
+    /** @var T $fake */
     $fake = eval($source);
-    assert(is_object($fake));
 
     return $fake;
+}
+
+/**
+ * The calls a fake from fakeGroup() received, as [method name, arguments] in order.
+ *
+ * @return list<array{string, array<mixed>}>
+ */
+function fakeCalls(object $fake): array
+{
+    $calls = (new \ReflectionProperty($fake, 'calls'))->getValue($fake);
+    assert(is_array($calls));
+
+    /** @var list<array{string, array<mixed>}> $list */
+    $list = array_values($calls);
+
+    return $list;
 }
 
 /*

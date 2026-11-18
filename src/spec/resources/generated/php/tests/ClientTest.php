@@ -422,26 +422,17 @@ test('bhv mocking 008 a client built from fakes never connects and closes withou
 
         public function getPet(): \PetstoreClient\Api\PetApiInterface
         {
-            $group = fakeGroup(\PetstoreClient\Api\PetApiInterface::class);
-            assert($group instanceof \PetstoreClient\Api\PetApiInterface);
-
-            return $group;
+            return fakeGroup(\PetstoreClient\Api\PetApiInterface::class);
         }
 
         public function getProblems(): \PetstoreClient\Api\ProblemsApiInterface
         {
-            $group = fakeGroup(\PetstoreClient\Api\ProblemsApiInterface::class);
-            assert($group instanceof \PetstoreClient\Api\ProblemsApiInterface);
-
-            return $group;
+            return fakeGroup(\PetstoreClient\Api\ProblemsApiInterface::class);
         }
 
         public function getStore(): \PetstoreClient\Api\StoreApiInterface
         {
-            $group = fakeGroup(\PetstoreClient\Api\StoreApiInterface::class);
-            assert($group instanceof \PetstoreClient\Api\StoreApiInterface);
-
-            return $group;
+            return fakeGroup(\PetstoreClient\Api\StoreApiInterface::class);
         }
 
         public function close(): void
