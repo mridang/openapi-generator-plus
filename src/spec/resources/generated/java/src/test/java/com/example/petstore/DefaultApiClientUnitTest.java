@@ -60,6 +60,15 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/invalid-utf8",
+        exchange -> {
+          byte[] response = new byte[] {'a', (byte) 0xFF, 'b'};
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+    server.createContext(
         "/not-found",
         exchange -> {
           byte[] response = "not found".getBytes(StandardCharsets.UTF_8);
@@ -4095,5 +4104,83 @@ class DefaultApiClientUnitTest {
         ex.getMessage());
     assertTrue(
         ex.getCause() instanceof java.io.FileNotFoundException, String.valueOf(ex.getCause()));
+  }
+
+  private static String renderMultipartBody(Map<?, ?> fields) throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    java.lang.reflect.Method method =
+        DefaultApiClient.class.getDeclaredMethod("buildMultipartBody", Map.class, String.class);
+    method.setAccessible(true);
+    java.net.http.HttpRequest.BodyPublisher publisher =
+        (java.net.http.HttpRequest.BodyPublisher) method.invoke(client, fields, "BOUNDARY");
+    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    java.util.concurrent.CompletableFuture<Void> done =
+        new java.util.concurrent.CompletableFuture<>();
+    publisher.subscribe(
+        new java.util.concurrent.Flow.Subscriber<java.nio.ByteBuffer>() {
+          @Override
+          public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) {
+            subscription.request(Long.MAX_VALUE);
+          }
+
+          @Override
+          public void onNext(java.nio.ByteBuffer item) {
+            byte[] chunk = new byte[item.remaining()];
+            item.get(chunk);
+            out.write(chunk, 0, chunk.length);
+          }
+
+          @Override
+          public void onError(Throwable throwable) {
+            done.completeExceptionally(throwable);
+          }
+
+          @Override
+          public void onComplete() {
+            done.complete(null);
+          }
+        });
+    done.get();
+    return out.toString(StandardCharsets.UTF_8);
+  }
+
+  @Test
+  void bhvMisc095ResponseBodyWithBytesInvalidInItsCharsetDecodesWithReplacementCharacters()
+      throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    assertEquals(
+        "a�b", client.sendRequest("GET", baseUrl + "/invalid-utf8", Map.of(), null).body());
+  }
+
+  @Test
+  void bhvMisc096MultipartFilePartCarriesNoContentTransferEncodingHeader() throws Exception {
+    String part = renderMultipartPart("file", "payload".getBytes(StandardCharsets.UTF_8));
+    assertFalse(
+        part.contains("Content-Transfer-Encoding"), "part must not carry the header, got: " + part);
+  }
+
+  @Test
+  void bhvMisc097EachMultipartArrayElementIsItsOwnPartInTheOrderGiven() throws Exception {
+    String body = renderMultipartBody(Map.of("tag", List.of("first", "second")));
+    assertEquals(2, body.split("name=\"tag\"", -1).length - 1, body);
+    assertTrue(body.indexOf("first") < body.indexOf("second"), body);
+  }
+
+  @Test
+  void bhvMisc099PlainFilenameIsWrittenAsOneQuotedDirectiveWithoutExtendedForm() throws Exception {
+    String part = renderMultipartPart("avatar.png", "x".getBytes(StandardCharsets.UTF_8));
+    assertTrue(part.contains("filename=\"avatar.png\""), part);
+    assertFalse(part.contains("filename*="), part);
+  }
+
+  @Test
+  void bhvMisc101MultipartFileThatCannotBeReadFailsTheCall() {
+    java.io.File missing = new java.io.File("does-not-exist/source.bin");
+    java.lang.reflect.InvocationTargetException thrown =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            java.lang.reflect.InvocationTargetException.class,
+            () -> renderMultipartPart("file", missing));
+    assertTrue(
+        thrown.getCause() instanceof IllegalArgumentException, String.valueOf(thrown.getCause()));
   }
 }
