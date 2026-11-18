@@ -73,6 +73,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
 
         modelTemplateFiles.put("models/model.mustache", ".swift");
         apiTemplateFiles.put("api/api.mustache", ".swift");
+        apiTemplateFiles.put("api/api_protocol.mustache", "Protocol.swift");
 
         modelPackage = "Models";
         apiPackage = "";
@@ -690,6 +691,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         supportingFiles.add(
                 new SupportingFile("client.mustache", srcDir, clientClassName + ".swift"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "client_protocol.mustache", srcDir, clientClassName + "Protocol.swift"));
 
         final String testDir = Path.of("Tests", packageName + "Tests").toString();
         if (emitUnitTests()) {

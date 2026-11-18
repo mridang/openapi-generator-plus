@@ -117,6 +117,22 @@ cannot be combined with the SDK's own `proxy`, `caCertPath`, `verifySsl(false)`,
 `followRedirects(false)` or `maxRedirects`, because those are properties of the
 session itself; `build()` throws a `ConfigurationError` naming the conflict.
 
+## Testing your code
+
+Every API group has an interface (`PetApiProtocol`) and the client has one (`ClientProtocol`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```swift
+import PetstoreClient
+
+// Code under test takes the group interface, never the generated class.
+func use<A: PetApiProtocol>(_ api: A) {}
+
+// A fake conforms to the interface; the compiler lists the operations it still has to implement.
+// use(MyFake())
+```
+
+A new operation in the API adds a requirement to the interface, so a fake that conforms to the whole interface stops compiling after you regenerate; keep the fake in one place, or wrap the generated type and forward the operations you do not fake, so only the operation you fake is written.
+
 ## Raw responses, timeouts and request ids
 
 Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult`

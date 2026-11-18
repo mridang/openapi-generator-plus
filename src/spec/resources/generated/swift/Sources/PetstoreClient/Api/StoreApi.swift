@@ -9,7 +9,7 @@ import Foundation
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
-public final class StoreApi: BaseApi, @unchecked Sendable {
+public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
   /// Creates a new `StoreApi`.
   public override init(
     apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,

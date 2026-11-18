@@ -83,6 +83,7 @@ Response bodies are decoded by `URLSession`, with a bundled inflater for gzip an
 - Initialisms are upper case (`URL`, `ID`, `HTTP`).
 - Models have a `copy(...)` method instead of a builder. For an optional property the argument is double optional, so `.some(nil)` clears it and a bare `nil` keeps it.
 - A property called `type` keeps that name.
+- Testing your code: `<Group>ApiProtocol` (file `<Group>ApiProtocol.swift`) and `ClientProtocol` with an associated type per group, so `Client` keeps its concrete group classes. A requirement cannot carry default arguments, so the protocol lists the full form of each operation and an extension adds the form with only the required parameters (`vendorExtensions.op.signatureArgsRequired`); a call through the protocol that passes some but not all optional parameters must pass the others as `nil`.
 
 ## Known limits
 

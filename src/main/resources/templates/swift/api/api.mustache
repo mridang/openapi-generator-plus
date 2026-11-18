@@ -57,7 +57,7 @@ public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
 {{#tagExternalDocs}}
 /// See {{{url}}} {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
 {{/tagExternalDocs}}
-public final class {{classname}}: BaseApi, @unchecked Sendable {
+public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sendable {
     /// Creates a new `{{classname}}`.
     public override init(
         apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,

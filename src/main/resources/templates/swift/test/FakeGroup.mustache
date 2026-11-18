@@ -1,0 +1,60 @@
+/* A hand-written fake of the {{classname}} group: it implements every operation, records each
+ * call as "operation(path arguments)" and fails with the typed not-found error. */
+final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [String] = []
+
+    var calls: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recorded
+    }
+
+    private func record(_ call: String) {
+        lock.lock()
+        recorded.append(call)
+        lock.unlock()
+    }
+{{#operation}}
+
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+        var parts: [String] = []
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        parts.append(String(describing: {{paramName}}))
+{{/isPath}}
+{{/vendorExtensions.op.signatureArgs}}
+        var call = "{{operationId}}(" + parts.joined(separator: ",") + ")"
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        call += options == nil ? " options=none" : " options=set"
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+        record(call)
+        throw NotFoundError(message: "missing")
+    }
+
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+        var parts: [String] = []
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        parts.append(String(describing: {{paramName}}))
+{{/isPath}}
+{{/vendorExtensions.op.signatureArgs}}
+        var call = "{{operationId}}WithHTTPInfo(" + parts.joined(separator: ",") + ")"
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        call += options == nil ? " options=none" : " options=set"
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+        record(call)
+        throw NotFoundError(message: "missing")
+    }
+{{/operation}}
+}
