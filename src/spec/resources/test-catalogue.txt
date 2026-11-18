@@ -2526,3 +2526,4 @@ langruby090 | A password refused at construction for containing a NUL byte names
 langcsharp045 | An operation with no parameters or security leaves transport settings unchanged
 langcsharp046 | An operation with no parameters or security has no auth field in its options
 langcsharp047 | A per-call timeout of zero is refused when the call is built
+langcsharp048 | A discovery endpoint served in clear text is rejected unless it is a loopback address
