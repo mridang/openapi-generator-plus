@@ -2778,4 +2778,207 @@ public static class ObjectSerializerTest
             Assert.Equal(ids, decoded);
         }
     }
+
+    public class SharedBehaviourTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void BhvSerialization002EnumMemberIsWrittenAsItsExactWireString()
+        {
+            string json = _serializer.Serialize(new Order { Status = Order.StatusEnum.Placed });
+
+            Assert.Contains("\"status\":\"placed\"", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerialization003WireValueDecodesToTheMemberCarryingIt()
+        {
+            Order? order = _serializer.Deserialize<Order>("{\"status\":\"approved\"}");
+
+            Assert.Equal(Order.StatusEnum.Approved, order!.Status);
+        }
+
+        [Fact]
+        public void BhvSerialization004ValueOutsideTheDeclaredMembersIsRefused()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"status\":\"lost\"}")
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization011ModelKeysAreWrittenInDeclarationOrderNotSorted()
+        {
+            string json = _serializer.Serialize(new Order { Id = 1L, Complete = false });
+
+            Assert.True(
+                json.IndexOf("\"id\"", StringComparison.Ordinal)
+                    < json.IndexOf("\"complete\"", StringComparison.Ordinal)
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization012MapKeysAreWrittenInAscendingOrder()
+        {
+            string json = _serializer.Serialize(
+                new Dictionary<string, int> { ["b"] = 1, ["a"] = 2 }
+            );
+
+            Assert.Equal("{\"a\":2,\"b\":1}", json);
+        }
+
+        [Fact]
+        public void BhvSerialization019UnsetOptionalPropertiesAreLeftOutOfTheOutput()
+        {
+            string json = _serializer.Serialize(new Order { Complete = false });
+
+            Assert.DoesNotContain("\"petId\"", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"shipDate\"", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerialization020UnsetFieldIsWrittenWithItsSchemaDefault()
+        {
+            string json = _serializer.Serialize(new Defaults());
+
+            Assert.Contains("\"label\":\"untitled\"", json, StringComparison.Ordinal);
+            Assert.Contains("\"retries\":3", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerialization022TopLevelScalarDecodesToItsOwnType()
+        {
+            Assert.Equal(42, _serializer.Deserialize<int>("42"));
+            Assert.Equal("text", _serializer.Deserialize<string>("\"text\""));
+        }
+
+        [Fact]
+        public void BhvSerialization023ContentAfterTheDocumentIsRefused()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"id\":1} trailing")
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization025TypedLeavesInsideArraysDecodeToTheirOwnTypes()
+        {
+            List<Order>? orders = _serializer.Deserialize<List<Order>>(
+                "[{\"status\":\"delivered\"}]"
+            );
+
+            Assert.Equal(Order.StatusEnum.Delivered, orders![0].Status);
+        }
+
+        [Fact]
+        public void BhvSerialization027EmptyArrayDecodesToAnEmptyCollection()
+        {
+            var values = _serializer.Deserialize<List<int>>("[]");
+
+            Assert.NotNull(values);
+            Assert.Empty(values!);
+        }
+
+        [Fact]
+        public void BhvSerialization028ValueOfTheWrongKindForAModelListOrMapIsRefused()
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Order>("[]"));
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<List<int>>("{}"));
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Dictionary<string, int>>("[]")
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization030DateTimeFieldRefusesANonStringValue()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"shipDate\":12345}")
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization032IntegerRefusesAWholeNumberWrittenWithAFractionOrExponent()
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<int>("1.0"));
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<int>("1e2"));
+        }
+
+        [Fact]
+        public void BhvSerialization033IntegerMapLeafMustBeAPlainInteger()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Dictionary<string, int>>("{\"a\":1.5}")
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization035NaNAndInfinityLiteralsAreRefused()
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<double>("NaN"));
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<double>("Infinity")
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization061SlashAngleBracketsAmpersandAndNonAsciiAreNotEscaped()
+        {
+            Assert.Equal("\"a/b<c>&é\"", _serializer.Serialize("a/b<c>&é"));
+        }
+
+        [Fact]
+        public void BhvSerialization062Base64StringDecodesToTheRawBytes()
+        {
+            byte[]? bytes = _serializer.Deserialize<byte[]>("\"AQI=\"");
+
+            Assert.Equal(new byte[] { 1, 2 }, bytes);
+        }
+
+        [Fact]
+        public void BhvSerialization063RawBytesAreWrittenAsPaddedStandardBase64()
+        {
+            Assert.Equal("\"AQI=\"", _serializer.Serialize(new byte[] { 1, 2 }));
+        }
+
+        [Fact]
+        public void BhvSerialization064UniqueValuesAreWrittenAsAJsonArray()
+        {
+            Assert.Equal("[1,2]", _serializer.Serialize(new HashSet<int> { 1, 2 }));
+        }
+
+        [Fact]
+        public void BhvSerialization065NullInsideAnArrayIsKeptInItsPosition()
+        {
+            List<int?>? values = _serializer.Deserialize<List<int?>>("[1,null,3]");
+
+            Assert.Equal(new int?[] { 1, null, 3 }, values);
+        }
+
+        [Fact]
+        public void BhvModels019ModelsWithADifferentFieldValueCompareUnequal()
+        {
+            Assert.NotEqual(new Order { Id = 1L }, new Order { Id = 2L });
+        }
+
+        [Fact]
+        public void BhvModels020EqualModelsCompareEqualAndHashAlike()
+        {
+            var first = new Order { Id = 1L, Complete = false };
+            var second = new Order { Id = 1L, Complete = false };
+
+            Assert.Equal(first, second);
+            Assert.Equal(first.GetHashCode(), second.GetHashCode());
+        }
+
+        [Fact]
+        public void BhvModels024ANewModelLeavesItsOptionalPropertiesUnset()
+        {
+            var order = new Order();
+
+            Assert.Null(order.Id);
+            Assert.Null(order.Status);
+        }
+    }
 }
