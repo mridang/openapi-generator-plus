@@ -111,7 +111,7 @@ void main() {
       );
     });
 
-    test('getTypedErrorBody throws SerializationException for a JSON array body',
+    test('bhv misc 015 getTypedErrorBody throws SerializationException for a JSON array body',
         () {
       const err = ApiException(
         statusCode: 500,
@@ -131,7 +131,7 @@ void main() {
       );
     });
 
-    test('getTypedErrorBody throws SerializationException for a type mismatch',
+    test('bhv langdart 008 getTypedErrorBody throws SerializationException for a type mismatch',
         () {
       const err = ApiException(
         statusCode: 500,
@@ -631,7 +631,7 @@ void main() {
       expect(err.responseBody?.length, equals(3000));
     });
 
-    test('caps the rendered body and says how much was left out', () {
+    test('bhv misc 280 caps the rendered body and says how much was left out', () {
       final body = 'x' * 1030;
       final err = ApiException(
         statusCode: 502,

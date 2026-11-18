@@ -97,7 +97,7 @@ void main() {
     );
 
     test(
-      'every observer is finished although one of them throws, and the error is rethrown',
+      'bhv langdart 026 every observer is finished although one of them throws, and the error is rethrown',
       () {
         final log = <String>[];
         final hook = chainCallHooks([
@@ -113,7 +113,7 @@ void main() {
     );
 
     test(
-      'hooks start with the same header map, so each sees the edits of the one before',
+      'bhv langdart 027 hooks start with the same header map, so each sees the edits of the one before',
       () {
         final headers = <String, String>{};
         final hook = chainCallHooks([

@@ -74,7 +74,7 @@ void main() {
       expect(hook.start(_info(), <String, String>{}), isNull);
     });
 
-    test('every observer is finished although one of them throws, and the error is rethrown', () {
+    test('bhv langdart 026 every observer is finished although one of them throws, and the error is rethrown', () {
       final log = <String>[];
       final hook = chainCallHooks([_Step('a', log), _ThrowingStep(), _Step('b', log)]);
       final observer = hook.start(_info(), <String, String>{})!;
@@ -83,7 +83,7 @@ void main() {
       expect(log, equals(['start a', 'start b', 'finish b', 'finish a']));
     });
 
-    test('hooks start with the same header map, so each sees the edits of the one before', () {
+    test('bhv langdart 027 hooks start with the same header map, so each sees the edits of the one before', () {
       final headers = <String, String>{};
       final hook = chainCallHooks([_Setter('X-One', '1'), _Setter('X-Two', '2')]);
 

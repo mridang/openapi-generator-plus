@@ -96,7 +96,7 @@ void main() {
     );
 
     test(
-      'the synchronous authHeaders raises after the exchange instead of returning no credentials',
+      'bhv langdart 057 the synchronous authHeaders raises after the exchange instead of returning no credentials',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -639,18 +639,21 @@ void main() {
   });
 
   group('OAuth2AuthorizationCodeAuthenticator wire format', () {
-    test('the authorize URL is exact and separates scopes with %20', () {
-      expect(
-        _createAuthenticator().buildAuthorizationUrl(),
-        matches(
-          RegExp(
-            r'^https://auth\.example\.com/authorize\?response_type=code&client_id=my-client-id'
-            r'&redirect_uri=https%3A%2F%2Fapp\.example\.com%2Fcallback&scope=read%20write'
-            r'&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256$',
+    test(
+      'bhv langdart 058 the authorize URL is exact and separates scopes with %20',
+      () {
+        expect(
+          _createAuthenticator().buildAuthorizationUrl(),
+          matches(
+            RegExp(
+              r'^https://auth\.example\.com/authorize\?response_type=code&client_id=my-client-id'
+              r'&redirect_uri=https%3A%2F%2Fapp\.example\.com%2Fcallback&scope=read%20write'
+              r'&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256$',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwoauthcode 004 the authorize URL keeps ~ literal and percent-encodes * ! \' ( )',

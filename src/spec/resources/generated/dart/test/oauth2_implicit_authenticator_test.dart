@@ -135,25 +135,28 @@ void main() {
       );
     });
 
-    test('a rejected access token never appears in the ArgumentError', () {
-      final auth = _createAuthenticator();
-      Object? thrown;
-      try {
-        auth.setAccessToken('tok-\r\nInjected: yes');
-      } on ArgumentError catch (e) {
-        thrown = e;
-      }
-      final error = thrown as ArgumentError;
-      expect(
-        error.message,
-        equals(
-          'Access token must contain only printable ASCII characters '
-          '(RFC 7230 §3.2.6)',
-        ),
-      );
-      expect(error.invalidValue, isNull);
-      expect(error.toString(), isNot(contains('tok-')));
-    });
+    test(
+      'bhv langdart 061 a rejected access token never appears in the ArgumentError',
+      () {
+        final auth = _createAuthenticator();
+        Object? thrown;
+        try {
+          auth.setAccessToken('tok-\r\nInjected: yes');
+        } on ArgumentError catch (e) {
+          thrown = e;
+        }
+        final error = thrown as ArgumentError;
+        expect(
+          error.message,
+          equals(
+            'Access token must contain only printable ASCII characters '
+            '(RFC 7230 §3.2.6)',
+          ),
+        );
+        expect(error.invalidValue, isNull);
+        expect(error.toString(), isNot(contains('tok-')));
+      },
+    );
 
     test('bhv authoauthtwoimplicit 008 getHost returns configured host', () {
       final auth = _createAuthenticator();

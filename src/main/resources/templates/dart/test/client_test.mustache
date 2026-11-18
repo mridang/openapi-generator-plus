@@ -529,7 +529,7 @@ void main() {
       expect(hook.finishes, equals(1));
     });
 
-    test('the client hands the call hook to every API group', () async {
+    test('bhv langdart 028 the client hands the call hook to every API group', () async {
       final hook = _CountingHook();
       final client = {{clientClassName}}.withToken(
         host: 'https://api.example.com',
