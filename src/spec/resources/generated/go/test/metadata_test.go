@@ -229,3 +229,73 @@ func TestBhvModels011_Metadata_RoundTrip(t *testing.T) {
 		t.Fatal("expected non-empty serialized data after round-trip")
 	}
 }
+
+func TestBhvModels013_Metadata_NewModelHasEmptyAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	metadata := models.NewMetadata()
+	if metadata.AdditionalProperties == nil || len(metadata.AdditionalProperties) != 0 {
+		t.Errorf("expected an empty additional properties collection, got %v", metadata.AdditionalProperties)
+	}
+}
+
+func TestBhvModels024_Metadata_NewModelLeavesOptionalPropertiesUnset(t *testing.T) {
+	t.Parallel()
+	metadata := models.NewMetadata()
+	if metadata.CreatedAt != nil {
+		t.Errorf("expected the optional createdAt unset, got %v", metadata.CreatedAt)
+	}
+}
+
+func TestBhvModels015_Metadata_ChangedCopyKeepsAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	var created models.DateTime
+	if err := json.Unmarshal([]byte(`"2024-01-15T10:30:00.000+00:00"`), &created); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	original := models.Metadata{AdditionalProperties: map[string]any{"extraKey": "extraValue"}}
+	copied := original.WithCreatedAt(created)
+	if copied.AdditionalProperties["extraKey"] != "extraValue" {
+		t.Errorf("expected the copy to keep the additional property, got %v", copied.AdditionalProperties)
+	}
+}
+
+func TestBhvModels016_Metadata_CopyLeavesAnOmittedFieldAlone(t *testing.T) {
+	t.Parallel()
+	var created models.DateTime
+	if err := json.Unmarshal([]byte(`"2024-01-15T10:30:00.000+00:00"`), &created); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	original := models.Metadata{CreatedAt: &created}
+	copied := original.WithAdditionalProperties(map[string]any{"k": "v"})
+	if copied.CreatedAt == nil || copied.CreatedAt.String() != original.CreatedAt.String() {
+		t.Errorf("expected the omitted createdAt kept, got %v", copied.CreatedAt)
+	}
+	if cleared := original.WithoutCreatedAt(); cleared.CreatedAt != nil {
+		t.Errorf("expected WithoutCreatedAt to clear only the copy, got %v", cleared.CreatedAt)
+	}
+	if original.CreatedAt == nil {
+		t.Error("expected the original to keep its value")
+	}
+}
+
+func TestBhvModels019_Metadata_DifferentFieldValuesCompareUnequal(t *testing.T) {
+	t.Parallel()
+	first := models.Metadata{AdditionalProperties: map[string]any{"k": "1"}}
+	second := models.Metadata{AdditionalProperties: map[string]any{"k": "2"}}
+	if first.Equal(second) {
+		t.Error("expected models with different values to compare unequal")
+	}
+}
+
+func TestBhvModels023_Metadata_UndeclaredKeysNamedLikeMethodsStayAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"String":"x","Equal":"y","MarshalJSON":"z"}`), &metadata); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for key, want := range map[string]string{"String": "x", "Equal": "y", "MarshalJSON": "z"} {
+		if metadata.AdditionalProperties[key] != want {
+			t.Errorf("expected %q kept as an additional property, got %v", key, metadata.AdditionalProperties[key])
+		}
+	}
+}

@@ -2215,3 +2215,209 @@ func TestBhvAuth021_DefaultApiClient_RequestWithNoCredentialHasNoAuthorizationHe
 		t.Errorf("expected no Authorization header, got %q", got)
 	}
 }
+
+func TestBhvHeaders031_DefaultApiClient_CrLfInAHeaderValueIsRefusedBeforeSending(t *testing.T) {
+	t.Parallel()
+	var hits int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	_, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/items", map[string]string{"X-Injected": "a\r\nX-Evil: 1"}, nil)
+	if err == nil {
+		t.Error("expected the header value with a line break to be refused")
+	}
+	if got := atomic.LoadInt32(&hits); got != 0 {
+		t.Errorf("expected no request to be sent, got %d", got)
+	}
+}
+
+func TestBhvRetries043_DefaultApiClient_UnauthorizedIsReturnedAfterOneRequest(t *testing.T) {
+	t.Parallel()
+	var hits int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	_, _ = NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/secure", map[string]string{}, nil)
+	if got := atomic.LoadInt32(&hits); got != 1 {
+		t.Errorf("expected exactly one request for a 401 with no fresh credential, got %d", got)
+	}
+}
+
+func TestBhvRedirects038_DefaultApiClient_A307KeepsTheBodyAndContentType(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/landed")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		seen <- string(body) + "|" + r.Header.Get("Content-Type")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("POST", server.URL+"/start",
+		map[string]string{"Content-Type": "text/plain"}, []byte("payload"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := <-seen; got != "payload|text/plain" {
+		t.Errorf("expected the body and Content-Type to reach the new location, got %q", got)
+	}
+}
+
+func TestBhvRedirects041_DefaultApiClient_PostTurnedIntoGetDropsTheBodyHeaders(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/landed")
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		seen <- r.Method + "|" + r.Header.Get("Content-Length") + "|" + r.Header.Get("Content-Type")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("POST", server.URL+"/start",
+		map[string]string{"Content-Type": "text/plain"}, []byte("payload"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := <-seen; got != "GET||" {
+		t.Errorf("expected a GET with no Content-Length or Content-Type, got %q", got)
+	}
+}
+
+func TestBhvRedirects042_DefaultApiClient_A307BodylessPostStaysPostWithZeroLength(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/landed")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		seen <- r.Method + "|" + strconv.FormatInt(r.ContentLength, 10)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("POST", server.URL+"/start", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := <-seen; got != "POST|0" {
+		t.Errorf("expected a POST with Content-Length zero, got %q", got)
+	}
+}
+
+func TestBhvRedirects043_DefaultApiClient_RelativeLocationResolvesAgainstTheRequestUrl(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/a/start" {
+			w.Header().Set("Location", "../b/landed")
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		seen <- r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/a/start", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := <-seen; got != "/b/landed" {
+		t.Errorf("expected the relative location resolved to /b/landed, got %q", got)
+	}
+}
+
+func TestBhvRedirects044_DefaultApiClient_CrossOriginRedirectDropsTheCallerAuthorization(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 1)
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/landed")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer origin.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("GET", origin.URL+"/start",
+		map[string]string{"Authorization": "Bearer caller-token"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := <-seen; got != "" {
+		t.Errorf("expected the caller's authorization dropped on a cross-origin redirect, got %q", got)
+	}
+}
+
+func TestBhvLifecycle036_DefaultApiClient_SecondCloseIsANoOp(t *testing.T) {
+	t.Parallel()
+	client := NewDefaultApiClient(nil)
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error on the first close: %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected a second close to succeed, got %v", err)
+	}
+}
+
+func TestBhvLifecycle038_DefaultApiClient_CallerTransportWithoutCloseIsAccepted(t *testing.T) {
+	t.Parallel()
+	transport, err := NewTransportOptionsBuilder().RoundTripper(http.DefaultTransport).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if err := client.Close(); err != nil {
+		t.Errorf("expected close to succeed for a transport with no close operation, got %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected a repeated close to succeed, got %v", err)
+	}
+}
+
+func TestBhvLifecycle040_DefaultApiClient_StandardCloserReleasesTheClient(t *testing.T) {
+	t.Parallel()
+	var closer io.Closer = NewDefaultApiClient(nil)
+	if err := closer.Close(); err != nil {
+		t.Errorf("expected the io.Closer hook to close the client, got %v", err)
+	}
+}

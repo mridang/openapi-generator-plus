@@ -295,3 +295,11 @@ func TestHeaderSelector_MediaTypeStripsParametersAndLowercases(t *testing.T) {
 		t.Errorf("mediaType = %q, want %q", got, "text/plain")
 	}
 }
+
+func TestBhvHeaders032_HeaderSelector_AcceptHeaderListsMediaTypesWithoutQualityWeights(t *testing.T) {
+	t.Parallel()
+	got := newHeaderSelector().selectAcceptHeader([]string{"application/json", "text/plain"})
+	if got != "application/json, text/plain" {
+		t.Errorf("expected the media types without q= weights, got %q", got)
+	}
+}

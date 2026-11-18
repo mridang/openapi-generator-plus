@@ -211,3 +211,5 @@ php | errors054 | php names the Content-Type but not the operation in a non-JSON
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
 go | auth005 | Go's API-key authenticators take one fixed key and have no provider function; only the bearer token takes a provider, which bhvauthbearer014 covers
 go | auth008 | the PKCE verifier is made inside the unexported oauth package and the generated tests are external, so the RFC 7636 vector cannot be fed to pkceChallenge; the authorization URL carries a random verifier, so only the exchange proof (bhvauthoauthtwoauthcode023) is checked
+go | models014 | Go models expose their fields as plain struct fields that a caller can assign, so the language does not freeze a built model; changes are made on a copy through the With methods
+go | models020 | Go models that hold map or slice fields are not comparable and cannot key a Go map or set, so equality is the Equal method alone and there is no hash to make equal models hash alike

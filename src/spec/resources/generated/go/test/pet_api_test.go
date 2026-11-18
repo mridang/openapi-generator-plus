@@ -2353,3 +2353,11 @@ func TestBhvOptions054_PetApi_OperationAcceptsPerCallOptionsAlongsideItsArgument
 		t.Fatal("expected a result when call options are given")
 	}
 }
+
+func TestBhvConfig025_PetApi_EmptyBaseUrlEnvironmentValueIsTreatedAsUnset(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+	client, err := petstore.NewClientWithCredentials("", petstore.Credentials{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL") || client != nil {
+		t.Errorf("expected construction to fail naming the missing variable, got %v %v", client, err)
+	}
+}

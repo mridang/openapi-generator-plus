@@ -62,7 +62,9 @@ func (o Metadata) WithAdditionalProperties(value map[string]any) Metadata {
 
 // NewMetadata creates a new Metadata instance.
 func NewMetadata() *Metadata {
-	return &Metadata{}
+	return &Metadata{
+		AdditionalProperties: make(map[string]any),
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

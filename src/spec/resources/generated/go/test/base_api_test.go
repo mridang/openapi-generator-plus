@@ -2931,3 +2931,35 @@ func TestBhvOperations153_BaseApi_OperationWithNoChosenServerUsesTheBaseURL(t *t
 		t.Errorf("expected the request URL to start with %q, got %q", want, client.capturedURL)
 	}
 }
+
+func TestBhvRetries044_BaseApi_EveryRetryCarriesADifferentRequestId(t *testing.T) {
+	t.Parallel()
+	ids := make(chan string, 10)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ids <- r.Header.Get("X-Request-ID")
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	transport, err := petstore.NewTransportOptionsBuilder().InjectRequestID(true).MaxRetries(2).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil, petstore.Credentials{})
+	_ = addPetCall(api)
+	close(ids)
+
+	seen := map[string]bool{}
+	attempts := 0
+	for id := range ids {
+		attempts++
+		if id == "" || seen[id] {
+			t.Errorf("expected a distinct request id per attempt, got %q on attempt %d", id, attempts)
+		}
+		seen[id] = true
+	}
+	if attempts != 3 {
+		t.Errorf("expected the first attempt and two retries, got %d attempts", attempts)
+	}
+}
