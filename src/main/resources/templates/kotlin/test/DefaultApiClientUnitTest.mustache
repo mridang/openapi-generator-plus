@@ -1394,6 +1394,29 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvMisc128 a cross-origin redirect never removes the proxy credential that the shared transport applies to every request")
+        fun bhvMisc128ACrossOriginRedirectKeepsTheProxyCredential() {
+            val hops = mutableListOf<io.ktor.http.Headers>()
+            val engine = MockEngine { req ->
+                hops.add(req.headers)
+                if (hops.size == 1) {
+                    respond(content = "", status = HttpStatusCode.Found, headers = headersOf("Location", "https://other.test/hop"))
+                } else {
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport =
+                TransportOptions.builder()
+                    .followRedirects(true)
+                    .proxy("http://user:pass@proxy.test:3128")
+                    .build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking { apiClient.sendRequest("GET", "https://api.test/start", emptyMap(), null) }
+            assertEquals(2, hops.size)
+            assertEquals("Basic dXNlcjpwYXNz", hops[1]["Proxy-Authorization"])
+        }
+
+        @Test
         @DisplayName("bhvRedirects044 the SDK's own Proxy-Authorization survives a cross-origin http hop; caller credentials do not")
         fun proxyCredentialsSurviveCrossOriginRedirect() {
             val hops = mutableListOf<io.ktor.http.Headers>()
@@ -3504,6 +3527,19 @@ class DefaultApiClientUnitTest {
                     respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
                 }
             }
+
+        @Test
+        @DisplayName("bhvMisc131 a session the caller supplies still has the SDK's redirect rules applied to requests made through it")
+        fun bhvMisc131ASuppliedSessionFollowsRedirectsUnderTheSdkRules() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.Found, seen)),
+                TransportOptions.builder().followRedirects(true).build(),
+            )
+            val response = runBlocking { apiClient.sendRequest("GET", "http://localhost/a", emptyMap(), null) }
+            assertEquals(2, seen.size)
+            assertEquals(200, response.statusCode)
+        }
 
         @Test
         @DisplayName("bhvRedirects038 a 307 redirect that keeps the method resends the original body and its content type")
