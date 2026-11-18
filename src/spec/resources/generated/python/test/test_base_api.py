@@ -519,6 +519,104 @@ class TestPerCallOptions:
         assert short - time.monotonic() <= 1.5
         assert client.deadline - time.monotonic() > 5
 
+    async def test_bhv_transport_070_a_per_call_timeout_is_the_request_timeout_the_transport_receives(
+        self,
+    ) -> None:
+        class _OkResponse:
+            status = 200
+            headers = HTTPHeaderDict({"content-type": "application/json"})
+
+            def read(self) -> bytes:
+                return b"{}"
+
+            def release_conn(self) -> None:
+                return None
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.timeouts: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.timeouts.append(kwargs["timeout"])
+                return _OkResponse()
+
+        pool = _Pool()
+        client = DefaultApiClient(
+            TransportOptions.builder().timeout(60000).build(), pool_manager=pool
+        )
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        await api.call_result(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            request_options=FindPetsByStatusOptions(timeout=300),
+        )
+
+        assert len(pool.timeouts) == 1
+        assert 0 < pool.timeouts[0].total <= 0.3
+
+    async def test_bhv_transport_069_cancelling_the_call_cancels_the_handle_and_headers_reach_the_transport(
+        self,
+    ) -> None:
+        started = threading.Event()
+        release = threading.Event()
+        seen: dict[str, Any] = {}
+
+        class _BlockingClient(DefaultApiClient):
+            def send_request(
+                self,
+                method: str,
+                url: str,
+                headers: dict[str, str],
+                body: Any = None,
+                no_redirect: bool = False,
+                handle: Any = None,
+                deadline: Any = None,
+            ) -> ApiHttpResponse:
+                seen["handle"] = handle
+                seen["headers"] = dict(headers)
+                started.set()
+                release.wait(5)
+                return ApiHttpResponse(
+                    status_code=200,
+                    body="{}",
+                    headers={"content-type": "application/json"},
+                )
+
+        client = _BlockingClient(TransportOptions.builder().max_retries(0).build())
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        task = asyncio.ensure_future(
+            api.call_result(
+                "GET",
+                "/items",
+                {},
+                {"X-Trace": "abc"},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+        )
+        await asyncio.to_thread(started.wait, 5)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        release.set()
+
+        assert seen["handle"].cancelled
+        assert seen["headers"]["X-Trace"] == "abc"
+
     async def test_bhv_operations_096_an_operation_without_parameters_takes_per_call_options(
         self,
     ) -> None:

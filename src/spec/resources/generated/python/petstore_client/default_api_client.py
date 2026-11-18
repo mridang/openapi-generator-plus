@@ -294,20 +294,21 @@ def _supported_encodings() -> str:
     return ", ".join(encodings)
 
 
-_CHARSET_RE = re.compile(r'charset\s*=\s*"?([^";\s]+)"?', re.IGNORECASE)
-
-
 def _charset_from_content_type(content_type: str) -> Optional[str]:
     """Extract the charset parameter from a Content-Type header value.
 
-    Returns ``None`` when the header is empty or has no ``charset=`` parameter.
+    The parameter is matched by its whole name, ignoring letter case and the
+    spaces around it, so ``Charset = utf-8`` is the charset while ``xcharset=``
+    or ``foo.charset=`` is some other parameter. Returns ``None`` when the
+    header is empty or has no ``charset`` parameter.
     """
     if not content_type:
         return None
-    match = _CHARSET_RE.search(content_type)
-    if not match:
-        return None
-    return match.group(1).strip()
+    for parameter in content_type.split(";")[1:]:
+        name, separator, value = parameter.partition("=")
+        if separator and name.strip().lower() == "charset":
+            return value.strip().strip('"').strip() or None
+    return None
 
 
 def _resolve_utf16_charset(charset: str, data: bytes) -> str:
