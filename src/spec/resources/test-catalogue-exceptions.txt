@@ -622,3 +622,4 @@ node | misc074 | BaseApi resolves one credential, the first listed scheme the cl
 node | misc075 | the credentials object is typed with one optional field per declared scheme, so TypeScript refuses an undeclared key at compile time and the client reads only declared schemes
 node | misc081 | a binary response is carried as the base64 text of its bytes (bhv serializationwire 018), so a base64 body under a binary content type is returned as that text and never decoded to a string
 node | misc091 | settled decision S3 and bhv serialization 069: schema constraints such as pattern, length and range are not enforced by the client, so refusing a value that breaks one would contradict it
+rust | misc101 | Rust multipart parts are byte buffers read before the call is made, so no part can fail to read while the request is sent and the call has no source to fail on
