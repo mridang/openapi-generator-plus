@@ -28,7 +28,17 @@ import { UserAuthAuthorizationCodeAuthenticator } from "../src/auth/oauth/user-a
 import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 import * as entryPoint from "../src/index.js";
-import { Client, type ClientCredentials } from "../src/client.js";
+import { PetApi, type PetApiInterface } from "../src/api/pet-api.js";
+import {
+  ProblemsApi,
+  type ProblemsApiInterface,
+} from "../src/api/problems-api.js";
+import { StoreApi, type StoreApiInterface } from "../src/api/store-api.js";
+import {
+  Client,
+  type ClientInterface,
+  type ClientCredentials,
+} from "../src/client.js";
 import { OpenIdConnectAuthenticator } from "../src/auth/oauth/openid-connect-authenticator.js";
 import { TransportOptions } from "../src/transport-options.js";
 import { Pet } from "../src/models/index.js";
@@ -950,5 +960,290 @@ describe("generated documentation", () => {
     expect(() =>
       TransportOptions.builder().proxy("socks5://proxy:1080"),
     ).toThrow(TypeError);
+  });
+});
+
+describe("mockable client", () => {
+  const authenticator = new BearerAuthenticator("/api/v3", "test-token");
+
+  test("bhv mocking 001 every group has an interface the class implements", () => {
+    const client = new Client(authenticator);
+    const petGroup: PetApiInterface = client.pet;
+    const petListed = [
+      "addPet",
+      "addPetWithHttpInfo",
+      "addPetPhotos",
+      "addPetPhotosWithHttpInfo",
+      "addPetTreatment",
+      "addPetTreatmentWithHttpInfo",
+      "deletePet",
+      "deletePetWithHttpInfo",
+      "downloadPetDocument",
+      "downloadPetDocumentWithHttpInfo",
+      "findPetsBornOn",
+      "findPetsBornOnWithHttpInfo",
+      "findPetsByStatus",
+      "findPetsByStatusWithHttpInfo",
+      "getExternalPetInfo",
+      "getExternalPetInfoWithHttpInfo",
+      "getMultiServerPetInfo",
+      "getMultiServerPetInfoWithHttpInfo",
+      "getPetAvatar",
+      "getPetAvatarWithHttpInfo",
+      "getPetAvatarThumbnail",
+      "getPetAvatarThumbnailWithHttpInfo",
+      "getPetById",
+      "getPetByIdWithHttpInfo",
+      "getPetByName",
+      "getPetByNameWithHttpInfo",
+      "getPetPassport",
+      "getPetPassportWithHttpInfo",
+      "getPetPhoto",
+      "getPetPhotoWithHttpInfo",
+      "getPetSummary",
+      "getPetSummaryWithHttpInfo",
+      "getPetTag",
+      "getPetTagWithHttpInfo",
+      "getStagingPetInfo",
+      "getStagingPetInfoWithHttpInfo",
+      "setPetAvatar",
+      "setPetAvatarWithHttpInfo",
+      "setPetAvatarThumbnail",
+      "setPetAvatarThumbnailWithHttpInfo",
+      "setPetPreferences",
+      "setPetPreferencesWithHttpInfo",
+      "updatePet",
+      "updatePetWithHttpInfo",
+      "uploadPetCertificate",
+      "uploadPetCertificateWithHttpInfo",
+      "uploadPetDocument",
+      "uploadPetDocumentWithHttpInfo",
+    ];
+    for (const name of petListed) {
+      expect(
+        typeof (petGroup as unknown as Record<string, unknown>)[name],
+      ).toBe("function");
+    }
+    const problemsGroup: ProblemsApiInterface = client.problems;
+    const problemsListed = [
+      "getFallback",
+      "getFallbackWithHttpInfo",
+      "getMember",
+      "getMemberWithHttpInfo",
+      "getProject",
+      "getProjectWithHttpInfo",
+      "getRange",
+      "getRangeWithHttpInfo",
+      "getUpstream",
+      "getUpstreamWithHttpInfo",
+      "takeLock",
+      "takeLockWithHttpInfo",
+    ];
+    for (const name of problemsListed) {
+      expect(
+        typeof (problemsGroup as unknown as Record<string, unknown>)[name],
+      ).toBe("function");
+    }
+    const storeGroup: StoreApiInterface = client.store;
+    const storeListed = [
+      "createAccount",
+      "createAccountWithHttpInfo",
+      "deleteOrder",
+      "deleteOrderWithHttpInfo",
+      "getBySwatch",
+      "getBySwatchWithHttpInfo",
+      "getDefaults",
+      "getDefaultsWithHttpInfo",
+      "getDepartment",
+      "getDepartmentWithHttpInfo",
+      "getGroupedCategories",
+      "getGroupedCategoriesWithHttpInfo",
+      "getInventory",
+      "getInventoryWithHttpInfo",
+      "getMatrix",
+      "getMatrixWithHttpInfo",
+      "getOrderById",
+      "getOrderByIdWithHttpInfo",
+      "getOrderByTrackingId",
+      "getOrderByTrackingIdWithHttpInfo",
+      "getStockItem",
+      "getStockItemWithHttpInfo",
+      "getSwatch",
+      "getSwatchWithHttpInfo",
+      "getSwatchGroups",
+      "getSwatchGroupsWithHttpInfo",
+      "getTimestampGroups",
+      "getTimestampGroupsWithHttpInfo",
+      "getTree",
+      "getTreeWithHttpInfo",
+      "placeOrder",
+      "placeOrderWithHttpInfo",
+      "reserveStock",
+      "reserveStockWithHttpInfo",
+      "searchStore",
+      "searchStoreWithHttpInfo",
+    ];
+    for (const name of storeListed) {
+      expect(
+        typeof (storeGroup as unknown as Record<string, unknown>)[name],
+      ).toBe("function");
+    }
+  });
+
+  test("bhv mocking 002 the group interface lists exactly the public operations of the class", () => {
+    const petClass = Object.getOwnPropertyNames(PetApi.prototype)
+      .filter((name) => name !== "constructor")
+      .sort();
+    expect(petClass).toEqual(
+      [
+        "addPet",
+        "addPetWithHttpInfo",
+        "addPetPhotos",
+        "addPetPhotosWithHttpInfo",
+        "addPetTreatment",
+        "addPetTreatmentWithHttpInfo",
+        "deletePet",
+        "deletePetWithHttpInfo",
+        "downloadPetDocument",
+        "downloadPetDocumentWithHttpInfo",
+        "findPetsBornOn",
+        "findPetsBornOnWithHttpInfo",
+        "findPetsByStatus",
+        "findPetsByStatusWithHttpInfo",
+        "getExternalPetInfo",
+        "getExternalPetInfoWithHttpInfo",
+        "getMultiServerPetInfo",
+        "getMultiServerPetInfoWithHttpInfo",
+        "getPetAvatar",
+        "getPetAvatarWithHttpInfo",
+        "getPetAvatarThumbnail",
+        "getPetAvatarThumbnailWithHttpInfo",
+        "getPetById",
+        "getPetByIdWithHttpInfo",
+        "getPetByName",
+        "getPetByNameWithHttpInfo",
+        "getPetPassport",
+        "getPetPassportWithHttpInfo",
+        "getPetPhoto",
+        "getPetPhotoWithHttpInfo",
+        "getPetSummary",
+        "getPetSummaryWithHttpInfo",
+        "getPetTag",
+        "getPetTagWithHttpInfo",
+        "getStagingPetInfo",
+        "getStagingPetInfoWithHttpInfo",
+        "setPetAvatar",
+        "setPetAvatarWithHttpInfo",
+        "setPetAvatarThumbnail",
+        "setPetAvatarThumbnailWithHttpInfo",
+        "setPetPreferences",
+        "setPetPreferencesWithHttpInfo",
+        "updatePet",
+        "updatePetWithHttpInfo",
+        "uploadPetCertificate",
+        "uploadPetCertificateWithHttpInfo",
+        "uploadPetDocument",
+        "uploadPetDocumentWithHttpInfo",
+      ].sort(),
+    );
+    const problemsClass = Object.getOwnPropertyNames(ProblemsApi.prototype)
+      .filter((name) => name !== "constructor")
+      .sort();
+    expect(problemsClass).toEqual(
+      [
+        "getFallback",
+        "getFallbackWithHttpInfo",
+        "getMember",
+        "getMemberWithHttpInfo",
+        "getProject",
+        "getProjectWithHttpInfo",
+        "getRange",
+        "getRangeWithHttpInfo",
+        "getUpstream",
+        "getUpstreamWithHttpInfo",
+        "takeLock",
+        "takeLockWithHttpInfo",
+      ].sort(),
+    );
+    const storeClass = Object.getOwnPropertyNames(StoreApi.prototype)
+      .filter((name) => name !== "constructor")
+      .sort();
+    expect(storeClass).toEqual(
+      [
+        "createAccount",
+        "createAccountWithHttpInfo",
+        "deleteOrder",
+        "deleteOrderWithHttpInfo",
+        "getBySwatch",
+        "getBySwatchWithHttpInfo",
+        "getDefaults",
+        "getDefaultsWithHttpInfo",
+        "getDepartment",
+        "getDepartmentWithHttpInfo",
+        "getGroupedCategories",
+        "getGroupedCategoriesWithHttpInfo",
+        "getInventory",
+        "getInventoryWithHttpInfo",
+        "getMatrix",
+        "getMatrixWithHttpInfo",
+        "getOrderById",
+        "getOrderByIdWithHttpInfo",
+        "getOrderByTrackingId",
+        "getOrderByTrackingIdWithHttpInfo",
+        "getStockItem",
+        "getStockItemWithHttpInfo",
+        "getSwatch",
+        "getSwatchWithHttpInfo",
+        "getSwatchGroups",
+        "getSwatchGroupsWithHttpInfo",
+        "getTimestampGroups",
+        "getTimestampGroupsWithHttpInfo",
+        "getTree",
+        "getTreeWithHttpInfo",
+        "placeOrder",
+        "placeOrderWithHttpInfo",
+        "reserveStock",
+        "reserveStockWithHttpInfo",
+        "searchStore",
+        "searchStoreWithHttpInfo",
+      ].sort(),
+    );
+  });
+
+  test("bhv mocking 007 the client interface exposes every group typed as its interface and close", async () => {
+    const client = new Client(authenticator);
+    const viaInterface: ClientInterface = client;
+
+    const petGroup: PetApiInterface = viaInterface.pet;
+    expect(petGroup).toBe(client.pet);
+    const problemsGroup: ProblemsApiInterface = viaInterface.problems;
+    expect(problemsGroup).toBe(client.problems);
+    const storeGroup: StoreApiInterface = viaInterface.store;
+    expect(storeGroup).toBe(client.store);
+    await viaInterface.close();
+
+    const api = client as unknown as { ownedClient: ApiClient };
+    await expect(
+      api.ownedClient.sendRequest("GET", "http://example.invalid/", {}, null),
+    ).rejects.toThrow(
+      "ApiClient has been closed and can no longer send requests",
+    );
+  });
+
+  test("bhv mocking 008 a client built from fakes never connects and closes without error", async () => {
+    let closed = 0;
+    const fake: ClientInterface = {
+      pet: {} as PetApiInterface,
+      problems: {} as ProblemsApiInterface,
+      store: {} as StoreApiInterface,
+      close: async () => {
+        closed += 1;
+      },
+    };
+
+    await fake.close();
+    await fake.close();
+
+    expect(closed).toBe(2);
   });
 });

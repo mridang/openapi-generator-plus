@@ -11,6 +11,7 @@ import { TransportOptions } from './transport-options{{importFileExtension}}';
 {{#apis}}
 {{#operations}}
 import { {{classname}} } from './api/{{classFilename}}{{importFileExtension}}';
+import type { {{classname}}Interface } from './api/{{classFilename}}{{importFileExtension}}';
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
@@ -65,6 +66,25 @@ function isAuthenticator(value: Authenticator | {{clientClassName}}Credentials):
 }
 
 /**
+ * The contract of {@link {{clientClassName}}}: every API group typed as its group interface, plus
+ * `close()`. Depend on it instead of the class to substitute a hand-written fake client in your
+ * own tests; a fake client built from fake groups opens no connection, and closing it does
+ * nothing.
+ */
+export interface {{clientClassName}}Interface {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+  /** API operations for the {{classname}} group. */
+  readonly {{clientPropertyName}}: {{classname}}Interface;
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  /** Closes the client; a fake client has nothing to release. */
+  close(): Promise<void>;
+}
+
+/**
  * Unified entry point for all API services.
  *
  * Takes an {@link Authenticator} (or one optional credential per security
@@ -98,7 +118,7 @@ function isAuthenticator(value: Authenticator | {{clientClassName}}Credentials):
  * const cancellable = new {{clientClassName}}(authenticator, undefined, { signal: controller.signal });
  * ```
  */
-export class {{clientClassName}} {
+export class {{clientClassName}} implements {{clientClassName}}Interface {
   private readonly ownedClient: DefaultApiClient;
 
 {{#apiInfo}}

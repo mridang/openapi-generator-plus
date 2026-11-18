@@ -215,11 +215,253 @@ export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServe
   }
 }
 /**
+ * The contract of {@link PetApi}: every operation of the Pet API group and its
+ * `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+ * your own tests; the class has protected members, so a plain object cannot stand in for it.
+ */
+export interface PetApiInterface {
+  addPet(pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<Pet>;
+  addPetWithHttpInfo(
+    pet: DeepInput<Pet>,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
+  addPetPhotos(
+    petId: number,
+    options: AddPetPhotosOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Array<Photo>>;
+  addPetPhotosWithHttpInfo(
+    petId: number,
+    options: AddPetPhotosOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Photo>>>;
+  addPetTreatment(
+    petId: number,
+    petTreatment: DeepInput<PetTreatment>,
+    requestOptions?: RequestOptions,
+  ): Promise<PetTreatment>;
+  addPetTreatmentWithHttpInfo(
+    petId: number,
+    petTreatment: DeepInput<PetTreatment>,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetTreatment>>;
+  deletePet(
+    petId: number,
+    options?: DeletePetOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<void>;
+  deletePetWithHttpInfo(
+    petId: number,
+    options?: DeletePetOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<void>>;
+  downloadPetDocument(
+    petId: number,
+    documentId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<Buffer>;
+  downloadPetDocumentWithHttpInfo(
+    petId: number,
+    documentId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Buffer>>;
+  findPetsBornOn(
+    bornOn: string | Date,
+    requestOptions?: RequestOptions,
+  ): Promise<Array<Pet>>;
+  findPetsBornOnWithHttpInfo(
+    bornOn: string | Date,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Pet>>>;
+  /** @deprecated This operation is deprecated. */
+  findPetsByStatus(
+    options?: FindPetsByStatusOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Array<Pet>>;
+  /** @deprecated This operation is deprecated. */
+  findPetsByStatusWithHttpInfo(
+    options?: FindPetsByStatusOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Pet>>>;
+  getExternalPetInfo(
+    petId: number,
+    server?: GetExternalPetInfoServer,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet>;
+  getExternalPetInfoWithHttpInfo(
+    petId: number,
+    server?: GetExternalPetInfoServer,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
+  getMultiServerPetInfo(
+    petId: number,
+    server?: GetMultiServerPetInfoServer,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet>;
+  getMultiServerPetInfoWithHttpInfo(
+    petId: number,
+    server?: GetMultiServerPetInfoServer,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
+  getPetAvatar(petId: number, requestOptions?: RequestOptions): Promise<Buffer>;
+  getPetAvatarWithHttpInfo(
+    petId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Buffer>>;
+  getPetAvatarThumbnail(
+    petId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<Buffer>;
+  getPetAvatarThumbnailWithHttpInfo(
+    petId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Buffer>>;
+  /** @deprecated This operation is deprecated. */
+  getPetById(
+    petId: number,
+    server?: GetPetByIdServer,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet>;
+  /** @deprecated This operation is deprecated. */
+  getPetByIdWithHttpInfo(
+    petId: number,
+    server?: GetPetByIdServer,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
+  getPetByName(
+    name: string,
+    options: GetPetByNameOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet>;
+  getPetByNameWithHttpInfo(
+    name: string,
+    options: GetPetByNameOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
+  getPetPassport(
+    petId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<PetPassport>;
+  getPetPassportWithHttpInfo(
+    petId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetPassport>>;
+  getPetPhoto(
+    petId: number,
+    photoId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<Buffer>;
+  getPetPhotoWithHttpInfo(
+    petId: number,
+    photoId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Buffer>>;
+  getPetSummary(
+    petId: number,
+    asOf: string | Date,
+    options: GetPetSummaryOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<string>;
+  getPetSummaryWithHttpInfo(
+    petId: number,
+    asOf: string | Date,
+    options: GetPetSummaryOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<string>>;
+  getPetTag(
+    petId: number,
+    tagName: string,
+    options?: GetPetTagOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet>;
+  getPetTagWithHttpInfo(
+    petId: number,
+    tagName: string,
+    options?: GetPetTagOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
+  getStagingPetInfo(
+    petId: number,
+    server?: GetStagingPetInfoServer,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet>;
+  getStagingPetInfoWithHttpInfo(
+    petId: number,
+    server?: GetStagingPetInfoServer,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
+  setPetAvatar(
+    petId: number,
+    body: Buffer,
+    requestContentType?: "image/jpeg" | "image/png" | "application/json",
+    requestOptions?: RequestOptions,
+  ): Promise<void>;
+  setPetAvatarWithHttpInfo(
+    petId: number,
+    body: Buffer,
+    requestContentType?: "image/jpeg" | "image/png" | "application/json",
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<void>>;
+  setPetAvatarThumbnail(
+    petId: number,
+    setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null,
+    requestOptions?: RequestOptions,
+  ): Promise<void>;
+  setPetAvatarThumbnailWithHttpInfo(
+    petId: number,
+    setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<void>>;
+  setPetPreferences(
+    petId: number,
+    options: SetPetPreferencesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResponse>;
+  setPetPreferencesWithHttpInfo(
+    petId: number,
+    options: SetPetPreferencesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ApiResponse>>;
+  updatePet(
+    petId: number,
+    pet: DeepInput<Pet>,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet>;
+  updatePetWithHttpInfo(
+    petId: number,
+    pet: DeepInput<Pet>,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
+  uploadPetCertificate(
+    petId: number,
+    options: UploadPetCertificateOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResponse>;
+  uploadPetCertificateWithHttpInfo(
+    petId: number,
+    options: UploadPetCertificateOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ApiResponse>>;
+  uploadPetDocument(
+    petId: number,
+    options: UploadPetDocumentOptions,
+    requestContentType?: "multipart/form-data" | "application/octet-stream",
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResponse>;
+  uploadPetDocumentWithHttpInfo(
+    petId: number,
+    options: UploadPetDocumentOptions,
+    requestContentType?: "multipart/form-data" | "application/octet-stream",
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ApiResponse>>;
+}
+
+/**
  * PetApi provides methods for the Pet API group.
  * Everything about your Pets (globs like /pets/* and /pets/**\/ and an id of #{petId})
  * @see {@link https://example.com/docs/pets} Find out more about pets (it's *\/ here) on two lines
  */
-export class PetApi extends BaseApi {
+export class PetApi extends BaseApi implements PetApiInterface {
   constructor(
     apiClient?: ApiClient,
     config?: Configuration,

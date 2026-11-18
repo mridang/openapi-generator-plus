@@ -3,7 +3,7 @@
 import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
-import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServerPetInfoServerChannel, GetMultiServerPetInfoServerMirror, GetMultiServerPetInfoServerMirrorRegion, GetMultiServerPetInfoServerPrimary, GetMultiServerPetInfoServerRegionalRegion, GetMultiServerPetInfoServerRegional, GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerStagingServer, GetStagingPetInfoServerVersion, PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
+import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServerPetInfoServerChannel, GetMultiServerPetInfoServerMirror, GetMultiServerPetInfoServerMirrorRegion, GetMultiServerPetInfoServerPrimary, GetMultiServerPetInfoServerRegionalRegion, GetMultiServerPetInfoServerRegional, GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerStagingServer, GetStagingPetInfoServerVersion, PetApi, UploadPetDocumentDocumentTypeEnum, type PetApiInterface } from '../../src/api/pet-api{{importFileExtension}}';
 import type { UploadPetDocumentOptions, SetPetPreferencesOptions } from '../../src/api/options/index{{importFileExtension}}';
 import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
@@ -1487,5 +1487,82 @@ describe('PetApi against a recording client', () => {
       // @ts-expect-error an Options object takes no per-call authenticator
       await recordingApi.deletePet(1, { auth: bearer });
     });
+  });
+});
+
+/** A hand-written fake of the group: it fakes one operation and records the call. */
+function fakePetApi(failWith?: Error): { fake: PetApiInterface; calls: unknown[][] } {
+  const calls: unknown[][] = [];
+  const fake: Partial<PetApiInterface> = {
+    getPetById: async (petId, server, requestOptions) => {
+      calls.push([petId, server, requestOptions]);
+      if (failWith) {
+        throw failWith;
+      }
+      return new Pet({ name: 'fake', photoUrls: new Set<string>() });
+    },
+  };
+  return { fake: fake as PetApiInterface, calls };
+}
+
+/** Code under test: it takes the group interface, never the generated class. */
+async function lookUp(group: PetApiInterface, petId: number): Promise<Pet> {
+  return group.getPetById(petId);
+}
+
+async function classify(call: () => Promise<unknown>): Promise<string> {
+  try {
+    await call();
+    return 'none';
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return 'not found';
+    }
+    if (error instanceof ApiError) {
+      return 'api error';
+    }
+    throw error;
+  }
+}
+
+describe('PetApi mocking', () => {
+  test('bhv mocking 003 a fake is accepted where the interface is accepted and receives the arguments', async () => {
+    const { fake, calls } = fakePetApi();
+
+    const pet = await lookUp(fake, 42);
+
+    expect(pet.name).toBe('fake');
+    expect(calls.map(call => call[0])).toEqual([42]);
+  });
+
+  test('bhv mocking 004 a fake raises the typed error and the caller handles it like the real client', async () => {
+    const { fake } = fakePetApi(new NotFoundError('missing'));
+    const { api: real, close } = await createMockServer(404, 'application/json', '{"message":"Pet not found"}');
+    try {
+      expect(await classify(() => lookUp(fake, 1))).toBe('not found');
+      expect(await classify(() => lookUp(real, 1))).toBe(await classify(() => lookUp(fake, 1)));
+      await expect(lookUp(fake, 1)).rejects.toBeInstanceOf(ApiError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv mocking 005 a call through the interface sends the same request as the class call', async () => {
+    const viaInterface: PetApiInterface = api;
+
+    const direct = await api.getPetByIdWithHttpInfo(1);
+    const through = await viaInterface.getPetByIdWithHttpInfo(1);
+
+    expect(through.statusCode).toBe(direct.statusCode);
+    expect(through.rawBody).toBe(direct.rawBody);
+    expect(through.data).toEqual(direct.data);
+  });
+
+  test('bhv mocking 006 a call without options reaches the full signature with none set', async () => {
+    const { fake, calls } = fakePetApi();
+
+    await lookUp(fake, 7);
+
+    expect(calls).toEqual([[7, undefined, undefined]]);
   });
 });

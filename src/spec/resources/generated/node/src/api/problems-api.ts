@@ -25,10 +25,66 @@ import {
 } from "../errors/index.js";
 
 /**
+ * The contract of {@link ProblemsApi}: every operation of the Problems API group and its
+ * `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+ * your own tests; the class has protected members, so a plain object cannot stand in for it.
+ */
+export interface ProblemsApiInterface {
+  getFallback(
+    fallbackId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ModelResult>;
+  getFallbackWithHttpInfo(
+    fallbackId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ModelResult>>;
+  getMember(
+    memberId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ModelResult>;
+  getMemberWithHttpInfo(
+    memberId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ModelResult>>;
+  getProject(
+    projectId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ModelResult>;
+  getProjectWithHttpInfo(
+    projectId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ModelResult>>;
+  getRange(
+    rangeId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ModelResult>;
+  getRangeWithHttpInfo(
+    rangeId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ModelResult>>;
+  getUpstream(
+    upstreamId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ModelResult>;
+  getUpstreamWithHttpInfo(
+    upstreamId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ModelResult>>;
+  takeLock(
+    lockId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ModelResult>;
+  takeLockWithHttpInfo(
+    lockId: string,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ModelResult>>;
+}
+
+/**
  * ProblemsApi provides methods for the Problems API group.
  * Operations that declare typed error responses
  */
-export class ProblemsApi extends BaseApi {
+export class ProblemsApi extends BaseApi implements ProblemsApiInterface {
   constructor(
     apiClient?: ApiClient,
     config?: Configuration,

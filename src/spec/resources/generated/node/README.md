@@ -231,6 +231,39 @@ closes anything you supply. Combining a custom `fetch` with `proxy`,
 `caCertPath` or `verifySsl(false)` throws a `TypeError` at `build()`, because
 those belong on the `fetch` you provide.
 
+### Testing your code
+
+Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```typescript
+import type {
+  PetApiInterface,
+  ProblemsApiInterface,
+  StoreApiInterface,
+  ClientInterface,
+} from "petstore-client";
+
+// Code under test takes the group interface, never the generated class.
+function use(api: PetApiInterface): void {}
+
+// A fake is any object of that shape; Partial keeps the operations you do not fake out of the way.
+const calls: string[] = [];
+const fake = {} as Partial<PetApiInterface> as PetApiInterface;
+use(fake);
+
+const client: ClientInterface = {
+  pet: fake as PetApiInterface,
+  problems: fake as ProblemsApiInterface,
+  store: fake as StoreApiInterface,
+  close: async () => {
+    calls.push("close");
+  },
+};
+void client;
+```
+
+A new operation in the API adds a member to the interface, so a fake typed as the whole interface stops compiling after you regenerate; type it as `Partial` of the interface and cast, as above, so only the operation you fake is written.
+
 ## Develop
 
 ```bash

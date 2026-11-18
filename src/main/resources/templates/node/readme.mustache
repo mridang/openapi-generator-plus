@@ -223,6 +223,32 @@ closes anything you supply. Combining a custom `fetch` with `proxy`,
 `caCertPath` or `verifySsl(false)` throws a `TypeError` at `build()`, because
 those belong on the `fetch` you provide.
 
+### Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```typescript
+import type { {{#apiInfo}}{{#apis}}{{#operations}}{{classname}}Interface, {{/operations}}{{/apis}}{{/apiInfo}}{{clientClassName}}Interface } from '{{npmName}}';
+
+// Code under test takes the group interface, never the generated class.
+function use(api: {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}): void {}
+
+// A fake is any object of that shape; Partial keeps the operations you do not fake out of the way.
+const calls: string[] = [];
+const fake = {} as Partial<{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}> as {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
+use(fake);
+
+const client: {{clientClassName}}Interface = {
+{{#apiInfo}}{{#apis}}{{#operations}}  {{clientPropertyName}}: fake as {{classname}}Interface,
+{{/operations}}{{/apis}}{{/apiInfo}}  close: async () => {
+    calls.push('close');
+  },
+};
+void client;
+```
+
+A new operation in the API adds a member to the interface, so a fake typed as the whole interface stops compiling after you regenerate; type it as `Partial` of the interface and cast, as above, so only the operation you fake is written.
+
 ## Develop
 
 ```bash
