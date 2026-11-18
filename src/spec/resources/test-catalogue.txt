@@ -2557,3 +2557,7 @@ langnode026 | Without per-call options the transport defaults apply
 langnode027 | A request is never replayed for a scheme that has no replay support
 langnode028 | A form-urlencoded body rejects a lone surrogate with a URI error
 langnode029 | A scheme name never resolves to an Object.prototype member
+langnode030 | A token provider may return a promise
+langnode031 | A token provider is used in place of the environment variable
+langnode032 | A synchronous token provider also serves the synchronous header getter
+langnode033 | An asynchronous token provider is refused by the synchronous header getter
