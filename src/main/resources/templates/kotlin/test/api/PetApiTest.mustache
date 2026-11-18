@@ -2155,6 +2155,6 @@ class PetApiTest {
         runBlocking { lookUp(fake.asInterface(), 7L) }
 
         assertEquals(1, fake.calls.size)
-        assertEquals(listOf<Any?>(7L, null), fake.calls[0].second)
+        assertEquals(listOf<Any?>(7L, null, null), fake.calls[0].second)
     }
 }
