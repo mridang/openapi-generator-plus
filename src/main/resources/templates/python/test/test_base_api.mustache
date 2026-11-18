@@ -203,7 +203,7 @@ class TestErrorRequestContext:
         assert 'secret' not in str(exc_info.value)
         assert 'Request: DELETE /v1/items/7' in str(exc_info.value)
 
-    async def test_a_network_error_records_the_method_and_the_path(self) -> None:
+    async def test_bhv_errors_057_a_network_error_records_the_method_and_the_path(self) -> None:
         api = StubApi(
             api_client=_FailingApiClient(error=NetworkException('refused')),
             config=Configuration(base_url='https://example.test'),

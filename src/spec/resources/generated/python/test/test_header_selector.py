@@ -89,7 +89,7 @@ class TestSelectAcceptHeader:
     ) -> None:
         assert header_selector._select_accept_header([]) == ""
 
-    def test_should_return_empty_string_when_all_entries_filtered_out(
+    def test_bhv_headers_029_should_return_empty_string_when_all_entries_filtered_out(
         self, header_selector: Any
     ) -> None:
         assert header_selector._select_accept_header(["", None]) == ""
