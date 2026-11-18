@@ -2257,6 +2257,19 @@ langnode046 | The generated README lists the features that are not generated
 langnode047 | The generated docs cancel through the per-call signal only
 langnode048 | The generated docs show how to stub the transport with a canned fetch
 langnode049 | An empty API key is rejected at construction
+langphp014 | A GET request is sent through the PSR-18 client and its response is returned to the caller.
+langphp015 | A JSON body is sent with a POST request through the PSR-18 client with its content type set.
+langphp016 | Response header names are returned lowercased whatever case the server sent them in.
+langphp017 | No request-id header is sent when request ids are disabled.
+langphp018 | A relative redirect Location is resolved against the request URL per RFC 3986.
+langphp019 | A 302 redirect that downgrades https to http with a body is followed as a GET.
+langphp020 | A PUT with a body that a 301 downgrades from https to http is refused rather than replayed.
+langphp021 | A transport failure raises the SDK network error type.
+langphp022 | A stream part is sent as a file part carrying the bytes of the stream.
+langphp023 | A raw bytes multipart part reuses its field name as filename with an octet-stream type.
+langphp024 | Primitive multipart parts are plain text and only model parts are sent as JSON.
+langphp025 | An allowReserved query value is sent exactly as supplied with no re-encoding.
+||||||| a8a8650bb
 langnode050 | A discriminated oneOf variant with a wrong-typed field is rejected
 langnode051 | An anyOf composite is a constructable class
 langnode052 | An anyOf variant with a wrong-typed field is rejected
@@ -2298,3 +2311,4 @@ langnode087 | A constructed instance exposes its undeclared keys
 langnode088 | The undeclared-keys map is typed like an index signature
 langnode089 | The undeclared-keys map is not serialised as a data key
 langnode090 | The synchronous header getter throws rather than returning unauthenticated headers
+langnode091 | setAccessToken rejects a token containing a forbidden character
