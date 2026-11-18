@@ -127,6 +127,22 @@ describe Petstore::Client::TransportOptions do
     _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got 0)'
   end
 
+  it 'bhv_options_045 a negative maxRedirects is rejected at configuration' do
+    err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_redirects(-1) }
+    _(err.message).must_equal 'Invalid maxRedirects: must not be negative (got -1)'
+    _(Petstore::Client::TransportOptions.builder.max_redirects(0).build.max_redirects).must_equal 0
+  end
+
+  it 'bhv_options_047 a negative timeout is rejected at configuration' do
+    err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.timeout(-1) }
+    _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got -1)'
+  end
+
+  it 'bhv_options_051 a proxy URL with a scheme other than http or https is rejected' do
+    err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.proxy('ftp://proxy.example.com') }
+    _(err.message).must_equal 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com'
+  end
+
   # An invalid proxy URL is the caller's mistake, so it raises ArgumentError, never an SDK error.
   it 'bhv_options_024 invalid proxy URL throws error' do
     error = assert_raises(ArgumentError) do
@@ -155,7 +171,7 @@ describe Petstore::Client::TransportOptions do
     _(error.message).must_match(%r{\AInvalid proxy URL \(.*\): http://\[::1:3128\z}m)
   end
 
-  it 'constructing directly with a non-http proxy scheme raises ArgumentError' do
+  it 'bhv_options_046 constructing directly with a non-http proxy scheme raises ArgumentError' do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.new(
         verify_ssl: true, ca_cert_path: nil, proxy: 'ftp://x', timeout: nil, follow_redirects: true,

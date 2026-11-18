@@ -91,6 +91,7 @@ module Petstore::Client
                    follow_redirects:, max_redirects:, user_agent:,
                    default_headers:, inject_request_id:, max_retries: 2, connection: nil)
       self.class.validate_proxy!(proxy)
+      self.class.validate_max_redirects!(max_redirects)
       self.class.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
       @verify_ssl = verify_ssl
       @ca_cert_path = ca_cert_path
@@ -138,6 +139,17 @@ module Petstore::Client
     # @raise [ArgumentError] if it is not a non-negative integer
     def self.validate_max_retries!(val)
       raise ArgumentError, "Invalid max_retries: must be a non-negative integer (got #{val.inspect})" unless val.is_a?(Integer) && val >= 0
+
+      val
+    end
+
+    # Reject a negative redirect limit; +nil+ keeps the client default.
+    # @api private
+    # @param val [Integer, nil] maximum redirect hops, or +nil+ for the client default
+    # @return [Integer, nil] +val+
+    # @raise [ArgumentError] if +val+ is negative
+    def self.validate_max_redirects!(val)
+      raise ArgumentError, "Invalid maxRedirects: must not be negative (got #{val})" if val.is_a?(Numeric) && val.negative?
 
       val
     end
@@ -307,7 +319,7 @@ module Petstore::Client
       # @param val [Integer, nil] maximum redirect hops, or +nil+ for client default
       # @return [self]
       def max_redirects(val)
-        @max_redirects = val
+        @max_redirects = TransportOptions.validate_max_redirects!(val)
         self
       end
 

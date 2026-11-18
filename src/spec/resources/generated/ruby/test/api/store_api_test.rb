@@ -51,6 +51,19 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   describe '#search_store content-encoded query' do
+    it 'bhv_operations_139 keeps the fractional seconds of a time parameter when non-zero' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        at = Petstore::Client::ObjectSerializer.convert_to_type('10:30:00.123', 'Tod::TimeOfDay')
+        api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(at: at))
+        query = captured.pop[:request_line].split('?', 2).last.to_s.split(' ').first
+        _(URI.decode_www_form(query).to_h['at']).must_equal '10:30:00.123'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     it 'bhv_operations_097 encodes the q value through the SDK serializer as compact JSON' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
@@ -64,7 +77,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'raises SerializationError for an unserializable q and sends nothing' do
+    it 'bhv_operations_128 a content query parameter that cannot be serialized raises a serialization error and sends no request' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         query = Petstore::Client::Models::PhotoMetadata.new(caption: 'c', location: { 'lat' => Float::NAN })
@@ -490,7 +503,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'decodes a 200 reserve_stock body as the existing reservation' do
+    it 'bhv_operations_129 decodes a 200 reserve_stock body as the existing reservation' do
       api, server, thread, = capture_wire_request('{"reservationId":31,"quantity":4}')
       begin
         result = api.reserve_stock

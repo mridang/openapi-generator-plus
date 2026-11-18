@@ -54,6 +54,7 @@
     def self.builder: () -> TransportOptions::Builder
     def self.validate_proxy!: (String?) -> void
     def self.validate_max_retries!: (untyped) -> Integer
+    def self.validate_max_redirects!: (untyped) -> untyped
     def self.validate_connection!: (untyped, bool, String?, String?) -> void
     def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
     def self.redact_url: (String?) -> String?

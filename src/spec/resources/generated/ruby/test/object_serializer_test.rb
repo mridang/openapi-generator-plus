@@ -505,6 +505,11 @@ describe Petstore::Client::ObjectSerializer do
       _(json).must_equal('null')
     end
 
+    it 'bhv_serializationobject_188 an empty object serializes to an empty JSON object' do
+      category = Petstore::Client::Models::Category.new(id: nil, name: nil)
+      _(Petstore::Client::ObjectSerializer.serialize(category)).must_equal('{}')
+    end
+
     it 'bhv_serializationobject_088 includes fields explicitly set to default values' do
       category = Petstore::Client::Models::Category.new(id: 0, name: '')
       json = Petstore::Client::ObjectSerializer.serialize(category)
@@ -636,7 +641,7 @@ describe Petstore::Client::ObjectSerializer do
 
     # Department and Employee reference each other: both directions decode to
     # typed models and write back unchanged.
-    it 'decodes and writes mutually recursive Department and Employee models' do
+    it 'bhv_serializationobject_189 decodes and writes mutually recursive Department and Employee models' do
       json = '{"name":"Eng","lead":{"name":"Ann","department":{"name":"Eng"}}}'
       department = Petstore::Client::ObjectSerializer.deserialize(json, 'Department')
       _(department.lead).must_be_kind_of(Petstore::Client::Models::Employee)
