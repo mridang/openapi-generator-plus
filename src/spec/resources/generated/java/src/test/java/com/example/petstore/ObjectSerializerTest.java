@@ -4187,4 +4187,164 @@ class ObjectSerializerTest {
         "{\"ownerId\":198772,\"at\":\"2024-01-15T10:30:00Z\"}",
         ObjectSerializer.stringify(payload));
   }
+
+  @Test
+  void bhvMisc102ABinaryFieldSetInCodeKeepsExactlyTheBytesItWasGiven() {
+    byte[] raw = {0x00, (byte) 0xFF, 0x10, 0x42};
+    com.example.petstore.models.BinaryVault vault =
+        com.example.petstore.models.BinaryVault.builder().seal(raw).build();
+    assertTrue(Arrays.equals(raw, vault.seal));
+    assertTrue(Arrays.equals(raw, vault.toBuilder().build().seal));
+  }
+
+  @Test
+  void bhvMisc103RejectingUndeclaredKeysOnOneStrictModelLeavesOtherModelsAcceptingThem() {
+    assertThrows(
+        SerializationException.class,
+        () ->
+            serializer.deserialize(
+                "{\"rogue\":\"x\"}", com.example.petstore.models.StrictTag.class));
+    assertInstanceOf(
+        com.example.petstore.models.Metadata.class,
+        serializer.deserialize("{\"rogue\":\"x\"}", com.example.petstore.models.Metadata.class));
+  }
+
+  @Test
+  void bhvMisc104AStringFieldDeclaredWithTheEmailFormatDecodesWithoutValidation() {
+    String json = "{\"host\":\"not a host!\",\"contact\":\"x@\"}";
+    assertEquals("x@", decode(json).contact);
+  }
+
+  @Test
+  void bhvMisc105CopyingAModelNeverValidatesTheValuesItIsGiven() {
+    assertEquals(
+        500,
+        com.example.petstore.models.Order.builder().build().toBuilder()
+            .quantity(500)
+            .build()
+            .quantity);
+  }
+
+  @Test
+  void bhvMisc106ANullArrayElementKeepsItsPositionWhenSerialized() {
+    assertEquals("[1,null,2]", serializer.serialize(Arrays.asList(1, null, 2)));
+  }
+
+  @Test
+  void bhvMisc107AScalarFormQueryParameterIsEmittedUnderItsOwnNameAndValue() {
+    Object styled =
+        ValueSerializer.serializeStyled("filter", "x", "query", "string", null, "form", true);
+    Map<String, Object> query = new java.util.LinkedHashMap<>();
+    ValueSerializer.putQuery(query, "filter", styled, false);
+    assertEquals(Map.of("filter", "x"), query);
+  }
+
+  @Test
+  void bhvMisc108AModelBuiltWithAnIntegerEnumMemberKeepsThatMembersWireValue() {
+    String json =
+        serializer.serialize(
+            com.example.petstore.models.Subscription.builder()
+                .rank(com.example.petstore.models.Rank.LOW)
+                .build());
+    assertTrue(json.contains("\"rank\":1"), json);
+  }
+
+  @Test
+  void bhvMisc109ANestedObjectIsValidatedWithTheOuterRulesAtDecode() {
+    assertThrows(
+        SerializationException.class,
+        () ->
+            serializer.deserialize(
+                "{\"lastError\":{\"code\":\"three\"}}",
+                com.example.petstore.models.EdgeCases.class));
+  }
+
+  @Test
+  void bhvMisc110AListOfDatesWithANonDateElementIsRefused() {
+    assertThrows(
+        SerializationException.class,
+        () ->
+            serializer.deserialize(
+                "[\"2024-01-01\",\"not-a-date\"]",
+                new com.fasterxml.jackson.core.type.TypeReference<List<LocalDate>>() {}.getType()));
+  }
+
+  @Test
+  void bhvMisc111ACollectionOfUniqueStringsOrNumbersIsWrittenInSortedOrder() {
+    assertEquals(
+        "{\"values\":[\"z\",\"\uFFFD\",\"\uD83D\uDE00\"]}",
+        serializer.serialize(
+            Map.of("values", new java.util.HashSet<>(List.of("\uD83D\uDE00", "\uFFFD", "z")))));
+    assertEquals(
+        "{\"values\":[1,2,10]}",
+        serializer.serialize(Map.of("values", new java.util.HashSet<>(List.of(10, 2, 1)))));
+  }
+
+  @Test
+  void bhvMisc112ARepeatedElementOfAUniqueArrayKeepsOneCopy() {
+    java.util.Set<String> values =
+        serializer.deserialize(
+            "[\"a\",\"a\",\"b\"]",
+            new com.fasterxml.jackson.core.type.TypeReference<
+                java.util.Set<String>>() {}.getType());
+    assertEquals(java.util.Set.of("a", "b"), values);
+  }
+
+  @Test
+  void bhvMisc113AStringFormShowsTheContentsOfListMapAndByteFields() {
+    com.example.petstore.models.BinaryVault vault =
+        com.example.petstore.models.BinaryVault.builder()
+            .seal(new byte[] {1, 2, 3})
+            .shards(List.of(new byte[] {4, 5}, new byte[] {6}))
+            .labels(Map.of("first", new byte[] {7, 8}))
+            .build();
+    String text = vault.toString();
+    assertTrue(text.contains("seal=[1, 2, 3]"), text);
+    assertTrue(text.contains("[4, 5]") && text.contains("[7, 8]"), text);
+    assertFalse(text.contains("[B@"), text);
+  }
+
+  @Test
+  void bhvMisc115ABareStringIsAQuotedJsonString() {
+    assertEquals("\"hello\"", serializer.serialize("hello"));
+  }
+
+  @Test
+  void bhvMisc116AnInt32FieldAcceptsExactlyItsDeclaredBoundsAndRefusesTheRest() {
+    assertEquals(1, decodeOrder("{\"quantity\":1}").quantity);
+    assertEquals(100, decodeOrder("{\"quantity\":100}").quantity);
+    for (String wire : List.of("0", "101", "1.5")) {
+      assertThrows(SerializationException.class, () -> decodeOrder("{\"quantity\":" + wire + "}"));
+    }
+  }
+
+  @Test
+  void bhvMisc117AnAbsentValueWritesTheJsonNullLiteral() {
+    assertEquals("null", serializer.serialize(null));
+  }
+
+  @Test
+  void bhvMisc118TheExactCaseValueIsTheOneDecoded() {
+    assertEquals(
+        "Exact",
+        serializer.deserialize(
+                "{\"NAME\":\"Other\",\"name\":\"Exact\"}",
+                com.example.petstore.models.Category.class)
+            .name);
+  }
+
+  @Test
+  void bhvMisc119TwoKeysThatDifferOnlyByAnEscapeAreOneKeyAndTheLastValueWins() {
+    assertEquals(
+        "Last",
+        serializer.deserialize(
+                "{\"name\":\"First\",\"\\u006eame\":\"Last\"}",
+                com.example.petstore.models.Category.class)
+            .name);
+  }
+
+  private com.example.petstore.models.Order decodeOrder(String json) {
+    return java.util.Objects.requireNonNull(
+        serializer.deserialize(json, com.example.petstore.models.Order.class));
+  }
 }
