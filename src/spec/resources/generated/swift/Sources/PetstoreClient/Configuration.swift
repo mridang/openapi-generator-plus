@@ -35,9 +35,16 @@ public final class Configuration: Sendable {
   /// authentication headers.
   public let defaultHeaders: [String: String]
 
-  fileprivate init(baseURL: String, defaultHeaders: [String: String]) {
+  /// The hook called around every operation call, or nil for none.
+  ///
+  /// It runs above the transport, so it also fires with a transport the
+  /// caller supplied. See ``CallHook``.
+  public let callHook: (any CallHook)?
+
+  fileprivate init(baseURL: String, defaultHeaders: [String: String], callHook: (any CallHook)?) {
     self.baseURL = baseURL
     self.defaultHeaders = defaultHeaders
+    self.callHook = callHook
   }
 
   /// Create a new builder for constructing ``Configuration`` instances.
@@ -62,6 +69,7 @@ public final class Configuration: Sendable {
 public final class ConfigurationBuilder {
   private var baseURL: String = "/api/v3"
   private var defaultHeaders: [String: String] = [:]
+  private var callHook: (any CallHook)?
 
   public init() {}
 
@@ -88,6 +96,15 @@ public final class ConfigurationBuilder {
     return self
   }
 
+  /// Set the hook called around every operation call, or nil for none.
+  ///
+  /// Combine several hooks with ``CallHooks``.
+  @discardableResult
+  public func callHook(_ hook: (any CallHook)?) -> ConfigurationBuilder {
+    self.callHook = hook
+    return self
+  }
+
   /// Use a server configuration with variable overrides to set the base URL.
   ///
   /// Resolves the server URL template with the given variable overrides
@@ -111,7 +128,8 @@ public final class ConfigurationBuilder {
   public func build() -> Configuration {
     return Configuration(
       baseURL: baseURL,
-      defaultHeaders: defaultHeaders
+      defaultHeaders: defaultHeaders,
+      callHook: callHook
     )
   }
 }

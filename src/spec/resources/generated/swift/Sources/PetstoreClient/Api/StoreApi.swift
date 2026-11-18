@@ -63,6 +63,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "Account",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.createAccount",
+      operationId: "createAccount",
+      urlTemplate: "/store/account",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -117,6 +119,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "StoreApi.deleteOrder",
+      operationId: "deleteOrder",
+      urlTemplate: "/store/order/{orderId}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -185,6 +189,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "Category",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getBySwatch",
+      operationId: "getBySwatch",
+      urlTemplate: "/store/by-swatch/{pathSwatch}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -233,6 +239,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "Defaults",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getDefaults",
+      operationId: "getDefaults",
+      urlTemplate: "/store/defaults",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -281,6 +289,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "Department",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getDepartment",
+      operationId: "getDepartment",
+      urlTemplate: "/store/department",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -331,6 +341,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "[[String: Category]]",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getGroupedCategories",
+      operationId: "getGroupedCategories",
+      urlTemplate: "/store/grouped-categories",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -379,6 +391,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "[String: Int]",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getInventory",
+      operationId: "getInventory",
+      urlTemplate: "/store/inventory",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -427,6 +441,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "[[Int]]",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getMatrix",
+      operationId: "getMatrix",
+      urlTemplate: "/store/matrix",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -491,6 +507,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "Order",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "StoreApi.getOrderById",
+      operationId: "getOrderById",
+      urlTemplate: "/store/order/{orderId}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -550,6 +568,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "Order",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getOrderByTrackingId",
+      operationId: "getOrderByTrackingId",
+      urlTemplate: "/store/order/by-tracking/{trackingId}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -604,6 +624,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "StockItem",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getStockItem",
+      operationId: "getStockItem",
+      urlTemplate: "/store/stock-item",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -652,6 +674,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "Swatch",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getSwatch",
+      operationId: "getSwatch",
+      urlTemplate: "/store/swatch",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -702,6 +726,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "[[String: Swatch]]",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getSwatchGroups",
+      operationId: "getSwatchGroups",
+      urlTemplate: "/store/swatch-groups",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -752,6 +778,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "[[String: Date]]",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getTimestampGroups",
+      operationId: "getTimestampGroups",
+      urlTemplate: "/store/timestamp-groups",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -800,6 +828,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "TreeNode",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getTree",
+      operationId: "getTree",
+      urlTemplate: "/store/tree",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -857,6 +887,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "Order",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "StoreApi.placeOrder",
+      operationId: "placeOrder",
+      urlTemplate: "/store/order",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -913,6 +945,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "ReserveStockResponse",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.reserveStock",
+      operationId: "reserveStock",
+      urlTemplate: "/store/reservation",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -995,6 +1029,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       returnType: "[Order]",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.searchStore",
+      operationId: "searchStore",
+      urlTemplate: "/store/search",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries

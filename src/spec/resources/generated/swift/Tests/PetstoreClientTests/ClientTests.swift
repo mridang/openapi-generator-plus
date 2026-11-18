@@ -1059,12 +1059,87 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(aware.received)
   }
 
+  // MARK: - Call hook
+
+  /* A hook given to the client reaches every API object and fires with the
+     URLSession the caller supplied. */
+  @Test func testBhvHooks010AHookGivenToTheClientFiresWithASuppliedTransportAndReachesEveryApi()
+    async throws
+  {
+    let host = "https://hooked-client.example.com"
+    let hook = ClientHook()
+    let transport = try TransportOptionsBuilder().session(ClientStubProtocol.session()).build()
+    let client = try Client(
+      authenticator: try BearerAuthenticator(host: host, token: "t"), transportOptions: transport,
+      callHook: hook)
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "hooked-client.example.com"))
+    #expect(request.value(forHTTPHeaderField: "X-Hook") == "from-client")
+    #expect(hook.starts == 1)
+    #expect(hook.finishes == 1)
+    #expect(client.pet.config.callHook != nil)
+    #expect(client.problems.config.callHook != nil)
+    #expect(client.store.config.callHook != nil)
+  }
+
+  @Test func testBhvHooks001AClientWithoutAHookHasNoneOnAnyApi() throws {
+    let client = try Client(authenticator: authenticator)
+    defer { client.close() }
+    #expect(client.pet.config.callHook == nil)
+    #expect(client.problems.config.callHook == nil)
+    #expect(client.store.config.callHook == nil)
+  }
+
+  @Test func testTheNamedFactoriesAndTheEnvironmentFactoryAlsoTakeAHook() throws {
+    let hook = ClientHook()
+    let viaToken = try Client.withToken(
+      host: "https://example.com", accessToken: "t", callHook: hook)
+    let viaAuthenticator = try Client.withAuthenticator(authenticator, callHook: hook)
+    let viaEnvironment = try Client.fromEnvironment(
+      host: "https://example.com", token: "t", callHook: hook)
+    for client in [viaToken, viaAuthenticator, viaEnvironment] {
+      defer { client.close() }
+      #expect(client.pet.config.callHook != nil)
+    }
+  }
+
   @Test func testBhvLifecycle001ApiGroupsAreAccessible() throws {
     let client = try Client(authenticator: authenticator)
 
     _ = client.pet
     _ = client.problems
     _ = client.store
+  }
+}
+
+/* Sets a header and counts how often it is started and finished. */
+private final class ClientHook: CallHook, @unchecked Sendable {
+  private let lock = NSLock()
+  private var started = 0
+  private var finished = 0
+
+  var starts: Int { lock.withLock { started } }
+  var finishes: Int { lock.withLock { finished } }
+
+  func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+    lock.withLock { started += 1 }
+    headers["X-Hook"] = "from-client"
+    return Finisher(hook: self)
+  }
+
+  fileprivate func finish() {
+    lock.withLock { finished += 1 }
+  }
+
+  private struct Finisher: CallObserver {
+    let hook: ClientHook
+
+    func finish(_ outcome: CallOutcome) throws {
+      hook.finish()
+    }
   }
 }
 

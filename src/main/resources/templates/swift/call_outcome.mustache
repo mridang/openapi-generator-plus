@@ -1,0 +1,22 @@
+{{>api_info}}
+import Foundation
+
+/// What a ``CallObserver`` is told when a call has ended.
+public struct CallOutcome: Sendable {
+    /// The HTTP status code, or 0 when no response arrived.
+    public let statusCode: Int
+
+    /// The response headers with lower-case names, or nil when no response
+    /// arrived. A response without headers has an empty dictionary, never nil.
+    public let headers: [String: String]?
+
+    /// The very error the caller receives, or nil when the call succeeded.
+    public let error: (any Error)?
+
+    /// Creates the outcome of one call.
+    public init(statusCode: Int, headers: [String: String]?, error: (any Error)?) {
+        self.statusCode = statusCode
+        self.headers = headers
+        self.error = error
+    }
+}

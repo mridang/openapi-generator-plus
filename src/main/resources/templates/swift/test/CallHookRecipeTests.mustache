@@ -1,0 +1,344 @@
+{{>api_info}}
+import Foundation
+import InMemoryExporter
+import OpenTelemetrySdk
+import Testing
+@testable import {{packageName}}
+{{>call_hook_recipe}}
+
+/* The recipe above is the text the README shows, included here, so what a
+   user copies is what these tests run. */
+@Suite final class CallHookRecipeTests {
+
+    private final class SpanBox: @unchecked Sendable {
+        let span: any Span
+
+        init(_ span: any Span) { self.span = span }
+    }
+
+    private final class Collected: @unchecked Sendable {
+        private let lock = NSLock()
+        private var counts: [[String: AttributeValue]] = []
+        private var durations: [(Double, [String: AttributeValue])] = []
+
+        func request(_ attributes: [String: AttributeValue]) { lock.withLock { counts.append(attributes) } }
+        func duration(_ seconds: Double, _ attributes: [String: AttributeValue]) {
+            lock.withLock { durations.append((seconds, attributes)) }
+        }
+
+        var requests: [[String: AttributeValue]] { lock.withLock { counts } }
+        var timings: [(Double, [String: AttributeValue])] { lock.withLock { durations } }
+    }
+
+    private final class Transport: ApiClient, @unchecked Sendable {
+        private let lock = NSLock()
+        private var recorded: [[String: String]] = []
+        let status: Int
+        let failure: (any Error)?
+        let sendsPerRequest: Int
+        let delay: UInt64
+
+        init(status: Int = 200, failure: (any Error)? = nil, sendsPerRequest: Int = 1, delay: UInt64 = 0) {
+            self.status = status
+            self.failure = failure
+            self.sendsPerRequest = sendsPerRequest
+            self.delay = delay
+        }
+
+        var sent: [[String: String]] { lock.withLock { recorded } }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            try await sendRequest(method: method, url: url, headers: headers, body: body, noRedirect: false)
+        }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool)
+            async throws -> ApiHttpResponse
+        {
+            for _ in 0..<sendsPerRequest {
+                lock.withLock { recorded.append(headers) }
+            }
+            if delay > 0 {
+                try await Task.sleep(nanoseconds: delay)
+            }
+            if let failure = failure {
+                throw failure
+            }
+            return ApiHttpResponse(statusCode: status, body: "{}", headers: ["Content-Type": "application/json"])
+        }
+    }
+
+    /// Sets a header before the hook under test runs, as the trace-context
+    /// injection of the SDK does.
+    private struct SeedingHook: CallHook {
+        let name: String
+        let value: String
+
+        func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+            headers[name] = value
+            return nil
+        }
+    }
+
+    private struct CustomSetter: Setter {
+        func set(carrier: inout [String: String], key: String, value: String) {
+            carrier[key] = value
+        }
+    }
+
+    /// Writes a fixed header instead of the W3C ones.
+    private struct CustomPropagator: TextMapPropagator {
+        var fields: Set<String> { ["x-custom-trace"] }
+
+        func inject<S: Setter>(spanContext: SpanContext, carrier: inout [String: String], setter: S) {
+            setter.set(carrier: &carrier, key: "x-custom-trace", value: spanContext.spanId.hexString)
+        }
+
+        func extract<G: Getter>(carrier: [String: String], getter: G) -> SpanContext? {
+            return nil
+        }
+    }
+
+    private struct Rig {
+        let exporter = InMemoryExporter()
+        let provider: TracerProviderSdk
+        let collected = Collected()
+
+        init() {
+            provider = TracerProviderBuilder()
+                .add(spanProcessor: SimpleSpanProcessor(spanExporter: exporter))
+                .with(sampler: Samplers.alwaysOn)
+                .build()
+        }
+
+        func hook(parent: SpanBox? = nil, propagator: (any TextMapPropagator)? = nil) -> OpenTelemetryCallHook {
+            let collected = self.collected
+            return OpenTelemetryCallHook(
+                tracerProvider: provider,
+                propagator: propagator ?? W3CTraceContextPropagator(),
+                activeSpan: { parent?.span },
+                onRequest: { collected.request($0) },
+                onDuration: { collected.duration($0, $1) })
+        }
+
+        func parentSpan() -> SpanBox {
+            let tracer = provider.get(instrumentationName: "caller", instrumentationVersion: nil)
+            return SpanBox(tracer.spanBuilder(spanName: "caller-span").setNoParent().startSpan())
+        }
+
+        var spans: [SpanData] {
+            provider.forceFlush()
+            return exporter.getFinishedSpanItems()
+        }
+    }
+
+    private func params(
+        query: OrderedParams<Any?> = [:], headers: [String: String] = [:]
+    ) -> BaseApi.InvokeAPIParams {
+        return BaseApi.InvokeAPIParams(
+            method: "GET", path: "/items/7", queryParams: query, headerParams: headers, body: nil,
+            accepts: ["application/json"], contentType: "application/json", returnType: "String",
+            auth: BaseApi.noAuthSentinel, operationId: "listItems", urlTemplate: "/items/{id}")
+    }
+
+    @discardableResult
+    private func call(
+        _ hook: (any CallHook)?, transport: Transport = Transport(),
+        query: OrderedParams<Any?> = [:], headers: [String: String] = [:]
+    ) async throws -> ApiHttpResponse {
+        let config = ConfigurationBuilder().baseURL("https://api.example.com").callHook(hook).build()
+        let api = BaseApi(apiClient: transport, config: config)
+        return try await api.invokeAPI(params(query: query, headers: headers))
+    }
+
+    @Test func testBhvTelemetry001TheSpanIsNamedWithTheSpecOperationIdAndHasKindClient() async throws {
+        let rig = Rig()
+
+        try await call(rig.hook())
+
+        let span = try #require(rig.spans.first)
+        #expect(span.name == "listItems")
+        #expect(span.kind == .client)
+    }
+
+    @Test func testBhvTelemetry002A2xxSetsTheRequestAttributesAndTheStatusAndLeavesTheSpanStatusUnset() async throws {
+        let rig = Rig()
+
+        try await call(rig.hook())
+
+        let span = try #require(rig.spans.first)
+        #expect(span.attributes["http.request.method"] == .string("GET"))
+        #expect(span.attributes["url.template"] == .string("/items/{id}"))
+        #expect(span.attributes["server.address"] == .string("api.example.com"))
+        #expect(span.attributes["http.response.status_code"] == .int(200))
+        #expect(span.attributes["error.type"] == nil)
+        #expect(span.status == .unset)
+    }
+
+    @Test func testBhvTelemetry003A4xxOr5xxSetsErrorTypeToTheStatusCodeAndMarksTheSpanAsAnError() async throws {
+        for status in [404, 503] {
+            let rig = Rig()
+
+            await #expect(throws: ApiError.self) {
+                try await call(rig.hook(), transport: Transport(status: status))
+            }
+
+            let span = try #require(rig.spans.first)
+            #expect(span.attributes["http.response.status_code"] == .int(status))
+            #expect(span.attributes["error.type"] == .string(String(status)))
+            if case .error = span.status {
+            } else {
+                Issue.record("the span of status \(status) must be marked as an error")
+            }
+        }
+    }
+
+    @Test func testBhvTelemetry004ErrorTypeIsTimeoutNetworkErrorSerializationErrorCancelledOrOtherByTheError() throws {
+        struct Unknown: Error {}
+        let cases: [(any Error, String)] = [
+            (NetworkTimeoutError(statusCode: 0, message: "slow"), "timeout"),
+            (NetworkError(statusCode: 0, message: "refused"), "network_error"),
+            (SerializationError(message: "bad body"), "serialization_error"),
+            (CancellationError(), "cancelled"),
+            (Unknown(), "_OTHER")
+        ]
+        for (error, token) in cases {
+            let rig = Rig()
+            var headers: [String: String] = [:]
+            let info = CallInfo(operationId: "listItems", method: "GET", urlTemplate: "/items/{id}", target: "https://api.example.com/items/7")
+
+            let observer = try #require(try rig.hook().start(info: info, headers: &headers))
+            try observer.finish(CallOutcome(statusCode: 0, headers: nil, error: error))
+
+            let span = try #require(rig.spans.first)
+            #expect(span.attributes["error.type"] == .string(token))
+        }
+    }
+
+    @Test func testBhvTelemetry005ACallWithNoResponseSetsNoStatusCode() async throws {
+        let rig = Rig()
+
+        await #expect(throws: NetworkError.self) {
+            try await call(rig.hook(), transport: Transport(failure: NetworkError(statusCode: 0, message: "refused")))
+        }
+
+        let span = try #require(rig.spans.first)
+        #expect(span.attributes["http.response.status_code"] == nil)
+        #expect(span.attributes["error.type"] == .string("network_error"))
+    }
+
+    @Test func testBhvTelemetry006TheSpanIsAChildOfTheCallersSpanAndTheTraceparentSentNamesTheClientSpan() async throws {
+        let rig = Rig()
+        let parent = rig.parentSpan()
+        let caller = parent.span.context
+        let transport = Transport()
+        let stale = "00-\(caller.traceId.hexString)-\(caller.spanId.hexString)-01"
+
+        try await call(
+            CallHooks.chain(SeedingHook(name: "traceparent", value: stale), rig.hook(parent: parent)),
+            transport: transport)
+
+        let span = try #require(rig.spans.first)
+        #expect(span.parentSpanId == caller.spanId)
+        #expect(span.traceId == caller.traceId)
+        let sent = try #require(transport.sent.first)
+        #expect(sent.keys.filter { $0.lowercased() == "traceparent" } == ["traceparent"])
+        #expect(sent["traceparent"] == "00-\(span.traceId.hexString)-\(span.spanId.hexString)-01")
+    }
+
+    @Test func testBhvTelemetry007ACallTheTransportRetriesRecordsOneSpanAndOneCount() async throws {
+        let rig = Rig()
+        let transport = Transport(sendsPerRequest: 3)
+
+        try await call(rig.hook(), transport: transport)
+
+        #expect(transport.sent.count == 3)
+        #expect(rig.spans.count == 1)
+        #expect(rig.collected.requests.count == 1)
+    }
+
+    @Test func testBhvTelemetry008TheRequestCountIsRecordedOncePerCallWithTheAttributesOfTheSpan() async throws {
+        let rig = Rig()
+
+        try await call(rig.hook())
+
+        let span = try #require(rig.spans.first)
+        #expect(rig.collected.requests == [span.attributes])
+    }
+
+    @Test func testBhvTelemetry009TheDurationIsRecordedOncePerCallInSecondsWithTheAttributesOfTheSpan() async throws {
+        let rig = Rig()
+
+        try await call(rig.hook(), transport: Transport(delay: 120_000_000))
+
+        let span = try #require(rig.spans.first)
+        let timing = try #require(rig.collected.timings.first)
+        #expect(rig.collected.timings.count == 1)
+        #expect(timing.0 >= 0.1)
+        #expect(timing.0 < 10)
+        #expect(timing.1 == span.attributes)
+    }
+
+    @Test func testBhvTelemetry010TheInstrumentationScopeIsNamedAfterThePackageAndCarriesTheSdkVersion() async throws {
+        let rig = Rig()
+
+        try await call(rig.hook())
+
+        let span = try #require(rig.spans.first)
+        #expect(span.instrumentationScope.name == "{{packageName}}")
+        #expect(span.instrumentationScope.version == "{{packageVersion}}")
+    }
+
+    @Test func testBhvTelemetry011AProviderAndAPropagatorHandedToTheHookAreUsedInsteadOfTheGlobalOnes() async throws {
+        let rig = Rig()
+        let transport = Transport()
+
+        try await call(rig.hook(propagator: CustomPropagator()), transport: transport)
+
+        let span = try #require(rig.spans.first)
+        #expect(transport.sent.first?["x-custom-trace"] == span.spanId.hexString)
+        #expect(transport.sent.first?["traceparent"] == nil)
+    }
+
+    @Test func testBhvTelemetry012WithNoProviderConfiguredTheHookDoesNothingAndTheCallIsUnchanged() async throws {
+        let plain = Transport()
+        let hooked = Transport()
+
+        let first = try await call(nil, transport: plain)
+        let second = try await call(OpenTelemetryCallHook(), transport: hooked)
+
+        #expect(plain.sent == hooked.sent)
+        #expect(hooked.sent.first?["traceparent"] == nil)
+        #expect(first.statusCode == second.statusCode)
+        #expect(first.body == second.body)
+    }
+
+    @Test func testBhvTelemetry013TheSpanEndsExactlyOnceAlsoWhenTheCallThrows() async throws {
+        let rig = Rig()
+
+        await #expect(throws: NetworkTimeoutError.self) {
+            try await call(
+                rig.hook(), transport: Transport(failure: NetworkTimeoutError(statusCode: 0, message: "slow")))
+        }
+
+        #expect(rig.spans.count == 1)
+        #expect(try #require(rig.spans.first).hasEnded)
+        #expect(rig.collected.requests.count == 1)
+    }
+
+    @Test func testBhvTelemetry014NoAttributeCarriesAQueryStringAHeaderValueOrACredential() async throws {
+        let rig = Rig()
+
+        try await call(
+            rig.hook(), query: ["key": "secret-value"], headers: ["Authorization": "Bearer secret-token"])
+
+        let span = try #require(rig.spans.first)
+        #expect(
+            Set(span.attributes.keys)
+                == ["http.request.method", "url.template", "server.address", "http.response.status_code"])
+        for value in span.attributes.values {
+            #expect(!"\(value)".contains("secret"))
+        }
+    }
+}
