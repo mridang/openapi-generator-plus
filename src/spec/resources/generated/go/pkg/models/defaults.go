@@ -107,6 +107,16 @@ func (o *Defaults) Equal(other *Defaults) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Defaults) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Defaults{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithRetries returns a copy of the model with Retries replaced; the receiver is unchanged.
 func (o Defaults) WithRetries(value int32) Defaults {
 	o.Retries = &value

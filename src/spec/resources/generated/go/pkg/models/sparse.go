@@ -38,6 +38,16 @@ func (o *Sparse) Equal(other *Sparse) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Sparse) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Sparse{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithLabel returns a copy of the model with Label replaced; the receiver is unchanged.
 func (o Sparse) WithLabel(value string) Sparse {
 	o.Label = &value

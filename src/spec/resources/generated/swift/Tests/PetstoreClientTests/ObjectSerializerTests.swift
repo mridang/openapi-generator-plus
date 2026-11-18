@@ -2839,4 +2839,97 @@ import Testing
     let fields = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
     #expect(Set(fields.keys) == ["label"])
   }
+
+  /* A model built in code keeps a value of the wrong type, while decoding that same value from JSON raises an error. */
+  @Test func testBhvMisc231AModelBuiltInCodeKeepsAWrongTypeThatDecodingRefuses() throws {
+    struct Counters: Codable { let count: Int }
+    let model = Freeform(additionalProperties: ["count": AnyCodable("not a number")])
+    #expect(model.additionalProperties["count"]?.value as? String == "not a number")
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.deserialize(
+        Data("{\"count\":\"not a number\"}".utf8), as: Counters.self)
+    }
+  }
+
+  /* A model in a list keeps its additional properties through a serialize and deserialize round trip. */
+  @Test func testBhvMisc234AModelInAListKeepsItsAdditionalPropertiesThroughARoundTrip() throws {
+    let original = [Freeform(label: "x", additionalProperties: ["extra": AnyCodable("y")])]
+    let json = try ObjectSerializer.serialize(original)
+    let restored = try #require(
+      try ObjectSerializer.deserialize(Data(json.utf8), as: [Freeform].self))
+    #expect(restored.first?.additionalProperties["extra"]?.value as? String == "y")
+  }
+
+  /* A date-only value is written as yyyy-mm-dd with no time, in query, header, cookie and path locations. */
+  @Test func testBhvMisc236ADateOnlyValueIsWrittenWithNoTimeInEveryLocation() throws {
+    #expect(ObjectSerializer.toQueryValue("2024-01-15") as? String == "2024-01-15")
+    #expect(ObjectSerializer.toHeaderValue("2024-01-15") == "2024-01-15")
+    #expect(ObjectSerializer.toCookieValue("2024-01-15") == "2024-01-15")
+    #expect(ObjectSerializer.toPathValue("2024-01-15") == "2024-01-15")
+  }
+
+  /* A number query parameter is sent as a plain number. */
+  @Test func testBhvMisc238ANumberQueryParameterIsSentAsAPlainNumber() throws {
+    #expect(ObjectSerializer.toQueryValue(42) as? String == "42")
+    #expect(ObjectSerializer.toQueryValue(2.5) as? String == "2.5")
+  }
+
+  /* A duration field with fractional seconds keeps its fraction when serialized. */
+  @Test func testBhvMisc235ADurationWithFractionalSecondsKeepsItsFraction() throws {
+    #expect(try ObjectSerializer.encodeDuration(1.5) == "1.500s")
+  }
+
+  /* A duration with days is formatted as a duration string of whole seconds. */
+  @Test func testBhvMisc248ADurationWithDaysIsFormattedAsADurationString() throws {
+    #expect(try ObjectSerializer.encodeDuration(172_800) == "172800s")
+  }
+
+  /* A negative whole-second duration string parses to a negative duration. */
+  @Test func testBhvMisc246ANegativeWholeSecondDurationStringParsesToANegativeDuration() throws {
+    #expect(try ObjectSerializer.decodeDuration("-3s") == -3)
+  }
+
+  /* An absent optional array field decodes to nil, not to an empty list. */
+  @Test func testBhvMisc243AnAbsentOptionalArrayFieldDecodesToNil() throws {
+    struct OptionalTags: Codable { let tags: [String]? }
+    let decoded = try #require(
+      try ObjectSerializer.deserialize(Data("{}".utf8), as: OptionalTags.self))
+    #expect(decoded.tags == nil)
+  }
+
+  /* A body with a leading byte-order mark decodes into the model. */
+  @Test func testBhvMisc244ABodyWithALeadingByteOrderMarkDecodesIntoTheModel() throws {
+    var body = Data([0xEF, 0xBB, 0xBF])
+    body.append(Data("{\"label\":\"x\"}".utf8))
+    let decoded = try #require(try ObjectSerializer.deserialize(body, as: Freeform.self))
+    #expect(decoded.label == "x")
+  }
+
+  /* A time of day in a plain object is serialized as a JSON string. */
+  @Test func testBhvMisc245ATimeOfDayInAPlainObjectIsSerializedAsAJsonString() throws {
+    struct TimeHolder: Codable { let at: String }
+    let json = try ObjectSerializer.serialize(TimeHolder(at: "10:30:15"))
+    #expect(json == "{\"at\":\"10:30:15\"}")
+  }
+
+  /* A UUID string with the wrong segment lengths is rejected. */
+  @Test func testBhvMisc247AUuidWithWrongSegmentLengthsIsRejected() throws {
+    struct Tagged: Codable { let id: UUID }
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.deserialize(
+        Data("{\"id\":\"12345-678-9abc-def0-123456789abc\"}".utf8), as: Tagged.self)
+    }
+  }
+
+  /* Read-only properties are not sent and write-only properties are not returned, so they have no wire effect. */
+  @Test func testBhvMisc242AReadOnlyPropertyIsNotSentAndAWriteOnlyPropertyIsNotReturned() throws {
+    let decoded = try #require(
+      try ObjectSerializer.deserialize(
+        Data("{\"id\":7,\"username\":\"u\",\"password\":\"p\"}".utf8), as: Account.self))
+    #expect(decoded.id == 7)
+    let json = try ObjectSerializer.serialize(Account(username: "u", password: "p"))
+    let fields = try #require(
+      try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+    #expect(Set(fields.keys) == ["username", "password"])
+  }
 }
