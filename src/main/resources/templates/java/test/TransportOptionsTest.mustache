@@ -39,7 +39,7 @@ class TransportOptionsTest {
 
     @Test
     @DisplayName("a caller-supplied HttpClient that follows redirects is rejected")
-    void suppliedHttpClientThatFollowsRedirectsIsRejected() {
+    void bhvRedirects045SuppliedHttpClientThatFollowsRedirectsIsRejected() {
         java.net.http.HttpClient supplied = java.net.http.HttpClient.newBuilder()
                 .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
                 .build();
@@ -50,6 +50,122 @@ class TransportOptionsTest {
             supplied.close();
         }
     }
+    @Test
+    @DisplayName("bhvTransport078 a caller-supplied HttpClient refuses a proxy setting at construction")
+    void bhvTransport078SuppliedHttpClientRefusesAProxySettingAtConstruction() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
+        } finally {
+            supplied.close();
+        }
+    }
+
+    @Test
+    @DisplayName("bhvTransport079 turning off certificate verification fails on a supplied HttpClient")
+    void bhvTransport079VerifySslOffFailsOnASuppliedHttpClient() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
+        } finally {
+            supplied.close();
+        }
+        assertFalse(TransportOptions.builder().verifySsl(false).build().isVerifySsl());
+    }
+
+    @Test
+    @DisplayName("bhvTransport080 a proxy URL the client cannot apply fails at construction")
+    void bhvTransport080UnusableProxySettingFailsAtConstruction() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+            TransportOptions.builder().proxy("socks5://proxy:1080").build());
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+            TransportOptions.builder().proxy("ftp://proxy:21").build());
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+            TransportOptions.builder().proxy("http://").build());
+    }
+
+    @Test
+    @DisplayName("bhvOptions057 a per-call timeout below one millisecond is refused")
+    void bhvOptions057TimeoutBelowOneMillisecondIsRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+            TransportOptions.builder().timeout(0).build());
+    }
+
+    @Test
+    @DisplayName("bhvOptions058 no HttpClient is injected unless one is supplied, and a supplied one is kept")
+    void bhvOptions058InjectedHttpClientIsNoneUnlessSuppliedAndKeptWhenSupplied() {
+        assertNull(TransportOptions.builder().build().getHttpClient());
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            assertSame(supplied, TransportOptions.builder().httpClient(supplied).build().getHttpClient());
+        } finally {
+            supplied.close();
+        }
+    }
+
+    @Test
+    @DisplayName("bhvOptions060 the builder entry point carries the same defaults as a direct build")
+    void bhvOptions060BuilderEntryPointHasTheSameDefaultsAsADirectBuild() {
+        TransportOptions viaBuilder = TransportOptions.builder().build();
+        assertEquals(viaBuilder.toString(), TransportOptions.builder().build().toString());
+        assertEquals(2, viaBuilder.getMaxRetries());
+    }
+
+    @Test
+    @DisplayName("bhvOptions061 a user agent set on the options is kept as given")
+    void bhvOptions061UserAgentSetOnTheOptionsIsKeptAsGiven() {
+        assertEquals("custom-agent/1.0", TransportOptions.builder().userAgent("custom-agent/1.0").build().getUserAgent());
+    }
+
+    @Test
+    @DisplayName("bhvOptions062 unset fields of an options object read back as absent")
+    void bhvOptions062UnsetFieldsReadBackAsAbsent() {
+        TransportOptions empty = TransportOptions.builder().build();
+        assertNull(empty.getProxy());
+        assertNull(empty.getCaCertPath());
+        assertNull(empty.getMaxRedirects());
+    }
+
+    @Test
+    @DisplayName("bhvOptions063 a built options object has no field that can be changed")
+    void bhvOptions063BuiltOptionsHasNoMutableField() {
+        for (java.lang.reflect.Field field : TransportOptions.class.getDeclaredFields()) {
+            if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                assertTrue(java.lang.reflect.Modifier.isFinal(field.getModifiers()),
+                    "field " + field.getName() + " must be final");
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvOptions064 the printable form shows the configured maximum number of retries")
+    void bhvOptions064PrintableFormShowsTheMaximumNumberOfRetries() {
+        assertTrue(TransportOptions.builder().maxRetries(3).build().toString().contains("maxRetries=3"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions065 the printable form never shows a proxy password")
+    void bhvOptions065PrintableFormNeverShowsAProxyPassword() {
+        String printed = TransportOptions.builder().proxy("http://user:s3cret-pass@proxy:3128").build().toString();
+        assertFalse(printed.contains("s3cret-pass"), printed);
+    }
+
+    @Test
+    @DisplayName("bhvOptions066 the printable form shows a proxy URL with no credentials exactly as configured")
+    void bhvOptions066PrintableFormShowsAProxyUrlWithoutCredentialsExactly() {
+        assertTrue(TransportOptions.builder().proxy("http://proxy:3128").build().toString()
+            .contains("proxy=http://proxy:3128"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions067 a valid proxy URL is kept, and no proxy leaves it unset")
+    void bhvOptions067ValidProxyIsKeptAndNoProxyLeavesItUnset() {
+        assertEquals("http://proxy:3128", TransportOptions.builder().proxy("http://proxy:3128").build().getProxy());
+        assertNull(TransportOptions.builder().build().getProxy());
+    }
+
 
     @Test
     @DisplayName("bhvOptions043 verifySsl defaults to true")

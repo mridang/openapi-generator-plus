@@ -57,6 +57,60 @@ class ApiExceptionTest {
   }
 
   @Test
+  void bhvErrors072ErrorBodyWithAByteOrderMarkDecodesLikeTheSameBodyWithout() {
+    assertEquals(
+        ApiException.fromResponse(400, null, "{\"code\":7}").getErrorBody(),
+        ApiException.fromResponse(400, null, "﻿{\"code\":7}").getErrorBody());
+  }
+
+  @Test
+  void bhvErrors073ErrorBodyNestedWithinTheDepthLimitIsKeptAsStructuredData() {
+    String deep = "[".repeat(500) + "]".repeat(500);
+    ApiException ex = ApiException.fromResponse(400, null, deep);
+    assertNotNull(ex.getErrorBody());
+    assertEquals(deep, ex.getResponseBody());
+  }
+
+  @Test
+  void bhvErrors074ErrorWithoutAnHttpResponseRendersItsMessageAlone() {
+    assertEquals(
+        "connection reset", new ApiException(0, "connection reset", null, null).toString());
+  }
+
+  @Test
+  void bhvErrors075CutBodyNeverSplitsAMultiByteCharacter() {
+    String rendered = new ApiException(500, "boom", Map.of(), "x".repeat(1023) + "😀").toString();
+    assertEquals(
+        rendered,
+        new String(
+            rendered.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            java.nio.charset.StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void bhvErrors076ForeignErrorIsNotClassifiedAsAnSdkErrorEvenWhenWrapped() {
+    RuntimeException wrapped = new RuntimeException(new IllegalStateException("not ours"));
+    assertFalse(wrapped instanceof OpenAPIException);
+    assertFalse(wrapped.getCause() instanceof OpenAPIException);
+  }
+
+  @Test
+  void bhvErrors080TypedHttpErrorIsCaughtByTheRootTypeAndKeepsItsStatus() {
+    ApiException typed = ApiException.fromResponse(404, null, null);
+    OpenAPIException root = typed;
+    assertInstanceOf(com.example.petstore.errors.NotFoundException.class, root);
+    assertEquals(404, typed.getStatusCode());
+  }
+
+  @Test
+  void bhvErrors084ErrorBuiltWithoutAnHttpResponseReportsStatusZero() {
+    assertEquals(
+        0,
+        new com.example.petstore.errors.NetworkException("boom", new java.io.IOException("reset"))
+            .getStatusCode());
+  }
+
+  @Test
   void bhvErrors019IsAnUncheckedExceptionWithStatusInItsStringForm() {
     // Unified hierarchy: ApiException extends the branded root
     // OpenAPIException, which extends RuntimeException — so the whole SDK

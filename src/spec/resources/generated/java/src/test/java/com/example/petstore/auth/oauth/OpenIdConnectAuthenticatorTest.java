@@ -530,7 +530,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void rediscoveryPicksUpChangedEndpoints() {
+  void bhvAuth029RediscoveryPicksUpChangedEndpoints() {
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {

@@ -154,7 +154,25 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void nulOnlyKeyReportsControlCharacters() {
+  void bhvAuth006ApiKeyIsSentUnderTheDeclaredHeaderName() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-KEY", "key-value", ApiKeyLocation.HEADER);
+    assertEquals("key-value", auth.getAuthHeaders().get("X-API-KEY"));
+  }
+
+  @Test
+  void bhvAuth016ApiKeyStringFormMasksTheKeyAndNamesItsType() {
+    String printed =
+        new ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-KEY", "s3cr3t-key", ApiKeyLocation.HEADER)
+            .toString();
+    assertTrue(printed.contains("ApiKeyAuthenticator"));
+    assertFalse(printed.contains("s3cr3t-key"));
+  }
+
+  @Test
+  void bhvAuth009NulOnlyKeyReportsControlCharacters() {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class,

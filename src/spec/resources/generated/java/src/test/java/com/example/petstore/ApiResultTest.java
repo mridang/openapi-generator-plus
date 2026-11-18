@@ -65,7 +65,7 @@ class ApiResultTest {
   }
 
   @Test
-  void headersAreDefensivelyCopiedAndUnmodifiable() {
+  void bhvResults006HeadersAreDefensivelyCopiedAndUnmodifiable() {
     // The compact constructor wraps the headers in an unmodifiable copy, so
     // mutation attempts on the exposed map throw.
     ApiResult<String> result = new ApiResult<>(200, "ok", "ok", Map.of("x-trace", "abc"));

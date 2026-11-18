@@ -641,7 +641,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirect307And308KeepMethodAndBody() {
+  void bhvRedirects038Redirect307And308KeepMethodAndBody() {
     for (int status : new int[] {307, 308}) {
       assertEquals(echoed("PUT", "payload"), methodAndBodyAfterRedirect("PUT", status));
     }
@@ -856,6 +856,59 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvHeaders031HeaderValueWithALineBreakIsRefusedBeforeSending() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            client.sendRequest(
+                "GET", baseUrl + "/echo", Map.of("X-Injected", "a\r\nX-Evil: 1"), null));
+    assertTrue(transport.requests.isEmpty(), "nothing may be sent for a refused header");
+  }
+
+  @Test
+  void bhvSerialization010BodyIsSentWithTheDeclaredContentTypeAndNoCharset() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    client.sendRequest("POST", baseUrl + "/echo", Map.of("Content-Type", "application/json"), "{}");
+    assertEquals(
+        java.util.Optional.of("application/json"),
+        transport.requests.get(0).headers().firstValue("Content-Type"));
+  }
+
+  @Test
+  void bhvErrors078NetworkMessageAndCauseNeverShowTheQueryString() {
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+    com.example.petstore.errors.NetworkException ex =
+        assertThrowsExactly(
+            com.example.petstore.errors.NetworkException.class,
+            () ->
+                client.sendRequest(
+                    "GET", "http://127.0.0.1:1/never?token=QUERYSECRET", Map.of(), null));
+    assertFalse(
+        ex.getMessage() != null && ex.getMessage().contains("QUERYSECRET"), ex.getMessage());
+    assertFalse(
+        String.valueOf(ex.getCause()).contains("QUERYSECRET"), String.valueOf(ex.getCause()));
+  }
+
+  @Test
+  void bhvErrors083UnreadableCaCertPathFailsAtConstructionNamingThePath() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new DefaultApiClient(
+                    TransportOptions.builder().caCertPath("/no/such/ca-bundle.pem").build()));
+    assertTrue(
+        ex.getMessage() != null && ex.getMessage().contains("/no/such/ca-bundle.pem"),
+        ex.getMessage());
+  }
+
+  @Test
   void bhvTransport041InjectsCustomUserAgent() throws Exception {
     TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -966,6 +1019,29 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvRetries044EveryRetryCarriesADifferentRequestId() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder =
+        request ->
+            transport.requests.size() < 2
+                ? RecordingHttpClient.redirect(503, null, request)
+                : RecordingHttpClient.redirect(200, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder()
+                .httpClient(transport)
+                .maxRetries(2)
+                .injectRequestId(true)
+                .build());
+    assertEquals(
+        200, client.sendRequest("GET", "http://example.test/echo", Map.of(), null).statusCode());
+    assertEquals(2, transport.requests.size());
+    String first = transport.requests.get(0).headers().firstValue("X-Request-ID").orElseThrow();
+    String second = transport.requests.get(1).headers().firstValue("X-Request-ID").orElseThrow();
+    assertNotEquals(first, second);
+  }
+
+  @Test
   void bhvRetries015ResponseCookieIsNeverReplayedOnTheNextRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     client.sendRequest("GET", baseUrl + "/set-cookie", Map.of(), null);
@@ -1009,7 +1085,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void proxyPasswordKeepsALiteralPlusSign() throws Exception {
+  void bhvTransport076ProxyPasswordKeepsALiteralPlusSign() throws Exception {
     // F901: userinfo is percent-decoded, but a literal '+' is not a space.
     String credentials = "svc" + ":" + "p" + "+" + "q%20r";
     TransportOptions transport =
@@ -1140,7 +1216,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void httpsToHttpBodyReplayGuardIgnoredForNonBodyPreservingStatuses() {
+  void bhvRedirects040HttpsToHttpBodyReplayGuardIgnoredForNonBodyPreservingStatuses() {
     java.net.URI original = java.net.URI.create("https://api.example.com/secret");
     java.net.URI target = java.net.URI.create("http://attacker.example/take");
     // 301/302/303 either coerce to GET or historically drop the body, so the
@@ -1148,6 +1224,138 @@ class DefaultApiClientUnitTest {
     assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 301, true));
     assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 302, true));
     assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 303, true));
+  }
+
+  @Test
+  void bhvTransport067EmptySuccessfulBodyIsReturnedAsAnEmptyBody() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder = request -> RecordingHttpClient.redirect(204, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
+    assertEquals(204, response.statusCode());
+    assertEquals("", response.body());
+  }
+
+  @Test
+  void bhvTransport068AlreadyCancelledCallRaisesCancellation() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      DefaultApiClient client = new DefaultApiClient();
+      Thread.currentThread().interrupt();
+      try {
+        assertThrowsExactly(
+            java.util.concurrent.CancellationException.class,
+            () -> client.sendRequest("GET", url, Map.of(), null));
+      } finally {
+        Thread.interrupted();
+      }
+    }
+  }
+
+  @Test
+  void bhvTransport069CancellingACallCancelsItsTransportRequest() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      DefaultApiClient client = new DefaultApiClient();
+      java.util.concurrent.atomic.AtomicReference<Throwable> thrown =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      Thread caller =
+          new Thread(
+              () -> {
+                try {
+                  client.sendRequest("GET", url, Map.of(), null);
+                } catch (Throwable failure) {
+                  thrown.set(failure);
+                }
+              });
+      caller.start();
+      silent.setSoTimeout(10_000);
+      try (java.net.Socket reached = silent.accept()) {
+        caller.interrupt();
+        caller.join(5000);
+        assertFalse(caller.isAlive(), "a cancelled call must not wait for the server");
+        assertInstanceOf(java.util.concurrent.CancellationException.class, thrown.get());
+      }
+    }
+  }
+
+  @Test
+  void bhvTransport070PerCallTimeoutReachesTheTransportRequestAndIsNeverExceeded() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).timeout(1500).build());
+    assertEquals(200, client.sendRequest("GET", baseUrl + "/echo", Map.of(), null).statusCode());
+    long millis = transport.requests.get(0).timeout().orElseThrow().toMillis();
+    assertTrue(
+        millis > 0 && millis <= 1500, "the request timeout must not exceed 1500 ms, was " + millis);
+  }
+
+  @Test
+  void bhvTransport071OneTimeoutBoundsConnectionAndResponseReceipt() {
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().timeout(300).build());
+    long started = System.nanoTime();
+    assertThrowsExactly(
+        com.example.petstore.errors.NetworkTimeoutException.class,
+        () -> client.sendRequest("GET", "http://192.0.2.1:81/never", Map.of(), null));
+    assertThrowsExactly(
+        com.example.petstore.errors.NetworkTimeoutException.class,
+        () -> client.sendRequest("GET", baseUrl + "/stalled-body", Map.of(), null));
+    long elapsedMillis = (System.nanoTime() - started) / 1_000_000L;
+    assertTrue(
+        elapsedMillis < 3000, "both phases share the 300 ms budget, took " + elapsedMillis + " ms");
+  }
+
+  @Test
+  void bhvTransport072ExpiredDeadlineIsATimeoutButARefusedConnectionIsNot() {
+    DefaultApiClient timed =
+        new DefaultApiClient(TransportOptions.builder().timeout(300).maxRetries(0).build());
+    assertThrowsExactly(
+        com.example.petstore.errors.NetworkTimeoutException.class,
+        () -> timed.sendRequest("POST", "http://192.0.2.1:81/never", Map.of(), "payload"));
+    DefaultApiClient refused =
+        new DefaultApiClient(TransportOptions.builder().timeout(5000).maxRetries(0).build());
+    com.example.petstore.errors.NetworkException ex =
+        assertThrowsExactly(
+            com.example.petstore.errors.NetworkException.class,
+            () -> refused.sendRequest("GET", "http://127.0.0.1:1/never", Map.of(), null));
+    assertFalse(
+        ex instanceof com.example.petstore.errors.NetworkTimeoutException,
+        "a refused connection is not a timeout");
+  }
+
+  @Test
+  void bhvTransport073CorruptCompressedBodyRaisesAnApiExceptionNotRawBytes() {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () -> client.sendRequest("GET", baseUrl + "/content-encoding-lie", Map.of(), null));
+    assertEquals(200, ex.getStatusCode());
+  }
+
+  @Test
+  void bhvTransport081CallerHttpClientReceivesTheUrlAndHeadersUnchanged() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    client.sendRequest("GET", baseUrl + "/echo", Map.of("X-Caller", "kept"), null);
+    java.net.http.HttpRequest sent = transport.requests.get(0);
+    assertEquals(baseUrl + "/echo", sent.uri().toString());
+    assertEquals(java.util.Optional.of("kept"), sent.headers().firstValue("X-Caller"));
+  }
+
+  @Test
+  void bhvTransport082DefaultAndTimeoutOnlyClientsCompleteARequest() {
+    assertEquals(
+        200,
+        new DefaultApiClient().sendRequest("GET", baseUrl + "/echo", Map.of(), null).statusCode());
+    assertEquals(
+        200,
+        new DefaultApiClient(TransportOptions.builder().timeout(5000).build())
+            .sendRequest("GET", baseUrl + "/echo", Map.of(), null)
+            .statusCode());
   }
 
   @Test
@@ -1277,7 +1485,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void emptyCaCertFileIsReportedAsNoPemBlocks() throws Exception {
+  void bhvTransport077EmptyCaCertFileIsReportedAsNoPemBlocks() throws Exception {
     java.io.File empty = java.io.File.createTempFile("empty-ca", ".pem");
     empty.deleteOnExit();
     TransportOptions transport =
@@ -1587,7 +1795,58 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void proxyAuthorizationSurvivesACrossOriginHttpRedirect() throws Exception {
+  void bhvRedirects039BodylessRequestMayFollowAnHttpsToHttpRedirect() {
+    java.net.URI https = java.net.URI.create("https://api.example.com/start");
+    java.net.URI http = java.net.URI.create("http://api.example.com/next");
+    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(https, http, 307, false));
+    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(https, http, 308, false));
+  }
+
+  @Test
+  void bhvRedirects041RewrittenGetCarriesNoEntityHeaders() {
+    for (int status : new int[] {301, 302, 303}) {
+      RecordingHttpClient transport = redirectingOnceTo(status, "/landed");
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+      client.sendRequest(
+          "POST", "http://example.test/start", Map.of("Content-Type", "text/plain"), "payload");
+      java.net.http.HttpRequest followUp = transport.requests.get(1);
+      assertEquals("GET", followUp.method());
+      assertTrue(followUp.headers().firstValue("Content-Length").isEmpty());
+      assertTrue(followUp.headers().firstValue("Content-Type").isEmpty());
+    }
+  }
+
+  @Test
+  void bhvRedirects042BodylessPostStaysAPostWithAZeroLengthBody() {
+    RecordingHttpClient transport = redirectingOnceTo(307, "/landed");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("POST", "http://example.test/start", Map.of(), null);
+    java.net.http.HttpRequest followUp = transport.requests.get(1);
+    assertEquals("POST", followUp.method());
+    assertEquals(0L, followUp.bodyPublisher().orElseThrow().contentLength());
+  }
+
+  @Test
+  void bhvRedirects043RelativeLocationResolvesAgainstTheRequestUrl() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder =
+        request ->
+            request.uri().getPath().equals("/a/b/start")
+                ? RecordingHttpClient.redirect(302, "../c", request)
+                : RecordingHttpClient.redirect(200, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("GET", "http://example.test/a/b/start", Map.of(), null);
+    assertEquals("http://example.test/a/c", transport.requests.get(1).uri().toString());
+  }
+
+  @Test
+  void bhvRedirects044ProxyAuthorizationSurvivesACrossOriginHttpRedirect() throws Exception {
     final java.util.concurrent.atomic.AtomicReference<String> seenProxyAuth =
         new java.util.concurrent.atomic.AtomicReference<>("__unset__");
     final java.util.concurrent.atomic.AtomicReference<String> seenAuth =
@@ -2332,7 +2591,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void zstdFrameWithoutContentSizeDecodesBeyondFourToOne() throws Exception {
+  void bhvTransport075ZstdFrameWithoutContentSizeDecodesBeyondFourToOne() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response =
         client.sendRequest("GET", baseUrl + "/zstd-streaming", Map.of(), null);
@@ -2445,7 +2704,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void absentBrotliLibraryRaisesInsteadOfReturningEncodedBytes() {
+  void bhvTransport074AbsentBrotliLibraryRaisesInsteadOfReturningEncodedBytes() {
     IOException ex =
         assertThrowsExactly(
             IOException.class,

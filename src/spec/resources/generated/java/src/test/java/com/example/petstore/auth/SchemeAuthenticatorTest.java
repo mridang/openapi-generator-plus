@@ -72,7 +72,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void mixesPassedAndEnvironmentCredentialsPerField() {
+    void bhvAuth024MixesPassedAndEnvironmentCredentialsPerField() {
       AdminBasicAuthenticator auth =
           new AdminBasicAuthenticator(
               "https://api.example.com", "alice", null, Map.of(SECRET_VARIABLE, "from-env"));
@@ -109,6 +109,22 @@ class SchemeAuthenticatorTest {
                       "https://api.example.com", "alice", null, Map.of(SECRET_VARIABLE, "")));
       assertTrue(
           java.util.Objects.requireNonNull(ex.getMessage()).contains(SECRET_VARIABLE),
+          ex.getMessage());
+    }
+
+    @Test
+    void bhvAuth003EmptyEnvironmentVariablesCountAsNoValue() {
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () ->
+                  new AdminBasicAuthenticator(
+                      "https://api.example.com",
+                      null,
+                      null,
+                      Map.of(USERNAME_VARIABLE, "", SECRET_VARIABLE, "")));
+      assertTrue(
+          java.util.Objects.requireNonNull(ex.getMessage()).contains(USERNAME_VARIABLE),
           ex.getMessage());
     }
 

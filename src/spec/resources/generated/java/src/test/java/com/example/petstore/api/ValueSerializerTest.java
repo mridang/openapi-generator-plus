@@ -1058,7 +1058,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("matrix, label and simple styles expand per the explode flag")
-    void pathStylesExpand() {
+    void bhvSerialization015PathStylesExpand() {
       assertEquals(
           ";c=breed,lab,min_age,3",
           ValueSerializer.serializeStyled("c", fields(), "path", "object", null, "matrix", false));
@@ -1152,5 +1152,26 @@ class ValueSerializerTest {
               "simple",
               false));
     }
+  }
+
+  @Test
+  void bhvSerialization005PathValueKeepsUnreservedAndSubDelimitersLiteral() {
+    assertEquals(
+        "a-b.c_d~e!$&'()*,;=:@",
+        ValueSerializer.serialize("a-b.c_d~e!$&'()*,;=:@", "path", "string", null));
+    assertEquals("a%2Fb%3Fc", ValueSerializer.serialize("a/b?c", "path", "string", null));
+  }
+
+  @Test
+  void bhvSerialization014UnsetQueryParameterProducesNoQueryEntry() {
+    java.util.Map<String, Object> query = new java.util.LinkedHashMap<>();
+    ValueSerializer.putQuery(query, "absent", null, false);
+    assertTrue(query.isEmpty());
+  }
+
+  @Test
+  void bhvSerialization044DateTimeForADateParameterIsWrittenAsItsCalendarDate() {
+    java.time.OffsetDateTime at = java.time.OffsetDateTime.parse("2024-05-06T07:08:09Z");
+    assertEquals("2024-05-06", ValueSerializer.serialize(at, "query", "date", null));
   }
 }

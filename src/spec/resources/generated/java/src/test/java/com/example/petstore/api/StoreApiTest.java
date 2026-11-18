@@ -495,7 +495,8 @@ class StoreApiTest {
   }
 
   @Test
-  void testReserveStockRejectsABodyThatDoesNotMatchTheSchemaOfItsStatus() throws Exception {
+  void bhvOperations154ReserveStockRejectsABodyThatDoesNotMatchTheSchemaOfItsStatus()
+      throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(201, "application/json", "{\"reservationId\":1,\"quantity\":2}");
 

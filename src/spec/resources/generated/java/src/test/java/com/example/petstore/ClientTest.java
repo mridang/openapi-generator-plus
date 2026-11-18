@@ -121,7 +121,35 @@ class ClientTest {
   }
 
   @Test
-  void customTransportWithoutCloseCanBeClosedTwice() {
+  void bhvLifecycle036ClosingTwiceRaisesNoErrorAndReleasesNothingFurther() {
+    Client client = new Client(authenticator);
+    org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+        () -> {
+          client.close();
+          client.close();
+        });
+  }
+
+  @Test
+  void bhvLifecycle039ClientWithAnEmptyTokenIsRefusedAndAValidTokenBuilds() {
+    assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", ""));
+    assertNotNull(Client.withToken("/api/v3", "valid-token"));
+  }
+
+  @Test
+  void bhvLifecycle040LeavingATryWithResourcesBlockClosesTheClient() {
+    Client client;
+    try (Client scoped = new Client(authenticator)) {
+      client = scoped;
+    }
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+  }
+
+  @Test
+  void bhvLifecycle038CustomTransportWithoutCloseCanBeClosedTwice() {
     // F1123: close is on the ApiClient contract with a no-op default, so a
     // transport that implements only the send method is still closable.
     ApiClient transport =

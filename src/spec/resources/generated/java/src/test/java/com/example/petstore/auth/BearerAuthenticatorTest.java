@@ -195,7 +195,45 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void neitherATokenNorATokenProviderIsRefused() {
+  void bhvAuth005ProviderKeyIsObtainedAgainForEachRequest() {
+    int[] calls = {0};
+    BearerAuthenticator auth = new BearerAuthenticator(HOST, () -> "t" + (++calls[0]));
+    auth.getAuthHeaders();
+    auth.getAuthHeaders();
+    assertEquals(2, calls[0]);
+    assertEquals("Bearer t3", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvAuth007GenericAuthenticatorBuiltWithoutCredentialsFails() {
+    assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator(HOST, null, null));
+  }
+
+  @Test
+  void bhvAuth012EachRejectedCredentialStatesWhyItWasRefused() {
+    assertEquals(
+        "Bearer token must not be empty",
+        assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator(HOST, ""))
+            .getMessage());
+    assertTrue(
+        java.util.Objects.requireNonNull(
+                assertThrows(
+                        IllegalArgumentException.class, () -> new BearerAuthenticator(HOST, "a\nb"))
+                    .getMessage())
+            .contains("printable ASCII"));
+  }
+
+  @Test
+  void bhvAuth018RejectedSecretNeverAppearsInTheErrorMessage() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new BearerAuthenticator(HOST, "s3cr3t-value\r\n"));
+    assertFalse(java.util.Objects.requireNonNull(ex.getMessage()).contains("s3cr3t-value"));
+  }
+
+  @Test
+  void bhvAuth004NeitherATokenNorATokenProviderIsRefused() {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class, () -> new BearerAuthenticator(HOST, null, null));

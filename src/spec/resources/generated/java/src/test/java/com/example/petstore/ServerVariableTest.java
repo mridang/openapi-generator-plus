@@ -17,6 +17,15 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ServerVariableTest {
+  @Test
+  void bhvServers027TwoVariablesWithTheSameContentAreEqual() {
+    ServerVariable first = new ServerVariable("v1", "version", java.util.List.of("v1", "v2"));
+    ServerVariable second = new ServerVariable("v1", "version", java.util.List.of("v1", "v2"));
+    assertEquals(first, second);
+    assertEquals(first.hashCode(), second.hashCode());
+    org.junit.jupiter.api.Assertions.assertNotEquals(
+        first, new ServerVariable("v2", "version", java.util.List.of("v1", "v2")));
+  }
 
   @Test
   void bhvServers017ExposesDefaultValueWhenNoOverrideIsApplied() {

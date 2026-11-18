@@ -1115,7 +1115,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void cancelledRefreshIsRethrownWithoutFallingBack() {
+  void bhvAuth027CancelledRefreshIsRethrownWithoutFallingBack() {
     // Cancelling an in-flight refresh is not a refresh failure: the
     // original grant must not run behind the caller's back.
     AtomicInteger callCount = new AtomicInteger(0);

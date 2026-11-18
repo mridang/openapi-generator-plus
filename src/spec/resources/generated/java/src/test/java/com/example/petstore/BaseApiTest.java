@@ -405,7 +405,7 @@ class BaseApiTest {
 
     @Test
     @DisplayName("a request without an authenticator is not replayed on 401")
-    void noAuthenticatorNeverReplays() {
+    void bhvRetries043NoAuthenticatorNeverReplays() {
       var client = new ScriptedApiClient(401, 200);
       assertThrowsExactly(
           UnauthorizedException.class, () -> callWith(client, null, "{}", "application/json"));
@@ -1256,7 +1256,7 @@ class BaseApiTest {
 
     @Test
     @DisplayName("an invalid timeout or retry count is refused")
-    void anInvalidTimeoutOrRetryCountIsRefused() {
+    void bhvOptions056AnInvalidTimeoutOrRetryCountIsRefused() {
       assertThrows(IllegalArgumentException.class, () -> new FindPetsByStatusOptions().timeout(0));
       assertThrows(
           IllegalArgumentException.class, () -> new FindPetsByStatusOptions().maxRetries(-1));
@@ -2962,5 +2962,28 @@ class BaseApiTest {
           "URL must not contain a comma-joined debug rendering of colors, got: "
               + client.capturedUrl);
     }
+  }
+
+  /** The package-private query encoder of BaseApi, reached reflectively from this package. */
+  private static String encodeQueryComponent(String value) throws Exception {
+    java.lang.reflect.Method encode =
+        com.example.petstore.api.BaseApi.class.getDeclaredMethod("encode", String.class);
+    encode.setAccessible(true);
+    return (String) encode.invoke(new TestableApi("http://localhost"), value);
+  }
+
+  @Test
+  void bhvSerialization006QueryNameAndValueCannotAddAParameter() throws Exception {
+    assertEquals("a%26b%3Dc%20d", encodeQueryComponent("a&b=c d"));
+  }
+
+  @Test
+  void bhvSerialization007LiteralPlusIsSentAsPercent2BAndNonAsciiAsUtf8Bytes() throws Exception {
+    assertEquals("a%2Bb%20%C3%A9", encodeQueryComponent("a+b \u00e9"));
+  }
+
+  @Test
+  void bhvSerialization008ContentParameterIsJsonEncodedExactlyOnce() {
+    assertEquals("%7B%22k%22%3A%22v%22%7D", TestableApi.encodeCookie("{\"k\":\"v\"}"));
   }
 }
