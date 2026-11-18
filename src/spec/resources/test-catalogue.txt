@@ -1973,3 +1973,7 @@ langpython030 | Multi server operation offers each server.
 langpython031 | Request goes to the regional server of a multi server operation.
 langpython032 | A retryable status is sent again.
 langpython033 | The backoff waits before the retry.
+langpython034 | A basic authenticator compares by identity, so two instances with equal credentials are unequal and hash apart.
+langpython035 | Rejects empty token.
+langpython036 | Token is not leaked in repr.
+langpython037 | A refused password is named as the fault.
