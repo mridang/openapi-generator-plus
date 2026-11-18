@@ -463,13 +463,13 @@ public class TransportOptionsTest
     // Injected transport and cancellation
 
     [Fact]
-    public void CancellationTokenDefaultsToNone()
+    public void BhvLangcsharp057CancellationTokenDefaultsToNone()
     {
         Assert.Equal(CancellationToken.None, TransportOptions.Builder().Build().CancellationToken);
     }
 
     [Fact]
-    public void CancellationTokenIsPreservedOnReadBack()
+    public void BhvLangcsharp058CancellationTokenIsPreservedOnReadBack()
     {
         using var cts = new CancellationTokenSource();
         var opts = TransportOptions.Builder().CancellationToken(cts.Token).Build();
@@ -495,7 +495,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedClientAndHandlerTogetherFailFast()
+    public void BhvLangcsharp059SuppliedClientAndHandlerTogetherFailFast()
     {
         using var client = new HttpClient();
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
