@@ -736,6 +736,19 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert query_params(url)["scope"] == "read write"
     end
 
+    test "bhv misc 058 the configured authorization endpoint reaches the authorization URL exactly as configured" do
+      url = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(create_authenticator())
+
+      assert String.starts_with?(url, "https://auth.example.com/authorize?")
+      refute url =~ "/authorize/?"
+    end
+
+    test "bhv misc 062 the scopes the scheme declares reach the authorization URL" do
+      url = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(create_authenticator())
+
+      assert query_params(url)["scope"] == "read write"
+    end
+
     test "bhv auth 053 exchanging a code discards the refresh token previously held" do
       fake_client =
         FakeApiClient.new([
