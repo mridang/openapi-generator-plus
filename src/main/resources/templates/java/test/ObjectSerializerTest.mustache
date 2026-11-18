@@ -2886,8 +2886,8 @@ class ObjectSerializerTest {
         extras.put("a", 1);
         assertEquals("{\"a\":1,\"b\":2}", serializer.serialize(extras));
         {{modelPackage}}.Metadata metadata =
-                {{modelPackage}}.Metadata.builder().putAdditionalProperty("y", 1).putAdditionalProperty("x", 2).build();
-        assertTrue(serializer.serialize(metadata).endsWith("\"x\":2,\"y\":1}"), serializer.serialize(metadata));
+                {{modelPackage}}.Metadata.builder().putAdditionalProperty("y", "1").putAdditionalProperty("x", "2").build();
+        assertTrue(serializer.serialize(metadata).endsWith("\"x\":\"2\",\"y\":\"1\"}"), serializer.serialize(metadata));
     }
 
     @Test
@@ -3066,17 +3066,17 @@ class ObjectSerializerTest {
 
     @Test
     void bhvSerialization052UndeclaredKeysAreKeptAsAdditionalPropertiesOfNestedModels() {
-        {{modelPackage}}.Metadata decoded = serializer.deserialize("{\"extra\":true}", {{modelPackage}}.Metadata.class);
+        {{modelPackage}}.Metadata decoded = serializer.deserialize("{\"extra\":\"yes\"}", {{modelPackage}}.Metadata.class);
         assertNotNull(decoded);
-        assertEquals(true, decoded.getAdditionalProperties().get("extra"));
+        assertEquals("yes", decoded.getAdditionalProperties().get("extra"));
     }
 
     @Test
     void bhvSerialization053UndeclaredKeysAreWrittenBackAsKeysOfTheirModel() {
         {{modelPackage}}.Metadata decoded =
-                serializer.deserialize("{\"createdAt\":null,\"extra\":true}", {{modelPackage}}.Metadata.class);
+                serializer.deserialize("{\"createdAt\":null,\"extra\":\"yes\"}", {{modelPackage}}.Metadata.class);
         assertNotNull(decoded);
-        assertTrue(serializer.serialize(decoded).contains("\"extra\":true"));
+        assertTrue(serializer.serialize(decoded).contains("\"extra\":\"yes\""));
     }
 
     @Test
