@@ -5025,4 +5025,50 @@ public sealed class MultipartShadeConverter
         MultipartShade value,
         System.Text.Json.JsonSerializerOptions options
     ) => writer.WriteStringValue("red");
+
+    [Fact]
+    public async Task BhvMisc101AnUnreadableBodySourceFailsTheCall()
+    {
+        var handler = new CapturingHandler(async req =>
+        {
+            await req.Content!.ReadAsByteArrayAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "upload.bin", new UnreadableSource() } };
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("http://example.com/upload"),
+                new Dictionary<string, string>(),
+                formData
+            )
+        );
+    }
+
+    private sealed class UnreadableSource : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new IOException("source is gone");
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+    }
 }
