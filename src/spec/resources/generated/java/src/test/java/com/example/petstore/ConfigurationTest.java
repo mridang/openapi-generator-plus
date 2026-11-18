@@ -327,4 +327,18 @@ class ConfigurationTest {
     assertTrue(text.contains("https://api.example.com"), text);
     assertTrue(text.contains("Accept=text/plain"), text);
   }
+
+  @Test
+  void bhvMisc175CredentialHeaderNamesAreRecognisedWhateverTheirLetterCase() {
+    String text =
+        Configuration.builder()
+            .defaultHeader("AUTHORIZATION", "Bearer secret")
+            .defaultHeader("cOoKiE", "session=secret")
+            .defaultHeader("Accept", "text/plain")
+            .build()
+            .toString();
+    assertFalse(text.contains("Bearer secret"), text);
+    assertFalse(text.contains("session=secret"), text);
+    assertTrue(text.contains("Accept=text/plain"), text);
+  }
 }

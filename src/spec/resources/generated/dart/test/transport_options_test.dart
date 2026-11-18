@@ -12,6 +12,16 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('TransportOptions', () {
+    test(
+      'bhv misc 134 a zero timeout is refused when the builder sets it, with an argument error',
+      () {
+        expect(
+          () => TransportOptions.builder().timeout(0),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
     test('bhv misc 026 a configuration mistake is not an API exception', () {
       expect(
         () => TransportOptions.builder().timeout(-1),

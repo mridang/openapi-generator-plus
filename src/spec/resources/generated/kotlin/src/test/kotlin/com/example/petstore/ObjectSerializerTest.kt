@@ -61,6 +61,55 @@ internal data class WireNamedHolder(
     val ownerId: Long? = null,
 )
 
+@Serializable
+internal data class BytesHolder(
+    @SerialName("blob")
+    val blob: ByteArray,
+)
+
+@Serializable
+internal data class EmailHolder(
+    @SerialName("contact")
+    val contact: String,
+)
+
+@Serializable
+internal data class OrderHolder(
+    @SerialName("order")
+    val order: com.example.petstore.models.Order? = null,
+)
+
+@Serializable
+internal data class UniqueHolder(
+    @SerialName("tags")
+    val tags: Set<String>,
+)
+
+@Serializable
+internal data class DayHolder(
+    @SerialName("day")
+    @Contextual
+    val day: LocalDate,
+)
+
+@Serializable
+internal data class NeedsNameHolder(
+    @SerialName("name")
+    val name: String,
+)
+
+@Serializable
+internal data class DefaultsHolder(
+    @SerialName("status")
+    val status: String = "ready",
+)
+
+@Serializable
+internal data class TextMapHolder(
+    @SerialName("entries")
+    val entries: Map<String, String>,
+)
+
 class ObjectSerializerTest {
     private val serializer = ObjectSerializer()
 
@@ -3589,6 +3638,194 @@ class ObjectSerializerTest {
         fun bhvMisc090DurationWritesFractionalSecondsOnTheWire() {
             val json = serializer.serialize(mapOf("wait" to java.time.Duration.ofMillis(1500)))
             assertTrue(json.contains("\"wait\":\"1.500s\""), "got: $json")
+        }
+    }
+
+    @Nested
+    @DisplayName("model copies, collections and key matching")
+    inner class ModelCopyAndCollectionTests {
+        @Test
+        @DisplayName("bhvMisc102 a binary field keeps exactly the bytes it was given through copying")
+        fun bhvMisc102BinaryFieldKeepsItsBytes() {
+            val bytes = byteArrayOf(0, 1, -1, 127)
+            assertArrayEquals(bytes, BytesHolder(bytes).copy().blob)
+        }
+
+        @Test
+        @DisplayName("bhvMisc103 rejecting undeclared keys on one strict model leaves other models accepting them")
+        fun bhvMisc103StrictRejectionIsPerModel() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<ContextualStrict>("{\"ts\":\"2024-01-15T10:30:00Z\",\"extra\":1}")
+            }
+            assertNotNull(serializer.deserialize<com.example.petstore.models.Metadata>("{\"region\":\"emea\"}"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc104 a string field declared with the email format decodes without being validated")
+        fun bhvMisc104EmailFormatIsNotValidated() {
+            val holder = serializer.deserialize<EmailHolder>("{\"contact\":\"not-an-address\"}")
+            assertEquals("not-an-address", holder!!.contact)
+        }
+
+        @Test
+        @DisplayName("bhvMisc106 a null element in an array body keeps its position when serialized")
+        fun bhvMisc106NullArrayElementKeepsPosition() {
+            assertEquals("[\"a\",null,\"b\"]", serializer.serialize(listOf("a", null, "b")))
+        }
+
+        @Test
+        @DisplayName("bhvMisc109 decoding an object validates its nested objects with the same rules")
+        fun bhvMisc109NestedObjectIsValidated() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<OrderHolder>("{\"order\":{\"quantity\":1.5}}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc110 a date that is not a calendar date is refused with a serialization error")
+        fun bhvMisc110ImpossibleCalendarDateIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<DayHolder>("{\"day\":\"2024-02-30\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc111 a collection of unique strings is written in code point order")
+        fun bhvMisc111UniqueStringsAreWrittenSorted() {
+            assertEquals("[\"a\",\"b\"]", serializer.serialize(setOf("b", "a")))
+        }
+
+        @Test
+        @DisplayName("bhvMisc112 decoding an array that must be unique keeps one copy of each repeated element")
+        fun bhvMisc112RepeatedElementsCollapseToOne() {
+            val holder = serializer.deserialize<UniqueHolder>("{\"tags\":[\"a\",\"a\",\"b\"]}")
+            assertEquals(2, holder!!.tags.size)
+        }
+
+        @Test
+        @DisplayName("bhvMisc115 serializing a bare string yields a quoted JSON string")
+        fun bhvMisc115BareStringIsQuoted() {
+            assertEquals("\"hi\"", serializer.serialize("hi"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc117 serializing an absent value writes the JSON literal null")
+        fun bhvMisc117AbsentValueIsNull() {
+            assertEquals("null", serializer.serialize(null))
+        }
+
+        @Test
+        @DisplayName("bhvMisc118 the exact-case property is decoded when a differently cased duplicate is present")
+        fun bhvMisc118ExactCaseKeyWins() {
+            val holder = serializer.deserialize<WireNamedHolder>("{\"owner_id\":5,\"OWNER_ID\":9}")
+            assertEquals(5L, holder!!.ownerId)
+        }
+
+        @Test
+        @DisplayName("bhvMisc119 two keys that differ only by an escape sequence are one key, and the last value wins")
+        fun bhvMisc119EscapedKeyMatchesAndLastValueWins() {
+            val holder = serializer.deserialize<WireNamedHolder>("{\"owner_id\":5,\"owner\\u005fid\":9}")
+            assertEquals(9L, holder!!.ownerId)
+        }
+    }
+
+    @Nested
+    @DisplayName("object without a declared schema")
+    inner class UndeclaredObjectTests {
+        @Test
+        @DisplayName("bhvMisc121 an object with no declared schema is written as a JSON object of its properties")
+        fun bhvMisc121UndeclaredObjectIsWrittenAsJsonObject() {
+            assertEquals("{\"k\":\"v\"}", serializer.serialize(mapOf("k" to "v")))
+        }
+    }
+
+    @Nested
+    @DisplayName("model defaults, required fields and equality")
+    inner class ModelDefaultsAndEqualityTests {
+        @Test
+        @DisplayName("bhvMisc140 a missing required property fails the decode with an error that names it")
+        fun bhvMisc140MissingRequiredPropertyIsNamed() {
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<NeedsNameHolder>("{}")
+                }
+            assertTrue(ex.message!!.contains("name"), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvMisc141 a model built without a value for a defaulted property holds the schema default")
+        fun bhvMisc141DefaultedPropertyHoldsItsDefault() {
+            assertEquals("ready", DefaultsHolder().status)
+        }
+
+        @Test
+        @DisplayName("bhvMisc142 additional-property values are returned unchanged by key and the map holds exactly them")
+        fun bhvMisc142AdditionalPropertiesHoldExactlyTheStoredEntries() {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"region\":\"emea\",\"tier\":\"gold\"}")
+            assertEquals(mapOf("region" to "emea", "tier" to "gold"), meta!!.additionalProperties)
+        }
+
+        @Test
+        @DisplayName("bhvMisc143 a model with additional properties copies them and compares equal to the original")
+        fun bhvMisc143CopyKeepsAdditionalPropertiesAndEquality() {
+            val original = serializer.deserialize<com.example.petstore.models.Metadata>("{\"region\":\"emea\"}")!!
+            val copy = original.copy()
+            assertEquals(original, copy)
+            assertEquals("emea", copy.additionalProperties["region"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc144 validating a model refuses a string given for a numeric field")
+        fun bhvMisc144StringForNumericFieldIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":\"3\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc145 reading the undeclared keys returns a copy, so changing it leaves the instance unchanged")
+        fun bhvMisc145UndeclaredKeysReadAsCopy() {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"region\":\"emea\"}")!!
+            runCatching { (meta.additionalProperties as MutableMap<String, Any?>)["extra"] = "x" }
+            assertFalse(meta.additionalProperties.containsKey("extra"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc146 copying a model with no changes yields a new instance equal to the original")
+        fun bhvMisc146CopyWithNoChangesIsEqualAndNew() {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"region\":\"emea\"}")!!
+            val copy = meta.copy()
+            assertNotSame(meta, copy)
+            assertEquals(meta, copy)
+        }
+
+        @Test
+        @DisplayName("bhvMisc147 a copy of a model holds the same nested object as the original")
+        fun bhvMisc147CopySharesNestedObject() {
+            val holder = MetadataHolder(meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"region\":\"emea\"}"))
+            assertSame(holder.meta, holder.copy().meta)
+        }
+
+        @Test
+        @DisplayName("bhvMisc148 a copy serializes to the wire form of the original with its changes applied")
+        fun bhvMisc148CopySerializesWithItsChanges() {
+            val changed = MetadataHolder(label = "old").copy(label = "new")
+            val json = serializer.serialize(changed)
+            assertTrue(json.contains("\"label\":\"new\""), "got: $json")
+        }
+
+        @Test
+        @DisplayName("bhvMisc150 models whose fields hold equal values compare equal and differing values compare unequal")
+        fun bhvMisc150ModelEqualityFollowsFieldValues() {
+            assertEquals(MetadataHolder(label = "a"), MetadataHolder(label = "a"))
+            assertNotEquals(MetadataHolder(label = "a"), MetadataHolder(label = "b"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc151 a model holding a map compares equal only when the maps hold the same entries")
+        fun bhvMisc151MapFieldEqualityFollowsEntries() {
+            assertEquals(TextMapHolder(mapOf("k" to "v")), TextMapHolder(mapOf("k" to "v")))
+            assertNotEquals(TextMapHolder(mapOf("k" to "v")), TextMapHolder(mapOf("k" to "w")))
         }
     }
 }

@@ -577,3 +577,71 @@ func TestBhvMisc158_ServerConfiguration_AFixedURLIsReportedUnchanged(t *testing.
 		t.Errorf("expected the fixed URL unchanged, got %q and %v", url, err)
 	}
 }
+
+// A variable declared with an empty enum accepts any value and the URL is built from it.
+func TestBhvMisc257_ServerConfiguration_EmptyEnumVariableAcceptsAnyValue(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/api",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", []string{}),
+		},
+	)
+
+	got, err := server.URL(map[string]string{"env": "anything-goes"})
+	if err != nil || got != "https://anything-goes.example.com/api" {
+		t.Errorf("expected the override in the URL, got %q and %v", got, err)
+	}
+}
+
+// A variable with no override uses its default value in the URL.
+func TestBhvMisc258_ServerConfiguration_MissingOverrideUsesTheDefault(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/api",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("staging", "", []string{}),
+		},
+	)
+
+	got, err := server.URL(map[string]string{})
+	if err != nil || got != "https://staging.example.com/api" {
+		t.Errorf("expected the default in the URL, got %q and %v", got, err)
+	}
+}
+
+// A placeholder with no declared variable stays in the URL exactly as written.
+func TestBhvMisc259_ServerConfiguration_UndeclaredPlaceholderStaysInTheUrl(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/{unknown}",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", []string{}),
+		},
+	)
+
+	got, err := server.URL(map[string]string{"env": "api"})
+	if err != nil || got != "https://api.example.com/{unknown}" {
+		t.Errorf("expected the placeholder kept, got %q and %v", got, err)
+	}
+}
+
+// A value containing backslash sequences is inserted into the URL exactly as given.
+func TestBhvMisc261_ServerConfiguration_BackslashSequencesAreInsertedLiterally(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/api",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", []string{}),
+		},
+	)
+
+	got, err := server.URL(map[string]string{"env": `a\n\b`})
+	if err != nil || got != `https://a\n\b.example.com/api` {
+		t.Errorf("expected the backslashes kept literally, got %q and %v", got, err)
+	}
+}

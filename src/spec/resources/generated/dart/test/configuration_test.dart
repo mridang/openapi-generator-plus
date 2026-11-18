@@ -152,6 +152,20 @@ void main() {
     });
 
     test(
+      'bhv misc 136 the debug text shows the base URL and the non-sensitive default headers',
+      () {
+        final text = Configuration.builder()
+            .baseUrl('https://api.example.com')
+            .defaultHeader('Accept', 'text/plain')
+            .build()
+            .toString();
+
+        expect(text, contains('https://api.example.com'));
+        expect(text, contains('text/plain'));
+      },
+    );
+
+    test(
       'bhv config 022 mutating the returned default headers does not change the configuration',
       () {
         final config = ConfigurationBuilder()

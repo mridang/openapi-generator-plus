@@ -492,3 +492,14 @@ describe('TransportOptions builder refusals and proxy', () => {
     expect(options.proxy).toBeFalsy();
   });
 });
+
+describe('TransportOptions inspected form misc behaviours', () => {
+  it('bhv misc 180 the inspect form shows the values of non-sensitive default headers and hides sensitive ones', () => {
+    const options = TransportOptions.builder()
+      .defaultHeader('X-Visible', 'shown-value')
+      .defaultHeader('Authorization', 'Bearer hidden-secret')
+      .build();
+    expect(String(options)).toContain('shown-value');
+    expect(String(options)).not.toContain('hidden-secret');
+  });
+});
