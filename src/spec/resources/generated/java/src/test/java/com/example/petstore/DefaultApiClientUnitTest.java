@@ -1664,6 +1664,75 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvSerialization057MultipartNameWithNulOrLineBreakIsRefusedBeforeAnyRequest()
+      throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(200, ""), hits);
+    try {
+      for (String name : List.of("bad\0name", "bad\r\nname", "bad\nname")) {
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new DefaultApiClient()
+                    .sendRequest("POST", urlOf(scripted), Map.of(), Map.of(name, "value")));
+      }
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> DefaultApiClient.validateMultipartFilename("file\nname.txt"));
+      assertEquals(0, hits.get(), "no request may reach the server");
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvSerialization058MultipartPartWithoutAFilenameExtensionIsSentAsOctetStream()
+      throws Exception {
+    java.io.File blob = java.io.File.createTempFile("blob", "");
+    blob.deleteOnExit();
+    java.nio.file.Files.write(blob.toPath(), new byte[] {1, 2, 3});
+
+    String part = renderMultipartPart("upload", blob);
+
+    assertTrue(
+        part.contains("Content-Type: application/octet-stream"),
+        "a part with no filename extension must be sent as octet-stream, got: " + part);
+  }
+
+  @Test
+  void bhvSerialization059RawBytesPartCarriesExactlyItsBytes() throws Exception {
+    byte[] payload = new byte[] {0, (byte) 0xFF, '\r', '\n', 'A'};
+    DefaultApiClient client = new DefaultApiClient();
+    java.lang.reflect.Method method =
+        DefaultApiClient.class.getDeclaredMethod(
+            "addMultipartField", List.class, String.class, String.class, Object.class);
+    method.setAccessible(true);
+    List<byte[]> chunks = new java.util.ArrayList<>();
+    method.invoke(client, chunks, "BOUNDARY", "blob", payload);
+    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    for (byte[] chunk : chunks) {
+      out.write(chunk);
+    }
+    String wire = out.toString(StandardCharsets.ISO_8859_1);
+
+    assertTrue(
+        wire.contains("\r\n\r\n" + new String(payload, StandardCharsets.ISO_8859_1) + "\r\n"),
+        "the raw byte part must carry exactly its bytes, got: " + wire);
+  }
+
+  @Test
+  void bhvSerialization060ModelPartDeclaresApplicationJsonMediaType() throws Exception {
+    MultipartModelPart metadata = new MultipartModelPart();
+    metadata.isEnabled = false;
+
+    String part = renderMultipartPart("metadata", metadata);
+
+    assertTrue(
+        part.contains("name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{"),
+        "a model multipart part must declare application/json, got: " + part);
+  }
+
+  @Test
   void bhvSerializationWire049MultipartRawBytesPartReusesFieldNameAsFilenameWithOctetStream()
       throws Exception {
     String part = renderMultipartPart("file", new byte[] {0x00, 0x01, 0x02});

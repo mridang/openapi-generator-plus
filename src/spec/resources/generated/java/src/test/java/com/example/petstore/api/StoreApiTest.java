@@ -495,6 +495,17 @@ class StoreApiTest {
   }
 
   @Test
+  void bhvUnions036StatusCodeNotBodyShapeSelectsTheVariant() throws Exception {
+    String receipt = "{\"receiptCode\":\"rcpt-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+
+    assertThatThrownBy(() -> newStoreApiForMock(200, "application/json", receipt).reserveStock())
+        .isInstanceOf(com.example.petstore.errors.SerializationException.class);
+    com.example.petstore.models.ReserveStockResponse created =
+        newStoreApiForMock(201, "application/json", receipt).reserveStock();
+    assertThat(created.asReservationReceipt()).isPresent();
+  }
+
+  @Test
   void bhvOperations154ReserveStockRejectsABodyThatDoesNotMatchTheSchemaOfItsStatus()
       throws Exception {
     StoreApi mockApi =

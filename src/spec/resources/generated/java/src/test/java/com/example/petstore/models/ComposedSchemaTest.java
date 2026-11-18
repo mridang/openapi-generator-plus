@@ -235,6 +235,14 @@ class ComposedSchemaTest {
     }
 
     @Test
+    @DisplayName("bhvUnions043 a discriminator value already set on a subtype is written as given")
+    void bhvUnions043SetDiscriminatorIsWrittenAsGiven() {
+      DryFood food = DryFood.builder().foodType("custom").weightKg(2.5).build();
+
+      assertThat(serializer.serialize(food)).contains("\"foodType\":\"custom\"");
+    }
+
+    @Test
     @DisplayName(
         "bhvUnions033 an unknown, missing or empty discriminator fails with the serialization"
             + " error")
