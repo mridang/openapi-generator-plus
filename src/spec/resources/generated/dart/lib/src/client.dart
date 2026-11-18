@@ -10,6 +10,7 @@ import 'dart:async';
 import 'auth/authenticator.dart';
 import 'auth/bearer_authenticator.dart';
 import 'auth/http_aware_authenticator.dart';
+import 'call_hook.dart';
 import 'configuration.dart';
 import 'default_api_client.dart';
 import 'transport_options.dart';
@@ -58,10 +59,23 @@ class Client {
     Authenticator? authenticator,
     required Map<String, Authenticator> schemes,
     required DefaultApiClient apiClient,
+    CallHook? callHook,
   }) : _apiClient = apiClient,
-       pet = _createPetApi(host, authenticator, schemes, apiClient),
-       problems = _createProblemsApi(host, authenticator, schemes, apiClient),
-       store = _createStoreApi(host, authenticator, schemes, apiClient);
+       pet = _createPetApi(host, authenticator, schemes, apiClient, callHook),
+       problems = _createProblemsApi(
+         host,
+         authenticator,
+         schemes,
+         apiClient,
+         callHook,
+       ),
+       store = _createStoreApi(
+         host,
+         authenticator,
+         schemes,
+         apiClient,
+         callHook,
+       );
 
   /// Creates a new client from its credentials and transport options.
   ///
@@ -81,6 +95,8 @@ class Client {
   ///     scheme credential matches
   ///   - [transportOptions]: HTTP transport configuration (proxy, TLS,
   ///     timeouts, etc.)
+  ///   - [callHook]: called around every operation call of every API group
+  ///     (see [CallHook])
   factory Client({
     Authenticator? authenticator,
     Authenticator? petStoreBasic,
@@ -97,6 +113,7 @@ class Client {
     Authenticator? browserAuth,
     Authenticator? ssoAuth,
     TransportOptions? transportOptions,
+    CallHook? callHook,
   }) {
     final schemes = <String, Authenticator>{
       if (petStoreBasic != null) 'petStoreBasic': petStoreBasic,
@@ -132,6 +149,7 @@ class Client {
       authenticator: authenticator,
       schemes: schemes,
       apiClient: apiClient,
+      callHook: callHook,
     );
   }
 
@@ -140,8 +158,12 @@ class Client {
     Authenticator? authenticator,
     Map<String, Authenticator> schemes,
     DefaultApiClient apiClient,
+    CallHook? callHook,
   ) {
-    final config = ConfigurationBuilder().baseUrl(host.host()).build();
+    final config = ConfigurationBuilder()
+        .baseUrl(host.host())
+        .callHook(callHook)
+        .build();
     return PetApi(
       apiClient: apiClient,
       config: config,
@@ -155,8 +177,12 @@ class Client {
     Authenticator? authenticator,
     Map<String, Authenticator> schemes,
     DefaultApiClient apiClient,
+    CallHook? callHook,
   ) {
-    final config = ConfigurationBuilder().baseUrl(host.host()).build();
+    final config = ConfigurationBuilder()
+        .baseUrl(host.host())
+        .callHook(callHook)
+        .build();
     return ProblemsApi(
       apiClient: apiClient,
       config: config,
@@ -170,8 +196,12 @@ class Client {
     Authenticator? authenticator,
     Map<String, Authenticator> schemes,
     DefaultApiClient apiClient,
+    CallHook? callHook,
   ) {
-    final config = ConfigurationBuilder().baseUrl(host.host()).build();
+    final config = ConfigurationBuilder()
+        .baseUrl(host.host())
+        .callHook(callHook)
+        .build();
     return StoreApi(
       apiClient: apiClient,
       config: config,
@@ -203,11 +233,13 @@ class Client {
   ///   - [tokenProvider]: returns the current Bearer token; may be asynchronous
   ///   - [transportOptions]: optional HTTP transport configuration (proxy,
   ///     TLS, timeouts, etc.)
+  ///   - [callHook]: called around every operation call (see [CallHook])
   factory Client.withToken({
     required String host,
     String? accessToken,
     FutureOr<String> Function()? tokenProvider,
     TransportOptions? transportOptions,
+    CallHook? callHook,
   }) {
     return Client(
       authenticator: BearerAuthenticator(
@@ -216,6 +248,7 @@ class Client {
         tokenProvider: tokenProvider,
       ),
       transportOptions: transportOptions,
+      callHook: callHook,
     );
   }
 

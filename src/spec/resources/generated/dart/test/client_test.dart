@@ -318,5 +318,73 @@ void main() {
       expect(client.problems, isNotNull);
       expect(client.store, isNotNull);
     });
+
+    test(
+      'bhv hooks 010 a hook given to the client fires for an operation when the caller supplied the transport',
+      () async {
+        final hook = _CountingHook();
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'https://api.example.com',
+            token: 'test-token',
+          ),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(
+                MockClient(
+                  (_) async => http.Response(
+                    '{"name":"a","photoUrls":[]}',
+                    200,
+                    headers: {'content-type': 'application/json'},
+                  ),
+                ),
+              )
+              .build(),
+          callHook: hook,
+        );
+
+        await client.pet.getPetById(1, null, null);
+
+        expect(hook.starts, equals(1));
+        expect(hook.finishes, equals(1));
+      },
+    );
+
+    test('the client hands the call hook to every API group', () async {
+      final hook = _CountingHook();
+      final client = Client.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'test-token',
+        transportOptions: TransportOptionsBuilder()
+            .httpClient(MockClient((_) async => http.Response('{}', 404)))
+            .build(),
+        callHook: hook,
+      );
+
+      expect(client.pet.config.callHook, same(hook));
+      expect(client.problems.config.callHook, same(hook));
+      expect(client.store.config.callHook, same(hook));
+    });
   });
+}
+
+class _CountingHook implements CallHook {
+  int starts = 0;
+  int finishes = 0;
+
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    starts++;
+    return _CountingObserver(this);
+  }
+}
+
+class _CountingObserver implements CallObserver {
+  _CountingObserver(this._hook);
+
+  final _CountingHook _hook;
+
+  @override
+  void finish(CallOutcome outcome) {
+    _hook.finishes++;
+  }
 }

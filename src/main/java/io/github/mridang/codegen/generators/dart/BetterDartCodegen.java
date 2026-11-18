@@ -458,6 +458,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("iso8601_duration.mustache", srcDir, "iso8601_duration.dart"),
             new SupportingFileSpec("value_serializer.mustache", srcDir, "value_serializer.dart"),
             new SupportingFileSpec("trace_context_util.mustache", srcDir, "trace_context_util.dart"),
+            new SupportingFileSpec("call_hook.mustache", srcDir, "call_hook.dart"),
+            new SupportingFileSpec("call_info.mustache", srcDir, "call_info.dart"),
+            new SupportingFileSpec("call_outcome.mustache", srcDir, "call_outcome.dart"),
             new SupportingFileSpec("api_response.mustache", srcDir, "api_http_response.dart"),
             new SupportingFileSpec("api_result.mustache", srcDir, "api_result.dart"),
             new SupportingFileSpec("api_client.mustache", srcDir, "api_client.dart"),
@@ -532,6 +535,14 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/trace_context_util_test.mustache",
                             "test",
                             "trace_context_util_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/call_hook_test.mustache", "test", "call_hook_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/call_hook_recipe_test.mustache",
+                            "test",
+                            "call_hook_recipe_test.dart"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/configuration_test.mustache",
