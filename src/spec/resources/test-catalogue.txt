@@ -2154,3 +2154,8 @@ langnode049 | An empty API key is rejected at construction
 langnode050 | A discriminated oneOf variant with a wrong-typed field is rejected
 langnode051 | An anyOf composite is a constructable class
 langnode052 | An anyOf variant with a wrong-typed field is rejected
+langnode053 | The signal is undefined by default
+langnode054 | The printable form of a configuration omits the signal
+langnode055 | The call hook is undefined by default
+langnode056 | The builder stores the call hook
+langnode057 | The printable form of a configuration omits the call hook
