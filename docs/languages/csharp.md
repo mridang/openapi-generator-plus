@@ -89,6 +89,7 @@ The model namespace is always `Models` and the API namespace is always `Api`; th
 - **Raw responses.** Every operation has a `...WithHttpInfoAsync` variant returning `ApiResult<T>`.
 - **Custom transport.** `TransportOptionsBuilder.HttpClient(...)` and `HttpMessageHandler(...)` carry requests on your own client or handler; combining them with `Proxy`, `CaCertPath` or `VerifySsl(false)` fails in `Build()` with `ArgumentException`. You can also implement `IApiClient` and inject it.
 - **Trimming.** The SDK works with `PublishTrimmed`; expect the `IL2026` and `IL2075` trim warnings that any reflection-based serializer produces.
+- With `generateExamples` on, the project ships `examples/Quickstart/` (`Quickstart.csproj` and a top-level `Program.cs`) that builds a client with `Client.WithToken` from `{PREFIX}_HOST` and `{PREFIX}_TOKEN`, awaits the example operation and disposes the client with `using var`. It is a project of its own with the same analyzer settings as the SDK, the test project leaves `examples/**` out of its compile items, `make examples` builds it and `make examples-run` runs it.
 
 ## Known limits
 
