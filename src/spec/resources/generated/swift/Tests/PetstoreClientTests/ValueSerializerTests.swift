@@ -474,7 +474,7 @@ import Testing
 
   // MARK: - SerializeDeepObject
 
-  @Test func testSerializeDeepObject() {
+  @Test func testBhvSerializationparam111SerializeDeepObject() {
     let result = ValueSerializer.serializeDeepObject(
       "filter",
       value: [
@@ -565,7 +565,7 @@ import Testing
     #expect(pairs.map { $0.value } == ["lab", "3"])
   }
 
-  @Test func testNestedObjectFieldIsASerializationError() throws {
+  @Test func testBhvSerializationparam108NestedObjectFieldIsASerializationError() throws {
     let value = Nested(name: "n", inner: Criteria(breed: "lab"))
     #expect(throws: SerializationError.self) {
       _ = try ValueSerializer.serializeDeepObjectValue("criteriaDeep", value: value)
@@ -584,11 +584,38 @@ import Testing
 
   // MARK: - Fallback
 
-  @Test func testSerializeStyledUnknownStyleFallback() {
+  @Test func testBhvSerializationparam109SerializeStyledUnknownStyleFallback() {
     let result = ValueSerializer.serializeStyled(
       "id", value: "5", location: "query", schemaType: "string", collectionFormat: "",
       style: "unknownStyle", explode: false)
     #expect(result as? String == "5")
+  }
+
+  /* A null element keeps its empty slot in a non-exploded form array, so 1,,3 keeps each value in its position. */
+  @Test func testBhvSerializationparam115FormArrayKeepsAnEmptySlotForANullElement() {
+    let ids: [Any?] = [1, nil, 3]
+    let result = ValueSerializer.serializeStyled(
+      "ids", value: ids, location: "query", schemaType: "array", collectionFormat: "",
+      style: "form", explode: false)
+    #expect(result as? String == "1,,3")
+  }
+
+  /* A set in form style without explode joins its elements with commas, as an array does. */
+  @Test func testBhvSerializationparam117SetJoinsLikeAnArrayInFormStyle() {
+    let colors: Set<String> = ["red", "green"]
+    let result = ValueSerializer.serializeStyled(
+      "color", value: colors, location: "query", schemaType: "array", collectionFormat: "",
+      style: "form", explode: false)
+    let parts = (result as? String)?.split(separator: ",").map(String.init) ?? []
+    #expect(parts.count == 2)
+    #expect(Set(parts) == ["red", "green"])
+  }
+
+  /* The RFC 3986 unreserved tilde is never percent-encoded in a path value. */
+  @Test func testBhvSerializationparam119TildeIsKeptLiteralInAPathValue() {
+    let result = ValueSerializer.serializeValue(
+      "a~b", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "a~b")
   }
 
   @Test func testBhvSerializationparam035SerializeStyledEmptyStyle() {
@@ -825,7 +852,7 @@ import Testing
   /* A cookie value keeps only the RFC 3986 unreserved characters literal, so
      a JSON text never carries a quote, comma, semicolon or space into the
      Cookie header. */
-  @Test func testEncodeCookieValueEscapesJsonPunctuation() {
+  @Test func testBhvSerializationparam118EncodeCookieValueEscapesJsonPunctuation() {
     #expect(
       ValueSerializer.encodeCookieValue("{\"a\": \"b;c,d\"}")
         == "%7B%22a%22%3A%20%22b%3Bc%2Cd%22%7D")

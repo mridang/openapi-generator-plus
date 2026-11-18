@@ -68,7 +68,9 @@ import Testing
   /* allowReserved: the encoder keeps the query-legal reserved set literal and
      writes [ and ] as %5B and %5D itself, so Foundation's URL leaves the
      encoder bytes untouched on the wire. */
-  @Test func testAllowReservedQueryKeepsReservedCharactersOnTheWire() async throws {
+  @Test func testBhvSerializationparam122AllowReservedQueryKeepsReservedCharactersOnTheWire()
+    async throws
+  {
     let value = ":/?@!$()*+,;~'[]"
     let query = BaseApi.buildQueryString([
       "revision": ValueSerializer.AllowReservedValue(value: value)
@@ -320,7 +322,7 @@ import Testing
     }
   }
 
-  @Test func testMultipartFilenameWithQuoteIsEscaped() throws {
+  @Test func testBhvSerializationwire061MultipartFilenameWithQuoteIsEscaped() throws {
     let formParts: [String: Any] = ["a\"b.txt": Data([0x01])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""

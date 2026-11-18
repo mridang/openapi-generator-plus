@@ -183,3 +183,7 @@ kotlin | transport061 | Kotlin request bodies are ByteArray values and the Multi
 php | transport060 | PHP has no per-call cancellation handle and no cancellation error (S7): a call runs synchronously and is bounded only by the TransportOptions timeout, pinned by bhv transport 024
 ruby | transport064 | Net::HTTP reads each response body in full before Faraday hands it to the SDK, so a refused redirect never holds an intermediate connection or body the SDK has to release
 rust | servers020 | the per-operation server variable is a Rust enum (GetStagingPetInfoServerEnvironment), so a value outside its enum cannot be constructed; the compiler rejects it before the call
+swift | serializationobject230 | format: time maps to String in Swift (as serializationobject164), so there is no Time value to stringify or parse and the wire string passes through unchanged
+swift | serializationparam110 | format: date maps to String in Swift (as serializationobject044), so a date parameter is the YYYY-MM-DD string the caller passes and no Date is turned into a date-only form
+swift | serializationparam120 | format: date maps to String in Swift (as serializationobject044), so an array of date parameters is an array of the YYYY-MM-DD strings the caller passes and no Date element is formatted
+swift | servers020 | a per-operation server is a generated struct whose variables are Swift enums (GetStagingPetInfoServerStagingServer takes environment as an enum), so a value outside the enum cannot be constructed and the compiler rejects it before the SDK runs

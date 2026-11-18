@@ -26,6 +26,14 @@ import Testing
         #expect(!header.contains { $0.contains("\\\"") })
     }
 
+    /* A model's externalDocs description is printed verbatim: the quotes, angle brackets and ampersand stay as written, with no HTML entities. */
+    @Test func testBhvSerializationobject227ModelExternalDocsDescriptionIsVerbatim() throws {
+        let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/{{packageName}}/Models/Account.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        #expect(source.contains("/// See https://example.com/docs/account Account <docs> & \"notes\" it's here"))
+    }
+
     @Test func testDeserializeFromJSON() throws {
         // Use ObjectSerializer.deserialize which has the correct ISO-8601 date strategy
         let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
