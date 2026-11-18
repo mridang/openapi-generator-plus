@@ -4967,3 +4967,17 @@ func TestBhvMisc108_ObjectSerializer_Serialize_IntegerEnumMemberKeepsItsWireValu
 		t.Errorf("expected wire value 1, got %s", string(data))
 	}
 }
+
+// A wire key literally named additional_properties is kept as an undeclared extra, not taken for the extras container.
+func TestBhvMisc287_ObjectSerializer_AWireKeyNamedAdditionalPropertiesIsKeptAsAnExtra(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00","additional_properties":"kept"}`)
+
+	var metadata models.Metadata
+	if err := deserialize(input, &metadata); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := metadata.AdditionalProperties["additional_properties"]; got != "kept" {
+		t.Errorf("expected the extra key kept, got %v", got)
+	}
+}

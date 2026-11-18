@@ -264,6 +264,29 @@ class BearerAuthenticatorTest {
         assertFalse(ex.toString().contains(secret), ex.toString())
     }
 
+    @Test
+    fun bhvMisc066ATokenProviderValueIsSentAsTheBearerCredential() =
+        runBlocking<Unit> {
+            val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { "provided-token" })
+            assertEquals("Bearer provided-token", auth.getAuthHeaders()["Authorization"])
+        }
+
+    @Test
+    fun bhvMisc067AFailingTokenProviderFailsTheRequestWithThatSameError() {
+        val failure = IllegalStateException("provider unavailable")
+        val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { throw failure })
+        val ex = assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
+        assertSame(failure, ex)
+    }
+
+    @Test
+    fun bhvMisc068AnEmptyTokenArgumentCountsAsNotPassedAndReadsTheEnvironment() {
+        val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")
+        val auth = withEnvironment(env) { BearerAuthenticator("https://api.example.com", "") }
+        val headers = withEnvironment(env) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Bearer from-env", headers["Authorization"])
+    }
+
     private fun <T> withEnvironment(
         values: Map<String, String>,
         body: () -> T,

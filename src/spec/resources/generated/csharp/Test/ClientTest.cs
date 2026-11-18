@@ -1361,4 +1361,32 @@ public sealed class ClientTest : IDisposable
         Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator));
         Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.SsoAuthAuthenticator));
     }
+
+    [Fact]
+    public void BhvMisc183ClosingAClientWhoseCredentialHoldsNothingToReleaseSucceeds()
+    {
+        var client = new Client(new BearerAuthenticator("http://authenticator.invalid", "tok"));
+
+        Assert.Null(Record.Exception(() => client.Dispose()));
+    }
+
+    [Fact]
+    public async Task BhvMisc187AClientBuiltWithoutHostOrTokenTakesBothFromTheEnvironment()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://env.example.test",
+            "env-value",
+            () => client = Client.FromEnvironment(transportOptions: transport)
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer env-value", handler.Authorization);
+        Assert.Equal("env.example.test", handler.RequestUri?.Host);
+    }
 }
