@@ -2584,11 +2584,6 @@ components:
           type: string
           format: duration
           example: 3600s
-        waits:
-          type: object
-          additionalProperties:
-            type: string
-            format: duration
         since:
           type: string
           format: date
