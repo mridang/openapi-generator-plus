@@ -108,9 +108,14 @@ test('bhv options 031 rejects a zero timeout with the canonical message', functi
         ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
 });
 
-test('rejects a negative maxRedirects', function (): void {
+test('bhv options 045 rejects a negative maxRedirects', function (): void {
     expect(fn () => TransportOptions::builder()->maxRedirects(-1)->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRedirects: must not be negative (got -1)');
+});
+
+test('bhv options 047 constructor rejects a negative timeout at configuration', function (): void {
+    expect(fn () => new TransportOptions(timeout: -5))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got -5)');
 });
 
 test('bhv options 024 invalid proxy url throws exception', function (): void {
@@ -231,12 +236,12 @@ test('bhv options 014 an upper-case proxy scheme is accepted', function (): void
     expect($opts->proxy)->toBe('HTTP://proxy:3128');
 });
 
-test('builder rejects a proxy with a non http scheme at build', function (): void {
+test('bhv options 051 builder rejects a proxy with a non http scheme at build', function (): void {
     expect(fn () => TransportOptions::builder()->proxy('ftp://proxy:21')->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): ftp://proxy:21');
 });
 
-test('constructor rejects a proxy with a non http scheme', function (): void {
+test('bhv options 046 constructing directly with a non http proxy scheme is rejected', function (): void {
     expect(fn () => new TransportOptions(proxy: 'socks5://proxy:1080'))
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
 });

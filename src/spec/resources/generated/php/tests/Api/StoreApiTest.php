@@ -89,6 +89,39 @@ function newHeaderCapturingStoreApi(): array
     return [new StoreApi(apiClient: $client, config: $config), $captured];
 }
 
+test('bhv operations 148 an operation that inherits the root security uses the first scheme the client holds', function (): void {
+    $captured = new \stdClass();
+    $captured->headers = [];
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
+        {
+            $this->captured->headers = $headers;
+
+            return new \PetstoreClient\ApiHttpResponse(200, '{"id":1}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $api = new StoreApi(
+        apiClient: $client,
+        config: Configuration::builder()->baseUrl('http://localhost:9999')->build(),
+        schemeAuthenticators: [
+            'petStoreBasic' => new \PetstoreClient\Auth\BasicAuthenticator('http://localhost:9999', 'admin', 'password'),
+            'petStoreBearer' => new \PetstoreClient\Auth\BearerAuthenticator('http://localhost:9999', 'scheme-token'),
+        ],
+    );
+
+    $api->getOrderById(1);
+
+    expect($captured->headers['Authorization'] ?? null)->toStartWith('Basic ');
+});
+
 test('bhv operations 096 an operation without parameters or security takes per call headers', function (): void {
     [$api, $captured] = newHeaderCapturingStoreApi();
 
@@ -326,6 +359,18 @@ test('bhv operations 120 an operation with several 2xx responses decodes the bod
     'the 201 body is a ReservationReceipt' => [201, ReservationReceipt::class],
 ]);
 
+test('bhv operations 129 reserve stock decodes a 200 body as the existing reservation', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{"reservationId":31,"quantity":4}');
+
+    $union = $api->reserveStock();
+
+    expect($union->isReservation())->toBeTrue();
+    expect($union->isReservationReceipt())->toBeFalse();
+    expect($union->asReservation()?->reservationId)->toBe(31);
+    expect($union->asReservation()?->quantity)->toBe(4);
+    expect($union->asReservationReceipt())->toBeNull();
+});
+
 test('a multi 2xx result has a typed factory, test and accessor per variant', function (): void {
     $reservation = new Reservation(reservationId: 7, quantity: 2);
     $union = ReserveStockResponse::fromReservation($reservation);
@@ -334,6 +379,24 @@ test('a multi 2xx result has a typed factory, test and accessor per variant', fu
     expect($union->isReservationReceipt())->toBeFalse();
     expect($union->asReservation())->toBe($reservation);
     expect($union->asReservationReceipt())->toBeNull();
+});
+
+test('bhv operations 128 an unserializable content query parameter raises and sends no request', function (): void {
+    $client = new \PetstoreClient\Test\CapturingApiClient();
+    $api = new StoreApi(apiClient: $client, config: Configuration::builder()->baseUrl('http://localhost')->build());
+    $photo = new \PetstoreClient\Models\PhotoMetadata(
+        location: new \PetstoreClient\Models\PhotoMetadataLocation(lat: \NAN),
+    );
+
+    expect(fn () => $api->searchStore(new \PetstoreClient\Api\Options\SearchStoreOptions(q: $photo)))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv operations 130 a malformed 2xx json body propagates the deserialization error', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '[1,2');
+
+    expect(fn () => $api->getOrderById(1))->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
 test('bhv operations 100 delete order not found', function (): void {
