@@ -340,8 +340,16 @@ public class BaseApiTest
     };
 
     [Theory]
-    [MemberData(nameof(StatusToException))]
-    public async Task BhvMisc264EachListedErrorStatusRaisesAnApiErrorCarryingThatStatus(int status, Type expectedType)
+    [InlineData(400)]
+    [InlineData(401)]
+    [InlineData(403)]
+    [InlineData(404)]
+    [InlineData(409)]
+    [InlineData(422)]
+    [InlineData(429)]
+    [InlineData(500)]
+    [InlineData(502)]
+    public async Task BhvMisc264EachListedErrorStatusRaisesAnApiErrorCarryingThatStatus(int status)
     {
         var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
             Api().CallAsync<object>(
