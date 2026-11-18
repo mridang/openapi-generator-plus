@@ -283,4 +283,15 @@ class BearerAuthenticatorTest {
                     "https://api.example.com", "static-token", () -> "provided"));
     assertEquals("Pass either token or tokenProvider, not both", ex.getMessage());
   }
+
+  @Test
+  void bhvMisc017ARejectedCredentialIsNeverEchoedInTheConstructionError() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes"));
+    String message = java.util.Objects.requireNonNull(ex.getMessage());
+    assertFalse(message.contains("tok\r\nInjected"));
+    assertFalse(message.contains("Injected"));
+  }
 }
