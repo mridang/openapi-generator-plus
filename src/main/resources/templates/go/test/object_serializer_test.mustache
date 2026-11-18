@@ -146,10 +146,10 @@ func TestBhvSerialization051_ObjectSerializer_StrictModelHasNoSeparateUnknownKey
 func TestBhvSerialization052_ObjectSerializer_UndeclaredKeysAreKeptOnListAndMapElements(t *testing.T) {
 	t.Parallel()
 	var list []models.Metadata
-	if err := deserialize([]byte(`[{"x":1}]`), &list); err != nil {
+	if err := deserialize([]byte(`[{"x":"1"}]`), &list); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(list) != 1 || list[0].AdditionalProperties["x"] == nil {
+	if len(list) != 1 || list[0].AdditionalProperties["x"] == "" {
 		t.Errorf("expected the undeclared key kept on the list element, got %+v", list)
 	}
 	var byKey map[string]models.Metadata
@@ -165,7 +165,7 @@ func TestBhvSerialization052_ObjectSerializer_UndeclaredKeysAreKeptOnListAndMapE
 func TestBhvSerialization053_ObjectSerializer_UndeclaredKeysAreWrittenBackOnTheParent(t *testing.T) {
 	t.Parallel()
 	parent := map[string]models.Metadata{
-		"k": {AdditionalProperties: map[string]any{"z": "w"}},
+		"k": {AdditionalProperties: map[string]string{"z": "w"}},
 	}
 	data, err := serialize(parent)
 	if err != nil {
@@ -3603,7 +3603,7 @@ func TestBhvSerializationobject206_ObjectSerializer_BinaryVault_DifferingMapKeyI
 	t.Parallel()
 	left := models.BinaryVault{Labels: &map[string][]byte{"first": {7, 8}}}
 	right := models.BinaryVault{Labels: &map[string][]byte{"second": {7, 8}}}
-	if left.Equal(right) {
+	if left.Equal(&right) {
 		t.Error("expected a differing map key to make the vaults unequal")
 	}
 }

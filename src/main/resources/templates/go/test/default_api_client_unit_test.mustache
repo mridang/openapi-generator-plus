@@ -3420,7 +3420,7 @@ func TestBhvAuth025_DefaultApiClientUnit_CredentialIsGivenTheClientTransportWhen
 		server.URL+"/token",
 		[]string{"read"},
 	)
-	_ = newClient("https://api.example.com", nil, map[string]Authenticator{"oauth": credential}, transport)
+	_ = newClient("https://api.example.com", nil, map[string]Authenticator{"oauth": credential}, transport, nil)
 
 	if _, err := credential.AuthHeadersOrError(); err != nil {
 		t.Fatalf("expected the credential to fetch its token through the client's transport, got %v", err)

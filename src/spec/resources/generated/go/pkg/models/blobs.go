@@ -67,7 +67,7 @@ func (o Blobs) WithAdditionalProperties(value map[string][]byte) Blobs {
 // NewBlobs creates a new Blobs instance.
 func NewBlobs() *Blobs {
 	return &Blobs{
-		AdditionalProperties: make(map[string]any),
+		AdditionalProperties: make(map[string][]byte),
 	}
 }
 
