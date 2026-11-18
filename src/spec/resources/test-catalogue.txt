@@ -1958,3 +1958,7 @@ langkotlin013 | A missing CA certificate file is rejected even when certificate 
 langkotlin014 | A CA certificate file that holds no valid certificate raises an illegal argument error
 langkotlin015 | The built artifact declares a stable module name for consumers to depend on
 langkotlin016 | The factory helpers pass the configured call hook on to the client they build
+langkotlin017 | A composed wrapper serialises and deserialises back to an equal value
+langkotlin018 | A composed model missing a required property throws on decode
+langkotlin019 | A factory for a second variant wraps that variant and answers only its own accessor
+langkotlin020 | A union with no variant answers nothing from any accessor
