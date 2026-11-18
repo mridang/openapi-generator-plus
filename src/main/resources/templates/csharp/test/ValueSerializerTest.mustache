@@ -1001,6 +1001,27 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
     }
 
     [Fact]
+    public void BhvMisc083ARawQueryKeepsItsRepeatedKeysValuesAndEscapesAsWritten()
+    {
+        Assert.Equal("a=1&a=2&b=%20x", ValueSerializer.EncodeQueryAllowingReserved("a=1&a=2&b=%20x"));
+    }
+
+    [Fact]
+    public void BhvMisc084ASetOptionalScalarIsSentInEveryLocation()
+    {
+        int? value = 7;
+        Assert.Equal("7", ValueSerializer.ToPathValue(value));
+        Assert.Equal("7", ValueSerializer.ToHeaderValue(value));
+    }
+
+    [Fact]
+    public void BhvMisc086AnElementHoldingJsonTextIsNotDecodedAgain()
+    {
+        object? result = ValueSerializer.SerializeStyled("tags", new[] { "{\"a\":1}" }, "query", "array", null, "form", false);
+        Assert.Contains("%7B%22a%22:1%7D", result?.ToString() ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BhvSerialization015MatrixAndLabelStylesExpandAnObjectPerTheExplodeFlag()
     {
         var category = new Category { Id = 3, Name = "lab" };

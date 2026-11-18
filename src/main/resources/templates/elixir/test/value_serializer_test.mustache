@@ -57,6 +57,11 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert {{moduleName}}.ValueSerializer.serialize(["a", "b", "c"], :query, "array") == "a,b,c"
     end
 
+    test "bhv misc 250 array items containing a comma keep the literal comma across path and query styles" do
+      assert {{moduleName}}.ValueSerializer.serialize(["a,b", "c"], :path, "array") == "a,b,c"
+      assert {{moduleName}}.ValueSerializer.serialize(["a,b", "c"], :query, "array") == "a,b,c"
+    end
+
     test "bhv serializationparam 009 array joins with space for ssv" do
       assert {{moduleName}}.ValueSerializer.serialize(["a", "b", "c"], :query, "array", collection_format: :ssv) == "a b c"
     end
