@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 use PetstoreClient\ApiResult;
 
+test('bhv results 006 the headers of a result are a copy taken when it is built and cannot be modified', function (): void {
+    $source = ['X-Request-Id' => 'abc'];
+    $result = new ApiResult(statusCode: 200, data: null, rawBody: '', headers: $source);
+
+    $source['X-Request-Id'] = 'changed';
+
+    expect($result->headers)->toBe(['X-Request-Id' => 'abc']);
+    expect(function () use ($result): void {
+        $result->headers['X-Injected'] = 'x';
+    })->toThrow(\Error::class);
+});
+
 test('bhv results 003 exposes status code', function (): void {
     $result = new ApiResult(statusCode: 200, data: null, rawBody: '', headers: []);
 

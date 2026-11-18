@@ -1990,6 +1990,10 @@ test('bhv serializationobject 200 a serialize failure carries the canonical pref
         });
 });
 
+test('bhv serialization 011 model keys are written in the order given, never sorted', function (): void {
+    expect(ObjectSerializer::serialize(['zeta' => 1, 'alpha' => 2, 'mid' => 3]))->toBe('{"zeta":1,"alpha":2,"mid":3}');
+});
+
 test('bhv serializationobject 153 serializing a non-finite float throws SerializationException', function (): void {
     // RFC 8259 §6 has no NaN/Infinity token; json_encode fails on a non-finite
     // float and serialize wraps that as the SDK's SerializationException.

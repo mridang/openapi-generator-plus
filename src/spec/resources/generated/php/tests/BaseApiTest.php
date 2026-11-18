@@ -30,6 +30,9 @@ use PetstoreClient\Api\PetApi;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\AddPetOptions;
+use PetstoreClient\Api\Options\DeletePetOptions;
+use PetstoreClient\Api\Options\GetPetTagOptions;
+use PetstoreClient\Api\Options\SetPetPreferencesOptions;
 use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Pet;
 
@@ -223,6 +226,107 @@ test('bhv serializationwire 002 appends query params', function (): void {
         null
     );
     expect($result)->toBeNull();
+});
+
+test('bhv operations 155 an operation sends its query parameters in the order the specification declares them', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->getPetTag(7, 'x', new GetPetTagOptions(colors: ['red'], sizes: ['m'], filter: 'f'));
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->toBe('http://localhost/pet/7/tag/x?colors=red&sizes=m&filter=f');
+});
+
+test('bhv operations 156 an operation sends its form body fields in the order the specification declares them', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->setPetPreferences(7, new SetPetPreferencesOptions(nickname: 'Rex', tags: ['a'], note: 'n'));
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured body
+    }
+    expect($client->capturedBody)->toBe('nickname=Rex&tags=a&note=n');
+});
+
+test('bhv options 054 an operation accepts per call options alongside its other arguments', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    $api->deletePet(7, new DeletePetOptions(apiKey: 'key', timeout: 5000, headers: ['X-Trace' => 'abc'], maxRetries: 0));
+
+    $headers = array_change_key_case($client->capturedHeaders, CASE_LOWER);
+    expect($client->capturedUrl)->toBe('http://localhost/pet/7');
+    expect($headers['x-trace'] ?? null)->toBe('abc');
+});
+
+test('bhv options 057 a per call timeout below one millisecond is refused before any request is sent', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    expect(fn (): mixed => $api->deletePet(7, new DeletePetOptions(timeout: 0)))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout');
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv retries 043 an unauthorized response is returned after one request when no authenticator can supply credentials', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = alwaysUnauthorizedApiClient($requests, 2);
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'))
+        ->toThrow(UnauthorizedException::class);
+    expect($requests->count())->toBe(1);
+});
+
+test('bhv serialization 006 query names and values percent encode reserved and space characters', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['a&b=c' => 'x&y=z d'], [], null, ['application/json'], 'application/json');
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?a%26b%3Dc=x%26y%3Dz%20d');
+});
+
+test('bhv serialization 007 a literal plus is sent as percent 2B and non ascii text as percent encoded utf 8', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => "a+b \u{00e9}"], [], null, ['application/json'], 'application/json');
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Bb%20%C3%A9');
+
+    $api->call('POST', '/test/echo', [], [], ['q' => "a+b \u{00e9}"], ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('q=a%2Bb+%C3%A9');
+});
+
+test('bhv serialization 008 a content typed parameter is json encoded once and percent encoded once for its location', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['filter' => '{"a":"b c"}'], [], null, ['application/json'], 'application/json');
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?filter=%7B%22a%22%3A%22b%20c%22%7D');
+});
+
+test('bhv serialization 009 a value that cannot be serialized raises before any request or partial output', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    expect(fn (): mixed => $api->call('POST', '/test/echo', [], [], INF, ['application/json'], 'application/json', null))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv serialization 010 a body is sent with exactly the content type the caller declared', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('POST', '/test/echo', [], [], 'hello', ['text/plain'], 'text/plain', null);
+
+    $headers = array_change_key_case($client->capturedHeaders, CASE_LOWER);
+    expect($headers['content-type'] ?? null)->toBe('text/plain');
 });
 
 test('bhv authintegration 010 forwards auth headers', function (): void {

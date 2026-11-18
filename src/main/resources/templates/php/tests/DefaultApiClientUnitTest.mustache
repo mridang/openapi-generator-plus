@@ -157,6 +157,81 @@ test('bhv transport 044 joins multi value response headers', function (): void {
     expect($response->headers['x-custom-value'])->toContain('val2');
 });
 
+test('bhv options 061 a user agent set to none sends no User-Agent header and a given one is kept', function (): void {
+    $captured = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$captured): MockResponse {
+            $captured = [];
+            foreach ($options['normalized_headers'] ?? [] as $values) {
+                [$name, $value] = explode(': ', $values[0], 2);
+                $captured[strtolower($name)] = $value;
+            }
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+    $kept = TransportOptions::builder()->userAgent('MyApp/2.0')->build();
+    $unset = TransportOptions::builder()->userAgent(null)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $unset);
+    $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+    expect($kept->userAgent)->toBe('MyApp/2.0');
+    expect($unset->userAgent)->toBeNull();
+    expect($captured)->not->toHaveKey('user-agent');
+});
+
+test('bhv options 055 a call without per call options keeps the transport timeout, retry limit and headers', function (): void {
+    $seen = [];
+    $responses = [
+        new MockResponse('', ['http_code' => 503]),
+        new MockResponse('{}', ['http_code' => 200]),
+    ];
+    $factory = function (string $method, string $url, array $options) use (&$seen, &$responses): MockResponse {
+        $headers = [];
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            $headers[strtolower($name)] = $value;
+        }
+        $seen[] = ['headers' => $headers, 'duration' => $options['max_duration'] ?? null];
+        return array_shift($responses);
+    };
+    $transport = TransportOptions::builder()->timeout(5000)->maxRetries(1)->defaultHeader('X-Client', 'kept')->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/items', fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($seen)->toHaveCount(2);
+    expect($seen[0]['headers']['x-client'] ?? null)->toBe('kept');
+    expect($seen[1]['headers']['x-client'] ?? null)->toBe('kept');
+    expect((float) $seen[0]['duration'])->toBeGreaterThan(0.0);
+    expect((float) $seen[0]['duration'])->toBeLessThanOrEqual(5.0);
+});
+
+test('bhv retries 044 every retry carries a request id that differs from the attempts before it', function (): void {
+    $ids = [];
+    $responses = [
+        new MockResponse('', ['http_code' => 503]),
+        new MockResponse('', ['http_code' => 503]),
+        new MockResponse('{}', ['http_code' => 200]),
+    ];
+    $factory = function (string $method, string $url, array $options) use (&$ids, &$responses): MockResponse {
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            if ($name === 'X-Request-ID') {
+                $ids[] = $value;
+            }
+        }
+        return array_shift($responses);
+    };
+    $transport = TransportOptions::builder()->injectRequestId(true)->maxRetries(2)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendWithRetries('GET', 'http://example.com/retry', fn (): array => [], null);
+
+    expect($ids)->toHaveCount(3);
+    expect(array_unique($ids))->toHaveCount(3);
+});
+
 test('bhv transport 041 injects custom user agent', function (): void {
     $capturedHeaders = [];
     $mockClient = new MockHttpClient(
@@ -2442,6 +2517,87 @@ test('bhv redirects 031 a 3xx without a Location is returned unchanged when max 
     $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
 
     expect($response->statusCode)->toBe(302);
+});
+
+test('bhv redirects 041 a redirect that turns a POST into a GET sends no Content-Length or Content-Type', function (int $status): void {
+    $seen = [];
+    $redirect = new MockResponse('', [
+        'http_code' => $status,
+        'response_headers' => ['Location' => 'https://api.example.com/landing'],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $factory = function (string $method, string $url, array $options) use (&$seen, $redirect, $final): MockResponse {
+        $headers = [];
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            $headers[strtolower($name)] = $value;
+        }
+        $seen[] = ['method' => $method, 'headers' => $headers];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('POST', 'https://api.example.com/start', ['Content-Type' => 'application/json'], '{"a":1}');
+
+    expect($seen[1]['method'])->toBe('GET');
+    expect($seen[1]['headers'])->not->toHaveKey('content-type');
+    expect($seen[1]['headers'])->not->toHaveKey('content-length');
+})->with([301, 302, 303]);
+
+test('bhv redirects 042 a 307 redirect of a bodyless POST keeps the request a POST and sends a zero Content-Length', function (): void {
+    $seen = [];
+    $redirect = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'https://api.example.com/next'],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $factory = function (string $method, string $url, array $options) use (&$seen, $redirect, $final): MockResponse {
+        $headers = [];
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            $headers[strtolower($name)] = $value;
+        }
+        $seen[] = ['method' => $method, 'headers' => $headers];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('POST', 'https://api.example.com/start', [], null);
+
+    expect($seen[1]['method'])->toBe('POST');
+    expect($seen[1]['headers']['content-length'] ?? null)->toBe('0');
+});
+
+test('bhv redirects 044 a cross origin redirect drops the caller authorization and token headers', function (): void {
+    $seen = [];
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'https://other.example.com/final'],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $factory = function (string $method, string $url, array $options) use (&$seen, $redirect, $final): MockResponse {
+        $headers = [];
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            $headers[strtolower($name)] = $value;
+        }
+        $seen[] = ['method' => $method, 'headers' => $headers];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', [
+        'Authorization' => 'Bearer caller-secret',
+        'X-Api-Token' => 'caller-token',
+        'X-Trace' => 'keep-me',
+    ], null);
+
+    expect($seen[1]['headers'])->not->toHaveKey('authorization');
+    expect($seen[1]['headers'])->not->toHaveKey('x-api-token');
+    expect($seen[1]['headers']['x-trace'] ?? null)->toBe('keep-me');
 });
 
 test('bhv redirects 036 a 303 turns every method except head into get', function (string $method): void {
