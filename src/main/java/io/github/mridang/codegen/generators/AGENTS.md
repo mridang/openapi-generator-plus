@@ -357,7 +357,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D61 | Numeric defaults render as exact compiling literals of the target type (decimal exact text, `f` suffix, `.0`, `L`). | Partly implemented. |
 | D62 | `format: uri` keeps each language's type surface; wire rule is an absolute RFC 3986 URI, any scheme, byte-verbatim. | Forced: kotlin `io.ktor.http.Url` normalises some inputs. |
 | D63 | An `additionalProperties` key colliding with a declared property: the declared value wins, the key is written once. | No duplicate JSON keys. |
-| D64 | Non-discriminated oneOf/anyOf variants are tried in declaration order; anyOf merges with the later declared variant winning. | Templates iterated an alphabetical TreeSet. |
+| D64 | Non-discriminated oneOf/anyOf variants are tried in declaration order; anyOf merges with the later declared variant winning. A oneOf with no discriminator whose variants share a JSON type logs one warning per schema at generation time (`AbstractBetterCodegen.ambiguousOneOfMessages`, #138). | Templates iterated an alphabetical TreeSet. |
 | D65 | A null element in an array or map of models is rejected unless the element schema is nullable. | Dynamic languages cannot see nullability and always reject. |
 | D66 | Required + nullable: see S5. | go: required+nullable becomes a pointer without omitempty. |
 | D67 | `format: uuid` is written lowercase hyphenated, validated both directions; string-typed languages reject malformed values before dispatch. | RFC 9562. |

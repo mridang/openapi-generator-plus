@@ -408,6 +408,121 @@ class AbstractBetterCodegenTest {
     assertFalse(AbstractBetterCodegen.isClassicDiscriminatorBase(unionOf("PetFood", "DryFood")));
   }
 
+  private static Schema<Object> objectSchema() {
+    final Schema<Object> object = new Schema<>();
+    object.setType("object");
+    return object;
+  }
+
+  private static Schema<Object> typed(String type) {
+    final Schema<Object> schema = new Schema<>();
+    schema.setType(type);
+    return schema;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Schema<Object> refTo(String name) {
+    return new Schema<>().$ref("#/components/schemas/" + name);
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static Schema<Object> oneOfSchema(Schema<?>... variants) {
+    final Schema<Object> union = new Schema<>();
+    union.setOneOf(new ArrayList<>(List.of(variants)));
+    return union;
+  }
+
+  /** A spec whose components are the given named schemas. */
+  private static OpenAPI specWith(Map<String, ? extends Schema<?>> schemas) {
+    final OpenAPI api = new OpenAPI().components(new Components());
+    schemas.forEach((name, schema) -> api.getComponents().addSchemas(name, schema));
+    return api;
+  }
+
+  private static final String DECODE_SUFFIX =
+      ". A payload that matches several variants decodes as the first declared one";
+
+  @Test
+  @DisplayName("a oneOf of two object variants without a discriminator is named in one warning")
+  void ambiguousOneOfNamesItsObjectVariants() {
+    final OpenAPI api = specWith(Map.of(
+        "Pet", oneOfSchema(refTo("Cat"), refTo("Dog")),
+        "Cat", objectSchema(),
+        "Dog", objectSchema()));
+
+    assertEquals(
+        List.of("Ambiguous oneOf 'Pet' has no discriminator: Cat and Dog both accept a JSON object"
+            + DECODE_SUFFIX),
+        AbstractBetterCodegen.ambiguousOneOfMessages(api));
+  }
+
+  @Test
+  @DisplayName("a oneOf with a discriminator is not ambiguous")
+  void discriminatedOneOfIsNotAmbiguous() {
+    final Schema<Object> union = oneOfSchema(refTo("Cat"), refTo("Dog"));
+    union.setDiscriminator(new io.swagger.v3.oas.models.media.Discriminator()
+        .propertyName("kind"));
+    final OpenAPI api = specWith(Map.of(
+        "Pet", union,
+        "Cat", objectSchema(),
+        "Dog", objectSchema()));
+
+    assertTrue(AbstractBetterCodegen.ambiguousOneOfMessages(api).isEmpty());
+  }
+
+  @Test
+  @DisplayName("variants that accept different JSON types are not ambiguous")
+  void distinctJsonTypesAreNotAmbiguous() {
+    final OpenAPI api = specWith(Map.of(
+        "Id", oneOfSchema(typed("string"), typed("integer")),
+        "Other", oneOfSchema(refTo("Thing"), typed("boolean")),
+        "Thing", objectSchema()));
+
+    assertTrue(AbstractBetterCodegen.ambiguousOneOfMessages(api).isEmpty());
+  }
+
+  @Test
+  @DisplayName("an inline object variant is named by its position in the oneOf")
+  void inlineVariantsAreNamedByPosition() {
+    final OpenAPI api = specWith(Map.of(
+        "Blob", oneOfSchema(objectSchema(), objectSchema(), typed("string"))));
+
+    assertEquals(
+        List.of("Ambiguous oneOf 'Blob' has no discriminator: inline variant 1 and inline variant 2"
+            + " both accept a JSON object" + DECODE_SUFFIX),
+        AbstractBetterCodegen.ambiguousOneOfMessages(api));
+  }
+
+  @Test
+  @DisplayName("the warning pass leaves the declared variant order untouched")
+  void ambiguousOneOfKeepsDeclarationOrder() {
+    final Schema<Object> union = oneOfSchema(refTo("Dog"), refTo("Cat"));
+    final OpenAPI api = specWith(Map.of(
+        "Pet", union,
+        "Cat", objectSchema(),
+        "Dog", objectSchema()));
+
+    assertEquals(1, AbstractBetterCodegen.ambiguousOneOfMessages(api).size());
+    assertEquals("#/components/schemas/Dog", union.getOneOf().get(0).get$ref());
+    assertEquals("#/components/schemas/Cat", union.getOneOf().get(1).get$ref());
+  }
+
+  @Test
+  @DisplayName("a oneOf declared as a property of a schema is checked and named by its path")
+  void ambiguousOneOfInPropertyIsNamedByPath() {
+    final Schema<Object> owner = objectSchema();
+    owner.addProperty("pet", oneOfSchema(refTo("Cat"), refTo("Dog")));
+    final OpenAPI api = specWith(Map.of(
+        "Owner", owner,
+        "Cat", objectSchema(),
+        "Dog", objectSchema()));
+
+    assertEquals(
+        List.of("Ambiguous oneOf 'Owner.pet' has no discriminator: Cat and Dog both accept a JSON"
+            + " object" + DECODE_SUFFIX),
+        AbstractBetterCodegen.ambiguousOneOfMessages(api));
+  }
+
   @Test
   @DisplayName("additionalProperties of a typed schema fills additionalPropertiesType when opted in")
   void typedAdditionalPropertiesFillTheModelType() {
