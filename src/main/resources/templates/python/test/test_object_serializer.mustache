@@ -1,4 +1,5 @@
 import datetime
+import ipaddress
 import json
 import warnings
 from typing import Any
@@ -9,6 +10,7 @@ from {{packageName}}.errors import {{errorPrefix}}Exception
 from {{packageName}}.errors import SerializationException
 from {{packageName}}.object_serializer import ObjectSerializer
 from {{packageName}}.models.category import Category
+from {{packageName}}.models.native_values import NativeValues
 from {{packageName}}.models.order import OrderStatusEnum
 from {{packageName}}.models.pet import Pet
 from {{packageName}}.models.tag import Tag
@@ -353,6 +355,123 @@ class TestDecimalNumberSerializesUnquoted:
         reserialized = ObjectSerializer().serialize(restored)
         assert '"weightKg":1.5' in reserialized
         assert '"weightKg":"1.5"' not in reserialized
+
+
+class TestNativeValueFormats:
+    """Formats the standard library types natively: duration, ip, decimal and the strings."""
+
+    def test_bhv_serializationobject_002_bare_number_is_exact_and_plain_notation(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "weightKg": 12.345678901234567890123}'
+        restored = ObjectSerializer().deserialize(wire, 'Pet')
+        assert restored is not None
+        assert restored.weight_kg == Decimal('12.345678901234567890123')
+        assert '"weightKg":12.345678901234567890123' in ObjectSerializer().serialize(restored)
+        large = Pet(name='Fido', photoUrls=set(), weightKg=Decimal('1E+3'))
+        assert '"weightKg":1000' in ObjectSerializer().serialize(large)
+
+    def test_bhv_serializationobject_403_duration_is_the_native_timedelta(self) -> None:
+        restored = ObjectSerializer().deserialize('{"wait": "3600s"}', 'NativeValues')
+        assert isinstance(restored, NativeValues)
+        assert isinstance(restored.wait, datetime.timedelta)
+        assert restored.wait == datetime.timedelta(hours=1)
+
+    def test_bhv_serializationobject_404_duration_finer_than_a_microsecond_truncates_toward_zero(self) -> None:
+        positive = ObjectSerializer().deserialize('{"wait": "1.123456789s"}', 'NativeValues')
+        negative = ObjectSerializer().deserialize('{"wait": "-1.1234569s"}', 'NativeValues')
+        assert isinstance(positive, NativeValues)
+        assert isinstance(negative, NativeValues)
+        assert positive.wait == datetime.timedelta(seconds=1, microseconds=123456)
+        assert negative.wait == -datetime.timedelta(seconds=1, microseconds=123456)
+
+    def test_bhv_serializationobject_405_ipv4_is_the_native_address_and_round_trips(self) -> None:
+        restored = ObjectSerializer().deserialize('{"address4": "192.0.2.1"}', 'NativeValues')
+        assert isinstance(restored, NativeValues)
+        assert isinstance(restored.address4, ipaddress.IPv4Address)
+        assert ObjectSerializer().serialize(restored) == '{"address4":"192.0.2.1"}'
+
+    def test_bhv_serializationobject_406_ipv6_is_written_in_the_canonical_form(self) -> None:
+        for given, expected in (
+            ('2001:0DB8:0:0:0:0:0:1', '2001:db8::1'),
+            ('2001:db8::1', '2001:db8::1'),
+            ('::1', '::1'),
+        ):
+            restored = ObjectSerializer().deserialize('{"address6": "' + given + '"}', 'NativeValues')
+            assert isinstance(restored, NativeValues)
+            assert isinstance(restored.address6, ipaddress.IPv6Address)
+            assert ObjectSerializer().serialize(restored) == '{"address6":"' + expected + '"}'
+
+    def test_bhv_serializationobject_407_a_malformed_address_fails_with_the_serialization_error(self) -> None:
+        for field, text in (
+            ('address4', '01.2.3.4'),
+            ('address4', '192.0.2.1/24'),
+            ('address4', ' 192.0.2.1'),
+            ('address4', '[::1]'),
+            ('address4', '2001:db8::1'),
+            ('address6', 'fe80::1%eth0'),
+            ('address6', '[::1]'),
+            ('address6', '2001:db8::/64'),
+            ('address6', ' ::1'),
+            ('address6', '192.0.2.1'),
+        ):
+            with pytest.raises(SerializationException):
+                ObjectSerializer().deserialize('{"' + field + '": "' + text + '"}', 'NativeValues')
+
+    def test_bhv_serializationobject_408_every_absolute_uri_round_trips_byte_for_byte(self) -> None:
+        corpus = [
+            'https://example.com',
+            'HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag',
+            'mailto:a@b.c',
+            'urn:isbn:0451450523',
+            "https://example.com/[x]?q='a'",
+            'https://example.com?',
+            'https://example.com/%7euser',
+            'https://[2001:db8::1]:8443/',
+        ]
+        for text in corpus:
+            restored = ObjectSerializer().deserialize(json.dumps({'homepage': text}), 'NativeValues')
+            assert isinstance(restored, NativeValues)
+            assert json.loads(ObjectSerializer().serialize(restored))['homepage'] == text
+
+    def test_bhv_serializationobject_409_hostname_and_email_are_kept_as_given(self) -> None:
+        wire = '{"host": "not a host!", "contact": "x@"}'
+        restored = ObjectSerializer().deserialize(wire, 'NativeValues')
+        assert isinstance(restored, NativeValues)
+        assert (restored.host, restored.contact) == ('not a host!', 'x@')
+        assert ObjectSerializer().serialize(restored) == '{"host":"not a host!","contact":"x@"}'
+
+    def test_bhv_serializationobject_410_number_keeps_every_digit_in_plain_notation(self) -> None:
+        wire = '{"amount": 12.345678901234567890123}'
+        restored = ObjectSerializer().deserialize(wire, 'NativeValues')
+        assert isinstance(restored, NativeValues)
+        assert restored.amount == Decimal('12.345678901234567890123')
+        assert ObjectSerializer().serialize(restored) == '{"amount":12.345678901234567890123}'
+
+    def test_bhv_serializationobject_411_string_decimal_is_a_decimal_written_as_a_json_string(self) -> None:
+        restored = ObjectSerializer().deserialize('{"ledger": "12.50"}', 'NativeValues')
+        assert isinstance(restored, NativeValues)
+        assert restored.ledger == Decimal('12.50')
+        assert ObjectSerializer().serialize(restored) == '{"ledger":"12.50"}'
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"ledger": 12.50}', 'NativeValues')
+
+    def test_bhv_serializationobject_412_a_forty_digit_number_is_exact_and_never_rounded(self) -> None:
+        digits = '1234567890123456789012345678901234567890'
+        restored = ObjectSerializer().deserialize('{"amount": ' + digits + '}', 'NativeValues')
+        assert isinstance(restored, NativeValues)
+        assert restored.amount == Decimal(digits)
+        assert ObjectSerializer().serialize(restored) == '{"amount":' + digits + '}'
+
+    def test_bhv_serializationparam_104_duration_parameter_is_the_protobuf_form(self) -> None:
+        assert ObjectSerializer.stringify(datetime.timedelta(hours=1)) == '3600s'
+        assert ObjectSerializer.to_query_value(datetime.timedelta(hours=1)) == '3600s'
+
+    def test_bhv_serializationparam_105_address_parameter_is_the_canonical_text(self) -> None:
+        assert ObjectSerializer.stringify(ipaddress.IPv4Address('192.0.2.1')) == '192.0.2.1'
+        assert ObjectSerializer.stringify(ipaddress.IPv6Address('2001:0DB8::1')) == '2001:db8::1'
+
+    def test_bhv_serializationparam_106_decimal_parameter_is_plain_notation(self) -> None:
+        assert ObjectSerializer.stringify(Decimal('12.345678901234567890123')) == '12.345678901234567890123'
+        assert ObjectSerializer.stringify(Decimal('1E+3')) == '1000'
 
 
 class TestNumberIsLossless:
@@ -1322,7 +1441,7 @@ class TestDurationFormat:
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize('PT1H', 'datetime.timedelta')
 
-    def test_bhv_serializationobject_002_bare_integer_is_rejected(self) -> None:
+    def test_bare_integer_duration_is_rejected(self) -> None:
         # A second count without the trailing 's' is not a valid duration.
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize('3600', 'datetime.timedelta')

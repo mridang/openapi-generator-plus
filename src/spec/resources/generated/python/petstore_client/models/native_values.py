@@ -11,7 +11,6 @@ from pydantic import ConfigDict, Field
 from pydantic import StrictStr
 from petstore_client._types import ApiModel, hash_model
 from typing import Dict, List, Optional
-from decimal import Decimal
 
 
 class NativeValues(ApiModel):
@@ -20,16 +19,16 @@ class NativeValues(ApiModel):
     """
 
     # Example: '192.0.2.1'
-    address4: Optional[StrictStr] = Field(default=None, alias="address4")
+    address4: Optional[Ipv4Address] = Field(default=None, alias="address4")
     # Example: '2001:db8::1'
-    address6: Optional[StrictStr] = Field(default=None, alias="address6")
-    addresses: Optional[List[StrictStr]] = Field(default=None, alias="addresses")
+    address6: Optional[Ipv6Address] = Field(default=None, alias="address6")
+    addresses: Optional[List[Ipv6Address]] = Field(default=None, alias="addresses")
     # Example: 'https://example.com/a'
     homepage: Optional[UrlStr] = Field(default=None, alias="homepage")
     # Example: 12.345678901234567
     amount: Optional[JsonNumber] = Field(default=None, alias="amount")
     # Example: '12.50'
-    ledger: Optional[Decimal] = Field(default=None, alias="ledger")
+    ledger: Optional[DecimalStr] = Field(default=None, alias="ledger")
     # Example: '3600s'
     wait: Optional[ProtobufDuration] = Field(default=None, alias="wait")
     waits: Optional[Dict[str, ProtobufDuration]] = Field(default=None, alias="waits")
@@ -56,6 +55,9 @@ class NativeValues(ApiModel):
 
 from datetime import date
 from petstore_client._duration import ProtobufDuration
+from petstore_client._types import DecimalStr
+from petstore_client._types import Ipv4Address
+from petstore_client._types import Ipv6Address
 from petstore_client._types import JsonNumber
 from petstore_client._types import UrlStr
 

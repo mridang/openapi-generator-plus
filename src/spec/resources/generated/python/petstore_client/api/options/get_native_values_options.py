@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pydantic import StrictStr
 from typing import Optional, Mapping
 from petstore_client.transport_options import _validated_call_headers
 
@@ -26,10 +25,10 @@ class GetNativeValuesOptions:
     headers and the retry budget reach it.
     """
 
-    address4: Optional[StrictStr] = None
+    address4: Optional[Ipv4Address] = None
     wait: Optional[ProtobufDuration] = None
     amount: Optional[JsonNumber] = None
-    x_address6: Optional[StrictStr] = None
+    x_address6: Optional[Ipv6Address] = None
     timeout: Optional[int] = None
     headers: Optional[Mapping[str, str]] = None
     max_retries: Optional[int] = None

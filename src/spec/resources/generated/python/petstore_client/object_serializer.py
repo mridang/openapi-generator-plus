@@ -29,6 +29,9 @@ from petstore_client._duration import (
 from petstore_client._types import (
     EXACT_NUMBER_CONTEXT,
     RFC3339_DATE_TIME_PATTERN,
+    DecimalStr,
+    Ipv4Address,
+    Ipv6Address,
     JsonNumber,
     LaxFloat,
     PreciseFloat,
@@ -87,6 +90,9 @@ _STRICT_LEAF_TYPES: dict[str, Any] = {
     "StrictStr": StrictStr,
     "LaxFloat": LaxFloat,
     "JsonNumber": JsonNumber,
+    "Ipv4Address": Ipv4Address,
+    "Ipv6Address": Ipv6Address,
+    "DecimalStr": DecimalStr,
 }
 _STRICT_LEAF_ADAPTERS: dict[str, TypeAdapter[Any]] = {
     name: TypeAdapter(leaf) for name, leaf in _STRICT_LEAF_TYPES.items()
@@ -352,7 +358,7 @@ class ObjectSerializer:
         elif isinstance(obj, datetime.date):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
-            return str(obj)
+            return format(obj, "f")
         elif isinstance(obj, uuid.UUID):
             return str(obj)
         elif isinstance(obj, (list, tuple, set, frozenset, dict)) or hasattr(
@@ -687,6 +693,8 @@ class ObjectSerializer:
             return value.isoformat()
         if isinstance(value, uuid.UUID):
             return str(value)
+        if isinstance(value, decimal.Decimal):
+            return format(value, "f")
         if isinstance(value, (bytes, bytearray)):
             return base64.b64encode(value).decode("ascii")
         return str(value)

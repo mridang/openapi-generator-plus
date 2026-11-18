@@ -7,6 +7,7 @@
 
 import base64
 import datetime
+import ipaddress
 import math
 import re
 import secrets
@@ -37,6 +38,16 @@ _ABSOLUTE_URI_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1f\x7f]
 RFC3339_DATE_TIME_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$"
 )
+
+# An IPv4 address is four dotted decimal octets, 0 to 255, with no leading zero,
+# no prefix length, no zone id, no brackets and no surrounding whitespace.
+_OCTET = r"(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
+_IPV4_PATTERN = re.compile((_OCTET + r"\.") * 3 + _OCTET)
+
+# An IPv6 address text holds only hexadecimal digits, colons and the dotted tail
+# of an embedded IPv4 address: a zone id (`%eth0`), a prefix length (`/64`),
+# brackets and whitespace are all outside this set.
+_IPV6_PATTERN = re.compile(r"[0-9A-Fa-f:.]+")
 
 _InitT = TypeVar("_InitT", bound=Callable[..., None])
 
@@ -255,6 +266,45 @@ def _validate_url_preserving(value: Any) -> Any:
     return value
 
 
+def _validate_ipv4(value: Any) -> Any:
+    """Accept only the plain dotted-decimal text of an IPv4 address.
+
+    ``ipaddress`` alone is more lenient than the wire rule on some versions, so
+    the shape is checked first and the text, not the parsed object, goes on to
+    pydantic, which builds the ``IPv4Address``.
+    """
+    if isinstance(value, ipaddress.IPv4Address):
+        return value
+    if not isinstance(value, str) or _IPV4_PATTERN.fullmatch(value) is None:
+        raise ValueError(f"{value!r} is not an IPv4 address")
+    return value
+
+
+def _validate_ipv6(value: Any) -> Any:
+    """Accept only the plain text of an IPv6 address: no zone id, prefix or brackets."""
+    if isinstance(value, ipaddress.IPv6Address):
+        return value
+    if not isinstance(value, str) or _IPV6_PATTERN.fullmatch(value) is None:
+        raise ValueError(f"{value!r} is not an IPv6 address")
+    return value
+
+
+def _validate_decimal_string(value: Any) -> Any:
+    """Read a ``type: string`` decimal only from a JSON string, never a JSON number."""
+    if isinstance(value, Decimal):
+        return value
+    if not isinstance(value, str):
+        raise ValueError(
+            f"a decimal string must be a JSON string, not {type(value).__name__}"
+        )
+    return value
+
+
+def _decimal_to_plain_string(value: Decimal) -> str:
+    """Write a ``Decimal`` in plain notation with no exponent, keeping its trailing zeros."""
+    return format(value, "f")
+
+
 def _reject_non_string_date_time(value: Any) -> Any:
     """Reject a JSON number or boolean offered for a ``date-time`` field.
 
@@ -323,6 +373,27 @@ LaxFloat = Annotated[
 # the value is an absolute RFC 3986 URI (any scheme) but never rewrites it, so the wire
 # value round-trips byte-identical (unlike `pydantic.HttpUrl`, which normalizes).
 UrlStr = Annotated[str, AfterValidator(_validate_url_preserving)]
+
+# `format: ipv4` and `format: ipv6` fields: the standard-library address types.
+# The value is written in its canonical text (dotted decimal, or the RFC 5952
+# form for IPv6), so a value is preserved and its text is canonical.
+Ipv4Address = Annotated[
+    ipaddress.IPv4Address,
+    BeforeValidator(_validate_ipv4),
+    PlainSerializer(str, return_type=str, when_used="json"),
+]
+Ipv6Address = Annotated[
+    ipaddress.IPv6Address,
+    BeforeValidator(_validate_ipv6),
+    PlainSerializer(str, return_type=str, when_used="json"),
+]
+
+# `type: string` with `format: decimal`: a `Decimal` that travels as a JSON string.
+DecimalStr = Annotated[
+    Decimal,
+    BeforeValidator(_validate_decimal_string),
+    PlainSerializer(_decimal_to_plain_string, return_type=str, when_used="json"),
+]
 
 # Bare `type: number` (no `format`) fields. The OpenAPI spec types these as a
 # JSON NUMBER, so they must travel on the wire UNQUOTED (`1.5`, not `"1.5"`).

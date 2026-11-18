@@ -167,6 +167,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         typeMapping.put("file", "bytes");
         typeMapping.put("File", "bytes");
         typeMapping.put("decimal", "Decimal");
+        // Native address types: ipaddress.IPv4Address / IPv6Address wrapped in
+        // the `<pkg>._types` Annotated aliases that gate the text strictly.
+        typeMapping.put("ipv4", "Ipv4Address");
+        typeMapping.put("ipv6", "Ipv6Address");
 
         languageSpecificPrimitives =
                 new HashSet<>(
@@ -189,6 +193,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // type: number) is likewise an `<pkg>._types`
                                 // alias and belongs in this group.
                                 "LaxFloat", "UrlStr", "JsonNumber",
+                                "Ipv4Address", "Ipv6Address", "DecimalStr",
                                 // OffsetDateTime (format: date-time) is the
                                 // `<pkg>._types` Annotated alias that wraps
                                 // AwareDatetime with a json-only PlainSerializer
@@ -1091,6 +1096,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // strict primitive so that the lax-coercion guarantee is preserved.
         keepStringForUriSubformats(property, "StrictStr");
 
+        // A `type: string` with `format: decimal` is a Decimal that travels as a
+        // JSON string; DecimalStr reads only a string and writes plain notation.
+        if ("Decimal".equals(property.dataType)) {
+            property.dataType = "DecimalStr";
+            property.datatypeWithEnum = "DecimalStr";
+        }
+
         // `format: byte` (and the OAS 3.1 `contentEncoding: base64` form, which
         // ContentEncodingRule normalizes onto `format: byte`) carries base64 on
         // the wire. The typeMapping resolves both `byte` and `binary` to plain
@@ -1325,6 +1337,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // the static TYPE_IMPORTS map.
         map.put("LaxFloat", "from " + packageName + "._types import LaxFloat");
         map.put("UrlStr", "from " + packageName + "._types import UrlStr");
+        map.put("Ipv4Address", "from " + packageName + "._types import Ipv4Address");
+        map.put("Ipv6Address", "from " + packageName + "._types import Ipv6Address");
+        map.put("DecimalStr", "from " + packageName + "._types import DecimalStr");
         // JsonNumber (bare `type: number`) is the branded Decimal alias that
         // serializes UNQUOTED; its import is likewise per-run package-qualified.
         map.put("JsonNumber", "from " + packageName + "._types import JsonNumber");
