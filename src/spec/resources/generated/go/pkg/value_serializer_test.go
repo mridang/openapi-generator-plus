@@ -11,6 +11,7 @@ package petstore
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -1437,5 +1438,105 @@ func TestBhvSerialization019_ValueSerializer_SerializeStyled_UnsetPropertyAndNul
 	mapped, ok := serializeStyled("criteria", map[string]any{"breed": nil, "min_age": int32(3)}, "query", "styledCriteria", "", "form", true).(queryPairs)
 	if !ok || len(mapped) != 1 || mapped[0] != [2]string{"min_age", "3"} {
 		t.Errorf("expected only min_age=3 for a map with a null entry, got %v", mapped)
+	}
+}
+
+// An exploded array or set query parameter repeats its key once for each element.
+func TestBhvSerialization107_ValueSerializer_AnExplodedArrayRepeatsItsKey(t *testing.T) {
+	t.Parallel()
+	got, ok := serializeStyled("ids", []string{"a", "b"}, "query", "array", "", "form", true).([]string)
+	if !ok || len(got) != 2 || got[0] != "a" || got[1] != "b" {
+		t.Errorf("expected one entry per element for the repeated key, got %v", got)
+	}
+}
+
+// A parameter with no declared style uses the default style for its location, which is simple for path parameters.
+func TestBhvSerialization108_ValueSerializer_TheDefaultStyleMatchesSimpleForPaths(t *testing.T) {
+	t.Parallel()
+	def := fmt.Sprint(serializeStyled("p", "v", "path", "string", "", "", false))
+	simple := fmt.Sprint(serializeStyled("p", "v", "path", "string", "", "simple", false))
+	if def != simple {
+		t.Errorf("expected the default style to match simple, got %q and %q", def, simple)
+	}
+}
+
+// A string path parameter is percent-encoded exactly once in the final request URL.
+func TestBhvSerialization109_ValueSerializer_APathValueIsEncodedOnce(t *testing.T) {
+	t.Parallel()
+	if got := encodePathSegment("a b/c"); got != "a%20b%2Fc" {
+		t.Errorf("expected a single encoding, got %q", got)
+	}
+	if got := encodePathSegment("a%20b"); got != "a%2520b" {
+		t.Errorf("expected an existing percent sign encoded once more, got %q", got)
+	}
+}
+
+// An absent or nil value is sent as null in the query location and as an empty value elsewhere.
+func TestBhvSerialization110_ValueSerializer_ANilIsNullInTheQueryOnly(t *testing.T) {
+	t.Parallel()
+	if got := serializeNil("query"); got != nil {
+		t.Errorf("expected a nil value in the query (sent as null), got %v", got)
+	}
+	if got := serializeNil("header"); got != "" {
+		t.Errorf("expected an empty value in the header, got %q", got)
+	}
+}
+
+// Only RFC 3986 unreserved characters, including tilde, stay literal, and every other character is percent-encoded as UTF-8.
+func TestBhvSerialization111_ValueSerializer_OnlyUnreservedCharactersStayLiteral(t *testing.T) {
+	t.Parallel()
+	if got := encodePathSegment("aZ09-._~é"); got != "aZ09-._~%C3%A9" {
+		t.Errorf("expected unreserved literal and the rest UTF-8 encoded, got %q", got)
+	}
+}
+
+// A string value passes through unchanged, without normalising its form.
+func TestBhvSerialization113_ValueSerializer_AStringIsNotNormalised(t *testing.T) {
+	t.Parallel()
+	decomposed := "é"
+	if got := fmt.Sprint(serializeValue(decomposed, "header", "string", "")); got != decomposed {
+		t.Errorf("expected the decomposed form kept, got %q", got)
+	}
+}
+
+// A date-time query parameter keeps its full ISO-8601 time and offset rather than being cut to the date.
+func TestBhvSerialization118_ValueSerializer_ADateTimeQueryKeepsItsTime(t *testing.T) {
+	t.Parallel()
+	at := models.DateTime(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	got := fmt.Sprint(serializeStyled("at", at, "query", "string", "", "form", true))
+	if !strings.Contains(got, "2026-01-02T03:04:05") {
+		t.Errorf("expected the full date-time, got %s", got)
+	}
+}
+
+// A nanosecond-precision duration is written with a nine-digit fraction.
+func TestBhvSerialization129_ValueSerializer_ANanosecondDurationHasANineDigitFraction(t *testing.T) {
+	t.Parallel()
+	d := models.Duration(123456789 * time.Nanosecond)
+	data, err := serialize(models.EdgeCases{RetryAfter: &d})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"retryAfter":"0.123456789s"`) {
+		t.Errorf("expected a nine-digit fraction, got %s", data)
+	}
+}
+
+// An enum value given in a path, query or header parameter is sent as its wire value.
+func TestBhvMisc082_ValueSerializer_AnEnumIsSentAsItsWireValue(t *testing.T) {
+	t.Parallel()
+	for _, location := range []string{"path", "query", "header"} {
+		if got := fmt.Sprint(serializeValue(models.AvailabilityOnHold, location, "string", "")); got != "on-hold" {
+			t.Errorf("%s: expected the wire value on-hold, got %q", location, got)
+		}
+	}
+}
+
+// A container element that holds JSON text is taken as its own value and never decoded a second time.
+func TestBhvMisc086_ValueSerializer_AnElementHoldingJsonTextIsNotDecodedAgain(t *testing.T) {
+	t.Parallel()
+	got := fmt.Sprint(serializeStyled("tags", []string{`{"a":1}`}, "query", "array", "", "form", false))
+	if !strings.Contains(got, `{"a":1}`) {
+		t.Errorf("expected the element kept as its own text, got %s", got)
 	}
 }

@@ -190,10 +190,11 @@ func redactedTransportMessage(err error) string {
 		return err.Error()
 	}
 	parsed, perr := url.Parse(urlErr.URL)
-	if perr != nil || parsed.RawQuery == "" {
+	if perr != nil {
 		return err.Error()
 	}
-	return fmt.Sprintf("%s %q: %v", urlErr.Op, redactURL(parsed), urlErr.Err)
+	/* The request target is shown as its path only: no scheme, host, query or fragment. */
+	return fmt.Sprintf("%s %q: %v", urlErr.Op, parsed.EscapedPath(), urlErr.Err)
 }
 
 // redirectRefusalMessage is the text of a refused redirect: the CheckRedirect
@@ -256,6 +257,11 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		// no body -- remove Content-Type to avoid sending it without a body
 		removeHeader(merged, "Content-Type")
 	case []byte:
+		/* A generated operation without a body passes a typed nil slice, not an
+		 * untyped nil, so it takes the same path as no body at all. */
+		if b == nil {
+			removeHeader(merged, "Content-Type")
+		}
 		bodyReader = bytes.NewReader(b)
 	case map[string]any:
 		buf, contentType, err := buildTransportMultipartBody(b)

@@ -15,6 +15,7 @@ import (
 	"errors"
 	"math"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -397,6 +398,9 @@ func parseOAuth2ServerError(statusCode int, body string) *errors_pkg.OAuth2Serve
 // wrap the expiry into the past, so every call would refetch the token.
 const maxExpiresInSeconds int64 = 31_536_000
 
+// decimalExpiresInPattern is the grammar a string expires_in must match (D08).
+var decimalExpiresInPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
+
 // parseExpiresIn performs a defensive parse of the OAuth2 "expires_in" field
 // (RFC 6749 §5.1). Returns 0 (caller skips caching) when the value is missing,
 // unparseable, or non-positive. Accepts integers, floors floats, and parses
@@ -419,12 +423,14 @@ func parseExpiresIn(raw json.RawMessage) int64 {
 	// Try string (handles "3600").
 	var asStr string
 	if err := json.Unmarshal(raw, &asStr); err == nil {
-		trimmed := strings.TrimSpace(asStr)
-		if trimmed == "" {
-			return 0
-		}
-		if v, err := strconv.ParseFloat(trimmed, 64); err == nil {
-			return clampExpiresIn(v)
+		/* Only a plain decimal (digits, optional fraction) after trimming ASCII
+		 * whitespace is honoured: ParseFloat would also accept exponents, hex,
+		 * NaN and infinities (D08). */
+		trimmed := strings.Trim(asStr, " \t\n\r\f\v")
+		if decimalExpiresInPattern.MatchString(trimmed) {
+			if v, err := strconv.ParseFloat(trimmed, 64); err == nil {
+				return clampExpiresIn(v)
+			}
 		}
 	}
 	return 0

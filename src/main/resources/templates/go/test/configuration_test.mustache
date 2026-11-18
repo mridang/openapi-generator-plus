@@ -423,5 +423,11 @@ func TestConfiguration_CallHookIsHeldByTheConfigurationAndNeverPrinted(t *testin
 	}
 	if {{packageName}}.NewConfigurationBuilder().Build().CallHook() != nil {
 		t.Error("expected no hook unless one is set")
+// A configuration built through the builder entry point returns the base URL set on the builder.
+func TestBhvConfig026_Configuration_TheBuilderKeepsTheBaseUrl(t *testing.T) {
+	t.Parallel()
+	cfg := {{packageName}}.NewConfigurationBuilder().BaseURL("https://api.example.com/v2").Build()
+	if got := cfg.BaseURL(); got != "https://api.example.com/v2" {
+		t.Errorf("expected the builder base URL, got %q", got)
 	}
 }

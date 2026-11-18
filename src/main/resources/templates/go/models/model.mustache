@@ -815,6 +815,9 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return nil
 {{/mappedModels}}
 	}
+	if disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} == "" {
+		return fmt.Errorf("missing discriminator property %q for {{classname}}", "{{propertyBaseName}}")
+	}
 	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
 	// previously returned nil silently, leaving the union uninitialized
 	// and producing a hard-to-debug `nil` downstream. Align by surfacing

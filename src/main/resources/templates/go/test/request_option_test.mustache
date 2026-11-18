@@ -43,7 +43,7 @@ func TestBhvOptions053_RequestOption_NewCallSettings_AppliesEveryOption(t *testi
 	}
 }
 
-func TestRequestOption_NewCallSettings_ALaterOptionOfTheSameKindWins(t *testing.T) {
+func TestBhvMisc052_RequestOption_NewCallSettings_ALaterOptionOfTheSameKindWins(t *testing.T) {
 	t.Parallel()
 	settings, err := newCallSettings([]RequestOption{
 		WithTimeout(time.Second),

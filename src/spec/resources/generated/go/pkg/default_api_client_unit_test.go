@@ -1255,7 +1255,7 @@ func TestBhvRedirects037_DefaultApiClientUnit_ARedirectToTheExplicitDefaultPortK
 // F1093: a credential carried under a name the spec does not declare (a
 // custom authenticator's X-Auth-Token, a default header named like a secret)
 // is stripped from a cross-origin redirect too; an ordinary header survives.
-func TestDefaultApiClientUnit_StripsSecretNamedHeadersAcrossCrossOriginRedirect(t *testing.T) {
+func TestBhvRedirects052_DefaultApiClientUnit_StripsSecretNamedHeadersAcrossCrossOriginRedirect(t *testing.T) {
 	t.Parallel()
 	var received http.Header
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1562,8 +1562,8 @@ func TestBhvErrors078_DefaultApiClientUnit_NetworkErrorMessageRedactsTheQuery(t 
 	if strings.Contains(err.Error(), "SECRET-KEY") {
 		t.Errorf("the API key leaked into the message: %q", err.Error())
 	}
-	if !strings.Contains(err.Error(), "/items?***") {
-		t.Errorf("expected the query to read ***, got %q", err.Error())
+	if !strings.Contains(err.Error(), "/items") || strings.Contains(err.Error(), "?") {
+		t.Errorf("expected the path shown and the query left out, got %q", err.Error())
 	}
 }
 
@@ -2678,7 +2678,7 @@ func TestBhvTransport062_DefaultApiClientUnit_VerifySslFalseAcceptsUntrustedCert
 
 // The certificate file is the trust anchor: the server's own certificate as the
 // CA verifies, an unrelated authority does not.
-func TestDefaultApiClientUnit_CaCertPathDecidesWhichServersAreTrusted(t *testing.T) {
+func TestBhvTransport093_DefaultApiClientUnit_CaCertPathDecidesWhichServersAreTrusted(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -3506,5 +3506,23 @@ func TestBhvErrors077_DefaultApiClientUnit_DiagnosticUrlKeepsOnlySchemeHostPortA
 	got := redactURL(parsed)
 	if got != "https://api.example.com:8443/v1/items?***" {
 		t.Errorf("expected only the scheme, host, port and path, got %q", got)
+	}
+}
+
+// A response body is decoded using its declared charset label, falling back to UTF-8 when the label
+// is absent or unknown, and BOM-less UTF-16 is read as big-endian.
+func TestBhvSerialization119_DefaultApiClient_ABodyIsDecodedByItsDeclaredCharset(t *testing.T) {
+	t.Parallel()
+	if got := decodeBodyByCharset([]byte{0xe9}, "text/plain; charset=iso-8859-1"); got != "é" {
+		t.Errorf("expected the declared latin-1 charset, got %q", got)
+	}
+	if got := decodeBodyByCharset([]byte("é"), "text/plain"); got != "é" {
+		t.Errorf("expected UTF-8 when the charset is absent, got %q", got)
+	}
+	if got := decodeBodyByCharset([]byte("hi"), "text/plain; charset=bogus-label"); got != "hi" {
+		t.Errorf("expected UTF-8 when the charset is unknown, got %q", got)
+	}
+	if got := decodeBodyByCharset([]byte{0x00, 0x41}, "text/plain; charset=utf-16"); got != "A" {
+		t.Errorf("expected BOM-less UTF-16 read as big-endian, got %q", got)
 	}
 }

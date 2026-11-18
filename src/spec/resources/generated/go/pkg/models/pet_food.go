@@ -106,6 +106,9 @@ func (o *PetFood) UnmarshalJSON(data []byte) error {
 		o.value = v
 		return nil
 	}
+	if disc.FoodType == "" {
+		return fmt.Errorf("missing discriminator property %q for PetFood", "foodType")
+	}
 	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
 	// previously returned nil silently, leaving the union uninitialized
 	// and producing a hard-to-debug `nil` downstream. Align by surfacing

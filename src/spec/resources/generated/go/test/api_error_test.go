@@ -10,8 +10,11 @@
 package petstore_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -226,7 +229,7 @@ func TestBhvErrors020_ApiError_NetworkErrors_AreApiErrorsWithStatusZero(t *testi
 // TestApiError_TypedErrors_MatchTheirParentsViaErrorsAs confirms the hierarchy reads the
 // same as in the other SDKs: a *NotFoundError is a *ClientError and an
 // *ApiError, and an *InternalServerError is a *ServerError and an *ApiError.
-func TestApiError_TypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
+func TestBhvErrors095_ApiError_TypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
 	t.Parallel()
 	notFound := apierrors.FromResponse(404, nil, "")
 	if _, ok := notFound.(*apierrors.NotFoundError); !ok {
@@ -883,7 +886,7 @@ func TestBhvErrors003_ApiError_EveryStatusSpecificErrorKeepsAnOptionalCause(t *t
 // Error() renders the message first and then each part that is present on its
 // own line; an absent part leaves no empty line behind, and an empty message
 // falls back to the generic sentence.
-func TestApiError_ErrorRendersOnlyThePartsThatArePresent(t *testing.T) {
+func TestBhvErrors088_ApiError_ErrorRendersOnlyThePartsThatArePresent(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -1558,5 +1561,169 @@ func TestApiError_StateConflictError_IsTypedAndMatchesEveryLevelAboveIt(t *testi
 	var root apierrors.OpenAPIError
 	if !errors.As(got, &root) {
 		t.Error("expected errors.As to reach the OpenAPIError root")
+	}
+}
+
+// A carriage return, line feed or other control character in a response body appears escaped in the rendered message.
+func TestBhvErrors085_ApiError_ControlCharactersInTheBodyAreEscaped(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(500, "boom", "a\r\nb", nil, nil, nil)
+	if strings.Contains(err.Error(), "a\r\nb") {
+		t.Errorf("expected no raw line break in the body, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), `\x0D\x0A`) {
+		t.Errorf("expected the control characters escaped, got %q", err.Error())
+	}
+}
+
+// The rendered message truncates a body only when it exceeds 1 KiB; the full body stays on the error.
+func TestBhvErrors086_ApiError_TruncatesOnlyAboveOneKibibyte(t *testing.T) {
+	t.Parallel()
+	exact := strings.Repeat("a", 1024)
+	if err := apierrors.NewApiError(500, "boom", exact, nil, nil, nil); !strings.Contains(err.Error(), exact) || strings.Contains(err.Error(), "more bytes") {
+		t.Errorf("expected a 1 KiB body shown whole, got %q", err.Error())
+	}
+	long := strings.Repeat("a", 1025)
+	err := apierrors.NewApiError(500, "boom", long, nil, nil, nil)
+	if !strings.Contains(err.Error(), "more bytes") || err.ResponseBody() != long {
+		t.Errorf("expected a truncated message and the full body kept, got %q", err.Error())
+	}
+}
+
+// Authentication, session and challenge headers are masked in the rendered message.
+func TestBhvErrors087_ApiError_SecretHeadersAreMaskedInTheMessage(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(401, "denied", "", map[string]string{
+		"Authorization":      "Bearer s3cret-token",
+		"Cookie":             "sid=abc123",
+		"WWW-Authenticate":   "Basic realm=hidden-realm",
+		"Proxy-Authenticate": "Basic realm=hidden-proxy",
+	}, nil, nil)
+	for _, secret := range []string{"s3cret-token", "sid=abc123", "hidden-realm", "hidden-proxy"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("expected %q masked in the message, got %q", secret, err.Error())
+		}
+	}
+}
+
+// An error with no message, whether null or empty, renders a default message text.
+func TestBhvErrors089_ApiError_AnEmptyMessageRendersADefault(t *testing.T) {
+	t.Parallel()
+	if got := apierrors.NewApiError(500, "", "", nil, nil, nil).Error(); strings.TrimSpace(got) == "" {
+		t.Errorf("expected a default message text, got %q", got)
+	}
+}
+
+// An error that has no response data keeps its response headers as null rather than empty values.
+func TestBhvErrors090_NetworkError_HasNoResponseHeadersWhenNoResponseArrived(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewNetworkError("connection refused", nil)
+	if err.ResponseHeaders() != nil {
+		t.Errorf("expected nil headers when no response arrived, got %v", err.ResponseHeaders())
+	}
+}
+
+// A status outside a class's range is not classified into that class, and a status of 600 or above falls back to the base error.
+func TestBhvErrors096_FromResponse_AStatusOutsideItsClassFallsBackToTheBase(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{399, 600} {
+		err := apierrors.FromResponse(status, map[string]string{}, "{}")
+		var client *apierrors.ClientError
+		var server *apierrors.ServerError
+		if errors.As(err, &client) || errors.As(err, &server) {
+			t.Errorf("status %d: expected no client or server class, got %T", status, err)
+		}
+	}
+}
+
+// An unrecognised 4xx status raises the generic client error.
+func TestBhvErrors097_FromResponse_AnUnrecognisedClientStatusIsTheGenericClientError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(499, map[string]string{}, "{}")
+	var client *apierrors.ClientError
+	if !errors.As(err, &client) {
+		t.Errorf("expected the generic ClientError for an unrecognised 4xx, got %T: %v", err, err)
+	}
+}
+
+// A typed view of an error body that is valid JSON but not an object is refused with a serialization error.
+func TestBhvMisc015_ApiError_ANonObjectErrorBodyIsRefusedWithASerializationError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(400, "bad", `[1,2]`, nil, nil, nil)
+	var target struct {
+		Code string `json:"code"`
+	}
+	typed := err.GetTypedErrorBody(&target)
+	var serErr *apierrors.SerializationError
+	if !errors.As(typed, &serErr) {
+		t.Errorf("expected a SerializationError for a non-object body, got %T: %v", typed, typed)
+	}
+}
+
+// The rendered form of an error body shows at most a fixed number of characters and states how many bytes were omitted.
+func TestBhvMisc016_ApiError_ALongBodyIsTruncatedWithTheOmittedCount(t *testing.T) {
+	t.Parallel()
+	body := strings.Repeat("x", 5000)
+	rendered := apierrors.NewApiError(500, "boom", body, nil, nil, nil).Error()
+	if len(rendered) >= 2000 || !strings.Contains(rendered, "more bytes") {
+		t.Errorf("expected a bounded rendering that states the omitted bytes, got %d characters", len(rendered))
+	}
+}
+
+// The rendered error text shows the request line only when both the request method and the request path are known.
+func TestBhvMisc020_ApiError_TheRequestLineNeedsBothMethodAndPath(t *testing.T) {
+	t.Parallel()
+	bare := apierrors.NewApiError(404, "missing", "", nil, nil, nil)
+	if strings.Contains(bare.Error(), "Request:") {
+		t.Errorf("expected no request line without a method and path, got %q", bare.Error())
+	}
+	withPath := apierrors.NewApiError(404, "missing", "", nil, nil, nil)
+	withPath.AttachRequest("GET", "/items/7")
+	if !strings.Contains(withPath.Error(), "Request: GET /items/7") {
+		t.Errorf("expected the request line with method and path, got %q", withPath.Error())
+	}
+}
+
+// A server error is an instance of the SDK root error type and of the server class it wraps.
+func TestBhvMisc022_ApiError_AServerErrorIsTheRootAndTheServerClass(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(503, map[string]string{}, "{}")
+	var root apierrors.OpenAPIError
+	var server *apierrors.ServerError
+	if !errors.As(err, &root) || !errors.As(err, &server) {
+		t.Errorf("expected the root error and the server class, got %T: %v", err, err)
+	}
+}
+
+// A status code with no specific error class becomes the generic server error for a 5xx, or the generic API error otherwise.
+func TestBhvMisc023_ApiError_AnUnmappedStatusFallsToItsGenericClass(t *testing.T) {
+	t.Parallel()
+	var server *apierrors.ServerError
+	if err := apierrors.FromResponse(599, map[string]string{}, "{}"); !errors.As(err, &server) {
+		t.Errorf("expected the generic server error for an unmapped 5xx, got %T: %v", err, err)
+	}
+	var apiErr *apierrors.ApiError
+	if err := apierrors.FromResponse(399, map[string]string{}, "{}"); !errors.As(err, &apiErr) || errors.As(err, &server) {
+		t.Errorf("expected the generic API error for an unmapped non-5xx, got %T: %v", err, err)
+	}
+}
+
+// A typed operation call fails when the server answers with a client error status.
+func TestBhvMisc025_PetApi_AClientErrorStatusFailsTheCall(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode() != 404 {
+		t.Errorf("expected the call to fail with the 404 API error, got %T: %v", err, err)
 	}
 }

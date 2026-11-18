@@ -200,7 +200,7 @@ func TestBhvServers012_ServerConfiguration_RejectionMessageNamesValueVariableAnd
 
 // A value that introduces a placeholder is substituted literally: the result
 // never depends on which variable is visited first.
-func TestServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
+func TestBhvServers029_ServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.api.example.com/{version}",
@@ -481,5 +481,20 @@ func TestBhvServers027_ServerVariable_EqualDefaultDescriptionAndValuesAreEqual(t
 	second := petstore.NewServerVariable("prod", "environment", []string{"prod", "dev"})
 	if !reflect.DeepEqual(first, second) {
 		t.Errorf("expected equal server variables, got %+v and %+v", first, second)
+	}
+}
+
+// A value that is not one of a server variable's declared enum values is rejected with an error.
+func TestBhvServers030_ServerConfiguration_AValueOutsideTheEnumIsRejected(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://api.example.com/{env}",
+		"",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("prod", "", []string{"api", "staging"}),
+		},
+	)
+	if _, err := server.URL(map[string]string{"env": "bogus"}); !errors.Is(err, petstore.ErrInvalidServerVariable) {
+		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
 	}
 }
