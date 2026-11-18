@@ -379,7 +379,7 @@ test('psr18 redirect to non http scheme throws', function (): void {
         });
 });
 
-test('psr18 send after close throws logic exception', function (): void {
+test('bhv lifecycle 043 psr18 send after close throws logic exception', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, 'ok'));
     $client = newPsr18Client($stub);
     $client->close();
@@ -671,4 +671,144 @@ test('psr18 keeps an allowReserved query value byte for byte', function (): void
     $client->sendRequest('GET', 'http://example.com/echo?' . $query, [], null);
 
     expect($stub->requests[0]->getUri()->getQuery())->toBe("revision=v1.0/beta:rc1%5Bx%5D'y");
+});
+
+test('bhv redirects 046 psr18 a redirect chain within the limit reaches its target', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://api.example.com/hop-1']),
+        psr18Response(302, '', ['Location' => 'https://api.example.com/hop-2']),
+        psr18Response(200, 'arrived')
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->maxRedirects(3)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('arrived');
+});
+
+test('bhv redirects 047 psr18 a refused redirect chain does not change the outcome of the next request', function (): void {
+    $refused = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://api.example.com/a']),
+        psr18Response(302, '', ['Location' => 'https://api.example.com/b'])
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->maxRedirects(1)->build();
+    $client = newPsr18Client($refused, $transport);
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
+        ->toThrow(ApiException::class);
+
+    $ok = new StubPsr18Client(psr18Response(200, 'second'));
+    $response = newPsr18Client($ok, $transport)->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->body)->toBe('second');
+});
+
+test('bhv redirects 049 psr18 a 307 redirect repeats the post with the same body', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(307, '', ['Location' => 'https://api.example.com/moved']),
+        psr18Response(200, 'ok')
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $client->sendRequest('POST', 'https://api.example.com/start', [], 'payload');
+
+    expect($stub->requests[1]->getMethod())->toBe('POST');
+    expect((string) $stub->requests[1]->getBody())->toBe('payload');
+});
+
+test('bhv redirects 050 psr18 the follow up method matches the rfc 9110 table for each redirect status', function (int $status, string $expected): void {
+    $stub = new StubPsr18Client(
+        psr18Response($status, '', ['Location' => 'https://api.example.com/moved']),
+        psr18Response(200, 'ok')
+    );
+    $client = newPsr18Client($stub, TransportOptions::builder()->followRedirects(true)->build());
+
+    $client->sendRequest('POST', 'https://api.example.com/start', [], 'payload');
+
+    expect($stub->requests[1]->getMethod())->toBe($expected);
+})->with([
+    '301 becomes get' => [301, 'GET'],
+    '302 becomes get' => [302, 'GET'],
+    '303 becomes get' => [303, 'GET'],
+    '307 keeps post' => [307, 'POST'],
+    '308 keeps post' => [308, 'POST'],
+]);
+
+test('bhv redirects 048 psr18 a 302 turns a post into a get and keeps every other method', function (string $method, string $expected): void {
+    $stub = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://api.example.com/moved']),
+        psr18Response(200, 'ok')
+    );
+    $client = newPsr18Client($stub, TransportOptions::builder()->followRedirects(true)->build());
+
+    $client->sendRequest($method, 'https://api.example.com/start', [], null);
+
+    expect($stub->requests[1]->getMethod())->toBe($expected);
+})->with([
+    'post becomes get' => ['POST', 'GET'],
+    'put is kept' => ['PUT', 'PUT'],
+    'patch is kept' => ['PATCH', 'PATCH'],
+    'delete is kept' => ['DELETE', 'DELETE'],
+    'head is kept' => ['HEAD', 'HEAD'],
+    'get is kept' => ['GET', 'GET'],
+]);
+
+test('bhv redirects 051 psr18 a 303 turns every method into a get except head', function (string $method, string $expected): void {
+    $stub = new StubPsr18Client(
+        psr18Response(303, '', ['Location' => 'https://api.example.com/moved']),
+        psr18Response(200, 'ok')
+    );
+    $client = newPsr18Client($stub, TransportOptions::builder()->followRedirects(true)->build());
+
+    $client->sendRequest($method, 'https://api.example.com/start', [], null);
+
+    expect($stub->requests[1]->getMethod())->toBe($expected);
+})->with([
+    'post becomes get' => ['POST', 'GET'],
+    'put becomes get' => ['PUT', 'GET'],
+    'delete becomes get' => ['DELETE', 'GET'],
+    'head stays head' => ['HEAD', 'HEAD'],
+]);
+
+test('bhv redirects 052 psr18 a redirect to another origin removes authorization cookie and secret headers', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://other.example.com/final']),
+        psr18Response(200, 'ok')
+    );
+    $client = newPsr18Client($stub, TransportOptions::builder()->followRedirects(true)->build());
+
+    $client->sendRequest('GET', 'https://api.example.com/start', [
+        'Authorization' => 'Bearer secret',
+        'Proxy-Authorization' => 'Basic secret',
+        'Cookie' => 'session=xyz',
+        'X-Api-Token' => 'token-value',
+        'X-Trace' => 'keep',
+    ], null);
+
+    expect($stub->requests[1]->hasHeader('Authorization'))->toBeFalse();
+    expect($stub->requests[1]->hasHeader('Proxy-Authorization'))->toBeFalse();
+    expect($stub->requests[1]->hasHeader('Cookie'))->toBeFalse();
+    expect($stub->requests[1]->hasHeader('X-Api-Token'))->toBeFalse();
+    expect($stub->requests[1]->hasHeader('X-Trace'))->toBeTrue();
+});
+
+test('bhv redirects 053 psr18 authorization is kept on a same origin redirect and removed when the scheme changes', function (): void {
+    $same = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://api.example.com/next']),
+        psr18Response(200, 'ok')
+    );
+    newPsr18Client($same, TransportOptions::builder()->followRedirects(true)->build())
+        ->sendRequest('GET', 'https://api.example.com/start', ['Authorization' => 'Bearer secret'], null);
+    expect($same->requests[1]->hasHeader('Authorization'))->toBeTrue();
+
+    $downgrade = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'http://api.example.com/next']),
+        psr18Response(200, 'ok')
+    );
+    newPsr18Client($downgrade, TransportOptions::builder()->followRedirects(true)->build())
+        ->sendRequest('GET', 'https://api.example.com/start', ['Authorization' => 'Bearer secret'], null);
+    expect($downgrade->requests[1]->hasHeader('Authorization'))->toBeFalse();
 });

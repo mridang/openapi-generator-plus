@@ -379,3 +379,5 @@ java | auth038 | the generated scheme wrappers take one static token and no toke
 kotlin | auth038 | settled credential order F862: the environment variable is read before the token provider, so a provider never outranks a set variable
 csharp | auth038 | settled credential order F862: the environment variable is read before the token provider
 csharp | auth039 | settled credential order F862: the environment variable is read before the token provider
+php | auth038 | settled credential order F862: the environment variable is read before the token provider
+php | lifecycle044 | PHP runs one request at a time in one process, so a close() cannot race a request that is still in flight

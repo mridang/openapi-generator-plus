@@ -955,3 +955,106 @@ test('bhv auth 001 a header call on a credential that needs its token exchange r
     expect(fn (): string => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
         ->toThrow(\LogicException::class);
 });
+
+test('bhv auth 054 a non success token response surfaces as an oauth2 server error naming the status and the body', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(401, 'token endpoint refused', ['Content-Type' => 'text/plain']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(OAuth2ServerException::class, 'Token request failed with status 401: token endpoint refused');
+});
+
+test('bhv auth 055 a network failure during a token request reaches the caller unchanged', function (): void {
+    $failure = new \RuntimeException('connection reset');
+    $client = new MockTokenApiClient();
+    $client->enqueueFailure($failure);
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $caught = null;
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+    expect($caught)->toBe($failure);
+});
+
+test('bhv auth 056 an expires in value is honoured only as a padded decimal number and any other value is stale', function (mixed $expiresIn, bool $cached): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'first-token',
+        'expires_in' => $expiresIn,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'second-token',
+        'expires_in' => $expiresIn,
+    ]), ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $params = ['grant_type' => 'client_credentials'];
+    $manager->getAccessToken('https://auth.example.com/token', $params);
+    $second = $manager->getAccessToken('https://auth.example.com/token', $params);
+
+    expect($second)->toBe($cached ? 'first-token' : 'second-token');
+})->with([
+    'integer' => [60, true],
+    'decimal string' => ['60', true],
+    'padded decimal string' => [' 60 ', true],
+    'not a number' => ['abc', false],
+    'exponent form' => ['1e3', false],
+    'trailing text' => ['60x', false],
+]);
+
+test('bhv auth 058 a request that needs a new token uses the refresh grant first when a refresh token is held', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'first-token',
+        'refresh_token' => 'held-refresh',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'second-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'password']);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'password']);
+
+    expect($client->capturedRequests[1]['body'])->toContain('grant_type=refresh_token');
+    expect($client->capturedRequests[1]['body'])->toContain('refresh_token=held-refresh');
+});
+
+test('bhv auth 057 a rejected refresh falls back to the original grant', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'first-token',
+        'refresh_token' => 'stale-refresh',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(400, (string) json_encode([
+        'error' => 'invalid_grant',
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'fresh-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'password']);
+    $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'password']);
+
+    expect($token)->toBe('fresh-token');
+    expect($client->capturedRequests[2]['body'])->toContain('grant_type=password');
+});

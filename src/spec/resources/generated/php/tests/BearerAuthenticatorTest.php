@@ -85,7 +85,7 @@ test('bhv authbearer 016 bearer rejects unicode space only token as non printabl
     'line separator' => ["\u{2028}"],
 ]);
 
-test('token is masked in var_dump and print_r output', function (): void {
+test('bhv auth 033 token is masked in var_dump and print_r output', function (): void {
     /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
      * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
      * the masked array, so the token never leaks through a stray dump or an
@@ -258,7 +258,7 @@ test('bhv authbearer 014 a token provider is asked for the token on every reques
     expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer rotated-2');
 });
 
-test('a token and a token provider cannot both be passed', function (): void {
+test('bhv auth 039 a token and a token provider cannot both be passed', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', 'a', fn (): string => 'b'))
         ->toThrow(\InvalidArgumentException::class, 'not both');
 });
@@ -465,3 +465,15 @@ function bearerWrapperEnvVariable(string $class): string
 
     return $first;
 }
+
+test('bhv auth 037 a token provider is asked again for each request and its current value is sent', function (): void {
+    $calls = 0;
+    $auth = new BearerAuthenticator('https://api.example.com', null, function () use (&$calls): string {
+        $calls++;
+
+        return 'token-' . $calls;
+    });
+
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-1');
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-2');
+});

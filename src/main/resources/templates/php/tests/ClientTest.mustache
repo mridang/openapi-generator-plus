@@ -696,4 +696,12 @@ test('a call hook given to the client is handed to every api group', function ()
         }
     }
     expect($configs)->not->toBe([]);
+test('bhv lifecycle 045 closing the sdk client does not close a supplied http client, which keeps sending', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new {{clientClassName}}($this->authenticator, null, $transport);
+    $client->close();
+
+    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
+        ->not->toThrow(\LogicException::class);
+    expect($counts->closes)->toBe(0);
 });

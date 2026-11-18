@@ -877,3 +877,55 @@ test('bhv auth 020 the pkce verifier is sent with the first exchange and never w
     expect($client->capturedRequests[1]['body'] ?? '')->not->toContain('code_verifier');
     expect($client->capturedRequests[2]['body'] ?? '')->not->toContain('code_verifier');
 });
+
+test('bhv auth 048 the authorization code flow builds the exact authorize url and the code exchange sends the declared grant', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl('csrf-state');
+    // The PKCE challenge is random per call, so it is removed before the exact comparison.
+    $withoutChallenge = preg_replace('/&code_challenge(_method)?=[^&]*/', '', $url);
+
+    expect($withoutChallenge)->toBe(
+        'https://auth.example.com/authorize?response_type=code&client_id=my-client-id'
+        . '&redirect_uri=' . rawurlencode('https://app.example.com/callback')
+        . '&scope=read%20write&state=csrf-state'
+    );
+});
+
+test('bhv auth 053 exchanging a code discards any refresh token previously held', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'first',
+        'refresh_token' => 'first-refresh',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'second',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('code-1');
+    expect($authenticator->getTokenManager()->getRefreshToken())->toBe('first-refresh');
+
+    $authenticator->exchangeCode('code-2');
+    expect($authenticator->getTokenManager()->getRefreshToken())->toBeNull();
+});
