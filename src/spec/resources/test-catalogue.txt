@@ -1005,3 +1005,12 @@ unions302 | An allOf base decodes to the subtype its implicit schema name mappin
 unions303 | An unknown allOf discriminator value fails and the error names the value
 unions304 | An allOf base payload without its discriminator fails
 errors205 | A decode failure of a response carries the status, the headers and the raw body
+mocking001 | Every API group has an interface that lists every operation of the group and its with-http-info variant, and the generated group class implements it
+mocking002 | The group interface lists exactly the public operations of the group class, no more and no fewer
+mocking003 | A hand-written fake of a group is accepted wherever the group interface is accepted, and receives the operation call with the arguments the caller passed
+mocking004 | A fake raises the SDK's typed error from an operation and the caller handles it exactly as it handles the error of the real client
+mocking005 | An operation called through the interface type on the real client sends the same request and returns the same result as the call on the class
+mocking006 | Calling an operation without the per-call options reaches the fake's full-signature method with the options absent, so a fake implements one form per operation
+mocking007 | The top-level client interface exposes every group typed as its group interface, plus close, and the real client implements it
+mocking008 | A fake client built from fake groups never opens a connection, and closing it does nothing and does not fail
+mocking009 | The README has a section named "Testing your code" that names the group interface and the top-level interface and shows a fake
