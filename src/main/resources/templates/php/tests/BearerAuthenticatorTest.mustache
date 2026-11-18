@@ -38,7 +38,7 @@ test('bhv authbearer 012 bearer rejects crlf at construction', function (): void
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('bearer rejects non ascii at construction', function (): void {
+test('bhv authbearer 022 rejects a non ascii token at construction', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', 'ñoño'))
         ->toThrow(\InvalidArgumentException::class);
 });
@@ -279,4 +279,85 @@ test('bhv authbearer 001 every generated bearer wrapper prints its own class nam
         expect(print_r($auth, true))->toContain('***');
     }
     expect($wrappers)->toBeGreaterThan(0);
+});
+
+/**
+ * Runs $body with each variable of $values set (null unsets it), then restores the previous values.
+ *
+ * @param array<string, ?string> $values
+ */
+function withBearerEnvValues(array $values, callable $body): void
+{
+    $previous = [];
+    foreach ($values as $name => $value) {
+        $previous[$name] = getenv($name);
+        putenv($value === null ? $name : $name . '=' . $value);
+    }
+    try {
+        $body();
+    } finally {
+        foreach ($previous as $name => $value) {
+            putenv($value === false ? $name : $name . '=' . $value);
+        }
+    }
+}
+
+test('bhv authbearer 019 an empty environment value counts as unset and fails construction naming the variable', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BearerAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $variable = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'))[0];
+        withBearerEnvValues([$variable => ''], function () use ($class, $variable): void {
+            expect(fn () => new $class('https://api.example.com'))
+                ->toThrow(\InvalidArgumentException::class, $variable);
+        });
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authbearer 023 generated bearer scheme wrappers emit a bearer header and keep their own name', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BearerAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $auth = new $class('https://api.example.com', 'wrapper-token');
+        expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer wrapper-token']);
+        expect(get_class($auth))->toBe($class);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authbearer 025 the environment variable is read once, at construction', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BearerAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $variable = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'))[0];
+        withBearerEnvValues([$variable => 'first'], function () use ($class, $variable): void {
+            $auth = new $class('https://api.example.com');
+            putenv($variable . '=second');
+            expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer first']);
+        });
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authbearer 026 a token and a token provider passed together are refused', function (): void {
+    expect(fn () => new BearerAuthenticator('https://api.example.com', 'a', fn (): string => 'b'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authbearer 027 a whitespace only token is refused at construction', function (): void {
+    expect(fn () => new BearerAuthenticator('https://api.example.com', " \t "))
+        ->toThrow(\InvalidArgumentException::class);
 });

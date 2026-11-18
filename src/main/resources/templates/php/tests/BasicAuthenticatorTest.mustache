@@ -28,7 +28,7 @@ test('bhv authbasic 008 rejects username with colon at construction', function (
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('password is masked in var_dump and print_r output', function (): void {
+test('bhv authbasic 020 masks the password in var_dump and print_r output', function (): void {
     /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
      * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
      * the masked array, so the password never leaks through a stray dump or
@@ -190,4 +190,78 @@ test('bhv authbasic 005 password is not leaked in default to string', function (
     expect(json_encode($auth))->not->toContain('s3cret-pass');
     expect(print_r($auth, true))->not->toContain('s3cret-pass');
     expect(print_r($auth, true))->toContain('https://api.example.com');
+});
+
+/**
+ * Runs $body with each variable of $values set (null unsets it), then restores the previous values.
+ *
+ * @param array<string, ?string> $values
+ */
+function withBasicEnvValues(array $values, callable $body): void
+{
+    $previous = [];
+    foreach ($values as $name => $value) {
+        $previous[$name] = getenv($name);
+        putenv($value === null ? $name : $name . '=' . $value);
+    }
+    try {
+        $body();
+    } finally {
+        foreach ($previous as $name => $value) {
+            putenv($value === false ? $name : $name . '=' . $value);
+        }
+    }
+}
+
+/**
+ * Checks every generated basic scheme wrapper with the username and password set to $user and $secret: when the
+ * variable of $field is empty, construction fails and the message names that variable.
+ */
+function assertBasicWrappersRefuseEmptyVariable(string $field, string $user, string $secret): void
+{
+    $matched = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BasicAuthenticator::class)) {
+            continue;
+        }
+        $matched++;
+        $variables = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+        withBasicEnvValues([$variables['username'] => $user, $variables['password'] => $secret], function () use ($class, $variables, $field): void {
+            expect(fn () => new $class('https://api.example.com'))
+                ->toThrow(\InvalidArgumentException::class, $variables[$field]);
+        });
+    }
+    expect($matched)->toBeGreaterThan(0);
+}
+
+test('bhv authbasic 018 a basic password may contain a colon', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 'pa:ss:word');
+    expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Basic ' . base64_encode('alice:pa:ss:word')]);
+});
+
+test('bhv authbasic 019 generated basic scheme wrappers emit the same basic header as the base authenticator', function (): void {
+    $expected = ['Authorization' => 'Basic ' . base64_encode('wrapper-user:wrapper-pass')];
+    expect((new BasicAuthenticator('https://api.example.com', 'wrapper-user', 'wrapper-pass'))->getAuthHeaders())
+        ->toBe($expected);
+
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BasicAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $auth = new $class('https://api.example.com', 'wrapper-user', 'wrapper-pass');
+        expect($auth->getAuthHeaders())->toBe($expected);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authscheme 003 a basic scheme authenticator names its username variable when that variable is empty', function (): void {
+    assertBasicWrappersRefuseEmptyVariable('username', '', 'wrapper-pass');
+});
+
+test('bhv authscheme 004 a basic scheme authenticator names its password variable when that variable is empty', function (): void {
+    assertBasicWrappersRefuseEmptyVariable('password', 'wrapper-user', '');
 });
