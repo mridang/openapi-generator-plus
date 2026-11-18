@@ -217,4 +217,24 @@ class BetterRustCodegenTest {
     assertThat(configured.additionalProperties()).doesNotContainKey("homepageUrl");
     assertThat(configured.additionalProperties().get("envPrefix")).isEqualTo("ITEM_CLIENT");
   }
+
+  /* A union names its members, so its file imports the sibling models with the glob. A subtype
+   * that names no sibling, and a union of primitives, must not carry an unused glob, which fails
+   * the -D warnings lint gate. */
+  @Test
+  void theSiblingGlobIsWrittenOnlyWhereAFileNamesASibling() throws IOException {
+    final Path models = Path.of("src/spec/resources/generated/rust/src/models");
+    for (final String union : new String[] {"shape.rs", "vehicle.rs"}) {
+      assertThat(Files.readString(models.resolve(union)))
+          .as(union)
+          .contains("use super::*;");
+    }
+    for (final String subtype : new String[] {"car.rs", "circle.rs", "square.rs", "truck.rs"}) {
+      assertThat(Files.readString(models.resolve(subtype)))
+          .as(subtype)
+          .doesNotContain("use super::*;");
+    }
+    assertThat(Files.readString(models.resolve("set_pet_avatar_thumbnail_request.rs")))
+        .doesNotContain("use super::*;");
+  }
 }

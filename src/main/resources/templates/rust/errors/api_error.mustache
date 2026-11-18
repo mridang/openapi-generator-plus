@@ -853,8 +853,8 @@ impl fmt::Display for ApiErrorKind {
 impl std::error::Error for ApiErrorKind {}
 
 /// What every error built from an HTTP response offers, whichever type it is:
-/// the root [`ApiError`], a status type such as [`NotFoundError`](crate::errors::NotFoundError)
-/// or [`ClientError`](crate::errors::ClientError), or the error of a declared
+/// the root [`ApiError`], a status type such as [`NotFoundError`]
+/// or [`ClientError`], or the error of a declared
 /// error schema. Each type wraps the one above it and reaches the root through
 /// [`api_error`](ApiErrorInfo::api_error); the other methods read from it, so a
 /// function that takes `&impl ApiErrorInfo` reads the same facts from any of them.
