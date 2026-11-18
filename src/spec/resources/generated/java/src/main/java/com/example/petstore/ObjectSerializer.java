@@ -569,6 +569,9 @@ public final class ObjectSerializer {
    * keeping the digits it was read with.
    */
   public static final class StringDecimalSerializer extends JsonSerializer<java.math.BigDecimal> {
+    /** Creates the serializer. */
+    public StringDecimalSerializer() {}
+
     @Override
     public void serialize(
         java.math.BigDecimal value, JsonGenerator generator, SerializerProvider provider)
@@ -583,6 +586,9 @@ public final class ObjectSerializer {
    */
   public static final class StringDecimalDeserializer
       extends JsonDeserializer<java.math.BigDecimal> {
+    /** Creates the deserializer. */
+    public StringDecimalDeserializer() {}
+
     @Override
     public java.math.BigDecimal deserialize(JsonParser parser, DeserializationContext context)
         throws IOException {

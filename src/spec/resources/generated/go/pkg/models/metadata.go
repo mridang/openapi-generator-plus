@@ -67,7 +67,7 @@ func (o Metadata) WithAdditionalProperties(value map[string]string) Metadata {
 // NewMetadata creates a new Metadata instance.
 func NewMetadata() *Metadata {
 	return &Metadata{
-		AdditionalProperties: make(map[string]any),
+		AdditionalProperties: make(map[string]string),
 	}
 }
 

@@ -538,7 +538,7 @@ fn test_bhv_models_015_a_changed_copy_keeps_the_additional_properties_of_the_ori
     let stamp = chrono::DateTime::parse_from_rfc3339("2024-01-02T03:04:05Z").expect("a valid instant");
     let changed = base.clone().with_created_at({{packageName}}::date_time::DateTime::new(stamp));
     assert_eq!(
-        changed.additional_properties.get("extra").and_then(|v| v.as_str()),
+        changed.additional_properties.get("extra").map(String::as_str),
         Some("kept")
     );
 }
@@ -588,8 +588,8 @@ fn test_bhv_models_021_each_member_of_an_integer_backed_enum_carries_its_declare
 #[test]
 fn test_bhv_models_022_a_model_whose_schema_allows_undeclared_properties_accepts_them() {
     use {{packageName}}::models::StrictTag;
-    let open: Metadata = serde_json::from_str(r#"{"undeclared":true}"#).expect("an open model accepts it");
-    assert_eq!(open.additional_properties.get("undeclared").and_then(|v| v.as_bool()), Some(true));
+    let open: Metadata = serde_json::from_str(r#"{"undeclared":"yes"}"#).expect("an open model accepts it");
+    assert_eq!(open.additional_properties.get("undeclared").map(String::as_str), Some("yes"));
     assert!(
         serde_json::from_str::<StrictTag>(r#"{"undeclared":true}"#).is_err(),
         "a strict model reports the unknown key instead"
@@ -599,9 +599,9 @@ fn test_bhv_models_022_a_model_whose_schema_allows_undeclared_properties_accepts
 #[test]
 fn test_bhv_models_023_undeclared_keys_named_like_sdk_methods_are_kept_as_additional_properties() {
     let model: Metadata =
-        serde_json::from_str(r#"{"new":1,"to_string":"x"}"#).expect("decodes");
-    assert_eq!(model.additional_properties.get("new").and_then(|v| v.as_i64()), Some(1));
-    assert_eq!(model.additional_properties.get("to_string").and_then(|v| v.as_str()), Some("x"));
+        serde_json::from_str(r#"{"new":"1","to_string":"x"}"#).expect("decodes");
+    assert_eq!(model.additional_properties.get("new").map(String::as_str), Some("1"));
+    assert_eq!(model.additional_properties.get("to_string").map(String::as_str), Some("x"));
 }
 
 #[test]

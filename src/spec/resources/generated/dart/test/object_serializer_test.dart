@@ -3312,10 +3312,10 @@ void main() {
     test(
       'bhv models 015 a changed copy of a model keeps the additional properties of the original',
       () {
-        final original = Metadata.fromJson(<String, dynamic>{'extra': 1});
+        final original = Metadata.fromJson(<String, dynamic>{'extra': 'a'});
         final changed = original.copyWith(createdAt: null);
 
-        expect(changed.additionalProperties, equals({'extra': 1}));
+        expect(changed.additionalProperties, equals({'extra': 'a'}));
       },
     );
 
@@ -3342,15 +3342,15 @@ void main() {
       'bhv models 023 undeclared keys named like the SDK method names are kept as additional properties',
       () {
         final model = Metadata.fromJson(<String, dynamic>{
-          'toJson': 1,
-          'copyWith': 2,
+          'toJson': 'a',
+          'copyWith': 'b',
         });
 
         expect(
           model.additionalProperties,
-          equals({'toJson': 1, 'copyWith': 2}),
+          equals({'toJson': 'a', 'copyWith': 'b'}),
         );
-        expect(model.toJson()['toJson'], equals(1));
+        expect(model.toJson()['toJson'], equals('a'));
       },
     );
 

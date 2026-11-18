@@ -2194,10 +2194,10 @@ void main() {
     });
 
     test('bhv models 015 a changed copy of a model keeps the additional properties of the original', () {
-      final original = Metadata.fromJson(<String, dynamic>{'extra': 1});
+      final original = Metadata.fromJson(<String, dynamic>{'extra': 'a'});
       final changed = original.copyWith(createdAt: null);
 
-      expect(changed.additionalProperties, equals({'extra': 1}));
+      expect(changed.additionalProperties, equals({'extra': 'a'}));
     });
 
     test('bhv models 018 models whose decimal fields hold numerically equal values compare equal', () {
@@ -2214,10 +2214,10 @@ void main() {
     });
 
     test('bhv models 023 undeclared keys named like the SDK method names are kept as additional properties', () {
-      final model = Metadata.fromJson(<String, dynamic>{'toJson': 1, 'copyWith': 2});
+      final model = Metadata.fromJson(<String, dynamic>{'toJson': 'a', 'copyWith': 'b'});
 
-      expect(model.additionalProperties, equals({'toJson': 1, 'copyWith': 2}));
-      expect(model.toJson()['toJson'], equals(1));
+      expect(model.additionalProperties, equals({'toJson': 'a', 'copyWith': 'b'}));
+      expect(model.toJson()['toJson'], equals('a'));
     });
 
     test('bhv serialization 012 keys of maps are written in ascending order so equal data always produces identical output', () {
