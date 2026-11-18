@@ -763,35 +763,44 @@ describe("OpenIdConnectAuthenticator", () => {
     },
   );
 
-  test.each([
-    [
-      "authorization_endpoint",
-      "http://auth.example.com/authorize",
-      "https://auth.example.com/token",
-    ],
-    [
-      "token_endpoint",
-      "https://auth.example.com/authorize",
-      "http://auth.example.com/token",
-    ],
-    ["token_endpoint", "https://auth.example.com/authorize", "not a url"],
-  ])(
-    "bhv authoidc 005 discovery rejects a clear text %s unless it is loopback",
-    async (field, authorizationEndpoint, tokenEndpoint) => {
+  test("bhv authoidc 005 discovery rejects a clear text endpoint unless it is loopback", async () => {
+    const rows: Array<[string, string, string]> = [
+      [
+        "authorization_endpoint",
+        "http://auth.example.com/authorize",
+        "https://auth.example.com/token",
+      ],
+      [
+        "token_endpoint",
+        "https://auth.example.com/authorize",
+        "http://auth.example.com/token",
+      ],
+      ["token_endpoint", "https://auth.example.com/authorize", "not a url"],
+    ];
+    for (const [field, authorizationEndpoint, tokenEndpoint] of rows) {
+      const fresh = new OpenIdConnectAuthenticator(
+        "https://api.example.com",
+        "https://auth.example.com/.well-known/openid-configuration",
+        "my-client-id",
+        "my-client-secret",
+        "https://myapp.example.com/callback",
+        [],
+      );
+      fresh.setApiClient(mockClient);
       mockClient.responses = discoveryDocument({
         authorization_endpoint: authorizationEndpoint,
         token_endpoint: tokenEndpoint,
       });
 
-      const error = await authenticator
+      const error = await fresh
         .buildAuthorizationUrl()
         .catch((e: unknown) => e);
       expect(error).toBeInstanceOf(SerializationError);
       expect((error as Error).message).toBe(
         `OIDC discovery document field must be an https URL: ${field}`,
       );
-    },
-  );
+    }
+  });
 
   test.each([
     "http://localhost:9000",

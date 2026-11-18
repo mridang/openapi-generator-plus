@@ -1366,12 +1366,12 @@ describe("BaseApi", () => {
     },
   );
 
-  test.each([
-    ["a nested map", { location: { lat: 1.5 } }],
-    ["an array of objects", { location: [{ lat: 1.5 }] }],
-  ])(
-    "bhv serializationwire 014 form-urlencoded body rejects %s with SerializationError",
-    async (_label, body) => {
+  test("bhv serializationwire 014 form-urlencoded body rejects a nested object field with SerializationError", async () => {
+    const bodies: Array<[string, unknown]> = [
+      ["a nested map", { location: { lat: 1.5 } }],
+      ["an array of objects", { location: [{ lat: 1.5 }] }],
+    ];
+    for (const [, body] of bodies) {
       const client = new CapturingApiClient();
       const config = new Configuration({ baseUrl: "http://localhost" });
       const testApi = new TestableApi(client, config);
@@ -1392,8 +1392,8 @@ describe("BaseApi", () => {
         ),
       );
       expect(client.capturedBody).toBeNull();
-    },
-  );
+    }
+  });
 
   test("bhv serializationwire 011 a null optional form field is omitted", async () => {
     const client = new CapturingApiClient();
@@ -1617,6 +1617,32 @@ describe("BaseApi content-type deserialization guard", () => {
         "Unexpected response Content-Type 'text/plain' for TestableApi.testOperation: expected a JSON body",
       ),
     );
+  });
+
+  test("bhv errors 054 an unexpected content type error names the operation rather than the HTTP verb", async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = "hello";
+    client.responseHeaders = { "content-type": "text/plain" };
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    const error = await testApi
+      .call(
+        "GET",
+        "/test/echo",
+        {},
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        (json) => json as { id: number },
+        undefined,
+        "model",
+      )
+      .catch((e: unknown) => e);
+    expect((error as Error).message).toContain(
+      "for TestableApi.testOperation:",
+    );
+    expect((error as Error).message).not.toContain("GET");
   });
 
   test("bhv serializationwire 005 deserializes vendor JSON MIME types like application/problem+json", async () => {
