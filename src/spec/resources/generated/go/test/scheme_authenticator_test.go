@@ -278,7 +278,7 @@ func TestBhvAuthscheme009_SchemeAuthenticator_AdminBasicAuthenticator_ExplicitAr
 	requireSchemeAdminBasicAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvAuth003_SchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeAdminBasicAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, variable, "empty")
@@ -489,7 +489,7 @@ func TestBhvLifecycle025_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTh
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
+func TestBhvAuth004_SchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
 	a, err := auth.NewPetStoreBearerAuthenticatorWithProvider(schemeHost, nil)
 
 	if !errors.Is(err, auth.ErrInvalidBearerToken) {

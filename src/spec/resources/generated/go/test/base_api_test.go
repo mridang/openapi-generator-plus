@@ -2499,7 +2499,7 @@ func TestBaseApi_AnAuthenticatorThatNeedsRequestsReceivesTheCallContext(t *testi
 	}
 }
 
-func TestBaseApi_CancellingTheCallAbortsTheTokenRequest(t *testing.T) {
+func TestBhvAuth013_BaseApi_CancellingTheCallAbortsTheTokenRequest(t *testing.T) {
 	t.Parallel()
 	release := make(chan struct{})
 	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -366,7 +366,7 @@ func TestBhvAuthoauthtwoauthcode005_OAuth2AuthorizationCodeAuthenticator_Authori
 
 // The authorize URL is a URL, not a form body: a space between scopes is %20,
 // never a plus, which a strict server reads as a literal plus.
-func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
+func TestBhvAuth014_OAuth2AuthorizationCodeAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
 	t.Parallel()
 	url := createAuthCodeAuthenticator().BuildAuthorizationURL("")
 
@@ -839,5 +839,48 @@ func TestBhvAuthoauthtwoauthcode016_OAuth2AuthorizationCodeAuthenticator_Invalid
 	}
 	if body := client.requests[1].body; !strings.Contains(body, "grant_type=refresh_token") || !strings.Contains(body, "refresh_token=ref1") {
 		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
+	}
+}
+
+// The PKCE verifier proves the challenge on the first exchange only; a refresh never carries it.
+func TestBhvAuth020_OAuth2AuthorizationCodeAuthenticator_VerifierIsSentOnlyWithTheFirstExchange(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	_ = authObj.BuildAuthorizationURL("")
+	if err := authObj.ExchangeCode("C1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	authObj.InvalidateAccessToken()
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+	if !strings.Contains(client.requests[0].body, "code_verifier=") {
+		t.Errorf("expected the first exchange to carry the verifier, got %q", client.requests[0].body)
+	}
+	if strings.Contains(client.requests[1].body, "code_verifier") {
+		t.Errorf("expected the refresh to carry no verifier, got %q", client.requests[1].body)
+	}
+}
+
+// A failed first exchange records no session, so the client still reports the code as unexchanged.
+func TestBhvAuth028_OAuth2AuthorizationCodeAuthenticator_FailedFirstExchangeRecordsNoSession(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C1"); err == nil {
+		t.Fatal("expected the failed exchange to return an error")
+	}
+	if _, err := authObj.AuthHeadersOrError(); err == nil {
+		t.Error("expected the client to still report the code as unexchanged")
 	}
 }

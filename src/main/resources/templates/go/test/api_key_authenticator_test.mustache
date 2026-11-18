@@ -107,7 +107,7 @@ func TestBhvAuthapikey001_ApiKeyAuthenticator_UnicodeSpaceIsNotBlank(t *testing.
 
 // CR/LF/NUL are forbidden at every location to prevent header/cookie/query
 // injection.
-func TestApiKeyAuthenticator_RejectsControlCharsAtEveryLocation(t *testing.T) {
+func TestBhvAuth009_ApiKeyAuthenticator_RejectsControlCharsAtEveryLocation(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		value    string
@@ -133,7 +133,7 @@ func TestBhvAuthapikey008_ApiKeyAuthenticator_HeaderLocationRejectsNonAscii(t *t
 
 // The rejection reads as the canonical sentence the other SDKs use, with the
 // key name quoted.
-func TestApiKeyAuthenticator_RejectionMessages(t *testing.T) {
+func TestBhvAuth012_ApiKeyAuthenticator_RejectionMessages(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		value    string
@@ -377,5 +377,39 @@ func TestBhvAuthapikey026_ApiKeyAuthenticator_IsNotLeakedInNestedDebugOutput(t *
 				t.Errorf("expected the key to be redacted, got %q", s)
 			}
 		}
+	}
+}
+
+func TestBhvAuth006_ApiKeyAuthenticator_HeaderKeyUsesTheSpecDeclaredName(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewApiKeyAuthenticator("https://api.example.com", "X-Custom-Key", "key-value", auth.ApiKeyLocationHeader)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := a.AuthHeaders()["X-Custom-Key"]; got != "key-value" {
+		t.Errorf("expected the key under the declared header name, got %q", got)
+	}
+}
+
+func TestBhvAuth018_ApiKeyAuthenticator_RefusalNeverEchoesTheKey(t *testing.T) {
+	t.Parallel()
+	_, err := auth.NewApiKeyAuthenticator("https://api.example.com", "X-Key", "bad\nSECRET-KEY-VALUE", auth.ApiKeyLocationHeader)
+	if err == nil {
+		t.Fatal("expected the control character to be refused")
+	}
+	if strings.Contains(err.Error(), "SECRET-KEY-VALUE") || strings.Contains(fmt.Sprintf("%#v", err), "SECRET-KEY-VALUE") {
+		t.Errorf("the refusal echoed the key: %q", err.Error())
+	}
+}
+
+// A generic API-key authenticator built without a key reads no environment value and fails.
+func TestBhvAuth007_ApiKeyAuthenticator_GenericWithoutKeyReadsNoneAndFails(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewApiKeyAuthenticator("https://api.example.com", "X-Key", "", auth.ApiKeyLocationHeader)
+	if err == nil {
+		t.Errorf("expected a generic authenticator without a key to fail, got %v", a)
+	}
+	if a != nil {
+		t.Error("expected no authenticator")
 	}
 }

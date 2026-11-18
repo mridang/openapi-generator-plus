@@ -163,7 +163,7 @@ func Test{{#firstEnvScheme}}BhvAuthscheme009_{{/firstEnvScheme}}SchemeAuthentica
 	requireScheme{{className}}Credentials(t, a, schemeArgValue)
 }
 
-func Test{{#firstBasic}}BhvAuthbasic012_{{/firstBasic}}SchemeAuthenticator_{{className}}_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func Test{{#firstBasic}}BhvAuthbasic012_{{/firstBasic}}{{#firstEnvScheme}}BhvAuth003_{{/firstEnvScheme}}SchemeAuthenticator_{{className}}_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range scheme{{className}}Variables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, "empty")
@@ -353,7 +353,7 @@ func Test{{#firstBearer}}BhvLifecycle025_{{/firstBearer}}{{^firstBearer}}BhvAuth
 	requireScheme{{className}}Credentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_{{className}}_WithProviderRejectsANilProvider(t *testing.T) {
+func Test{{#firstBearer}}BhvAuth004_{{/firstBearer}}SchemeAuthenticator_{{className}}_WithProviderRejectsANilProvider(t *testing.T) {
 	a, err := {{package}}.New{{className}}WithProvider(schemeHost, nil)
 
 	if !errors.Is(err, auth.ErrInvalidBearerToken) {

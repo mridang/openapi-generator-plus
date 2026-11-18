@@ -209,3 +209,5 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+go | auth005 | Go's API-key authenticators take one fixed key and have no provider function; only the bearer token takes a provider, which bhvauthbearer014 covers
+go | auth008 | the PKCE verifier is made inside the unexported oauth package and the generated tests are external, so the RFC 7636 vector cannot be fed to pkceChallenge; the authorization URL carries a random verifier, so only the exchange proof (bhvauthoauthtwoauthcode023) is checked

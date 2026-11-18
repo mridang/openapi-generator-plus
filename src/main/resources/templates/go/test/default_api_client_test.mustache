@@ -2183,3 +2183,25 @@ func TestBhvTransport082_DefaultApiClient_DefaultAndTimeoutOnlyClientsComplete(t
 		}
 	}
 }
+
+// With no credential configured, a request is sent with no Authorization header and is not refused.
+func TestBhvAuth021_DefaultApiClient_RequestWithNoCredentialHasNoAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/open", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("expected the request to be sent, got %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if got := <-seen; got != "" {
+		t.Errorf("expected no Authorization header, got %q", got)
+	}
+}
