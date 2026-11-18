@@ -332,3 +332,6 @@ swift | redirects046 | the redirect chain is followed by URLSession's redirect d
 swift | redirects047 | concurrent redirect outcomes depend on the same URLSession redirect delegate, which FoundationNetworking on Linux does not call, so two overlapping redirected requests cannot be observed on Linux
 swift | redirects053 | the Authorization kept or removed on a scheme change happens inside URLSession's redirect delegate, which FoundationNetworking on Linux does not call, so the follow-up request cannot be observed on Linux
 swift | operations164 | Swift required parameters are non-optional typed arguments, so a missing or nil required argument does not compile; the empty required path value is refused by ValueSerializer.requirePathParam and covered by the value serializer tests
+swift | operations157 | the fixture has no operation with a binary (format: binary) request body, so no generated call sends raw bytes to test
+swift | operations161 | the fixture has no operation whose success response is text/plain, so no generated call returns a raw text body to test
+swift | operations162 | the fixture has no date-only (format: date) parameter in form, query, header or path positions; its only temporal values are date-time fields
