@@ -154,9 +154,10 @@ pub(crate) fn mask_userinfo(raw: &str) -> String {
 fn redact_proxy(proxy: &str) -> String {
     match reqwest::Url::parse(proxy) {
         Ok(mut url) => {
-            if url.password().is_some() {
-                let _ = url.set_password(Some("***"));
+            if url.password().is_none() {
+                return proxy.to_string();
             }
+            let _ = url.set_password(Some("***"));
             url.to_string()
         }
         Err(_) => "***".to_string(),
