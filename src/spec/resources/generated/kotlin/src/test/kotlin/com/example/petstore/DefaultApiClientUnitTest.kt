@@ -257,6 +257,29 @@ class DefaultApiClientUnitTest {
             assertEquals(2, ids.size)
             assertNotEquals(ids[0], ids[1])
         }
+
+        @Test
+        fun bhvMisc273RequestIdIsAVersion4Uuid() =
+            runBlocking<Unit> {
+                var capturedRequestId: String? = null
+                val client = mockClient(requestCapture = { req -> capturedRequestId = req.headers["X-Request-ID"] })
+                val apiClient = DefaultApiClient(client, TransportOptions.builder().injectRequestId(true).build())
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                assertTrue(
+                    Regex("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$").matches(capturedRequestId.orEmpty()),
+                    capturedRequestId,
+                )
+            }
+
+        @Test
+        fun bhvMisc273RequestIdIsOmittedWhenDisabled() =
+            runBlocking<Unit> {
+                var capturedRequestId: String? = null
+                val client = mockClient(requestCapture = { req -> capturedRequestId = req.headers["X-Request-ID"] })
+                val apiClient = DefaultApiClient(client, TransportOptions.builder().injectRequestId(false).build())
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                assertNull(capturedRequestId)
+            }
     }
 
     @Nested
@@ -2978,6 +3001,22 @@ class DefaultApiClientUnitTest {
                 ex.message,
             )
         }
+
+        @Test
+        fun bhvMisc270MissingCaFileIsRejectedWhenVerificationIsOff() =
+            runBlocking<Unit> {
+                val transport =
+                    TransportOptions
+                        .builder()
+                        .verifySsl(false)
+                        .caCertPath("/nonexistent/ca.pem")
+                        .build()
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        DefaultApiClient(transport)
+                    }
+                assertTrue(ex.message!!.contains("/nonexistent/ca.pem"), ex.message)
+            }
     }
 
     @Nested
@@ -4399,4 +4438,60 @@ class DefaultApiClientUnitTest {
             assertFalse(DefaultApiClient.isSensitiveHeader("Accept"))
         }
     }
+
+    @Test
+    fun bhvMisc274NonSuccessResponseIsReturnedWithItsStatus() =
+        runBlocking<Unit> {
+            val client = mockClient(statusCode = HttpStatusCode.NotFound, body = "missing")
+            val response = DefaultApiClient(client).sendRequest("GET", "http://localhost/items/1", emptyMap(), null)
+            assertEquals(404, response.statusCode)
+            assertEquals("missing", response.body)
+        }
+
+    @Test
+    fun bhvMisc275RequestUsesTheIntendedMethodAndReturnsTheResponse() =
+        runBlocking<Unit> {
+            var method: io.ktor.http.HttpMethod? = null
+            val client = mockClient(requestCapture = { req -> method = req.method })
+            val response = DefaultApiClient(client).sendRequest("PUT", "http://localhost/items/1", emptyMap(), "{}")
+            assertEquals(io.ktor.http.HttpMethod.Put, method)
+            assertEquals(200, response.statusCode)
+        }
+
+    @Test
+    fun bhvMisc282NetworkFailureKeepsTheTransportErrorAsItsCause() =
+        runBlocking<Unit> {
+            val failure = java.net.SocketException("connection dropped")
+            val client = HttpClient(MockEngine { _ -> throw failure }) { followRedirects = false }
+            val ex =
+                assertThrows(ApiException::class.java) {
+                    runBlocking { DefaultApiClient(client).sendRequest("GET", "http://localhost/drop", emptyMap(), null) }
+                }
+            assertTrue(
+                generateSequence(ex as Throwable) { it.cause }.any { it === failure },
+                "the transport error must be in the cause chain",
+            )
+        }
+
+    @Test
+    fun bhvMisc285UnsupportedContentEncodingIsRefusedWithTheExactMessage() =
+        runBlocking<Unit> {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "payload".toByteArray(Charsets.UTF_8),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Encoding", "made-up-codec"),
+                    )
+                }
+            val ex =
+                assertThrows(ApiException::class.java) {
+                    runBlocking {
+                        DefaultApiClient(
+                            HttpClient(engine) { followRedirects = false },
+                        ).sendRequest("GET", "http://localhost/enc", emptyMap(), null)
+                    }
+                }
+            assertEquals("Unsupported Content-Encoding 'made-up-codec'", ex.cause?.message)
+        }
 }

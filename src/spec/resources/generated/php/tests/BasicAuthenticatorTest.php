@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -311,5 +310,15 @@ function basicWrapperEnvVariables(string $class): array
 
 test('bhv auth 036 a basic username containing a colon is refused at construction', function (): void {
     expect(fn () => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv misc 193 a basic scheme sends the same header as its base authenticator', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Basic ' . base64_encode('alice:s3cret')]);
+});
+
+test('bhv misc 193 a basic scheme rejects the same invalid input as its base authenticator', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret'))
         ->toThrow(\InvalidArgumentException::class);
 });

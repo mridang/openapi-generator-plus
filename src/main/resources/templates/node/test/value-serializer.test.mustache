@@ -825,3 +825,13 @@ describe('ValueSerializer misc behaviours', () => {
     ]);
   });
 });
+
+describe('ValueSerializer misc behaviours (chunk 11)', () => {
+  test('bhv serialization 106 a non-exploded array query parameter joins its values with commas', () => {
+    expect(ValueSerializer.serialize(['a', 'b'], 'query', 'array', 'csv')).toBe('a,b');
+  });
+
+  test('bhv serialization 108 a path parameter with no declared style uses the simple style', () => {
+    expect(ValueSerializer.serialize('v', 'path', 'string')).toBe('v');
+  });
+});

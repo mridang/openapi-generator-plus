@@ -2710,6 +2710,18 @@ describe Petstore::Client::ObjectSerializer, 'wire contract for scalars, contain
     _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(model))).must_equal('label' => 'x', 'nested' => { 'a' => 1 }, 'count' => 2)
   end
 
+  it 'bhv_misc_251 a duration string with a day designator is rejected' do
+    _(proc {
+      Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"1d"}', 'EdgeCases')
+    }).must_raise(Petstore::Client::Errors::SerializationError)
+  end
+
+  it 'bhv_misc_252 an enum wire value containing separators round trips unchanged' do
+    value = Petstore::Client::ObjectSerializer.deserialize('"@@"', 'Petstore::Client::Models::Separator')
+
+    _(Petstore::Client::ObjectSerializer.serialize(value)).must_equal('"@@"')
+  end
+
   it 'bhv_serialization_052 undeclared keys are kept on every element of a list read from the wire' do
     items = Petstore::Client::ObjectSerializer.deserialize('[{"customField":"a"}]', 'Array<Metadata>')
 
