@@ -73,10 +73,11 @@ class {{clientClassName}} : AutoCloseable {
      *
      * @param authenticator provides host URL and auth headers
      * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @param callHook the hook that runs around every operation call, or null for none
      * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
      */
-    constructor(authenticator: Authenticator, transportOptions: TransportOptions) :
-        this(emptyMap(), authenticator, authenticator.getHost(), transportOptions)
+    constructor(authenticator: Authenticator, transportOptions: TransportOptions, callHook: CallHook? = null) :
+        this(emptyMap(), authenticator, authenticator.getHost(), transportOptions, callHook)
 
     /**
      * Creates a new client that holds one optional credential per security scheme the spec
@@ -89,6 +90,7 @@ class {{clientClassName}} : AutoCloseable {
      * @param {{{argName}}} credential for the `{{schemeId}}` security scheme, or null for none
 {{/clientSchemes}}
      * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @param callHook the hook that runs around every operation call, or null for none
      * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
      */
     constructor(
@@ -97,6 +99,7 @@ class {{clientClassName}} : AutoCloseable {
         {{{argName}}}: {{{authPackage}}}.{{className}}? = null,
 {{/clientSchemes}}
         transportOptions: TransportOptions? = null,
+        callHook: CallHook? = null,
     ) : this(
         mapOfNotNull(
 {{#clientSchemes}}
@@ -106,6 +109,7 @@ class {{clientClassName}} : AutoCloseable {
         null,
         host,
         transportOptions ?: TransportOptions.builder().build(),
+        callHook,
     )
 
     private constructor(
@@ -113,6 +117,7 @@ class {{clientClassName}} : AutoCloseable {
         authenticator: Authenticator?,
         host: String,
         transportOptions: TransportOptions,
+        callHook: CallHook?,
     ) {
         val apiClient: ApiClient = DefaultApiClient(transportOptions)
         this.apiClient = apiClient
@@ -128,6 +133,7 @@ class {{clientClassName}} : AutoCloseable {
 
         val config = Configuration.builder()
             .baseUrl(host)
+            .callHook(callHook)
             .build()
 
 {{#apiInfo}}
@@ -169,6 +175,7 @@ class {{clientClassName}} : AutoCloseable {
          * @param accessToken Bearer token; when null the environment variable
          *   `{{envVarPrefix}}_TOKEN` is used, and a missing token fails here
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+         * @param callHook the hook that runs around every operation call, or null for none
          * @return configured client instance
          * @throws IllegalArgumentException if no token is given or set, or a configured custom CA certificate cannot be read or parsed
          */
@@ -176,12 +183,13 @@ class {{clientClassName}} : AutoCloseable {
             host: String,
             accessToken: String? = null,
             transportOptions: TransportOptions? = null,
+            callHook: CallHook? = null,
         ): {{clientClassName}} =
-            if (transportOptions != null) {
-                {{clientClassName}}(BearerAuthenticator(host, accessToken), transportOptions)
-            } else {
-                {{clientClassName}}(BearerAuthenticator(host, accessToken))
-            }
+            {{clientClassName}}(
+                BearerAuthenticator(host, accessToken),
+                transportOptions ?: TransportOptions.builder().build(),
+                callHook,
+            )
 
         /**
          * Creates a client from any [Authenticator] implementation.
@@ -194,17 +202,19 @@ class {{clientClassName}} : AutoCloseable {
          *
          * @param authenticator provides host URL and auth headers
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+         * @param callHook the hook that runs around every operation call, or null for none
          * @return configured client instance
          * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
          */
         fun withAuthenticator(
             authenticator: Authenticator,
             transportOptions: TransportOptions? = null,
+            callHook: CallHook? = null,
         ): {{clientClassName}} =
-            if (transportOptions != null) {
-                {{clientClassName}}(authenticator, transportOptions)
-            } else {
-                {{clientClassName}}(authenticator)
-            }
+            {{clientClassName}}(
+                authenticator,
+                transportOptions ?: TransportOptions.builder().build(),
+                callHook,
+            )
     }
 }

@@ -13,6 +13,8 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.HttpTimeoutCapability
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -1903,6 +1905,397 @@ class BaseApiTest {
         fun returnsNullWhenThereIsNoResponseBody() {
             val ex = BadRequestException("boom", emptyMap(), "", null)
             assertNull(ex.getTypedErrorBody<{{modelPackage}}.Category>())
+        }
+    }
+
+    // ── Call hook ──
+
+    /* Keeps what the hook was told and, optionally, edits the headers it was given. */
+    class RecordingHook(private val edit: (MutableMap<String, String>) -> Unit = {}) : CallHook {
+        val infos = mutableListOf<CallInfo>()
+        val seen = mutableListOf<Map<String, String>>()
+        val outcomes = mutableListOf<CallOutcome>()
+
+        override fun start(info: CallInfo, headers: MutableMap<String, String>): CallObserver? {
+            infos.add(info)
+            seen.add(headers.toMap())
+            edit(headers)
+            return CallObserver { outcomes.add(it) }
+        }
+    }
+
+    class HookedApi(
+        client: ApiClient,
+        hook: CallHook?,
+        baseUrl: String = "http://localhost:8080",
+        authenticator: Authenticator? = null,
+    ) : {{apiPackage}}.BaseApi(
+        client,
+        Configuration.builder().baseUrl(baseUrl).callHook(hook).build(),
+        authenticator,
+    ) {
+        suspend fun call(
+            path: String = "/items/7",
+            queryParams: MutableMap<String, Any?> = mutableMapOf(),
+            body: Any? = null,
+            contentType: String = "application/json",
+            auth: Authenticator? = null,
+            callTimeout: Long? = null,
+        ): ApiHttpResponse =
+            invokeApi(
+                "get", path, queryParams, mutableMapOf(), body, arrayOf("application/json"), contentType, auth,
+                callTimeout = callTimeout, operationId = "getItem", urlTemplate = "/items/{id}",
+            )
+
+        internal suspend inline fun <reified T> callForResult(): ApiResult<T> =
+            invokeApiForResult<T>(
+                "GET", "/items/7", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"),
+                "application/json", null, "HookedApi.callForResult",
+                operationId = "getItem", urlTemplate = "/items/{id}",
+            )
+    }
+
+    /* Fails every send with the given error. */
+    class FailingApiClient(private val failure: Throwable) : ApiClient {
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse = throw failure
+    }
+
+    class BodyApiClient(private val status: Int, private val replyBody: String) : CapturingApiClient() {
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse {
+            super.sendRequest(method, url, headers, body, noRedirect)
+            return ApiHttpResponse(status, replyBody, mapOf("Content-Type" to "application/json", "X-Reply" to "yes"))
+        }
+    }
+
+    /* A transport that retries (two retries, no waiting) over a mock engine with the HttpTimeout plugin. */
+    private fun retryingClient(vararg statuses: Int): Pair<DefaultApiClient, MutableList<io.ktor.client.request.HttpRequestData>> {
+        val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+        val engine = MockEngine { request ->
+            seen.add(request)
+            val status = statuses[minOf(seen.size - 1, statuses.size - 1)]
+            respond("{}", HttpStatusCode.fromValue(status), headersOf("Content-Type", "application/json"))
+        }
+        val http = HttpClient(engine) {
+            followRedirects = false
+            install(io.ktor.client.plugins.HttpTimeout)
+        }
+        val client = DefaultApiClient(http, TransportOptions.builder().maxRetries(2).build())
+        client.sleeper = { }
+        return Pair(client, seen)
+    }
+
+    @Nested
+    @DisplayName("call hook")
+    inner class CallHookTests {
+
+        @Test
+        @DisplayName("bhvHooks001 without a hook set a call sends the same headers and returns the same result as before")
+        fun withoutAHookNothingChanges() {
+            assertNull(Configuration.builder().build().callHook)
+            val plain = CapturingApiClient()
+            val withHook = CapturingApiClient()
+            val unhooked = runBlocking { HookedApi(plain, null).call() }
+            val hooked = runBlocking { HookedApi(withHook, CallHook { _, _ -> null }).call() }
+            assertEquals(unhooked, hooked)
+            assertEquals(plain.capturedHeaders, withHook.capturedHeaders)
+        }
+
+        @Test
+        @DisplayName("bhvHooks002 start is called once per operation call with the spec operation id, the method, the url template and the url")
+        fun startGetsTheCallInfo() {
+            val hook = RecordingHook()
+            val api = {{apiPackage}}.PetApi(CapturingApiClient(), Configuration.builder().baseUrl("http://localhost:8080").callHook(hook).build())
+            runCatching { runBlocking { api.getPetById(7L) } }
+            assertEquals(1, hook.infos.size)
+            val info = hook.infos[0]
+            assertEquals("getPetById", info.operationId)
+            assertEquals("GET", info.method)
+            assertEquals("/pet/{petId}", info.urlTemplate)
+            assertEquals("http://localhost:8080/pet/7", info.url)
+            val direct = RecordingHook()
+            runBlocking { HookedApi(CapturingApiClient(), direct).call() }
+            assertEquals(CallInfo("getItem", "GET", "/items/{id}", "http://localhost:8080/items/7", "localhost"), direct.infos.single())
+        }
+
+        @Test
+        @DisplayName("bhvHooks003 serverAddress is the host without port, and without the brackets of an IPv6 literal")
+        fun serverAddressIsTheBareHost() {
+            val named = RecordingHook()
+            runBlocking { HookedApi(CapturingApiClient(), named, "http://API.Example.com:8443").call() }
+            assertEquals("api.example.com", named.infos.single().serverAddress)
+            val literal = RecordingHook()
+            runBlocking { HookedApi(CapturingApiClient(), literal, "http://[::1]:8080").call() }
+            assertEquals("::1", literal.infos.single().serverAddress)
+        }
+
+        @Test
+        @DisplayName("bhvHooks004 a header the hook sets reaches the server")
+        fun aHookHeaderIsSent() {
+            val client = CapturingApiClient()
+            runBlocking { HookedApi(client, RecordingHook { it["X-Hook"] = "on" }).call() }
+            assertEquals("on", client.capturedHeaders["X-Hook"])
+        }
+
+        @Test
+        @DisplayName("bhvHooks005 start sees the final header set, authentication and default headers included, and can replace one")
+        fun startSeesTheFinalHeaders() {
+            val client = CapturingApiClient()
+            val hook = RecordingHook { it["Authorization"] = "Bearer replaced" }
+            val api = object : {{apiPackage}}.BaseApi(
+                client,
+                Configuration.builder().baseUrl("http://localhost").defaultHeader("X-Default", "d").callHook(hook).build(),
+            ) {
+                suspend fun call() =
+                    invokeApi(
+                        "GET", "/items", mutableMapOf(), mutableMapOf("X-Op" to "o"), null, arrayOf("application/json"),
+                        "application/json", TestAuthenticator(mapOf("Authorization" to "Bearer original"), emptyMap(), emptyMap()),
+                        callHeaders = mapOf("X-Call" to "c"),
+                    )
+            }
+            runBlocking { api.call() }
+            val seen = hook.seen.single()
+            assertEquals("Bearer original", seen["Authorization"])
+            assertEquals("d", seen["X-Default"])
+            assertEquals("o", seen["X-Op"])
+            assertEquals("c", seen["X-Call"])
+            assertEquals("Bearer replaced", client.capturedHeaders["Authorization"])
+        }
+
+        @Test
+        @DisplayName("bhvHooks006 a header the hook sets is on every send of the call, retries and the replay after a 401 included")
+        fun aHookHeaderIsOnEverySend() {
+            val replayed = ScriptedApiClient(listOf(401, 200))
+            val replayApi = object : {{apiPackage}}.BaseApi(
+                replayed,
+                Configuration.builder().baseUrl("http://localhost").callHook(RecordingHook { it["X-Hook"] = "on" }).build(),
+            ) {
+                suspend fun call(auth: Authenticator) =
+                    invokeApi("GET", "/items", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+            }
+            runBlocking { replayApi.call(RotatingOAuthAuthenticator()) }
+            assertEquals(listOf("on", "on"), replayed.sentHeaders.map { it["X-Hook"] })
+
+            val (transport, seen) = retryingClient(503, 200)
+            runBlocking { HookedApi(transport, RecordingHook { it["X-Hook"] = "on" }).call() }
+            assertEquals(2, seen.size)
+            assertEquals(listOf("on", "on"), seen.map { it.headers["X-Hook"] })
+        }
+
+        @Test
+        @DisplayName("bhvHooks007 the fresh authentication headers of a replay still replace a hook header of the same name")
+        fun aReplayKeepsItsFreshAuthentication() {
+            val client = ScriptedApiClient(listOf(401, 200))
+            val api = object : {{apiPackage}}.BaseApi(
+                client,
+                Configuration.builder().baseUrl("http://localhost").callHook(RecordingHook { it["authorization"] = "Bearer hook" }).build(),
+            ) {
+                suspend fun call(auth: Authenticator) =
+                    invokeApi("GET", "/items", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+            }
+            runBlocking { api.call(RotatingOAuthAuthenticator()) }
+            assertEquals("Bearer hook", client.sentHeaders[0]["authorization"])
+            assertEquals("Bearer t2", client.sentHeaders[1]["Authorization"])
+            assertNull(client.sentHeaders[1]["authorization"])
+        }
+
+        @Test
+        @DisplayName("bhvHooks008 a call that is retried by the transport calls start once and finish once")
+        fun aRetriedCallStartsAndFinishesOnce() {
+            val (transport, seen) = retryingClient(503, 503, 200)
+            val hook = RecordingHook()
+            runBlocking { HookedApi(transport, hook).call() }
+            assertEquals(3, seen.size)
+            assertEquals(1, hook.infos.size)
+            assertEquals(200, hook.outcomes.single().statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvHooks009 the plain and the WithHttpInfo variant of an operation call the hook once each")
+        fun bothVariantsCallTheHookOnce() {
+            val hook = RecordingHook()
+            val client = BodyApiClient(200, "{\"name\":\"n\",\"photoUrls\":[]}")
+            val api = {{apiPackage}}.PetApi(client, Configuration.builder().baseUrl("http://localhost:8080").callHook(hook).build())
+            runBlocking { api.getPetById(7L) }
+            assertEquals(1, hook.infos.size)
+            runBlocking { api.getPetByIdWithHttpInfo(7L) }
+            assertEquals(2, hook.infos.size)
+            assertEquals(2, hook.outcomes.size)
+        }
+
+        @Test
+        @DisplayName("bhvHooks011 finish gets the status, the lower-cased response headers and no error on a 2xx")
+        fun finishGetsTheSuccess() {
+            val hook = RecordingHook()
+            runBlocking { HookedApi(BodyApiClient(200, "{}"), hook).call() }
+            val outcome = hook.outcomes.single()
+            assertEquals(200, outcome.statusCode)
+            assertEquals(mapOf("content-type" to "application/json", "x-reply" to "yes"), outcome.headers)
+            assertNull(outcome.error)
+        }
+
+        @Test
+        @DisplayName("bhvHooks012 finish gets the status, the headers and the same typed ApiException the caller receives on a non-2xx")
+        fun finishGetsTheTypedError() {
+            val hook = RecordingHook()
+            val thrown = assertThrows(NotFoundException::class.java) {
+                runBlocking { HookedApi(BodyApiClient(404, "{}"), hook).call() }
+            }
+            val outcome = hook.outcomes.single()
+            assertEquals(404, outcome.statusCode)
+            assertEquals("yes", outcome.headers!!["x-reply"])
+            assertSame(thrown, outcome.error)
+        }
+
+        @Test
+        @DisplayName("bhvHooks013 finish gets status 0, null headers and the network error when no response arrived")
+        fun finishGetsTheNetworkError() {
+            val hook = RecordingHook()
+            val failure = NetworkException("down", java.io.IOException("refused"))
+            val thrown = assertThrows(NetworkException::class.java) {
+                runBlocking { HookedApi(FailingApiClient(failure), hook).call() }
+            }
+            val outcome = hook.outcomes.single()
+            assertEquals(0, outcome.statusCode)
+            assertNull(outcome.headers)
+            assertSame(thrown, outcome.error)
+        }
+
+        @Test
+        @DisplayName("bhvHooks014 finish gets the timeout error when the end-to-end budget is exhausted, never the cancellation error")
+        fun finishGetsTheTimeout() {
+            val engine = MockEngine {
+                kotlinx.coroutines.delay(10_000)
+                respond("{}")
+            }
+            val http = HttpClient(engine) {
+                followRedirects = false
+                install(io.ktor.client.plugins.HttpTimeout)
+            }
+            val hook = RecordingHook()
+            val thrown = assertThrows(NetworkTimeoutException::class.java) {
+                runBlocking { HookedApi(DefaultApiClient(http), hook).call(callTimeout = 100) }
+            }
+            val outcome = hook.outcomes.single()
+            assertSame(thrown, outcome.error)
+            assertFalse(outcome.error is kotlin.coroutines.cancellation.CancellationException)
+        }
+
+        @Test
+        @DisplayName("bhvHooks015 finish gets the cancellation and the call rethrows it, never as the timeout error")
+        fun finishGetsTheCancellation() {
+            val hook = RecordingHook()
+            val hung = object : ApiClient {
+                val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean
+                ): ApiHttpResponse {
+                    started.complete(Unit)
+                    kotlinx.coroutines.awaitCancellation()
+                }
+            }
+            var thrown: Throwable? = null
+            runBlocking {
+                val job = launch {
+                    try {
+                        HookedApi(hung, hook).call()
+                    } catch (e: Throwable) {
+                        thrown = e
+                        throw e
+                    }
+                }
+                hung.started.await()
+                job.cancelAndJoin()
+            }
+            assertTrue(thrown is kotlin.coroutines.cancellation.CancellationException)
+            assertSame(thrown, hook.outcomes.single().error)
+            assertEquals(0, hook.outcomes.single().statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvHooks016 finish gets the SerializationException, with the status that arrived, when the response cannot be decoded")
+        fun finishGetsTheDecodeError() {
+            val hook = RecordingHook()
+            val thrown = assertThrows(SerializationException::class.java) {
+                runBlocking { HookedApi(BodyApiClient(200, "{nope"), hook).callForResult<{{modelPackage}}.Category>() }
+            }
+            val outcome = hook.outcomes.single()
+            assertEquals(200, outcome.statusCode)
+            assertEquals("yes", outcome.headers!!["x-reply"])
+            assertSame(thrown, outcome.error)
+        }
+
+        @Test
+        @DisplayName("bhvHooks017 finish is called when the request body cannot be encoded and nothing is sent")
+        fun finishIsCalledWhenTheBodyCannotBeEncoded() {
+            val client = CapturingApiClient()
+            val hook = RecordingHook()
+            val thrown = assertThrows(SerializationException::class.java) {
+                runBlocking {
+                    HookedApi(client, hook).call(
+                        body = mapOf("field" to mapOf("nested" to "x")),
+                        contentType = "application/x-www-form-urlencoded",
+                    )
+                }
+            }
+            assertEquals("", client.capturedUrl)
+            assertEquals(1, hook.infos.size)
+            assertSame(thrown, hook.outcomes.single().error)
+            assertEquals(0, hook.outcomes.single().statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvHooks018 an error thrown by start reaches the caller unchanged, nothing is sent and finish is not called")
+        fun aThrowingStartPropagates() {
+            val client = CapturingApiClient()
+            val failure = IllegalStateException("refused")
+            val hook = CallHook { _, _ ->
+                throw failure
+            }
+            val thrown = assertThrows(IllegalStateException::class.java) {
+                runBlocking { HookedApi(client, hook).call() }
+            }
+            assertSame(failure, thrown)
+            assertEquals("", client.capturedUrl)
+        }
+
+        @Test
+        @DisplayName("bhvHooks019 an error thrown by finish is swallowed and the caller still gets its result or its own error")
+        fun aThrowingFinishIsSwallowed() {
+            val hook = CallHook { _, _ -> CallObserver { throw IllegalStateException("observer") } }
+            val response = runBlocking { HookedApi(BodyApiClient(200, "{}"), hook).call() }
+            assertEquals(200, response.statusCode)
+            assertThrows(NotFoundException::class.java) {
+                runBlocking { HookedApi(BodyApiClient(404, "{}"), hook).call() }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvHooks021 the url given to the hook never carries the query string or the fragment")
+        fun theUrlHasNoQueryOrFragment() {
+            val hook = RecordingHook()
+            runBlocking {
+                HookedApi(CapturingApiClient(), hook).call(
+                    path = "/items/7#frag",
+                    queryParams = mutableMapOf("a" to "1"),
+                )
+            }
+            assertEquals("http://localhost:8080/items/7", hook.infos.single().url)
         }
     }
 }
