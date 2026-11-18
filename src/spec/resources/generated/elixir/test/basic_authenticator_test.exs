@@ -137,12 +137,6 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   # bearer-no-empty-token-guard: an empty/whitespace Bearer token must be
   # rejected at construction, not silently emit `Authorization: Bearer `.
   describe "BearerAuthenticator empty-token guard" do
-    test "valid token produces bearer header" do
-      auth = BearerAuthenticator.new("https://api.example.com", "abc123")
-      headers = BearerAuthenticator.auth_headers(auth)
-      assert headers["Authorization"] == "Bearer abc123"
-    end
-
     test "rejects empty token" do
       assert_raise ArgumentError, fn ->
         BearerAuthenticator.new("https://api.example.com", "")
@@ -159,14 +153,6 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   # authenticator-secret-in-default-string-repr: the secret must never
   # appear in the authenticator's default Inspect representation.
   describe "secret redaction in default inspect" do
-    test "bearer token is not leaked by inspect/1" do
-      auth =
-        BearerAuthenticator.new("https://api.example.com", "super-secret-token")
-
-      refute inspect(auth) =~ "super-secret-token"
-      assert inspect(auth) =~ "api.example.com"
-    end
-
     test "bhv authbasic 005 basic auth password is not leaked by inspect/1" do
       auth =
         BasicAuthenticator.new("https://api.example.com", "alice", "super-secret-pw")

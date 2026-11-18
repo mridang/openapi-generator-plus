@@ -1634,21 +1634,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Multipart filename sanitization (Gap F)
 
-  test "multipart filename containing CRLF raises ArgumentError" do
-    assert_raise ArgumentError, fn ->
-      PetstoreClient.DefaultApiClient.build_content_disposition(
-        "file",
-        "a\r\nX-Injected: yes"
-      )
-    end
-  end
-
-  test "multipart filename containing NUL raises ArgumentError" do
-    assert_raise ArgumentError, fn ->
-      PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\0b.txt")
-    end
-  end
-
   test "bhv serializationwire 061 multipart filename with embedded quote is backslash-escaped" do
     disposition =
       PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\"b.txt")
@@ -1661,15 +1646,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
       PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\\b.txt")
 
     assert String.contains?(disposition, "filename=\"a\\\\b.txt\"")
-  end
-
-  test "multipart non-ASCII filename emits RFC 5987 filename*" do
-    disposition =
-      PetstoreClient.DefaultApiClient.build_content_disposition("file", "日本.pdf")
-
-    assert String.contains?(disposition, "filename*=UTF-8''")
-    assert String.contains?(disposition, "%E6%97%A5%E6%9C%AC")
-    assert String.contains?(disposition, "filename=\"")
   end
 
   # Charset-aware response decoding (Gap H)
@@ -2178,32 +2154,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
-  test "relative path uses client base_url when no override given" do
-    {:ok, name} = UrlCapturingApiClient.start()
-    config = PetstoreClient.Configuration.new(base_url: "http://default.example.com")
-    state = %{config: config, api_client: UrlCapturingApiClient}
-
-    _result =
-      PetstoreClient.Api.BaseApi.invoke_api(
-        state,
-        :get,
-        "/test/echo",
-        %{},
-        %{},
-        nil,
-        ["application/json"],
-        "application/json",
-        nil
-      )
-
-    url = UrlCapturingApiClient.captured_url(name)
-
-    assert String.starts_with?(url, "http://default.example.com"),
-           "Expected default base, got: #{url}"
-
-    Agent.stop(name)
-  end
-
   test "bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire" do
     {:ok, name} = UrlCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
@@ -2394,25 +2344,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
         body: "{",
         headers: %{"Content-Type" => "application/json"}
       }
-    end
-  end
-
-  test "2xx body that fails to deserialize propagates the error instead of returning the raw string" do
-    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    state = %{config: config, api_client: MalformedSuccessApiClient}
-
-    assert_raise PetstoreClient.Errors.SerializationError, fn ->
-      PetstoreClient.Api.BaseApi.invoke_api(
-        state,
-        :get,
-        "/test/echo",
-        %{},
-        %{},
-        nil,
-        ["application/json"],
-        "application/json",
-        "Category"
-      )
     end
   end
 

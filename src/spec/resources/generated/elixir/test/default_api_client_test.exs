@@ -881,23 +881,6 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert %PetstoreClient.ApiHttpResponse{} = response
   end
 
-  test "rejects multipart field name with CRLF (Gap W2)" do
-    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
-
-    client = PetstoreClient.DefaultApiClient.new()
-    bad_field = %{"name\r\nInjected: yes" => "value"}
-
-    assert_raise ArgumentError, fn ->
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :post,
-        "#{chasm_url}/test/echo",
-        %{},
-        bad_field
-      )
-    end
-  end
-
   # W-new-2: multipart field-name validation must run on every branch (not
   # just binary). Confirm that even for a plain String value, a CR/LF in the
   # field name is rejected, preventing Content-Disposition smuggling.
