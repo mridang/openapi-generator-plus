@@ -1780,6 +1780,69 @@ void main() {
     // keys (no exception thrown). This protects clients against new server
     // fields added after the SDK was generated.
     test(
+      'bhv serialization 068 building a model in code does not validate it, keeping the values as given',
+      () {
+        final pet = Pet(
+          name: '',
+          photoUrls: <String>{},
+          nickname: 'ZZZZZZZZZZ',
+        );
+
+        expect(pet.name, equals(''));
+        expect(pet.nickname, equals('ZZZZZZZZZZ'));
+      },
+    );
+
+    test(
+      'bhv serialization 069 schema constraints such as pattern and length are not enforced, so out-of-bound values are accepted',
+      () {
+        final pet = deserialize<Pet>(
+          '{"name":"x","photoUrls":[],"nickname":"ZZZZZZZZZZ"}',
+          Pet.fromJson,
+        );
+
+        expect(pet!.nickname, equals('ZZZZZZZZZZ'));
+      },
+    );
+
+    test(
+      'bhv serialization 070 a JSON null is accepted where a field is optional and decodes to null',
+      () {
+        final pet = deserialize<Pet>(
+          '{"name":"x","photoUrls":[],"nickname":null}',
+          Pet.fromJson,
+        );
+
+        expect(pet!.nickname, isNull);
+      },
+    );
+
+    test(
+      'bhv serialization 072 keys the model does not declare are skipped without error, scalar or nested',
+      () {
+        final pet = Pet.fromJson(<String, dynamic>{
+          'id': 1,
+          'name': 'Fido',
+          'photoUrls': <String>['http://x/y.jpg'],
+          'unknownField': 'value',
+          'nestedExtra': {'foo': 'bar'},
+        });
+
+        expect(pet.name, equals('Fido'));
+      },
+    );
+
+    test(
+      'bhv serialization 073 a required field that is missing fails decoding with an error naming that field',
+      () {
+        expect(
+          () => deserialize<Pet>('{"photoUrls":[]}', Pet.fromJson),
+          throwsA(predicate((e) => e.toString().contains('name'))),
+        );
+      },
+    );
+
+    test(
       'bhv serializationobject 082 fromJson silently ignores unknown extra fields',
       () {
         final input = <String, dynamic>{
