@@ -137,6 +137,10 @@ public abstract class BaseApi
     /// <param name="timeout">Per-call end-to-end timeout in milliseconds, or null for the transport's.</param>
     /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
     /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">
+    /// The operation's error factories by declared status (<c>404</c>, <c>4XX</c>,
+    /// <c>default</c>), or null when it declares none.
+    /// </param>
     /// <param name="cancellationToken">Token that cancels the request.</param>
     protected async Task<ApiResult<T>> InvokeApiForResultAsync<T>(
         string method,
@@ -154,6 +158,7 @@ public abstract class BaseApi
         int? timeout = null,
         IReadOnlyDictionary<string, string>? extraHeaders = null,
         int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -487,77 +492,96 @@ public abstract class BaseApi
                 response.Headers,
                 response.Body,
                 method,
-                requestUri.AbsolutePath
+                requestUri.AbsolutePath,
+                errorSchemas
             );
         }
 
         T? data = default;
         if (returnType != null && !string.IsNullOrEmpty(response.Body))
         {
-            string? responseContentType = response
-                .Headers.Where(h =>
-                    string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
+            try
+            {
+                string? responseContentType = response
+                    .Headers.Where(h =>
+                        string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Select(h => h.Value)
+                    .FirstOrDefault();
+
+                bool binaryTarget =
+                    typeof(T) == typeof(System.IO.Stream) || typeof(T) == typeof(byte[]);
+
+                if (
+                    typeof(T) == typeof(byte[])
+                    && responseContentType != null
+                    && HeaderSelector.IsJsonMime(responseContentType)
                 )
-                .Select(h => h.Value)
-                .FirstOrDefault();
-
-            bool binaryTarget =
-                typeof(T) == typeof(System.IO.Stream) || typeof(T) == typeof(byte[]);
-
-            if (
-                typeof(T) == typeof(byte[])
-                && responseContentType != null
-                && HeaderSelector.IsJsonMime(responseContentType)
-            )
-            {
-                /* A top-level `format: byte` response carried as application/json
-                   arrives as a JSON string literal (e.g. "dGVzdC1pbWFnZQ==").
-                   JSON-parse it to the inner string, then base64-decode to the
-                   raw bytes — never the UTF-8 bytes of the quoted literal, and
-                   never the un-decoded base64 string. Matches python/go/java/rust. */
-                data = (T)(object)(Serializer.Deserialize<byte[]>(response.Body) ?? []);
-            }
-            else if (binaryTarget)
-            {
-                /* The caller expects raw bytes (Stream/byte[]). DefaultApiClient
-                   base64-encodes the body for non-text content types and leaves
-                   text bodies decoded, so recover the original bytes instead of
-                   JSON-deserializing. A non-text content type signals a base64
-                   payload; fall back to the literal UTF-8 bytes when the body is
-                   not valid base64 (e.g. a custom IApiClient that returns raw
-                   text). */
-                byte[] bytes = DecodeBinaryBody(
-                    response.Body,
-                    !IsTextResponseContentType(responseContentType)
-                );
-                data =
-                    typeof(T) == typeof(System.IO.Stream)
-                        ? (T)(object)new System.IO.MemoryStream(bytes)
-                        : (T)(object)bytes;
-            }
-            else if (responseContentType != null && !HeaderSelector.IsJsonMime(responseContentType))
-            {
-                /* A non-JSON success body is only usable as text for a string
-                   return; any other return type is a serialization error that
-                   names the Content-Type, never a cast failure. */
-                if (typeof(T) == typeof(string))
                 {
-                    data = (T)(object)response.Body;
+                    /* A top-level `format: byte` response carried as application/json
+                       arrives as a JSON string literal (e.g. "dGVzdC1pbWFnZQ==").
+                       JSON-parse it to the inner string, then base64-decode to the
+                       raw bytes — never the UTF-8 bytes of the quoted literal, and
+                       never the un-decoded base64 string. Matches python/go/java/rust. */
+                    data = (T)(object)(Serializer.Deserialize<byte[]>(response.Body) ?? []);
+                }
+                else if (binaryTarget)
+                {
+                    /* The caller expects raw bytes (Stream/byte[]). DefaultApiClient
+                       base64-encodes the body for non-text content types and leaves
+                       text bodies decoded, so recover the original bytes instead of
+                       JSON-deserializing. A non-text content type signals a base64
+                       payload; fall back to the literal UTF-8 bytes when the body is
+                       not valid base64 (e.g. a custom IApiClient that returns raw
+                       text). */
+                    byte[] bytes = DecodeBinaryBody(
+                        response.Body,
+                        !IsTextResponseContentType(responseContentType)
+                    );
+                    data =
+                        typeof(T) == typeof(System.IO.Stream)
+                            ? (T)(object)new System.IO.MemoryStream(bytes)
+                            : (T)(object)bytes;
+                }
+                else if (
+                    responseContentType != null
+                    && !HeaderSelector.IsJsonMime(responseContentType)
+                )
+                {
+                    /* A non-JSON success body is only usable as text for a string
+                       return; any other return type is a serialization error that
+                       names the Content-Type, never a cast failure. */
+                    if (typeof(T) == typeof(string))
+                    {
+                        data = (T)(object)response.Body;
+                    }
+                    else
+                    {
+                        throw new SerializationException(
+                            $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {operationName ?? "the request"}: expected a JSON body"
+                        );
+                    }
+                }
+                else if (decodeByStatus is not null)
+                {
+                    data = decodeByStatus(response.StatusCode, response.Body);
                 }
                 else
                 {
-                    throw new SerializationException(
-                        $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {operationName ?? "the request"}: expected a JSON body"
-                    );
+                    data = Serializer.Deserialize<T>(response.Body);
                 }
             }
-            else if (decodeByStatus is not null)
+            catch (SerializationException e)
             {
-                data = decodeByStatus(response.StatusCode, response.Body);
-            }
-            else
-            {
-                data = Serializer.Deserialize<T>(response.Body);
+                /* A body that cannot be decoded still says which response it was. */
+                e.AttachResponse(
+                    response.StatusCode,
+                    response.Headers,
+                    response.Body,
+                    method,
+                    requestUri.AbsolutePath
+                );
+                throw;
             }
         }
 

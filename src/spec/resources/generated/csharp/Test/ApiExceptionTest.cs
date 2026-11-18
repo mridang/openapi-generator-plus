@@ -639,6 +639,118 @@ public class ApiExceptionTest
         Assert.Null(ex.GetTypedErrorBody<Category>());
     }
 
+    [Theory]
+    [InlineData(408, true)]
+    [InlineData(409, true)]
+    [InlineData(429, true)]
+    [InlineData(500, true)]
+    [InlineData(502, true)]
+    [InlineData(503, true)]
+    [InlineData(504, true)]
+    [InlineData(599, true)]
+    [InlineData(400, false)]
+    [InlineData(401, false)]
+    [InlineData(403, false)]
+    [InlineData(404, false)]
+    [InlineData(422, false)]
+    [InlineData(501, false)]
+    [InlineData(302, false)]
+    public void BhvErrors201AnErrorIsRetryableExactlyForTheStatusesTheClientRetries(
+        int status,
+        bool expected
+    )
+    {
+        var ex = ApiException.FromResponse(status, new Dictionary<string, string>(), null);
+
+        Assert.Equal(expected, ex.IsRetryable);
+    }
+
+    [Theory]
+    [InlineData("X-Request-ID", "abc")]
+    [InlineData("x-request-id", "abc")]
+    [InlineData("other", null)]
+    public void BhvErrors202AnErrorExposesTheRequestIdHeaderAsItsRequestId(
+        string header,
+        string? expected
+    )
+    {
+        var ex = ApiException.FromResponse(
+            500,
+            new Dictionary<string, string> { { header, "abc" } },
+            null
+        );
+
+        Assert.Equal(expected, ex.RequestId);
+        Assert.Null(new ApiException(0, "no response", null, null).RequestId);
+    }
+
+    [Fact]
+    public void BhvErrors203TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault()
+    {
+        var factories = new Dictionary<string, ErrorFactory>
+        {
+            ["404"] = (m, p, s, h, b) => new ApiException(s, "exact", null, b),
+            ["4XX"] = (m, p, s, h, b) => new ApiException(s, "range", null, b),
+            ["default"] = (m, p, s, h, b) => new ApiException(s, "default", null, b),
+        };
+        var none = new Dictionary<string, string>();
+
+        Assert.Equal(
+            "exact",
+            ApiException.FromResponse(404, none, "{}", "GET", "/x", factories).Message
+        );
+        Assert.Equal(
+            "range",
+            ApiException.FromResponse(418, none, "{}", "GET", "/x", factories).Message
+        );
+        Assert.Equal(
+            "default",
+            ApiException.FromResponse(502, none, "{}", "GET", "/x", factories).Message
+        );
+        Assert.IsType<BadGatewayException>(
+            ApiException.FromResponse(
+                502,
+                none,
+                "{}",
+                "GET",
+                "/x",
+                new Dictionary<string, ErrorFactory>()
+            )
+        );
+        Assert.IsType<NotFoundException>(
+            ApiException.FromResponse(404, none, "{}", "GET", "/x", null)
+        );
+    }
+
+    [Fact]
+    public void BhvErrors204ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause()
+    {
+        ApiException ex = UnexpectedFailureException.FromErrorResponse(
+            "GET",
+            "/x",
+            400,
+            new Dictionary<string, string>(),
+            "[1, 2"
+        );
+
+        Assert.Equal(
+            ApiException.FromResponse(400, new Dictionary<string, string>(), null).GetType(),
+            ex.GetType()
+        );
+        Assert.Equal("[1, 2", ex.ResponseBody);
+        Assert.Equal(400, ex.StatusCode);
+        Assert.NotNull(ex.InnerException);
+    }
+
+    [Fact]
+    public void ADeclaredErrorSchemaExceptionSubclassesItsStatusClassAndHoldsAnAbsentTypedBody()
+    {
+        var ex = new UnexpectedFailureException(400, "declared");
+
+        Assert.IsAssignableFrom<ApiException>(ex);
+        Assert.Null(ex.ErrorBody);
+    }
+
     [Fact]
     public void UnusableResponseFactoryIsNotPartOfThePublicSurface()
     {

@@ -179,6 +179,9 @@ public class {{classname}} : BaseApi
     /// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocs}}
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+{{#vendorExtensions.op.errorResponses}}
+    /// <exception cref="{{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}">Thrown on HTTP {{status}}{{#hasSchema}} with a <see cref="{{{schemaName}}}"/> body{{/hasSchema}}.</exception>
+{{/vendorExtensions.op.errorResponses}}
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
@@ -258,6 +261,9 @@ public class {{classname}} : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+{{#vendorExtensions.op.errorResponses}}
+    /// <exception cref="{{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}">Thrown on HTTP {{status}}{{#hasSchema}} with a <see cref="{{{schemaName}}}"/> body{{/hasSchema}}.</exception>
+{{/vendorExtensions.op.errorResponses}}
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
@@ -604,7 +610,13 @@ public class {{classname}} : BaseApi
                 }{{/vendorExtensions.op.hasMultiple2xx}},
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries
+                maxRetries: options?.MaxRetries{{#vendorExtensions.op.hasErrorSchemaResponses}},
+                errorSchemas: new Dictionary<string, ErrorFactory>
+                {
+{{#vendorExtensions.op.errorSchemaResponses}}
+                    ["{{{status}}}"] = {{{schemaClassName}}}.FromErrorResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+                }{{/vendorExtensions.op.hasErrorSchemaResponses}}
             )
             .ConfigureAwait(false);
     }
