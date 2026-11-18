@@ -184,6 +184,32 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void BhvMisc297GetUrlReplacesEveryVariableWhenSeveralArePresent()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com:{port}/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["port"] = new ServerVariable("8443", null, ["8443", "443"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            }
+        );
+
+        var url = server.GetUrl(
+            new Dictionary<string, string>
+            {
+                ["env"] = "staging",
+                ["port"] = "443",
+                ["version"] = "v2",
+            }
+        );
+
+        Assert.Equal("https://staging.example.com:443/v2", url);
+    }
+
+    [Fact]
     public void BhvServers002GetUrlSubstitutesARepeatedVariableEverywhere()
     {
         var server = new ServerConfiguration(

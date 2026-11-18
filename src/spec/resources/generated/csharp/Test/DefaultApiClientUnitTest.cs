@@ -413,6 +413,31 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc299ACallerHeaderOverridesTheTransportDefaultOfTheSameRole()
+    {
+        var values = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                if (string.Equals(header.Key, "User-Agent", StringComparison.OrdinalIgnoreCase))
+                {
+                    values.AddRange(header.Value);
+                }
+            }
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string> { ["User-Agent"] = "caller-agent/1.0" },
+            null
+        );
+        Assert.Equal("caller-agent/1.0", Assert.Single(values));
+    }
+
+    [Fact]
     public async Task BhvTransport026LowerCaseCallerAcceptEncodingIsNotSentAlongsideTheDefault()
     {
         // F905: header names are case-insensitive, so a caller's lower-case
@@ -4033,6 +4058,20 @@ public class DefaultApiClientUnitTest
         var response = await SendGet(client);
 
         Assert.Equal(503, response.StatusCode);
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc296ByDefaultAFailedRequestReachesTheWireThreeTimes()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        _ = await SendGet(client);
+
         Assert.Equal(3, handler.Requests.Count);
     }
 
