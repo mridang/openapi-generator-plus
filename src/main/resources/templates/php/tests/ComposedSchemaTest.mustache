@@ -13,6 +13,11 @@ use {{modelPackage}}\PetTreatment;
 use {{modelPackage}}\TreatmentRecord;
 use {{modelPackage}}\PetWithOwner;
 use {{modelPackage}}\SetPetAvatarThumbnailRequest;
+use {{modelPackage}}\Vehicle;
+use {{modelPackage}}\Car;
+use {{modelPackage}}\Truck;
+use {{modelPackage}}\Shape;
+use {{modelPackage}}\Circle;
 
 // -- oneOf with discriminator: PetFood --
 
@@ -241,6 +246,40 @@ test('bhv unions 003 any of single variant still round-trips after retain-all', 
     $roundTripped = json_decode($serialized, true);
     expect($roundTripped)->toMatchArray(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);
     expect($roundTripped)->not->toHaveKey('procedureName');
+});
+
+// -- allOf with a discriminator: Vehicle (explicit mapping) and Shape (schema name mapping) --
+
+test('bhv unions 301 an all of base decodes to the subtype its explicit mapping names', function (): void {
+    $car = ObjectSerializer::deserialize('{"vehicleType":"car","plate":"AB-12","doorCount":4}', Vehicle::class);
+    expect($car)->toBeInstanceOf(Car::class);
+    assert($car instanceof Car);
+    expect($car->plate)->toBe('AB-12');
+    expect($car->doorCount)->toBe(4);
+    expect(ObjectSerializer::deserialize(['vehicleType' => 'truck', 'plate' => 'T-1'], Vehicle::class))
+        ->toBeInstanceOf(Truck::class);
+});
+
+test('bhv unions 302 an all of base decodes to the subtype its implicit schema name names', function (): void {
+    $circle = ObjectSerializer::deserialize(['shapeType' => 'Circle', 'radius' => 1.5], Shape::class);
+    expect($circle)->toBeInstanceOf(Circle::class);
+    assert($circle instanceof Circle);
+    expect($circle->radius)->toBe(1.5);
+});
+
+test('bhv unions 303 an unknown all of discriminator value fails and the error names it', function (): void {
+    expect(fn () => ObjectSerializer::deserialize(['vehicleType' => 'boat', 'plate' => 'B-1'], Vehicle::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class, 'boat');
+});
+
+test('bhv unions 304 an all of base payload without its discriminator fails', function (): void {
+    expect(fn () => ObjectSerializer::deserialize(['plate' => 'AB-12'], Vehicle::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 301 an all of subtype writes its discriminator value', function (): void {
+    $json = ObjectSerializer::serialize(new Car(plate: 'AB-12', doorCount: 4));
+    expect($json)->toContain('"vehicleType":"car"');
 });
 
 // -- allOf: PetWithOwner --

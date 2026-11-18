@@ -17,6 +17,49 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Shape
 {
+    private const string DISCRIMINATOR_PROPERTY = 'shapeType';
+
+    /** @var array<string, class-string> */
+    private const array DISCRIMINATOR_MAPPING = [
+        'Circle' => Circle::class,
+        'Square' => Square::class
+    ];
+
+    /**
+     * The subtype the discriminator value names. Throws when the discriminator
+     * is missing, is not a string, or is not listed in the mapping. Called with
+     * a subtype's own class it returns that class, so decoding stops there.
+     *
+     * @param array<mixed> $payload
+     *
+     * @return class-string
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function subtypeClass(array $payload): string
+    {
+        if (!isset($payload[self::DISCRIMINATOR_PROPERTY])) {
+            throw new \InvalidArgumentException(
+                "Missing discriminator field '" . self::DISCRIMINATOR_PROPERTY
+                . "' in " . self::class . " payload"
+            );
+        }
+        $discValue = $payload[self::DISCRIMINATOR_PROPERTY];
+        if (!is_string($discValue)) {
+            throw new \InvalidArgumentException(
+                "Discriminator field '" . self::DISCRIMINATOR_PROPERTY
+                . "' for " . self::class . " must be a string"
+            );
+        }
+        $class = self::DISCRIMINATOR_MAPPING[$discValue] ?? null;
+        if ($class === null) {
+            throw new \InvalidArgumentException(
+                "Unknown discriminator value '$discValue' for " . self::class
+            );
+        }
+        return $class;
+    }
+
     #[SerializedName('shapeType')]
     public readonly string $shapeType;
 

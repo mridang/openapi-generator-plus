@@ -77,7 +77,8 @@ Test: README golden.
 Rule: php models the `allOf` plus discriminator parent as a parent class and subtypes extend it; a model reused in two unions is not re-parented (unions use interfaces and wrappers, not inheritance).
 Why: PHP has single inheritance but class inheritance, so the natural shape works; re-parenting would break the second union.
 Where: `models/model.mustache`, `BetterPHPCodegen` discriminator defaults (subtype constructor defaults the discriminator and demotes it behind required parameters).
-Test: `ComposedSchemaTest`, `ObjectSerializerTest`.
+Status (#104): a classic base (`x-allof-base`) gets `DISCRIMINATOR_MAPPING` and a public static `subtypeClass(array)` that names the subtype or throws on a missing, non-string or unknown value; `ObjectSerializer::deserializeInternal` calls it before the union branch and decodes to the subtype it returns (a subtype returns itself, so decoding stops). Subtypes keep their own constructors and readonly fields, which write the discriminator default, so an encode writes `vehicleType`/`shapeType`.
+Test: `ComposedSchemaTest` (bhv unions 301-304, bhv serializationobject 301).
 
 ### Required plus nullable (S5, D66, 2026-11-16)
 Rule: the key must be present on decode (missing is an error), an explicit `null` is kept, and encode always writes the key (`null` when unset).
