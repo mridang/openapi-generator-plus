@@ -353,6 +353,59 @@ public class ComposedSchemaTest
         Assert.Null(union.AsSurgery());
     }
 
+    [Fact]
+    public void BhvMisc293AnyOfReturnsEveryMatchingVariantAndSkipsTheOthers()
+    {
+        var both = _serializer.Deserialize<PetTreatment>(
+            "{\"drugName\":\"Amoxicillin\",\"procedureName\":\"Spay\"}")!;
+        Assert.Equal(2, both.MatchedInstances.Count);
+
+        var surgeryOnly = _serializer.Deserialize<PetTreatment>("{\"procedureName\":\"Spay\"}")!;
+        var matched = Assert.Single(surgeryOnly.MatchedInstances);
+        Assert.IsType<Surgery>(matched);
+    }
+
+    [Fact]
+    public void BhvMisc294ASubtypePayloadWithoutItsDiscriminatorDecodesAsTheMappingValue()
+    {
+        var food = _serializer.Deserialize<WetFood>("{\"volumeMl\":400}");
+
+        Assert.NotNull(food);
+        Assert.Equal("wet", food!.FoodType);
+    }
+
+    [Fact]
+    public void BhvMisc295ByteOneOfRoundTripsBase64AndRejectsAPayloadMatchingNoVariant()
+    {
+        var bytes = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        var json = _serializer.Serialize(new SetPetAvatarThumbnailRequest(bytes));
+
+        var decoded = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json);
+        Assert.Equal(bytes, (byte[])decoded!.ActualInstance!);
+        Assert.Throws<SerializationException>(
+            () => _serializer.Deserialize<SetPetAvatarThumbnailRequest>("{\"unexpected\":\"shape\"}"));
+    }
+
+    [Fact]
+    public void BhvMisc291AUnionMatchingSeveralVariantsDecodesToTheFirstDeclaredVariant()
+    {
+        var record = _serializer.Deserialize<TreatmentRecord>("{\"drugName\":\"a\",\"procedureName\":\"b\"}")!;
+
+        Assert.IsType<Surgery>(record.ActualInstance);
+    }
+
+    [Fact]
+    public void BhvMisc292SerializingAUnionWrapperEmitsTheBareVariantPayloadOnly()
+    {
+        var json = _serializer.Serialize(new PetTreatment(new Medication { DrugName = "Amoxicillin", Dosage = "500mg" }));
+
+        Assert.Contains("\"drugName\":\"Amoxicillin\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("MatchedInstances", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("ActualInstance", json, StringComparison.Ordinal);
+        var back = _serializer.Deserialize<PetTreatment>(json)!;
+        Assert.Equal("Amoxicillin", ((Medication)back.ActualInstance!).DrugName);
+    }
+
     // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
 
     [Fact]

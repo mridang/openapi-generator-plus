@@ -382,6 +382,12 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void BhvMisc253AnAllowReservedValueStillEncodesHashAndBrackets()
+    {
+        Assert.Equal("a%23b%5Bc%5D", ValueSerializer.EncodeQueryAllowingReserved("a#b[c]"));
+    }
+
+    [Fact]
     public void BhvSerializationparam122AllowReservedKeepsReservedCharsLiteral()
     {
         Assert.Equal("a/b:c?d=e&f;g", ValueSerializer.EncodeQueryAllowingReserved("a/b:c?d=e&f;g"));

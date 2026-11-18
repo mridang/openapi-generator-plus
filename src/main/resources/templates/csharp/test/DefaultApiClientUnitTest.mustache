@@ -353,6 +353,27 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc299ACallerHeaderOverridesTheTransportDefaultOfTheSameRole()
+    {
+        var values = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                if (string.Equals(header.Key, "User-Agent", StringComparison.OrdinalIgnoreCase))
+                {
+                    values.AddRange(header.Value);
+                }
+            }
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string> { ["User-Agent"] = "caller-agent/1.0" }, null);
+        Assert.Equal("caller-agent/1.0", Assert.Single(values));
+    }
+
+    [Fact]
     public async Task BhvTransport026LowerCaseCallerAcceptEncodingIsNotSentAlongsideTheDefault()
     {
         // F905: header names are case-insensitive, so a caller's lower-case
@@ -2878,7 +2899,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallerCancellationPropagatesUnwrapped()
+    public async Task BhvMisc262CallerCancellationPropagatesUnwrapped()
     {
         // Only the SDK's own timeout becomes NetworkTimeoutException. A
         // cancellation the caller triggers (here CancelPendingRequests on the
@@ -3683,6 +3704,81 @@ public class DefaultApiClientUnitTest
         return new HttpClient(handler);
     }
 
+    [Fact]
+    public void BhvMisc270AMissingCaCertificateFileIsRejectedEvenWithVerificationOff()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "misc270-" + Guid.NewGuid().ToString("N") + ".pem");
+        var transport = TransportOptions.Builder().VerifySsl(false).CaCertPath(path).Build();
+
+        var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
+        Assert.Contains(path, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc285AnUnsupportedContentEncodingIsRefusedWithItsExactMessage()
+    {
+        var handler = new SequenceHandler(_ =>
+        {
+            var response = Respond(200, null);
+            response.Content.Headers.ContentEncoding.Add("zstd");
+            return response;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(0).Build());
+
+        var ex = await Assert.ThrowsAnyAsync<Exception>(() => SendGet(client));
+        Assert.Contains("Unsupported Content-Encoding 'zstd'", ex.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc266ACallerHeaderReplacesTheRequestIdDefaultWhateverItsCase()
+    {
+        var values = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                if (string.Equals(header.Key, "X-Request-ID", StringComparison.OrdinalIgnoreCase))
+                {
+                    values.AddRange(header.Value);
+                }
+            }
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().InjectRequestId(true).Build());
+
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string> { ["x-request-id"] = "caller-id" }, null);
+
+        Assert.Equal("caller-id", Assert.Single(values));
+    }
+
+    [Fact]
+    public async Task BhvMisc267ADefaultHeaderOnACallerSuppliedHttpClientIsSentWithEachRequest()
+    {
+        var values = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                if (string.Equals(header.Key, "X-Client", StringComparison.OrdinalIgnoreCase))
+                {
+                    values.AddRange(header.Value);
+                }
+            }
+            return Task.CompletedTask;
+        });
+        var http = new HttpClient(handler);
+        http.DefaultRequestHeaders.Add("X-Client", "callers-client");
+
+        var client = new DefaultApiClient(http);
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
+
+        Assert.Equal("callers-client", Assert.Single(values));
+    }
+
     // ---- automatic retries (F823) ----
 
     private static Task<ApiHttpResponse> SendGet(
@@ -3721,6 +3817,17 @@ public class DefaultApiClientUnitTest
         var response = await SendGet(client);
 
         Assert.Equal(503, response.StatusCode);
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc296ByDefaultAFailedRequestReachesTheWireThreeTimes()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        _ = await SendGet(client);
+
         Assert.Equal(3, handler.Requests.Count);
     }
 

@@ -294,6 +294,7 @@ public class BaseApiTest
         public int? Timeout { get; private set; }
         public int? MaxRetries { get; private set; }
         public Dictionary<string, string> Headers { get; private set; } = [];
+        public Uri? Url { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
@@ -302,6 +303,7 @@ public class BaseApiTest
             object? requestBody
         )
         {
+            Url = url;
             Headers = new Dictionary<string, string>(headers);
             return Task.FromResult(
                 new ApiHttpResponse(
@@ -324,6 +326,7 @@ public class BaseApiTest
             CancellationToken cancellationToken
         )
         {
+            Url = url;
             Timeout = timeout;
             MaxRetries = maxRetries;
             return SendRequestAsync(method, url, headers, requestBody);
@@ -970,6 +973,77 @@ public class BaseApiTest
         };
 
     [Theory]
+    [InlineData(400)]
+    [InlineData(401)]
+    [InlineData(403)]
+    [InlineData(404)]
+    [InlineData(409)]
+    [InlineData(422)]
+    [InlineData(429)]
+    [InlineData(500)]
+    [InlineData(502)]
+    public async Task BhvMisc264EachListedErrorStatusRaisesAnApiErrorCarryingThatStatus(int status)
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    $"/test/status/{status}",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
+        );
+
+        Assert.Equal(status, ex.StatusCode);
+    }
+
+    [Theory]
+    [MemberData(nameof(StatusToException))]
+    public async Task BhvMisc284ATypedErrorIsRaisedForEachListedStatus(
+        int status,
+        Type expectedType
+    )
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    $"/test/status/{status}",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
+        );
+
+        Assert.IsType(expectedType, ex);
+    }
+
+    [Fact]
+    public async Task BhvMisc281HeadersFromAReceivedResponseAreCopiedOntoItsError()
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    "/test/status/404",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
+        );
+
+        Assert.NotNull(ex.ResponseHeaders);
+        Assert.Contains("content-type", ex.ResponseHeaders!.Keys);
+    }
+
+    [Theory]
     [MemberData(nameof(StatusToException))]
     public async Task BhvErrors037ThrowsCorrectException(int status, Type expectedType)
     {
@@ -1298,6 +1372,44 @@ public class BaseApiTest
                 )
             );
         }
+    }
+
+    [Fact]
+    public async Task BhvMisc254AnUnmarkedQueryValueEncodesReservedCharacters()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        await api.CallAsync<object>(
+            "GET",
+            "/x",
+            new Dictionary<string, object?> { ["q"] = "a/b:c" },
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        Assert.Equal("?q=a%2Fb%3Ac", client.Url!.Query);
+    }
+
+    [Fact]
+    public async Task BhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        await api.CallAsync<object>(
+            "GET",
+            "/x",
+            new Dictionary<string, object?> { ["q"] = "hello world" },
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        Assert.Equal("?q=hello%20world", client.Url!.Query);
     }
 
     [Fact]

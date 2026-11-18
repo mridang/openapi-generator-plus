@@ -11,6 +11,21 @@ public class ServerConfigurationTest
     private static readonly string[] ExpectedHostileValues = ["o'neil", "a&b"];
 
     [Fact]
+    public void BhvMisc278AServerUrlTemplateWithNoOverridesResolvesToTheDefaultOfEachVariable()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("staging", null, ["staging", "api"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            });
+
+        Assert.Equal("https://staging.example.com/api/v3", server.GetUrl());
+    }
+
+    [Fact]
     public void BhvServers010GetUrlSubstitutesDefaultValues()
     {
         var server = new ServerConfiguration(
@@ -167,6 +182,85 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void BhvMisc297GetUrlReplacesEveryVariableWhenSeveralArePresent()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com:{port}/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["port"] = new ServerVariable("8443", null, ["8443", "443"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            });
+
+        var url = server.GetUrl(
+            new Dictionary<string, string> { ["env"] = "staging", ["port"] = "443", ["version"] = "v2" });
+
+        Assert.Equal("https://staging.example.com:443/v2", url);
+    }
+
+    [Fact]
+    public void BhvMisc258AVariableWithNoOverrideUsesItsDefaultInTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{path}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["path"] = new ServerVariable("v1", null, ["v1", "v2"]),
+            });
+
+        Assert.Equal("https://api.example.com/v1", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvMisc259APlaceholderWithNoDeclaredVariableStaysInTheUrlAsWritten()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{unknown}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api"]),
+            });
+
+        Assert.Equal("https://api.example.com/{unknown}", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvMisc260ANullOverrideForAnEnumVariableIsRejectedNotSubstituted()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            });
+
+        Assert.ThrowsAny<ArgumentException>(
+            () => server.GetUrl(new Dictionary<string, string> { ["env"] = null! }));
+    }
+
+    [Fact]
+    public void BhvMisc261ABackslashSequenceInAValueIsInsertedLiterally()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, []),
+            });
+
+        Assert.Equal(
+            "https://a\\nb.example.com",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "a\\nb" }));
+    }
+
+    [Fact]
     public void BhvServers002GetUrlSubstitutesARepeatedVariableEverywhere()
     {
         var server = new ServerConfiguration(
@@ -228,7 +322,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlAcceptsAnyValueWhenEnumIsEmpty()
+    public void BhvMisc257GetUrlAcceptsAnyValueWhenEnumIsEmpty()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com",

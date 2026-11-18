@@ -1390,6 +1390,15 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public void BhvMisc286AnOAuthServerErrorMessageNamesItsHttpStatusAndItsOAuthCode()
+    {
+        var message = new OAuth2ServerException(403, "access_denied", null, null, "{}").Message;
+
+        Assert.Contains("403", message, StringComparison.Ordinal);
+        Assert.Contains("access_denied", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BhvErrors046OAuth2ServerErrorMessageHasThreeForms()
     {
         Assert.Equal(

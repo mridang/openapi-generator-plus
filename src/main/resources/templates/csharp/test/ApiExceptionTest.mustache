@@ -27,6 +27,16 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvMisc280ATruncatedRenderedBodyStatesHowManyBytesWereLeftOut()
+    {
+        var ex = new ApiException(500, "boom", null, new string('a', 5000), null);
+
+        var match = System.Text.RegularExpressions.Regex.Match(ex.ToString(), @"\.\.\. \((\d+) more bytes\)");
+        Assert.True(match.Success);
+        Assert.True(int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) > 0);
+    }
+
+    [Fact]
     public void BhvErrors021NullHeadersAndBodyMarkTransportNoResponse()
     {
         // apierror-responsebody-headers-nullable-split: null is distinct from an

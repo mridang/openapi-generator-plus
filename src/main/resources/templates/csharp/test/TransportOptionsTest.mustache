@@ -250,6 +250,14 @@ public class TransportOptionsTest
         Assert.Throws<ArgumentException>(() => builder.Build());
     }
 
+    [Fact]
+    public void BhvMisc298AMalformedProxyUrlFailsWithAnInvalidProxyUrlError()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy("not a valid url").Build());
+        Assert.Contains("Invalid proxy URL", ex.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("", "Invalid proxy URL")]
     [InlineData("not a valid url", "Invalid proxy URL")]
