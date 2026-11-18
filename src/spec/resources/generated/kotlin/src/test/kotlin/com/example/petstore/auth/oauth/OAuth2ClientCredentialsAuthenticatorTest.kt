@@ -413,4 +413,31 @@ class OAuth2ClientCredentialsAuthenticatorTest {
             client.lastBody,
         )
     }
+
+    @Test
+    @DisplayName("bhvAuth002 invalidating the token before any exchange raises nothing and sends no request")
+    fun invalidateBeforeAnyExchangeSendsNoRequest() {
+        val client = FakeApiClient()
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertDoesNotThrow { auth.invalidateAccessToken() }
+        assertNull(client.lastUrl)
+    }
+
+    @Test
+    @DisplayName("bhvAuth019 the token request body lists its parameters in one fixed order")
+    fun tokenRequestBodyListsParametersInFixedOrder() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"at","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+
+        assertEquals(
+            "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+            client.lastBody,
+        )
+    }
 }

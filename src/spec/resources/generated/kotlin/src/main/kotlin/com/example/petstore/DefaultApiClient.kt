@@ -1033,10 +1033,13 @@ internal fun usableRedirectLocation(
 }
 
 /**
- * A URL as it may appear in an error message: the query and fragment are
- * dropped, because a query-parameter API key is part of the query.
+ * A URL as it may appear in an error message: the user information, query and
+ * fragment are dropped, because a query-parameter API key is part of the query
+ * and user information can carry a password.
  */
-internal fun redactUrl(url: String): String = url.substringBefore('#').substringBefore('?')
+internal fun redactUrl(url: String): String = url.substringBefore('#').substringBefore('?').replace(urlUserInfo, "$1")
+
+private val urlUserInfo = Regex("""^([a-zA-Z][a-zA-Z0-9+.-]*://)[^/?#@]*@""")
 
 private val urlWithQuery = Regex("""(https?://[^\s?#,\]\)]*)[?#][^\s,\]\)]*""", RegexOption.IGNORE_CASE)
 

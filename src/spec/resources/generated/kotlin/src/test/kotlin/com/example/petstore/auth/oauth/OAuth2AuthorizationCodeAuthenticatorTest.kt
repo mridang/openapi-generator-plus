@@ -77,7 +77,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     private fun verifierSentIn(body: String?): String? = Regex("code_verifier=([^&]+)").find(body.orEmpty())?.groupValues?.get(1)
 
     @Test
-    fun pkceChallengeIsTheS256OfTheVerifier() {
+    fun bhvAuth008PkceChallengeIsTheS256OfTheVerifier() {
         // RFC 7636 appendix B test vector.
         assertEquals(
             "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",

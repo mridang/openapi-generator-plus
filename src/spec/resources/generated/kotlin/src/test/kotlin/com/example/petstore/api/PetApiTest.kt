@@ -1703,7 +1703,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("Options are immutable and built via named-arg constructor")
+        @DisplayName("bhvOptions062 Options are immutable and built via named-arg constructor")
         fun testOptionsAreImmutableAndConstructedWithNamedArgs() {
             // Options classes are immutable: every property is a `val` set
             // through the primary constructor via named/default args. Reads

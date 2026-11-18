@@ -155,7 +155,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("does not add quality weights")
+        @DisplayName("bhvHeaders032 does not add quality weights")
         fun doesNotAddQualityWeights() {
             val headers =
                 selector.selectHeaders(

@@ -387,7 +387,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("F1062: the status code, not the shape of the body, picks the variant")
+        @DisplayName("bhvUnions036 F1062: the status code, not the shape of the body, picks the variant")
         fun testReserveStockRefusesABodyThatDoesNotFitItsStatus() {
             assertThrows(com.example.petstore.errors.SerializationException::class.java) {
                 runBlocking {

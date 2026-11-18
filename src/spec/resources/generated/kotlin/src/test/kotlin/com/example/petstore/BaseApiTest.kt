@@ -596,7 +596,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("F827: a per-call timeout arms the request with what is left of it")
+        @DisplayName("bhvTransport070 F827: a per-call timeout arms the request with what is left of it")
         fun callTimeoutArmsTheRequest() {
             val (client, seen) = statusClient(200)
             runBlocking { PerCallApi(client).call(callTimeout = 2000L) }
@@ -698,7 +698,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("bhvErrors048 418 throws ClientException")
+        @DisplayName("bhvErrors048 throws ClientException for status 418")
         fun throws418() {
             assertThrows(ClientException::class.java) {
                 runBlocking { api().call("GET", "/test/status/418") }
@@ -1193,7 +1193,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("the result headers are a copy of the transport's map")
+        @DisplayName("bhvResults006 the result headers are a copy of the transport's map")
         fun resultHeadersAreACopy() {
             val transportHeaders = mutableMapOf("Content-Type" to "text/plain", "x-a" to "1")
             val client =
@@ -1611,7 +1611,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("percent-encodes reserved characters in query keys and values")
+        @DisplayName("bhvSerialization006 percent-encodes reserved characters in query keys and values")
         fun percentEncodesReservedCharactersInQuery() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")

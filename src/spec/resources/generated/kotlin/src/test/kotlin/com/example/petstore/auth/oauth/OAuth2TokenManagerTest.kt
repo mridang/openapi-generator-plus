@@ -778,7 +778,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenEndpointErrorWithNonStringDescriptionKeepsTheCode() {
+    fun bhvErrors082TokenEndpointErrorWithNonStringDescriptionKeepsTheCode() {
         // A non-string error_description or error_uri is dropped independently
         // and must not discard a valid error code.
         val ex =
@@ -1077,7 +1077,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun cancelledRefreshIsNotTreatedAsRefreshFailure() {
+    fun bhvAuth027CancelledRefreshIsNotTreatedAsRefreshFailure() {
         // Coroutine cancellation during the refresh grant must reach the caller;
         // it is not a rejected refresh, so the original grant is not re-run.
         val calls = AtomicInteger(0)
@@ -1139,7 +1139,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun tokenBodyEncodesSpacesAsPlusAndKeepsOnlyRfc3986UnreservedLiteral() {
+    fun bhvAuth017TokenBodyEncodesSpacesAsPlusAndKeepsOnlyRfc3986UnreservedLiteral() {
         // application/x-www-form-urlencoded body: a space is '+', '-._~' stay
         // literal and '*' '!' ''' '(' ')' are percent-encoded.
         val client = FakeApiClient()

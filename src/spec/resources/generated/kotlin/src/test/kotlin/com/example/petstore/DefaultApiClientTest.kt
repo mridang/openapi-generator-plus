@@ -633,7 +633,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("resolves a query-only Location against the base path (RFC 3986)")
+        @DisplayName("bhvRedirects043 resolves a query-only Location against the base path (RFC 3986)")
         fun resolvesQueryOnlyLocationAgainstBasePath() {
             var secondHopUrl: String? = null
             var hopCount = 0
