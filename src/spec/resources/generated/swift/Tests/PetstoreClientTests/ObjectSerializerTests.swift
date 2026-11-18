@@ -218,6 +218,15 @@ import Testing
     }
   }
 
+  /* A payload that carries only the required fields leaves the optional ones unset. */
+  @Test func testBhvSerializationobject231OmittedOptionalFieldsStayUnset() throws {
+    let decoded = try #require(
+      try ObjectSerializer.deserialize("{\"username\":\"u\"}", as: Account.self))
+    #expect(decoded.username == "u")
+    #expect(decoded.id == nil)
+    #expect(decoded.password == nil)
+  }
+
   @Test func testBhvSerializationobject014ReadOnlyPropertyIsDecoded() throws {
     let decoded = try ObjectSerializer.deserialize(
       "{\"id\":7,\"username\":\"u\"}", as: Account.self)
@@ -1163,7 +1172,7 @@ import Testing
   /// `[String: Category]` must deep-decode each entry into a `Category`
   /// struct, not leave the values as raw JSON. Foundation's Codable
   /// handles this natively when the value type conforms to Codable.
-  @Test func testDeserializeMapOfModelDeepDecodes() throws {
+  @Test func testBhvSerializationobject229DeserializeMapOfModelDeepDecodes() throws {
     let json = "{\"first\":{\"id\":1,\"name\":\"Dogs\"},\"second\":{\"id\":2,\"name\":\"Cats\"}}"
     let result = try ObjectSerializer.deserialize(json, as: [String: PetstoreClient.Category].self)
     #expect(result != nil)

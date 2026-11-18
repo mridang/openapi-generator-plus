@@ -1152,6 +1152,31 @@ import Testing
     #expect(String(data: body ?? Data(), encoding: .utf8) == expected)
   }
 
+  /* A form-urlencoded body keeps only the unreserved set literal and escapes the rest. */
+  @Test func testBhvSerializationwire057FormBodyKeepsOnlyTheUnreservedSetLiteral() throws {
+    var fields: OrderedParams<Any> = [:]
+    fields["nickname"] = "a~b*c!d'e(f)g"
+    let body = try BaseApi.serializeBody(fields, contentType: "application/x-www-form-urlencoded")
+    #expect(String(data: body ?? Data(), encoding: .utf8) == "nickname=a~b%2Ac%21d%27e%28f%29g")
+  }
+
+  /* A binary return type gets the raw bytes of a JSON body, never a parsed value. */
+  @Test func testBhvSerializationwire060BinaryReturnTypeGetsTheRawBytesOfAJsonBody() async throws {
+    let json = "{\"method\":\"GET\"}"
+    let mockClient = MockApiClient()
+    mockClient.responseBody = json
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let params = BaseApi.InvokeAPIParams(
+      method: "GET", path: "/items", queryParams: [:],
+      headerParams: [:], body: nil,
+      accepts: ["application/json"], contentType: "application/json",
+      returnType: "Data", auth: BaseApi.noAuthSentinel)
+    let result = try await api.invokeAPIForResult(params, as: Data.self)
+    #expect(result.data == Data(json.utf8))
+  }
+
   @Test func testBhvRetries003MultipartPartsKeepDeclarationOrder() throws {
     var fields: OrderedParams<Any> = [:]
     let names = ["zulu", "alpha", "mike", "bravo", "yankee", "charlie", "x", "delta", "kilo"]

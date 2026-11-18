@@ -73,4 +73,25 @@ import Testing
             _ = try server.url()
         }
     }
+
+    /* A server URL with special characters in its default and enum values resolves to the raw characters. */
+    @Test func testBhvServers021SpecialCharactersResolveRaw() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{tenant}.example.com/api",
+            variables: [
+                "tenant": ServerVariable(defaultValue: "o'neil", enumValues: ["o'neil", "a&b"]),
+            ]
+        )
+        #expect(try server.url() == "https://o'neil.example.com/api")
+        #expect(try server.url(variables: ["tenant": "a&b"]) == "https://a&b.example.com/api")
+    }
+
+    /* A variable value holding replacement patterns is substituted exactly as written. */
+    @Test func testBhvServers023ReplacementPatternsAreSubstitutedLiterally() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com",
+            variables: ["env": ServerVariable(defaultValue: "api")]
+        )
+        #expect(try server.url(variables: ["env": "a$1\\0b"]) == "https://a$1\\0b.api.example.com")
+    }
 }

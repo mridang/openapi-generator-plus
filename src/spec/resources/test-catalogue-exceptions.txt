@@ -132,3 +132,7 @@ php | serializationparam104 | php has no content-cookie encoder: a cookie value 
 php | retries028 | PHP has no per-call cancellation (S7), so there is no caller to cancel during a retry wait; the budget that ends a wait is bhv retries 025
 swift | serializationparam106 | serializeStyled takes a non-optional style String, so a null style cannot be passed; the empty style that the SDK treats as unset is covered by bhv serializationparam 035
 swift | transport059 | the proxy setter raises on Linux (testSettingProxyRaisesOnLinux), so a request through the authenticating proxy runs only in the Apple-platform stub suite, the same reason as options034
+swift | serializationobject230 | format: time maps to String in Swift (as serializationobject164), so there is no Time value to stringify or parse and the wire string passes through unchanged
+swift | serializationparam110 | format: date maps to String in Swift (as serializationobject044), so a date parameter is the YYYY-MM-DD string the caller passes and no Date is turned into a date-only form
+swift | serializationparam120 | format: date maps to String in Swift (as serializationobject044), so an array of date parameters is an array of the YYYY-MM-DD strings the caller passes and no Date element is formatted
+swift | servers020 | a per-operation server is a generated struct whose variables are Swift enums (GetStagingPetInfoServerStagingServer takes environment as an enum), so a value outside the enum cannot be constructed and the compiler rejects it before the SDK runs
