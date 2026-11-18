@@ -677,6 +677,10 @@ dart | misc135 | Dart has no client-level cancellation handle: a call is cancell
 dart | misc139 | Dart model constructors are const and store a passed map by reference, so a copy cannot be taken when the model is built without losing const construction
 dart | misc145 | additionalProperties is a plain final Map on a const model, so a read returns the stored map and a copy on read would break the const model shape
 dart | misc149 | Dart named parameters are checked at compile time, so an undeclared copyWith attribute is a compile error and no runtime refusal can be tested
+dart | misc152 | Dart has no cancellation signal on a call: a request is cancelled by cancelling the stream subscription it returns, so there is no already-aborted signal to pass
+dart | misc153 | Dart has no cancellation signal on a call or client: a request is cancelled by cancelling its stream subscription, so no signal can abort an in-flight request
+dart | misc166 | invokeApi treats a null per-call timeout as the transport timeout, so a call has no way to switch its own deadline off
+dart | misc170 | TLS failures are dart:io TlsException values that the shared retry loop cannot name, since the web build has no dart:io; they are retried like other network errors
 kotlin | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
 kotlin | misc098 | Kotlin request bodies are ByteArray values and the MultipartWriter buffers every part into a ByteArrayOutputStream, so no caller-supplied stream reaches the SDK and there is nothing for it to close (transport061 pins the buffering)
 ||||||| 3033dba2f
