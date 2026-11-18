@@ -2622,3 +2622,5 @@ langcsharp045 | An operation with no parameters or security leaves transport set
 langcsharp046 | An operation with no parameters or security has no auth field in its options
 langcsharp047 | A per-call timeout of zero is refused when the call is built
 langcsharp048 | A discovery endpoint served in clear text is rejected unless it is a loopback address
+langnode007 | A key location rejects a value with a carriage return, line feed or NUL
+langnode008 | A key location rejects an empty or whitespace-only key with a fixed message
