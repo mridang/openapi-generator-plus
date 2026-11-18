@@ -1540,3 +1540,21 @@ func TestBhvMisc086_ValueSerializer_AnElementHoldingJsonTextIsNotDecodedAgain(t 
 		t.Errorf("expected the element kept as its own text, got %s", got)
 	}
 }
+
+func TestBhvMisc084_ValueSerializer_ASetOptionalScalarIsSentInEveryLocation(t *testing.T) {
+	t.Parallel()
+	n := 7
+	value := &n
+	if got := toPathValue(value); got != "7" {
+		t.Errorf("expected path value 7, got %q", got)
+	}
+	if got := toHeaderValue(value); got != "7" {
+		t.Errorf("expected header value 7, got %q", got)
+	}
+	if got := toCookieValue(value); got != "7" {
+		t.Errorf("expected cookie value 7, got %q", got)
+	}
+	if got := fmt.Sprint(toQueryValue(value, "")); got != "7" {
+		t.Errorf("expected query value 7, got %q", got)
+	}
+}

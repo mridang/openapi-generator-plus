@@ -10,6 +10,7 @@
 package petstore
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"math"
@@ -4779,5 +4780,45 @@ func TestBhvEnums011_ObjectSerializer_AHostileDescriptionStaysAComment(t *testin
 	t.Parallel()
 	if !strings.Contains(enumModelSource(t, "tier"), "\t// The largest tier. Ends with */ and #{x} and $x.\n\tTierLarge ") {
 		t.Errorf("expected the hostile description as one line comment")
+	}
+}
+
+func TestBhvMisc094_ObjectSerializer_AFreeFormObjectIsWrittenUnchanged(t *testing.T) {
+	t.Parallel()
+	in := map[string]any{"b": []any{1, "x"}, "a": map[string]any{"c": true}}
+	out, err := serialize(in)
+	if err != nil {
+		t.Fatalf("serialize failed: %v", err)
+	}
+	if got := string(out); got != `{"a":{"c":true},"b":[1,"x"]}` {
+		t.Errorf("expected the members and values unchanged, got %s", got)
+	}
+}
+
+func TestBhvMisc104_ObjectSerializer_AnEmailFormatStringDecodesWithoutValidation(t *testing.T) {
+	t.Parallel()
+	if _, err := decodeNativeValues(t, `{"host":"not a host!","contact":"x@"}`); err != nil {
+		t.Errorf("expected the email-format string decoded without validation, got %v", err)
+	}
+}
+
+func TestBhvMisc106_ObjectSerializer_ANullArrayElementKeepsItsPosition(t *testing.T) {
+	t.Parallel()
+	out, err := serialize([]any{1, nil, 2})
+	if err != nil {
+		t.Fatalf("serialize failed: %v", err)
+	}
+	if got := string(out); got != "[1,null,2]" {
+		t.Errorf("expected [1,null,2], got %s", got)
+	}
+}
+
+func TestBhvMisc102_ObjectSerializer_ABinaryFieldKeepsExactlyTheBytesGiven(t *testing.T) {
+	t.Parallel()
+	seal := []byte{0x00, 0xFF, 0x0D, 0x0A}
+	original := &models.BinaryVault{Seal: &seal}
+	copied := *original
+	if !bytes.Equal(*copied.Seal, seal) {
+		t.Errorf("expected the exact bytes through copying, got %x", *copied.Seal)
 	}
 }
