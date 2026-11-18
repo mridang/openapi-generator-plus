@@ -887,7 +887,11 @@ public final class DefaultApiClient implements ApiClient {
     private static HttpRequest waitAndRebuild(
             HttpRequest request, long delayMillis, long deadlineNanos)
             throws InterruptedException {
-        HttpRequest.Builder next = HttpRequest.newBuilder(request, (name, value) -> true);
+        /* Every attempt carries its own request identifier, so a retry never repeats the id of an earlier attempt. */
+        HttpRequest.Builder next =
+                HttpRequest.newBuilder(request, (name, value) -> !"X-Request-ID".equalsIgnoreCase(name));
+        request.headers().firstValue("X-Request-ID").ifPresent(
+                previous -> next.header("X-Request-ID", UUID.randomUUID().toString()));
         if (request.timeout().isPresent()) {
             long remainingNanos = deadlineNanos - System.nanoTime();
             if (remainingNanos <= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(delayMillis)) {

@@ -2,6 +2,12 @@
 
 package {{modelPackage}};
 
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import {{invokerPackage}}.errors.SerializationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -59,10 +65,40 @@ class ComposedSchemaTest {
             assertThat(union.isSurgery()).isFalse();
             assertThat(union.asSurgery()).isEmpty();
         }
+    @Test
+    void bhvUnions037WrapperHoldsItsVariantExactlyAndOffersNoReplacement() {
+        {{modelPackage}}.Medication medication =
+                Objects.requireNonNull(serializer.deserialize("{\"drugName\":\"aspirin\"}", {{modelPackage}}.Medication.class));
+        assertSame(medication, {{modelPackage}}.PetTreatment.ofMedication(medication).asMedication().orElseThrow());
+        assertTrue(java.util.Arrays.stream({{modelPackage}}.PetTreatment.class.getMethods())
+                .noneMatch(m -> m.getName().startsWith("set")));
+    }
+
+    @Test
+    void bhvUnions039BuildingAWrapperNeverValidatesItsValue() {
+        assertDoesNotThrow(() -> new {{modelPackage}}.PetTreatment((Object) "not a variant"));
+    }
+
+    @Test
+    void bhvUnions042EmptyWrapperHoldsNoInstance() {
+        {{modelPackage}}.PetTreatment empty = new {{modelPackage}}.PetTreatment((Object) null);
+        assertFalse(empty.isMedication());
+        assertFalse(empty.isSurgery());
+        assertTrue(empty.asMedication().isEmpty());
+        assertTrue(empty.asSurgery().isEmpty());
+        assertFalse(new {{modelPackage}}.PetTreatment(java.util.List.<Object>of()).isMedication());
+    }
+
+    @Test
+    void bhvUnions038UndecodableUnionBodyRaisesTheSerializationError() {
+        assertThrows(SerializationException.class,
+                () -> serializer.deserialize("[1, 2]", PET_TREATMENT_TYPE));
+    }
+
 
         @Test
         @DisplayName("a decoded union answers the same typed accessors")
-        void decodedUnionAnswersTypedAccessors() {
+        void bhvUnions040DecodedUnionAnswersTypedAccessors() {
             PetTreatment decoded =
                     Objects.requireNonNull(
                             serializer.deserialize("{\"drugName\":\"aspirin\"}", PET_TREATMENT_TYPE));
@@ -437,7 +473,7 @@ class ComposedSchemaTest {
 
         @Test
         @DisplayName("an empty JSON array is the list variant and a base64 string is the byte variant")
-        void testEachVariantDecodesItsOwnShape() {
+        void bhvUnions041EachVariantDecodesItsOwnShape() {
             SetPetAvatarThumbnailRequest list =
                     Objects.requireNonNull(serializer.deserialize("[]", ONE_OF_NO_DISCRIMINATOR_TYPE));
             assertThat(list.getActualInstance()).isInstanceOf(List.class);

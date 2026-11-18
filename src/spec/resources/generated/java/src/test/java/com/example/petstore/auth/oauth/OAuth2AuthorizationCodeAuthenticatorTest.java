@@ -553,7 +553,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void s256ChallengeMatchesTheRfc7636AppendixBVector() {
+  void bhvAuth008S256ChallengeMatchesTheRfc7636AppendixBVector() {
     assertEquals(
         "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
         OAuth2AuthorizationCodeAuthenticator.pkceChallenge(

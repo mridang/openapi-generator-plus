@@ -209,3 +209,7 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+java | auth001 | The java header accessor is synchronous and performs any token fetch itself, so no asynchronous step exists for a synchronous call to refuse; a failed fetch returns headers without an Authorization entry instead
+java | auth023 | The per-scheme wrapper reads its variable when a credential is null or empty (settled: an empty argument is unset), so an explicitly passed empty credential is never kept and refused in java
+java | errors077 | Java records only the request path in error diagnostics (bhvErrors026 and bhvErrors036 pin it), so the scheme, host and port are never kept and the query, userinfo and fragment are dropped with the rest
+java | options059 | The only injectable transport in java is the HttpClient (S9), so there is no separate transport hook that could be left unset or kept on the built options

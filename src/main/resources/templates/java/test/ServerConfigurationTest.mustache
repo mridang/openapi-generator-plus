@@ -2,6 +2,8 @@
 
 package {{invokerPackage}};
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,6 +29,11 @@ class ServerConfigurationTest {
 
         assertEquals("https://prod.api.example.com/v1", config.getUrl());
     }
+    @Test
+    void bhvServers028GeneratedServerListCannotBeChangedAfterCreation() {
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class, () -> Servers.ALL.add(Servers.ALL.get(0)));
+    }
+
 
     @Test
     void bhvServers001PartialOverrideKeepsTheOtherVariablesDefaults() {
@@ -156,7 +163,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    void copiesTheCallersVariablesMapAtConstruction() {
+    void bhvServers025CopiesTheCallersVariablesMapAtConstruction() {
         java.util.Map<String, ServerVariable> source = new java.util.HashMap<>();
         source.put("env", new ServerVariable("prod", null, List.of()));
         ServerConfiguration config =
@@ -170,7 +177,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    void copiesTheCallersEnumListAtConstruction() {
+    void bhvServers026CopiesTheCallersEnumListAtConstruction() {
         java.util.List<String> allowed = new java.util.ArrayList<>(List.of("prod"));
         ServerVariable variable = new ServerVariable("prod", null, allowed);
         ServerConfiguration config =

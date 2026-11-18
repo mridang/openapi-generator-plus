@@ -10,6 +10,7 @@ package com.example.petstore;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
@@ -89,5 +90,30 @@ public final class ServerVariable {
    */
   public List<String> getEnumValues() {
     return enumValues;
+  }
+
+  /**
+   * Two variables are equal when their default, description and allowed values are equal.
+   *
+   * @param o the object to compare with
+   * @return whether {@code o} is a server variable with the same content
+   */
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof ServerVariable)) {
+      return false;
+    }
+    ServerVariable other = (ServerVariable) o;
+    return defaultValue.equals(other.defaultValue)
+        && Objects.equals(description, other.description)
+        && enumValues.equals(other.enumValues);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(defaultValue, description, enumValues);
   }
 }

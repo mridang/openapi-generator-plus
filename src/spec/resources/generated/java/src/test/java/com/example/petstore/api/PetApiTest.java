@@ -589,7 +589,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAClientWithNoCredentialSendsNoAuthenticationHeader() throws Exception {
+  void bhvAuth021AClientWithNoCredentialSendsNoAuthenticationHeader() throws Exception {
     List<String> sent = new java.util.ArrayList<>();
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -795,7 +795,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetTagSendsQueryParametersInDeclarationOrder() throws Exception {
+  void bhvOperations155GetPetTagSendsQueryParametersInDeclarationOrder() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
@@ -996,7 +996,7 @@ class PetApiTest {
   }
 
   @Test
-  void setPetPreferencesFormBodyFollowsDeclarationOrder() throws Exception {
+  void bhvOperations156SetPetPreferencesFormBodyFollowsDeclarationOrder() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);

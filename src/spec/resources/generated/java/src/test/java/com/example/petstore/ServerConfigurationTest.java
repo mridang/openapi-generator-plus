@@ -35,6 +35,12 @@ class ServerConfigurationTest {
   }
 
   @Test
+  void bhvServers028GeneratedServerListCannotBeChangedAfterCreation() {
+    org.junit.jupiter.api.Assertions.assertThrows(
+        UnsupportedOperationException.class, () -> Servers.ALL.add(Servers.ALL.get(0)));
+  }
+
+  @Test
   void bhvServers001PartialOverrideKeepsTheOtherVariablesDefaults() {
     // "env" is overridden, "version" is left to its default — the resolved
     // URL must mix both.
@@ -155,7 +161,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void copiesTheCallersVariablesMapAtConstruction() {
+  void bhvServers025CopiesTheCallersVariablesMapAtConstruction() {
     java.util.Map<String, ServerVariable> source = new java.util.HashMap<>();
     source.put("env", new ServerVariable("prod", null, List.of()));
     ServerConfiguration config =
@@ -169,7 +175,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void copiesTheCallersEnumListAtConstruction() {
+  void bhvServers026CopiesTheCallersEnumListAtConstruction() {
     java.util.List<String> allowed = new java.util.ArrayList<>(List.of("prod"));
     ServerVariable variable = new ServerVariable("prod", null, allowed);
     ServerConfiguration config =

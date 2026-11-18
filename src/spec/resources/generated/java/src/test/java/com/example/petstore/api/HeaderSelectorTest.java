@@ -257,4 +257,14 @@ class HeaderSelectorTest {
       assertNull(headers.get("Accept"));
     }
   }
+
+  @Test
+  void bhvHeaders032AcceptHeaderListsMediaTypesWithoutQualityWeights() {
+    String accept =
+        new HeaderSelector()
+            .selectHeaders(new String[] {"application/json", "text/plain"}, null, false)
+            .get("Accept");
+    assertTrue(accept.contains("application/json"));
+    assertFalse(accept.contains("q="));
+  }
 }
