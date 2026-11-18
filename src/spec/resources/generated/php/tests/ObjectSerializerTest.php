@@ -2186,6 +2186,7 @@ test('bhv serializationobject 147 serialize writes a map as a JSON object', func
 test('bhv serializationobject 403 a duration field is the native DateInterval', function (): void {
     $values = ObjectSerializer::deserialize('{"wait":"3600s"}', NativeValues::class);
     assert($values instanceof NativeValues);
+    assert($values->wait instanceof \DateInterval);
 
     expect($values->wait)->toBeInstanceOf(\DateInterval::class);
     expect(ObjectSerializer::formatProtobufDuration($values->wait))->toBe('3600s');
