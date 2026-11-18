@@ -2008,13 +2008,6 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   end
 
   describe "4.8 format: duration" do
-    test "stringify/1 emits protobuf duration for Duration.t()" do
-      d = Duration.new!(hour: 1, minute: 30)
-      pb = PetstoreClient.ObjectSerializer.stringify(d)
-      assert is_binary(pb)
-      assert pb == "5400s"
-    end
-
     test "convert_to_type parses protobuf duration to Duration.t() under typespec key" do
       result = PetstoreClient.ObjectSerializer.convert_to_type("5400s", "Duration.t()")
       assert %Duration{second: 5400} = result

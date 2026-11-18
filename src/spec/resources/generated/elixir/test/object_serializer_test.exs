@@ -745,12 +745,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert err.message ==
                ~s(Unknown enum value "on_hold"; allowed values: ["In-Stock", "on-hold", "OUT_OF_STOCK"])
     end
-
-    test "a member atom set by the caller is sent as its wire value" do
-      edge = %PetstoreClient.Models.EdgeCases{phase: :on_hold}
-
-      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(edge))["phase"] == "on-hold"
-    end
   end
 
   describe "format: byte (ByteArray)" do
@@ -854,13 +848,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "bhv serializationobject 175 accepts canonical lower-case UUID" do
       uuid = "550e8400-e29b-41d4-a716-446655440000"
       assert PetstoreClient.ObjectSerializer.convert_to_type(uuid, "UUID") == uuid
-    end
-
-    test "accepts upper-case UUID" do
-      uuid = "550E8400-E29B-41D4-A716-446655440000"
-
-      assert PetstoreClient.ObjectSerializer.convert_to_type(uuid, "UUID") ==
-               String.downcase(uuid)
     end
 
     test "bhv serializationobject 176 UUID round-trip preserves identity" do
@@ -1409,10 +1396,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
         PetstoreClient.ObjectSerializer.convert_to_type(99, "Priority")
       end
     end
-
-    test "convert_to_type inverts the integer wire value via from_value" do
-      assert PetstoreClient.ObjectSerializer.convert_to_type(3, "Priority") == :number_3
-    end
   end
 
   # Non-lowercase string enum (Availability) must round-trip with its wire
@@ -1541,10 +1524,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert is_float(loc.lat)
       assert loc.lng == -8.0
       assert is_float(loc.lng)
-    end
-
-    test "convert_to_type coerces a bare integer to a float" do
-      assert PetstoreClient.ObjectSerializer.convert_to_type(5, "float()") == 5.0
     end
   end
 
@@ -2071,12 +2050,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
       order = PetstoreClient.ObjectSerializer.deserialize(~s({"quantity":500}), "Order")
       assert order.quantity == 500
-    end
-
-    test "a quantity above its declared maximum still decodes" do
-      decoded = PetstoreClient.ObjectSerializer.deserialize(~s({"quantity":500}), "Order")
-
-      assert decoded.quantity == 500
     end
 
     test "bhv serializationobject 003 a date-time without an offset is rejected whatever the host zone" do

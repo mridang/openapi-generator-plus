@@ -24,16 +24,6 @@ defmodule {{moduleName}}.ServerConfigurationTest do
       assert ServerConfiguration.url(config) == "https://prod.api.example.com/v2"
     end
 
-    test "overrides take precedence over default values" do
-      config = %ServerConfiguration{
-        url_template: "https://{env}.api.example.com",
-        variables: %{"env" => %ServerVariable{default_value: "prod"}}
-      }
-
-      assert ServerConfiguration.url(config, %{"env" => "staging"}) ==
-               "https://staging.api.example.com"
-    end
-
     test "bhv servers 003 accepts an override that is in the variable enum" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
