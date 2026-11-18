@@ -30,6 +30,119 @@ import Testing
     Data(s.utf8)
   }
 
+  /* A proxy credential exists only when the proxy URL carries user information. */
+  @Test func testBhvMisc031ProxyCredentialIsSentOnlyWithUserInfo() throws {
+    let withUser = try TransportOptionsBuilder().proxy("http://user:pass@127.0.0.1:8080").build()
+    #expect(DefaultApiClient.buildProxyCredential(withUser.proxy) != nil)
+    let withoutUser = try TransportOptionsBuilder().proxy("http://127.0.0.1:8080").build()
+    #expect(DefaultApiClient.buildProxyCredential(withoutUser.proxy) == nil)
+  }
+
+  /* The raw response returned to the caller exposes its status code, body and headers under public names. */
+  @Test func testBhvMisc032TheRawResponseHasPublicFields() async throws {
+    let client = makeClient { _ in (Data("{\"ok\":true}".utf8), 201, ["X-Trace": "t-1"]) }
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/raw", headers: [:], body: nil)
+    #expect(response.statusCode == 201)
+    #expect(response.body == "{\"ok\":true}")
+    #expect(response.headers["x-trace"] == "t-1")
+  }
+
+  /* A caller's body stream stays readable after the request it was sent with fails. */
+  @Test func testBhvMisc036ACallerBodyStreamStaysReadableAfterAFailure() async throws {
+    let client = makeClient { _ in
+      (
+        Data(), 200,
+        [
+          "Content-Type": "application/json",
+          UnitStubURLProtocol.failWithHeader: "networkConnectionLost",
+        ]
+      )
+    }
+    let stream = InputStream(data: Data("payload".utf8))
+    await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "POST", url: "http://localhost/fail", headers: [:], body: stream)
+    }
+    #expect(stream.streamStatus != .closed)
+  }
+
+  /* A response body that is not decoded keeps its Content-Length header. */
+  @Test func testBhvMisc037AnUndecodedBodyKeepsItsContentLength() async throws {
+    let client = makeClient { _ in (Data("hello".utf8), 200, ["Content-Length": "5"]) }
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/length", headers: [:], body: nil)
+    #expect(response.headers["content-length"] == "5")
+  }
+
+  /* A well-formed gzip stream whose decoded content is an empty string or zero is returned as that content. */
+  @Test func testBhvMisc039AGzipOfAnEmptyOrZeroValueIsNotCorrupt() async throws {
+    let emptyClient = makeClient { _ in
+      (
+        Data([
+          0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x03, 0x00, 0x00, 0x00, 0x00,
+          0x00, 0x00, 0x00, 0x00, 0x00,
+        ]), 200, ["Content-Encoding": "gzip"]
+      )
+    }
+    let empty = try await emptyClient.sendRequest(
+      method: "GET", url: "http://localhost/gzip-empty", headers: [:], body: nil)
+    #expect(empty.body == "")
+
+    let zeroClient = makeClient { _ in
+      (
+        Data([
+          0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x33, 0x00, 0x00, 0x21, 0xDF,
+          0xDB, 0xF4, 0x01, 0x00, 0x00, 0x00,
+        ]), 200, ["Content-Encoding": "gzip"]
+      )
+    }
+    let zero = try await zeroClient.sendRequest(
+      method: "GET", url: "http://localhost/gzip-zero", headers: [:], body: nil)
+    #expect(zero.body == "0")
+  }
+
+  /* Response header names are returned in lower case. */
+  @Test func testBhvMisc040ResponseHeaderNamesAreLowerCase() async throws {
+    let client = makeClient { _ in (Data("{}".utf8), 200, ["X-Custom-Thing": "v"]) }
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/headers", headers: [:], body: nil)
+    #expect(response.headers["x-custom-thing"] == "v")
+    #expect(response.headers["X-Custom-Thing"] == nil)
+  }
+
+  /* A request with an HTTP method outside the standard set is sent with its body intact. */
+  @Test func testBhvMisc041ANonStandardMethodKeepsItsBody() async throws {
+    var sentMethod: String?
+    var sentBody: Data?
+    let client = makeClient { request in
+      sentMethod = request.httpMethod
+      sentBody = UnitStubURLProtocol.withBody(request).httpBody
+      return (Data("{}".utf8), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "PURGE", url: "http://localhost/purge", headers: ["Content-Type": "text/plain"],
+      body: Data("payload".utf8))
+    #expect(sentMethod == "PURGE")
+    #expect(sentBody == Data("payload".utf8))
+  }
+
+  /* A user agent explicitly cleared is omitted from the request entirely. */
+  @Test func testBhvMisc043AClearedUserAgentIsOmitted() async throws {
+    var calls = 0
+    var sentUserAgent: String? = "unset"
+    let transport = try TransportOptionsBuilder().userAgent(nil).build()
+    let client = makeClient(transport: transport) { request in
+      calls += 1
+      sentUserAgent = request.value(forHTTPHeaderField: "User-Agent")
+      return (Data("{}".utf8), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/no-agent", headers: [:], body: nil)
+    #expect(calls == 1)
+    #expect(sentUserAgent == nil)
+  }
+
   // MARK: - User-Agent injection
 
   @Test func testBhvTransport041InjectsCustomUserAgent() async throws {
