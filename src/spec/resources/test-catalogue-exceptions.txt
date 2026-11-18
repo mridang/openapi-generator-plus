@@ -446,6 +446,11 @@ swift | misc004 | every operation with a required field takes its options object
 swift | misc010 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the same rule is stated by misc004
 swift | misc012 | every required argument is a non-optional Swift parameter, so a nil value cannot be passed; the empty-string case is covered by misc007
 ||||||| 68cea441c
+||||||| f49b9353e
+csharp | misc007 | the generated code checks no path parameter for nil, and the options null check runs first, so the error names options and never the path parameter
+csharp | misc010 | the options argument is a required C# method parameter, so a call that omits it is a compile-time error and never reaches the runtime
+csharp | misc011 | an operation with no parameters gets no options class in C#, so its call takes no argument and has no per-call timeout, header or retry settings to default
+||||||| afbef8812
 python | misc033 | the HTTPS fixture server presents only its leaf certificate, so there is no intermediate to leave out of the chain it sends
 python | misc035 | the SDK has no abort signal: a cancelled call is the task's CancelledError (transport_060) and a deadline is a timeout (misc030), so a call aborted before it starts cannot be expressed
 python | misc036 | multipart parts are plain values the caller passes in and are read into the request before it is sent, so no caller-owned readable body part exists after a failure
