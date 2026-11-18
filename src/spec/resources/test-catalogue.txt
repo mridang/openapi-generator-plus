@@ -2401,6 +2401,9 @@ langphp046 | A configuration has no call hook unless one was set.
 langphp047 | The debug output of a configuration omits its call hook.
 langphp048 | A secret constructor parameter is marked sensitive so its value is hidden from stack traces and dumps. | multi
 langphp049 | An explicit API key takes precedence over the environment variable and a key provider.
+langcsharp061 | The access token field can be read safely across threads
+langcsharp062 | The configured authorization endpoint is kept verbatim in the implicit authorization url
+||||||| d38db4ed3
 langphp050 | The base authenticator class reads no environment variable. | multi
 langphp051 | The printable form of a bearer authenticator never shows its token.
 langphp052 | An operation with no security sends no API key even when one is configured.
