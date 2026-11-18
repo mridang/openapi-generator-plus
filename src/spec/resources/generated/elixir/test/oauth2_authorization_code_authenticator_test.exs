@@ -59,6 +59,26 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
   describe "OAuth2AuthorizationCodeAuthenticator" do
     # The authenticator generated for the spec's authorization code scheme
     # passes its endpoints to the flow in the right places.
+    test "bhv authscheme 015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'client_id': pass it, or set the environment variable #{name}",
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+                       "https://api.example.com",
+                       nil,
+                       "my-client-secret",
+                       "https://auth.example.com/authorize",
+                       "https://auth.example.com/token",
+                       "https://app.example.com/callback",
+                       ["read", "write"]
+                     )
+                   end
+    end
+
     test "scheme authenticator keeps the declared URLs" do
       auth =
         PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator.new(

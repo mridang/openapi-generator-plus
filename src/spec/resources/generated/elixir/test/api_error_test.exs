@@ -41,7 +41,7 @@ defmodule PetstoreClient.ApiErrorTest do
     assert Exception.message(err) =~ "500"
   end
 
-  test "an empty message renders the default text, like a missing one" do
+  test "bhv errors 051 an empty error message falls back to the generic error line" do
     default = "Error message: the server returns an error"
 
     assert PetstoreClient.Errors.ApiError.message(
@@ -581,6 +581,44 @@ defmodule PetstoreClient.ApiErrorTest do
         assert PetstoreClient.Errors.ApiError.api_error?(err)
         assert PetstoreClient.Errors.ClientError.client_error?(err) == status in 400..499
         assert PetstoreClient.Errors.ServerError.server_error?(err) == status in 500..599
+      end
+    end
+
+    test "bhv errors 050 response headers render as compact JSON with sorted keys and unescaped slashes" do
+      error =
+        PetstoreClient.Errors.ApiError.exception(
+          message: "boom",
+          response_headers: %{"x-zeta" => "2", "x-alpha" => "https://example.com/a/b"}
+        )
+
+      assert PetstoreClient.Errors.ApiError.message(error) =~
+               ~s(Response headers: {"x-alpha":"https://example.com/a/b","x-zeta":"2"})
+    end
+
+    test "bhv errors 053 each named error pins its own HTTP status code" do
+      assert PetstoreClient.Errors.NotFoundError.exception(%{status_code: 500}).status_code == 404
+
+      assert PetstoreClient.Errors.TooManyRequestsError.exception(%{status_code: 500}).status_code ==
+               429
+
+      assert PetstoreClient.Errors.InternalServerError.exception(%{status_code: 404}).status_code ==
+               500
+    end
+
+    test "bhv errors 055 status error constructors default the response context to null" do
+      error = PetstoreClient.Errors.NotFoundError.exception("gone")
+
+      assert error.response_headers == nil
+      assert error.response_body == nil
+      assert error.error_body == nil
+    end
+
+    test "bhv errors 056 a status at or above 600 yields the base error and not a server error" do
+      for status <- [600, 700] do
+        error = PetstoreClient.Errors.ApiError.from_response(status, nil, nil)
+
+        assert error.__struct__ == PetstoreClient.Errors.ApiError
+        refute PetstoreClient.Errors.ServerError.server_error?(error)
       end
     end
 

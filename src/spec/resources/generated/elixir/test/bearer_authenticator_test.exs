@@ -99,6 +99,18 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer explicit-token"
     end
 
+    test "bhv authscheme 011 an empty environment variable for the service token scheme credential is treated as unset and fails naming the variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      message = "Missing the credential 'token': pass it, or set the environment variable #{name}"
+
+      System.put_env(name, "")
+
+      assert_raise ArgumentError, message, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
     test "bhv lifecycle 013 an empty or absent environment variable fails when no token is passed" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
       on_exit(fn -> System.delete_env(name) end)

@@ -72,7 +72,67 @@ defmodule PetstoreClient.ConfigurationTest do
     refute config1.base_url == config2.base_url
   end
 
-  test "default returns consistent configuration" do
+  test "bhv config 018 a default constructed or built configuration uses the base URL from the spec" do
+    assert PetstoreClient.Configuration.new().base_url == "/api/v3"
+
+    built = PetstoreClient.Configuration.new(default_headers: %{"X-Trace" => "1"})
+    assert built.base_url == "/api/v3"
+  end
+
+  test "bhv config 019 the default configuration factory returns the spec base URL and no default headers" do
+    config = PetstoreClient.Configuration.default()
+
+    assert config.base_url == "/api/v3"
+    assert config.default_headers == %{}
+  end
+
+  test "bhv config 020 a configuration built with a base URL and default headers sets both in one configuration" do
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: "https://custom.example.com",
+        default_headers: %{"X-One" => "1", "X-Two" => "2"}
+      )
+
+    assert config.base_url == "https://custom.example.com"
+    assert config.default_headers == %{"X-One" => "1", "X-Two" => "2"}
+  end
+
+  test "bhv config 021 a server URL template resolves its variables to their defaults" do
+    server = %PetstoreClient.ServerConfiguration{
+      url_template: "https://{env}.example.com/api/{version}",
+      description: "Test server",
+      variables: %{
+        "env" => %PetstoreClient.ServerVariable{
+          default_value: "api",
+          enum_values: ["api", "staging"]
+        },
+        "version" => %PetstoreClient.ServerVariable{
+          default_value: "v3",
+          enum_values: ["v2", "v3"]
+        }
+      }
+    }
+
+    config = PetstoreClient.Configuration.from_server(server)
+    assert config.base_url == "https://api.example.com/api/v3"
+  end
+
+  test "bhv config 022 mutating the returned default headers does not change the configuration" do
+    config = PetstoreClient.Configuration.new(default_headers: %{"X-One" => "1"})
+    _changed = Map.put(config.default_headers, "X-Two", "2")
+
+    assert config.default_headers == %{"X-One" => "1"}
+  end
+
+  test "bhv config 024 the configuration has no settable process-wide default" do
+    Code.ensure_loaded!(PetstoreClient.Configuration)
+
+    for name <- [:set_default, :put_default, :set_default_base_url, :set_default_headers] do
+      refute function_exported?(PetstoreClient.Configuration, name, 1)
+    end
+  end
+
+  test "bhv config 023 each call to the default configuration factory returns a fresh instance with the same base URL" do
     first = PetstoreClient.Configuration.default()
     second = PetstoreClient.Configuration.default()
 

@@ -97,6 +97,31 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
 
     # The authenticator generated for the spec's client credentials scheme
     # carries the scopes the spec declares for that flow.
+    test "bhv authscheme 013 an empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable" do
+      id = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID"
+      secret = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET"
+
+      on_exit(fn ->
+        System.delete_env(id)
+        System.delete_env(secret)
+      end)
+
+      System.put_env(id, "env-client")
+      System.put_env(secret, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'client_secret': pass it, or set the environment variable #{secret}",
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+                       "https://api.example.com",
+                       nil,
+                       nil,
+                       "https://auth.example.com/token",
+                       []
+                     )
+                   end
+    end
+
     test "scheme authenticator keeps the declared scopes" do
       auth =
         PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.new(
