@@ -28,6 +28,21 @@ import java.io.File
 import java.nio.file.Path
 
 class ClientTest {
+    private class TransportProbeAuthenticator : com.example.petstore.auth.HttpAwareAuthenticator {
+        var injected: com.example.petstore.ApiClient? = null
+            private set
+
+        override fun setApiClient(apiClient: com.example.petstore.ApiClient) {
+            injected = apiClient
+        }
+
+        override fun invalidateAccessToken() {}
+
+        override fun getHost(): String = ""
+
+        override suspend fun getAuthHeaders(): Map<String, String> = emptyMap()
+    }
+
     private val authenticator = BearerAuthenticator("/api/v3", "test-token")
 
     @Test
@@ -508,6 +523,34 @@ class ClientTest {
         assertEquals("Bearer tok", runBlocking { credential.getAuthHeaders()["Authorization"] })
         assertEquals(listOf("https://auth.example.com/oauth/token"), requested)
         client.close()
+    }
+
+    @Test
+    @DisplayName("bhvMisc071 a client-level credential that needs the HTTP transport receives the client's own transport")
+    fun bhvMisc071ACredentialThatNeedsHttpReceivesTheClientsOwnTransport() {
+        val probe = TransportProbeAuthenticator()
+
+        Client(probe, TransportOptions.builder().build())
+
+        assertTrue(probe.injected is com.example.petstore.DefaultApiClient)
+    }
+
+    @Test
+    @DisplayName("bhvMisc073 the client provides a generated wrapper class for every security scheme the spec declares")
+    fun bhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+        assertNotNull(com.example.petstore.auth.PetStoreBasicAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.AdminBasicAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.PetStoreBearerAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.ServiceTokenAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.ApiKeyHeaderAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.InternalApiKeyAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.ApiKeyQueryAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.SessionCookieAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.oauth.SsoAuthAuthenticator::class.java)
     }
 
     @Test

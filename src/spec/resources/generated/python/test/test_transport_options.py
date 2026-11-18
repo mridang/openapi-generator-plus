@@ -428,6 +428,21 @@ class TestProxyUrlValidation:
 
 
 class TestTransportOptionsRepr:
+    def test_bhv_misc_180_the_repr_shows_non_sensitive_default_header_values_and_hides_sensitive_ones(
+        self,
+    ) -> None:
+        options = (
+            TransportOptions.builder()
+            .default_header("X-Visible", "shown-value")
+            .default_header("Authorization", "Bearer hidden-secret")
+            .build()
+        )
+
+        text = repr(options)
+
+        assert "shown-value" in text
+        assert "hidden-secret" not in text
+
     def test_bhv_options_065_repr_masks_the_proxy_password(self) -> None:
         opts = (
             TransportOptions.builder()
@@ -503,3 +518,22 @@ class TestTransportOptionsBehaviours:
     ) -> None:
         with pytest.raises(ValueError):
             TransportOptions.builder().proxy("socks5://127.0.0.1:1080").build()
+
+
+class TestCredentialHeaderNames:
+    def test_bhv_misc_175_credential_header_names_are_recognised_in_any_letter_case(
+        self,
+    ) -> None:
+        from petstore_client.transport_options import _is_sensitive_header
+
+        assert _is_sensitive_header("X-API-KEY") is True
+        assert _is_sensitive_header("x-auth-TOKEN") is True
+        assert _is_sensitive_header("Authorization") is True
+
+    def test_bhv_misc_175_ordinary_header_names_are_not_credential_bearing(
+        self,
+    ) -> None:
+        from petstore_client.transport_options import _is_sensitive_header
+
+        assert _is_sensitive_header("Accept") is False
+        assert _is_sensitive_header("X-Request-Id") is False

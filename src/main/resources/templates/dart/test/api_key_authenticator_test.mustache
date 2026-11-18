@@ -293,6 +293,12 @@ void main() {
       );
     });
 
+    test('bhv misc 123 a cookie value the caller already percent-encoded is sent unchanged', () {
+      final auth = build('a%20b', ApiKeyLocation.cookie);
+
+      expect(auth.cookieParams(), equals({'k': 'a%20b'}));
+    });
+
     test('bhv authapikey 023 a cookie key accepts non-ASCII and is emitted only as a cookie', () {
       final auth = build('kéy', ApiKeyLocation.cookie);
 

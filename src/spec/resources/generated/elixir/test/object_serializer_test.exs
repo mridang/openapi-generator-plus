@@ -113,6 +113,10 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert result == "2024-01-01T12:30:45.000+00:00"
     end
 
+    test "bhv misc 245 a time of day in a plain object is serialized as a JSON string" do
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:11:12]) == "10:11:12"
+    end
+
     test "bhv serializationobject 044 date-only serializes as ISO 8601 date without time component" do
       d = ~D[2024-01-01]
       result = PetstoreClient.ObjectSerializer.stringify(d)
@@ -919,6 +923,15 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
+    test "bhv misc 247 a UUID string with the wrong segment lengths is rejected" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.convert_to_type(
+          "550e840-e29b-41d4-a716-446655440000",
+          "UUID"
+        )
+      end
+    end
+
     test "bhv langelixir 067 rejects non-string payload" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(42, "UUID")
@@ -1310,9 +1323,26 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.stringify(~T[10:30:00.000999]) == "10:30:00"
     end
 
+    test "bhv misc 256 a fractional second keeps only the digits present up to its precision" do
+      assert PetstoreClient.ObjectSerializer.stringify(~N[2024-01-02 03:04:05.12]) ==
+               "2024-01-02T03:04:05.12"
+    end
+
     test "bhv serializationobject 219 serialize keeps the millisecond part of a Time inside a map" do
       json = PetstoreClient.ObjectSerializer.serialize(%{"opens_at" => ~T[09:00:00.250]})
       assert Jason.decode!(json)["opens_at"] == "09:00:00.250"
+    end
+
+    test "bhv misc 252 an enum wire value containing separators round-trips unchanged" do
+      json = Jason.encode!("a,b;c d/e:f")
+      assert PetstoreClient.ObjectSerializer.deserialize(json, "String") == "a,b;c d/e:f"
+    end
+
+    test "bhv misc 249 a free-form object field keeps its object and integer entries through a JSON round trip" do
+      json =
+        PetstoreClient.ObjectSerializer.serialize(%{"props" => %{"count" => 3, "tag" => "x"}})
+
+      assert Jason.decode!(json) == %{"props" => %{"count" => 3, "tag" => "x"}}
     end
 
     test "bhv serializationobject 005 serialize emits HH:MM:SS for a Time inside a map" do
@@ -1353,9 +1383,19 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
+    test "bhv misc 251 a duration string with a day designator is rejected" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.convert_to_type("1d", "Duration")
+      end
+    end
+
     test "bhv serializationobject 081 format_protobuf_duration emits whole seconds" do
       d = Duration.new!(second: 90)
       assert PetstoreClient.ObjectSerializer.format_protobuf_duration(d) == "90s"
+    end
+
+    test "bhv misc 248 a duration with days is formatted as a duration string" do
+      assert PetstoreClient.ObjectSerializer.stringify(Duration.new!(day: 2)) == "172800s"
     end
 
     test "bhv serializationobject 054 deserialize duration parses fractional protobuf seconds" do
@@ -1382,6 +1422,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "bhv serializationobject 113 parse_protobuf_duration parses negative durations" do
+      assert {:ok, d} = PetstoreClient.ObjectSerializer.parse_protobuf_duration("-90s")
+      assert PetstoreClient.ObjectSerializer.stringify(d) == "-90s"
+    end
+
+    test "bhv misc 246 a negative whole-second protobuf duration string parses to a negative duration" do
       assert {:ok, d} = PetstoreClient.ObjectSerializer.parse_protobuf_duration("-90s")
       assert PetstoreClient.ObjectSerializer.stringify(d) == "-90s"
     end
@@ -3117,6 +3162,187 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     test "bhv misc 115 serializing a bare string value yields a quoted JSON string" do
       assert PetstoreClient.ObjectSerializer.serialize("abc") == ~s("abc")
+    end
+  end
+
+  describe "misc parity two" do
+    test "bhv misc 105 copying a model with an updated field never validates the value given" do
+      category = %PetstoreClient.Models.Category{id: 1}
+      updated = %{category | id: "one"}
+      assert updated.id == "one"
+    end
+
+    test "bhv misc 108 a model built with a valid integer enum member keeps its wire value" do
+      assert PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.Subscription{
+               rank: :low
+             }) =~ ~s("rank":1)
+    end
+
+    test "bhv misc 109 a nested object is validated with the outer rules at decode" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"lastError":{"code":"three"}}),
+          "EdgeCases"
+        )
+      end
+    end
+
+    test "bhv misc 110 a list of dates with a non-date element is refused with a type error" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s(["2024-01-01","not-a-date"]), "[Date.t()]")
+      end
+    end
+
+    test "bhv misc 112 a repeated element of a unique array keeps one copy of each" do
+      assert PetstoreClient.ObjectSerializer.deserialize(
+               ~s(["a","a","b"]),
+               "MapSet.t(String.t())"
+             ) == MapSet.new(["a", "b"])
+    end
+
+    test "bhv misc 113 a model's string form shows the contents of its list, map and byte fields" do
+      text =
+        inspect(%PetstoreClient.Models.BinaryVault{
+          seal: "seal",
+          shards: ["one"],
+          labels: %{"k" => "v"}
+        })
+
+      assert text =~ ~s("seal")
+      assert text =~ ~s(["one"])
+      assert text =~ ~s(%{"k" => "v"})
+    end
+  end
+
+  describe "misc parity three" do
+    test "bhv misc 117 an absent value writes the JSON null literal" do
+      assert PetstoreClient.ObjectSerializer.serialize(nil) == "null"
+    end
+
+    test "bhv misc 118 when a payload carries a name and a differently cased duplicate, the exact-case value is decoded" do
+      assert PetstoreClient.ObjectSerializer.deserialize(
+               ~s({"NAME":"Other","name":"Exact"}),
+               "Category"
+             ).name == "Exact"
+    end
+
+    test "bhv misc 119 two object keys that differ only by an escape sequence are one key and the last value wins" do
+      assert PetstoreClient.ObjectSerializer.deserialize(
+               ~S({"name":"First","\u006eame":"Last"}),
+               "Category"
+             ).name == "Last"
+    end
+
+    test "bhv misc 121 an object with no declared schema is written as a JSON object of its properties" do
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(%{"a" => 1, "b" => "x"})) ==
+               %{"a" => 1, "b" => "x"}
+    end
+
+    test "bhv misc 122 a string default from the schema is applied as the exact literal" do
+      assert PetstoreClient.ObjectSerializer.deserialize("{}", "Defaults").greeting ==
+               "it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b"
+    end
+
+    test "bhv misc 123 a cookie value the caller has already percent-encoded reaches the wire unchanged" do
+      assert PetstoreClient.ObjectSerializer.to_cookie_value("a%20b") == "a%20b"
+    end
+  end
+
+  describe "misc parity four" do
+    test "bhv misc 137 a generated enum lists its declared values and reports a value outside them as an error" do
+      assert PetstoreClient.Models.Rank.all_values() == [:low, :medium, :high]
+      assert PetstoreClient.Models.Rank.from_value(4) == {:error, 4}
+    end
+
+    test "bhv misc 138 converting an enum member to its wire value yields the declared wire value" do
+      assert PetstoreClient.Models.Rank.value(:low) == 1
+    end
+
+    test "bhv misc 139 a collection passed into a model is held as copied, and the model cannot change it" do
+      source = [<<4, 5>>]
+      vault = %PetstoreClient.Models.BinaryVault{seal: <<1>>, shards: source}
+      assert vault.shards == [<<4, 5>>]
+    end
+
+    test "bhv misc 140 building a model without one of its required properties fails and names the property" do
+      assert_raise ArgumentError, ~r/username/, fn ->
+        struct!(PetstoreClient.Models.Account, [])
+      end
+    end
+
+    test "bhv misc 141 a model built without a value for a defaulted property holds the default" do
+      defaults = %PetstoreClient.Models.Defaults{}
+      assert defaults.retries == 3
+      assert defaults.mode == :medium
+    end
+
+    test "bhv misc 142 additional properties are returned unchanged by key and the map holds exactly the stored entries" do
+      meta =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"note":"x","owner":"ann"}), "Metadata")
+
+      assert meta.additional_properties["note"] == "x"
+      assert Enum.sort(Map.keys(meta.additional_properties)) == ["note", "owner"]
+    end
+
+    test "bhv misc 143 a copy keeps the additional-properties entries and compares equal to the original" do
+      original = %PetstoreClient.Models.Metadata{additional_properties: %{"customField" => "a"}}
+      copy = struct(PetstoreClient.Models.Metadata, Map.from_struct(original))
+      assert copy.additional_properties == %{"customField" => "a"}
+      assert copy == original
+    end
+
+    test "bhv misc 144 validating a model refuses a string given for a numeric field" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"retries":"3"}), "Defaults")
+      end
+    end
+
+    test "bhv misc 145 changing the undeclared keys read back from a model leaves the instance unchanged" do
+      metadata = %PetstoreClient.Models.Metadata{additional_properties: %{"a" => 1}}
+      _ = Map.put(metadata.additional_properties, "b", 2)
+      assert metadata.additional_properties == %{"a" => 1}
+    end
+
+    test "bhv misc 146 a copy of a model with no changes is a new instance that compares equal to the original" do
+      category = %PetstoreClient.Models.Category{id: 1, name: "Dogs"}
+      copy = struct(PetstoreClient.Models.Category, Map.from_struct(category))
+      assert copy == category
+    end
+
+    test "bhv misc 147 a copy of a model holds the same nested object as the original" do
+      edge = %PetstoreClient.Models.EdgeCases{last_error: %PetstoreClient.Models.Error{code: 1}}
+      copy = struct(PetstoreClient.Models.EdgeCases, Map.from_struct(edge))
+      assert copy.last_error === edge.last_error
+    end
+
+    test "bhv misc 148 a copy of a model serializes to the same wire form as the original with its changes applied" do
+      updated = %{%PetstoreClient.Models.Category{id: 1, name: "Dogs"} | name: "Cats"}
+
+      assert PetstoreClient.ObjectSerializer.serialize(updated) ==
+               PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.Category{
+                 id: 1,
+                 name: "Cats"
+               })
+    end
+
+    test "bhv misc 149 copying a model with an attribute it does not declare is refused with an error naming the attribute" do
+      assert_raise KeyError, ~r/bogus/, fn ->
+        struct!(PetstoreClient.Models.Category, bogus: 1)
+      end
+    end
+
+    test "bhv misc 150 two models whose fields hold equal values compare equal, and unequal values compare unequal" do
+      assert %PetstoreClient.Models.Category{id: 1, name: "Dogs"} ==
+               %PetstoreClient.Models.Category{id: 1, name: "Dogs"}
+
+      refute %PetstoreClient.Models.Category{id: 1, name: "Dogs"} ==
+               %PetstoreClient.Models.Category{id: 2, name: "Dogs"}
+    end
+
+    test "bhv misc 151 a model holding a map compares equal when the entries match and unequal when any entry differs" do
+      held = %PetstoreClient.Models.Metadata{additional_properties: %{"k" => "v"}}
+      assert held == %PetstoreClient.Models.Metadata{additional_properties: %{"k" => "v"}}
+      refute held == %PetstoreClient.Models.Metadata{additional_properties: %{"k" => "w"}}
     end
   end
 end

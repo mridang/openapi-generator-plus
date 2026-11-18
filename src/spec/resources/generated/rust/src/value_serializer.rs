@@ -529,6 +529,12 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_misc_107_a_scalar_form_query_parameter_keeps_its_string_value() {
+        let result = super::serialize_value(Some("x"), "query", "string", "");
+        assert_eq!(result.unwrap(), "x");
+    }
+
+    #[test]
     fn test_bhv_serializationparam_096_serialize_value_query_string() {
         let result = super::serialize_value(Some("hello"), "query", "string", "");
         assert_eq!(result.unwrap(), "hello");

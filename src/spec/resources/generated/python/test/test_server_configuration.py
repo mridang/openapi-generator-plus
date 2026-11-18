@@ -318,3 +318,60 @@ class TestServerVariableOrderAndResolution:
             },
         )
         assert config.get_url() == "https://prod.api.example.com/v2"
+
+    def test_bhv_misc_257_a_variable_with_an_empty_enum_accepts_any_value(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com",
+            variables={"env": ServerVariable(default_value="x", enum_values=[])},
+        )
+
+        assert config.get_url({"env": "anything"}) == "https://anything.example.com"
+
+    def test_bhv_misc_258_a_variable_without_an_override_uses_its_default(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        assert config.get_url() == "https://prod.example.com"
+
+    def test_bhv_misc_259_a_placeholder_with_no_declared_variable_stays_in_the_url(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.{region}.example.com",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        assert config.get_url() == "https://prod.{region}.example.com"
+
+    def test_bhv_misc_260_a_none_value_for_an_enum_variable_is_rejected(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com",
+            variables={
+                "env": ServerVariable(
+                    default_value="prod", enum_values=["prod", "staging"]
+                )
+            },
+        )
+
+        with pytest.raises(ValueError):
+            config.get_url({"env": None})
+
+    def test_bhv_misc_261_a_value_with_backslashes_is_inserted_without_escape_processing(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://example.com/{path}",
+            variables={"path": ServerVariable(default_value="x")},
+        )
+
+        assert config.get_url({"path": "a\\b\\n"}) == "https://example.com/a\\b\\n"
+
+
+class TestFixedServerUrl:
+    def test_bhv_misc_158_a_server_with_a_fixed_url_reports_that_url_unchanged(
+        self,
+    ) -> None:
+        config = ServerConfiguration(url_template="https://fixed.example.com/v1/items")
+        assert config.get_url() == "https://fixed.example.com/v1/items"

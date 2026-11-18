@@ -618,6 +618,25 @@ class TestNativeValueFormats:
         )
         assert ObjectSerializer.stringify(Decimal("1E+3")) == "1000"
 
+    def test_bhv_misc_245_a_time_of_day_in_a_plain_object_is_serialized_as_a_json_string(
+        self,
+    ) -> None:
+        out = json.loads(
+            ObjectSerializer().serialize({"at": datetime.time(10, 20, 30)})
+        )
+
+        assert out == {"at": "10:20:30"}
+
+    def test_bhv_misc_252_an_enum_wire_value_with_separators_round_trips_unchanged(
+        self,
+    ) -> None:
+        from petstore_client.models.separator import Separator
+
+        value = ObjectSerializer().deserialize('"@@"', "Separator")
+
+        assert isinstance(value, Separator)
+        assert ObjectSerializer().serialize(value) == '"@@"'
+
 
 class TestNullOptionalField:
     def test_bhv_serialization_070_a_json_null_for_an_optional_field_decodes_to_none(
@@ -627,6 +646,13 @@ class TestNullOptionalField:
             '{"name":"Fido","photoUrls":[],"category":null}', "Pet"
         )
         assert pet.category is None
+
+    def test_bhv_misc_243_an_absent_optional_array_field_decodes_to_none_not_an_empty_list(
+        self,
+    ) -> None:
+        from petstore_client.models.native_values import NativeValues
+
+        assert NativeValues().addresses is None
 
 
 class TestNumberIsLossless:
@@ -691,6 +717,40 @@ class TestDurationRoundTrip:
         for value in values:
             text = ObjectSerializer.stringify(value)
             assert ObjectSerializer()._deserialize(text, "datetime.timedelta") == value
+
+    def test_bhv_misc_246_a_negative_whole_second_duration_string_parses_to_a_negative_duration(
+        self,
+    ) -> None:
+        from petstore_client._duration import _parse_timedelta_protobuf
+
+        assert _parse_timedelta_protobuf("-3s") == datetime.timedelta(seconds=-3)
+
+    def test_bhv_misc_248_a_duration_with_days_is_formatted_as_a_seconds_string(
+        self,
+    ) -> None:
+        from petstore_client._duration import _format_timedelta_protobuf
+
+        assert _format_timedelta_protobuf(datetime.timedelta(days=1)) == "86400s"
+
+    def test_bhv_misc_251_a_duration_string_with_a_day_designator_is_rejected(
+        self,
+    ) -> None:
+        from petstore_client._duration import _parse_timedelta_protobuf
+
+        with pytest.raises(ValueError):
+            _parse_timedelta_protobuf("1d")
+
+    def test_bhv_misc_256_a_fractional_second_keeps_only_the_digits_present(
+        self,
+    ) -> None:
+        from petstore_client._duration import _format_timedelta_protobuf
+
+        assert (
+            _format_timedelta_protobuf(
+                datetime.timedelta(seconds=1, microseconds=500000)
+            )
+            == "1.5s"
+        )
 
 
 class TestSetSanitization:
@@ -1194,6 +1254,14 @@ class TestUuidRoundtrip:
         result = ObjectSerializer().serialize(u)
         assert json.loads(result) == "12345678-1234-5678-1234-567812345678"
 
+    def test_bhv_misc_247_a_uuid_string_with_the_wrong_segment_lengths_is_rejected(
+        self,
+    ) -> None:
+        with pytest.raises((SerializationException, ValueError)):
+            ObjectSerializer()._deserialize(
+                "1234-5678-1234-5678-1234567890", "uuid.UUID"
+            )
+
 
 class TestExtraFieldsOnDeserialize:
     def test_bhv_serialization_072_several_undeclared_keys_of_any_shape_are_skipped(
@@ -1521,6 +1589,22 @@ class TestWireNamesMapsAndFreeForm:
             == '{"a":2,"b":1,"c":3}'
         )
 
+    def test_bhv_misc_249_a_free_form_object_keeps_its_object_and_integer_entries_on_a_round_trip(
+        self,
+    ) -> None:
+        from petstore_client.models.freeform import Freeform
+
+        model = ObjectSerializer().deserialize(
+            '{"label":"x","nested":{"a":1},"count":2}', "Freeform"
+        )
+
+        assert isinstance(model, Freeform)
+        assert json.loads(ObjectSerializer().serialize(model)) == {
+            "label": "x",
+            "nested": {"a": 1},
+            "count": 2,
+        }
+
 
 class TestRequiredNullableOnTheWire:
     """S5: a property that is required and nullable must be present on decode,
@@ -1552,6 +1636,13 @@ class TestRequiredNullableOnTheWire:
         assert (
             ObjectSerializer().serialize(RequiredNullable(note="n")) == '{"note":"n"}'
         )
+
+    def test_bhv_misc_242_a_read_only_property_is_not_sent_on_the_wire(self) -> None:
+        from petstore_client.models.account import Account
+
+        out = ObjectSerializer().serialize(Account(id=7, username="u"))
+
+        assert '"id"' not in out
 
 
 class TestExcludeNoneOnSerialize:
@@ -3971,3 +4062,13 @@ class TestModelRequiredCopyAndEquality:
         assert Metadata(additional_properties={"a": "1", "b": "2"}) != Metadata(
             additional_properties={"a": "1", "b": "3"}
         )
+
+    def test_bhv_misc_244_a_body_with_a_leading_byte_order_mark_decodes_into_the_model(
+        self,
+    ) -> None:
+        category = ObjectSerializer().deserialize(
+            '\ufeff{"id":1,"name":"Dogs"}', "Category"
+        )
+
+        assert isinstance(category, Category)
+        assert category.id == 1

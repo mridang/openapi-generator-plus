@@ -213,6 +213,17 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
+    test "bhv misc 189 the API-key query wrapper sends its key as the api_key query parameter" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "k123", :query)
+      assert ApiKeyAuthenticator.query_params(auth) == %{"api_key" => "k123"}
+    end
+
+    test "bhv misc 190 the printed output of an API-key authenticator hides the secret" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "hidden-secret-value", :header)
+      refute inspect(auth) =~ "hidden-secret-value"
+      assert inspect(auth) =~ ~s(api_key: "***")
+    end
+
     test "bhv authapikey 020 every API-key wrapper redacts the key in its inspect output" do
       for module <- [
             {{moduleName}}.Auth.ApiKeyHeaderAuthenticator,
