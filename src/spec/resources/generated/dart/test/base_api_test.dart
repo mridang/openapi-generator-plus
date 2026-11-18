@@ -376,6 +376,81 @@ void main() {
       expect(headers['authorization'], equals('Bearer test-token'));
     });
 
+    test(
+      'bhv authintegration 018 a configured client authenticator is applied to a secured operation',
+      () async {
+        String? receivedAuth;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          receivedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: BearerAuthenticator(
+              host: 'http://localhost:${server.port}',
+              token: 'configured-token',
+            ),
+          );
+
+          await api.addPet(
+            Pet(name: 'Fido', photoUrls: <String>{}),
+            const AddPetOptions(),
+          );
+
+          expect(receivedAuth, equals('Bearer configured-token'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv authintegration 019 an invalid auth cookie fails with an ArgumentError before any request is sent',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: _BaseApiAuth(cookies: {'session': 'bad value'}),
+          );
+
+          await expectLater(
+            api.addPet(
+              Pet(name: 'Fido', photoUrls: <String>{}),
+              const AddPetOptions(),
+            ),
+            throwsA(isA<ArgumentError>()),
+          );
+          expect(requests, equals(0));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('bhv authintegration 017 sets cookie from auth', () async {
       String? receivedCookie;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1768,31 +1843,34 @@ void main() {
 
     /* Query and form components keep exactly A-Za-z0-9-._~ literal; a space
      * is %20 in a query and + in a form body. */
-    test('query value keeps only the unreserved set literal', () async {
-      final client = _CapturingApiClient();
-      final api = PetApi(
-        apiClient: client,
-        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
-      );
-
-      try {
-        await api.getPetByName(
-          'n',
-          const GetPetByNameOptions(
-            category: "a~b*c!d'e(f)g h",
-            xCorrelationId: 'c',
-          ),
+    test(
+      'bhv serializationparam 107 query value keeps only the unreserved set literal',
+      () async {
+        final client = _CapturingApiClient();
+        final api = PetApi(
+          apiClient: client,
+          config: ConfigurationBuilder().baseUrl('http://localhost').build(),
         );
-      } on SerializationException {
-        /* The capturing client answers `{}`, which is not a full model; only
-         * the request URL matters here. */
-      }
 
-      expect(
-        client.capturedUrl,
-        contains('?category=a~b%2Ac%21d%27e%28f%29g%20h'),
-      );
-    });
+        try {
+          await api.getPetByName(
+            'n',
+            const GetPetByNameOptions(
+              category: "a~b*c!d'e(f)g h",
+              xCorrelationId: 'c',
+            ),
+          );
+        } on SerializationException {
+          /* The capturing client answers `{}`, which is not a full model; only
+         * the request URL matters here. */
+        }
+
+        expect(
+          client.capturedUrl,
+          contains('?category=a~b%2Ac%21d%27e%28f%29g%20h'),
+        );
+      },
+    );
 
     test('form value keeps only the unreserved set literal', () async {
       final client = _CapturingApiClient();

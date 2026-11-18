@@ -91,6 +91,26 @@ void main() {
     );
 
     test(
+      'bhv authoauthtwoclientcred 016 the client credentials token body uses a fixed parameter order',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+
+        expect(
+          client.lastBody,
+          equals(
+            'grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write',
+          ),
+        );
+      },
+    );
+
+    test(
       'posts the token request as a urlencoded form and asks for JSON',
       () async {
         final client = _FakeApiClient();

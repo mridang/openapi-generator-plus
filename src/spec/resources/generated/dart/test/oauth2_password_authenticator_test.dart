@@ -76,6 +76,26 @@ void main() {
       },
     );
 
+    test(
+      'bhv authoauthtwopassword 021 the password grant token body uses a fixed parameter order',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+
+        expect(
+          client.lastBody,
+          equals(
+            'grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write',
+          ),
+        );
+      },
+    );
+
     test('bhv authoauthtwopassword 014 sends password grant type', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -457,6 +477,36 @@ void main() {
   });
 
   group('OAuth2PasswordAuthenticator scheme wrapper', () {
+    test(
+      'bhv authoauthtwopassword 022 the generated password scheme wrapper sends the first grant to tokenUrl and the refresh grant to refreshUrl',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = LegacyAuthPasswordAuthenticator(
+          host: 'https://api.example.com',
+          clientId: 'cid',
+          clientSecret: 'sec',
+          username: 'u',
+          password: 'p',
+        );
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
+
+        expect(
+          client.urls,
+          equals([
+            'https://auth.example.com/oauth/token',
+            'https://auth.example.com/oauth/refresh',
+          ]),
+        );
+      },
+    );
+
     test(
       'bhv authoauthtwopassword 012 LegacyAuthPasswordAuthenticator uses the declared token and refresh URLs',
       () async {

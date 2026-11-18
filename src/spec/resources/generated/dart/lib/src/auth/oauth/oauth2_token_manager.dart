@@ -204,7 +204,7 @@ class OAuth2TokenManager {
       );
     }
 
-    final body = params.entries
+    final body = _canonicalEntries(params)
         .map(
           (e) =>
               '${encodeRfc3986QueryComponent(e.key, spaceToPlus: true)}=${encodeRfc3986QueryComponent(e.value, spaceToPlus: true)}',
@@ -298,6 +298,37 @@ class OAuth2TokenManager {
        * must not make every following call refresh again. */
       _tokenExpiry = null;
     }
+  }
+
+  /// Token request parameters that lead the body, in this order (D10). Every
+  /// other parameter follows them sorted by key, so the wire bytes of a grant
+  /// do not depend on the order the caller built its map.
+  static const List<String> _leadingParams = [
+    'grant_type',
+    'code',
+    'refresh_token',
+    'username',
+    'password',
+    'client_id',
+    'client_secret',
+    'redirect_uri',
+    'scope',
+  ];
+
+  static List<MapEntry<String, String>> _canonicalEntries(
+    Map<String, String> params,
+  ) {
+    int rank(String key) {
+      final index = _leadingParams.indexOf(key);
+      return index >= 0 ? index : _leadingParams.length;
+    }
+
+    final entries = params.entries.toList()
+      ..sort((a, b) {
+        final byRank = rank(a.key).compareTo(rank(b.key));
+        return byRank != 0 ? byRank : a.key.compareTo(b.key);
+      });
+    return entries;
   }
 
   /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
