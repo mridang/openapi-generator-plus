@@ -1558,5 +1558,25 @@ void main() {
         );
       },
     );
+
+    test(
+      'bhv serialization 106 a non-exploded array query parameter joins its values with commas',
+      () {
+        expect(
+          serializeValue(['a', 'b'], 'query', 'array', 'csv'),
+          equals('a,b'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 108 a path parameter with no declared style uses the simple style',
+      () {
+        expect(
+          serializeValue('hello world', 'path', 'string', ''),
+          equals('hello%20world'),
+        );
+      },
+    );
   });
 }
