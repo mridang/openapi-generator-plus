@@ -97,7 +97,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsTheTokenRequestFieldsInTheCanonicalOrder() {
+  void bhvAuthOauthTwoClientCred016SendsTheTokenRequestFieldsInTheCanonicalOrder() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {

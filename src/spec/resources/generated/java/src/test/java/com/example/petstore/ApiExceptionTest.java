@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.OAuth2ServerException;
 import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.SerializationException;
 import java.util.Map;
@@ -72,6 +73,12 @@ class ApiExceptionTest {
             + "\nResponse headers: {\"x-request-id\":\"abc\"}"
             + "\nResponse body: the body",
         ex.toString());
+  }
+
+  @Test
+  void bhvErrors049OAuth2ServerMessageNamesTheStatusAndTheErrorCode() {
+    OAuth2ServerException error = new OAuth2ServerException(400, "invalid_grant", null, null, "{}");
+    assertEquals("Token request failed with status 400: invalid_grant", error.getMessage());
   }
 
   @Test

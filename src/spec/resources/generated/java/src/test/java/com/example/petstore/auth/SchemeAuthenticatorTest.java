@@ -243,6 +243,13 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
+    void bhvAuthScheme009ExplicitArgumentWinsOverItsEnvironmentVariable() {
+      PetStoreBearerAuthenticator auth =
+          new PetStoreBearerAuthenticator(HOST, "explicit", Map.of(TOKEN_VARIABLE, "env-token"));
+      assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
     void anEmptyArgumentCountsAsNotPassed() {
       PetStoreBearerAuthenticator auth =
           new PetStoreBearerAuthenticator(HOST, "", Map.of(TOKEN_VARIABLE, "env-token"));
@@ -250,7 +257,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void anEmptyVariableCountsAsUnset() {
+    void bhvAuthScheme010AnEmptyVariableCountsAsUnset() {
       IllegalArgumentException ex =
           assertThrows(
               IllegalArgumentException.class,

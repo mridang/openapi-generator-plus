@@ -4,6 +4,7 @@ package {{invokerPackage}};
 
 import {{invokerPackage}}.errors.ApiException;
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
+import {{invokerPackage}}.errors.OAuth2ServerException;
 import {{invokerPackage}}.errors.OpenAPIException;
 import {{invokerPackage}}.errors.SerializationException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,6 +69,13 @@ class ApiExceptionTest {
                         + "\nResponse headers: {\"x-request-id\":\"abc\"}"
                         + "\nResponse body: the body",
                 ex.toString());
+    }
+
+    @Test
+    void bhvErrors049OAuth2ServerMessageNamesTheStatusAndTheErrorCode() {
+        OAuth2ServerException error =
+                new OAuth2ServerException(400, "invalid_grant", null, null, "{}");
+        assertEquals("Token request failed with status 400: invalid_grant", error.getMessage());
     }
 
     @Test

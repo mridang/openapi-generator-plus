@@ -97,7 +97,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    void setAccessTokenAcceptsTabAndPrintableAscii() {
+    void bhvAuthOauthTwoImplicit016SetAccessTokenAcceptsTabAndPrintableAscii() {
         OAuth2ImplicitAuthenticator auth = createAuthenticator();
         auth.setAccessToken("a b\tc~");
 

@@ -330,6 +330,14 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
+  void bhvAuthOauthTwoAuthCode030AuthHeadersBeforeTheExchangeNameTheExchangeCall() {
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    IllegalStateException caught =
+        assertThrowsExactly(IllegalStateException.class, () -> auth.getAuthHeaders());
+    assertTrue(caught.getMessage().startsWith("Must call exchangeCode()"), caught.getMessage());
+  }
+
+  @Test
   void bhvAuthOauthTwoAuthCode003AuthHeadersBeforeExchangeReturnsRecoverableError() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
@@ -408,7 +416,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void sendsTheCodeExchangeFieldsInTheCanonicalOrder() {
+  void bhvAuthOauthTwoAuthCode032SendsTheCodeExchangeFieldsInTheCanonicalOrder() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
