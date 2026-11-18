@@ -1920,7 +1920,8 @@ import Testing
 
   /* The token request goes to another origin, so the caller's default
      headers stay off it; its own headers and the User-Agent still go. */
-  @Test func testNoRedirectRequestCarriesNoDefaultHeaders() async throws {
+  /* The token endpoint request (a noRedirect POST) never carries the transport default headers. */
+  @Test func testBhvAuth010TokenEndpointRequestCarriesNoDefaultHeaders() async throws {
     var seen: [URLRequest] = []
     let transport = try TransportOptionsBuilder()
       .defaultHeader(name: "X-Api-Secret", value: "api-only")
@@ -2069,6 +2070,23 @@ import Testing
     #expect(message.hasPrefix("failed to read CA certificate from \"/nonexistent/ca.pem\": "))
   }
 
+  /* A CA certificate path that exists but cannot be read is refused at construction, and the error names the path. */
+  @Test func testBhvErrors083UnreadableCaCertPathFailsAtConstructionNamingThePath() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("ca-dir-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let transport = try TransportOptionsBuilder().caCertPath(directory.path).build()
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try DefaultApiClient(transportOptions: transport)
+    }
+    guard case .invalidCACertificate(let message)? = error else {
+      Issue.record("expected invalidCACertificate, got \(String(describing: error))")
+      return
+    }
+    #expect(message.hasPrefix("failed to read CA certificate from \"\(directory.path)\": "))
+  }
+
   @Test func testBhvErrors041NonexistentCaCertPathFailsFast() throws {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction with
@@ -2084,6 +2102,30 @@ import Testing
       return
     }
     #expect(message.hasPrefix("failed to read CA certificate from \"/nonexistent/ca.pem\": "))
+  }
+
+  /* A cancellation of the caller's call reaches the transport request, which is stopped. */
+  @Test func testBhvTransport069CancellingACallCancelsItsTransportRequest() async throws {
+    StallingURLProtocol.stopCount = 0
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [StallingURLProtocol.self]
+    let transport = try TransportOptionsBuilder().maxRetries(0).build()
+    let client = DefaultApiClient(
+      transportOptions: transport, session: URLSession(configuration: configuration))
+
+    let call = Task {
+      try await client.sendRequest(
+        method: "GET", url: "http://localhost/stall", headers: [:], body: nil)
+    }
+    try await Task.sleep(nanoseconds: 200_000_000)
+    call.cancel()
+    await #expect(throws: CancellationError.self) {
+      _ = try await call.value
+    }
+    for _ in 0..<50 where StallingURLProtocol.stopCount == 0 {
+      try await Task.sleep(nanoseconds: 20_000_000)
+    }
+    #expect(StallingURLProtocol.stopCount == 1)
   }
 
   /* RFC 9110 15.4: which methods a redirect rewrites. */
@@ -2291,6 +2333,18 @@ private final class SessionInvalidationProbe: NSObject, URLSessionDelegate, @unc
 }
 
 // MARK: - URL Protocol stub for unit tests
+
+/* Never answers a request, and counts how often the loader stops it, so a test can see a cancelled call reach the transport. */
+private final class StallingURLProtocol: URLProtocol {
+  nonisolated(unsafe) static var stopCount = 0
+
+  override class func canInit(with request: URLRequest) -> Bool { return true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+  override func startLoading() {}
+  override func stopLoading() {
+    StallingURLProtocol.stopCount += 1
+  }
+}
 
 private final class UnitStubURLProtocol: URLProtocol {
   nonisolated(unsafe) static var handler: ((URLRequest) -> (Data, Int, [String: String]))?

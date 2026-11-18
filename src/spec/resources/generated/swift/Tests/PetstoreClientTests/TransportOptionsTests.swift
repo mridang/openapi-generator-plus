@@ -246,6 +246,20 @@ import Testing
     #expect(description.range(of: "s3cret") == nil)
   }
 
+  /* A URL written into the message keeps its scheme, host, port and path, and drops its query string, userinfo and fragment. */
+  @Test func testBhvErrors077ProxyErrorKeepsOnlySchemeHostPortAndPath() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy(
+        "socks5://svc:s3cret@proxy.example.com:1080/relay?token=abc123#part"
+      ).build()
+    }
+    let description = error?.errorDescription ?? ""
+    #expect(description.hasSuffix("socks5://***@proxy.example.com:1080/relay"))
+    #expect(description.range(of: "token=abc123") == nil)
+    #expect(description.range(of: "#part") == nil)
+    #expect(description.range(of: "s3cret") == nil)
+  }
+
   /* D77: the timeout is nil or a positive number of milliseconds; zero and
    * negative values are refused when the options are built. */
   @Test(arguments: [0, -1, -5000])

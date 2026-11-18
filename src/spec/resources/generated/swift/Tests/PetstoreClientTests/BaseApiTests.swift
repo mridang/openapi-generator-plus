@@ -1190,6 +1190,19 @@ import Testing
     #expect(BaseApi.buildQueryString(params) == expected)
   }
 
+  /* A form-encoded body writes each date-time, number, integer and boolean in its canonical wire text. */
+  @Test func testBhvSerialization040FormBodyWritesScalarsInCanonicalText() throws {
+    var fields: OrderedParams<Any> = [:]
+    fields["reminder"] = ISO8601DateFormatter().date(from: "2024-01-15T10:30:00Z")!
+    fields["rate"] = 1.5
+    fields["count"] = 3
+    fields["flag"] = true
+    let body = try BaseApi.serializeBody(fields, contentType: "application/x-www-form-urlencoded")
+    #expect(
+      String(data: body ?? Data(), encoding: .utf8)
+        == "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00&rate=1.5&count=3&flag=true")
+  }
+
   @Test func testBhvSerializationwire013FormBodyKeepsDeclarationOrder() throws {
     var fields: OrderedParams<Any> = [:]
     let names = ["zulu", "alpha", "mike", "bravo", "yankee", "charlie", "x", "delta", "kilo"]

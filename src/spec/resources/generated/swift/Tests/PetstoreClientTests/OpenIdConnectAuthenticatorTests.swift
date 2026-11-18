@@ -437,6 +437,57 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     #expect(headers["Authorization"] == "Bearer at-1")
   }
 
+  /* A discovery response whose Cache-Control has no usable max-age is cached for the default lifetime. */
+  @Test(arguments: ["no-cache", "max-age=soon"])
+  func testBhvAuth011UnusableCacheControlFallsBackToTheDefaultLifetime(cacheControl: String)
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(
+      .success(
+        ApiHttpResponse(
+          statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": cacheControl])))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.buildAuthorizationURL()
+    _ = try await auth.buildAuthorizationURL()
+
+    #expect(client.getCount == 1)
+  }
+
+  /* After the cached discovery document expires, later calls use the endpoints of the newly fetched document. */
+  @Test func testBhvAuth029LaterCallsUseTheEndpointsOfTheRediscoveredDocument() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      .success(
+        ApiHttpResponse(
+          statusCode: 200, body: discoveryWith(token: "https://auth.example.com/token-old"),
+          headers: ["Cache-Control": "max-age=1"])))
+    client.responses.append(
+      .success(
+        ApiHttpResponse(
+          statusCode: 200, body: discoveryWith(token: "https://auth.example.com/token-new"),
+          headers: ["Cache-Control": "max-age=1"])))
+
+    client.responses.append(
+      .success(
+        makeResponse(
+          body: "{\"access_token\":\"at-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}")))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.buildAuthorizationURL()
+    try await Task.sleep(nanoseconds: 1_100_000_000)
+    _ = try await auth.buildAuthorizationURL()
+    try await auth.exchangeCode("the-code")
+
+    #expect(client.getCount == 2)
+    #expect(client.lastURL == "https://auth.example.com/token-new")
+  }
+
   @Test func testBhvAuthoidc030MaxAgeZeroFetchesDiscoveryAgainOnEveryUse() async throws {
     let client = MockApiClient()
     for _ in 0..<3 {

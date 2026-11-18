@@ -83,6 +83,13 @@ import Testing
     }
   }
 
+  /* A token with a NUL byte is refused at construction, like a line break. */
+  @Test func testBhvAuth009ATokenHoldingANulByteIsRefusedAtConstruction() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "tok\u{0}en")
+    }
+  }
+
   /* Each rejection branch reports its own exact message. A token of Unicode
    * spaces only is blank to a reader but not to the empty guard, so it is
    * refused by the printable ASCII rule. */

@@ -84,6 +84,19 @@ import Testing
     #expect(invalid.localizedDescription == "not a token object")
   }
 
+  /* A typed view of an error body that starts with a byte order mark decodes the same as the body without it. */
+  @Test func testBhvErrors072GetTypedErrorBodyDecodesTheSameWithAByteOrderMark() throws {
+    let json = #"{"id":42,"name":"Dogs"}"#
+    let withMark = ApiError(
+      statusCode: 400, message: "bad request", responseBody: "\u{FEFF}" + json)
+    let plain = ApiError(statusCode: 400, message: "bad request", responseBody: json)
+
+    let marked = try #require(try withMark.getTypedErrorBody(PetstoreClient.Category.self))
+    let expected = try #require(try plain.getTypedErrorBody(PetstoreClient.Category.self))
+    #expect(marked.id == expected.id)
+    #expect(marked.name == expected.name)
+  }
+
   @Test func testBhvErrors013GetTypedErrorBodyDeserializesBody() throws {
     let err = ApiError(
       statusCode: 400,

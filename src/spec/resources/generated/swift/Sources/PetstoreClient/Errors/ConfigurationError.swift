@@ -58,10 +58,15 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
     }
   }
 
-  /// The message for a proxy URL that does not parse. Any `user:password@`
-  /// in `url` is shown as `***@`, so a credential never reaches a log.
+  /// The message for a proxy URL that does not parse. Only the scheme, host,
+  /// port and path are kept: the query string and fragment are dropped, and
+  /// any `user:password@` in `url` is shown as `***@`, so a credential never
+  /// reaches a log.
   static func invalidProxyURL(_ url: String, reason: String? = nil) -> ConfigurationError {
-    let masked = url.replacingOccurrences(
+    let withoutQueryOrFragment =
+      url.firstIndex(where: { $0 == "?" || $0 == "#" })
+      .map { String(url[..<$0]) } ?? url
+    let masked = withoutQueryOrFragment.replacingOccurrences(
       of: "^([A-Za-z][A-Za-z0-9+.-]*://)?[^/?#]*@", with: "$1***@", options: .regularExpression)
     let qualifier = reason.map { " (\($0))" } ?? ""
     return .invalidProxy("Invalid proxy URL\(qualifier): \(masked)")

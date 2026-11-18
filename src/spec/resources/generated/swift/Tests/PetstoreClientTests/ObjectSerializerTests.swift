@@ -989,6 +989,49 @@ import Testing
     }
   }
 
+  /* Models whose decimal fields hold numerically equal values, differing only in trailing zeros, compare equal. */
+  @Test func testBhvModels018DecimalFieldsDifferingOnlyInTrailingZerosCompareEqual() throws {
+    let short = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"lat\":1.5,\"lng\":2}", as: PhotoMetadataLocation.self))
+    let long = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"lat\":1.50,\"lng\":2.000}", as: PhotoMetadataLocation.self))
+    #expect(short == long)
+  }
+
+  /* A strict model refuses an unknown key through the one public deserialize entry point. */
+  @Test func testBhvSerialization051StrictModelRefusesAnUnknownKeyThroughDeserialize() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"name\":\"x\",\"extra\":1}", as: StrictTag.self)
+    }
+  }
+
+  /* Undeclared keys are kept as additional properties on every element of a list of models read from the wire. */
+  @Test func testBhvSerialization052UndeclaredKeysAreKeptOnEveryNestedElement() throws {
+    struct MetadataList: Codable { let items: [Metadata] }
+    let decoded = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"items\":[{\"extra\":\"a\"},{\"extra\":\"b\"}]}", as: MetadataList.self))
+    #expect(decoded.items.map { $0.additionalProperties["extra"]?.value as? String } == ["a", "b"])
+  }
+
+  /* Undeclared keys held by a nested model are written back as keys of that model when the parent is serialized. */
+  @Test func testBhvSerialization053UndeclaredKeysOfANestedModelAreWrittenBack() throws {
+    struct MetadataHolder: Codable { let meta: Metadata }
+    let holder = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"meta\":{\"extra\":\"kept\"}}", as: MetadataHolder.self))
+    let written = try ObjectSerializer.serialize(holder)
+    #expect(written.hasPrefix("{\"meta\":{"))
+    #expect(written.contains("\"extra\":\"kept\""))
+  }
+
+  /* A non-nullable property that is unset is left out of the output, never written as null. */
+  @Test func testBhvSerialization066UnsetNonNullableFieldIsLeftOutNotWrittenAsNull() throws {
+    #expect(try ObjectSerializer.serialize(StrictTag(id: nil, name: "x")) == "{\"name\":\"x\"}")
+  }
+
   /* A strict model (unevaluatedProperties false) refuses a key it does not declare. */
   @Test func testBhvSerializationobject154StrictModelRejectsAnUndeclaredKey() {
     let json = "{\"id\":1,\"name\":\"x\",\"extra\":true}"
