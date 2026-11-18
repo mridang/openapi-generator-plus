@@ -613,7 +613,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirect301And302RewriteOnlyPostToGet() {
+  void bhvRedirects048Redirect301And302RewriteOnlyPostToGet() {
     for (int status : new int[] {301, 302}) {
       assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect("POST", status));
       for (String method : new String[] {"PUT", "PATCH", "DELETE"}) {
@@ -3601,5 +3601,58 @@ class DefaultApiClientUnitTest {
     } finally {
       supplied.close();
     }
+  }
+
+  @Test
+  void bhvRedirects049SeeOtherAndTemporaryRedirectsAreFollowedByDefault() {
+    for (int status : new int[] {307, 308}) {
+      RecordingHttpClient transport = redirectingOnceTo(status, "http://localhost/landed");
+      DefaultApiClient client = new DefaultApiClient(
+          TransportOptions.builder().httpClient(transport).build());
+      client.sendRequest("POST", "http://localhost/start", Map.of(), "payload");
+      assertEquals(2, transport.requests.size());
+      assertEquals("POST", transport.requests.get(1).method());
+    }
+  }
+
+  @Test
+  void bhvRedirects050FollowUpMethodFollowsTheRfc9110TableForEachStatus() {
+    String[][] rows = {
+      {"301", "POST", "GET"}, {"301", "PUT", "PUT"},
+      {"302", "POST", "GET"}, {"302", "DELETE", "DELETE"},
+      {"303", "POST", "GET"}, {"303", "PUT", "GET"}, {"303", "HEAD", "HEAD"},
+      {"307", "POST", "POST"}, {"307", "PATCH", "PATCH"},
+      {"308", "PUT", "PUT"}, {"308", "DELETE", "DELETE"},
+    };
+    for (String[] row : rows) {
+      RecordingHttpClient transport = redirectingOnceTo(Integer.parseInt(row[0]), "http://localhost/landed");
+      DefaultApiClient client = new DefaultApiClient(
+          TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+      client.sendRequest(row[1], "http://localhost/start", Map.of(), "payload");
+      assertEquals(row[2], transport.requests.get(1).method(), row[0] + " " + row[1]);
+    }
+  }
+
+  @Test
+  void bhvRedirects051SeeOtherTurnsFollowUpIntoGetExceptHeadWhichStaysHead() {
+    RecordingHttpClient transport = redirectingOnceTo(303, "http://localhost/landed");
+    DefaultApiClient client = new DefaultApiClient(
+        TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("HEAD", "http://localhost/start", Map.of(), null);
+    assertEquals("HEAD", transport.requests.get(1).method());
+  }
+
+  @Test
+  void bhvRedirects052CrossOriginRedirectRemovesCredentialHeaders() {
+    RecordingHttpClient transport = redirectingOnceTo(307, "http://other.example.com/landed");
+    DefaultApiClient client = new DefaultApiClient(
+        TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("GET", "http://localhost/start",
+        Map.of("Authorization", "Bearer secret", "Cookie", "session=secret", "X-Api-Token", "secret"), null);
+    java.net.http.HttpRequest second = transport.requests.get(1);
+    assertFalse(second.headers().firstValue("Authorization").isPresent());
+    assertFalse(second.headers().firstValue("Cookie").isPresent());
+    assertFalse(second.headers().firstValue("Proxy-Authorization").isPresent());
+    assertFalse(second.headers().firstValue("X-Api-Token").isPresent());
   }
 }

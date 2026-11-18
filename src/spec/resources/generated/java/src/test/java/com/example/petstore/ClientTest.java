@@ -98,7 +98,7 @@ class ClientTest {
   }
 
   @Test
-  void builderWithNoCredentialsBuildsAClientThatClosesLikeAnyOther() {
+  void bhvLifecycle043BuilderWithNoCredentialsBuildsAClientThatClosesLikeAnyOther() {
     Client client =
         Client.builder("/api/v3").transportOptions(TransportOptions.builder().build()).build();
 
@@ -360,6 +360,118 @@ class ClientTest {
       }
     } finally {
       tokenServer.stop(0);
+    }
+  }
+
+  @Test
+  void bhvLifecycle042RequestsGoThroughTheSuppliedHttpClient() throws Exception {
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+    java.util.concurrent.atomic.AtomicInteger hits =
+        new java.util.concurrent.atomic.AtomicInteger();
+    server.createContext(
+        "/ping",
+        exchange -> {
+          hits.incrementAndGet();
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    try {
+      com.example.petstore.DefaultApiClient apiClient =
+          new com.example.petstore.DefaultApiClient(
+              TransportOptions.builder().httpClient(supplied).build());
+      com.example.petstore.ApiHttpResponse response =
+          apiClient.sendRequest(
+              "GET",
+              "http://localhost:" + server.getAddress().getPort() + "/ping",
+              java.util.Map.of(),
+              null);
+      assertEquals(200, response.statusCode());
+      assertEquals(1, hits.get());
+    } finally {
+      supplied.close();
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void bhvLifecycle044RequestInFlightWhenClosedStillCompletes() throws Exception {
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+    server.createContext(
+        "/slow",
+        exchange -> {
+          try {
+            Thread.sleep(400);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          byte[] out = "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, out.length);
+          exchange.getResponseBody().write(out);
+          exchange.close();
+        });
+    server.start();
+    com.example.petstore.DefaultApiClient apiClient = new com.example.petstore.DefaultApiClient();
+    java.util.concurrent.atomic.AtomicReference<com.example.petstore.ApiHttpResponse> result =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    Thread caller =
+        new Thread(
+            () -> {
+              try {
+                result.set(
+                    apiClient.sendRequest(
+                        "GET",
+                        "http://localhost:" + server.getAddress().getPort() + "/slow",
+                        java.util.Map.of(),
+                        null));
+              } catch (RuntimeException e) {
+                result.set(null);
+              }
+            });
+    try {
+      caller.start();
+      Thread.sleep(100);
+      apiClient.close();
+      caller.join(5000);
+      assertNotNull(result.get());
+      assertEquals(200, result.get().statusCode());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void bhvLifecycle045ClosingTheClientLeavesTheSuppliedHttpClientSendingRequests()
+      throws Exception {
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+    server.createContext(
+        "/after",
+        exchange -> {
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    try {
+      com.example.petstore.DefaultApiClient apiClient =
+          new com.example.petstore.DefaultApiClient(
+              TransportOptions.builder().httpClient(supplied).build());
+      apiClient.close();
+      java.net.http.HttpResponse<Void> response =
+          supplied.send(
+              java.net.http.HttpRequest.newBuilder(
+                      java.net.URI.create(
+                          "http://localhost:" + server.getAddress().getPort() + "/after"))
+                  .build(),
+              java.net.http.HttpResponse.BodyHandlers.discarding());
+      assertEquals(200, response.statusCode());
+    } finally {
+      supplied.close();
+      server.stop(0);
     }
   }
 }

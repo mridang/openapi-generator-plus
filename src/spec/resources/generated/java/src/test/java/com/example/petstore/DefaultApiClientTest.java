@@ -769,7 +769,7 @@ class DefaultApiClientTest {
      */
     @Test
     @DisplayName("a redirect-limit refusal on one request does not surface on another (Wave E)")
-    void redirectRefusalIsNotSharedAcrossConcurrentRequests() throws Exception {
+    void bhvRedirects047RedirectRefusalIsNotSharedAcrossConcurrentRequests() throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
@@ -857,7 +857,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("throws when redirect budget is exhausted")
-    void throwsWhenRedirectBudgetExhausted() throws ApiException {
+    void bhvRedirects046ThrowsWhenRedirectBudgetExhausted() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       // followRedirects=true but maxRedirects=0: the server still
@@ -1027,7 +1027,7 @@ class DefaultApiClientTest {
      */
     @Test
     @DisplayName("https_to_http_same_host_strips_authorization")
-    void httpsToHttpSameHostStripsAuthorization() throws Exception {
+    void bhvRedirects053HttpsToHttpSameHostStripsAuthorization() throws Exception {
       java.lang.reflect.Method method =
           DefaultApiClient.class.getDeclaredMethod(
               "sameOrigin", java.net.URI.class, java.net.URI.class);

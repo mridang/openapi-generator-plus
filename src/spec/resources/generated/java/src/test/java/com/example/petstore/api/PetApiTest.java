@@ -1228,7 +1228,7 @@ class PetApiTest {
   }
 
   @Test
-  void uploadPetDocumentOctetStreamSelectionWireBodyIsRawBytes() throws Exception {
+  void bhvOperations157UploadPetDocumentOctetStreamSelectionWireBodyIsRawBytes() throws Exception {
     // End-to-end transport check against a real HttpServer: selecting
     // application/octet-stream must put the RAW file bytes on the wire with
     // Content-Type: application/octet-stream — proving the transport does
@@ -2023,5 +2023,98 @@ class PetApiTest {
     mockedApi.deletePet(7L);
 
     assertThat(sent.get("Authorization")).isNull();
+  }
+
+  @Test
+  void bhvOperations159ValueCallWithEmptySuccessBodyRaisesATypedError() {
+    ApiClient empty = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+    PetApi petApi = new PetApi(empty, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.findPetsByStatus())
+        .isInstanceOf(com.example.petstore.errors.ApiException.class);
+  }
+
+  @Test
+  void bhvOperations160ExternalVariantOperationIsSentToItsServerVariantUrl() {
+    UrlRecording recording = new UrlRecording("{\"name\":\"x\",\"photoUrls\":[]}");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getExternalPetInfo(7L);
+    assertThat(recording.capturedUrl).startsWith("https://external-api.example.com/v1");
+  }
+
+  @Test
+  void bhvOperations161TextPlainResponseIsReturnedRawEvenWhenItLooksLikeBase64() {
+    ApiClient textual =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(200, "aGVsbG8=", Map.of("Content-Type", "text/plain"));
+    PetApi petApi =
+        new PetApi(textual, Configuration.builder().baseUrl("http://localhost").build());
+    String summary =
+        petApi.getPetSummary(
+            7L,
+            LocalDate.of(2024, 1, 15),
+            new com.example.petstore.api.options.GetPetSummaryOptions("abc"));
+    assertThat(summary).isEqualTo("aGVsbG8=");
+  }
+
+  @Test
+  void bhvOperations162DateOnlyParameterIsBareDateInPathQueryAndHeader() throws Exception {
+    SummaryRecording recording = new SummaryRecording();
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getPetSummary(
+        7L,
+        LocalDate.of(2024, 3, 9),
+        new com.example.petstore.api.options.GetPetSummaryOptions("abc")
+            .days(List.of(LocalDate.of(2024, 3, 9))));
+    String url =
+        java.net.URLDecoder.decode(String.valueOf(recording.capturedUrl), StandardCharsets.UTF_8);
+    assertThat(url).contains("asOf=2024-03-09").contains("days=2024-03-09");
+    assertThat(url).doesNotContain("T00:00");
+  }
+
+  @Test
+  void bhvOperations163RequestWithNoBodySendsNoContentTypeWhateverTheDefaultHeaderCase() {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(
+            recording,
+            Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("content-type", "application/json")
+                .build());
+    petApi.deletePet(7L);
+    assertThat(sent.keySet().stream().noneMatch(k -> k.equalsIgnoreCase("Content-Type"))).isTrue();
+  }
+
+  @Test
+  void bhvOperations164MissingRequiredParameterRaisesAnArgumentErrorAndSendsNothing() {
+    int[] sends = new int[1];
+    ApiClient counting =
+        (method, url, headers, body) -> {
+          sends[0]++;
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(counting, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.deletePet(null)).isInstanceOf(IllegalArgumentException.class);
+    assertThat(sends[0]).isZero();
+  }
+
+  @Test
+  void bhvOperations165PathParameterUsesTheMatrixStyleTheOperationDeclares() {
+    SummaryRecording recording = new SummaryRecording();
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getPetSummary(
+        7L,
+        LocalDate.of(2024, 1, 15),
+        new com.example.petstore.api.options.GetPetSummaryOptions("abc"));
+    assertThat(String.valueOf(recording.capturedUrl)).contains("/pet/7/summary/;asOf=2024-01-15");
   }
 }

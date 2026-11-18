@@ -512,7 +512,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    void expiresInWithTypeSuffixIsTreatedAsStale() {
+    void bhvAuth056ExpiresInWithTypeSuffixIsTreatedAsStale() {
         // Double.parseDouble accepts "3600d"; the grammar is decimal digits with
         // an optional fraction, so this is unusable and the token is not cached.
         AtomicInteger callCount = new AtomicInteger(0);
@@ -1346,5 +1346,83 @@ class OAuth2TokenManagerTest {
         assertTrue(unexpected.isEmpty(), unexpected.toString());
         manager.setAccessToken("final-token");
         assertEquals("final-token", manager.getAccessToken(TOKEN_URL, params));
+    }
+
+    @Test
+    void bhvAuth057RejectedRefreshFallsBackToTheOriginalGrant() {
+        java.util.List<String> bodies = new java.util.ArrayList<>();
+        ApiClient client = (method, url, headers, body) -> {
+            bodies.add(body != null ? body.toString() : "");
+            int n = bodies.size();
+            if (n == 1) {
+                return new ApiHttpResponse(200,
+                        "{\"access_token\":\"first\",\"expires_in\":0,\"refresh_token\":\"r1\"}", Map.of());
+            }
+            if (n == 2) {
+                return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+            }
+            return new ApiHttpResponse(200, "{\"access_token\":\"fallback\",\"expires_in\":3600}", Map.of());
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+        Map<String, String> grant = new HashMap<>();
+        grant.put("grant_type", "client_credentials");
+        manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+
+        String token = manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+
+        assertEquals("fallback", token);
+        assertTrue(bodies.get(2).contains("grant_type=client_credentials"), bodies.get(2));
+    }
+
+    @Test
+    void bhvAuth057MalformedRefreshResponseFallsBackToTheOriginalGrant() {
+        java.util.List<String> bodies = new java.util.ArrayList<>();
+        ApiClient client = (method, url, headers, body) -> {
+            bodies.add(body != null ? body.toString() : "");
+            int n = bodies.size();
+            if (n == 1) {
+                return new ApiHttpResponse(200,
+                        "{\"access_token\":\"first\",\"expires_in\":0,\"refresh_token\":\"r1\"}", Map.of());
+            }
+            if (n == 2) {
+                return new ApiHttpResponse(200, "not json at all", Map.of());
+            }
+            return new ApiHttpResponse(200, "{\"access_token\":\"fallback\",\"expires_in\":3600}", Map.of());
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+        Map<String, String> grant = new HashMap<>();
+        grant.put("grant_type", "client_credentials");
+        manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+
+        String token = manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+
+        assertEquals("fallback", token);
+        assertTrue(bodies.get(2).contains("grant_type=client_credentials"), bodies.get(2));
+    }
+
+    @Test
+    void bhvAuth058AnExpiredTokenIsRefreshedWithTheRefreshGrantFirst() {
+        java.util.List<String> bodies = new java.util.ArrayList<>();
+        ApiClient client = (method, url, headers, body) -> {
+            bodies.add(body != null ? body.toString() : "");
+            if (bodies.size() == 1) {
+                return new ApiHttpResponse(200,
+                        "{\"access_token\":\"first\",\"expires_in\":0,\"refresh_token\":\"r1\"}", Map.of());
+            }
+            return new ApiHttpResponse(200, "{\"access_token\":\"refreshed\",\"expires_in\":3600}", Map.of());
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+        Map<String, String> grant = new HashMap<>();
+        grant.put("grant_type", "client_credentials");
+        manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+
+        String token = manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+
+        assertEquals("refreshed", token);
+        assertTrue(bodies.get(1).contains("grant_type=refresh_token"), bodies.get(1));
+        assertTrue(bodies.get(1).contains("refresh_token=r1"), bodies.get(1));
     }
 }
