@@ -434,7 +434,6 @@ rust | misc007 | Rust operations take required path parameters and the options a
 rust | misc010 | Rust operations take an options object with required fields as a positional argument, so omitting it is refused by the compiler and no run-time error exists
 rust | misc012 | Rust has no nil value, so a required argument cannot be absent at run time; omitting it is refused by the compiler and no run-time argument error exists
 ||||||| 64e922658
-rust | misc004 | Rust operations take required parameters as positional arguments, so omitting one is refused by the compiler and no run-time argument error naming the field exists
 ruby | misc030 | The SDK takes only a relative timeout per call and has no absolute deadline argument, so a deadline cannot already have passed when a call starts
 ||||||| ded9036c6
 ||||||| 793a54cda
@@ -443,7 +442,6 @@ go | misc103 | Go decodes every model leniently and has no strict-mode option, s
 go | misc105 | Go models have no validation step at construction or copy, so copying a model cannot validate its values; there is no validator to run
 ||||||| 92a9dd837
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
-rust | misc004 | Rust operations take required parameters as positional arguments, so omitting one is refused by the compiler and no run-time argument error naming the field exists
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
