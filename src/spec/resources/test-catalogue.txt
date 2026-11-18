@@ -2407,3 +2407,30 @@ langphp061 | An anyOf variant with only numeric additional properties serializes
 langphp062 | The composer manifest declares a valid package name.
 langphp063 | A result carries its payload, headers and status together.
 langphp064 | A configured CA certificate is the only trust anchor, so an unrelated CA rejects the server.
+langcsharp021 | An operation whose parameters are all optional runs with no arguments and does not throw
+langcsharp022 | A missing options object names the first required field of the operation
+langcsharp023 | A cookie parameter with a control character is refused before any request is sent
+langcsharp024 | A per-operation server with variables sends its request to the resolved URL
+langcsharp025 | Each operation receives only the credential of the scheme it requires
+langcsharp026 | A JSON null body from an operation that returns a collection raises the API error
+langcsharp027 | A date-time form field is written in its canonical string form
+langcsharp028 | An operation that is not deprecated carries no deprecation marker
+langcsharp029 | A new model starts with an empty additional properties collection and never a null one
+langcsharp030 | An additional property entry is written flat at the top level of the body
+langcsharp031 | Every dev dependency the test suite uses is declared in the project manifest
+langcsharp032 | The project file writes the documentation file and packs the readme and symbols
+langcsharp033 | The readme documents the behaviour that most surprises callers
+langcsharp034 | The readme names the versioning policy the package follows
+langcsharp035 | The skills model sample supplies every required field
+langcsharp036 | The makefile carries a dependency audit target
+langcsharp037 | An enum query parameter is sent as its wire value
+langcsharp038 | An enum header parameter is sent as its wire value
+langcsharp039 | A set query parameter with a multi collection format expands to one entry per value
+langcsharp040 | A null element in a multi query array keeps an empty entry
+langcsharp041 | A byte array is encoded as one base64 string rather than a list
+langcsharp042 | A cross-origin redirect drops any header whose name looks like a credential
+langcsharp043 | A 307 redirect replays a byte array body with its content type
+langcsharp044 | A 307 redirect replays a text body with a bare content type
+langcsharp045 | An operation with no parameters or security leaves transport settings unchanged
+langcsharp046 | An operation with no parameters or security has no auth field in its options
+langcsharp047 | A per-call timeout of zero is refused when the call is built
