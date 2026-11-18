@@ -718,7 +718,7 @@ module {{moduleName}}
     def detect_encoding(content_type)
       return Encoding::UTF_8 if content_type.nil?
 
-      match = content_type.match(/charset\s*=\s*"?([^";\s]+)"?/i)
+      match = content_type.match(/(?:\A|;)\s*charset\s*=\s*"?([^";\s]+)"?/i)
       return Encoding::UTF_8 if match.nil?
 
       charset = match[1].to_s
@@ -782,7 +782,7 @@ module {{moduleName}}
         # when nil marks the proxy as set by hand, so Faraday never reads
         # http_proxy / https_proxy / no_proxy and the adapter opens a direct
         # connection.
-        f.proxy = @transport_options.proxy
+        f.proxy = proxy_settings(@transport_options.proxy)
         f.ssl.verify = @transport_options.verify_ssl
         if @transport_options.ca_cert_path
           f.ssl.ca_file = @transport_options.ca_cert_path
@@ -815,6 +815,23 @@ module {{moduleName}}
         # bearer tokens. We follow redirects ourselves in send_request with
         # a same-origin check.
       end
+    end
+
+    # The proxy handed to Faraday. Faraday decodes the userinfo of a proxy URL
+    # with CGI.unescape, which turns a literal + into a space, so the user name
+    # and password are percent-decoded here (RFC 3986 only, keeping +) and
+    # passed to Faraday as explicit credentials.
+    #
+    # @param proxy [String, nil] the proxy URL from TransportOptions
+    # @return [String, Hash, nil] the proxy for Faraday
+    def proxy_settings(proxy)
+      return proxy if proxy.nil?
+
+      uri = URI.parse(proxy)
+      return proxy if uri.userinfo.nil?
+
+      password = uri.password.nil? ? nil : URI.decode_uri_component(uri.password)
+      { uri: uri, user: URI.decode_uri_component(uri.user.to_s), password: password }
     end
 
     # Return true for HTTP 3xx redirect status codes that carry a Location header.

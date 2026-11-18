@@ -44,6 +44,13 @@ describe Petstore::Client::ServerVariable do
     _(var).must_be :frozen?
     _(var.enum_values).must_be :frozen?
   end
+
+  it 'bhv_servers_027 two variables built with the same default, description and allowed values are equal' do
+    first = Petstore::Client::ServerVariable.new(default_value: 'prod', description: 'env', enum_values: %w[prod staging])
+    second = Petstore::Client::ServerVariable.new(default_value: 'prod', description: 'env', enum_values: %w[prod staging])
+    _(first).must_equal(second)
+    _(first.hash).must_equal(second.hash)
+  end
 end
 
 describe Petstore::Client::ServerVariable, 'allowed values are not shared with the caller' do

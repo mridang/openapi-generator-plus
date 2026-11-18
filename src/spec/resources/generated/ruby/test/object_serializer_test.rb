@@ -56,6 +56,59 @@ module Petstore::Client
         attribute :ttl, ::Petstore::Client::Types::Any.optional.meta(omittable: true)
       end
     end
+
+    # Stub models for the schema-default, nullable and strict surface tests.
+    # Mirror the shape the real model template emits.
+    unless const_defined?(:TestDefaultsModel)
+      class TestDefaultsModel < Dry::Struct
+        ATTRIBUTE_MAP = { retries: 'retries', mode: 'mode' }.freeze
+        JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+        OPENAPI_TYPES = { retries: 'Integer', mode: 'String' }.freeze
+        OPENAPI_FORMATS = {}.freeze
+
+        transform_keys do |key|
+          JSON_KEY_MAP[key.to_s] || key.to_sym
+        end
+
+        attribute :retries, ::Petstore::Client::Types::Any.optional.meta(omittable: true).default(3)
+        attribute :mode, ::Petstore::Client::Types::Any.optional.meta(omittable: true).default('medium')
+      end
+    end
+
+    unless const_defined?(:TestNullableModel)
+      class TestNullableModel < Dry::Struct
+        ATTRIBUTE_MAP = { kept: 'kept', dropped: 'dropped' }.freeze
+        JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+        OPENAPI_TYPES = { kept: 'String', dropped: 'String' }.freeze
+        OPENAPI_FORMATS = {}.freeze
+        # Required and nullable: a nil value is written as an explicit null.
+        REQUIRED_NULLABLE = { kept: true }.freeze
+
+        transform_keys do |key|
+          JSON_KEY_MAP[key.to_s] || key.to_sym
+        end
+
+        attribute :kept, ::Petstore::Client::Types::Any.optional.meta(omittable: true)
+        attribute :dropped, ::Petstore::Client::Types::Any.optional.meta(omittable: true)
+      end
+    end
+
+    unless const_defined?(:TestStrictModel)
+      class TestStrictModel < Dry::Struct
+        ATTRIBUTE_MAP = { id: 'id' }.freeze
+        JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+        OPENAPI_TYPES = { id: 'Integer' }.freeze
+        OPENAPI_FORMATS = {}.freeze
+        # unevaluatedProperties:false: the deserialize path rejects undeclared keys.
+        UNEVALUATED_PROPERTIES_FALSE = true
+
+        transform_keys do |key|
+          JSON_KEY_MAP[key.to_s] || key.to_sym
+        end
+
+        attribute :id, ::Petstore::Client::Types::Any.optional.meta(omittable: true)
+      end
+    end
   end
 end
 
@@ -2129,5 +2182,80 @@ describe Petstore::Client::ObjectSerializer, 'wire contract for scalars, contain
 
   it 'bhv_serialization_064 a collection of unique values is written as a JSON array of its members' do
     _(Petstore::Client::ObjectSerializer.serialize(Set.new(%w[b a]))).must_equal('["a","b"]')
+  end
+end
+
+describe Petstore::Client::ObjectSerializer, 'schema defaults, nullable values, duration bounds and wire names' do
+  parallelize_me!
+
+  it 'bhv_serialization_020 writes a field the caller leaves unset with its schema default' do
+    model = Petstore::Client::Models::TestDefaultsModel.new({})
+
+    _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(model))).must_equal('retries' => 3, 'mode' => 'medium')
+  end
+
+  it 'keeps the value the caller sets in place of the schema default' do
+    model = Petstore::Client::Models::TestDefaultsModel.new(retries: 5)
+
+    _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(model))['retries']).must_equal 5
+  end
+
+  it 'bhv_serialization_066 writes a nil value only for the property that declares it nullable' do
+    model = Petstore::Client::Models::TestNullableModel.new(kept: nil, dropped: nil)
+
+    _(Petstore::Client::ObjectSerializer.serialize(model)).must_equal('{"kept":null}')
+  end
+
+  it 'decodes a present value for a nullable property as given' do
+    model = Petstore::Client::ObjectSerializer.deserialize('{"kept":"v","dropped":"w"}', 'TestNullableModel')
+
+    _([model.kept, model.dropped]).must_equal(%w[v w])
+  end
+
+  it 'bhv_serialization_047 formats a duration too large for a 64-bit nanosecond count without overflow' do
+    d = ISO8601::Duration.new('PT315576000000S')
+
+    _(Petstore::Client::ObjectSerializer.stringify(d)).must_equal('315576000000s')
+  end
+
+  it 'round-trips a duration too large for a 64-bit nanosecond count' do
+    edge = Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"315576000000s"}', 'EdgeCases')
+
+    _(edge.retry_after.to_seconds).must_equal(315_576_000_000)
+    _(Petstore::Client::ObjectSerializer.serialize(edge)).must_equal('{"retryAfter":"315576000000s"}')
+  end
+
+  it 'refuses an out-of-range duration string' do
+    _(proc {
+      Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"315576000001s"}', 'EdgeCases')
+    }).must_raise(Petstore::Client::Errors::SerializationError)
+  end
+
+  it 'bhv_serialization_048 writes a duration held as a header value as its protobuf-JSON seconds' do
+    _(Petstore::Client::ObjectSerializer.to_header_value(ISO8601::Duration.new('PT1H'))).must_equal('3600s')
+  end
+
+  it 'writes a duration on its own as a protobuf-JSON seconds string' do
+    _(Petstore::Client::ObjectSerializer.serialize(ISO8601::Duration.new('PT5M'))).must_equal('"300s"')
+  end
+
+  it 'bhv_serialization_050 reads and writes a property whose name begins with a digit under its wire name' do
+    edge = Petstore::Client::ObjectSerializer.deserialize('{"2fa":true}', 'EdgeCases')
+
+    _(edge.n2fa).must_equal(true)
+    _(Petstore::Client::ObjectSerializer.serialize(edge)).must_include('"2fa":true')
+  end
+
+  it 'bhv_serialization_051 a strict model exposes no separate public method for its unknown-key check' do
+    members = Petstore::Client::Models::TestStrictModel.public_instance_methods(false) +
+              Petstore::Client::Models::TestStrictModel.singleton_methods(false)
+
+    _(members.grep(/unknown|undeclared|strict/i)).must_be_empty
+  end
+
+  it 'deserialize refuses an undeclared key for a strict model through the one entry point' do
+    _(proc {
+      Petstore::Client::ObjectSerializer.deserialize('{"id":1,"extra":2}', 'TestStrictModel')
+    }).must_raise(Petstore::Client::Errors::SerializationError)
   end
 end

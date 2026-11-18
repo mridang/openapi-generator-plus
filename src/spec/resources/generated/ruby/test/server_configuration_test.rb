@@ -197,6 +197,21 @@ describe Petstore::Client::ServerConfiguration do
   end
 end
 
+describe Petstore::Client::ServerConfiguration, 'a configuration cannot change after creation' do
+  parallelize_me!
+
+  it 'bhv_servers_028 a server configuration and its variables cannot be changed after creation' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com',
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging]) }
+    )
+
+    _(-> { config.variables['extra'] = Petstore::Client::ServerVariable.new(default_value: 'x') }).must_raise FrozenError
+    _(config.variables.keys).must_equal(['env'])
+    _(config.variables['env'].enum_values).must_be :frozen?
+  end
+end
+
 describe Petstore::Client::ServerConfiguration, 'variables are not shared with the caller' do
   parallelize_me!
 

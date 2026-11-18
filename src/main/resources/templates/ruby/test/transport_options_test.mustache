@@ -377,7 +377,14 @@ describe {{moduleName}}::TransportOptions do
       _(error.message).must_include 'proxy'
     end
 
-    it 'rejects a connection combined with disabled TLS verification' do
+    it 'bhv_transport_080 rejects a proxy setting the client cannot apply instead of dropping it' do
+      error = assert_raises(ArgumentError) do
+        {{moduleName}}::TransportOptions.builder.proxy('socks5://proxy.example.com:1080').build
+      end
+      _(error.message).must_include 'scheme'
+    end
+
+    it 'bhv_transport_079 rejects a connection combined with disabled TLS verification' do
       error = assert_raises(ArgumentError) do
         {{moduleName}}::TransportOptions.builder.connection(Faraday.new('http://localhost')).verify_ssl(false).build
       end
