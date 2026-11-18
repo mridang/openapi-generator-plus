@@ -440,6 +440,155 @@ async fn test_bhv_misc_043_no_user_agent_is_omitted_when_cleared() {
     assert_eq!(None, head_header(&head, "user-agent"), "{}", head);
 }
 
+fn start_gzip_body_server(gzip: Vec<u8>) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                gzip.len()
+            );
+            let _ = std::io::Write::write_all(&mut stream, head.as_bytes());
+            let _ = std::io::Write::write_all(&mut stream, &gzip);
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+#[tokio::test]
+async fn test_bhv_misc_027_a_transport_failure_without_a_response_is_a_network_error_with_a_cause() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    drop(listener);
+    let client = DefaultApiClient::new(None);
+
+    let err = client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a refused connection must fail");
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "expected NetworkError, got: {}", err);
+    assert!(std::error::Error::source(&*err).is_some(), "the underlying cause is kept");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_031_a_proxy_credential_is_sent_only_with_user_info() {
+    let (proxy_url, with_info) = start_head_capture_server();
+    let addr = proxy_url.trim_start_matches("http://").to_string();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(&format!("http://user:pass@{}", addr))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    client
+        .send_request("GET", "http://api.example.com/x", &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    let head = with_info.recv().expect("no request captured");
+    assert!(head_header(&head, "proxy-authorization").is_some(), "{}", head);
+
+    let (proxy_url, without_info) = start_head_capture_server();
+    let addr = proxy_url.trim_start_matches("http://").to_string();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(&format!("http://{}", addr))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    client
+        .send_request("GET", "http://api.example.com/x", &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    let head = without_info.recv().expect("no request captured");
+    assert_eq!(None, head_header(&head, "proxy-authorization"), "{}", head);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_032_the_raw_response_exposes_status_body_and_headers_publicly() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 201 Created\r\nX-Raw: yes\r\nContent-Length: 8\r\nConnection: close\r\n\r\nraw-body",
+    );
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &base_url, &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code(), 201);
+    assert_eq!(resp.body(), "raw-body");
+    assert_eq!(resp.headers().get("x-raw").map(String::as_str), Some("yes"));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_037_an_undecoded_body_keeps_its_content_length() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello",
+    );
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &base_url, &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.headers().get("content-length").map(String::as_str), Some("5"));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_039_a_gzip_of_an_empty_or_zero_value_is_not_corrupt() {
+    for content in ["", "0"] {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        std::io::Write::write_all(&mut encoder, content.as_bytes()).expect("gzip write");
+        let gzip = encoder.finish().expect("gzip finish");
+        let base_url = start_gzip_body_server(gzip);
+        let client = DefaultApiClient::new(None);
+
+        let resp = client
+            .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+            .await
+            .expect("unexpected error");
+        assert_eq!(resp.body(), content, "the decoded content is returned unchanged");
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_040_response_header_names_are_returned_in_lower_case() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 200 OK\r\nX-Custom-Thing: v\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &base_url, &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.headers().get("x-custom-thing").map(String::as_str), Some("v"));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_041_a_non_standard_method_is_sent_with_its_body_intact() {
+    let base_url = start_method_echo_server();
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("Content-Type".to_string(), "text/plain".to_string());
+
+    let resp = client
+        .send_request(
+            "PURGE",
+            &format!("{}/test", base_url),
+            &headers,
+            Some(&RequestBody::Bytes(b"payload".to_vec())),
+        )
+        .await
+        .expect("unexpected error");
+    assert!(resp.body().contains(r#""method":"PURGE""#), "{}", resp.body());
+    assert!(resp.body().contains(r#""body":"payload""#), "{}", resp.body());
+}
+
 /// The allowReserved encoder hands the transport `[`/`]` as `%5B`/`%5D` and a
 /// literal `'`; the WHATWG URL parser behind reqwest then rewrites the `'` to
 /// `%27`. That rewrite is the documented FORCED difference of this SDK, pinned

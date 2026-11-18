@@ -2839,4 +2839,174 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert error.message =~ path
     assert error.message =~ "no such file or directory"
   end
+
+  # A loopback port nothing listens on, so a connection to it is refused at once.
+  defp closed_port_url do
+    {:ok, listen_socket} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen_socket)
+    :gen_tcp.close(listen_socket)
+    "http://127.0.0.1:#{port}"
+  end
+
+  test "bhv misc 027 a transport failure with no response raises a network error that keeps its cause" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{closed_port_url()}/x",
+          %{},
+          nil
+        )
+      end
+
+    assert err.cause != nil
+  end
+
+  test "bhv misc 030 a deadline that has already passed raises a timeout error and sends nothing" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, :reached_transport)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+      )
+
+    deadline = System.monotonic_time(:millisecond) - 1_000
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://custom.invalid/x",
+        %{},
+        nil,
+        deadline: deadline
+      )
+    end
+
+    Process.sleep(50)
+    refute_received :reached_transport
+  end
+
+  test "bhv misc 031 a proxy credential is kept only when the proxy URL includes user information" do
+    with_userinfo =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(proxy: "http://user:pass@proxy.example.com:8080")
+      )
+
+    without_userinfo =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(proxy: "http://proxy.example.com:8080")
+      )
+
+    assert with_userinfo.proxy_auth_header != nil
+    assert without_userinfo.proxy_auth_header == nil
+  end
+
+  test "bhv misc 032 the raw response exposes its status code, body and headers under public names" do
+    base_url = start_server(201, "text/plain", "raw-body", [{"X-Raw", "yes"}])
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/raw", %{}, nil)
+
+    assert response.status_code == 201
+    assert response.body == "raw-body"
+    assert response.headers["x-raw"] == "yes"
+  end
+
+  test "bhv misc 037 a body that is not decoded keeps its Content-Length header" do
+    base_url = start_server(200, "text/plain", "plain")
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/plain", %{}, nil)
+
+    assert response.headers["content-length"] == "5"
+  end
+
+  test "bhv misc 039 a gzip stream whose content is an empty string or zero is returned as that content" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    for content <- ["", "0"] do
+      base_url =
+        start_server(200, "text/plain", :zlib.gzip(content), [{"Content-Encoding", "gzip"}])
+
+      response =
+        PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
+
+      assert response.body == content
+    end
+  end
+
+  test "bhv misc 040 response header names are returned in lower case" do
+    base_url = start_server(200, "text/plain", "ok", [{"X-Custom-Thing", "v"}])
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/h", %{}, nil)
+
+    assert response.headers["x-custom-thing"] == "v"
+    refute Map.has_key?(response.headers, "X-Custom-Thing")
+  end
+
+  test "bhv misc 041 a request with a non-standard method is sent with its body intact" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:seen, request})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+      )
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :purge,
+      "http://custom.invalid/x",
+      %{"content-type" => "text/plain"},
+      "payload"
+    )
+
+    assert_received {:seen, request}
+    assert request.method == :purge
+    assert request.body == "payload"
+  end
+
+  test "bhv misc 043 a cleared user agent is omitted from the request entirely" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:seen, request})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new(user_agent: nil, req_options: [adapter: adapter])
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "http://custom.invalid/x",
+      %{},
+      nil
+    )
+
+    assert_received {:seen, request}
+    assert Req.Request.get_header(request, "user-agent") == []
+  end
 end
