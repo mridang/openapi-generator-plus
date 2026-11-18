@@ -451,8 +451,6 @@ public class MetadataTest
         Assert.Equal(withExtra.GetHashCode(), sameExtra.GetHashCode());
     }
 
-    private static object? NoObject() => null;
-
     [Fact]
     public void BhvEquality001SameValuesAreEqualAndANestedChangeIsNot()
     {
@@ -524,7 +522,7 @@ public class MetadataTest
     [Fact]
     public void BhvModels015ChangedCopyKeepsTheAdditionalProperties()
     {
-        var original = _serializer.Deserialize<Metadata>("{\"k\":1}")!;
+        var original = _serializer.Deserialize<Metadata>("{\"k\":\"1\"}")!;
 
         var copy = original with { CreatedAt = DateTimeOffset.UnixEpoch };
 
@@ -567,7 +565,9 @@ public class MetadataTest
     [Fact]
     public void BhvModels023KeysNamedLikeSdkMembersAreKeptAsAdditionalProperties()
     {
-        var metadata = _serializer.Deserialize<Metadata>("{\"ToString\":1,\"GetHashCode\":2}")!;
+        var metadata = _serializer.Deserialize<Metadata>(
+            "{\"ToString\":\"1\",\"GetHashCode\":\"2\"}"
+        )!;
 
         Assert.Contains("ToString", metadata.AdditionalProperties.Keys);
         Assert.Contains("GetHashCode", metadata.AdditionalProperties.Keys);
@@ -576,7 +576,7 @@ public class MetadataTest
     [Fact]
     public void BhvSerialization052UndeclaredKeysAreKeptOnListElements()
     {
-        var items = _serializer.Deserialize<List<Metadata>>("[{\"k\":1}]")!;
+        var items = _serializer.Deserialize<List<Metadata>>("[{\"k\":\"1\"}]")!;
 
         Assert.Contains("k", items[0].AdditionalProperties.Keys);
     }
@@ -584,8 +584,8 @@ public class MetadataTest
     [Fact]
     public void BhvSerialization053UndeclaredKeysAreWrittenBackWithTheirModel()
     {
-        var metadata = _serializer.Deserialize<Metadata>("{\"k\":2}");
+        var metadata = _serializer.Deserialize<Metadata>("{\"k\":\"2\"}");
 
-        Assert.Contains("\"k\":2", _serializer.Serialize(metadata), StringComparison.Ordinal);
+        Assert.Contains("\"k\":\"2\"", _serializer.Serialize(metadata), StringComparison.Ordinal);
     }
 }

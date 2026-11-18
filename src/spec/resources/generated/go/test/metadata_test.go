@@ -77,7 +77,7 @@ func TestMetadata_DeserializeFromJSON(t *testing.T) {
 // what carries the additional properties.
 func TestBhvModels012_Metadata_JsonFormDumpsTheAdditionalProperties(t *testing.T) {
 	t.Parallel()
-	metadata := models.Metadata{AdditionalProperties: map[string]any{"extraKey": "extraValue"}}
+	metadata := models.Metadata{AdditionalProperties: map[string]string{"extraKey": "extraValue"}}
 	raw, err := json.Marshal(metadata)
 	if err != nil {
 		t.Fatalf("failed to serialize Metadata: %v", err)
@@ -354,7 +354,7 @@ func TestBhvModels015_Metadata_ChangedCopyKeepsAdditionalProperties(t *testing.T
 	if err := json.Unmarshal([]byte(`"2024-01-15T10:30:00.000+00:00"`), &created); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	original := models.Metadata{AdditionalProperties: map[string]any{"extraKey": "extraValue"}}
+	original := models.Metadata{AdditionalProperties: map[string]string{"extraKey": "extraValue"}}
 	copied := original.WithCreatedAt(created)
 	if copied.AdditionalProperties["extraKey"] != "extraValue" {
 		t.Errorf("expected the copy to keep the additional property, got %v", copied.AdditionalProperties)
@@ -368,7 +368,7 @@ func TestBhvModels016_Metadata_CopyLeavesAnOmittedFieldAlone(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	original := models.Metadata{CreatedAt: &created}
-	copied := original.WithAdditionalProperties(map[string]any{"k": "v"})
+	copied := original.WithAdditionalProperties(map[string]string{"k": "v"})
 	if copied.CreatedAt == nil || copied.CreatedAt.String() != original.CreatedAt.String() {
 		t.Errorf("expected the omitted createdAt kept, got %v", copied.CreatedAt)
 	}
@@ -382,9 +382,9 @@ func TestBhvModels016_Metadata_CopyLeavesAnOmittedFieldAlone(t *testing.T) {
 
 func TestBhvModels019_Metadata_DifferentFieldValuesCompareUnequal(t *testing.T) {
 	t.Parallel()
-	first := models.Metadata{AdditionalProperties: map[string]any{"k": "1"}}
-	second := models.Metadata{AdditionalProperties: map[string]any{"k": "2"}}
-	if first.Equal(second) {
+	first := models.Metadata{AdditionalProperties: map[string]string{"k": "1"}}
+	second := models.Metadata{AdditionalProperties: map[string]string{"k": "2"}}
+	if first.Equal(&second) {
 		t.Error("expected models with different values to compare unequal")
 	}
 }
