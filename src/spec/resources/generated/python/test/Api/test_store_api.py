@@ -22,6 +22,7 @@ from petstore_client.errors.bad_request_exception import BadRequestException
 from petstore_client.errors.client_exception import ClientException
 from petstore_client.errors.conflict_exception import ConflictException
 from petstore_client.errors.forbidden_exception import ForbiddenException
+from petstore_client.errors.server_exception import ServerException
 from petstore_client.errors.unauthorized_exception import UnauthorizedException
 from petstore_client.errors.unprocessable_entity_exception import (
     UnprocessableEntityException,
@@ -270,7 +271,7 @@ class TestStoreApiErrorHandling:
             (409, ConflictException),
             (418, ClientException),
             (500, InternalServerErrorException),
-            (502, ServerException),
+            (507, ServerException),
         ],
     )
     async def test_bhv_operations_138_delete_order_picks_the_status_specific_error_class(

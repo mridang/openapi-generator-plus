@@ -1261,6 +1261,14 @@ class PlainTextApiClient(CapturingApiClient):
         return ApiHttpResponse(status_code=200, body='hello', headers={'Content-Type': 'text/plain'})
 
 
+class MalformedJsonApiClient(CapturingApiClient):
+    """API client that returns a 2xx with a malformed JSON body."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        return ApiHttpResponse(status_code=200, body='{"id": 1, ', headers={'Content-Type': 'application/json'})
+
+
 class VendorJsonApiClient(CapturingApiClient):
     """API client that returns a vendor JSON response (application/problem+json)."""
 

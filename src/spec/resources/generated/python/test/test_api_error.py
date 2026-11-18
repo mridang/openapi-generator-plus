@@ -383,11 +383,13 @@ class TestFromResponse:
         assert type(err) is InternalServerErrorException
         assert err.status_code == 500
 
-    def test_bhv_errors_070_a_502_response_becomes_a_server_error(self) -> None:
-        err = ApiException.from_response(502, None, None)
+    def test_bhv_errors_070_an_unlisted_5xx_response_becomes_a_server_error(
+        self,
+    ) -> None:
+        err = ApiException.from_response(507, None, None)
 
         assert type(err) is ServerException
-        assert err.status_code == 502
+        assert err.status_code == 507
 
     def test_bhv_errors_056_status_at_or_above_600_is_not_a_server_error(self) -> None:
         # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
