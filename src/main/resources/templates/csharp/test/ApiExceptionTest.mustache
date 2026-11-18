@@ -660,12 +660,12 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void BhvErrors070A502ResponseBecomesAServerError()
+    public void BhvErrors070AnUnlistedServerStatusBecomesAServerError()
     {
-        var ex = ApiException.FromResponse(502, new Dictionary<string, string>(), null);
+        var ex = ApiException.FromResponse(507, new Dictionary<string, string>(), null);
 
-        Assert.IsAssignableFrom<ServerException>(ex);
-        Assert.Equal(502, ex.StatusCode);
+        Assert.IsType<ServerException>(ex);
+        Assert.Equal(507, ex.StatusCode);
     }
 
     [Fact]
