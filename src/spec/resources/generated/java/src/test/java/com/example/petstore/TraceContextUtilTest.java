@@ -21,10 +21,14 @@ import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import io.opentelemetry.context.propagation.TextMapPropagator;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -144,6 +148,46 @@ class TraceContextUtilTest {
       assertEquals(3, headers.size());
       assertEquals("Bearer token", headers.get("Authorization"));
       assertEquals("application/json", headers.get("Content-Type"));
+      assertEquals("abc-123", headers.get("X-Request-ID"));
+    } finally {
+      GlobalOpenTelemetry.resetForTest();
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "bhvMisc002 a registered propagator injects the trace context and keeps existing headers")
+  void bhvMisc002RegisteredPropagatorIsUsedAndExistingHeadersAreKept() {
+    GlobalOpenTelemetry.resetForTest();
+    TextMapPropagator registered =
+        new TextMapPropagator() {
+          @Override
+          public Collection<String> fields() {
+            return java.util.List.of("x-caller-trace");
+          }
+
+          @Override
+          public <C> void inject(
+              Context context, @javax.annotation.Nullable C carrier, TextMapSetter<C> setter) {
+            if (carrier != null) {
+              setter.set(carrier, "x-caller-trace", "registered");
+            }
+          }
+
+          @Override
+          public <C> Context extract(
+              Context context, @javax.annotation.Nullable C carrier, TextMapGetter<C> getter) {
+            return context;
+          }
+        };
+    try {
+      OpenTelemetrySdk.builder()
+          .setPropagators(ContextPropagators.create(registered))
+          .buildAndRegisterGlobal();
+      Map<String, String> headers = new HashMap<>();
+      headers.put("X-Request-ID", "abc-123");
+      TraceContextUtil.injectTraceContext(headers);
+      assertEquals("registered", headers.get("x-caller-trace"));
       assertEquals("abc-123", headers.get("X-Request-ID"));
     } finally {
       GlobalOpenTelemetry.resetForTest();

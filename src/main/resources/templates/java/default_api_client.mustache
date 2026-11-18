@@ -1209,13 +1209,16 @@ public final class DefaultApiClient implements ApiClient {
     }
 
     private static final Pattern CHARSET_PATTERN =
-            Pattern.compile("(?i)charset\\s*=\\s*\"?([^\";\\s]+)\"?");
+            Pattern.compile("(?i)(?:^|;)\\s*charset\\s*=\\s*\"?([^\";\\s]+)\"?");
 
     /**
      * Parse the {@code charset=} parameter from a Content-Type header value.
      *
-     * <p>Falls back to UTF-8 if the header omits a charset, names an unsupported
-     * charset, or names an illegal charset (no exception is propagated).
+     * <p>The parameter is matched by name, ignoring letter case and spacing around
+     * the {@code =}: a parameter that merely ends in {@code charset} (such as
+     * {@code xcharset=}) is not the charset. Falls back to UTF-8 if the header omits a
+     * charset, names an unsupported charset, or names an illegal charset (no exception is
+     * propagated).
      *
      * @param contentType the raw Content-Type header value (possibly empty)
      * @return the resolved {@link Charset}, never {@code null}

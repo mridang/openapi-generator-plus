@@ -1051,7 +1051,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void noRedirectRequestCarriesNoTransportDefaultHeaders() throws Exception {
+  void bhvAuth010NoRedirectRequestCarriesNoTransportDefaultHeaders() throws Exception {
     TransportOptions transport =
         TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -1752,6 +1752,12 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvSerialization056QuotesAndBackslashesInAFieldNameAreEscaped() throws Exception {
+    String part = renderMultipartPart("a\"b\\c", "x");
+    assertTrue(part.contains("name=\"a\\\"b\\\\c\""), part);
+  }
+
+  @Test
   void bhvSerializationWire042MultipartFilenameBackslashEscapesQuotes() {
     String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
     assertTrue(directive.contains("a\\\"b.txt"));
@@ -2409,6 +2415,36 @@ class DefaultApiClientUnitTest {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/latin1", Map.of(), null);
     assertEquals("é", response.body());
+  }
+
+  @Test
+  void bhvSerialization055CharsetParameterIsMatchedByNameNeverBySuffix() throws Exception {
+    // A parameter that only ends in "charset" is not the charset, so the UTF-8 body decodes as
+    // UTF-8.
+    HttpServer suffixed = HttpServer.create(new InetSocketAddress(0), 0);
+    suffixed.createContext(
+        "/",
+        exchange -> {
+          byte[] body = "héllo".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "text/plain; xcharset=ISO-8859-1");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    suffixed.start();
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient()
+              .sendRequest(
+                  "GET",
+                  "http://localhost:" + suffixed.getAddress().getPort() + "/",
+                  Map.of(),
+                  null);
+      assertEquals("héllo", response.body());
+    } finally {
+      suffixed.stop(0);
+    }
   }
 
   @Test
@@ -3428,6 +3464,96 @@ class DefaultApiClientUnitTest {
     } finally {
       release.countDown();
       slow.stop(0);
+    }
+  }
+
+  @Test
+  void bhvLifecycle037ClosingWaitsForEveryInFlightRequestAndReleasesOnce() throws Exception {
+    // Two requests are in flight when the client closes. The transport is released only
+    // when the last of them finishes, and a second close releases nothing further.
+    var firstEntered = new java.util.concurrent.CountDownLatch(1);
+    var secondEntered = new java.util.concurrent.CountDownLatch(1);
+    var releaseFirst = new java.util.concurrent.CountDownLatch(1);
+    var releaseSecond = new java.util.concurrent.CountDownLatch(1);
+    HttpServer slow = HttpServer.create(new InetSocketAddress(0), 0);
+    slow.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
+    slow.createContext(
+        "/first",
+        exchange -> {
+          firstEntered.countDown();
+          awaitQuietly(releaseFirst);
+          finishWith(exchange, "first");
+        });
+    slow.createContext(
+        "/second",
+        exchange -> {
+          secondEntered.countDown();
+          awaitQuietly(releaseSecond);
+          finishWith(exchange, "second");
+        });
+    slow.start();
+    var firstResult = new java.util.concurrent.atomic.AtomicReference<ApiHttpResponse>();
+    var secondResult = new java.util.concurrent.atomic.AtomicReference<ApiHttpResponse>();
+    try {
+      DefaultApiClient client = new DefaultApiClient();
+      Thread first =
+          new Thread(
+              () ->
+                  firstResult.set(
+                      client.sendRequest(
+                          "GET",
+                          "http://localhost:" + slow.getAddress().getPort() + "/first",
+                          Map.of(),
+                          null)));
+      Thread second =
+          new Thread(
+              () ->
+                  secondResult.set(
+                      client.sendRequest(
+                          "GET",
+                          "http://localhost:" + slow.getAddress().getPort() + "/second",
+                          Map.of(),
+                          null)));
+      first.start();
+      second.start();
+      assertTrue(firstEntered.await(10, java.util.concurrent.TimeUnit.SECONDS));
+      assertTrue(secondEntered.await(10, java.util.concurrent.TimeUnit.SECONDS));
+
+      client.close();
+      releaseFirst.countDown();
+      first.join(10_000);
+
+      assertEquals("first", java.util.Objects.requireNonNull(firstResult.get()).body());
+      assertFalse(client.isTransportReleased(), "the second request is still in flight");
+
+      releaseSecond.countDown();
+      second.join(10_000);
+
+      assertEquals("second", java.util.Objects.requireNonNull(secondResult.get()).body());
+      assertTrue(client.isTransportReleased(), "the last request released the transport");
+      client.close();
+      assertTrue(client.isTransportReleased());
+    } finally {
+      releaseFirst.countDown();
+      releaseSecond.countDown();
+      slow.stop(0);
+    }
+  }
+
+  private static void awaitQuietly(java.util.concurrent.CountDownLatch latch) {
+    try {
+      latch.await();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private static void finishWith(com.sun.net.httpserver.HttpExchange exchange, String body)
+      throws IOException {
+    byte[] response = body.getBytes(StandardCharsets.UTF_8);
+    exchange.sendResponseHeaders(200, response.length);
+    try (OutputStream os = exchange.getResponseBody()) {
+      os.write(response);
     }
   }
 

@@ -728,6 +728,19 @@ class ValueSerializerTest {
     }
 
     @Test
+    @DisplayName(
+        "bhvSerialization016 an object-valued delimited parameter alternates keys and values")
+    void bhvSerialization016ObjectInDelimitedStyleAlternatesKeysAndValues() {
+      Map<String, String> fields = new java.util.LinkedHashMap<>();
+      fields.put("role", "admin");
+      fields.put("firstName", "Alex");
+      assertEquals(
+          "role|admin|firstName|Alex",
+          ValueSerializer.serializeStyled(
+              "user", fields, "query", "object", null, "pipeDelimited", false));
+    }
+
+    @Test
     @DisplayName("bhvSerializationParam076 scalar returns stringified value")
     void bhvSerializationParam076ScalarReturnsStringifiedValue() {
       assertEquals(
