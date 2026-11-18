@@ -830,6 +830,26 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("bhvSerialization066 a null is kept only where the property is declared nullable")
+    void bhvSerialization066NullIsKeptOnlyWhereThePropertyIsNullable() {
+      assertThrows(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"name\":null,\"photoUrls\":[]}", com.example.petstore.models.Pet.class));
+      com.example.petstore.models.RequiredNullable kept =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"note\":null}", com.example.petstore.models.RequiredNullable.class));
+      assertNull(kept.note);
+      com.example.petstore.models.RequiredNullable valued =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"note\":\"n\"}", com.example.petstore.models.RequiredNullable.class));
+      assertEquals("n", valued.note);
+    }
+
+    @Test
     @DisplayName(
         "bhvSerializationObject089 null value in a map of integers throws SerializationException")
     void bhvSerializationObject089NullValueInIntegerMapThrows() {
