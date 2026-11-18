@@ -42,7 +42,7 @@ test('bhv servers 010 variables resolve to their default values', function (): v
     expect($server->getUrl())->toBe('https://api.example.com/api/v3');
 });
 
-test('overrides substitute matching variables', function (): void {
+test('bhv misc 157 overrides substitute matching variables', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com/api/{version}',
         variables: [
