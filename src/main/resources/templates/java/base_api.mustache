@@ -480,81 +480,95 @@ public abstract class BaseApi {
         }
 
         T data = null;
-        if (successDecoder != null && response.body() != null && !response.body().isEmpty()) {
-            data = successDecoder.apply(response.statusCode(), response.body());
-        } else if (returnType != null && response.body() != null && !response.body().isEmpty()) {
-            String responseContentType = "";
-            if (response.headers() != null) {
-                for (Map.Entry<String, String> entry : response.headers().entrySet()) {
-                    if (entry.getKey().equalsIgnoreCase("content-type")) {
-                        responseContentType = entry.getValue();
-                        break;
+        try {
+            if (successDecoder != null && response.body() != null && !response.body().isEmpty()) {
+                data = successDecoder.apply(response.statusCode(), response.body());
+            } else if (returnType != null && response.body() != null && !response.body().isEmpty()) {
+                String responseContentType = "";
+                if (response.headers() != null) {
+                    for (Map.Entry<String, String> entry : response.headers().entrySet()) {
+                        if (entry.getKey().equalsIgnoreCase("content-type")) {
+                            responseContentType = entry.getValue();
+                            break;
+                        }
                     }
                 }
-            }
-            boolean binaryReturnType =
-                    returnType == InputStream.class
-                            || returnType == byte[].class;
-            if (binaryReturnType) {
-                /* Binary return types (InputStream / byte[]) must never be
-                 * JSON-deserialized. The transport base64-encodes the body
-                 * for non-text content types and leaves text content types
-                 * (including JSON) as a decoded string, so recover the raw
-                 * bytes accordingly before wrapping. */
-                byte[] rawBytes;
-                if (!isTextResponseContentType(responseContentType)) {
-                    rawBytes = java.util.Base64.getDecoder().decode(response.body());
-                } else if (returnType == byte[].class
-                        && headerSelector.isJsonMime(responseContentType)) {
-                    /* A top-level `format: byte` value carried as application/json
-                     * arrives as a JSON string literal (e.g. "dGVzdA==", quotes
-                     * included). The transport leaves JSON bodies as a decoded
-                     * string, so we must JSON-parse the literal first and then
-                     * base64-decode the inner string to recover the raw bytes —
-                     * returning neither the quoted literal's UTF-8 bytes nor the
-                     * still-encoded base64 string. */
-                    rawBytes = objectSerializer.deserialize(response.body(), byte[].class);
-                } else {
-                    rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
-                }
-                if (returnType == InputStream.class) {
-                    /* Cast to the type variable T is guarded by the runtime
-                     * check above (returnType == InputStream.class),
-                     * so it is provably safe; javac cannot see this, hence the
-                     * method-level @SuppressWarnings("unchecked"). */
-                    T streamBody = (T) new ByteArrayInputStream(rawBytes);
-                    data = streamBody;
-                } else {
-                    /* Guarded by returnType == byte[].class above. */
-                    T bytesBody = (T) rawBytes;
-                    data = bytesBody;
-                }
-            } else if (!responseContentType.isEmpty()
-                    && !headerSelector.isJsonMime(responseContentType)) {
-                /* Non-JSON, non-binary response: only a String return type
-                 * can carry a text-class body verbatim. Anything else is a
-                 * serialization error naming the Content-Type, never an
-                 * unchecked cast into the model slot. */
-                if (returnType != String.class) {
-                    String mediaType = responseContentType;
-                    int semi = mediaType.indexOf(';');
-                    if (semi >= 0) {
-                        mediaType = mediaType.substring(0, semi);
+                boolean binaryReturnType =
+                        returnType == InputStream.class
+                                || returnType == byte[].class;
+                if (binaryReturnType) {
+                    /* Binary return types (InputStream / byte[]) must never be
+                     * JSON-deserialized. The transport base64-encodes the body
+                     * for non-text content types and leaves text content types
+                     * (including JSON) as a decoded string, so recover the raw
+                     * bytes accordingly before wrapping. */
+                    byte[] rawBytes;
+                    if (!isTextResponseContentType(responseContentType)) {
+                        rawBytes = java.util.Base64.getDecoder().decode(response.body());
+                    } else if (returnType == byte[].class
+                            && headerSelector.isJsonMime(responseContentType)) {
+                        /* A top-level `format: byte` value carried as application/json
+                         * arrives as a JSON string literal (e.g. "dGVzdA==", quotes
+                         * included). The transport leaves JSON bodies as a decoded
+                         * string, so we must JSON-parse the literal first and then
+                         * base64-decode the inner string to recover the raw bytes —
+                         * returning neither the quoted literal's UTF-8 bytes nor the
+                         * still-encoded base64 string. */
+                        rawBytes = objectSerializer.deserialize(response.body(), byte[].class);
+                    } else {
+                        rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
                     }
-                    throw new SerializationException(
-                            "Unexpected response Content-Type '"
-                                    + mediaType.trim()
-                                    + "' for "
-                                    + getClass().getSimpleName()
-                                    + "."
-                                    + operationId
-                                    + ": expected a JSON body");
+                    if (returnType == InputStream.class) {
+                        /* Cast to the type variable T is guarded by the runtime
+                         * check above (returnType == InputStream.class),
+                         * so it is provably safe; javac cannot see this, hence the
+                         * method-level @SuppressWarnings("unchecked"). */
+                        T streamBody = (T) new ByteArrayInputStream(rawBytes);
+                        data = streamBody;
+                    } else {
+                        /* Guarded by returnType == byte[].class above. */
+                        T bytesBody = (T) rawBytes;
+                        data = bytesBody;
+                    }
+                } else if (!responseContentType.isEmpty()
+                        && !headerSelector.isJsonMime(responseContentType)) {
+                    /* Non-JSON, non-binary response: only a String return type
+                     * can carry a text-class body verbatim. Anything else is a
+                     * serialization error naming the Content-Type, never an
+                     * unchecked cast into the model slot. */
+                    if (returnType != String.class) {
+                        String mediaType = responseContentType;
+                        int semi = mediaType.indexOf(';');
+                        if (semi >= 0) {
+                            mediaType = mediaType.substring(0, semi);
+                        }
+                        throw new SerializationException(
+                                "Unexpected response Content-Type '"
+                                        + mediaType.trim()
+                                        + "' for "
+                                        + getClass().getSimpleName()
+                                        + "."
+                                        + operationId
+                                        + ": expected a JSON body");
+                    }
+                    T rawBody = (T) response.body();
+                    data = rawBody;
+                } else {
+                    data = objectSerializer.deserialize(response.body(), returnType);
                 }
-                T rawBody = (T) response.body();
-                data = rawBody;
-            } else {
-                data = objectSerializer.deserialize(response.body(), returnType);
             }
+        } catch (SerializationException decodeFailure) {
+            /* errors205: a body that does not decode raises the SerializationException
+             * of the decode, now carrying the response that held it, so a caller can see
+             * the status, the headers, the raw body and the request that drew it. */
+            throw new SerializationException(
+                    String.valueOf(decodeFailure.getMessage()),
+                    decodeFailure,
+                    response.statusCode(),
+                    response.headers(),
+                    response.body(),
+                    method,
+                    path);
         }
         return new ApiResult<>(
                 response.statusCode(),
