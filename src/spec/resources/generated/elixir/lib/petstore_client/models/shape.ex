@@ -86,4 +86,47 @@ defmodule PetstoreClient.Models.Shape do
       label: "String.t()"
     }
   end
+
+  @doc "Discriminator property name."
+  @spec openapi_discriminator_name() :: atom()
+  def openapi_discriminator_name, do: :shapeType
+
+  @doc "Discriminator mapping: each wire value names the subtype it decodes into."
+  @spec openapi_discriminator_mapping() :: %{String.t() => atom()}
+  def openapi_discriminator_mapping do
+    %{
+      "Circle" => :Circle,
+      "Square" => :Square
+    }
+  end
+
+  @doc """
+  Decodes a payload of this allOf base into the subtype its discriminator names.
+
+  A missing discriminator, or a value the mapping does not list, raises
+  `SerializationError` and the message names the value.
+  """
+  @spec build(term()) :: term()
+  def build(data) when not is_map(data) do
+    raise PetstoreClient.Errors.SerializationError,
+      message: "Expected a JSON object for Shape, got #{inspect(data)}"
+  end
+
+  def build(data) do
+    discriminator_value = data[to_string(openapi_discriminator_name())]
+
+    if is_nil(discriminator_value) do
+      raise PetstoreClient.Errors.SerializationError,
+        message: "Missing discriminator '#{openapi_discriminator_name()}' for Shape"
+    end
+
+    klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
+
+    if is_nil(klass_name) do
+      raise PetstoreClient.Errors.SerializationError,
+        message: "Unknown discriminator value for Shape: '#{discriminator_value}'"
+    end
+
+    PetstoreClient.ObjectSerializer.convert_to_type(data, to_string(klass_name))
+  end
 end
