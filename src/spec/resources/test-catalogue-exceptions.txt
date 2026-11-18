@@ -284,3 +284,4 @@ swift | serialization041 | Swift maps format time to String with no time-of-day 
 swift | serialization043 | Swift maps format time to String with no time-of-day type in Foundation, so a time of day is kept as its wire string and never written from a time value
 swift | auth001 | Swift OAuth2 authenticators expose only the async authHeaders() requirement, so a synchronous header call does not compile and there is no sync accessor to raise from
 swift | transport076 | Swift on Linux refuses any proxy setting because URLSession applies no proxy there, so proxy credentials never reach a request on this platform and cannot be checked
+rust | redirects045 | reqwest Client exposes no getter for its redirect policy, so DefaultApiClient::with_client cannot tell a client that follows redirects and cannot refuse one; the Policy::none requirement is documented on with_client instead

@@ -1365,3 +1365,46 @@ fn test_bhv_errors_084_an_error_built_without_a_response_reports_status_zero_by_
     let err = ApiError::new(0, "no response".to_string(), None, None);
     assert_eq!(err.status_code(), 0);
 }
+
+/// A typed view of an error body that starts with a byte order mark decodes the same as the same
+/// body without it.
+#[test]
+fn test_bhv_errors_072_a_typed_view_ignores_a_leading_byte_order_mark() {
+    let json = r#"{"code":7,"message":"nope"}"#;
+    let with_bom = ApiError::new(
+        400,
+        "bad request".to_string(),
+        None,
+        Some(format!("\u{feff}{json}")),
+    );
+    let without_bom = ApiError::new(400, "bad request".to_string(), None, Some(json.to_string()));
+
+    let typed = with_bom
+        .typed_error_body::<serde_json::Value>()
+        .expect("a body with a byte order mark must decode");
+    let plain = without_bom
+        .typed_error_body::<serde_json::Value>()
+        .expect("a body without a byte order mark must decode");
+
+    assert_eq!(plain, typed);
+    assert_eq!(
+        Some(serde_json::json!({"code": 7, "message": "nope"})),
+        typed
+    );
+}
+
+/// A rendered error body cut at its size limit never splits a multi-byte character: the cut moves
+/// back to the last whole character.
+#[test]
+fn test_bhv_errors_075_a_rendered_body_cut_at_the_limit_never_splits_a_multi_byte_character() {
+    /* The two-byte character starts at byte 1023, so the 1 KiB cut at byte 1024 falls inside it. */
+    let body = format!("{}\u{e9}b", "a".repeat(1023));
+    let err = ApiError::new(502, "bad gateway".to_string(), None, Some(body));
+    assert_eq!(
+        format!(
+            "bad gateway\nHTTP status code: 502\nResponse body: {}... (3 more bytes)",
+            "a".repeat(1023)
+        ),
+        err.to_string()
+    );
+}

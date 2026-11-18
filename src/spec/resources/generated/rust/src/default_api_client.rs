@@ -1222,6 +1222,38 @@ mod tests {
         assert_eq!(2, collected.len());
     }
 
+    /* A request with no body has nothing to leak, so a redirect from HTTPS to plain HTTP
+     * that keeps its method is followed for every method and status that keeps it. */
+    #[test]
+    fn test_bhv_redirects_039_a_bodyless_request_is_followed_across_https_to_http() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+
+        for status in [307, 308] {
+            for method in ["GET", "DELETE", "POST"] {
+                assert!(
+                    !is_https_to_http_body_replay(status, method, Some(&https), &http, false),
+                    "{status} {method} without a body must be followed across https to http"
+                );
+            }
+        }
+    }
+
+    /* A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused:
+     * a POST becomes a GET with no body, so no body is ever replayed in cleartext. */
+    #[test]
+    fn test_bhv_redirects_040_a_301_302_or_303_downgrade_to_http_is_followed_not_refused() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+
+        for status in [301, 302, 303] {
+            assert!(
+                !is_https_to_http_body_replay(status, "POST", Some(&https), &http, true),
+                "{status} from https to http must be followed, not refused"
+            );
+        }
+    }
+
     /* ── HTTPS->HTTP body-replay predicate ──
      *
      * The predicate gates the body-replay guard in `send_request_with_options`

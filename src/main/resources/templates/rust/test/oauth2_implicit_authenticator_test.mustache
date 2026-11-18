@@ -192,3 +192,43 @@ fn test_bhv_authoauthtwoimplicit_011_redacted_representation_shows_the_non_secre
     let after = format!("{:?}", auth);
     assert!(after.contains("access_token: Some(\"***\")"), "{}", after);
 }
+
+/// Replacing the access token while other callers read the authentication headers is race-free:
+/// every read gets one complete token that was set.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_001_replacing_the_token_while_headers_are_read_is_race_free() {
+    let auth = std::sync::Arc::new(create_authenticator());
+    auth.set_access_token("token-0").unwrap();
+
+    let mut writers = Vec::new();
+    for i in 1..=200 {
+        let auth = auth.clone();
+        writers.push(tokio::spawn(async move {
+            auth.set_access_token(&format!("token-{i}")).expect("a valid token is accepted");
+        }));
+    }
+    let mut readers = Vec::new();
+    for _ in 0..200 {
+        let auth = auth.clone();
+        readers.push(tokio::spawn(async move {
+            let headers = auth.auth_headers().await;
+            headers.get("Authorization").cloned()
+        }));
+    }
+
+    for writer in writers {
+        writer.await.expect("writer should not panic");
+    }
+    for reader in readers {
+        let header = reader
+            .await
+            .expect("reader should not panic")
+            .expect("the token is set before any read");
+        let token = header.strip_prefix("Bearer ").expect("a Bearer header");
+        let written = token
+            .strip_prefix("token-")
+            .and_then(|n| n.parse::<u32>().ok())
+            .is_some_and(|n| (1..=200).contains(&n));
+        assert!(token == "token-0" || written, "a read observed a token that was never set: {token}");
+    }
+}
