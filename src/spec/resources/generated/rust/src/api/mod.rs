@@ -1,4 +1,4 @@
-mod base_api;
+pub(crate) mod base_api;
 mod pet_api;
 pub use pet_api::*;
 mod problems_api;

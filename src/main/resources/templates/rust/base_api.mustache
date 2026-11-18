@@ -12,6 +12,7 @@ use crate::errors::api_error::ApiError;
 use crate::api_http_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
+use crate::call_hook::{CallInfo, CallScope};
 use crate::configuration::Configuration;
 use crate::errors::configuration_error::ConfigurationError;
 use crate::header_selector::HeaderSelector;
@@ -80,6 +81,11 @@ fn is_no_auth(auth: &dyn Authenticator) -> bool {
 pub(crate) struct InvokeApiParams<'a> {
     pub method: &'a str,
     pub path: &'a str,
+    /// The operation id exactly as written in the specification, handed to the
+    /// call hook.
+    pub operation_id: &'a str,
+    /// The path template of the operation, handed to the call hook.
+    pub url_template: &'a str,
     /// Query parameters as `(name, value, allow_reserved)` triples. When
     /// `allow_reserved` is true (OAS `allowReserved: true`), the value's RFC 3986
     /// reserved characters are left literal on the wire; otherwise the value is
@@ -170,6 +176,12 @@ impl BaseApi {
         self
     }
 
+    /// Sets the call hook of this API.
+    pub(crate) fn with_call_hook(mut self, hook: Arc<dyn crate::call_hook::CallHook>) -> Self {
+        self.config = self.config.with_call_hook(hook);
+        self
+    }
+
     /// The credential of the first of `schemes` that the client holds, in the
     /// order the operation lists them, or `None` when it holds none of them.
     pub(crate) fn authenticator_for(&self, schemes: &[&str]) -> Option<Arc<dyn Authenticator>> {
@@ -187,9 +199,22 @@ impl BaseApi {
         &self,
         params: InvokeApiParams<'_>,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let mut scope = CallScope::new();
+        let result = self.invoke_scoped(params, &mut scope).await;
+        scope.finish(&result);
+        result
+    }
+
+    /// The call without the hook's last step: the caller finishes `scope` once
+    /// it has the result it returns, so a decoding failure is observed too.
+    async fn invoke_scoped(
+        &self,
+        params: InvokeApiParams<'_>,
+        scope: &mut CallScope,
+    ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         let method = params.method;
         let request_path = crate::errors::api_error::request_path_of(params.path);
-        self.invoke_api_inner(params, &request_path)
+        self.invoke_api_inner(params, &request_path, scope)
             .await
             .map_err(|err| crate::errors::api_error::attach_request(err, method, &request_path))
     }
@@ -198,6 +223,7 @@ impl BaseApi {
         &self,
         params: InvokeApiParams<'_>,
         request_path: &str,
+        scope: &mut CallScope,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(timeout) = params.call.timeout {
             if timeout.is_zero() {
@@ -241,6 +267,9 @@ impl BaseApi {
                 query_params.push((k, v, false));
             }
         }
+
+        /* The URL the call hook sees never carries the query string. */
+        let url_end = request_url.len();
 
         /* Build query string */
         let query_string = build_query_string(&query_params);
@@ -319,6 +348,18 @@ impl BaseApi {
         /* Inject trace context */
         trace_context_util::inject_trace_context(&mut headers);
 
+        /* The call hook starts once per call, right after the trace context is
+         * injected: the headers are final, so it can read and replace any of
+         * them. A header it sets stays in this map for every send of the call. */
+        scope.begin(self.config.call_hook(), &mut headers, || CallInfo {
+            operation_id: params.operation_id.to_string(),
+            method: params.method.to_ascii_uppercase(),
+            url_template: params.url_template.to_string(),
+            url: strip_query_and_fragment(&request_url[..url_end]).to_string(),
+            server_address: server_address_of(&request_url[..url_end]),
+        });
+        let hooked = scope.is_hooked();
+
         /* Serialize body. For multipart/form-data we hand the structured
          * fields to the API client as `RequestBody::Multipart`; the client's
          * `serialize_multipart_body` generates the boundary, sets the
@@ -381,7 +422,7 @@ impl BaseApi {
                     if attempt < max_retries && is_retryable_error(err.as_ref()) {
                         let delay = retry_delay(attempt, None);
                         if fits_budget(deadline, delay)
-                            && refresh_request_headers(effective_auth, &mut headers).await
+                            && refresh_request_headers(effective_auth, &mut headers, hooked).await
                         {
                             tokio::time::sleep(delay).await;
                             attempt += 1;
@@ -418,7 +459,7 @@ impl BaseApi {
                     .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
                     .and_then(|(_, value)| parse_retry_after(value));
                 let delay = retry_delay(attempt, retry_after);
-                if fits_budget(deadline, delay) && refresh_request_headers(effective_auth, &mut headers).await {
+                if fits_budget(deadline, delay) && refresh_request_headers(effective_auth, &mut headers, hooked).await {
                     tokio::time::sleep(delay).await;
                     attempt += 1;
                     continue;
@@ -426,6 +467,8 @@ impl BaseApi {
             }
             break response;
         };
+
+        scope.record_response(response.status_code(), response.headers());
 
         /* Check for errors */
         if response.status_code() < 200 || response.status_code() >= 300 {
@@ -454,9 +497,14 @@ impl BaseApi {
         let is_binary_return = params.return_type == "Vec<u8>";
         let method = params.method;
         let request_path = crate::errors::api_error::request_path_of(params.path);
-        let response = self.invoke_api(params).await?;
-        decode_response(&response, is_binary_return)
-            .map_err(|err| attach_response(err, &response, method, &request_path))
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped(params, &mut scope).await {
+            Ok(response) => decode_response(&response, is_binary_return)
+                .map_err(|err| attach_response(err, &response, method, &request_path)),
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        result
     }
 
     /// Invokes an operation that declares several 2xx responses with different
@@ -477,21 +525,32 @@ impl BaseApi {
     {
         let method = params.method;
         let request_path = crate::errors::api_error::request_path_of(params.path);
-        let response = self.invoke_api(params).await?;
-        let data = if response.body().is_empty() {
-            None
-        } else {
-            decode(response.status_code(), response.body().as_bytes()).map_err(|err| {
-                err.with_response(response.status_code(), response.headers(), response.body())
-                    .with_request(method, &request_path)
-            })?
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped(params, &mut scope).await {
+            Ok(response) => {
+                let data = if response.body().is_empty() {
+                    Ok(None)
+                } else {
+                    decode(response.status_code(), response.body().as_bytes()).map_err(|err| {
+                        Box::new(
+                            err.with_response(response.status_code(), response.headers(), response.body())
+                                .with_request(method, &request_path),
+                        ) as Box<dyn std::error::Error + Send + Sync>
+                    })
+                };
+                data.map(|data| {
+                    ApiResult::new(
+                        response.status_code(),
+                        data,
+                        response.body().to_string(),
+                        response.headers().clone(),
+                    )
+                })
+            }
+            Err(err) => Err(err),
         };
-        Ok(ApiResult::new(
-            response.status_code(),
-            data,
-            response.body().to_string(),
-            response.headers().clone(),
-        ))
+        scope.finish(&result);
+        result
     }
 
     /// Invokes an API operation with no return type and returns the full
@@ -716,6 +775,7 @@ fn fits_budget(deadline: Option<std::time::Instant>, delay: std::time::Duration)
 async fn refresh_request_headers(
     auth: Option<&dyn Authenticator>,
     headers: &mut HashMap<String, String>,
+    hooked: bool,
 ) -> bool {
     if let Some(auth) = auth {
         match auth.try_auth_headers().await {
@@ -727,8 +787,31 @@ async fn refresh_request_headers(
             Err(_) => return false,
         }
     }
-    trace_context_util::inject_trace_context(headers);
+    /* With a call hook the headers already carry the trace context as the hook
+     * left it (an adapter writes the client span there), so it is not
+     * injected over it again. */
+    if !hooked {
+        trace_context_util::inject_trace_context(headers);
+    }
     true
+}
+
+/// The URL without its query string and fragment.
+fn strip_query_and_fragment(url: &str) -> &str {
+    let end = url.find(['?', '#']).unwrap_or(url.len());
+    &url[..end]
+}
+
+/// The lower-case host of the URL, without port and without the brackets of an
+/// IPv6 literal; empty when the URL has no host.
+fn server_address_of(url: &str) -> String {
+    match reqwest::Url::parse(strip_query_and_fragment(url)) {
+        Ok(parsed) => parsed
+            .host_str()
+            .map(|host| host.trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase())
+            .unwrap_or_default(),
+        Err(_) => String::new(),
+    }
 }
 
 /// Reports whether the transport hands a response with this media type back as
@@ -1044,6 +1127,8 @@ mod tests {
         let params = InvokeApiParams {
             method: "GET",
             path: "/items",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
             query_params: Vec::new(),
             header_params,
             body: None,
@@ -1172,6 +1257,8 @@ mod tests {
         InvokeApiParams {
             method: "GET",
             path: "/items/7",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
             query_params: vec![("token".to_string(), "secret".to_string(), false)],
             header_params,
             body: None,
@@ -1431,6 +1518,8 @@ mod tests {
         let params = InvokeApiParams {
             method: "GET",
             path: "/text",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
             query_params: Vec::new(),
             header_params: HashMap::new(),
             body: None,
@@ -1786,5 +1875,262 @@ mod tests {
 
         assert_eq!(Some("b".to_string()), host_for(&["a", "b", "c"]));
         assert_eq!(Some("c".to_string()), host_for(&["a", "c", "b"]));
+    }
+    /* The call hook, recorded: what start saw, what it set and how the call ended. */
+    use crate::call_hook::{CallHook, CallInfo, CallObserver, CallOutcome};
+
+    #[derive(Default)]
+    struct Seen {
+        infos: Vec<CallInfo>,
+        headers: Vec<HashMap<String, String>>,
+        finished: Vec<(u16, Option<HashMap<String, String>>, String)>,
+    }
+
+    struct LogHook {
+        seen: Arc<std::sync::Mutex<Seen>>,
+        set: Vec<(&'static str, &'static str)>,
+        panic_in_start: bool,
+        panic_in_finish: bool,
+    }
+
+    struct LogObserver {
+        seen: Arc<std::sync::Mutex<Seen>>,
+        panic_in_finish: bool,
+    }
+
+    impl LogHook {
+        fn new() -> (Arc<Self>, Arc<std::sync::Mutex<Seen>>) {
+            Self::with(Vec::new(), false, false)
+        }
+
+        fn with(
+            set: Vec<(&'static str, &'static str)>,
+            panic_in_start: bool,
+            panic_in_finish: bool,
+        ) -> (Arc<Self>, Arc<std::sync::Mutex<Seen>>) {
+            let seen = Arc::new(std::sync::Mutex::new(Seen::default()));
+            (
+                Arc::new(Self { seen: seen.clone(), set, panic_in_start, panic_in_finish }),
+                seen,
+            )
+        }
+    }
+
+    impl CallHook for LogHook {
+        fn start(
+            &self,
+            info: &CallInfo,
+            headers: &mut HashMap<String, String>,
+        ) -> Option<Box<dyn CallObserver>> {
+            if self.panic_in_start {
+                panic!("start refused the call");
+            }
+            {
+                let mut seen = self.seen.lock().unwrap();
+                seen.infos.push(info.clone());
+                seen.headers.push(headers.clone());
+            }
+            for (name, value) in &self.set {
+                headers.insert(name.to_string(), value.to_string());
+            }
+            Some(Box::new(LogObserver {
+                seen: self.seen.clone(),
+                panic_in_finish: self.panic_in_finish,
+            }))
+        }
+    }
+
+    impl CallObserver for LogObserver {
+        fn finish(self: Box<Self>, outcome: &CallOutcome<'_>) {
+            self.seen.lock().unwrap().finished.push((
+                outcome.status_code,
+                outcome.headers.cloned(),
+                outcome.error.map(|e| e.to_string()).unwrap_or_default(),
+            ));
+            if self.panic_in_finish {
+                panic!("finish failed");
+            }
+        }
+    }
+
+    fn hooked_api(
+        client: Arc<ScriptedClient>,
+        base_url: &str,
+        hook: Arc<dyn CallHook>,
+    ) -> BaseApi {
+        let config = ConfigurationBuilder::new()
+            .base_url(base_url)
+            .default_header("X-Call", "from-default")
+            .call_hook(hook)
+            .build();
+        BaseApi::new(client, config, None)
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_001_without_a_hook_a_call_sends_the_same_headers_and_returns_the_same_result() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+
+        let response = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("a 200 response must succeed");
+
+        assert_eq!(200, response.status_code());
+        assert_eq!(1, client.calls());
+        assert!(ConfigurationBuilder::new().build().call_hook().is_none());
+        let sent = client.last_headers.lock().unwrap().clone();
+        assert_eq!(Some("from-parameter"), sent.get("X-Call").map(String::as_str));
+        assert!(!sent.keys().any(|name| name.starts_with("X-Hook")));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_002_start_gets_the_spec_operation_id_method_template_and_url_without_query() {
+        let (hook, seen) = LogHook::new();
+        let api = hooked_api(ScriptedClient::new(200), "http://localhost", hook);
+
+        api.invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("a 200 response must succeed");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!(1, seen.infos.len());
+        let info = &seen.infos[0];
+        assert_eq!("echo_operation", info.operation_id);
+        assert_eq!("GET", info.method);
+        assert_eq!("/items/{id}", info.url_template);
+        assert_eq!("http://localhost/items/7", info.url);
+        assert_eq!("localhost", info.server_address);
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_003_the_server_address_is_the_host_without_port_and_ipv6_brackets() {
+        for (base, address) in [
+            ("http://[::1]:8080", "::1"),
+            ("HTTP://Example.COM:81", "example.com"),
+            ("https://api.example.com", "api.example.com"),
+        ] {
+            let (hook, seen) = LogHook::new();
+            let api = hooked_api(ScriptedClient::new(200), base, hook);
+
+            api.invoke_api(call_params(CallOptions::default()))
+                .await
+                .expect("a 200 response must succeed");
+
+            assert_eq!(address, seen.lock().unwrap().infos[0].server_address, "{base}");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_021_the_url_never_carries_the_query_string_or_the_fragment() {
+        let (hook, seen) = LogHook::new();
+        let api = hooked_api(ScriptedClient::new(200), "http://localhost", hook);
+        let params = InvokeApiParams {
+            path: "https://items.example.org/v2/items/7?a=1#frag",
+            ..call_params(CallOptions::default())
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!("https://items.example.org/v2/items/7", seen.infos[0].url);
+        assert_eq!("items.example.org", seen.infos[0].server_address);
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_004_a_header_the_hook_sets_reaches_the_server() {
+        let client = ScriptedClient::new(200);
+        let (hook, _) = LogHook::with(vec![("X-Hook", "set")], false, false);
+        let api = hooked_api(client.clone(), "http://localhost", hook);
+
+        api.invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("a 200 response must succeed");
+
+        assert_eq!(
+            Some("set".to_string()),
+            client.last_headers.lock().unwrap().get("X-Hook").cloned()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_005_start_sees_the_final_headers_and_can_replace_one() {
+        let client = ScriptedClient::new(200);
+        let (hook, seen) = LogHook::with(vec![("X-Call", "from-hook")], false, false);
+        let api = hooked_api(client.clone(), "http://localhost", hook);
+        let params = InvokeApiParams {
+            auth: Some(&NamedAuthenticator("named")),
+            ..call_params(CallOptions::default())
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!(Some("from-parameter"), seen.headers[0].get("X-Call").map(String::as_str));
+        assert!(seen.headers[0].contains_key("X-Client-Auth"), "{:?}", seen.headers[0]);
+        assert_eq!(
+            Some("from-hook".to_string()),
+            client.last_headers.lock().unwrap().get("X-Call").cloned()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_017_finish_is_called_when_the_body_cannot_be_encoded_and_nothing_is_sent() {
+        let client = ScriptedClient::new(200);
+        let (hook, seen) = LogHook::new();
+        let api = hooked_api(client.clone(), "http://localhost", hook);
+        let params = InvokeApiParams {
+            method: "POST",
+            body: Some(br#"[["nested",{"a":1}]]"#.to_vec()),
+            content_type: "application/x-www-form-urlencoded",
+            ..call_params(CallOptions::default())
+        };
+
+        let err = api.invoke_api(params).await.expect_err("a nested object cannot be form-encoded");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!(0, client.calls());
+        assert_eq!(1, seen.finished.len());
+        assert_eq!(0, seen.finished[0].0);
+        assert!(seen.finished[0].1.is_none());
+        assert_eq!(err.to_string(), seen.finished[0].2);
+        assert!(err.downcast_ref::<crate::errors::SerializationError>().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_018_a_panic_in_start_reaches_the_caller_and_nothing_is_sent() {
+        let client = ScriptedClient::new(200);
+        let (hook, seen) = LogHook::with(Vec::new(), true, false);
+        let api = hooked_api(client.clone(), "http://localhost", hook);
+
+        let joined = tokio::spawn(async move {
+            api.invoke_api(call_params(CallOptions::default())).await.map(|_| ())
+        })
+        .await;
+
+        assert!(joined.expect_err("the call panics").is_panic());
+        assert_eq!(0, client.calls());
+        assert!(seen.lock().unwrap().finished.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_019_a_panic_in_finish_is_swallowed_and_the_caller_gets_its_result() {
+        let (hook, seen) = LogHook::with(Vec::new(), false, true);
+        let api = hooked_api(ScriptedClient::new(200), "http://localhost", hook);
+
+        let response = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("the result survives a failing finish");
+
+        assert_eq!(200, response.status_code());
+        assert_eq!(1, seen.lock().unwrap().finished.len());
+
+        let (hook, _) = LogHook::with(Vec::new(), false, true);
+        let err = hooked_api(ScriptedClient::new(404), "http://localhost", hook)
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("a 404 is still the caller's own error");
+        assert!(err.to_string().contains("404"), "{err}");
     }
 }

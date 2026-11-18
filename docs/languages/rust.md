@@ -53,7 +53,7 @@ Runtime dependencies, from the generated `Cargo.toml`:
 | `base64` | 0.22 | `byte` fields |
 | `flate2`, `brotli`, `zstd` | 1, 7, 0.13 | Decoding gzip, deflate, `br` and `zstd` responses |
 | `sha2`, `regex`, `urlencoding`, `encoding_rs` | 0.10, 1, 2, 0.8 | Hashing, matching, parameter encoding and charsets |
-| `opentelemetry` | 0.32, optional | Trace-context propagation, behind the `opentelemetry` feature |
+| `opentelemetry` | 0.32, optional | Trace-context propagation and the `OpenTelemetryCallHook` adapter (API only, traces and metrics), behind the `opentelemetry` feature |
 
 Test-only dependencies are `opentelemetry_sdk` and `testcontainers`. The default feature set is empty.
 
@@ -92,6 +92,8 @@ The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example 
 - Rust has no overloads or default arguments, so variants carry their own names, such as `*_with_content_type`, `get_access_token_with_refresh_url` and `send_request_with_options`.
 - `Configuration` and the builders implement `Default`.
 - `ApiResult::into_data(self)` moves the payload out of the result.
+- `CallHook` is one small hook around every operation call: `start(&CallInfo, &mut HashMap<String, String>)` runs once per call after the headers are final and may edit them, and returns an `Option<Box<dyn CallObserver>>` whose `finish(self: Box<Self>, &CallOutcome)` runs exactly once on every way the call can end. Set it with `ConfigurationBuilder::call_hook(Arc<dyn CallHook>)` or `Client::with_call_hook(hook)` (Rust has no client builder, so the client takes it as a consuming method); `call_hook::chain(vec![a, b])` combines hooks. `CallInfo` carries `operation_id` (as written in the spec), `method`, `url_template`, `url` (no query string or fragment) and `server_address`; `CallOutcome` carries `status_code` (`0` when no response arrived), the lower-cased `headers` (`None` when none arrived) and the `error` the caller receives, borrowed. There are no exceptions to throw, so a panic in `start` unwinds to the caller with nothing sent, and a panic in `finish` is swallowed. Cancellation is dropping the future, so a dropped call finishes with `CallCancelled`.
+- `OpenTelemetryCallHook::new()` (global providers) or `with_providers(&tracer_provider, &meter_provider)`, behind the `opentelemetry` feature, is a `CallHook` that records one span (named with the operation id, kind client), the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) per call. It needs only the OpenTelemetry API; the application installs the SDK. It writes `traceparent` itself in the W3C format.
 - Lint exclusions live in one place, the `[lints]` tables of `Cargo.toml`. Generated source files carry no `allow` attributes, and `cargo clippy -- -D warnings` is the gate.
 
 ## Credentials per security scheme

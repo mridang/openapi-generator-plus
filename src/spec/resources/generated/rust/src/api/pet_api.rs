@@ -256,6 +256,12 @@ impl PetApi {
         self
     }
 
+    /// Sets the call hook of this API.
+    pub(crate) fn with_call_hook(mut self, hook: Arc<dyn crate::call_hook::CallHook>) -> Self {
+        self.base = self.base.with_call_hook(hook);
+        self
+    }
+
     /// Add a new pet to the store
     /// * `pet`: Create a new pet in the store
     /// * `options`: Options for query, header, form, and cookie parameters.
@@ -330,6 +336,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "addPet",
+            url_template: "/pet",
             query_params,
             header_params,
             body: request_body,
@@ -469,6 +477,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "addPetPhotos",
+            url_template: "/pet/{petId}/photos",
             query_params,
             header_params,
             body: request_body,
@@ -579,6 +589,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "addPetTreatment",
+            url_template: "/pet/{petId}/treatment",
             query_params,
             header_params,
             body: request_body,
@@ -723,6 +735,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "DELETE",
             path: &path,
+            operation_id: "deletePet",
+            url_template: "/pet/{petId}",
             query_params,
             header_params,
             body: request_body,
@@ -851,6 +865,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "downloadPetDocument",
+            url_template: "/pet/{petId}/documents/{documentId}",
             query_params,
             header_params,
             body: request_body,
@@ -951,6 +967,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "findPetsBornOn",
+            url_template: "/pet/born-on/{bornOn}",
             query_params,
             header_params,
             body: request_body,
@@ -1156,6 +1174,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "findPetsByStatus",
+            url_template: "/pet/findByStatus",
             query_params,
             header_params,
             body: request_body,
@@ -1264,6 +1284,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getExternalPetInfo",
+            url_template: "/pet/{petId}/external",
             query_params,
             header_params,
             body: request_body,
@@ -1373,6 +1395,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getMultiServerPetInfo",
+            url_template: "/pet/{petId}/multi",
             query_params,
             header_params,
             body: request_body,
@@ -1475,6 +1499,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getPetAvatar",
+            url_template: "/pet/{petId}/avatar",
             query_params,
             header_params,
             body: request_body,
@@ -1580,6 +1606,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getPetAvatarThumbnail",
+            url_template: "/pet/{petId}/avatar/thumbnail",
             query_params,
             header_params,
             body: request_body,
@@ -1707,6 +1735,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getPetById",
+            url_template: "/pet/{petId}",
             query_params,
             header_params,
             body: request_body,
@@ -1908,6 +1938,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getPetByName",
+            url_template: "/pet/byName/{name}",
             query_params,
             header_params,
             body: request_body,
@@ -2012,6 +2044,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getPetPassport",
+            url_template: "/pet/{petId}/passport",
             query_params,
             header_params,
             body: request_body,
@@ -2137,6 +2171,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getPetPhoto",
+            url_template: "/pet/{petId}/photos/{photoId}",
             query_params,
             header_params,
             body: request_body,
@@ -2356,6 +2392,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getPetSummary",
+            url_template: "/pet/{petId}/summary/{asOf}",
             query_params,
             header_params,
             body: request_body,
@@ -2744,6 +2782,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getPetTag",
+            url_template: "/pet/{petId}/tag/{tagName}",
             query_params,
             header_params,
             body: request_body,
@@ -2852,6 +2892,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getStagingPetInfo",
+            url_template: "/pet/{petId}/staging",
             query_params,
             header_params,
             body: request_body,
@@ -2980,6 +3022,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "PUT",
             path: &path,
+            operation_id: "setPetAvatar",
+            url_template: "/pet/{petId}/avatar",
             query_params,
             header_params,
             body: request_body,
@@ -3084,6 +3128,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "PUT",
             path: &path,
+            operation_id: "setPetAvatarThumbnail",
+            url_template: "/pet/{petId}/avatar/thumbnail",
             query_params,
             header_params,
             body: request_body,
@@ -3214,6 +3260,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "setPetPreferences",
+            url_template: "/pet/{petId}/preferences",
             query_params,
             header_params,
             body: request_body,
@@ -3321,6 +3369,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "PUT",
             path: &path,
+            operation_id: "updatePet",
+            url_template: "/pet/{petId}",
             query_params,
             header_params,
             body: request_body,
@@ -3444,6 +3494,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "uploadPetCertificate",
+            url_template: "/pet/{petId}/certificate",
             query_params,
             header_params,
             body: request_body,
@@ -3650,6 +3702,8 @@ impl PetApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "uploadPetDocument",
+            url_template: "/pet/{petId}/documents",
             query_params,
             header_params,
             body: request_body,

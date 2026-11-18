@@ -8,7 +8,9 @@
  */
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use crate::call_hook::CallHook;
 use crate::errors::configuration_error::ConfigurationError;
 use crate::server_configuration::ServerConfiguration;
 
@@ -41,6 +43,9 @@ pub struct Configuration {
     /// `TransportOptions` but before operation-specific headers and
     /// authentication headers.
     default_headers: HashMap<String, String>,
+
+    /// The hook that runs around every operation call, if any.
+    call_hook: Option<Arc<dyn CallHook>>,
 }
 
 impl std::fmt::Debug for Configuration {
@@ -53,6 +58,7 @@ impl std::fmt::Debug for Configuration {
                 "default_headers",
                 &crate::transport_options::redact_headers(&self.default_headers),
             )
+            .field("call_hook", &self.call_hook.as_ref().map(|_| "<hook>"))
             .finish()
     }
 }
@@ -75,6 +81,18 @@ impl Configuration {
     pub fn default_headers(&self) -> HashMap<String, String> {
         self.default_headers.clone()
     }
+
+    /// Returns the [`CallHook`] that runs around every operation call, or
+    /// `None` when no hook is set.
+    pub fn call_hook(&self) -> Option<&Arc<dyn CallHook>> {
+        self.call_hook.as_ref()
+    }
+
+    /// Returns this configuration with `hook` set.
+    pub(crate) fn with_call_hook(mut self, hook: Arc<dyn CallHook>) -> Self {
+        self.call_hook = Some(hook);
+        self
+    }
 }
 
 impl Default for Configuration {
@@ -92,6 +110,7 @@ impl Default for Configuration {
 pub struct ConfigurationBuilder {
     base_url: String,
     default_headers: HashMap<String, String>,
+    call_hook: Option<Arc<dyn CallHook>>,
 }
 
 impl ConfigurationBuilder {
@@ -100,6 +119,7 @@ impl ConfigurationBuilder {
         Self {
             base_url: "/api/v3".to_string(),
             default_headers: HashMap::new(),
+            call_hook: None,
         }
     }
 
@@ -119,6 +139,14 @@ impl ConfigurationBuilder {
     /// Adds multiple default headers to include in every API request.
     pub fn default_headers(mut self, headers: HashMap<String, String>) -> Self {
         self.default_headers.extend(headers);
+        self
+    }
+
+    /// Sets the [`CallHook`] that runs around every operation call: it can edit
+    /// the request headers before the send and observe the status or the error
+    /// afterwards. Combine several with [`chain`](crate::call_hook::chain).
+    pub fn call_hook(mut self, hook: Arc<dyn CallHook>) -> Self {
+        self.call_hook = Some(hook);
         self
     }
 
@@ -147,6 +175,7 @@ impl ConfigurationBuilder {
         Configuration {
             base_url: self.base_url,
             default_headers: self.default_headers,
+            call_hook: self.call_hook,
         }
     }
 }
