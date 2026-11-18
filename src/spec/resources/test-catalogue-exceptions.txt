@@ -688,6 +688,8 @@ java | misc135 | Java has no client-level cancellation handle to store: cancella
 ||||||| 72eb7d52b
 go | misc231 | Go model fields are statically typed, so a model built in code cannot hold a wrong-typed value for a declared property; the wrong-type check runs only when decoding
 go | misc215 | an input object with no declared fields has no declared defaults to fill, so there is no observable default-filling behaviour to test for it
+go | misc260 | Go takes server variable overrides as map[string]string, so a nil value for an enum variable cannot be expressed and the type system rules it out
+||||||| 537627306
 python | misc185 | python's OAuth2 token manager has no stop operation and holds no process or resource to release, so a second stop and a stopped-manager error do not exist
 python | misc186 | python transport options take no ready-made HTTP connection value, so there is no connection to refuse or to combine with a CA bundle setting
 ||||||| 064947382

@@ -165,6 +165,20 @@ class TestContainerDatetimeAwareDecodeRule:
                 ['2024-01-01T12:30:45'], 'List[datetime]'
             )
 
+    def test_bhv_misc_214_an_unserializable_query_content_value_raises_a_serialization_error(self) -> None:
+        cyclic: dict[str, Any] = {}
+        cyclic['self'] = cyclic
+
+        with pytest.raises(SerializationException):
+            ObjectSerializer().serialize(cyclic)
+
+    def test_bhv_misc_215_an_input_object_with_no_fields_is_filled_with_every_declared_default(self) -> None:
+        restored = ObjectSerializer().deserialize('{}', 'Defaults')
+
+        assert restored.retries == 3
+        assert restored.label == 'untitled'
+        assert restored.scale == 0.25
+
 
 class TestNonAsciiSerialization:
     def test_bhv_serializationobject_019_accented_character_not_unicode_escaped(self) -> None:

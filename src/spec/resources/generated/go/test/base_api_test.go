@@ -4690,3 +4690,49 @@ func TestBhvMisc220_BaseApi_FullResponseKeepsTheStatusAndDecodesTheUnionBody(t *
 		t.Errorf("expected the Medication variant, got %T", result.Data.ActualInstance())
 	}
 }
+
+// Each listed error HTTP status from the server raises the SDK's API error carrying that status code.
+func TestBhvMisc264_BaseApi_EachListedErrorStatusRaisesAnApiErrorWithThatCode(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{400, 401, 403, 404, 409, 422, 429, 500, 503} {
+		api := retryApi(t, newScriptedServer(t, scriptedReply{status: status}), func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+		var apiErr *apierrors.ApiError
+		if err := addPetCall(api); !errors.As(err, &apiErr) {
+			t.Fatalf("expected *ApiError for %d, got %T: %v", status, err, err)
+		}
+		if apiErr.StatusCode() != status {
+			t.Errorf("expected StatusCode %d, got %d", status, apiErr.StatusCode())
+		}
+	}
+}
+
+// A redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status.
+func TestBhvMisc265_BaseApi_NonHttpRedirectIsAnApiErrorWithItsStatus(t *testing.T) {
+	t.Parallel()
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "ftp://example.com/file", http.StatusFound)
+	}))
+	t.Cleanup(origin.Close)
+	api := retryApi(t, &scriptedServer{Server: origin}, func(b *petstore.TransportOptionsBuilder) { b.FollowRedirects(true) }, nil)
+
+	var apiErr *apierrors.ApiError
+	if err := addPetCall(api); !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError for the non-HTTP redirect, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode() != http.StatusFound {
+		t.Errorf("expected StatusCode 302, got %d", apiErr.StatusCode())
+	}
+}
+
+// An operation's query parameter is serialized when no authenticator is configured.
+func TestBhvMisc239_BaseApi_QueryParamIsSerializedWithoutAnAuthenticator(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	status := options.FindPetsByStatusStatusAvailable
+	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
+	if !strings.Contains(client.capturedURL, "status=available") {
+		t.Errorf("expected URL to contain status=available, got %q", client.capturedURL)
+	}
+}
