@@ -3936,6 +3936,47 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc152AnAlreadyAbortedCallRejectsWithoutSendingTheRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/slow"),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                cts.Token
+            )
+        );
+        Assert.False(handler.Entered.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task BhvMisc153ACallLevelCancelSignalAbortsTheSameInFlightRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var callSource = new CancellationTokenSource();
+        Task<ApiHttpResponse> pending = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            callSource.Token
+        );
+        await handler.Entered.Task;
+        await callSource.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+    }
+
+    [Fact]
     public async Task BhvTransport085TimeoutStaysDistinctFromCancellationWhenATokenIsSupplied()
     {
         var client = new DefaultApiClient(

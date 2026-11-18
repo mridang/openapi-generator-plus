@@ -1468,4 +1468,15 @@ defmodule PetstoreClient.ValueSerializerTest do
       end
     end
   end
+
+  describe "misc parity deep object" do
+    test "bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, with absent values left out" do
+      assert PetstoreClient.ValueSerializer.serialize_deep_object("filter", %{
+               "b" => "2",
+               "c" => nil,
+               "a" => "1"
+             }) ==
+               %{"filter[a]" => "1", "filter[b]" => "2"}
+    end
+  end
 end

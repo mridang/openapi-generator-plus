@@ -1135,6 +1135,15 @@ class TestMultipartBody:
         with pytest.raises(ValueError):
             client.send_request("POST", chasm_http_url + "/test/echo", {}, bad_fields)
 
+    def test_bhv_misc_240_a_multipart_file_part_is_echoed_back_with_its_content(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+        response = client.send_request(
+            "POST", chasm_http_url + "/test/echo", {}, {"file": b"file content"}
+        )
+        assert "file content" in response.body
+
 
 class TestHttpCompression:
     """The fixture serves one JSON body under each codec whatever the request
