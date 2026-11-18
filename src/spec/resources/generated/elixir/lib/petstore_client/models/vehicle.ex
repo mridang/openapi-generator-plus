@@ -90,11 +90,11 @@ defmodule PetstoreClient.Models.Vehicle do
   end
 
   @doc "Discriminator property name."
-  @spec openapi_discriminator_name() :: atom()
+  @spec openapi_discriminator_name() :: :vehicleType
   def openapi_discriminator_name, do: :vehicleType
 
   @doc "Discriminator mapping: each wire value names the subtype it decodes into."
-  @spec openapi_discriminator_mapping() :: %{String.t() => atom()}
+  @spec openapi_discriminator_mapping() :: %{String.t() => :Car | :Truck}
   def openapi_discriminator_mapping do
     %{
       "car" => :Car,
@@ -108,7 +108,7 @@ defmodule PetstoreClient.Models.Vehicle do
   A missing discriminator, or a value the mapping does not list, raises
   `SerializationError` and the message names the value.
   """
-  @spec build(term()) :: term()
+  @spec build(map() | list() | nil) :: term()
   def build(data) when not is_map(data) do
     raise PetstoreClient.Errors.SerializationError,
       message: "Expected a JSON object for Vehicle, got #{inspect(data)}"

@@ -614,11 +614,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{#hasChildren}}
 {{#discriminator}}
   @doc "Discriminator property name."
-  @spec openapi_discriminator_name() :: atom()
+  @spec openapi_discriminator_name() :: :{{propertyBaseName}}
   def openapi_discriminator_name, do: :{{propertyBaseName}}
 
   @doc "Discriminator mapping: each wire value names the subtype it decodes into."
-  @spec openapi_discriminator_mapping() :: %{String.t() => atom()}
+  @spec openapi_discriminator_mapping() :: %{String.t() => {{#mappedModels}}:{{modelName}}{{^-last}} | {{/-last}}{{/mappedModels}}}
   def openapi_discriminator_mapping do
     %{
   {{#mappedModels}}
@@ -633,7 +633,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   A missing discriminator, or a value the mapping does not list, raises
   `SerializationError` and the message names the value.
   """
-  @spec build(term()) :: term()
+  @spec build(map() | list() | nil) :: term()
   def build(data) when not is_map(data) do
     raise {{moduleName}}.Errors.SerializationError,
           message: "Expected a JSON object for {{classname}}, got #{inspect(data)}"
