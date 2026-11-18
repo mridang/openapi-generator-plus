@@ -113,6 +113,28 @@ import Testing
         #expect(info.statusCode == 200)
     }
 
+    /* A success status that no declared response row names decodes as the operation's union return type. */
+    @Test func testBhvMisc048AnUndeclaredSuccessStatusDecodesAsTheUnion() async throws {
+        let mockApi = storeApiForMock(statusCode: 202, body: "{\"reservationId\":7,\"quantity\":2}")
+        let result = try await mockApi.reserveStock()
+        #expect(result.asReservation?.reservationId == 7)
+    }
+
+    /* Per-call headers are a copy: a later change to the caller's own map does not reach the request. */
+    @Test func testBhvMisc054PerCallHeadersAreACopy() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"available\":1}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        var headers = ["X-Per-Call": "original"]
+        let options = GetInventoryOptions(headers: headers)
+        headers["X-Per-Call"] = "changed"
+        _ = try await api.getInventory(options: options)
+        #expect(mockClient.lastHeaders["X-Per-Call"] == "original")
+    }
+
     /* A 200 from reserveStock is the existing reservation, not a new receipt. */
     @Test func testBhvOperations129ReserveStockDecodesA200AsTheExistingReservation() async throws {
         let mockApi = storeApiForMock(statusCode: 200, body: "{\"reservationId\":31,\"quantity\":4}")
