@@ -47,14 +47,19 @@ class ApiKeyAuthenticator extends BaseAuthenticator
         if ($apiKey !== null && $apiKeyProvider instanceof \Closure) {
             throw new \InvalidArgumentException('Pass either an API key or an API key provider, not both');
         }
-        if ($apiKey === null && !$apiKeyProvider instanceof \Closure) {
+        if ($apiKey === null) {
+            /* Order: explicit key, then the environment variable, then the provider. A set
+             * variable wins over a provider; an empty or unset one falls through to it. */
             $apiKey = static::environmentCredential('apiKey');
-            if ($apiKey === null) {
-                throw new \InvalidArgumentException(
-                    "API key for '$keyParamName' is required: pass a key or a key provider"
-                    . static::environmentHint('apiKey')
-                );
+            if ($apiKey !== null) {
+                $apiKeyProvider = null;
             }
+        }
+        if ($apiKey === null && !$apiKeyProvider instanceof \Closure) {
+            throw new \InvalidArgumentException(
+                "API key for '$keyParamName' is required: pass a key or a key provider"
+                . static::environmentHint('apiKey')
+            );
         }
         if ($apiKey !== null) {
             $this->assertValidKey($keyParamName, $location, $apiKey);

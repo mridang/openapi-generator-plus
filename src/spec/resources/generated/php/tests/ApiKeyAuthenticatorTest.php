@@ -277,6 +277,32 @@ test('bhv authscheme 012 an empty or unset environment api key is treated as uns
     'empty' => [''],
 ]);
 
+test('bhv auth 003 an empty or unset environment api key counts as no value and construction names the variable', function (): void {
+    withApiKeyEnvironment('', function (): void {
+        expect(fn () => new ApiKeyHeaderAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY');
+    });
+    withApiKeyEnvironment(null, function (): void {
+        expect(fn () => new ApiKeyHeaderAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY');
+    });
+});
+
+test('an explicit api key is used before the environment variable, and a provider is used when nothing else is set', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        expect(sentApiKeys(new ApiKeyHeaderAuthenticator('https://api.example.com', 'explicit')))->toBe(['explicit']);
+        expect(sentApiKeys(new ApiKeyHeaderAuthenticator('https://api.example.com')))->toBe(['from-environment']);
+    });
+    $auth = new ApiKeyAuthenticator(
+        'https://api.example.com',
+        'api_key',
+        null,
+        ApiKeyLocation::QUERY,
+        fn (): string => 'from-provider'
+    );
+    expect(sentApiKeys($auth))->toBe(['from-provider']);
+});
+
 test('bhv authscheme 002 explicit arguments need no environment', function (): void {
     withApiKeyEnvironment(null, function (): void {
         $auth = new ApiKeyHeaderAuthenticator('https://api.example.com', 'explicit');
