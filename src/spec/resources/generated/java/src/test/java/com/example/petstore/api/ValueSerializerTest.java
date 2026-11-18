@@ -1187,4 +1187,29 @@ class ValueSerializerTest {
     java.time.OffsetDateTime at = java.time.OffsetDateTime.parse("2024-05-06T07:08:09Z");
     assertEquals("2024-05-06", ValueSerializer.serialize(at, "query", "date", null));
   }
+
+  @Test
+  void bhvMisc083QueryGivenAsRawTextKeepsRepeatedKeysValuesAndEncodingsAsWritten() {
+    assertEquals("a=1&a=2&b=%20x", ValueSerializer.encodeQueryAllowingReserved("a=1&a=2&b=%20x"));
+  }
+
+  @Test
+  void bhvMisc084SetOptionalScalarSendsItsValueInEveryLocationAndStyle() {
+    assertEquals(
+        "on-hold",
+        ValueSerializer.serializeStyled(
+            "status", "on-hold", "path", "string", null, "simple", false));
+    assertEquals(
+        "on-hold",
+        ValueSerializer.serializeStyled(
+            "status", "on-hold", "query", "string", null, "form", true));
+    assertEquals(
+        "on-hold",
+        ValueSerializer.serializeStyled(
+            "status", "on-hold", "header", "string", null, "simple", false));
+    assertEquals(
+        "on-hold",
+        ValueSerializer.serializeStyled(
+            "status", "on-hold", "cookie", "string", null, "form", true));
+  }
 }

@@ -604,7 +604,6 @@ swift | misc116 | The Swift generator emits no minimum or maximum checks into it
 java | misc068 | java keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 java | misc074 | BaseApi.resolveSchemeAuth returns the credential of the first listed scheme the client holds, so an alternative naming two schemes applies one credential and never both
 java | misc075 | Java's client Builder takes one typed setter per declared scheme, so naming an undeclared scheme is refused by the compiler and no construction-time error exists
-||||||| 80c094f97
 dart | misc074 | Dart sends one credential per operation, the first configured scheme its requirement lists (schemeAuthenticator), so an alternative that names two schemes applies a single credential and never both
 dart | misc075 | Dart's Client takes one named optional parameter per declared scheme, so a credential keyed to an undeclared scheme is a compile-time error rather than a refusal at build
 dart | misc081 | the petstore has no operation returning a format: byte string under a binary content type, so no base64 body reaches a string return
@@ -612,11 +611,19 @@ dart | misc085 | the trackingId field is typed UuidValue, which holds only a par
 dart | misc087 | Dart's number is a binary double with no decimal type, so a decimal field is written by double formatting and not as the exact decimal text this promise needs (serializationobject002)
 dart | misc088 | Dart's number is a binary double with no decimal type, so the decimal places a value was written with are not kept, as serializationobject002 records
 dart | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
-||||||| 80c094f97
 csharp | misc178 | the C# client builds every multipart body as MultipartFormDataContent, which always writes multipart/form-data, and ignores any content type a caller declares for a dictionary body, so no other declared multipart type can reach the transport
 csharp | misc182 | the C# SDK has no API that removes a default or per-call header by name, so there is no removal call whose name matching could be tested
 csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 csharp | misc188 | the C# client exposes no public closed state to read, so the only observable effect of closing it is the transport release already pinned by the lifecycle tests
+go | misc185 | the Go OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
+||||||| d3821bb7c
+csharp | misc085 | uuid fields and parameters are typed System.Guid, so text that is not in canonical form cannot be passed to the call or built into a model
+csharp | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
+csharp | misc100 | The C# SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back from
+||||||| d3821bb7c
+java | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
+java | misc100 | The Java SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back
+||||||| a7408137c
 python | misc145 | python exposes additional_properties as the model's own dict field, so reading it hands back the stored dict rather than a copy
 python | misc149 | python copies a model with pydantic's model_copy, which does not refuse an undeclared key, so there is no refusal to observe
 python | misc153 | python has no client-level cancellation handle: a RequestHandle is passed to each send_request call, so a cancel set on the client cannot exist
