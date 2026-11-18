@@ -152,6 +152,23 @@ import Testing
     #expect(result.asReservationReceipt == nil)
   }
 
+  /* A 201 from reserveStock is decoded as the receipt the status declares. */
+  @Test func testBhvMisc079EachSuccessStatusDecodesItsOwnDeclaredType() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 201, body: "{\"receiptCode\":\"C1\",\"expiresAt\":\"2026-01-02T03:04:05Z\"}")
+    let result = try await mockApi.reserveStock()
+    #expect(result.asReservationReceipt?.receiptCode == "C1")
+  }
+
+  /* A 200 body that fits only the 201 receipt is refused: it is decoded with its own status's schema. */
+  @Test func testBhvMisc080ABodyIsDecodedWithItsOwnStatusSchema() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 200, body: "{\"receiptCode\":\"C1\",\"expiresAt\":\"2026-01-02T03:04:05Z\"}")
+    await #expect(throws: (any Error).self) {
+      _ = try await mockApi.reserveStock()
+    }
+  }
+
   /* A malformed 2xx JSON body is not returned raw: the decoding error propagates. */
   @Test func testBhvOperations130MalformedJsonSuccessBodyPropagatesTheDeserializationError()
     async throws

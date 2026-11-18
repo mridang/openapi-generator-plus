@@ -605,3 +605,7 @@ go | misc153 | Go has no client-level cancellation signal: a context is passed t
 ||||||| 2c1a36607
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
 go | misc178 | the fixture declares no multipart content type other than multipart/form-data, so no operation sends a declared type that could reach the transport unchanged
+swift | misc074 | The petstore fixture has no operation whose security requirement names two schemes together, so there is no alternative to call that sends both credentials
+swift | misc075 | The client takes one named credential per declared scheme, so a credential keyed to an undeclared scheme cannot be passed to it
+swift | misc081 | A binary response is returned as Data because an operation's return type comes from its spec, so no operation returns a String from a base64 binary body
+swift | misc083 | The Swift client has no entry point that takes a query as raw text: every query parameter is typed and percent-encoded one at a time by the generated operation
