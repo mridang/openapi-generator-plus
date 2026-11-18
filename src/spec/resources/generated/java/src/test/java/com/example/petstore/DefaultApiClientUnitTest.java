@@ -4677,4 +4677,18 @@ class DefaultApiClientUnitTest {
       pool.shutdownNow();
     }
   }
+
+  @Test
+  void bhvMisc188AClientReportsItselfClosedOnlyAfterCloseIsCalled() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder = request -> RecordingHttpClient.redirect(200, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    assertEquals(
+        200, client.sendRequest("GET", "http://example.test/ping", Map.of(), null).statusCode());
+    client.close();
+    assertThrowsExactly(
+        IllegalStateException.class,
+        () -> client.sendRequest("GET", "http://example.test/ping", Map.of(), null));
+  }
 }

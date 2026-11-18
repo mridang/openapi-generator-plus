@@ -1945,4 +1945,30 @@ private func classify(_ call: () async throws -> Void) async -> String {
         #expect(result.statusCode == 201)
         #expect(result.data == nil)
     }
+
+    /* An operation's query parameter is serialized when no authenticator is configured. */
+    @Test func testBhvMisc239AnOperationQueryParameterIsSerializedWithNoAuthenticator() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        _ = try await api.getPetTag(petId: 5, tagName: "cute", options: GetPetTagOptions(filter: "sold"))
+        #expect(mockClient.lastURL.contains("filter=sold"))
+    }
+
+    /* A multipart form upload sends its file part with the file content echoed back in the request. */
+    @Test func testBhvMisc240AMultipartFilePartCarriesTheFileContent() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        try await api.uploadPetDocument(
+            petId: 1, options: UploadPetDocumentOptions(file: Data("file-content-echo".utf8)))
+        let sent = mockClient.lastBody ?? Data()
+        #expect(sent.range(of: Data("file-content-echo".utf8)) != nil)
+    }
 }
