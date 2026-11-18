@@ -857,7 +857,7 @@ import Testing
     /* A redirect through a caller-supplied session is checked by the SDK's
        own rules: a Location that is not http(s) is refused with the canonical
        message, as it is on a session the SDK builds itself. */
-    @Test func testSuppliedSessionRefusesANonHttpRedirect() async throws {
+    @Test func testBhvRedirects055SuppliedSessionRefusesANonHttpRedirect() async throws {
       RedirectStubURLProtocol.configure { _ in
         return .redirect(status: 302, location: "file:///etc/passwd")
       }
@@ -1340,7 +1340,7 @@ import Testing
     #expect(try echoedHeaders(response)["accept"] as? String == "application/json")
   }
 
-  @Test func testFollowsRedirectsWhenEnabled() async throws {
+  @Test func testBhvLangswift025FollowsRedirectsWhenEnabled() async throws {
     let transport = try TransportOptionsBuilder().followRedirects(true).build()
     let client = try DefaultApiClient(transportOptions: transport)
     let response = try await client.sendRequest(
@@ -1374,7 +1374,7 @@ import Testing
     #expect(response.statusCode == 200)
   }
 
-  @Test func testSendsMultipartFormData() async throws {
+  @Test func testBhvLangswift026SendsMultipartFormData() async throws {
     let client = DefaultApiClient()
     let formFields: [String: Any] = [
       "description": "A test file", "file": Data("file content".utf8),
