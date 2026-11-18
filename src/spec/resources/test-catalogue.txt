@@ -2175,3 +2175,6 @@ langnode046 | The generated README lists the features that are not generated
 langnode047 | The generated docs cancel through the per-call signal only
 langnode048 | The generated docs show how to stub the transport with a canned fetch
 langnode049 | An empty API key is rejected at construction
+langnode050 | A discriminated oneOf variant with a wrong-typed field is rejected
+langnode051 | An anyOf composite is a constructable class
+langnode052 | An anyOf variant with a wrong-typed field is rejected
