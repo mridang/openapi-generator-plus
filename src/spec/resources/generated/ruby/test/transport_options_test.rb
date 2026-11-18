@@ -6,6 +6,10 @@ require 'petstore_client'
 describe Petstore::Client::TransportOptions do
   parallelize_me!
 
+  it 'bhv_misc_051 an unknown option is refused by the builder rather than ignored' do
+    _ { Petstore::Client::TransportOptions.builder.no_such_option(1) }.must_raise NoMethodError
+  end
+
   it 'bhv_options_043 verify_ssl defaults to true' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.verify_ssl).must_equal true
@@ -504,5 +508,11 @@ describe Petstore::Client::TransportOptions, 'builder entry point and printable 
   it 'bhv_options_067 a valid proxy URL is kept and with no proxy the proxy is unset' do
     _(Petstore::Client::TransportOptions.builder.proxy('http://proxy.example.com:8080').build.proxy).must_equal 'http://proxy.example.com:8080'
     _(Petstore::Client::TransportOptions.builder.build.proxy).must_be_nil
+  end
+
+  it 'bhv_misc_134 a zero timeout is refused with an argument error when the configuration is built' do
+    _(proc {
+      Petstore::Client::TransportOptions.builder.timeout(0).build
+    }).must_raise ArgumentError
   end
 end

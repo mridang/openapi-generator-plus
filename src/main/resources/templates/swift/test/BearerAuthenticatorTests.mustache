@@ -286,4 +286,18 @@ import Testing
             _ = try BearerAuthenticator(host: "https://api.example.com", token: "ñoño")
         }
     }
+
+
+    /* A rejected token is refused with a message that never repeats the value. */
+    @Test func testBhvMisc017ARejectionNeverEchoesTheValue() {
+        let secret = "bad-token-value-42"
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "bad\n" + secret)
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        #expect(!message.contains(secret))
+    }
 }

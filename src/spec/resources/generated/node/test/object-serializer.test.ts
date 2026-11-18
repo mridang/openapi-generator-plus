@@ -76,6 +76,16 @@ describe("ObjectSerializer", () => {
   });
 
   describe("DateTimeOffsetPreservationTests", () => {
+    test("bhvMisc089 a UTC date-time is written in canonical form directly, in a list and in a map", () => {
+      const when = new Date("2024-01-02T03:04:05Z");
+      expect(JSON.parse(ObjectSerializer.stringify([when]))[0]).toBe(
+        "2024-01-02T03:04:05.000+00:00",
+      );
+      expect(JSON.parse(ObjectSerializer.stringify({ at: when })).at).toBe(
+        "2024-01-02T03:04:05.000+00:00",
+      );
+    });
+
     test("bhv serializationobject 174 UTC datetime serializes containing date-time and offset", () => {
       // A JS Date is an absolute instant; serialization pins UTC so the
       // wire bytes are host-timezone-independent (deterministic across
@@ -522,6 +532,30 @@ describe("ObjectSerializer", () => {
   });
 
   describe("serialize", () => {
+    test("bhvMisc087 a decimal in a loosely built plain request body is written as a bare JSON number", () => {
+      const result = ObjectSerializer.serialize({ weightKg: "12.5" });
+      expect(result).toContain('"weightKg":12.5');
+      expect(result).not.toContain('"weightKg":"12.5"');
+    });
+
+    test("bhvMisc093 additional properties with numeric names are written as members beside named fields", () => {
+      const pet = reattachAdditionalProperties(
+        new Pet({ id: 1, name: "x", photoUrls: new Set<string>() }),
+        { "404": "missing", "500": "failed" },
+      );
+      expect(JSON.parse(ObjectSerializer.stringify(pet))).toMatchObject({
+        id: 1,
+        name: "x",
+        "404": "missing",
+        "500": "failed",
+      });
+    });
+
+    test("bhvMisc094 a free-form JSON object is written with its members and their values unchanged", () => {
+      const free = { alpha: { beta: [1, "two", null, true] }, "0": "zero" };
+      expect(JSON.parse(ObjectSerializer.serialize(free))).toEqual(free);
+    });
+
     test("bhv serializationobject 152 serializes a model to JSON string", () => {
       const category = new Category({ id: 1, name: "Dogs" });
       const result = ObjectSerializer.serialize(category);
@@ -800,6 +834,14 @@ describe("ObjectSerializer", () => {
         ),
       ).toBe(0);
     }
+  });
+
+  test("bhvMisc090 a duration with fractional seconds is written in the protobuf wire form", () => {
+    expect(
+      durationToProtoJson(
+        Temporal.Duration.from({ seconds: 1, milliseconds: 500 }),
+      ),
+    ).toBe("1.5s");
   });
 
   test("bhv serialization 080 a protobuf duration string is accepted up to the protobuf maximum and one second past it is rejected", () => {
@@ -1640,6 +1682,11 @@ describe("ObjectSerializer", () => {
   });
 
   describe("UuidBrandedTypeValidation (2.2)", () => {
+    test("bhvMisc085 a UUID whose text is not in canonical form is refused with a type error when it is built", () => {
+      expect(() => uuid("0123456789abcdef0123456789abcdef")).toThrow(TypeError);
+      expect(() => uuid("not-a-uuid")).toThrow(TypeError);
+    });
+
     // 2.2 — `format: uuid` produces a branded `UUID = string & {...}`.
     // The brand exists only at the type level; runtime validation happens
     // through `uuid()` / `isUuid()` exported from src/brand.ts.
@@ -2725,6 +2772,16 @@ describe("ObjectSerializer", () => {
       expect(restored).toHaveLength(2);
       expect(Buffer.compare(restored[0]!, payloads[0]!)).toBe(0);
       expect(Buffer.compare(restored[1]!, payloads[1]!)).toBe(0);
+    });
+
+    test("bhv misc 049 a choice between one binary value and a list writes the list as base64 text items", () => {
+      const payloads = [
+        Buffer.from([0x01, 0x02, 0x03, 0x04]),
+        Buffer.from([0x05, 0x06, 0x07, 0x08]),
+      ];
+      const request: SetPetAvatarThumbnailRequest = payloads;
+      const wire = JSON.parse(ObjectSerializer.serialize(request)) as unknown;
+      expect(wire).toEqual(["AQIDBA==", "BQYHCA=="]);
     });
 
     // ORDERING — a scalar base64 string must resolve to the SCALAR variant
@@ -4069,5 +4126,17 @@ describe("toBinary", () => {
         "  /** The largest tier. Ends with *\\/ and #{x} and $x. */\n  Large:",
       );
     });
+  });
+});
+
+describe("ObjectSerializer union variants", () => {
+  test("bhv misc 047 serializing a union that holds a value which is not one of its variants fails naming the union", () => {
+    const wrapped = new PetFood("kibble" as unknown as DryFood);
+    expect(() => ObjectSerializer.serialize(wrapped)).toThrow(
+      SerializationError,
+    );
+    expect(() => ObjectSerializer.serialize(wrapped)).toThrow(
+      "is not a variant of PetFood",
+    );
   });
 });

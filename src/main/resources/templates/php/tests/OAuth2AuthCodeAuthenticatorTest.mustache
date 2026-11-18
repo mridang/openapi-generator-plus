@@ -925,3 +925,84 @@ test('bhv auth 053 exchanging a code discards any refresh token previously held'
     $authenticator->exchangeCode('code-2');
     expect($authenticator->getTokenManager()->getRefreshToken())->toBeNull();
 });
+
+test('bhv misc 028 a transport failure during the code exchange reaches the caller unchanged', function (): void {
+    $cause = new \RuntimeException('connection reset');
+    $client = new MockTokenApiClient();
+    $client->enqueueFailure($cause);
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->exchangeCode('the-code'))
+        ->toThrow(function (\Throwable $e) use ($cause): void {
+            expect($e)->toBe($cause);
+        });
+});
+
+test('bhv misc 058 the authorization endpoint and redirect uri reach the url exactly as configured', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com:443/authorize',
+        'https://auth.example.com/token',
+        'https://App.Example.com/callback/',
+        ['read', 'write']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl('csrf-state');
+
+    expect($url)->toContain('https://auth.example.com:443/authorize?');
+    expect($url)->toContain('redirect_uri=' . urlencode('https://App.Example.com/callback/'));
+});
+
+test('bhv misc 062 the authorization url carries the scopes the security scheme declares', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+
+    expect($authenticator->buildAuthorizationUrl('csrf-state'))->toContain('scope=read%20write');
+});
+
+test('bhv misc 077 a generated pkce verifier is 43 unreserved characters and differs per call', function (): void {
+    $first = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+    $second = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+    $first->buildAuthorizationUrl();
+    $second->buildAuthorizationUrl();
+    $verifier = new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier');
+    $firstVerifier = (string) $verifier->getValue($first);
+    $secondVerifier = (string) $verifier->getValue($second);
+
+    expect(preg_match('/^[A-Za-z0-9._~-]{43}$/', $firstVerifier))->toBe(1);
+    expect($firstVerifier)->not->toBe($secondVerifier);
+});

@@ -564,6 +564,23 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvMisc058 the authorization endpoint and redirect URI reach the authorization URL exactly as configured")
+    fun bhvMisc058AuthorizationEndpointAndRedirectReachTheUrlAsConfigured() {
+        val url = createAuthenticator().buildAuthorizationUrl()
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"), url)
+        assertTrue(url.contains("response_type=code"), url)
+        assertTrue(url.contains("client_id=my-client-id"), url)
+        assertTrue(url.contains("redirect_uri=") && url.contains("app.example.com"), url)
+    }
+
+    @Test
+    @DisplayName("bhvMisc062 the authorization URL carries the scopes the security scheme declares")
+    fun bhvMisc062AuthorizationUrlCarriesTheDeclaredScopes() {
+        val url = createAuthenticator().buildAuthorizationUrl()
+        assertTrue(url.contains("scope=read%20write"), url)
+    }
+
+    @Test
     @DisplayName("bhvAuth020 the PKCE verifier is sent with the first code exchange and never with a refresh")
     fun bhvAuth020TheVerifierIsNeverSentWithARefresh() {
         val client = FakeApiClient()
@@ -614,5 +631,28 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
                 "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
             client.lastBody,
         )
+    }
+
+    @Test
+    @DisplayName("bhvMisc028 a transport failure during the code exchange reaches the caller unchanged")
+    fun bhvMisc028TransportFailureDuringTheCodeExchangeIsRethrownUnchanged() {
+        val cause = java.io.IOException("connection reset")
+        val auth = createAuthenticator()
+        auth.setApiClient(
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean,
+                ): ApiHttpResponse = throw cause
+            },
+        )
+        val thrown =
+            assertThrowsExactly(java.io.IOException::class.java) {
+                runBlocking { auth.exchangeCode("auth-code-xyz") }
+            }
+        assertSame(cause, thrown)
     }
 }

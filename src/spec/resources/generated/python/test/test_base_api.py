@@ -827,6 +827,31 @@ class TestMultipleSuccessResponses:
         assert result.data is not None
         assert isinstance(result.data.actual_instance, ReservationReceipt)
 
+    async def test_bhv_misc_079_status_201_decodes_its_own_receipt_schema(self) -> None:
+        api = StoreApi(
+            api_client=_ScriptedApiClient(
+                _json(201, '{"receiptCode":"C1","expiresAt":"2030-01-01T00:00:00Z"}')
+            ),
+            config=Configuration(base_url="https://example.test"),
+        )
+
+        result = await api.reserve_stock()
+
+        assert isinstance(result.actual_instance, ReservationReceipt)
+
+    async def test_bhv_misc_080_a_200_body_is_refused_when_it_only_fits_the_201_schema(
+        self,
+    ) -> None:
+        api = StoreApi(
+            api_client=_ScriptedApiClient(
+                _json(200, '{"receiptCode":"C1","expiresAt":"2030-01-01T00:00:00Z"}')
+            ),
+            config=Configuration(base_url="https://example.test"),
+        )
+
+        with pytest.raises(SerializationException):
+            await api.reserve_stock()
+
 
 class TestExceptionHierarchy:
     async def test_bhv_errors_033_not_found_hierarchy(self, api: Any) -> None:
@@ -1330,6 +1355,66 @@ class TestAuthInjection:
             None,
         )
         assert client.captured_headers.get("X-Client-Auth") == "client-level-token"
+
+    async def test_bhv_misc_061_an_authenticator_asked_during_a_call_sees_the_callers_context(
+        self,
+    ) -> None:
+        from contextvars import ContextVar
+
+        marker: ContextVar[str] = ContextVar("marker", default="")
+        seen: list[str] = []
+
+        class ContextAuth(StubAuthenticator):
+            def get_auth_headers(self) -> dict[str, str]:
+                seen.append(marker.get())
+                return {"X-Context": "from-context"}
+
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client,
+            config=Configuration(base_url="http://localhost"),
+            authenticator=ContextAuth(),
+        )
+        marker.set("caller-marker")
+
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+
+        assert seen == ["caller-marker"]
+        assert client.captured_headers.get("X-Context") == "from-context"
+
+    async def test_bhv_misc_064_an_operation_that_declares_no_security_never_sends_the_client_credential(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        client_auth = StubAuthenticator(headers={"X-Client-Auth": "client-level-token"})
+        stub = StubApi(
+            api_client=client,
+            config=Configuration(base_url="http://localhost"),
+            authenticator=client_auth,
+        )
+
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            NO_AUTH,
+        )
+
+        assert "X-Client-Auth" not in client.captured_headers
 
     async def test_bhv_authintegration_018_a_configured_client_authenticator_is_applied_to_a_secured_operation(
         self, chasm_http_url: Any
@@ -2399,6 +2484,40 @@ class TestContentTypeDeserialization:
             "GET", "/test/echo", {}, {}, None, ["text/plain"], "application/json", "str"
         )
         assert result == "aGVsbG8="
+
+    async def test_bhv_misc_081_string_result_base64_transport_body_is_decoded(
+        self,
+    ) -> None:
+        class _Base64Pdf(CapturingApiClient):
+            def send_request(
+                self,
+                method: str,
+                url: str,
+                headers: dict[str, str],
+                body: Any = None,
+                no_redirect: bool = False,
+            ) -> ApiHttpResponse:
+                super().send_request(method, url, headers, body)
+                return ApiHttpResponse(
+                    status_code=200,
+                    body="aGVsbG8=",
+                    headers={"Content-Type": "application/pdf"},
+                )
+
+        stub = StubApi(
+            api_client=_Base64Pdf(), config=Configuration(base_url="http://localhost")
+        )
+        result = await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/pdf"],
+            "application/json",
+            "str",
+        )
+        assert result == "hello"
 
     async def test_bhv_serializationwire_025_skips_deserialization_for_non_json_content_type(
         self,

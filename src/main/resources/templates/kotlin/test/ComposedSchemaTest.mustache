@@ -150,6 +150,31 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("bhvMisc045 a payload that does not satisfy a variant's schema is not accepted as that variant")
+        fun bhvMisc045VariantSchemaViolationIsNotAcceptedAsThatVariant() {
+            val serializer = {{invokerPackage}}.ObjectSerializer()
+            for (payload in listOf(
+                """{"foodType":3,"weightKg":2.5}""",
+                """{"foodType":"fish","weightKg":2.5}""",
+                """{"foodType":"dry"}""",
+            )) {
+                val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                    serializer.deserialize<PetFood>(payload)
+                }
+                assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc047 serializing a union holding a value that is not one of its variants fails with an error that names the union")
+        fun bhvMisc047SerializingANonVariantFailsNamingTheUnion() {
+            val ex = assertThrowsExactly(kotlinx.serialization.SerializationException::class.java) {
+                json.encodeToString(PetFood(actualInstance = "raw"))
+            }
+            assertTrue(ex.message!!.contains("PetFood"), ex.message)
+        }
+
+        @Test
         @DisplayName("bhvUnions043 a discriminator value already set on a subtype is written as given, not replaced by its default")
         fun presetDiscriminatorIsWrittenAsGiven() {
             val jsonString = json.encodeToString(DryFood(foodType = "custom", weightKg = 1.0))
@@ -207,6 +232,17 @@ class ComposedSchemaTest {
             assertEquals(first, second)
             assertEquals(first.hashCode(), second.hashCode())
             assertNotEquals(first, other)
+        }
+
+        @Test
+        @DisplayName("bhvMisc046 two unions holding equal content compare equal and hash equally, and different content compares unequal")
+        fun bhvMisc046EqualUnionsCompareEqualAndDifferentOnesDoNot() {
+            val payload = """{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"""
+            val first = json.decodeFromString<PetTreatment>(payload)
+            val second = json.decodeFromString<PetTreatment>(payload)
+            assertEquals(first, second)
+            assertEquals(first.hashCode(), second.hashCode())
+            assertNotEquals(first, json.decodeFromString<PetTreatment>("""{"drugName":"Amoxicillin"}"""))
         }
 
         @Test
@@ -551,6 +587,14 @@ class ComposedSchemaTest {
             val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>(encoded)
             assertTrue(restored.actualInstance is ByteArray)
             assertArrayEquals(raw, restored.actualInstance as ByteArray)
+        }
+
+        @Test
+        @DisplayName("bhvMisc049 a choice between one binary value and a list of binary values writes the list as base64 text items")
+        fun bhvMisc049ListOfBinaryValuesIsWrittenAsBase64Items() {
+            val raw = byteArrayOf(0x01, 0x02, 0x03, 0x04)
+            val encoded = json.encodeToString(SetPetAvatarThumbnailRequest(actualInstance = listOf(raw)))
+            assertEquals("[\"AQIDBA==\"]", encoded)
         }
 
         @Test

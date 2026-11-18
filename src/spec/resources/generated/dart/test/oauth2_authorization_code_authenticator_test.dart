@@ -62,6 +62,30 @@ OAuth2AuthorizationCodeAuthenticator _createAuthenticator() {
 void main() {
   group('OAuth2AuthorizationCodeAuthenticator', () {
     test(
+      'bhv misc 058 the authorization endpoint and redirect URI reach the URL exactly as configured',
+      () {
+        final url = _createAuthenticator().buildAuthorizationUrl();
+
+        expect(url, startsWith('https://auth.example.com/authorize?'));
+        expect(
+          url,
+          contains(
+            'redirect_uri=${Uri.encodeQueryComponent('https://app.example.com/callback')}',
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 062 the authorization URL carries the scopes the security scheme declares',
+      () {
+        final url = _createAuthenticator().buildAuthorizationUrl();
+
+        expect(url, contains('scope=read%20write'));
+      },
+    );
+
+    test(
       'bhv authoauthtwoauthcode 006 builds authorization URL with required params',
       () {
         final auth = _createAuthenticator();
@@ -262,6 +286,44 @@ void main() {
                 .having((e) => e.code, 'code', equals('invalid_grant')),
           ),
         );
+      },
+    );
+
+    test(
+      'bhv misc 076 a call after a dropped code exchange sees the code as not yet exchanged',
+      () async {
+        final cause = StateError('connection reset');
+        final client = _FakeApiClient();
+        client.failure = cause;
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(auth.exchangeCode('a'), throwsA(same(cause)));
+        expect(
+          () => auth.authHeaders(),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'Must call exchangeCode() before making API requests',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call',
+      () {
+        final auth = _createAuthenticator();
+
+        auth.buildAuthorizationUrl();
+        final first = auth.pendingPkceVerifier!;
+        auth.buildAuthorizationUrl();
+        final second = auth.pendingPkceVerifier!;
+
+        expect(first, matches(RegExp(r'^[A-Za-z0-9_-]{43}$')));
+        expect(second, isNot(equals(first)));
       },
     );
 
