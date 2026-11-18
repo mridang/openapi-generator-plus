@@ -15,7 +15,7 @@ The package runs on Node and on runtimes that have only `fetch`: Deno, Bun, Clou
 | OpenAPI | TypeScript type | Notes |
 |---|---|---|
 | `integer`, `int32`, `int64`, `number` with `format: float` or `double` | `number` | A JavaScript number is a double, so integers above 2^53 - 1 are rounded by `JSON.parse`. The generated README documents this. |
-| `number` with no format, `format: decimal` | `Decimal` (a branded string) | Encoding writes the exact digits as a bare JSON number. Decoding currently goes through plain `JSON.parse`, so digits beyond double precision are lost. |
+| `number` with no format, `format: decimal` | `Decimal` (a branded string) | Decoding reads the source text of the number with the `JSON.parse` reviver and keeps every digit; encoding writes it as a bare JSON number in plain notation. A `type: string` decimal is read from a JSON string only (a bare number is refused) and written as a JSON string. |
 | `boolean` | `boolean` | |
 | `string` | `string` | |
 | `string` with `format: date` | `string` | A plain `YYYY-MM-DD` string, because a `Date` would carry a time and a zone the wire value never had. |
@@ -100,7 +100,6 @@ The SDK already depends on `temporal-polyfill` and uses it for `format: time` an
 
 ### Other ideas
 
-- Decode `Decimal` losslessly with the `JSON.parse` reviver's `context.source`, which Node 22 supports. This closes the known decimal gap and needs no floor change.
 - Offer an opt-in `bigint` (or string) for int64 values beyond `Number.MAX_SAFE_INTEGER` through the same mechanism, but not as the default, because that would break arithmetic.
 - Accept and return `Uint8Array` instead of `Buffer` for `byte` and `binary`, so fetch-only runtimes do not need Workers' `nodejs_compat`. A `Buffer` would still be assignable. This is a public type change.
 - A streaming download, and `Blob` or `ReadableStream` uploads, would need a new response type.

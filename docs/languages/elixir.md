@@ -12,7 +12,8 @@ Types are the typespecs that appear in the generated modules.
 
 | OpenAPI type and format | Elixir type | Notes |
 |---|---|---|
-| `string` | `String.t()` | Also used for `email`, `hostname`, `ipv4`, `ipv6`, `password` and unknown formats. |
+| `string` | `String.t()` | Also used for `email`, `hostname`, `password` and unknown formats. |
+| `string` / `ipv4`, `ipv6` | `:inet.ip4_address()`, `:inet.ip6_address()` | The `:inet` tuples. A leading zero, a prefix length, a zone id, brackets, whitespace and the wrong family fail the decode with `SerializationError`; an address is written in canonical text. |
 | `string` / `date` | `Date.t()` | |
 | `string` / `date-time` | `DateTime.t()` | Decoded from ISO 8601. Elixir returns the instant in UTC, so check that the offset you need survives if you rely on it. |
 | `string` / `time` | `Time.t()` | |
@@ -98,6 +99,6 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - Check that `DateTime` and `Time` decoding does not silently convert a value such as `+05:30` to UTC where the generated README claims a round trip, and add a test for it.
 - Tighten typespecs: `number()` instead of `float()` for a bare `number`, because Jason decodes `1` as an integer, and `%{optional(String.t()) => T}` for `additionalProperties`.
 - A documentation-only `@type uuid :: String.t()` alias in the models module. The review advises against adding a UUID dependency.
-- `URI.t()` for `uri`, and `:inet` address tuples for `ipv4` and `ipv6`. Both are in the standard library and need no floor change, but both are optional and lower value than the date-time check.
+- `URI.t()` for `uri`, once it is shown to keep the text unchanged.
 - `Decimal.t()` for `decimal` would need the `decimal` package as a dependency, so the README guidance stays unless that is accepted.
 - No floor change is required by any of these ideas.

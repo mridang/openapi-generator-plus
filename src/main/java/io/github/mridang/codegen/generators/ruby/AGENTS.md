@@ -42,7 +42,7 @@ This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an Open
 | Builders | Setter parameter is named `val`; `Configuration` and `TransportOptions` keyword constructors take every value, defaults come from the builder | Positional setter style; the builder supplies defaults |
 | Entry class | `Petstore::Client::Client` (a class may share its namespace's name) | Ruby lets a class share its namespace's name |
 | Servers list | `Servers::ALL` | Constant naming |
-| Numbers | `format: number` is `Float`; `Integer` is arbitrary precision so int64 is exact | Ruby JSON parsing yields `Float` (see D83) |
+| Numbers | `format: number` and `decimal` are `BigDecimal` (exact, plain notation, no trailing zero kept); `ipv4`/`ipv6` are `IPAddr`; `Integer` is arbitrary precision so int64 is exact | typed fields are parsed with `decimal_class: BigDecimal`, an untyped number stays `Float` (D83, D95, D96) |
 | Binary responses | `File`/`StringIO` stream | Matches java/csharp stream typing |
 | Case of names | snake_case operations, variables and files; enum constants upper case | Ruby convention |
 | Client credentials | `Client.new(authenticator = nil, transport_options = nil, <scheme>: nil, ...)`, one keyword per security scheme in snake case | Ruby has named arguments, so the credential of each scheme is a keyword named after it |
@@ -215,11 +215,8 @@ Why: ruby has no deprecation attribute.
 Where: `api/api.mustache`.
 Test: `model_doc_test`.
 
-### Forced: `format: number` is native Float (D83)
-Rule: bare `format: number` and `decimal` map to `Float` and the README carries the "Decimal / `format: number` precision" caveat; `JSON.generate(BigDecimal)` would emit scientific or quoted text and break the unquoted wire form, which the `object_serializer` test asserts (`weightKg:1.5` unquoted).
-Why: documented and consistent with the seven native-float languages. Making it lossless is not decided.
-Where: `typeMapping` in the codegen, `readme.mustache`.
-Test: `object_serializer_test`, `readme_test`.
+### `format: number` is BigDecimal (D83, D96)
+Rule: bare `format: number` and `decimal` map to `BigDecimal`. A typed field is parsed with `JSON.parse(decimal_class: BigDecimal)` (only `deserialize` asks for it, so OAuth and error bodies keep `Float`), written through a marked string that `serialize` replaces with the bare plain-notation number (`JSON.generate` would quote a `BigDecimal`), and an untyped or free-form number is converted back to `Float`. A `type: string` decimal uses the `decimal` entry of `OPENAPI_FORMATS`: read from a JSON string only, written as a JSON string. Test: `object_serializer_test`, ids 002, 410 to 412.
 
 ### Forced: free-form null retention (Second parity-audit tail)
 Rule: ruby strips `null` entries nested in free-form model values, as kotlin does; node and the others differ.
@@ -261,7 +258,7 @@ Why: each states the Ruby feature that forces it in its `reason`.
 - No SOCKS proxy: `proxy` accepts `http://` and `https://` only.
 - Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11, closed issues #53, #70, #78, #88, #90); the README says so.
 - OpenAPI 3.2 and 3.1 loading is tracked in epics #49 and #96, 3.2 documents in #50.
-- `format: number` precision is lossy (Float); lossless parsing is undecided.
+- A `BigDecimal` keeps no trailing zero, so `12.50` is written `12.5`.
 - Connection reuse is open for ruby: Faraday's default `net_http` adapter opens a connection per request; keep-alive would need `net_http_persistent`, an owner decision. The misleading code comment was removed.
 - `ruby` models do no type or enum validation on construction beyond dry-types `Any` for untyped fields (parked).
 - An overflowing double literal such as `1e400` decodes to Infinity (parked).

@@ -24,7 +24,8 @@ The floor is written once, in the project file above. The support policy is that
 | `string`, `format: byte` | `byte[]` | base64 on the wire |
 | `string`, `format: binary` | `System.IO.Stream` | the body is still read whole into memory |
 | `string`, `format: uri` | `Uri` | |
-| `string`, `format: email`, `hostname`, `ipv4`, `ipv6`, and plain `string` | `string` | no dedicated type |
+| `string`, `format: email`, `hostname`, and plain `string` | `string` | no dedicated type |
+| `string`, `format: ipv4`, `ipv6` | `System.Net.IPAddress` | read from the plain address text only (a leading zero, a prefix length, a zone id, brackets, whitespace, shorthand such as `1` and the wrong family fail with `SerializationException`) and written in canonical text; a `decimal` holds about 28 digits, and a larger number fails instead of being rounded |
 | `integer`, `format: int32` | `int` | |
 | `integer`, `format: int64` | `long` | |
 | `integer`, no format | `int` | 32 bits; see Under review |
@@ -108,6 +109,5 @@ These are proposals from a review of the type mapping against current .NET. None
 
 - Map `type: integer` with no format to `long` (or `BigInteger`) instead of `int`, as one decision shared with Java and Kotlin.
 - Map free-form objects to `System.Text.Json.Nodes.JsonNode` or `JsonElement` instead of `object`.
-- Map `ipv4` and `ipv6` to `System.Net.IPAddress` with a custom converter, or keep `string` for parity with the other SDKs.
 - Do not adopt the union types of C# 15 now: they need .NET 11, a short-support release, and would push the floor well above the oldest supported runtime.
 - Keep `TimeSpan` with the protobuf-JSON converter for durations, and document that ISO-8601 calendar durations are unsupported.

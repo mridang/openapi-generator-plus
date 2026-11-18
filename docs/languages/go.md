@@ -12,7 +12,8 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 
 | OpenAPI type and format | Go type | Notes |
 |---|---|---|
-| `string` | `string` | Also used for `email`, `hostname`, `ipv4`, `ipv6`, `password` and unknown formats. |
+| `string` | `string` | Also used for `email`, `hostname`, `password` and unknown formats. |
+| `string` / `ipv4`, `ipv6` | `netip.Addr` | A leading zero, a prefix length, a zone id, brackets, whitespace and the wrong family fail the decode with a `*SerializationError`; an address is written in canonical text. |
 | `string` / `date` | `string` | The standard library has no calendar-date type. The value is not validated. |
 | `string` / `date-time` | `models.DateTime` | A `time.Time` wrapper. The wire form has a numeric offset (never `Z`) and a fixed three-digit millisecond fraction. |
 | `string` / `time` | `string` | No standard library type. `iso8601.go` ships `FormatTimeOfDay` and `ParseTimeOfDay` for callers who want a `time.Time`. |
@@ -93,7 +94,7 @@ These are ideas from a type review in November 2026. None of them is decided, an
 
 - Add SDK-owned `models.Date` and `models.TimeOfDay` types so `date` and `time` are validated. This needs agreement with the other SDKs because it adds public API.
 - Map an unformatted `integer` to `int64`, because OpenAPI treats it as unbounded. This changes a public type and would be decided together with the other languages.
-- `net/netip.Addr` for `ipv4` and `ipv6`, and `url.URL` for `uri`. Both are in the standard library and need no floor change, but they change public types.
+- `url.URL` for `uri`, once it is shown to keep the text unchanged.
 - Replace `google/uuid` with the `uuid` package the review says Go 1.27 adds. The review could not confirm its API, and using it would raise the floor to 1.27, so it is not before Go 1.26 reaches end of life.
 - Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on.
 - Whether the duration wire form should stay protobuf-JSON or move to ISO 8601, across all languages.

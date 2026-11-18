@@ -102,6 +102,5 @@ These are ideas from a review of the type mapping against current Python. None i
 - Raise the floor to Python 3.11, because 3.10 is past end of life. That would allow `enum.StrEnum` in place of the `str, Enum` classes, `datetime.UTC`, the standard `tomllib` for the tests, and `datetime.fromisoformat` for any RFC 3339 form. The last point might let the `python_dateutil` dependency be dropped if nothing else uses it.
 - Write annotations with built-in generics and `X | None` instead of `List`, `Dict`, `Set` and `Optional`. This works on 3.10 and does not change the floor.
 - Use `frozenset` for `uniqueItems` so frozen models hash without the helper that freezes sets today. This needs a test of pydantic strict JSON handling.
-- Map `format: ipv4` and `ipv6` to `ipaddress.IPv4Address` and `IPv6Address`, with a string-only validator.
 - Type free-form objects as `Any` rather than `object`, so mypy allows attribute access.
 - Not planned for now: `frozendict` (Python 3.15) and `uuid7` generation (3.14), because both are above the floor and the SDK generates no ids.

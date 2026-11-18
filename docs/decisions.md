@@ -60,6 +60,10 @@ A property that is optional and nullable is the language's own optional type, an
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
 
+## Native types for durations, addresses, URIs and decimals
+
+A format that a language's standard library can represent is that language's own type, and the wire form underneath is the same in all twelve SDKs: a duration is the protobuf JSON form such as `3600s`, an IP address is its canonical text, a `uri` is written byte for byte, and a number is written in plain notation with every digit. A language without such a type keeps a documented fallback (a small library type or the plain string), and `docs/types.md` says which. An address that does not parse, like any other typed value that cannot be read, fails the decode with the SDK's `SerializationError` and never turns a response into a string; an address is preserved and its text is canonical, so `2001:0DB8:0:0:0:0:0:1` is written back as `2001:db8::1`.
+
 ## Language version floors
 
 The minimum version of each language is the oldest release that its maintainers still support, and it is written in the build manifest of the generated SDK (`pom.xml`, `build.gradle.kts`, the `.csproj`, `package.json`, `pyproject.toml`, the gemspec, `composer.json`, `go.mod`, `Cargo.toml`, `Package.swift`, `pubspec.yaml` and `mix.exs`). A generated README states the same floor as its manifest, and the language page for each SDK is the single place where the floor is explained. The generated READMEs describe how a floor moves: the Node.js, C# and Swift READMEs say that dropping a runtime is a major release, and the Ruby README says that dropping an end-of-life Ruby is a minor release. The current floors are in the table in the [README](../README.md#languages).
