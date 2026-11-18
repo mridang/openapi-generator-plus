@@ -859,6 +859,25 @@ func TestBhvSerializationwire042_DefaultApiClientUnit_BuildFilenameDirectiveBack
 	}
 }
 
+func TestBhvSerializationwire061_DefaultApiClientUnit_MultipartFilenameWithEmbeddedQuoteIsBackslashEscaped(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	if _, err := createMultipartFilePart(writer, "upload", `a"b.txt`); err != nil {
+		t.Fatalf("createMultipartFilePart returned error: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close returned error: %v", err)
+	}
+	body := buf.String()
+	if !strings.Contains(body, `a\"b.txt`) {
+		t.Errorf("expected the embedded quote backslash-escaped, got %q", body)
+	}
+	if strings.Contains(body, `a"b.txt`) {
+		t.Errorf("expected no bare quote in the filename, got %q", body)
+	}
+}
+
 func TestBhvSerializationwire043_DefaultApiClientUnit_ValidateMultipartFilenameRejectsCRLF(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{"a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf"} {
